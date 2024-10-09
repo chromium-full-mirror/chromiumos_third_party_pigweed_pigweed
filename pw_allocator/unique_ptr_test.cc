@@ -152,6 +152,44 @@ TEST_F(UniquePtrTest, DestructorDestroysAndFrees) {
   EXPECT_EQ(allocator_.deallocate_size(), sizeof(DestructorCounter));
 }
 
+TEST_F(UniquePtrTest, ArrayElementsAreConstructed) {
+  constexpr static size_t kArraySize = 5;
+  size_t count = 0;
+  class ConstructorCounter {
+   public:
+    ConstructorCounter(size_t& count) { ++count; }
+  };
+
+  EXPECT_EQ(count, 0ul);
+  pw::UniquePtr<ConstructorCounter[]> ptr =
+      allocator_.MakeUniqueArray<ConstructorCounter>(kArraySize, count);
+  ASSERT_NE(ptr, nullptr);
+  EXPECT_EQ(count, kArraySize);
+}
+
+TEST_F(UniquePtrTest, DestructorDestroysAndFreesArray) {
+  constexpr static size_t kArraySize = 5;
+  size_t count = 0;
+  class DestructorCounter {
+   public:
+    DestructorCounter(size_t& count) : count_(&count) {}
+    ~DestructorCounter() { (*count_)++; }
+
+   private:
+    size_t* count_;
+  };
+  pw::UniquePtr<DestructorCounter[]> ptr =
+      allocator_.MakeUniqueArray<DestructorCounter>(kArraySize, count);
+  ASSERT_NE(ptr, nullptr);
+
+  EXPECT_EQ(count, 0ul);
+  EXPECT_EQ(allocator_.deallocate_size(), 0ul);
+  ptr.Reset();  // Reset the UniquePtr, destroying its contents.
+  EXPECT_EQ(count, kArraySize);
+  EXPECT_EQ(allocator_.deallocate_size(),
+            sizeof(DestructorCounter) * kArraySize);
+}
+
 TEST_F(UniquePtrTest, CanRelease) {
   struct Size final {
     size_t value;
@@ -171,11 +209,6 @@ TEST_F(UniquePtrTest, CanRelease) {
   EXPECT_EQ(allocator_.deallocate_size(), 0U);
   allocator_.Delete(size_ptr);
   EXPECT_EQ(allocator_.deallocate_size(), sizeof(Size));
-}
-
-TEST_F(UniquePtrTest, SizeReturnsCorrectSize) {
-  pw::UniquePtr<int[]> ptr_array = allocator_.MakeUniqueArray<int>(5);
-  EXPECT_EQ(ptr_array.size(), 5U);
 }
 
 // Verify that the UniquePtr implementation is the size of 2 pointers for the
