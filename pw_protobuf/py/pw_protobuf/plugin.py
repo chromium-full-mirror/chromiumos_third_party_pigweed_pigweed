@@ -66,6 +66,12 @@ def parse_parameter_options(parameter: str) -> Namespace:
         'this prefix will be stripped from the proto filename before '
         'performing .options file lookup',
     )
+    parser.add_argument(
+        '--no-oneof-callbacks',
+        dest='oneof_callbacks',
+        action='store_false',
+        help='Generate legacy inline oneof members instead of callbacks',
+    )
 
     # protoc passes the custom arguments in shell quoted form, separated by
     # commas. Use shlex to split them, correctly handling quoted sections, with
@@ -97,13 +103,19 @@ def process_proto_request(
         proto_options = options.load_options(
             args.include_paths, Path(proto_file.name), args.import_prefix
         )
-        output_files = codegen_pwpb.process_proto_file(
-            proto_file,
-            proto_options,
+
+        codegen_options = codegen_pwpb.GeneratorOptions(
+            oneof_callbacks=args.oneof_callbacks,
             suppress_legacy_namespace=args.no_legacy_namespace,
             exclude_legacy_snake_case_field_name_enums=(
                 args.exclude_legacy_snake_case_field_name_enums
             ),
+        )
+
+        output_files = codegen_pwpb.process_proto_file(
+            proto_file,
+            proto_options,
+            codegen_options,
         )
         for output_file in output_files:
             fd = res.file.add()
