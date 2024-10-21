@@ -64,6 +64,21 @@ py_library(
     ],
 )
 
+py_library(
+    name = "pw_project_builder",
+    srcs = [
+        "pw_build/project_builder.py",
+        "pw_build/project_builder_argparse.py",
+        "pw_build/project_builder_context.py",
+        "pw_build/project_builder_prefs.py",
+        "pw_build/project_builder_presubmit_runner.py",
+    ],
+    imports = ["."],
+    deps = [
+        ":pw_build",
+    ],
+)
+
 pw_py_binary(
     name = "generate_cc_blob_library",
     srcs = [
@@ -75,4 +90,148 @@ pw_py_binary(
     name = "copy_and_patch",
     srcs = ["pw_build/copy_and_patch.py"],
     deps = ["@python_packages//patch"],
+)
+
+pw_py_binary(
+    name = "pigweed_upstream_build",
+    srcs = ["pw_build/pigweed_upstream_build.py"],
+    deps = [
+        ":pw_project_builder",
+        "//pw_watch/py:pw_watch",
+    ],
+)
+
+pw_py_binary(
+    name = "project_builder",
+    srcs = ["pw_build/project_builder.py"],
+    deps = [
+        ":pw_project_builder",
+    ],
+)
+
+pw_py_test(
+    name = "bazel_query_test",
+    size = "small",
+    srcs = [
+        "bazel_query_test.py",
+    ],
+    deps = [
+        ":pw_build",
+    ],
+)
+
+pw_py_test(
+    name = "bazel_to_gn_test",
+    size = "small",
+    srcs = [
+        "bazel_to_gn_test.py",
+    ],
+    deps = [
+        ":pw_build",
+    ],
+)
+
+pw_py_test(
+    name = "create_python_tree_test",
+    size = "small",
+    srcs = [
+        "create_python_tree_test.py",
+    ],
+    # TODO(b/373956968): Bazel support for generated Python packages.
+    tags = ["manual"],
+    deps = [
+        ":pw_build",
+        "@python_packages//parameterized",
+    ],
+)
+
+pw_py_test(
+    name = "file_prefix_map_test",
+    size = "small",
+    srcs = [
+        "file_prefix_map_test.py",
+    ],
+    deps = [
+        ":pw_build",
+    ],
+)
+
+pw_py_test(
+    name = "generate_cc_blob_library_test",
+    size = "small",
+    srcs = [
+        "generate_cc_blob_library_test.py",
+    ],
+    deps = [
+        ":pw_build",
+    ],
+)
+
+pw_py_test(
+    name = "gn_target_test",
+    size = "small",
+    srcs = [
+        "gn_target_test.py",
+    ],
+    deps = [
+        ":pw_build",
+    ],
+)
+
+pw_py_test(
+    name = "gn_writer_test",
+    size = "small",
+    srcs = [
+        "gn_writer_test.py",
+    ],
+    # TODO(b/314139942): Requires GN on the path.
+    tags = ["manual"],
+    deps = [
+        ":pw_build",
+    ],
+)
+
+pw_py_test(
+    name = "python_runner_test",
+    size = "small",
+    srcs = [
+        "python_runner_test.py",
+    ],
+    deps = [
+        ":pw_build",
+    ],
+)
+
+pw_py_test(
+    name = "zip_test",
+    size = "small",
+    srcs = [
+        "zip_test.py",
+    ],
+    deps = [
+        ":pw_build",
+    ],
+)
+
+pw_py_test(
+    name = "build_recipe_test",
+    size = "small",
+    srcs = [
+        "build_recipe_test.py",
+    ],
+    deps = [
+        ":pw_project_builder",
+        "@python_packages//parameterized",
+    ],
+)
+
+pw_py_test(
+    name = "project_builder_prefs_test",
+    size = "small",
+    srcs = [
+        "project_builder_prefs_test.py",
+    ],
+    deps = [
+        ":pw_project_builder",
+    ],
 )
