@@ -13,11 +13,13 @@
 // the License.
 #pragma once
 
+#include <cstddef>
+
 #include "pw_allocator/allocator.h"
 #include "pw_allocator/block/detailed_block.h"
-#include "pw_allocator/block/result.h"
 #include "pw_allocator/capability.h"
 #include "pw_allocator/fragmentation.h"
+#include "pw_assert/assert.h"
 #include "pw_bytes/span.h"
 #include "pw_result/result.h"
 #include "pw_status/status.h"
@@ -79,7 +81,7 @@ class GenericBlockAllocator : public Allocator {
 template <typename OffsetType, uint16_t kPoisonInterval>
 class BlockAllocator : public internal::GenericBlockAllocator {
  public:
-  using BlockType = Block<OffsetType>;
+  using BlockType = DetailedBlock<OffsetType>;
   using Range = typename BlockType::Range;
 
   /// Constexpr constructor. Callers must explicitly call `Init`.
@@ -169,9 +171,6 @@ class BlockAllocator : public internal::GenericBlockAllocator {
   Result<BlockPtrType> FromUsableSpace(PtrType ptr) const;
 
  private:
-  using BlockResultPrev = internal::GenericBlockResult::Prev;
-  using BlockResultNext = internal::GenericBlockResult::Next;
-
   /// @copydoc Allocator::Allocate
   void* DoAllocate(Layout layout) override;
 
@@ -198,7 +197,23 @@ class BlockAllocator : public internal::GenericBlockAllocator {
   ///
   /// @param  block   Used to return the chosen block.
   /// @param  layout  Same as ``Allocator::Allocate``.
-  virtual BlockResult<BlockType> ChooseBlock(Layout layout) = 0;
+  virtual BlockType* ChooseBlock(Layout layout) = 0;
+
+  /// Indicates that a block will no longer be free.
+  ///
+  /// Does nothing by default. Derived class may overload to do additional
+  /// bookkeeeping.
+  ///
+  /// @param  block   The block being freed.
+  virtual void ReserveBlock(BlockType*) {}
+
+  /// Indicates that a block is now free.
+  ///
+  /// Does nothing by default. Derived class may overload to do additional
+  /// bookkeeeping.
+  ///
+  /// @param  block   The block being freed.
+  virtual void RecycleBlock(BlockType*) {}
 
   /// Returns if the previous block exists and is free.
   static bool PrevIsFree(const BlockType* block) {
@@ -277,15 +292,9 @@ void BlockAllocator<OffsetType, kPoisonInterval>::Reset() {
 
 template <typename OffsetType, uint16_t kPoisonInterval>
 void* BlockAllocator<OffsetType, kPoisonInterval>::DoAllocate(Layout layout) {
-  if (capacity_ == 0) {
-    // Not initialized.
-    return nullptr;
-  }
-
   PW_ASSERT(last_->Next() == nullptr);
-  auto result = ChooseBlock(layout);
-  if (!result.ok()) {
-    // No valid block for request.
+  BlockType* block = ChooseBlock(layout);
+  if (block == nullptr) {
     return nullptr;
   }
   BlockType* block = result.block();
@@ -308,7 +317,7 @@ void* BlockAllocator<OffsetType, kPoisonInterval>::DoAllocate(Layout layout) {
   }
 
   UpdateLast(block);
-  PW_CHECK_PTR_LE(block, last_);
+  PW_ASSERT(block <= last_);
   return block->UsableSpace();
 }
 
@@ -400,11 +409,11 @@ Result<Layout> BlockAllocator<OffsetType, kPoisonInterval>::DoGetInfo(
   }
   switch (info_type) {
     case InfoType::kRequestedLayoutOf:
-      return Layout(block->RequestedSize(), block->Alignment());
+      return block->RequestedLayout();
     case InfoType::kUsableLayoutOf:
-      return Layout(block->InnerSize(), block->Alignment());
+      return Layout(block->InnerSize(), BlockType::kAlignment);
     case InfoType::kAllocatedLayoutOf:
-      return Layout(block->OuterSize(), block->Alignment());
+      return Layout(block->OuterSize(), BlockType::kAlignment);
     case InfoType::kRecognizes:
       return Layout();
     case InfoType::kCapacity:

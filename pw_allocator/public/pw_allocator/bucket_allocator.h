@@ -16,7 +16,7 @@
 #include <array>
 #include <cstdint>
 
-#include "pw_allocator/block.h"
+#include "pw_allocator/block/detailed_block.h"
 #include "pw_allocator/block_allocator.h"
 #include "pw_allocator/bucket.h"
 #include "pw_assert/check.h"
@@ -104,9 +104,23 @@ class BucketAllocator : public BlockAllocator<uintptr_t, 0> {
         continue;
       }
       BlockType* block = BlockType::FromUsableSpace(chosen);
-      return BlockType::AllocLast(std::move(block), layout);
+      BlockResult result = BlockType::AllocLast(block, layout);
+      if (!result.ok()) {
+        break;
+      }
+      if (result.prev() == BlockResult::Prev::kSplitNew) {
+        // The new free block needs to be added to a bucket.
+        BlockType* prev = block->Prev();
+        RecycleBlock(prev);
+      }
+      if (result.next() == BlockResult::Next::kSplitNew) {
+        // The new free block needs to be added to a bucket.
+        BlockType* next = block->Next();
+        RecycleBlock(next);
+      }
+      return block;
     }
-    return BlockResult<BlockType>(nullptr, Status::NotFound());
+    return nullptr;
   }
 
   /// @copydoc BlockAllocator::ReserveBlock

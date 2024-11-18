@@ -13,8 +13,11 @@
 // the License.
 #pragma once
 
+#include "pw_allocator/block/allocatable.h"
 #include "pw_allocator/block_allocator.h"
 #include "pw_allocator/config.h"
+#include "pw_preprocessor/compiler.h"
+#include "pw_status/status.h"
 
 namespace pw::allocator {
 
@@ -47,20 +50,22 @@ class WorstFitBlockAllocator
 
  private:
   /// @copydoc Allocator::Allocate
-  BlockResult<BlockType> ChooseBlock(Layout layout) override {
+  BlockType* ChooseBlock(Layout layout) override {
     BlockType* worst = nullptr;
-    for (auto* block : Base::rblocks()) {
-      if (!block->CanAlloc(layout).ok()) {
-        continue;
-      }
-      if (worst == nullptr || block->OuterSize() > worst->OuterSize()) {
+    size_t worst_size = layout.size() - 1;
+    for (auto* block : Base::blocks()) {
+      size_t inner_size = block->InnerSize();
+      if (block->IsFree() && worst_size < inner_size &&
+          block->CanAlloc(layout).ok()) {
         worst = block;
+        worst_size = inner_size;
       }
     }
     if (worst != nullptr) {
-      return BlockType::AllocFirst(std::move(worst), layout);
+      BlockResult result = BlockType::AllocFirst(worst, layout);
+      PW_ASSERT(result.ok());
     }
-    return BlockResult<BlockType>(nullptr, Status::NotFound());
+    return worst;
   }
 };
 

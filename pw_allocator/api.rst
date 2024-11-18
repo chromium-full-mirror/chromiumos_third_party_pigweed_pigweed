@@ -232,10 +232,13 @@ includes some utility classes.
 
 .. _module-pw_allocator-api-block:
 
-Block
-=====
-.. doxygenclass:: pw::allocator::Block
-   :members:
+Block interfaces
+================
+A block is an allocatable region of memory, and is the fundamental type managed
+by several of the concrete allocator implementations. Blocks are defined
+using several stateless "mix-in" interface types. These provide specific
+functionality, while deferring the detailed representation of a block to a
+derived type.
 
 .. tip::
    Avoid converting pointers to allocations into ``Block`` instances, even if
@@ -283,15 +286,6 @@ ReverseIterableBlock
 PoisonableBlock
 ---------------
 .. doxygenclass:: pw::allocator::PoisonableBlock
-   :members:
-
-BlockResult
------------
-This type is not a block mix-in. It is used to communicate whether a method
-succeeded, what block was produced or modified, and what side-effects the call
-produced.
-
-.. doxygenclass:: pw::allocator::BlockResult
    :members:
 
 DetailedBlock

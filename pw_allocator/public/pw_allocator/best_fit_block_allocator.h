@@ -13,6 +13,9 @@
 // the License.
 #pragma once
 
+#include <cstddef>
+#include <limits>
+
 #include "pw_allocator/block_allocator.h"
 #include "pw_allocator/config.h"
 
@@ -48,21 +51,22 @@ class BestFitBlockAllocator
 
  private:
   /// @copydoc Allocator::Allocate
-  BlockResult<BlockType> ChooseBlock(Layout layout) override {
+  BlockType* ChooseBlock(Layout layout) override {
     BlockType* best = nullptr;
     size_t best_size = std::numeric_limits<size_t>::max();
-    for (auto* candidate : Base::blocks()) {
-      size_t inner_size = candidate->InnerSize();
-      if (candidate->IsFree() && inner_size < best_size &&
-          candidate->CanAlloc(layout).ok()) {
-        best = candidate;
+    for (auto* block : Base::blocks()) {
+      size_t inner_size = block->InnerSize();
+      if (block->IsFree() && inner_size < best_size &&
+          block->CanAlloc(layout).ok()) {
+        best = block;
         best_size = inner_size;
       }
     }
     if (best != nullptr) {
-      return BlockType::AllocFirst(std::move(best), layout);
+      BlockResult result = BlockType::AllocFirst(best, layout);
+      PW_ASSERT(result.ok());
     }
-    return BlockResult<BlockType>(nullptr, Status::NotFound());
+    return best;
   }
 };
 
