@@ -121,6 +121,7 @@ pw_add_library(pw_allocator.bucket_allocator INTERFACE
     pw_status
 )
 
+# TODO(b/376730645): Remove deprecated interfaces.
 pw_add_library(pw_allocator.bucket_block_allocator INTERFACE
   PUBLIC_DEPS
     pw_allocator.bucket_allocator

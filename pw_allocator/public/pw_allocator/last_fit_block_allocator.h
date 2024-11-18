@@ -53,7 +53,7 @@ class LastFitBlockAllocator
     for (auto* block : Base::rblocks()) {
       auto result = BlockType::AllocLast(std::move(block), layout);
       if (result.ok()) {
-        return result;
+        return result.block();
       }
     }
     return BlockResult<BlockType>(nullptr, Status::NotFound());

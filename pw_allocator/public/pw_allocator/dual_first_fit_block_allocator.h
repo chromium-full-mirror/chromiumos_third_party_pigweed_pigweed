@@ -58,7 +58,7 @@ class DualFirstFitBlockAllocator
       for (auto* block : Base::rblocks()) {
         auto result = BlockType::AllocLast(std::move(block), layout);
         if (result.ok()) {
-          return result;
+          return result.block();
         }
       }
     } else {
@@ -66,7 +66,7 @@ class DualFirstFitBlockAllocator
       for (auto* block : Base::blocks()) {
         auto result = BlockType::AllocFirst(std::move(block), layout);
         if (result.ok()) {
-          return result;
+          return result.block();
         }
       }
     }

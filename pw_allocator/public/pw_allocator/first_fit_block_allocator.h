@@ -53,7 +53,7 @@ class FirstFitBlockAllocator
     for (auto* block : Base::blocks()) {
       auto result = BlockType::AllocFirst(std::move(block), layout);
       if (result.ok()) {
-        return result;
+        return result.block();
       }
     }
     return BlockResult<BlockType>(nullptr, Status::NotFound());
