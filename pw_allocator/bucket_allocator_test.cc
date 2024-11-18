@@ -205,7 +205,9 @@ TEST_F(BucketAllocatorTest, ResizeSmallLargerFailure) {
   ResizeSmallLargerFailure();
 }
 
-TEST_F(BucketAllocatorTest, MeasureFragmentation) { MeasureFragmentation(); }
+TEST_F(BucketAllocatorTest, CanMeasureFragmentation) {
+  CanMeasureFragmentation();
+}
 
 TEST_F(BucketAllocatorTest, PoisonPeriodically) { PoisonPeriodically(); }
 
