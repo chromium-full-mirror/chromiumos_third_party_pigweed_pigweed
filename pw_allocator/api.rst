@@ -243,6 +243,68 @@ Block
    abstraction in this manner will limit your flexibility to change to a
    different allocator in the future.
 
+.. TODO(b/378549332): Add a diagram of mix-in relationships.
+
+BasicBlock
+----------
+.. doxygenclass:: pw::allocator::BasicBlock
+   :members:
+
+ContiguousBlock
+---------------
+.. doxygenclass:: pw::allocator::ContiguousBlock
+   :members:
+
+AllocatableBlock
+----------------
+.. doxygenclass:: pw::allocator::AllocatableBlock
+   :members:
+
+AlignableBlock
+--------------
+.. doxygenclass:: pw::allocator::AlignableBlock
+   :members:
+
+BlockWithLayout
+---------------
+.. doxygenclass:: pw::allocator::BlockWithLayout
+   :members:
+
+ForwardIterableBlock
+--------------------
+.. doxygenclass:: pw::allocator::ForwardIterableBlock
+   :members:
+
+ReverseIterableBlock
+--------------------
+.. doxygenclass:: pw::allocator::ReverseIterableBlock
+   :members:
+
+PoisonableBlock
+---------------
+.. doxygenclass:: pw::allocator::PoisonableBlock
+   :members:
+
+BlockResult
+-----------
+This type is not a block mix-in. It is used to communicate whether a method
+succeeded, what block was produced or modified, and what side-effects the call
+produced.
+
+.. doxygenclass:: pw::allocator::BlockResult
+   :members:
+
+DetailedBlock
+-------------
+This type is not a block mix-in. It is an example of a block implementation that
+uses the mix-ins above.
+
+.. doxygenstruct:: pw::allocator::DetailedBlockParameters
+   :members:
+
+.. doxygenclass:: pw::allocator::DetailedBlockImpl
+   :members:
+
 .. _module-pw_allocator-api-bucket:
 
 Bucket

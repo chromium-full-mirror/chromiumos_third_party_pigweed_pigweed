@@ -48,21 +48,21 @@ class BestFitBlockAllocator
 
  private:
   /// @copydoc Allocator::Allocate
-  BlockType* ChooseBlock(Layout layout) override {
-    // Search backwards for the smallest block that can hold this allocation.
+  BlockResult<BlockType> ChooseBlock(Layout layout) override {
     BlockType* best = nullptr;
-    for (auto* block : Base::rblocks()) {
-      if (!block->CanAlloc(layout).ok()) {
-        continue;
-      }
-      if (best == nullptr || block->OuterSize() < best->OuterSize()) {
-        best = block;
+    size_t best_size = std::numeric_limits<size_t>::max();
+    for (auto* candidate : Base::blocks()) {
+      size_t inner_size = candidate->InnerSize();
+      if (candidate->IsFree() && inner_size < best_size &&
+          candidate->CanAlloc(layout).ok()) {
+        best = candidate;
+        best_size = inner_size;
       }
     }
-    if (best != nullptr && BlockType::AllocLast(best, layout).ok()) {
-      return best;
+    if (best != nullptr) {
+      return BlockType::AllocFirst(std::move(best), layout);
     }
-    return nullptr;
+    return BlockResult<BlockType>(nullptr, Status::NotFound());
   }
 };
 

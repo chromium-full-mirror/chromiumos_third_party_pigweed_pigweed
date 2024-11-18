@@ -47,8 +47,7 @@ class WorstFitBlockAllocator
 
  private:
   /// @copydoc Allocator::Allocate
-  BlockType* ChooseBlock(Layout layout) override {
-    // Search backwards for the biggest block that can hold this allocation.
+  BlockResult<BlockType> ChooseBlock(Layout layout) override {
     BlockType* worst = nullptr;
     for (auto* block : Base::rblocks()) {
       if (!block->CanAlloc(layout).ok()) {
@@ -58,10 +57,10 @@ class WorstFitBlockAllocator
         worst = block;
       }
     }
-    if (worst != nullptr && BlockType::AllocLast(worst, layout).ok()) {
-      return worst;
+    if (worst != nullptr) {
+      return BlockType::AllocFirst(std::move(worst), layout);
     }
-    return nullptr;
+    return BlockResult<BlockType>(nullptr, Status::NotFound());
   }
 };
 
