@@ -303,7 +303,7 @@ uses the mix-ins above.
 
 Bucket
 ======
-.. doxygenclass:: pw::allocator::internal::Bucket
+.. doxygenclass:: pw::allocator::Bucket
    :members:
 
 .. _module-pw_allocator-api-metrics_adapter:
