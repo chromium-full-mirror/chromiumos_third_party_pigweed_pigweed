@@ -8679,8 +8679,8 @@ for  :ref:`module-pw_async2`.
 
 pw_bluetooth
 ------------
-The :ref:`module-pw_bluetooth-usage` section now shows CMake usage and
-the new :ref:`module-pw_bluetooth-contributing` section shows how to
+The :ref:`module-pw_bluetooth-emboss-usage` section now shows CMake usage and
+the new :ref:`module-pw_bluetooth-emboss-contributing` section shows how to
 contribute Emboss code.
 
 * `Define LEReadMaximumAdvertisingDataLengthCommandComplete
