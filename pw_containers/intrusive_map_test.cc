@@ -585,6 +585,14 @@ TEST_F(IntrusiveMapTest, Erase_Range) {
   EXPECT_EQ(iter->key(), 55U);
 }
 
+TEST_F(IntrusiveMapTest, Erase_AllRange) {
+  auto first = map_.begin();
+  auto last = map_.end();
+  auto iter = map_.erase(first, last);
+  EXPECT_TRUE(map_.empty());
+  EXPECT_EQ(iter, map_.end());
+}
+
 TEST_F(IntrusiveMapTest, Erase_MissingItem) { EXPECT_EQ(map_.erase(100), 0U); }
 
 TEST_F(IntrusiveMapTest, Erase_Reinsert) {

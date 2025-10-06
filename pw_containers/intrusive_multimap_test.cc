@@ -615,6 +615,14 @@ TEST_F(IntrusiveMultiMapTest, Erase_Range) {
   EXPECT_EQ(iter->key(), 50U);
 }
 
+TEST_F(IntrusiveMultiMapTest, Erase_AllRange) {
+  auto first = multimap_.begin();
+  auto last = multimap_.end();
+  auto iter = multimap_.erase(first, last);
+  EXPECT_TRUE(multimap_.empty());
+  EXPECT_EQ(iter, multimap_.end());
+}
+
 TEST_F(IntrusiveMultiMapTest, Erase_MissingItem) {
   EXPECT_EQ(multimap_.erase(100), 0U);
 }

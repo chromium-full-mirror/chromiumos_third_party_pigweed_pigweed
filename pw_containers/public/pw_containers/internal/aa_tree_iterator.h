@@ -35,11 +35,21 @@ class AATreeIterator {
   using reference = T&;
   using iterator_category = std::bidirectional_iterator_tag;
 
-  constexpr AATreeIterator(const AATreeIterator<AATreeItem>& other) {
+  constexpr AATreeIterator(const AATreeIterator& other) { *this = other; }
+
+  constexpr AATreeIterator& operator=(const AATreeIterator& other) {
+    root_ = other.root_;
+    item_ = other.item_;
+    return *this;
+  }
+
+  template <typename Item>
+  constexpr AATreeIterator(const AATreeIterator<Item>& other) {
     *this = other;
   }
 
-  constexpr AATreeIterator& operator=(const AATreeIterator<AATreeItem>& other) {
+  template <typename Item>
+  constexpr AATreeIterator& operator=(const AATreeIterator<Item>& other) {
     root_ = other.root_;
     item_ = other.item_;
     return *this;

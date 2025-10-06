@@ -103,6 +103,13 @@ class GenericAATree {
   /// The items themselves are not destructed.
   iterator erase_range(AATreeItem& first, AATreeItem& last);
 
+  /// Removes the items from first, inclusive, to last, exclusive from the tree
+  ///
+  /// and returns an iterator to the item after the last removed item.
+  ///
+  /// The items themselves are not destructed.
+  iterator erase_range(iterator first, iterator last);
+
   /// Exchanges this tree's items with the `other` tree's items.
   void swap(GenericAATree& other);
 

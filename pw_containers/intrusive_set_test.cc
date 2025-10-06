@@ -495,6 +495,14 @@ TEST_F(IntrusiveSetTest, Erase_Range) {
   EXPECT_EQ(iter->key(), 55U);
 }
 
+TEST_F(IntrusiveSetTest, Erase_AllRange) {
+  auto first = set_.begin();
+  auto last = set_.end();
+  auto iter = set_.erase(first, last);
+  EXPECT_TRUE(set_.empty());
+  EXPECT_EQ(iter, set_.end());
+}
+
 TEST_F(IntrusiveSetTest, Erase_MissingItem) {
   TestItem item(60, "F");
   EXPECT_EQ(set_.erase(item), 0U);

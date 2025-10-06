@@ -515,6 +515,14 @@ TEST_F(IntrusiveMultiSetTest, Erase_Range) {
   EXPECT_EQ(iter->key(), 55U);
 }
 
+TEST_F(IntrusiveMultiSetTest, Erase_AllRange) {
+  auto first = multiset_.begin();
+  auto last = multiset_.end();
+  auto iter = multiset_.erase(first, last);
+  EXPECT_TRUE(multiset_.empty());
+  EXPECT_EQ(iter, multiset_.end());
+}
+
 TEST_F(IntrusiveMultiSetTest, Erase_MissingItem) {
   EXPECT_EQ(multiset_.erase({100, "-"}), 0U);
 }

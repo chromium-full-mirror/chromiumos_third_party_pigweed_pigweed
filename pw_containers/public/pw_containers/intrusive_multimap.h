@@ -231,7 +231,7 @@ class IntrusiveMultiMap {
   iterator erase(iterator pos) { return iterator(tree_.erase_one(*pos)); }
 
   iterator erase(iterator first, iterator last) {
-    return iterator(tree_.erase_range(*first, *last));
+    return iterator(tree_.erase_range(first, last));
   }
 
   size_t erase(const Key& key) { return tree_.erase_all(key); }
