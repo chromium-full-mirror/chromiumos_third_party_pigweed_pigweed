@@ -75,8 +75,8 @@ class AsyncMultiBufQueue {
   }
 
  private:
-  TrackedConstMultiBuf::Instance mbuf_;
   AsyncMultiBufQueueObserver observer_;
+  TrackedConstMultiBuf::Instance mbuf_;
 
   // Remaining methods are the same as MultiBufQueue....
   // DOCSTAG: [pw_multibuf-examples-async_queue]
