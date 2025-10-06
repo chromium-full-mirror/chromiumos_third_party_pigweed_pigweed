@@ -22,7 +22,6 @@ licenses(["notice"])
 js_run_binary(
     name = "webui_js",
     srcs = [
-        "package.json",
         "rollup.config.js",
         "tsconfig.json",
         "www/main.ts",
