@@ -409,7 +409,59 @@ TEST_F(DynamicVectorTest, TryInsertInitializerList) {
   EXPECT_EQ(vec.size(), 5u);
 }
 
-TEST_F(DynamicVectorTest, Erase) {
+TEST_F(DynamicVectorTest, Erase_First) {
+  pw::DynamicVector<Counter> vec(allocator_);
+  vec.assign({1, 2, 3, 4, 5});
+
+  vec.erase(vec.begin());
+
+  EXPECT_EQ(vec.size(), 4u);
+  EXPECT_EQ(vec[0], 2);
+  EXPECT_EQ(vec[1], 3);
+  EXPECT_EQ(vec[2], 4);
+  EXPECT_EQ(vec[3], 5);
+}
+
+TEST_F(DynamicVectorTest, Erase_ItemNearBegin) {
+  pw::DynamicVector<Counter> vec(allocator_);
+  vec.assign({1, 2, 3, 4, 5});
+
+  vec.erase(vec.begin() + 1);
+
+  EXPECT_EQ(vec.size(), 4u);
+  EXPECT_EQ(vec[0], 1);
+  EXPECT_EQ(vec[1], 3);
+  EXPECT_EQ(vec[2], 4);
+  EXPECT_EQ(vec[3], 5);
+}
+
+TEST_F(DynamicVectorTest, Erase_ItemNearEnd) {
+  pw::DynamicVector<Counter> vec(allocator_);
+  vec.assign({1, 2, 3, 4, 5});
+
+  vec.erase(vec.end() - 2);
+
+  EXPECT_EQ(vec.size(), 4u);
+  EXPECT_EQ(vec[0], 1);
+  EXPECT_EQ(vec[1], 2);
+  EXPECT_EQ(vec[2], 3);
+  EXPECT_EQ(vec[3], 5);
+}
+
+TEST_F(DynamicVectorTest, Erase_Last) {
+  pw::DynamicVector<Counter> vec(allocator_);
+  vec.assign({1, 2, 3, 4, 5});
+
+  vec.erase(vec.end() - 1);
+
+  EXPECT_EQ(vec.size(), 4u);
+  EXPECT_EQ(vec[0], 1);
+  EXPECT_EQ(vec[1], 2);
+  EXPECT_EQ(vec[2], 3);
+  EXPECT_EQ(vec[3], 4);
+}
+
+TEST_F(DynamicVectorTest, Erase_Middle) {
   pw::DynamicVector<Counter> vec(allocator_);
   vec.assign({1, 2, 3, 4, 5});
 
@@ -423,7 +475,37 @@ TEST_F(DynamicVectorTest, Erase) {
   EXPECT_EQ(vec[3], 5);
 }
 
-TEST_F(DynamicVectorTest, EraseRange) {
+TEST_F(DynamicVectorTest, EraseRange_EmptyRange) {
+  pw::DynamicVector<Counter> vec(allocator_);
+  vec.assign({1, 2, 3, 4, 5});
+
+  EXPECT_EQ(vec.erase(vec.begin(), vec.begin()), vec.begin());
+  EXPECT_EQ(vec.erase(vec.begin() + 1, vec.begin() + 1), vec.begin() + 1);
+  EXPECT_EQ(vec.erase(vec.end() - 2, vec.end() - 2), vec.end() - 2);
+  EXPECT_EQ(vec.erase(vec.end() - 1, vec.end() - 1), vec.end() - 1);
+
+  EXPECT_EQ(vec.size(), 5u);
+  EXPECT_EQ(vec[0], 1);
+  EXPECT_EQ(vec[1], 2);
+  EXPECT_EQ(vec[2], 3);
+  EXPECT_EQ(vec[3], 4);
+  EXPECT_EQ(vec[4], 5);
+}
+
+TEST_F(DynamicVectorTest, EraseRange_Begin) {
+  pw::DynamicVector<Counter> vec(allocator_);
+  vec.assign({1, 2, 3, 4, 5});
+
+  auto it = vec.erase(vec.begin(), vec.begin() + 2);
+  EXPECT_EQ(it, vec.begin());
+  EXPECT_EQ(*it, 3);
+  EXPECT_EQ(vec.size(), 3u);
+  EXPECT_EQ(vec[0], 3);
+  EXPECT_EQ(vec[1], 4);
+  EXPECT_EQ(vec[2], 5);
+}
+
+TEST_F(DynamicVectorTest, EraseRange_Middle) {
   pw::DynamicVector<Counter> vec(allocator_);
   vec.assign({1, 2, 3, 4, 5});
 
@@ -433,6 +515,18 @@ TEST_F(DynamicVectorTest, EraseRange) {
   EXPECT_EQ(vec.size(), 2u);
   EXPECT_EQ(vec[0], 1);
   EXPECT_EQ(vec[1], 5);
+}
+
+TEST_F(DynamicVectorTest, EraseRange_End) {
+  pw::DynamicVector<Counter> vec(allocator_);
+  vec.assign({1, 2, 3, 4, 5});
+
+  auto it = vec.erase(vec.end() - 2, vec.end());
+  EXPECT_EQ(it, vec.end());
+  EXPECT_EQ(vec.size(), 3u);
+  EXPECT_EQ(vec[0], 1);
+  EXPECT_EQ(vec[1], 2);
+  EXPECT_EQ(vec[2], 3);
 }
 
 TEST_F(DynamicVectorTest, ResizeMethods) {

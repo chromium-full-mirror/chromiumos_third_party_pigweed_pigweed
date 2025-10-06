@@ -500,10 +500,7 @@ class DynamicVector {
   ///
   /// @param pos Iterator to the element to remove.
   /// @return Iterator following the last removed element.
-  iterator erase(const_iterator pos) {
-    auto deque_it = deque_.erase(ToDequeIterator(pos));
-    return iterator(data() + deque_it.pos_);
-  }
+  iterator erase(const_iterator pos) { return erase(pos, pos + 1); }
 
   /// Erases the specified range of elements from the vector.
   ///
@@ -511,8 +508,12 @@ class DynamicVector {
   /// @param last The last element to erase.
   /// @return Iterator following the last removed element.
   iterator erase(const_iterator first, const_iterator last) {
-    auto deque_it = deque_.erase(ToDequeIterator(first), ToDequeIterator(last));
-    return iterator(data() + deque_it.pos_);
+    auto first_ptr = const_cast<pointer>(&*first);
+    if (first != last) {
+      std::move(const_cast<pointer>(&*last), data() + size(), first_ptr);
+      deque_.resize(deque_.size() - static_cast<SizeType>(last - first));
+    }
+    return iterator(first_ptr);
   }
 
   /// Resizes the vector to contain `count` elements.
