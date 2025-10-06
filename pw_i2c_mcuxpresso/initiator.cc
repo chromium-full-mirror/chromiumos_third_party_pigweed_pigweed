@@ -49,6 +49,9 @@ Status HalStatusToPwStatus(status_t status) {
 void McuxpressoInitiator::Enable() {
   std::lock_guard lock(mutex_);
 
+  // Acquire the clock_tree element. Note that this function only requires the
+  // IP clock and not the functional clock. However, ClockMcuxpressoClockIp
+  // only provides the combined element, so that's what we use here.
   PW_CHECK_OK(clock_tree_element_.Acquire());
 
   i2c_master_config_t master_config;
@@ -60,11 +63,18 @@ void McuxpressoInitiator::Enable() {
   I2C_MasterTransferCreateHandle(
       base_, &handle_, McuxpressoInitiator::TransferCompleteCallback, this);
 
+  clock_tree_element_.Release().IgnoreError();
   enabled_ = true;
 }
 
 void McuxpressoInitiator::Disable() {
   std::lock_guard lock(mutex_);
+
+  // Acquire the clock_tree element. Note that this function only requires the
+  // IP clock and not the functional clock. However, ClockMcuxpressoClockIp
+  // only provides the combined element, so that's what we use here.
+  PW_CHECK_OK(clock_tree_element_.Acquire());
+
   I2C_MasterDeinit(base_);
   clock_tree_element_.Release().IgnoreError();
   enabled_ = false;
@@ -81,21 +91,32 @@ void McuxpressoInitiator::TransferCompleteCallback(I2C_Type*,
   initiator.callback_isl_.lock();
   initiator.transfer_status_ = status;
   initiator.callback_isl_.unlock();
+
+  // We cannot release clock_tree_element_ here since we are in an ISR.
+  // It is released where callback_complete_notification_ is waited on.
   initiator.callback_complete_notification_.release();
 }
 
 Status McuxpressoInitiator::InitiateNonBlockingTransferUntil(
     chrono::SystemClock::time_point deadline, i2c_master_transfer_t* transfer) {
+  // Acquire the clock_tree_element. Release it from the error paths or after
+  // the transfer completion callback is done.
+  PW_CHECK_OK(clock_tree_element_.Acquire());
+
   const status_t status =
       I2C_MasterTransferNonBlocking(base_, &handle_, transfer);
   if (status != kStatus_Success) {
+    clock_tree_element_.Release().IgnoreError();
     return HalStatusToPwStatus(status);
   }
 
   if (!callback_complete_notification_.try_acquire_until(deadline)) {
     I2C_MasterTransferAbort(base_, &handle_);
+    clock_tree_element_.Release().IgnoreError();
     return Status::DeadlineExceeded();
   }
+
+  clock_tree_element_.Release().IgnoreError();
 
   callback_isl_.lock();
   const status_t transfer_status = transfer_status_;
