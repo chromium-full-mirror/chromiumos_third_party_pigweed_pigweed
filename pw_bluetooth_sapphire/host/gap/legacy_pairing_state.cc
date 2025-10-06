@@ -726,7 +726,7 @@ std::vector<fit::closure> LegacyPairingState::CompletePairingRequests(
   if (status.is_error()) {
     // On pairing failure, signal all requests
     for (auto& request : request_queue_) {
-      callbacks_to_signal.push_back(
+      callbacks_to_signal.emplace_back(
           [handle = handle(),
            status,
            cb = std::move(request.status_callback)]() { cb(handle, status); });
@@ -757,7 +757,7 @@ std::vector<fit::closure> LegacyPairingState::CompletePairingRequests(
                                 ? status
                                 : ToResult(HostError::kInsufficientSecurity);
 
-      callbacks_to_signal.push_back(
+      callbacks_to_signal.emplace_back(
           [handle = handle(),
            request_status,
            cb = std::move(request.status_callback)]() {
@@ -778,7 +778,7 @@ std::vector<fit::closure> LegacyPairingState::CompletePairingRequests(
         continue;
       }
 
-      callbacks_to_signal.push_back(
+      callbacks_to_signal.emplace_back(
           [handle = handle(), status, cb = std::move(it->status_callback)]() {
             cb(handle, status);
           });

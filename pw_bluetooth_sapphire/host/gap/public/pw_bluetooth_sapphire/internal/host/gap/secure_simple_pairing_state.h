@@ -600,6 +600,6 @@ GetInitiatorAuthenticationRequirements(
 pw::bluetooth::emboss::AuthenticationRequirements
 GetResponderAuthenticationRequirements(
     pw::bluetooth::emboss::IoCapability local_cap,
-    pw::bluetooth::emboss::IoCapability remote_cap);
+    pw::bluetooth::emboss::IoCapability peer_cap);
 
 }  // namespace bt::gap
