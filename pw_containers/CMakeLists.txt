@@ -241,19 +241,42 @@ pw_add_library(pw_containers.to_array INTERFACE
     public
 )
 
+pw_add_library(pw_containers.generic_var_len_entry_queue STATIC
+  HEADERS
+    public/pw_containers/internal/generic_var_len_entry_queue.h
+    public/pw_containers/internal/var_len_entry.h
+    public/pw_containers/internal/var_len_entry_iterator.h
+    public/pw_containers/internal/var_len_entry_queue_iterator.h
+  PUBLIC_INCLUDES
+    public
+  SOURCES
+    var_len_entry.cc
+    var_len_entry_queue_iterator.cc
+  PUBLIC_DEPS
+    pw_assert.assert
+    pw_bytes
+    pw_containers._common
+    pw_containers.algorithm
+    pw_preprocessor
+    pw_span
+    pw_varint
+)
+
 pw_add_library(pw_containers.inline_var_len_entry_queue STATIC
   HEADERS
     public/pw_containers/inline_var_len_entry_queue.h
   PUBLIC_INCLUDES
     public
-  PUBLIC_DEPS
-    pw_containers._raw_storage
-    pw_varint
-    pw_toolchain.constexpr_tag
-  PRIVATE_DEPS
-    pw_assert
   SOURCES
-    inline_var_len_entry_queue.c
+    inline_var_len_entry_queue.cc
+  PUBLIC_DEPS
+    pw_bytes
+    pw_containers.generic_var_len_entry_queue
+    pw_containers._raw_storage
+    pw_preprocessor
+    pw_span
+    pw_toolchain.constexpr_tag
+    pw_varint
 )
 
 pw_add_library(pw_containers.vector INTERFACE
@@ -536,6 +559,42 @@ pw_add_test(pw_containers.to_array_test
     to_array_test.cc
   PRIVATE_DEPS
     pw_containers.to_array
+  GROUPS
+    modules
+    pw_containers
+)
+
+pw_add_test(pw_containers.var_len_entry_test
+  SOURCES
+    var_len_entry_test.cc
+  PRIVATE_DEPS
+    pw_containers.generic_var_len_entry_queue
+    pw_containers.inline_var_len_entry_queue
+    pw_unit_test.constexpr
+  GROUPS
+    modules
+    pw_containers
+)
+
+pw_add_test(pw_containers.var_len_entry_iterator_test
+  SOURCES
+    var_len_entry_iterator_test.cc
+  PRIVATE_DEPS
+    pw_containers.generic_var_len_entry_queue
+    pw_containers.inline_var_len_entry_queue
+    pw_unit_test.constexpr
+  GROUPS
+    modules
+    pw_containers
+)
+
+pw_add_test(pw_containers.var_len_entry_queue_iterator_test
+  SOURCES
+    var_len_entry_queue_iterator_test.cc
+  PRIVATE_DEPS
+    pw_containers.generic_var_len_entry_queue
+    pw_containers.inline_var_len_entry_queue
+    pw_unit_test.constexpr
   GROUPS
     modules
     pw_containers

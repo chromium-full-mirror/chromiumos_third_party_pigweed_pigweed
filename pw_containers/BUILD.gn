@@ -224,18 +224,42 @@ pw_source_set("to_array") {
   public = [ "public/pw_containers/to_array.h" ]
 }
 
-pw_source_set("inline_var_len_entry_queue") {
+pw_source_set("generic_var_len_entry_queue") {
   public_configs = [ ":public_include_path" ]
+  public = [
+    "public/pw_containers/internal/generic_var_len_entry_queue.h",
+    "public/pw_containers/internal/var_len_entry.h",
+    "public/pw_containers/internal/var_len_entry_iterator.h",
+    "public/pw_containers/internal/var_len_entry_queue_iterator.h",
+  ]
   public_deps = [
-    "$dir_pw_toolchain:constexpr_tag",
+    ":algorithm",
+    ":common",
+    "$dir_pw_assert:assert",
+    dir_pw_bytes,
+    dir_pw_preprocessor,
+    dir_pw_span,
     dir_pw_varint,
   ]
-  deps = [ dir_pw_assert ]
-  public = [ "public/pw_containers/inline_var_len_entry_queue.h" ]
-  sources = [ "inline_var_len_entry_queue.c" ]
+  sources = [
+    "var_len_entry.cc",
+    "var_len_entry_queue_iterator.cc",
+  ]
+}
 
-  # TODO: b/259746255 - Remove this when everything compiles with -Wconversion.
-  configs = [ "$dir_pw_build:conversion_warnings" ]
+pw_source_set("inline_var_len_entry_queue") {
+  public_configs = [ ":public_include_path" ]
+  public = [ "public/pw_containers/inline_var_len_entry_queue.h" ]
+  public_deps = [
+    ":generic_var_len_entry_queue",
+    ":raw_storage",
+    "$dir_pw_toolchain:constexpr_tag",
+    dir_pw_bytes,
+    dir_pw_preprocessor,
+    dir_pw_span,
+    dir_pw_varint,
+  ]
+  sources = [ "inline_var_len_entry_queue.cc" ]
 }
 
 pw_source_set("vector") {
@@ -381,6 +405,8 @@ pw_test_group("tests") {
     ":intrusive_multiset_test",
     ":raw_storage_test",
     ":to_array_test",
+    ":var_len_entry_test",
+    ":var_len_entry_iterator_test",
     ":inline_var_len_entry_queue_test",
     ":vector_test",
     ":dynamic_vector_test",
@@ -534,6 +560,33 @@ pw_test("to_array_test") {
 
   # TODO: b/259746255 - Remove this when everything compiles with -Wconversion.
   configs = [ "$dir_pw_build:conversion_warnings" ]
+}
+
+pw_test("var_len_entry_test") {
+  sources = [ "var_len_entry_test.cc" ]
+  deps = [
+    ":generic_var_len_entry_queue",
+    ":inline_var_len_entry_queue",
+    "$dir_pw_unit_test:constexpr",
+  ]
+}
+
+pw_test("var_len_entry_iterator_test") {
+  sources = [ "var_len_entry_iterator_test.cc" ]
+  deps = [
+    ":generic_var_len_entry_queue",
+    ":inline_var_len_entry_queue",
+    "$dir_pw_unit_test:constexpr",
+  ]
+}
+
+pw_test("var_len_entry_queue_iterator_test") {
+  sources = [ "var_len_entry_queue_iterator_test.cc" ]
+  deps = [
+    ":generic_var_len_entry_queue",
+    ":inline_var_len_entry_queue",
+    "$dir_pw_unit_test:constexpr",
+  ]
 }
 
 pw_test("inline_var_len_entry_queue_test") {

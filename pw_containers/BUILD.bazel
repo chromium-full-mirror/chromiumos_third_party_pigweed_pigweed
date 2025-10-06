@@ -295,14 +295,41 @@ cc_library(
 )
 
 cc_library(
+    name = "generic_var_len_entry_queue",
+    srcs = [
+        "var_len_entry.cc",
+        "var_len_entry_queue_iterator.cc",
+    ],
+    hdrs = [
+        "public/pw_containers/internal/generic_var_len_entry_queue.h",
+        "public/pw_containers/internal/var_len_entry.h",
+        "public/pw_containers/internal/var_len_entry_iterator.h",
+        "public/pw_containers/internal/var_len_entry_queue_iterator.h",
+    ],
+    strip_include_prefix = "public",
+    visibility = ["//visibility:private"],
+    deps = [
+        ":algorithm",
+        ":common",
+        "//pw_assert:assert",
+        "//pw_bytes",
+        "//pw_preprocessor",
+        "//pw_span",
+        "//pw_varint",
+    ],
+)
+
+cc_library(
     name = "inline_var_len_entry_queue",
-    srcs = ["inline_var_len_entry_queue.c"],
+    srcs = ["inline_var_len_entry_queue.cc"],
     hdrs = ["public/pw_containers/inline_var_len_entry_queue.h"],
-    implementation_deps = ["//pw_assert:check"],
     strip_include_prefix = "public",
     deps = [
+        ":generic_var_len_entry_queue",
         ":raw_storage",
+        "//pw_bytes",
         "//pw_preprocessor",
+        "//pw_span",
         "//pw_toolchain:constexpr_tag",
         "//pw_varint",
     ],
@@ -555,6 +582,37 @@ pw_cc_test(
     name = "to_array_test",
     srcs = ["to_array_test.cc"],
     deps = [":to_array"],
+)
+
+pw_cc_test(
+    name = "var_len_entry_test",
+    srcs = ["var_len_entry_test.cc"],
+    deps = [
+        ":generic_var_len_entry_queue",
+        ":inline_var_len_entry_queue",
+        "//pw_unit_test:constexpr",
+    ],
+)
+
+pw_cc_test(
+    name = "var_len_entry_iterator_test",
+    srcs = ["var_len_entry_iterator_test.cc"],
+    deps = [
+        ":generic_var_len_entry_queue",
+        ":inline_var_len_entry_queue",
+        "//pw_unit_test:constexpr",
+    ],
+)
+
+pw_cc_test(
+    name = "var_len_entry_queue_iterator_test",
+    srcs = ["var_len_entry_queue_iterator_test.cc"],
+    deps = [
+        ":generic_var_len_entry_queue",
+        ":inline_var_len_entry_queue",
+        "//pw_bytes",
+        "//pw_unit_test:constexpr",
+    ],
 )
 
 pw_cc_test(
