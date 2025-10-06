@@ -291,6 +291,8 @@ use_repo(python, "pythons_hub")
 
 pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
 pip.parse(
+    envsubst = ["PIGWEED_PIP_INDEX_URL"],
+    experimental_index_url = "${PIGWEED_PIP_INDEX_URL:-https://pypi.org/simple}",
     hub_name = "pigweed_python_packages",
     python_version = "3.10",
     requirements_darwin = "//pw_env_setup/py:pw_env_setup/virtualenv_setup/upstream_requirements_darwin_lock.txt",
@@ -298,6 +300,8 @@ pip.parse(
     requirements_windows = "//pw_env_setup/py:pw_env_setup/virtualenv_setup/upstream_requirements_windows_lock.txt",
 )
 pip.parse(
+    envsubst = ["PIGWEED_PIP_INDEX_URL"],
+    experimental_index_url = "${PIGWEED_PIP_INDEX_URL:-https://pypi.org/simple}",
     hub_name = "pigweed_python_packages",
     python_version = "3.11",
     requirements_darwin = "//pw_env_setup/py:pw_env_setup/virtualenv_setup/upstream_requirements_darwin_lock.txt",
@@ -305,6 +309,8 @@ pip.parse(
     requirements_windows = "//pw_env_setup/py:pw_env_setup/virtualenv_setup/upstream_requirements_windows_lock.txt",
 )
 pip.parse(
+    envsubst = ["PIGWEED_PIP_INDEX_URL"],
+    experimental_index_url = "${PIGWEED_PIP_INDEX_URL:-https://pypi.org/simple}",
     hub_name = "pigweed_python_packages",
     python_version = "3.12",
     requirements_darwin = "//pw_env_setup/py:pw_env_setup/virtualenv_setup/upstream_requirements_darwin_lock.txt",
