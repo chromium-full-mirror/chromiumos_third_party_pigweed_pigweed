@@ -118,7 +118,7 @@ Once you have a ``FlashMemory`` implementation, you can create a
 
    // 1. A skeleton of a custom FlashMemory implementation.
    class MyFlashMemory : public pw::kvs::FlashMemory {
-   public:
+    public:
      MyFlashMemory()
          : pw::kvs::FlashMemory(kSectorSize, kSectorCount, kAlignment) {}
 
@@ -131,7 +131,7 @@ Once you have a ``FlashMemory`` implementation, you can create a
      // StatusWithSize Write(Address address,
      //                      pw::span<const std::byte> data) override;
 
-   private:
+    private:
      static constexpr size_t kSectorSize = 4096;
      static constexpr size_t kSectorCount = 4;
      static constexpr size_t kAlignment = 4;
@@ -142,7 +142,6 @@ Once you have a ``FlashMemory`` implementation, you can create a
 
    // 3. A partition that uses the first 2 sectors of the flash.
    pw::kvs::FlashPartition partition(&my_flash, 0, 2);
-
 
 .. _module-pw_kvs-guides-configure-and-instantiate-kvs:
 
@@ -173,19 +172,16 @@ Here is an example of how to create a ``KeyValueStore`` instance:
    // Assumes `partition` from the previous step is available.
 
    pw::kvs::ChecksumCrc16 checksum;
-   static constexpr pw::kvs::EntryFormat kvs_format = {
-       .magic = 0xd253a8a9,
-       .checksum = &checksum
-   };
+   static constexpr pw::kvs::EntryFormat kvs_format = {.magic = 0xd253a8a9,
+                                                       .checksum = &checksum};
 
    constexpr size_t kMaxEntries = 64;
-   constexpr size_t kMaxSectors = 2; // Must match the partition's sector count
+   constexpr size_t kMaxSectors = 2;  // Must match the partition's sector count
 
-   pw::kvs::KeyValueStoreBuffer<kMaxEntries, kMaxSectors> kvs(
-       &partition, kvs_format);
+   pw::kvs::KeyValueStoreBuffer<kMaxEntries, kMaxSectors> kvs(&partition,
+                                                              kvs_format);
 
    kvs.Init();
-
 
 .. _module-pw_kvs-guides-garbage-collection:
 
@@ -207,8 +203,9 @@ the new data. This is configured via the ``gc_on_write`` option passed to the
    pw::kvs::Options options;
    options.gc_on_write = pw::kvs::GargbageCollectOnWrite::kAsManySectorsNeeded;
 
-   pw::kvs::KeyValueStoreBuffer<kMaxEntries, kMaxSectors> kvs(
-       &partition, kvs_format, options);
+   pw::kvs::KeyValueStoreBuffer<kMaxEntries, kMaxSectors> kvs(&partition,
+                                                              kvs_format,
+                                                              options);
 
 Available automatic GC options:
 
@@ -229,8 +226,9 @@ disable automatic GC:
    pw::kvs::Options options;
    options.gc_on_write = pw::kvs::GargbageCollectOnWrite::kDisabled;
 
-   pw::kvs::KeyValueStoreBuffer<kMaxEntries, kMaxSectors> kvs(
-       &partition, kvs_format, options);
+   pw::kvs::KeyValueStoreBuffer<kMaxEntries, kMaxSectors> kvs(&partition,
+                                                              kvs_format,
+                                                              options);
 
 Then, at appropriate times in your application's logic, you can call one of the
 maintenance functions:
