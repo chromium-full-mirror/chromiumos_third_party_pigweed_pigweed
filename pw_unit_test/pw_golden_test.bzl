@@ -16,7 +16,7 @@
 load("@bazel_skylib//rules:native_binary.bzl", "native_binary", "native_test")
 load("//pw_build:compatibility.bzl", "incompatible_with_mcu")
 
-def pw_golden_test(name, executable, expected, args = None, **kwargs):
+def pw_golden_test(name, executable, expected, args = None, tags = None, target_compatible_with = None, **kwargs):
     """Runs an executable and compares its output to a file.
 
     This macro creates two targets:
@@ -28,6 +28,8 @@ def pw_golden_test(name, executable, expected, args = None, **kwargs):
         executable: The executable target to run.
         expected: The file target with the expected output.
         args: Additional arguments to pass to the executable.
+        tags: Additional tags to use for the test targets.
+        target_compatible_with: Compatibility restrictions for the .
         **kwargs: Additional arguments for the underlying pw_py_test and
             pw_py_binary.
     """
@@ -35,6 +37,12 @@ def pw_golden_test(name, executable, expected, args = None, **kwargs):
         args = []
     else:
         args = ["--"] + args
+
+    if tags == None:
+        tags = []
+
+    if target_compatible_with == None:
+        target_compatible_with = []
 
     native_test(
         name = name,
@@ -51,7 +59,8 @@ def pw_golden_test(name, executable, expected, args = None, **kwargs):
             executable,
             expected,
         ],
-        target_compatible_with = incompatible_with_mcu(),
+        target_compatible_with = target_compatible_with + incompatible_with_mcu(),
+        tags = tags,
         **kwargs
     )
 
@@ -70,5 +79,7 @@ def pw_golden_test(name, executable, expected, args = None, **kwargs):
             executable,
             expected,
         ],
+        target_compatible_with = target_compatible_with,
+        tags = tags + ["manual"],
         **kwargs
     )

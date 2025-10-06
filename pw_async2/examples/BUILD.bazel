@@ -16,6 +16,7 @@ load("@rules_python//sphinxdocs:sphinx_docs_library.bzl", "sphinx_docs_library")
 load("//pw_build:compatibility.bzl", "incompatible_with_mcu")
 load("//pw_build:pw_cc_binary.bzl", "pw_cc_binary")
 load("//pw_unit_test:pw_cc_test.bzl", "pw_cc_test")
+load("//pw_unit_test:pw_golden_test.bzl", "pw_golden_test")
 
 package(
     default_visibility = ["//visibility:public"],
@@ -95,6 +96,19 @@ pw_cc_test(
         "//pw_span",
         "//pw_status",
     ],
+)
+
+pw_golden_test(
+    name = "inline_async_queue_with_tasks_golden_test",
+    executable = ":inline_async_queue_with_tasks_test",
+    expected = ":inline_async_queue_with_tasks_golden_test.expected",
+
+    # Only tun the golden test with the light framework, so that the output is
+    # consistent for this golden test.
+    target_compatible_with = select({
+        "//pw_unit_test:backend_is_light": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
 )
 
 pw_cc_test(

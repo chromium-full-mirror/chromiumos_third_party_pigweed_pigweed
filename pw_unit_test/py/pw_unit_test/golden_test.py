@@ -89,10 +89,16 @@ def run_and_compare(
 
     expected_output = expected.read_bytes()
 
-    if actual_output == expected_output:
-        if accept:
-            print('✅ Executable output already matches golden file.')
+    if accept:
+        if actual_output != expected_output:
+            expected.resolve().write_bytes(actual_output)
+            print(f'✅ Updated golden file {expected.resolve()}.')
+        else:
+            err('⁉️ Executable output already matches golden file.')
 
+        return True
+
+    if actual_output == expected_output:
         return True
 
     err('❌ Golden file test failed!\n')
@@ -112,11 +118,6 @@ def run_and_compare(
     )
     sys.stderr.writelines(diff)
     err()
-
-    if accept:
-        expected.resolve().write_bytes(actual_output)
-        print(f'✅ Updated golden file {expected.resolve()}.')
-        return True
 
     if update_command:
         err(
