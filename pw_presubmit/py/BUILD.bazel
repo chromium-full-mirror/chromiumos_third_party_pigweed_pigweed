@@ -496,8 +496,6 @@ pw_py_test(
 pw_py_test(
     name = "context_test",
     srcs = ["context_test.py"],
-    # TODO(b/374120469): Make PW_PROJECT_ROOT optional for pw presubmit
-    tags = ["manual"],
     deps = [
         ":pw_presubmit",
     ],
