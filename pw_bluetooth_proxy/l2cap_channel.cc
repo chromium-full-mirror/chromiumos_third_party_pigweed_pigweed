@@ -18,6 +18,7 @@
 #include <optional>
 
 #include "lib/stdcompat/utility.h"
+#include "pw_assert/check.h"
 #include "pw_bluetooth/emboss_util.h"
 #include "pw_bluetooth/hci_data.emb.h"
 #include "pw_bluetooth/hci_h4.emb.h"
@@ -143,7 +144,7 @@ void L2capChannel::InternalClose(L2capChannelEvent event) {
 
 void L2capChannel::Undefine() { state_ = State::kUndefined; }
 
-StatusWithMultiBuf L2capChannel::Write(pw::multibuf::MultiBuf&& payload) {
+StatusWithMultiBuf L2capChannel::Write(FlatConstMultiBuf&& payload) {
   Status status = DoCheckWriteParameter(payload);
   if (!status.ok()) {
     return {status, std::move(payload)};
@@ -153,17 +154,7 @@ StatusWithMultiBuf L2capChannel::Write(pw::multibuf::MultiBuf&& payload) {
   return result;
 }
 
-StatusWithMultiBuf L2capChannel::WriteLocked(pw::multibuf::MultiBuf&& payload) {
-  if (!payload.IsContiguous()) {
-    PW_LOG_WARN(
-        "btproxy: L2capChannel::WriteLocked received non-contiguous payload. "
-        "local_cid: %#x, remote_cid: %#x, state: %u",
-        local_cid(),
-        remote_cid(),
-        cpp23::to_underlying(state()));
-    return {Status::InvalidArgument(), std::move(payload)};
-  }
-
+StatusWithMultiBuf L2capChannel::WriteLocked(FlatConstMultiBuf&& payload) {
   if (state() != State::kRunning) {
     PW_LOG_WARN(
         "btproxy: L2capChannel::WriteLocked called when not running. "
@@ -212,9 +203,8 @@ std::optional<H4PacketWithH4> L2capChannel::DequeuePacket() {
   return packet;
 }
 
-StatusWithMultiBuf L2capChannel::QueuePayload(multibuf::MultiBuf&& buf) {
+StatusWithMultiBuf L2capChannel::QueuePayload(FlatConstMultiBuf&& buf) {
   PW_CHECK(state() == State::kRunning);
-  PW_CHECK(buf.IsContiguous());
 
   {
     std::lock_guard lock(tx_mutex_);
@@ -242,12 +232,8 @@ void L2capChannel::PopFrontPayload() {
   payload_queue_.pop();
 }
 
-ConstByteSpan L2capChannel::GetFrontPayloadSpan() const {
-  PW_CHECK(!payload_queue_.empty());
-  const multibuf::MultiBuf& buf = payload_queue_.front();
-  std::optional<ConstByteSpan> span = buf.ContiguousSpan();
-  PW_CHECK(span);
-  return *span;
+const FlatConstMultiBuf& L2capChannel::GetFrontPayload() const {
+  return payload_queue_.front();
 }
 
 bool L2capChannel::PayloadQueueEmpty() const { return payload_queue_.empty(); }
@@ -268,7 +254,7 @@ bool L2capChannel::HandlePduFromController(pw::span<uint8_t> l2cap_pdu) {
 
 L2capChannel::L2capChannel(
     L2capChannelManager& l2cap_channel_manager,
-    multibuf::MultiBufAllocator* rx_multibuf_allocator,
+    MultiBufAllocator* rx_multibuf_allocator,
     uint16_t connection_handle,
     AclTransportType transport,
     uint16_t local_cid,
@@ -436,10 +422,9 @@ bool L2capChannel::SendPayloadToClient(
     return false;
   }
 
-  std::optional<multibuf::MultiBuf> buffer =
-      rx_multibuf_allocator()->AllocateContiguous(payload.size());
-
-  if (!buffer) {
+  auto result =
+      MultiBufAdapter::Create(*rx_multibuf_allocator_, payload.size());
+  if (!result.has_value()) {
     PW_LOG_ERROR(
         "btproxy: rx_multibuf_allocator_ is out of memory. So stopping "
         "channel and reporting it needs to be closed."
@@ -450,12 +435,11 @@ bool L2capChannel::SendPayloadToClient(
     return true;
   }
 
-  StatusWithSize status = buffer->CopyFrom(/*source=*/as_bytes(payload),
-                                           /*position=*/0);
-  PW_CHECK_OK(status);
+  FlatMultiBufInstance buffer = std::move(result.value());
+  MultiBufAdapter::Copy(buffer, 0, as_bytes(payload));
 
-  std::optional<multibuf::MultiBuf> client_multibuf =
-      callback(std::move(*buffer));
+  std::optional<FlatConstMultiBufInstance> client_multibuf =
+      callback(std::move(MultiBufAdapter::Unwrap(buffer)));
   // If client returned multibuf to us, we drop it and indicate to caller that
   // packet should be forwarded. In the future when whole path is operating
   // with multibuf's, we could pass it back up to container to be forwarded.
@@ -465,28 +449,26 @@ bool L2capChannel::SendPayloadToClient(
 pw::Status L2capChannel::StartRecombinationBuf(Direction direction,
                                                size_t payload_size,
                                                size_t extra_header_size) {
-  std::optional<multibuf::MultiBuf>& buf_optref =
+  std::optional<MultiBufInstance>& buf_optref =
       GetRecombinationBufOptRef(direction);
   PW_CHECK(!buf_optref.has_value());
 
-  if (!rx_multibuf_allocator_) {
+  if (rx_multibuf_allocator_ == nullptr) {
     // TODO: https://pwbug.dev/423695410 - Should eventually recombine for these
     // cases to allow channel to make handle/unhandle decision.
     PW_LOG_WARN(
-        "Cannot start recombination without an rx_multibuf_allocator."
+        "Cannot start recombination without an allocator."
         "connection: %#x, local_cid: %#x ",
         connection_handle(),
         local_cid());
     return Status::FailedPrecondition();
   }
 
-  buf_optref = rx_multibuf_allocator_->AllocateContiguous(payload_size +
-                                                          extra_header_size);
+  buf_optref = MultiBufAdapter::Create(
+      *rx_multibuf_allocator_, extra_header_size, payload_size);
   if (!buf_optref.has_value()) {
     return Status::ResourceExhausted();
   }
-
-  buf_optref->DiscardPrefix(extra_header_size);
 
   return pw::OkStatus();
 }

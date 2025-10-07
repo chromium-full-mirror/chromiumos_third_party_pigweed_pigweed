@@ -55,7 +55,7 @@ constexpr size_t kCreditsFieldSize = 1;
 
 }  // namespace
 
-Status RfcommChannel::DoCheckWriteParameter(pw::multibuf::MultiBuf& payload) {
+Status RfcommChannel::DoCheckWriteParameter(const FlatConstMultiBuf& payload) {
   if (payload.size() > tx_config_.max_information_length - kCreditsFieldSize) {
     PW_LOG_WARN("Payload (%zu bytes) is too large. So will not process.",
                 payload.size());
@@ -70,7 +70,7 @@ std::optional<H4PacketWithH4> RfcommChannel::GenerateNextTxPacket() {
     return std::nullopt;
   }
 
-  ConstByteSpan payload = GetFrontPayloadSpan();
+  const FlatConstMultiBuf& payload = GetFrontPayload();
 
   constexpr size_t kMaxShortLength = 0x7f;
 
@@ -135,9 +135,7 @@ std::optional<H4PacketWithH4> RfcommChannel::GenerateNextTxPacket() {
     return std::nullopt;
   }
   PW_CHECK(rfcomm.information().SizeInBytes() == payload.size());
-  PW_CHECK(TryToCopyToEmbossStruct(
-      /*emboss_dest=*/rfcomm.information(),
-      /*src=*/payload));
+  MultiBufAdapter::Copy(rfcomm.information(), payload);
 
   // UIH frame type:
   //   FCS should be calculated over address and control fields.
@@ -168,12 +166,12 @@ std::optional<H4PacketWithH4> RfcommChannel::DequeuePacket() {
 
 Result<RfcommChannel> RfcommChannel::Create(
     L2capChannelManager& l2cap_channel_manager,
-    multibuf::MultiBufAllocator& rx_multibuf_allocator,
+    MultiBufAllocator& rx_multibuf_allocator,
     uint16_t connection_handle,
     Config rx_config,
     Config tx_config,
     uint8_t channel_number,
-    Function<void(multibuf::MultiBuf&& payload)>&& payload_from_controller_fn,
+    Function<void(FlatConstMultiBuf&& payload)>&& payload_from_controller_fn,
     ChannelEventCallback&& event_fn) {
   if (!AreValidParameters(/*connection_handle=*/connection_handle,
                           /*local_cid=*/rx_config.cid,
@@ -269,8 +267,10 @@ bool RfcommChannel::DoHandlePduFromController(pw::span<uint8_t> l2cap_pdu) {
 
   if (rx_needs_refill) {
     // Send credit update with empty payload to refresh remote credit count.
-    if (const auto status = Write(pw::multibuf::MultiBuf{}).status;
-        !status.ok()) {
+    auto result = MultiBufAdapter::Create(*rx_multibuf_allocator());
+    FlatMultiBuf& mbuf = MultiBufAdapter::Unwrap(result.value());
+    auto status = Write(std::move(mbuf)).status;
+    if (!status.ok()) {
       PW_LOG_ERROR("Failed to send RFCOMM credits");
     }
   }
@@ -285,25 +285,21 @@ bool RfcommChannel::DoHandlePduFromController(pw::span<uint8_t> l2cap_pdu) {
 bool RfcommChannel::SendPayloadFromControllerToClient(
     pw::span<uint8_t> payload) {
   PW_CHECK(rx_multibuf_allocator());
-  std::optional<multibuf::MultiBuf> buffer =
-      rx_multibuf_allocator()->AllocateContiguous(payload.size());
-
+  std::optional<FlatMultiBufInstance> buffer =
+      MultiBufAdapter::Create(*rx_multibuf_allocator(), payload.size());
   if (!buffer) {
     PW_LOG_ERROR(
-        "(CID %#x) Rx MultiBuf allocator out of memory. So stopping "
-        "channel "
+        "(CID %#x) Rx MultiBuf allocator out of memory. So stopping channel "
         "and reporting it needs to be closed.",
         local_cid());
     StopAndSendEvent(L2capChannelEvent::kRxOutOfMemory);
     return true;
   }
-
-  StatusWithSize status = buffer->CopyFrom(/*source=*/as_bytes(payload),
-                                           /*position=*/0);
-  PW_CHECK_OK(status);
+  FlatMultiBuf& mbuf = MultiBufAdapter::Unwrap(buffer.value());
+  MultiBufAdapter::Copy(mbuf, 0, as_bytes(payload));
 
   if (payload_from_controller_fn_) {
-    payload_from_controller_fn_(std::move(*buffer));
+    payload_from_controller_fn_(std::move(mbuf));
   }
 
   return true;
@@ -313,12 +309,12 @@ bool RfcommChannel::HandlePduFromHost(pw::span<uint8_t>) { return false; }
 
 RfcommChannel::RfcommChannel(
     L2capChannelManager& l2cap_channel_manager,
-    multibuf::MultiBufAllocator& rx_multibuf_allocator,
+    MultiBufAllocator& rx_multibuf_allocator,
     uint16_t connection_handle,
     Config rx_config,
     Config tx_config,
     uint8_t channel_number,
-    Function<void(multibuf::MultiBuf&& payload)>&& payload_from_controller_fn,
+    Function<void(FlatConstMultiBuf&& payload)>&& payload_from_controller_fn,
     ChannelEventCallback&& event_fn)
     : SingleChannelProxy(l2cap_channel_manager,
                          &rx_multibuf_allocator,

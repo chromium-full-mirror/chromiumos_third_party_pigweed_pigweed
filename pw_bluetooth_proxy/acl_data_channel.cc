@@ -23,6 +23,7 @@
 #include "pw_bluetooth/emboss_util.h"
 #include "pw_bluetooth/hci_data.emb.h"
 #include "pw_bluetooth_proxy/internal/l2cap_channel_manager.h"
+#include "pw_bluetooth_proxy/internal/multibuf.h"
 #include "pw_bluetooth_proxy/internal/recombiner.h"
 #include "pw_containers/algorithm.h"  // IWYU pragma: keep
 #include "pw_log/log.h"
@@ -804,7 +805,7 @@ bool AclDataChannel::HandleAclData(Direction direction,
 
   // If recombining, will be set with the recombined PDU. And must be held
   // as long as `send_l2cap_pdu` is accessed.
-  std::optional<multibuf::MultiBuf> recombined_mbuf;
+  std::optional<MultiBufInstance> recombined_mbuf;
 
   // PDU we will actually send (will be set from first packet or from
   // recombination).
@@ -853,15 +854,9 @@ bool AclDataChannel::HandleAclData(Direction direction,
     }
 
     // Store the recombined multibuf.
-    recombined_mbuf = Recombiner::TakeBuf(channel, direction);
-    // We must have had IsComplete above to get here, so buf should always have
-    // a value.
-    PW_CHECK(recombined_mbuf.has_value());
-    // Confirm the MultiBuf is contiguous as expected.
-    PW_CHECK(recombined_mbuf->IsContiguous());
-
-    send_l2cap_pdu =
-        pw::span_cast<uint8_t>(recombined_mbuf->ContiguousSpan().value());
+    MultiBufInstance mbuf = Recombiner::TakeBuf(channel, direction);
+    send_l2cap_pdu = MultiBufAdapter::AsSpan(mbuf);
+    recombined_mbuf = std::move(mbuf);
 
   }  // is_first else
 
@@ -879,10 +874,9 @@ bool AclDataChannel::HandleAclData(Direction direction,
     // populate them, and pass that H4 packet on to the host.
 
     // Take back the extra header we reserved when starting the recombine.
-    PW_CHECK(recombined_mbuf->ClaimPrefix(kH4AclHeaderSize));
-    PW_CHECK(recombined_mbuf->IsContiguous());
-    const pw::span<uint8_t> h4_span =
-        pw::span_cast<uint8_t>(recombined_mbuf->ContiguousSpan().value());
+    MultiBuf& mbuf = MultiBufAdapter::Unwrap(recombined_mbuf.value());
+    MultiBufAdapter::Claim(mbuf, kH4AclHeaderSize);
+    pw::span<uint8_t> h4_span = MultiBufAdapter::AsSpan(mbuf);
 
     // TODO: https://pwbug.dev/438315637 - Also do this check for the BR/EDR
     // transport type once we know its max acl length.

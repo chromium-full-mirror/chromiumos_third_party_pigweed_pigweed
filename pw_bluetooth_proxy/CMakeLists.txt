@@ -53,32 +53,27 @@ pw_add_library(pw_bluetooth_proxy STATIC
     public/pw_bluetooth_proxy/proxy_host.h
     public/pw_bluetooth_proxy/rfcomm_channel.h
     public/pw_bluetooth_proxy/single_channel_proxy.h
-# LINT.ThenChange(BUILD.bazel, BUILD.gn)
+# LINT.ThenChange(bt-proxy.bzl, BUILD.gn)
 
   PUBLIC_INCLUDES
     public
 
 # LINT.IfChange
+
   PUBLIC_DEPS
-    pw_allocator.best_fit
-    pw_allocator.synchronized_allocator
-    pw_bluetooth.emboss_att
-    pw_bluetooth.emboss_hci_commands
-    pw_bluetooth.emboss_hci_common
     pw_bluetooth.emboss_hci_data
     pw_bluetooth.emboss_hci_events
     pw_bluetooth.emboss_hci_h4
     pw_bluetooth.emboss_l2cap_frames
     pw_bluetooth.emboss_rfcomm_frames
-    pw_bluetooth.emboss_util
-    pw_containers
+    pw_containers.flat_map
+    pw_containers.inline_queue
+    pw_containers.intrusive_forward_list
+    pw_containers.vector
     pw_function
-    pw_log
-    pw_multibuf
-    pw_multibuf.simple_allocator
+    pw_bluetooth_proxy.multibuf
     pw_result
     pw_span
-    pw_span.cast
     pw_status
     pw_sync.lock_annotations
     pw_sync.mutex
@@ -100,48 +95,86 @@ pw_add_library(pw_bluetooth_proxy STATIC
     rfcomm_channel.cc
     rfcomm_fcs.cc
     single_channel_proxy.cc
-# LINT.ThenChange(Android.bp, BUILD.bazel, BUILD.gn)
+  PRIVATE_DEPS
+    pw_bluetooth.emboss_att
+    pw_bluetooth.emboss_hci_commands
+    pw_bluetooth.emboss_util
+    pw_containers.algorithm
+    pw_log
+    pw_span.cast
+
+# LINT.ThenChange(Android.bp, bt-proxy.bzl, BUILD.gn)
 
 )
 
-pw_add_library(pw_bluetooth_proxy.test_utils STATIC
+# Module configuration
+
+pw_add_module_config(pw_bluetooth_proxy_CONFIG)
+
+pw_add_library(pw_bluetooth_proxy.config INTERFACE
+  HEADERS
+    public/pw_bluetooth_proxy/config.h
+  PUBLIC_INCLUDES
+    public
+  PUBLIC_DEPS
+    ${pw_bluetooth_proxy_CONFIG}
+)
+
+# Libraries
+
+pw_add_library(pw_bluetooth_proxy.multibuf STATIC
 
 # LINT.IfChange
   HEADERS
-    pw_bluetooth_proxy_private/test_utils.h
+    public/pw_bluetooth_proxy/internal/multibuf.h
   PUBLIC_DEPS
-    pw_bluetooth_proxy
-    pw_bluetooth.emboss_hci_commands
-    pw_bluetooth.emboss_hci_common
-    pw_bluetooth.emboss_hci_events
-    pw_bluetooth.emboss_hci_h4
-    pw_multibuf.testing
-    pw_third_party.fuchsia.stdcompat
-    pw_unit_test
+    pw_allocator
+    pw_bluetooth_proxy.config
+    pw_bytes
+    pw_multibuf.allocator
+    pw_multibuf.multibuf_v1
+    pw_multibuf.multibuf_v2
+  PRIVATE_DEPS
+    pw_assert.check
+    pw_span.cast
   SOURCES
-    test_utils.cc
-# LINT.ThenChange(Android.bp, BUILD.bazel, BUILD.gn)
+    multibuf_v1.cc
+    multibuf_v2.cc
+# LINT.ThenChange(Android.bp, bt-proxy.bzl, BUILD.gn)
 
 )
+
+# Tests
 
 pw_add_test(pw_bluetooth_proxy.pw_bluetooth_proxy_test
 
 # LINT.IfChange
   PRIVATE_DEPS
     pw_allocator.libc_allocator
+    pw_allocator.null_allocator
+    pw_allocator.synchronized_allocator
+    pw_allocator.testing
+    pw_assert.check
     pw_bluetooth_proxy
-    pw_bluetooth_proxy.test_utils
     pw_bluetooth.emboss_att
     pw_bluetooth.emboss_hci_commands
     pw_bluetooth.emboss_hci_common
     pw_bluetooth.emboss_hci_events
     pw_bluetooth.emboss_hci_h4
-    pw_multibuf
+    pw_bluetooth.emboss_util
+    pw_bluetooth_proxy.multibuf
+    pw_containers.flat_map
+    pw_containers.to_array
+    pw_multibuf.simple_allocator
+    pw_span.cast
     pw_sync.mutex
+    pw_sync.no_lock
     pw_third_party.fuchsia.stdcompat
     pw_thread.test_thread_context
     pw_thread.thread
+    pw_unit_test
   SOURCES
+    pw_bluetooth_proxy_private/test_utils.h
     channel_proxy_test.cc
     gatt_notify_test.cc
     h4_packet_test.cc
@@ -150,11 +183,10 @@ pw_add_test(pw_bluetooth_proxy.pw_bluetooth_proxy_test
     recombiner_test.cc
     rfcomm_fcs_test.cc
     rfcomm_test.cc
+    test_utils.cc
     utils_test.cc
-# LINT.ThenChange(BUILD.bazel, BUILD.gn)
+# LINT.ThenChange(bt-proxy.bzl, BUILD.gn)
 
   GROUPS
     modules
 )
-
-

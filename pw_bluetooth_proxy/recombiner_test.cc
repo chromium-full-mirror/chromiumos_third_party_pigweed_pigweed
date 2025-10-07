@@ -158,11 +158,14 @@ TEST_F(RecombinerTest, WriteThenTake) {
   // We are no longer recombining.
   EXPECT_FALSE(recombiner.IsActive());
 
-  multibuf::MultiBuf mbuf = Recombiner::TakeBuf(locked_channel, kDirection);
-  EXPECT_TRUE(mbuf.IsContiguous());
+  MultiBufInstance mbuf_inst = Recombiner::TakeBuf(locked_channel, kDirection);
+  MultiBuf& mbuf = MultiBufAdapter::Unwrap(mbuf_inst);
+  ASSERT_FALSE(mbuf.empty());
 
-  pw::span<uint8_t> span =
-      pw::span_cast<uint8_t>(mbuf.ContiguousSpan().value());
+  ByteSpan bytes = *(mbuf.Chunks().begin());
+  EXPECT_EQ(bytes.size(), mbuf.size());
+
+  pw::span<uint8_t> span = pw::span_cast<uint8_t>(bytes);
 
   EXPECT_TRUE(std::equal(
       span.begin(), span.end(), kExpectedData.begin(), kExpectedData.end()));
@@ -290,18 +293,21 @@ TEST_F(RecombinerTest, CanClaimExtraHeader) {
   // We are no longer recombining.
   EXPECT_FALSE(recombiner.IsActive());
 
-  multibuf::MultiBuf mbuf = Recombiner::TakeBuf(locked_channel, kDirection);
-  EXPECT_TRUE(mbuf.IsContiguous());
+  MultiBufInstance mbuf_inst = Recombiner::TakeBuf(locked_channel, kDirection);
+  MultiBuf& mbuf = MultiBufAdapter::Unwrap(mbuf_inst);
+  ASSERT_FALSE(mbuf.empty());
 
-  pw::span<uint8_t> span =
-      pw::span_cast<uint8_t>(mbuf.ContiguousSpan().value());
+  ByteSpan bytes = *(mbuf.Chunks().begin());
+  EXPECT_EQ(bytes.size(), mbuf.size());
+
+  pw::span<uint8_t> span = pw::span_cast<uint8_t>(bytes);
 
   EXPECT_EQ(span.size(), kExpectedData.size());
   EXPECT_TRUE(std::equal(
       span.begin(), span.end(), kExpectedData.begin(), kExpectedData.end()));
 
   // Verify that the extra header is there by claiming it.
-  EXPECT_TRUE(mbuf.ClaimPrefix(kExtraHeaderSize));
+  MultiBufAdapter::Claim(mbuf, kExtraHeaderSize);
   EXPECT_EQ(mbuf.size(), kExpectedData.size() + kExtraHeaderSize);
 }
 

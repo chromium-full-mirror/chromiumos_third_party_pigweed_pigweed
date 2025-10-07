@@ -17,6 +17,7 @@
 #include <mutex>
 #include <optional>
 
+#include "pw_assert/check.h"
 #include "pw_bluetooth_proxy/internal/acl_data_channel.h"
 #include "pw_bluetooth_proxy/internal/logical_transport.h"
 #include "pw_containers/algorithm.h"

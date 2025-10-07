@@ -187,8 +187,9 @@ TEST_F(RfcommWriteTest, BasicWrite) {
                                  .cid = capture.channel_id,
                              }};
   RfcommChannel channel = BuildRfcomm(proxy, params);
-  PW_TEST_EXPECT_OK(
-      channel.Write(MultiBufFromSpan(pw::span(capture.payload))).status);
+  FlatMultiBufInstance mbuf_inst = MultiBufFromSpan(pw::span(capture.payload));
+  FlatMultiBuf& mbuf = MultiBufAdapter::Unwrap(mbuf_inst);
+  PW_TEST_EXPECT_OK(channel.Write(std::move(mbuf)).status);
   EXPECT_EQ(capture.sends_called, 1);
 }
 
@@ -298,8 +299,9 @@ TEST_F(RfcommWriteTest, ExtendedWrite) {
                                  .cid = capture.channel_id,
                              }};
   RfcommChannel channel = BuildRfcomm(proxy, params);
-  PW_TEST_EXPECT_OK(
-      channel.Write(MultiBufFromSpan(pw::span(capture.payload))).status);
+  FlatMultiBufInstance mbuf_inst = MultiBufFromSpan(pw::span(capture.payload));
+  FlatMultiBuf& mbuf = MultiBufAdapter::Unwrap(mbuf_inst);
+  PW_TEST_EXPECT_OK(channel.Write(std::move(mbuf)).status);
   EXPECT_EQ(capture.sends_called, 1);
 }
 
@@ -336,12 +338,15 @@ TEST_F(RfcommWriteTest, MixedLengthWrites) {
                                  .cid = capture.channel_id,
                              }};
   RfcommChannel channel = BuildRfcomm(proxy, params);
-  PW_TEST_EXPECT_OK(
-      channel.Write(MultiBufFromSpan(pw::span(capture.payload))).status);
-  PW_TEST_EXPECT_OK(channel
-                        .Write(MultiBufFromSpan(
-                            pw::span(capture.payload).subspan(kPayload2Size)))
-                        .status);
+  FlatMultiBufInstance mbuf1_inst = MultiBufFromSpan(pw::span(capture.payload));
+  FlatMultiBuf& mbuf1 = MultiBufAdapter::Unwrap(mbuf1_inst);
+  PW_TEST_EXPECT_OK(channel.Write(std::move(mbuf1)).status);
+
+  FlatMultiBufInstance mbuf2_inst =
+      MultiBufFromSpan(pw::span(capture.payload).subspan(kPayload2Size));
+  FlatMultiBuf& mbuf2 = MultiBufAdapter::Unwrap(mbuf2_inst);
+  PW_TEST_EXPECT_OK(channel.Write(std::move(mbuf2)).status);
+
   EXPECT_EQ(capture.sends_called, 2);
 }
 
@@ -383,8 +388,9 @@ TEST_F(RfcommWriteTest, WriteFlowControl) {
 
   // Writes while queue has space will return Ok. No RFCOMM credits yet though
   // so no sends complete.
-  PW_TEST_EXPECT_OK(
-      channel.Write(MultiBufFromSpan(pw::span(capture.payload))).status);
+  FlatMultiBufInstance mbuf1_inst = MultiBufFromSpan(pw::span(capture.payload));
+  FlatMultiBuf& mbuf1 = MultiBufAdapter::Unwrap(mbuf1_inst);
+  PW_TEST_EXPECT_OK(channel.Write(std::move(mbuf1)).status);
   EXPECT_EQ(capture.sends_called, 0);
   EXPECT_EQ(capture.queue_unblocked, 0);
 
@@ -398,9 +404,10 @@ TEST_F(RfcommWriteTest, WriteFlowControl) {
   // Now fill up queue
   uint16_t queued = 0;
   while (true) {
-    if (const auto status =
-            channel.Write(MultiBufFromSpan(pw::span(capture.payload))).status;
-        status == Status::Unavailable()) {
+    FlatMultiBufInstance mbuf2_inst =
+        MultiBufFromSpan(pw::span(capture.payload));
+    FlatMultiBuf& mbuf2 = MultiBufAdapter::Unwrap(mbuf2_inst);
+    if (channel.Write(std::move(mbuf2)).status == Status::Unavailable()) {
       break;
     }
     ++queued;
@@ -441,14 +448,14 @@ TEST_F(RfcommReadTest, BasicRead) {
   RfcommChannel channel = BuildRfcomm(
       proxy,
       params,
-      /*receive_fn=*/[&capture](multibuf::MultiBuf&& buffer) {
+      /*receive_fn=*/[&capture](FlatConstMultiBuf&& buffer) {
         ++capture.rx_called;
-        std::optional<pw::ByteSpan> payload = buffer.ContiguousSpan();
+        ASSERT_FALSE(buffer.empty());
+        ConstByteSpan payload = *(buffer.ConstChunks().begin());
         ConstByteSpan expected_bytes = as_bytes(span(
             capture.expected_payload.data(), capture.expected_payload.size()));
-        ASSERT_TRUE(payload.has_value());
-        EXPECT_TRUE(std::equal(payload->begin(),
-                               payload->end(),
+        EXPECT_TRUE(std::equal(payload.begin(),
+                               payload.end(),
                                expected_bytes.begin(),
                                expected_bytes.end()));
       });
@@ -484,14 +491,14 @@ TEST_F(RfcommReadTest, ExtendedRead) {
       proxy,
       params,
       /*receive_fn=*/
-      [&capture](multibuf::MultiBuf&& buffer) {
+      [&capture](FlatConstMultiBuf&& buffer) {
         ++capture.rx_called;
-        std::optional<pw::ByteSpan> payload = buffer.ContiguousSpan();
+        ASSERT_FALSE(buffer.empty());
+        pw::ConstByteSpan payload = *(buffer.ConstChunks().begin());
         ConstByteSpan expected_bytes = as_bytes(span(
             capture.expected_payload.data(), capture.expected_payload.size()));
-        ASSERT_TRUE(payload.has_value());
-        EXPECT_TRUE(std::equal(payload->begin(),
-                               payload->end(),
+        EXPECT_TRUE(std::equal(payload.begin(),
+                               payload.end(),
                                expected_bytes.begin(),
                                expected_bytes.end()));
       });
@@ -529,7 +536,7 @@ TEST_F(RfcommReadTest, InvalidReads) {
       proxy,
       params,
       /*receive_fn=*/
-      [&capture](multibuf::MultiBuf&&) { ++capture.rx_called; },
+      [&capture](FlatConstMultiBuf&&) { ++capture.rx_called; },
       /*event_fn=*/nullptr);
 
   // Construct valid packet but put invalid checksum on the end. Test that we

@@ -15,6 +15,7 @@
 #pragma once
 
 #include "pw_bluetooth_proxy/internal/l2cap_channel.h"
+#include "pw_bluetooth_proxy/internal/multibuf.h"
 #include "pw_bluetooth_proxy/single_channel_proxy.h"
 #include "pw_sync/mutex.h"
 
@@ -79,16 +80,16 @@ class RfcommChannel final : public SingleChannelProxy {
   /// * @UNAVAILABLE: A channel could not be created.
   static pw::Result<RfcommChannel> Create(
       L2capChannelManager& l2cap_channel_manager,
-      multibuf::MultiBufAllocator& rx_multibuf_allocator,
+      MultiBufAllocator& rx_multibuf_allocator,
       uint16_t connection_handle,
       Config rx_config,
       Config tx_config,
       uint8_t channel_number,
-      Function<void(multibuf::MultiBuf&& payload)>&& payload_from_controller_fn,
+      Function<void(FlatConstMultiBuf&& payload)>&& payload_from_controller_fn,
       ChannelEventCallback&& event_fn);
 
   /// Check if the passed Write parameter is acceptable.
-  Status DoCheckWriteParameter(pw::multibuf::MultiBuf& payload) override;
+  Status DoCheckWriteParameter(const FlatConstMultiBuf& payload) override;
 
   Config rx_config() const { return rx_config_; }
   Config tx_config() const { return tx_config_; }
@@ -98,12 +99,12 @@ class RfcommChannel final : public SingleChannelProxy {
 
   RfcommChannel(
       L2capChannelManager& l2cap_channel_manager,
-      multibuf::MultiBufAllocator& rx_multibuf_allocator,
+      MultiBufAllocator& rx_multibuf_allocator,
       uint16_t connection_handle,
       Config rx_config,
       Config tx_config,
       uint8_t channel_number,
-      Function<void(multibuf::MultiBuf&& payload)>&& payload_from_controller_fn,
+      Function<void(FlatConstMultiBuf&& payload)>&& payload_from_controller_fn,
       ChannelEventCallback&& event_fn);
 
   [[nodiscard]] std::optional<H4PacketWithH4> GenerateNextTxPacket()
@@ -131,7 +132,7 @@ class RfcommChannel final : public SingleChannelProxy {
 
   sync::Mutex tx_mutex_;
   uint8_t tx_credits_ PW_GUARDED_BY(tx_mutex_);
-  Function<void(multibuf::MultiBuf&& payload)> payload_from_controller_fn_;
+  Function<void(FlatConstMultiBuf&& payload)> payload_from_controller_fn_;
 };
 
 }  // namespace pw::bluetooth::proxy

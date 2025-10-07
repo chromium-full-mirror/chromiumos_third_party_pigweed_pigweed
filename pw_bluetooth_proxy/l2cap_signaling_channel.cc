@@ -17,15 +17,16 @@
 #include <mutex>
 #include <optional>
 
+#include "pw_assert/check.h"
 #include "pw_bluetooth/emboss_util.h"
 #include "pw_bluetooth/l2cap_frames.emb.h"
 #include "pw_bluetooth_proxy/direction.h"
 #include "pw_bluetooth_proxy/internal/l2cap_channel_manager.h"
 #include "pw_bluetooth_proxy/internal/l2cap_coc_internal.h"
+#include "pw_bluetooth_proxy/internal/multibuf.h"
 #include "pw_bluetooth_proxy/l2cap_channel_common.h"
 #include "pw_bytes/span.h"
 #include "pw_log/log.h"
-#include "pw_multibuf/allocator.h"
 #include "pw_span/cast.h"
 #include "pw_status/status.h"
 
@@ -429,30 +430,27 @@ bool L2capSignalingChannel::HandleFlowControlCreditInd(
 }
 
 Status L2capSignalingChannel::SendFlowControlCreditInd(
-    uint16_t cid,
-    uint16_t credits,
-    multibuf::MultiBufAllocator& multibuf_allocator) {
+    uint16_t cid, uint16_t credits, MultiBufAllocator& multibuf_allocator) {
   if (cid == 0) {
     PW_LOG_ERROR("Tried to send signaling packet on invalid CID 0x0.");
     return Status::InvalidArgument();
   }
 
-  std::optional<pw::multibuf::MultiBuf> command =
-      multibuf_allocator.AllocateContiguous(
-          emboss::L2capFlowControlCreditInd::IntrinsicSizeInBytes());
+  std::optional<FlatMultiBufInstance> command = MultiBufAdapter::Create(
+      multibuf_allocator,
+      emboss::L2capFlowControlCreditInd::IntrinsicSizeInBytes());
   if (!command.has_value()) {
     PW_LOG_ERROR(
         "btproxy: SendFlowControlCreditInd unable to allocate command buffer "
-        "from provided multibuf_allocator. cid: %#x, credits: %#x",
+        "from provided allocator. cid: %#x, credits: %#x",
         cid,
         credits);
     return Status::Unavailable();
   }
-  std::optional<ByteSpan> command_span = command->ContiguousSpan();
+  span<uint8_t> command_span = MultiBufAdapter::AsSpan(command.value());
 
   Result<emboss::L2capFlowControlCreditIndWriter> command_view =
-      MakeEmbossWriter<emboss::L2capFlowControlCreditIndWriter>(
-          pw::span_cast<uint8_t>(command_span.value()));
+      MakeEmbossWriter<emboss::L2capFlowControlCreditIndWriter>(command_span);
   PW_CHECK(command_view->IsComplete());
 
   command_view->command_header().code().Write(
@@ -466,7 +464,8 @@ Status L2capSignalingChannel::SendFlowControlCreditInd(
   command_view->credits().Write(credits);
   PW_CHECK(command_view->Ok());
 
-  StatusWithMultiBuf s = WriteDuringRx(*std::move(command));
+  StatusWithMultiBuf s =
+      WriteDuringRx(std::move(MultiBufAdapter::Unwrap(command.value())));
 
   return s.status;
 }

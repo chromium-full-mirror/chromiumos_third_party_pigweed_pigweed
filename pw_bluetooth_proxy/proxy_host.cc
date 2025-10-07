@@ -300,11 +300,11 @@ void ProxyHost::HandleAclFromHost(H4PacketWithH4&& h4_packet) {
 }
 
 pw::Result<L2capCoc> ProxyHost::AcquireL2capCoc(
-    pw::multibuf::MultiBufAllocator& rx_multibuf_allocator,
+    MultiBufAllocator& rx_multibuf_allocator,
     uint16_t connection_handle,
     L2capCoc::CocConfig rx_config,
     L2capCoc::CocConfig tx_config,
-    Function<void(multibuf::MultiBuf&& payload)>&& receive_fn,
+    Function<void(FlatConstMultiBuf&& payload)>&& receive_fn,
     ChannelEventCallback&& event_fn) {
   Status status = acl_data_channel_.CreateAclConnection(connection_handle,
                                                         AclTransportType::kLe);
@@ -329,7 +329,7 @@ pw::Result<L2capCoc> ProxyHost::AcquireL2capCoc(
 }
 
 pw::Result<BasicL2capChannel> ProxyHost::AcquireBasicL2capChannel(
-    multibuf::MultiBufAllocator& rx_multibuf_allocator,
+    MultiBufAllocator& rx_multibuf_allocator,
     uint16_t connection_handle,
     uint16_t local_cid,
     uint16_t remote_cid,
@@ -372,12 +372,12 @@ pw::Result<GattNotifyChannel> ProxyHost::AcquireGattNotifyChannel(
 }
 
 pw::Result<RfcommChannel> ProxyHost::AcquireRfcommChannel(
-    multibuf::MultiBufAllocator& rx_multibuf_allocator,
+    MultiBufAllocator& rx_multibuf_allocator,
     uint16_t connection_handle,
     RfcommChannel::Config rx_config,
     RfcommChannel::Config tx_config,
     uint8_t channel_number,
-    Function<void(multibuf::MultiBuf&& payload)>&& payload_from_controller_fn,
+    Function<void(FlatConstMultiBuf&& payload)>&& payload_from_controller_fn,
     ChannelEventCallback&& event_fn) {
   Status status = acl_data_channel_.CreateAclConnection(
       connection_handle, AclTransportType::kBrEdr);

@@ -16,9 +16,9 @@
 
 #include <optional>
 
-#include "pw_allocator/allocator.h"
 #include "pw_bluetooth_proxy/internal/l2cap_channel.h"
 #include "pw_bluetooth_proxy/internal/l2cap_signaling_channel.h"
+#include "pw_bluetooth_proxy/internal/multibuf.h"
 #include "pw_bluetooth_proxy/l2cap_channel_common.h"
 #include "pw_bluetooth_proxy/single_channel_proxy.h"
 #include "pw_sync/mutex.h"
@@ -73,7 +73,7 @@ class L2capCoc : public SingleChannelProxy {
   ~L2capCoc() override;
 
   /// Check if the passed Write parameter is acceptable.
-  Status DoCheckWriteParameter(pw::multibuf::MultiBuf& payload) override;
+  Status DoCheckWriteParameter(const FlatConstMultiBuf& payload) override;
 
   /// Send an L2CAP_FLOW_CONTROL_CREDIT_IND signaling packet to dispense the
   /// remote peer additional L2CAP connection-oriented channel credits for this
@@ -91,14 +91,14 @@ class L2capCoc : public SingleChannelProxy {
 
  protected:
   static pw::Result<L2capCoc> Create(
-      pw::multibuf::MultiBufAllocator& rx_multibuf_allocator,
+      MultiBufAllocator& rx_multibuf_allocator,
       L2capChannelManager& l2cap_channel_manager,
       L2capSignalingChannel* signaling_channel,
       uint16_t connection_handle,
       CocConfig rx_config,
       CocConfig tx_config,
       ChannelEventCallback&& event_fn,
-      Function<void(multibuf::MultiBuf&& payload)>&& receive_fn);
+      Function<void(FlatConstMultiBuf&& payload)>&& receive_fn);
 
   // `SendPayloadFromControllerToClient` with the information payload contained
   // in `kframe`.
@@ -113,14 +113,14 @@ class L2capCoc : public SingleChannelProxy {
   void AddTxCredits(uint16_t credits) PW_LOCKS_EXCLUDED(tx_mutex_);
 
  private:
-  explicit L2capCoc(pw::multibuf::MultiBufAllocator& rx_multibuf_allocator,
+  explicit L2capCoc(MultiBufAllocator& rx_multibuf_allocator,
                     L2capChannelManager& l2cap_channel_manager,
                     L2capSignalingChannel* signaling_channel,
                     uint16_t connection_handle,
                     CocConfig rx_config,
                     CocConfig tx_config,
                     ChannelEventCallback&& event_fn,
-                    Function<void(multibuf::MultiBuf&& payload)>&& receive_fn);
+                    Function<void(FlatConstMultiBuf&& payload)>&& receive_fn);
 
   // Returns max size of L2CAP PDU payload supported by this channel.
   //
@@ -142,11 +142,11 @@ class L2capCoc : public SingleChannelProxy {
   uint16_t tx_mtu_;
   uint16_t tx_mps_;
 
-  Function<void(multibuf::MultiBuf&& payload)> receive_fn_;
+  Function<void(FlatConstMultiBuf&& payload)> receive_fn_;
 
   sync::Mutex rx_mutex_;
   uint16_t remaining_sdu_bytes_to_ignore_ PW_GUARDED_BY(rx_mutex_) = 0;
-  std::optional<multibuf::MultiBuf> rx_sdu_ PW_GUARDED_BY(rx_mutex_) =
+  std::optional<FlatMultiBufInstance> rx_sdu_ PW_GUARDED_BY(rx_mutex_) =
       std::nullopt;
   uint16_t rx_sdu_offset_ PW_GUARDED_BY(rx_mutex_) = 0;
   uint16_t rx_sdu_bytes_remaining_ PW_GUARDED_BY(rx_mutex_) = 0;

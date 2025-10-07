@@ -28,7 +28,7 @@ std::optional<H4PacketWithH4> GattNotifyChannel::GenerateNextTxPacket() {
     return std::nullopt;
   }
 
-  ConstByteSpan attribute_value = GetFrontPayloadSpan();
+  const FlatConstMultiBuf& attribute_value = GetFrontPayload();
 
   std::optional<uint16_t> max_l2cap_payload_size = MaxL2capPayloadSize();
   // This should have been caught during Write.
@@ -69,8 +69,7 @@ std::optional<H4PacketWithH4> GattNotifyChannel::GenerateNextTxPacket() {
 
   att_notify->attribute_opcode().Write(emboss::AttOpcode::ATT_HANDLE_VALUE_NTF);
   att_notify->attribute_handle().Write(attribute_handle_);
-  PW_CHECK(
-      TryToCopyToEmbossStruct(att_notify->attribute_value(), attribute_value));
+  MultiBufAdapter::Copy(att_notify->attribute_value(), attribute_value);
   PW_CHECK(att_notify->Ok());
 
   // All content has been copied from the front payload, so release it.
@@ -80,7 +79,7 @@ std::optional<H4PacketWithH4> GattNotifyChannel::GenerateNextTxPacket() {
 }
 
 Status GattNotifyChannel::DoCheckWriteParameter(
-    pw::multibuf::MultiBuf& payload) {
+    const FlatConstMultiBuf& payload) {
   std::optional<uint16_t> max_l2cap_payload_size = MaxL2capPayloadSize();
   if (!max_l2cap_payload_size) {
     PW_LOG_ERROR("Tried to write before LE_Read_Buffer_Size processed.");

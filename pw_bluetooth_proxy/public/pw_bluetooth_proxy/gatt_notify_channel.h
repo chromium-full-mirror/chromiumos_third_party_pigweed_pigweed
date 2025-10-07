@@ -17,6 +17,7 @@
 #include <cstdint>
 
 #include "pw_bluetooth_proxy/internal/l2cap_channel.h"
+#include "pw_bluetooth_proxy/internal/multibuf.h"
 #include "pw_bluetooth_proxy/single_channel_proxy.h"
 
 namespace pw::bluetooth::proxy {
@@ -37,7 +38,7 @@ class GattNotifyChannel : public SingleChannelProxy {
   uint16_t attribute_handle() const { return attribute_handle_; }
 
   /// Check if the passed Write parameter is acceptable.
-  Status DoCheckWriteParameter(pw::multibuf::MultiBuf& payload) override;
+  Status DoCheckWriteParameter(const FlatConstMultiBuf& payload) override;
 
  protected:
   static pw::Result<GattNotifyChannel> Create(

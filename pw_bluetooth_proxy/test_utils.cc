@@ -16,6 +16,8 @@
 
 #include <cstdint>
 
+#include "pw_allocator/null_allocator.h"
+#include "pw_assert/check.h"
 #include "pw_bluetooth/emboss_util.h"
 #include "pw_bluetooth/hci_common.emb.h"
 #include "pw_bluetooth/hci_data.emb.h"
@@ -592,9 +594,9 @@ L2capCoc ProxyHostTest::BuildCoc(ProxyHost& proxy, CocParameters params) {
 
 Result<BasicL2capChannel> ProxyHostTest::BuildBasicL2capChannelWithResult(
     ProxyHost& proxy, BasicL2capParameters params) {
-  multibuf::MultiBufAllocator* rx_multibuf_allocator =
-      params.rx_multibuf_allocator ? params.rx_multibuf_allocator
-                                   : &sut_multibuf_allocator_;
+  MultiBufAllocator* rx_multibuf_allocator = params.rx_multibuf_allocator
+                                                 ? params.rx_multibuf_allocator
+                                                 : &sut_multibuf_allocator_;
   return proxy.AcquireBasicL2capChannel(
       *rx_multibuf_allocator,
       params.handle,
@@ -631,7 +633,7 @@ GattNotifyChannel ProxyHostTest::BuildGattNotifyChannel(
 RfcommChannel ProxyHostTest::BuildRfcomm(
     ProxyHost& proxy,
     RfcommParameters params,
-    Function<void(multibuf::MultiBuf&& payload)>&& receive_fn,
+    Function<void(FlatConstMultiBuf&& payload)>&& receive_fn,
     ChannelEventCallback&& event_fn) {
   pw::Result<RfcommChannel> channel = proxy.AcquireRfcommChannel(
       sut_multibuf_allocator_,

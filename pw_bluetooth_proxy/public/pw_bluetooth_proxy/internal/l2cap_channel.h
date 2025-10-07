@@ -17,15 +17,13 @@
 #include <cstdint>
 
 #include "pw_assert/assert.h"
-#include "pw_assert/check.h"
 #include "pw_bluetooth_proxy/direction.h"
 #include "pw_bluetooth_proxy/h4_packet.h"
 #include "pw_bluetooth_proxy/internal/logical_transport.h"
+#include "pw_bluetooth_proxy/internal/multibuf.h"
 #include "pw_bluetooth_proxy/l2cap_channel_common.h"
 #include "pw_containers/inline_queue.h"
 #include "pw_containers/intrusive_forward_list.h"
-#include "pw_multibuf/allocator.h"
-#include "pw_multibuf/multibuf.h"
 #include "pw_result/result.h"
 #include "pw_status/status.h"
 #include "pw_status/try.h"
@@ -93,7 +91,7 @@ class L2capChannel : public IntrusiveForwardList<L2capChannel>::Item {
 
     // Verify current underlying channel matches `expected`.
     void CheckUnderlyingChannel(L2capChannel* expected) {
-      PW_CHECK(underlying_channel_ == expected);
+      PW_ASSERT(underlying_channel_ == expected);
     }
 
    private:
@@ -164,13 +162,12 @@ class L2capChannel : public IntrusiveForwardList<L2capChannel>::Item {
   ///   the send at this time (transient error). If an `event_fn` has been
   ///   provided it will be called with `L2capChannelEvent::kWriteAvailable`
   ///   when there is queue space available again.
-  /// * @INVALID_ARGUMENT: Payload is too large or payload is not a contiguous
-  ///   `MultiBuf`.
+  /// * @INVALID_ARGUMENT: Payload is too large.
   /// * @FAILED_PRECONDITION: Channel is not `State::kRunning`.
   /// * @UNIMPLEMENTED: Channel does not support `Write(MultiBuf)`.
   // TODO: https://pwbug.dev/388082771 - Plan to eventually move this to
   // ClientChannel.
-  StatusWithMultiBuf Write(pw::multibuf::MultiBuf&& payload);
+  StatusWithMultiBuf Write(FlatConstMultiBuf&& payload);
 
   /// Determine if channel is ready to accept one or more Write payloads.
   ///
@@ -232,7 +229,7 @@ class L2capChannel : public IntrusiveForwardList<L2capChannel>::Item {
 
   explicit L2capChannel(
       L2capChannelManager& l2cap_channel_manager,
-      multibuf::MultiBufAllocator* rx_multibuf_allocator,
+      MultiBufAllocator* rx_multibuf_allocator,
       uint16_t connection_handle,
       AclTransportType transport,
       uint16_t local_cid,
@@ -268,7 +265,7 @@ class L2capChannel : public IntrusiveForwardList<L2capChannel>::Item {
   }
 
   // Verifies current holder matches `expected`.
-  void CheckHolder(Holder* expected) { PW_CHECK(holder_ == expected); }
+  void CheckHolder(Holder* expected) { PW_ASSERT(holder_ == expected); }
 
   //-------------------
   //  Other (protected)
@@ -303,24 +300,24 @@ class L2capChannel : public IntrusiveForwardList<L2capChannel>::Item {
   //----------------
 
   /// Check if the passed Write parameter is acceptable.
-  virtual Status DoCheckWriteParameter(pw::multibuf::MultiBuf& payload) = 0;
+  virtual Status DoCheckWriteParameter(const FlatConstMultiBuf& payload) = 0;
 
   // Channels that need to send a payload during handling a received packet
   // directly (for instance to replenish credits) should use this function which
   // does not take the L2capChannelManager channels lock.
-  inline StatusWithMultiBuf WriteDuringRx(pw::multibuf::MultiBuf&& payload) {
+  inline StatusWithMultiBuf WriteDuringRx(FlatConstMultiBuf&& payload) {
     return WriteLocked(std::move(payload));
   }
 
   // Write payload to queue but don't drain the queue as this would require
   // taking L2capChannelManager channel_mutex_ lock.
-  StatusWithMultiBuf WriteLocked(pw::multibuf::MultiBuf&& payload);
+  StatusWithMultiBuf WriteLocked(FlatConstMultiBuf&& payload);
 
   // Pop front buffer (which will release its memory). Queue must be nonempty.
   void PopFrontPayload() PW_EXCLUSIVE_LOCKS_REQUIRED(tx_mutex_);
 
-  // Returns span over front buffer. Queue must be nonempty.
-  ConstByteSpan GetFrontPayloadSpan() const
+  // Returns a reference to the front buffer. Queue must be nonempty.
+  const FlatConstMultiBuf& GetFrontPayload() const
       PW_EXCLUSIVE_LOCKS_REQUIRED(tx_mutex_);
 
   bool PayloadQueueEmpty() const PW_EXCLUSIVE_LOCKS_REQUIRED(tx_mutex_);
@@ -366,7 +363,7 @@ class L2capChannel : public IntrusiveForwardList<L2capChannel>::Item {
   // Returns false if payload should be forwarded to host instead.
   virtual bool SendPayloadFromControllerToClient(pw::span<uint8_t> payload);
 
-  multibuf::MultiBufAllocator* rx_multibuf_allocator() const {
+  constexpr MultiBufAllocator* rx_multibuf_allocator() const {
     return rx_multibuf_allocator_;
   }
 
@@ -395,11 +392,10 @@ class L2capChannel : public IntrusiveForwardList<L2capChannel>::Item {
   //--------------
 
   // Queue a client `buf` for sending and `ReportNewTxPacketsOrCredits()`.
-  // Must be a contiguous MultiBuf.
   //
   // Returns PW_STATUS_UNAVAILABLE if queue is full (transient error).
   // Returns PW_STATUS_FAILED_PRECONDITION if channel is not `State::kRunning`.
-  StatusWithMultiBuf QueuePayload(multibuf::MultiBuf&& buf)
+  StatusWithMultiBuf QueuePayload(FlatConstMultiBuf&& buf)
       PW_LOCKS_EXCLUDED(tx_mutex_);
 
   // Return the next Tx H4 based on the client's queued payloads. If the
@@ -415,7 +411,7 @@ class L2capChannel : public IntrusiveForwardList<L2capChannel>::Item {
   sync::Mutex tx_mutex_;
 
   // Stores client Tx payload buffers.
-  InlineQueue<multibuf::MultiBuf, kQueueCapacity> payload_queue_
+  InlineQueue<FlatConstMultiBufInstance, kQueueCapacity> payload_queue_
       PW_GUARDED_BY(tx_mutex_);
 
   // True if the last queue attempt didn't have space. Will be cleared on
@@ -464,8 +460,8 @@ class L2capChannel : public IntrusiveForwardList<L2capChannel>::Item {
   // Return the recombination buf to the caller.
   //
   // Channel no longer has buf after this call.
-  multibuf::MultiBuf TakeRecombinationBuf(Direction direction) {
-    PW_CHECK(GetRecombinationBufOptRef(direction).has_value());
+  MultiBufInstance TakeRecombinationBuf(Direction direction) {
+    PW_ASSERT(GetRecombinationBufOptRef(direction).has_value());
     return std::exchange(GetRecombinationBufOptRef(direction), std::nullopt)
         .value();
   }
@@ -476,17 +472,17 @@ class L2capChannel : public IntrusiveForwardList<L2capChannel>::Item {
   pw::Status CopyToRecombinationBuf(Direction direction,
                                     ConstByteSpan data,
                                     uint16_t write_offset) {
-    PW_CHECK(HasRecombinationBuf(direction));
-
-    PW_TRY(GetRecombinationBufOptRef(direction)->CopyFrom(as_bytes(data),
-                                                          write_offset));
-    return pw::OkStatus();
+    PW_ASSERT(HasRecombinationBuf(direction));
+    auto& bufopt_ref = GetRecombinationBufOptRef(direction);
+    MultiBuf& mbuf = MultiBufAdapter::Unwrap(bufopt_ref.value());
+    size_t copied = MultiBufAdapter::Copy(mbuf, write_offset, as_bytes(data));
+    return copied < data.size() ? Status::ResourceExhausted() : OkStatus();
   }
 
   // Return reference to the recombination MultiBuf.
   //
   // Intended for use just within L2capChannel functions.
-  std::optional<multibuf::MultiBuf>& GetRecombinationBufOptRef(
+  std::optional<MultiBufInstance>& GetRecombinationBufOptRef(
       Direction direction) {
     return recombination_mbufs_[cpp23::to_underlying(direction)];
   }
@@ -523,8 +519,8 @@ class L2capChannel : public IntrusiveForwardList<L2capChannel>::Item {
   // Notify clients of asynchronous events encountered such as errors.
   ChannelEventCallback event_fn_;
 
-  // Optional client-provided multibuf allocator.
-  multibuf::MultiBufAllocator* rx_multibuf_allocator_ = nullptr;
+  // Optional client-provided allocator for MultiBufs.
+  MultiBufAllocator* rx_multibuf_allocator_ = nullptr;
 
   // Client-provided controller read callback.
   OptionalPayloadReceiveCallback payload_from_controller_fn_;
@@ -535,7 +531,7 @@ class L2capChannel : public IntrusiveForwardList<L2capChannel>::Item {
   // payloads when they are being recombined.
   // They are stored here so that they can be allocated with the channel's
   // allocator and also properly destroyed with the channel.
-  std::array<std::optional<multibuf::MultiBuf>, kNumDirections>
+  std::array<std::optional<MultiBufInstance>, kNumDirections>
       recombination_mbufs_{};
 };
 

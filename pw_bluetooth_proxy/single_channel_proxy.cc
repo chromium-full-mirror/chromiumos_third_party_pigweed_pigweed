@@ -22,7 +22,7 @@ namespace pw::bluetooth::proxy {
 
 SingleChannelProxy::SingleChannelProxy(
     L2capChannelManager& l2cap_channel_manager,
-    multibuf::MultiBufAllocator* rx_multibuf_allocator,
+    MultiBufAllocator* rx_multibuf_allocator,
     uint16_t connection_handle,
     AclTransportType transport,
     uint16_t local_cid,

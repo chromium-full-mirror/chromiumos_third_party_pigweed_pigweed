@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include "pw_bluetooth_proxy/internal/multibuf.h"
 #include "pw_bluetooth_proxy/l2cap_channel_common.h"
 #include "pw_bluetooth_proxy/l2cap_coc.h"
 
@@ -23,14 +24,14 @@ class L2capCocInternal final : public L2capCoc {
  public:
   // Should only be created by `ProxyHost` and tests.
   static pw::Result<L2capCoc> Create(
-      pw::multibuf::MultiBufAllocator& rx_multibuf_allocator,
+      MultiBufAllocator& rx_multibuf_allocator,
       L2capChannelManager& l2cap_channel_manager,
       L2capSignalingChannel* signaling_channel,
       uint16_t connection_handle,
       CocConfig rx_config,
       CocConfig tx_config,
       ChannelEventCallback&& event_fn,
-      Function<void(multibuf::MultiBuf&& payload)>&& receive_fn) {
+      Function<void(FlatConstMultiBuf&& payload)>&& receive_fn) {
     return L2capCoc::Create(rx_multibuf_allocator,
                             l2cap_channel_manager,
                             signaling_channel,

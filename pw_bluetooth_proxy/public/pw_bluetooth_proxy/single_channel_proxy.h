@@ -16,6 +16,7 @@
 
 #include "pw_bluetooth_proxy/channel_proxy.h"
 #include "pw_bluetooth_proxy/internal/l2cap_channel.h"
+#include "pw_bluetooth_proxy/internal/multibuf.h"
 
 namespace pw::bluetooth::proxy {
 
@@ -40,7 +41,7 @@ class SingleChannelProxy : public L2capChannel,
  public:
   explicit SingleChannelProxy(
       L2capChannelManager& l2cap_channel_manager,
-      multibuf::MultiBufAllocator* rx_multibuf_allocator,
+      MultiBufAllocator* rx_multibuf_allocator,
       uint16_t connection_handle,
       AclTransportType transport,
       uint16_t local_cid,

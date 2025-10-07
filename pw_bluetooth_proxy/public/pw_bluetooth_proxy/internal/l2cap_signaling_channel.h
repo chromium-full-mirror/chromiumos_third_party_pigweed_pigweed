@@ -17,9 +17,9 @@
 #include "pw_bluetooth/l2cap_frames.emb.h"
 #include "pw_bluetooth_proxy/basic_l2cap_channel.h"
 #include "pw_bluetooth_proxy/direction.h"
+#include "pw_bluetooth_proxy/internal/multibuf.h"
 #include "pw_bluetooth_proxy/l2cap_status_delegate.h"
 #include "pw_containers/vector.h"
-#include "pw_multibuf/allocator.h"
 #include "pw_sync/lock_annotations.h"
 #include "pw_sync/mutex.h"
 
@@ -88,12 +88,11 @@ class L2capSignalingChannel : public BasicL2capChannel {
   // @returns
   // * @OK: `L2CAP_FLOW_CONTROL_CREDIT_IND` was sent.
   // * @UNAVAILABLE: Send could not be queued due to lack of memory in the
-  //   client-provided `rx_multibuf_allocator` (transient error).
+  //   client-provided `multibuf_allocator` (transient error).
   // * @FAILED_PRECONDITION: Channel is not `State::kRunning`.
-  Status SendFlowControlCreditInd(
-      uint16_t cid,
-      uint16_t credits,
-      multibuf::MultiBufAllocator& multibuf_allocator);
+  Status SendFlowControlCreditInd(uint16_t cid,
+                                  uint16_t credits,
+                                  MultiBufAllocator& multibuf_allocator);
 
  protected:
   // Process a C-frame.

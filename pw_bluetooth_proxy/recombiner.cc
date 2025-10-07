@@ -87,18 +87,11 @@ pw::Status Recombiner::RecombineFragment(
 }
 
 // static
-multibuf::MultiBuf Recombiner::TakeBuf(
-    std::optional<LockedL2capChannel>& channel, Direction direction) {
+MultiBufInstance Recombiner::TakeBuf(std::optional<LockedL2capChannel>& channel,
+                                     Direction direction) {
   PW_CHECK(channel.has_value());
   PW_CHECK(channel->channel().HasRecombinationBuf(direction));
-
-  multibuf::MultiBuf return_buf =
-      channel->channel().TakeRecombinationBuf(direction);
-  // Should always be true since we used `AllocateContiguous()` to create the
-  // MultiBuf.
-  PW_CHECK(return_buf.IsContiguous());
-
-  return return_buf;
+  return channel->channel().TakeRecombinationBuf(direction);
 }
 
 void Recombiner::EndRecombination(std::optional<LockedL2capChannel>& channel) {

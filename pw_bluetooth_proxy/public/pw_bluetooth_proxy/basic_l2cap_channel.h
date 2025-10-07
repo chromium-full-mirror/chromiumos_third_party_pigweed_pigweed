@@ -15,6 +15,7 @@
 #pragma once
 
 #include "pw_bluetooth_proxy/internal/l2cap_channel.h"
+#include "pw_bluetooth_proxy/internal/multibuf.h"
 #include "pw_bluetooth_proxy/l2cap_channel_common.h"
 #include "pw_bluetooth_proxy/single_channel_proxy.h"
 
@@ -28,7 +29,7 @@ class BasicL2capChannel : public SingleChannelProxy {
   // provide MTU_SIG.
   static pw::Result<BasicL2capChannel> Create(
       L2capChannelManager& l2cap_channel_manager,
-      multibuf::MultiBufAllocator* rx_multibuf_allocator,
+      MultiBufAllocator* rx_multibuf_allocator,
       uint16_t connection_handle,
       AclTransportType transport,
       uint16_t local_cid,
@@ -44,12 +45,12 @@ class BasicL2capChannel : public SingleChannelProxy {
   ~BasicL2capChannel() override;
 
   /// Check if the passed Write parameter is acceptable.
-  Status DoCheckWriteParameter(pw::multibuf::MultiBuf& payload) override;
+  Status DoCheckWriteParameter(const FlatConstMultiBuf& payload) override;
 
  protected:
   explicit BasicL2capChannel(
       L2capChannelManager& l2cap_channel_manager,
-      multibuf::MultiBufAllocator* rx_multibuf_allocator,
+      MultiBufAllocator* rx_multibuf_allocator,
       uint16_t connection_handle,
       AclTransportType transport,
       uint16_t local_cid,

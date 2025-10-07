@@ -25,7 +25,7 @@ namespace pw::bluetooth::proxy {
 
 pw::Result<BasicL2capChannel> BasicL2capChannel::Create(
     L2capChannelManager& l2cap_channel_manager,
-    multibuf::MultiBufAllocator* rx_multibuf_allocator,
+    MultiBufAllocator* rx_multibuf_allocator,
     uint16_t connection_handle,
     AclTransportType transport,
     uint16_t local_cid,
@@ -54,7 +54,7 @@ pw::Result<BasicL2capChannel> BasicL2capChannel::Create(
 }
 
 Status BasicL2capChannel::DoCheckWriteParameter(
-    pw::multibuf::MultiBuf& payload) {
+    const FlatConstMultiBuf& payload) {
   if (!IsOkL2capDataLength(payload.size())) {
     PW_LOG_WARN("Payload (%zu bytes) is too large. So will not process.",
                 payload.size());
@@ -68,10 +68,9 @@ std::optional<H4PacketWithH4> BasicL2capChannel::GenerateNextTxPacket() {
     return std::nullopt;
   }
 
-  ConstByteSpan payload = GetFrontPayloadSpan();
+  const FlatConstMultiBuf& payload = GetFrontPayload();
 
-  pw::Result<H4PacketWithH4> result =
-      PopulateTxL2capPacket(payload.size_bytes());
+  pw::Result<H4PacketWithH4> result = PopulateTxL2capPacket(payload.size());
   if (!result.ok()) {
     return std::nullopt;
   }
@@ -86,8 +85,7 @@ std::optional<H4PacketWithH4> BasicL2capChannel::GenerateNextTxPacket() {
       acl.payload().BackingStorage().data(), acl.payload().SizeInBytes());
   PW_CHECK(bframe.IsComplete());
 
-  PW_CHECK(TryToCopyToEmbossStruct(bframe.payload(), payload));
-
+  MultiBufAdapter::Copy(bframe.payload(), payload);
   PW_CHECK(acl.Ok());
   PW_CHECK(bframe.Ok());
 
@@ -99,7 +97,7 @@ std::optional<H4PacketWithH4> BasicL2capChannel::GenerateNextTxPacket() {
 
 BasicL2capChannel::BasicL2capChannel(
     L2capChannelManager& l2cap_channel_manager,
-    multibuf::MultiBufAllocator* rx_multibuf_allocator,
+    MultiBufAllocator* rx_multibuf_allocator,
     uint16_t connection_handle,
     AclTransportType transport,
     uint16_t local_cid,

@@ -19,6 +19,7 @@
 #include "pw_bluetooth_proxy/internal/h4_storage.h"
 #include "pw_bluetooth_proxy/internal/hci_transport.h"
 #include "pw_bluetooth_proxy/internal/l2cap_channel_manager.h"
+#include "pw_bluetooth_proxy/internal/multibuf.h"
 #include "pw_bluetooth_proxy/l2cap_channel_common.h"
 #include "pw_bluetooth_proxy/l2cap_coc.h"
 #include "pw_bluetooth_proxy/l2cap_status_delegate.h"
@@ -155,11 +156,11 @@ class ProxyHost {
   /// * @UNAVAILABLE: A channel could not be created because no memory was
   ///   available to accommodate an additional ACL connection.
   pw::Result<L2capCoc> AcquireL2capCoc(
-      pw::multibuf::MultiBufAllocator& rx_multibuf_allocator,
+      MultiBufAllocator& rx_multibuf_allocator,
       uint16_t connection_handle,
       L2capCoc::CocConfig rx_config,
       L2capCoc::CocConfig tx_config,
-      Function<void(multibuf::MultiBuf&& payload)>&& receive_fn,
+      Function<void(FlatConstMultiBuf&& payload)>&& receive_fn,
       ChannelEventCallback&& event_fn);
 
   /// Returns an L2CAP channel operating in basic mode that supports writing to
@@ -200,7 +201,7 @@ class ProxyHost {
   /// * @UNAVAILABLE: A channel could not be created because no memory was
   ///   available to accommodate an additional ACL connection.
   pw::Result<BasicL2capChannel> AcquireBasicL2capChannel(
-      multibuf::MultiBufAllocator& rx_multibuf_allocator,
+      MultiBufAllocator& rx_multibuf_allocator,
       uint16_t connection_handle,
       uint16_t local_cid,
       uint16_t remote_cid,
@@ -260,12 +261,12 @@ class ProxyHost {
   /// * @INVALID_ARGUMENT: Arguments are invalid. Check the logs.
   /// * @UNAVAILABLE: A channel could not be created.
   pw::Result<RfcommChannel> AcquireRfcommChannel(
-      multibuf::MultiBufAllocator& rx_multibuf_allocator,
+      MultiBufAllocator& rx_multibuf_allocator,
       uint16_t connection_handle,
       RfcommChannel::Config rx_config,
       RfcommChannel::Config tx_config,
       uint8_t channel_number,
-      Function<void(multibuf::MultiBuf&& payload)>&& payload_from_controller_fn,
+      Function<void(FlatConstMultiBuf&& payload)>&& payload_from_controller_fn,
       ChannelEventCallback&& event_fn);
 
   /// Indicates whether the proxy has the capability of sending LE ACL packets.

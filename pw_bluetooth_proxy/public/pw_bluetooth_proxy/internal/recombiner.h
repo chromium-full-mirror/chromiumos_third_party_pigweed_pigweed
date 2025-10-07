@@ -14,9 +14,9 @@
 
 #pragma once
 
-#include "pw_assert/check.h"
+#include "pw_assert/assert.h"
 #include "pw_bluetooth_proxy/internal/locked_l2cap_channel.h"
-#include "pw_multibuf/multibuf.h"
+#include "pw_bluetooth_proxy/internal/multibuf.h"
 #include "pw_span/span.h"
 #include "pw_status/status.h"
 
@@ -85,8 +85,8 @@ class Recombiner {
   // This is static method so that it can be called outside of the connection
   // mutex. It can be called once after IsComplete is returned by the relevant
   // Recombiner instance.
-  static multibuf::MultiBuf TakeBuf(std::optional<LockedL2capChannel>& channel,
-                                    Direction direction);
+  static MultiBufInstance TakeBuf(std::optional<LockedL2capChannel>& channel,
+                                  Direction direction);
 
   // Ends recombination.
   //
@@ -111,7 +111,7 @@ class Recombiner {
   // Returns true if recombined size matches specified size.
   // Should only be called after a RecombineFragment.
   bool IsComplete() const {
-    PW_CHECK(expected_size_ > 0);
+    PW_ASSERT(expected_size_ > 0);
     return recombined_size_ == expected_size_;
   }
 
@@ -122,7 +122,7 @@ class Recombiner {
   // Returns local_cid of channel being recombined. Should only be called
   // when recombination is active.
   uint16_t local_cid() const {
-    PW_CHECK(IsActive());
+    PW_ASSERT(IsActive());
     return local_cid_;
   }
 

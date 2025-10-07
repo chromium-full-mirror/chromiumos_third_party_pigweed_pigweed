@@ -97,6 +97,13 @@ Get started
       2. Then add ``pw_bluetooth_proxy`` to
       the ``DEPS`` list in your cmake target:
 
+This module depends on :ref:`module-pw_multibuf`, and can use either the older
+v1 or newer v2 MultiBuf API, depending on the
+:ref:`module configuration <module-structure-compile-time-configuration>`. By
+default, the v1 MultiBuf API is in use. When migrating to the v2 API, set the
+value of the :cc:`PW_BLUETOOTH_PROXY_MULTIBUF` option to
+:cc:`PW_BLUETOOTH_PROXY_MULTIBUF_V2`.
+
 .. _module-pw_bluetooth_proxy-reference:
 
 -------------
