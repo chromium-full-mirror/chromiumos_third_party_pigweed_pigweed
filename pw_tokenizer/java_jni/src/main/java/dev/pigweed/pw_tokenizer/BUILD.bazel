@@ -22,5 +22,8 @@ java_jni_library(
     tags = ["jni"],
     target_compatible_with = incompatible_with_mcu(),
     visibility = ["//visibility:public"],
-    deps = ["@pigweed_maven_deps//:com_google_code_findbugs_jsr305"],
+    deps = [
+        "@pigweed_maven_deps//:com_google_code_findbugs_jsr305",
+        "@pigweed_maven_deps//:com_google_guava_guava",
+    ],
 )

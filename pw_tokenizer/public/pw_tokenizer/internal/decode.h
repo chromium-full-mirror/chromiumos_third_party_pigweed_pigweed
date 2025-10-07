@@ -235,7 +235,7 @@ class DecodedFormatString {
 class FormatString {
  public:
   // Constructs a FormatString from a null-terminated format string.
-  FormatString(const char* format_string);
+  explicit FormatString(const char* format_string);
 
   // Formats this format string according to the provided encoded arguments and
   // returns a string.
@@ -245,6 +245,9 @@ class FormatString {
     return Format(span(reinterpret_cast<const uint8_t*>(arguments.data()),
                        arguments.size()));
   }
+
+  // Returns the raw, unformatted version of this string.
+  std::string text() const;
 
   friend bool operator==(const FormatString& lhs, const FormatString& rhs) {
     return lhs.segments_ == rhs.segments_;

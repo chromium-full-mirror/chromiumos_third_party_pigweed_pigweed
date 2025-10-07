@@ -361,4 +361,12 @@ DecodedFormatString FormatString::Format(span<const uint8_t> arguments) const {
   return DecodedFormatString(std::move(results), arguments.size());
 }
 
+std::string FormatString::text() const {
+  std::string full_string;
+  for (const StringSegment& seg : segments_) {
+    full_string.append(seg.text());
+  }
+  return full_string;
+}
+
 }  // namespace pw::tokenizer

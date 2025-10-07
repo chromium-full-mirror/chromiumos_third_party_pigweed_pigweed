@@ -15,6 +15,7 @@
 package dev.pigweed.pw_tokenizer;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.junit.Assert.assertThrows;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -60,6 +61,59 @@ public final class DetokenizerTest {
   private final Detokenizer detokenizerCsv = Detokenizer.fromCsv(CSV_DATABASE);
 
   @Test
+  public void lookup_oneResult() {
+    assertThat(detokenizerBinary.lookup(1)).containsExactly("This is message 1");
+    assertThat(detokenizerCsv.lookup(2, Detokenizer.DEFAULT_DOMAIN))
+        .containsExactly("This is message 2: %s");
+  }
+
+  @Test
+  public void lookup_noResults() {
+    assertThat(detokenizerBinary.lookup(1, "wrong_domain")).isEmpty();
+    assertThat(detokenizerCsv.lookup(0)).isEmpty();
+  }
+
+  @Test
+  public void lookup_multipleMatches() {
+    Detokenizer detokenizer = Detokenizer.fromCsv( // clang-format off
+        "00000100,          ,\"\",\"Uh oh!\"\n" +
+        "00000100,          ,\"\",\"Oh NO!\"\n" +
+        "00000100,          ,\"other\",\"This is fine\"\n");
+    // clang-format on
+    assertThat(detokenizer.lookup(0x100, "")).containsExactly("Uh oh!", "Oh NO!");
+  }
+
+  @Test
+  public void lookupByteArray_padsToken() {
+    assertThat(detokenizerBinary.lookup(new byte[] {1})).containsExactly("This is message 1");
+    assertThat(detokenizerCsv.lookup(new byte[] {1, 0}, Detokenizer.DEFAULT_DOMAIN))
+        .containsExactly("This is message 1");
+  }
+
+  @Test
+  public void lookupByteArray_noResults() {
+    byte[] message = new byte[] {0, 0, 0, 0};
+    assertThat(detokenizerBinary.lookup(message, "wrong_domain")).isEmpty();
+    assertThat(detokenizerCsv.lookup(message)).isEmpty();
+  }
+
+  @Test
+  public void lookupByteArray_emptyMessage_throwsException() {
+    assertThrows(IllegalArgumentException.class, () -> detokenizerBinary.lookup(new byte[0]));
+  }
+
+  @Test
+  public void lookupByteArray_multipleMatches() {
+    Detokenizer detokenizer = Detokenizer.fromCsv( // clang-format off
+        "0A0B0C0D,          ,\"\",\"Uh oh!\"\n" +
+        "0A0B0C0D,          ,\"\",\"Oh NO!\"\n" +
+        "0A0B0C0D,          ,\"other\",\"This is fine\"\n");
+    // clang-format on
+    byte[] message = new byte[] {0x0D, 0x0C, 0x0B, 0x0A};
+    assertThat(detokenizer.lookup(message, "")).containsExactly("Uh oh!", "Oh NO!");
+  }
+
+  @Test
   public void detokenize_emptyMessage() {
     assertThat(detokenizerBinary.detokenize(new byte[0])).isNull();
     assertThat(detokenizerCsv.detokenize(new byte[0])).isNull();
@@ -83,6 +137,24 @@ public final class DetokenizerTest {
     byte[] message = new byte[] {4, 0, 0, 0};
     assertThat(detokenizerBinary.detokenize(message)).isNull();
     assertThat(detokenizerCsv.detokenize(message)).isNull();
+  }
+
+  @Test
+  public void detokenize_collision_returnsNull() {
+    Detokenizer detokenizer = Detokenizer.fromCsv( // clang-format off
+        "00000001,          ,\"\",\"Uh oh!\"\n" +
+        "00000001,          ,\"\",\"Oh NO!\"\n" +
+        "00000002,          ,\"\",\"Hey %d\"\n" +
+        "00000002,          ,\"\",\"Hi %d!\"\n");
+    // clang-format on
+    assertThat(detokenizer.detokenize(new byte[] {1, 0, 0, 0})).isNull();
+    assertThat(detokenizer.detokenize(new byte[] {2, 0, 0, 0})).isNull();
+  }
+
+  @Test
+  public void detokenize_missingArgument_returnsNull() {
+    Detokenizer detokenizer = Detokenizer.fromCsv("00000001,          ,\"\",\"The %d\"\n");
+    assertThat(detokenizer.detokenize(new byte[] {1, 0, 0, 0})).isNull();
   }
 
   @Test

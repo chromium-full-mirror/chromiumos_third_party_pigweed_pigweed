@@ -24,6 +24,7 @@ android_library_with_nullness_check(
     srcs = ["Detokenizer.java"],
     visibility = ["//visibility:public"],
     deps = [
+        "//third_party/java/android_libs/guava_jdk5",
         "//third_party/java/jsr305_annotations",
         "//third_party/pigweed/pigweed/pw_tokenizer/java_jni/src/main/native/dev/pigweed/pw_tokenizer:native_android",
     ],

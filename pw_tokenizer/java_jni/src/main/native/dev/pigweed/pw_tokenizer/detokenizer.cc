@@ -18,6 +18,7 @@
 
 #include <jni.h>
 
+#include <cassert>
 #include <cstdint>
 #include <cstring>
 
@@ -113,6 +114,39 @@ DETOKENIZER_JNI_METHOD(void, deleteNativeDetokenizer)(JNIEnv*,
                                                       jobject,
                                                       jlong handle) {
   delete HandleToPointer(handle);
+}
+
+DETOKENIZER_JNI_METHOD(jobjectArray, lookupNative)(
+    JNIEnv* env, jobject, jlong handle, jint token, jstring java_domain) {
+  static_assert(sizeof(jint) == sizeof(pw::tokenizer::Token));
+
+  const std::string_view domain(
+      env->GetStringUTFChars(java_domain, nullptr),
+      static_cast<size_t>(env->GetStringUTFLength(java_domain)));
+
+  Detokenizer& detokenizer = *HandleToPointer(handle);
+  auto results = detokenizer.DatabaseLookup(
+      static_cast<pw::tokenizer::Token>(token), domain);
+
+  env->ReleaseStringUTFChars(java_domain, domain.data());
+
+  jclass string_class = env->GetObjectClass(java_domain);
+  assert(string_class != nullptr);
+
+  jobjectArray array = env->NewObjectArray(
+      static_cast<jsize>(results.size()), string_class, nullptr);
+  if (array == nullptr) {
+    return nullptr;  // unable to allocate the array!
+  }
+
+  for (size_t i = 0; i < results.size(); ++i) {
+    std::string string = results[i].first.text();
+    jstring java_string = env->NewStringUTF(string.c_str());
+    env->SetObjectArrayElement(array, static_cast<jsize>(i), java_string);
+    env->DeleteLocalRef(java_string);
+  }
+
+  return array;
 }
 
 DETOKENIZER_JNI_METHOD(jbyteArray, detokenizeNative)(

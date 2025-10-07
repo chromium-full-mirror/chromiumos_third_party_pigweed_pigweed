@@ -20,6 +20,7 @@ package dev.pigweed.pw_tokenizer;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.github.fmeum.rules_jni.RulesJni;
+import com.google.common.collect.ImmutableList;
 import javax.annotation.Nullable;
 
 /**
@@ -63,6 +64,42 @@ public final class Detokenizer implements AutoCloseable {
 
   private Detokenizer(long nativeHandle) {
     handle = nativeHandle;
+  }
+
+  /**
+   * Looks up the token in the default domain, returning any matching strings in the database.
+   */
+  public ImmutableList<String> lookup(int token) {
+    return lookup(token, DEFAULT_DOMAIN);
+  }
+
+  /**
+   * Looks up the token in the specified domain, returning any matching strings in the database.
+   */
+  public ImmutableList<String> lookup(int token, String domain) {
+    String[] result = lookupNative(handle, token, domain);
+    return result == null ? ImmutableList.of() : ImmutableList.copyOf(result);
+  }
+
+  /**
+   * Reads the token from the tokenized message and returns any matching strings in the database.
+   */
+  public ImmutableList<String> lookup(byte[] tokenizedMessage) {
+    return lookup(tokenizedMessage, DEFAULT_DOMAIN);
+  }
+
+  /**
+   * Reads the token from the tokenized message and returns any matching strings in the database.
+   */
+  public ImmutableList<String> lookup(byte[] tokenizedMessage, String domain) {
+    if (tokenizedMessage.length == 0) {
+      throw new IllegalArgumentException("The tokenizedMessage byte array cannot be empty");
+    }
+    int token = tokenizedMessage[0] & 0xFF;
+    for (int i = 1; i < tokenizedMessage.length; ++i) {
+      token |= (tokenizedMessage[i] & 0xFF) << (i * 8);
+    }
+    return lookup(token, DEFAULT_DOMAIN);
   }
 
   /**
@@ -153,6 +190,9 @@ public final class Detokenizer implements AutoCloseable {
 
   /** Deletes the detokenizer object with the provided handle, which MUST be valid. */
   private native void deleteNativeDetokenizer(long handle);
+
+  /** Returns an array containing the Strings that map to this token; null if allocation fails. */
+  @Nullable private native String[] lookupNative(long handle, int token, String java_domain);
 
   /** Returns the detokenized version of the provided data, or null if detokenization failed. */
   @Nullable private native byte[] detokenizeNative(long handle, byte[] data, String domain);
