@@ -21,6 +21,7 @@
 #include "lib/stdcompat/utility.h"
 #include "pw_assert/check.h"
 #include "pw_bytes/span.h"
+#include "pw_function/scope_guard.h"
 #include "pw_log/log.h"
 #include "pw_result/result.h"
 #include "pw_status/status.h"
@@ -66,7 +67,12 @@ void I3cMcuxpressoInitiator::Enable() {
     return;
   }
 
+  // Acquire the clock_tree element. Note that this function only requires the
+  // IP clock and not the functional clock. However, ClockMcuxpressoClockIp
+  // only provides the combined element, so that's what we use here.
+  // Make sure it's released on any function exits through a scoped guard.
   PW_CHECK_OK(clock_tree_element_.Acquire());
+  pw::ScopeGuard guard([this] { clock_tree_element_.Release().IgnoreError(); });
 
   i3c_master_config_t masterConfig;
   I3C_MasterGetDefaultConfig(&masterConfig);
@@ -97,8 +103,14 @@ void I3cMcuxpressoInitiator::Disable() {
     return;
   }
 
+  // Acquire the clock_tree element. Note that this function only requires the
+  // IP clock and not the functional clock. However, ClockMcuxpressoClockIp
+  // only provides the combined element, so that's what we use here.
+  // Make sure it's released on any function exits through a scoped guard.
+  PW_CHECK_OK(clock_tree_element_.Acquire());
+  pw::ScopeGuard guard([this] { clock_tree_element_.Release().IgnoreError(); });
+
   I3C_MasterDeinit(base_);
-  clock_tree_element_.Release().IgnoreError();
   enabled_ = false;
 }
 
@@ -111,11 +123,19 @@ void I3cMcuxpressoInitiator::TransferCompleteCallback(I3C_Type*,
   I3cMcuxpressoInitiator& initiator =
       *static_cast<I3cMcuxpressoInitiator*>(initiator_ptr);
   initiator.transfer_status_ = status;
+
+  // We cannot release clock_tree_element_ here since we are in an ISR.
+  // It is released where callback_complete_notification_ is waited on.
   initiator.callback_complete_notification_.release();
 }
 
 Status I3cMcuxpressoInitiator::InitiateNonBlockingTransferUntil(
     chrono::SystemClock::time_point deadline, i3c_master_transfer_t* transfer) {
+  // Acquire the clock_tree_element. Make sure it's released on any function
+  // exits through a scoped guard.
+  PW_CHECK_OK(clock_tree_element_.Acquire());
+  pw::ScopeGuard guard([this] { clock_tree_element_.Release().IgnoreError(); });
+
   const status_t status =
       I3C_MasterTransferNonBlocking(base_, &handle_, transfer);
   if (status != kStatus_Success) {
@@ -287,6 +307,11 @@ pw::Status I3cMcuxpressoInitiator::Initialize() {
   std::lock_guard lock(mutex_);
   i3c_master_config_t masterConfig;
 
+  // Acquire the clock_tree_element. Make sure it's released on any function
+  // exits through a scoped guard.
+  PW_CHECK_OK(clock_tree_element_.Acquire());
+  pw::ScopeGuard guard([this] { clock_tree_element_.Release().IgnoreError(); });
+
   // Initialize I3C master with low I3C speed to match I3C timing requirement
   // (mipi_I3C-Basic_specification_v1-1-1 section 6.2 Table 86 I3C Open Drain
   // Timing Parameters)
@@ -379,6 +404,11 @@ pw::Status I3cMcuxpressoInitiator::DoTransferCcc(I3cCccAction rnw,
     return pw::Status::FailedPrecondition();
   }
 
+  // Acquire the clock_tree_element. Make sure it's released on any function
+  // exits through a scoped guard.
+  PW_CHECK_OK(clock_tree_element_.Acquire());
+  pw::ScopeGuard guard([this] { clock_tree_element_.Release().IgnoreError(); });
+
   if (!(to_underlying(ccc_id) & kCccDirectBit)) {  // broadcast
     transfer.flags = kI3C_TransferDefaultFlag;
     transfer.slaveAddress = kBroadcastAddressRaw;
@@ -429,6 +459,13 @@ Status I3cMcuxpressoInitiator::DoTransferFor(
   }
 
   pw::Status status = pw::OkStatus();
+
+  // Acquire the clock_tree element here so we don't acquire/release it for
+  // each message. Make sure it's released on any function exits through a
+  // scoped guard.
+  PW_CHECK_OK(clock_tree_element_.Acquire());
+  pw::ScopeGuard guard([this] { clock_tree_element_.Release().IgnoreError(); });
+
   for (unsigned int i = 0; i < messages.size(); ++i) {
     if (chrono::SystemClock::now() > deadline) {
       return pw::Status::DeadlineExceeded();
