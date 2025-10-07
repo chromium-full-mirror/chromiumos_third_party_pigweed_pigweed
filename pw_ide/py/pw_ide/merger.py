@@ -182,7 +182,9 @@ def _run_bazel(
 
 
 def _build_and_collect_fragments(
-    forwarded_args: list[str], verbose: bool
+    forwarded_args: list[str],
+    verbose: bool,
+    execution_root: Path,
 ) -> Iterator[Path]:
     """Collects fragments using `bazel cquery`."""
     if forwarded_args and forwarded_args[0] == '--':
@@ -224,19 +226,32 @@ def _build_and_collect_fragments(
                 capture_output=not verbose,
             )
         except subprocess.CalledProcessError as e:
-            logging.fatal(
-                'Failed to generate compile commands fragments: %s', e
-            )
+            _LOG.fatal('Failed to generate compile commands fragments: %s', e)
             return
 
         fragments = set()
         for line in bep_path.read_text().splitlines():
             event = json.loads(line)
             for file in event.get('namedSetOfFiles', {}).get('files', []):
-                file_uri = file.get('uri', '')
-                if not file_uri.endswith(_FRAGMENT_SUFFIX):
+                file_path = file.get('name', '')
+                file_path_prefix = file.get('pathPrefix', [])
+
+                if not file_path.endswith(_FRAGMENT_SUFFIX):
                     continue
-                fragments.add(Path(file_uri.removeprefix('file://')).resolve())
+
+                if not file_path or not file_path_prefix:
+                    # This should never happen.
+                    _LOG.warning(
+                        'Malformed file entry missing `name` and/or '
+                        '`pathPrefix`: %s',
+                        file,
+                    )
+                    continue
+
+                artifact_path = execution_root.joinpath(
+                    *file_path_prefix
+                ).joinpath(file_path)
+                fragments.add(artifact_path.resolve())
 
         yield from fragments
 
@@ -248,11 +263,18 @@ def _collect_fragments_via_glob(bazel_output_path: Path) -> Iterator[Path]:
 
 
 def _collect_fragments(
-    bazel_output_path: Path, forwarded_args: list[str], verbose: bool
+    bazel_output_path: Path,
+    execution_root: Path,
+    forwarded_args: list[str],
+    verbose: bool,
 ) -> Iterator[Path]:
     """Dispatches to the correct fragment collection method."""
     if forwarded_args:
-        yield from _build_and_collect_fragments(forwarded_args, verbose)
+        yield from _build_and_collect_fragments(
+            forwarded_args,
+            verbose,
+            execution_root,
+        )
     else:
         yield from _collect_fragments_via_glob(bazel_output_path)
 
@@ -295,6 +317,19 @@ def _setup_logging(log_level: int):
     root_logger.setLevel(log_level)
 
 
+def _get_bazel_path_info(key: str, cwd: str) -> Path | None:
+    """Gets a value from `bazel info {key}`."""
+    try:
+        output_str = _run_bazel(
+            ['info', key],
+            cwd=cwd,
+        ).stdout.strip()
+    except subprocess.CalledProcessError as e:
+        _LOG.fatal("Error getting bazel %s: %s", key, e)
+        return None
+    return Path(output_str)
+
+
 def main() -> int:
     """Script entry point."""
     args = _parse_args()
@@ -311,28 +346,17 @@ def main() -> int:
         _LOG.error("This script must be run with 'bazel run'.")
         return 1
 
-    try:
-        # Use `bazel info output_path` to robustly find the output directory,
-        # respecting any user configuration.
-        output_path_str = _run_bazel(
-            ["info", "output_path"],
-            cwd=workspace_root,
-        ).stdout.strip()
-        bazel_output_path = Path(output_path_str)
-    except subprocess.CalledProcessError as e:
-        logging.fatal("Error getting bazel output_path: %s", e)
+    bazel_output_path = _get_bazel_path_info('output_path', workspace_root)
+    if bazel_output_path is None:
         return 1
 
-    try:
-        # Use `bazel info output_base` to find the output base. Note that this
-        # is ABOVE output_path.
-        output_base = _run_bazel(
-            ["info", "output_base"],
-            cwd=workspace_root,
-        ).stdout.strip()
-        output_base_path = Path(output_base)
-    except subprocess.CalledProcessError as e:
-        _LOG.fatal("Error getting bazel output_base: %s", e)
+    # This is ABOVE output_path.
+    output_base_path = _get_bazel_path_info('output_base', workspace_root)
+    if output_base_path is None:
+        return 1
+
+    execution_root_path = _get_bazel_path_info('execution_root', workspace_root)
+    if execution_root_path is None:
         return 1
 
     if not bazel_output_path.exists():
@@ -344,7 +368,12 @@ def main() -> int:
 
     # Search for fragments with our unique suffix.
     all_fragments = list(
-        _collect_fragments(bazel_output_path, args.bazel_args, args.verbose)
+        _collect_fragments(
+            bazel_output_path,
+            execution_root_path,
+            args.bazel_args,
+            args.verbose,
+        )
     )
 
     if not all_fragments:

@@ -43,6 +43,24 @@ def _create_fragment(
     fs.create_file(fragment_path, contents=json.dumps(content))
 
 
+# pylint: disable=line-too-long
+
+_BEP_CONTENT_LOCAL_BUILD = """\
+{"id":{"namedSet":{"id":"6"}},"namedSetOfFiles":{"files":[{"name":"pw_status/pw_status.k8-fastbuild.pw_aspect.compile_commands.json","uri":"file:///home/somebody/.cache/bazel/_bazel_somebody/123abc/execroot/_main/bazel-out/k8-fastbuild/bin/pw_status/pw_status.k8-fastbuild.pw_aspect.compile_commands.json","pathPrefix":["bazel-out","k8-fastbuild","bin"],"digest":"b5f9dd673261c07a2afc7ae9029aafd56dd873227153923288ec64ba14a250d0","length":"1532"},{"name":"pw_string/format.k8-fastbuild.pw_aspect.compile_commands.json","uri":"file:///home/somebody/.cache/bazel/_bazel_somebody/123abc/execroot/_main/bazel-out/k8-fastbuild/bin/pw_string/format.k8-fastbuild.pw_aspect.compile_commands.json","pathPrefix":["bazel-out","k8-fastbuild","bin"],"digest":"8f982c0c3ba094c72a886e3a51eb2537dcbe26cef88be720845ac329214cb808","length":"1495"}]}}
+{"id":{"progress":{"opaqueCount":17}},"children":[{"progress":{"opaqueCount":18}},{"namedSet":{"id":"5"}}],"progress":{}}
+"""
+
+_BEP_CONTENT_REMOTE_BUILD = """\
+{"id":{"namedSet":{"id":"12"}},"namedSetOfFiles":{"files":[{"name":"pw_unit_test/simple_printing_main.k8-fastbuild.pw_aspect.compile_commands.json","uri":"bytestream://remotebuildexecution.googleapis.com/projects/pigweed-rbe-open/instances/default-instance/blobs/a5d56997f015627de35be59531ba37032684f0682aac6526a0bbf7744c3b4e1f/2248","pathPrefix":["bazel-out","k8-fastbuild","bin"],"digest":"a5d56997f015627de35be59531ba37032684f0682aac6526a0bbf7744c3b4e1f","length":"2248"}],"fileSets":[{"id":"13"},{"id":"17"},{"id":"2"}]}}
+{"id":{"progress":{"opaqueCount":36}},"children":[{"progress":{"opaqueCount":37}},{"namedSet":{"id":"11"}}],"progress":{}}
+"""
+
+# pylint: enable=line-too-long
+
+# Join both remote and local BEP file contents.
+_BEP_CONTENT = _BEP_CONTENT_LOCAL_BUILD + _BEP_CONTENT_REMOTE_BUILD
+
+
 class MergerTest(fake_filesystem_unittest.TestCase):
     """Tests for the compile commands fragment merger."""
 
@@ -52,8 +70,8 @@ class MergerTest(fake_filesystem_unittest.TestCase):
         self.output_base = Path(
             '/home/somebody/.cache/bazel/_bazel_somebody/123abc'
         )
-        execution_root = self.output_base / 'execroot' / '_main'
-        self.output_path = execution_root / 'bazel-out'
+        self.execution_root = self.output_base / 'execroot' / '_main'
+        self.output_path = self.execution_root / 'bazel-out'
 
         self.fs.create_dir(self.workspace_root)
         self.fs.create_dir(self.output_path)
@@ -80,6 +98,8 @@ class MergerTest(fake_filesystem_unittest.TestCase):
                 return mock.Mock(stdout=f'{self.output_path}\n')
             if args == ['info', 'output_base']:
                 return mock.Mock(stdout=f'{self.output_base}\n')
+            if args == ['info', 'execution_root']:
+                return mock.Mock(stdout=f'{self.execution_root}\n')
             raise AssertionError(f'Unhandled Bazel request: {args}')
 
         self.mock_run_bazel.side_effect = run_bazel_side_effect
@@ -332,23 +352,6 @@ class MergerTest(fake_filesystem_unittest.TestCase):
     @mock.patch('pw_ide.merger._run_bazel')
     def test_build_and_collect_fragments(self, mock_run_bazel):
         """Tests that fragments are collected via `bazel build`."""
-        bep_content_line = json.dumps(
-            {
-                'namedSetOfFiles': {
-                    'files': [
-                        {
-                            'uri': 'file:///path/to/fragment1.k8-fastbuild'
-                            + _FRAGMENT_SUFFIX
-                        },
-                        {
-                            'uri': 'file:///path/to/fragment2.k8-fastbuild'
-                            + _FRAGMENT_SUFFIX
-                        },
-                        {'uri': 'file:///path/to/other_file.txt'},
-                    ]
-                }
-            }
-        )
 
         def run_bazel_side_effect(
             args,
@@ -358,6 +361,8 @@ class MergerTest(fake_filesystem_unittest.TestCase):
                 return mock.Mock(stdout=f'{self.output_path}\n')
             if args == ['info', 'output_base']:
                 return mock.Mock(stdout=f'{self.output_base}\n')
+            if args == ['info', 'execution_root']:
+                return mock.Mock(stdout=f'{self.execution_root}\n')
 
             bep_path_arg = next(
                 arg
@@ -365,13 +370,18 @@ class MergerTest(fake_filesystem_unittest.TestCase):
                 if arg.startswith('--build_event_json_file=')
             )
             bep_path = Path(bep_path_arg.split('=', 1)[1])
-            bep_path.write_text(bep_content_line)
+            bep_path.write_text(_BEP_CONTENT)
             return mock.Mock(returncode=0)
 
         mock_run_bazel.side_effect = run_bazel_side_effect
 
         self.fs.create_file(
-            '/path/to/fragment1.k8-fastbuild' + _FRAGMENT_SUFFIX,
+            self.output_path.joinpath(
+                'k8-fastbuild',
+                'bin',
+                'pw_status',
+                'pw_status.k8-fastbuild' + _FRAGMENT_SUFFIX,
+            ),
             contents=json.dumps(
                 [
                     {
@@ -383,13 +393,35 @@ class MergerTest(fake_filesystem_unittest.TestCase):
             ),
         )
         self.fs.create_file(
-            '/path/to/fragment2.k8-fastbuild' + _FRAGMENT_SUFFIX,
+            self.output_path.joinpath(
+                'k8-fastbuild',
+                'bin',
+                'pw_unit_test',
+                'simple_printing_main.k8-fastbuild' + _FRAGMENT_SUFFIX,
+            ),
             contents=json.dumps(
                 [
                     {
                         'file': 'b.cc',
                         'directory': '__WORKSPACE_ROOT__',
                         'arguments': ['e', 'f'],
+                    }
+                ]
+            ),
+        )
+        self.fs.create_file(
+            self.output_path.joinpath(
+                'k8-fastbuild',
+                'bin',
+                'pw_string',
+                'format.k8-fastbuild' + _FRAGMENT_SUFFIX,
+            ),
+            contents=json.dumps(
+                [
+                    {
+                        'file': 'c.cc',
+                        'directory': '__WORKSPACE_ROOT__',
+                        'arguments': ['e', 'f', 'g'],
                     }
                 ]
             ),
@@ -409,10 +441,11 @@ class MergerTest(fake_filesystem_unittest.TestCase):
         self.assertTrue(merged_path.exists())
         with open(merged_path, 'r') as f:
             data = json.load(f)
-        self.assertEqual(len(data), 2)
+        self.assertEqual(len(data), 3)
         files = {item['file'] for item in data}
         self.assertIn('a.cc', files)
         self.assertIn('b.cc', files)
+        self.assertIn('c.cc', files)
 
 
 if __name__ == '__main__':
