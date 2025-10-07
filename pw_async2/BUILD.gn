@@ -449,7 +449,10 @@ pw_test("join_test") {
 pw_source_set("select") {
   public = [ "public/pw_async2/select.h" ]
   public_configs = [ ":public_include_path" ]
-  public_deps = [ ":dispatcher" ]
+  public_deps = [
+    ":dispatcher",
+    "$dir_pw_containers:optional_tuple",
+  ]
 }
 
 pw_test("select_test") {
@@ -459,6 +462,7 @@ pw_test("select_test") {
     ":dispatcher",
     ":pendable",
     ":select",
+    ":value_future",
   ]
 }
 

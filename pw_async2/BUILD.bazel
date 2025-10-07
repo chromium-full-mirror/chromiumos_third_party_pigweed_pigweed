@@ -186,6 +186,7 @@ pw_cc_test(
         ":dispatcher",
         ":pend_func_task",
         ":poll",
+        ":select",
     ],
 )
 
@@ -586,6 +587,7 @@ cc_library(
     strip_include_prefix = "public",
     deps = [
         ":dispatcher",
+        "//pw_containers:optional_tuple",
     ],
 )
 
@@ -599,6 +601,7 @@ pw_cc_test(
         ":pendable",
         ":poll",
         ":select",
+        ":value_future",
     ],
 )
 

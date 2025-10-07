@@ -432,6 +432,7 @@ pw_add_library(pw_async2.select INTERFACE
     public/pw_async2/select.h
   PUBLIC_DEPS
     pw_async2.dispatcher
+    pw_containers.optional_tuple
 )
 
 pw_add_test(pw_async2.select_test
@@ -441,6 +442,7 @@ pw_add_test(pw_async2.select_test
     pw_async2.dispatcher
     pw_async2.pendable
     pw_async2.select
+    pw_async2.value_future
   GROUPS
     modules
     pw_async2

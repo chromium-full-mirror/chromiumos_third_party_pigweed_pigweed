@@ -19,6 +19,7 @@
 #include "pw_async2/dispatcher.h"
 #include "pw_async2/pendable.h"
 #include "pw_async2/poll.h"
+#include "pw_async2/value_future.h"
 #include "pw_unit_test/framework.h"
 
 namespace {
@@ -32,6 +33,8 @@ using ::pw::async2::Poll;
 using ::pw::async2::Selector;
 using ::pw::async2::VisitSelectResult;
 using ::pw::async2::Waker;
+using ::pw::async2::experimental::BroadcastValueProvider;
+using ::pw::async2::experimental::Select;
 
 // Windows GCC emits a bogus uninitialized error for the
 // move constructor below.
@@ -275,6 +278,55 @@ TEST(Selector, MultiplePendables_OutOfOrderCompletion) {
   ASSERT_TRUE(result_3.IsReady());
   auto& result_3_variant = *result_3;
   ExpectVariantIs<2>(result_3_variant, 57);
+}
+
+TEST(SelectFuture, Pend_OneReady) {
+  Dispatcher dispatcher;
+
+  BroadcastValueProvider<int> int_provider;
+  BroadcastValueProvider<char> char_provider;
+
+  auto future = Select(int_provider.Get(), char_provider.Get());
+
+  EXPECT_EQ(dispatcher.RunPendableUntilStalled(future), Pending());
+
+  char_provider.Resolve('y');
+  auto result = dispatcher.RunPendableUntilStalled(future);
+  ASSERT_TRUE(result.IsReady());
+
+  EXPECT_FALSE(result->has_value<0>());
+  ASSERT_TRUE(result->has_value<1>());
+  EXPECT_EQ(result->value<1>(), 'y');
+
+  EXPECT_TRUE(future.is_complete());
+}
+
+TEST(SelectFuture, Pend_MultipleReady) {
+  Dispatcher dispatcher;
+
+  BroadcastValueProvider<int> int_provider;
+  BroadcastValueProvider<char> char_provider;
+  BroadcastValueProvider<bool> bool_provider;
+
+  auto future =
+      Select(int_provider.Get(), char_provider.Get(), bool_provider.Get());
+
+  EXPECT_EQ(dispatcher.RunPendableUntilStalled(future), Pending());
+
+  char_provider.Resolve('y');
+  bool_provider.Resolve(false);
+
+  auto result = dispatcher.RunPendableUntilStalled(future);
+  ASSERT_TRUE(result.IsReady());
+
+  EXPECT_FALSE(result->has_value<0>());
+  ASSERT_TRUE(result->has_value<1>());
+  ASSERT_TRUE(result->has_value<2>());
+
+  EXPECT_EQ(result->value<1>(), 'y');
+  EXPECT_EQ(result->value<2>(), false);
+
+  EXPECT_TRUE(future.is_complete());
 }
 
 }  // namespace
