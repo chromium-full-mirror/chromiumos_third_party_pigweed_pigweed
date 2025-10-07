@@ -27,34 +27,89 @@
 
 namespace pw::containers::internal {
 
+// Forward declarations for friending.
+class GenericVarLenEntryQueueBase;
+
+template <typename Derived, typename T>
+class GenericVarLenEntryQueue;
+
+template <typename D1, typename T1, typename D2, typename T2>
+constexpr void CopyVarLenEntriesImpl(const GenericVarLenEntryQueue<D1, T1>& src,
+                                     GenericVarLenEntryQueue<D2, T2>& dst,
+                                     bool overwrite);
+
+template <typename D1, typename T1, typename D2, typename T2>
+constexpr void MoveVarLenEntriesImpl(GenericVarLenEntryQueue<D1, T1>& src,
+                                     GenericVarLenEntryQueue<D2, T2>& dst,
+                                     bool overwrite);
+
+/// Helper class that reduces code size by providing type-erased static methods
+/// for the functionality of the templated GenericVarLenEntryQueue types.
 class GenericVarLenEntryQueueBase {
  protected:
-  /// Returns the number of variable-length entries in the buffer.
-  static constexpr size_t size(ConstByteSpan bytes,
-                               uint32_t head,
-                               uint32_t tail);
+  struct Info {
+    uint32_t num_entries;
+    uint32_t total_data_size;
+    uint32_t total_encoded_size;
+  };
 
-  /// Returns the combined size in bytes of all entries in the queue, excluding
-  /// metadata. This is at most O(n) in the number of entries in the queue.
-  static constexpr size_t size_bytes(ConstByteSpan bytes,
-                                     uint32_t head,
-                                     uint32_t tail);
+  /// Returns the number, total data, and total size of the variable-length
+  /// entries in the buffer. This is at most O(n) in the number of entries in
+  /// the queue.
+  static constexpr Info GetInfo(ConstByteSpan bytes,
+                                uint32_t head,
+                                uint32_t tail);
 
+  /// Returns the number of bytes not being used to store entries.
+  static constexpr uint32_t AvailableBytes(ConstByteSpan bytes,
+                                           uint32_t head,
+                                           uint32_t tail);
+
+  /// Add an entry to the tail of the queue.
   static constexpr bool Push(ConstByteSpan data,
                              bool overwrite,
                              ByteSpan bytes,
                              uint32_t& head,
                              uint32_t& tail);
 
+  /// Removes an entry from the head of the queue. Must not be empty.
+  static constexpr size_t PopNonEmpty(ConstByteSpan bytes, uint32_t& head);
+
+  /// Copies entries from another queue to this one.
+  ///
+  /// This will discard existing entries as needed to make room if allowed to
+  /// overwrite.
+  static constexpr void CopyEntries(ConstByteSpan src_bytes,
+                                    uint32_t& src_head,
+                                    uint32_t src_tail,
+                                    ByteSpan dst_bytes,
+                                    uint32_t& dst_head,
+                                    uint32_t& dst_tail,
+                                    bool overwrite);
+
   /// Copies data to the buffer, wrapping around the end if needed.
   static constexpr void CopyAndWrap(ConstByteSpan data,
                                     ByteSpan bytes,
                                     uint32_t& tail);
 
-  /// Removes an entry from the head of the queue. Must not be empty.
-  static constexpr size_t PopNonEmpty(ConstByteSpan bytes, uint32_t& head);
+ private:
+  template <typename D1, typename T1, typename D2, typename T2>
+  friend constexpr void CopyVarLenEntriesImpl(
+      const GenericVarLenEntryQueue<D1, T1>& src,
+      GenericVarLenEntryQueue<D2, T2>& dst,
+      bool overwrite);
+
+  template <typename D1, typename T1, typename D2, typename T2>
+  friend constexpr void MoveVarLenEntriesImpl(
+      GenericVarLenEntryQueue<D1, T1>& src,
+      GenericVarLenEntryQueue<D2, T2>& dst,
+      bool overwrite);
 };
 
+/// A queue of variable length entries.
+///
+/// This type use CRTP to allow a derived class to specify access to the backing
+/// storage and indicate where the queue head and tail are within it.
 template <typename Derived, typename T>
 class GenericVarLenEntryQueue : public GenericVarLenEntryQueueBase {
  private:
@@ -86,7 +141,7 @@ class GenericVarLenEntryQueue : public GenericVarLenEntryQueueBase {
   /// Returns the number of variable-length entries in the queue. This is at
   /// most O(n) in the number of entries in the queue.
   constexpr size_t size() const {
-    return Base::size(GetBytes(), GetHead(), GetTail());
+    return Base::GetInfo(GetBytes(), GetHead(), GetTail()).num_entries;
   }
 
   /// Returns the maximum number of entries in the queue. This is only
@@ -96,7 +151,7 @@ class GenericVarLenEntryQueue : public GenericVarLenEntryQueueBase {
   /// Returns the combined size in bytes of all entries in the queue, excluding
   /// metadata. This is at most O(n) in the number of entries in the queue.
   constexpr size_t size_bytes() const {
-    return Base::size_bytes(GetBytes(), GetHead(), GetTail());
+    return Base::GetInfo(GetBytes(), GetHead(), GetTail()).total_data_size;
   }
 
   /// Returns the maximum number of bytes that can be stored in the queue.
@@ -139,18 +194,10 @@ class GenericVarLenEntryQueue : public GenericVarLenEntryQueueBase {
   /// Removes the first entry from queue.
   ///
   /// @pre The queue MUST have at least one entry.
-  constexpr void pop() {
-    PW_ASSERT(!empty());
-    uint32_t head = GetHead();
-    PopNonEmpty(GetBytes(), head);
-    SetHead(head);
-  }
+  constexpr void pop();
 
   /// Empties the queue.
-  constexpr void clear() {
-    SetHead(0);
-    SetTail(0);
-  }
+  constexpr void clear();
 
  protected:
   constexpr GenericVarLenEntryQueue() = default;
@@ -164,23 +211,26 @@ class GenericVarLenEntryQueue : public GenericVarLenEntryQueueBase {
   constexpr span<T> GetBuffer() { return derived().buffer(); }
   constexpr span<const T> GetBuffer() const { return derived().buffer(); }
 
-  constexpr ByteSpan GetBytes() {
-    if constexpr (std::is_same_v<T, std::byte>) {
-      return GetBuffer();
-    } else {
-      return as_writable_bytes(GetBuffer());
-    }
-  }
-
-  constexpr ConstByteSpan GetBytes() const {
-    if constexpr (std::is_same_v<T, std::byte>) {
-      return GetBuffer();
-    } else {
-      return as_bytes(GetBuffer());
-    }
-  }
+  /// @name GetBytes
+  /// Returns the buffer as a span of bytes. Only constexpr if T is std::byte.
+  /// @{
+  constexpr ByteSpan GetBytes();
+  constexpr ConstByteSpan GetBytes() const;
+  /// @}
 
  private:
+  template <typename D1, typename T1, typename D2, typename T2>
+  friend constexpr void CopyVarLenEntriesImpl(
+      const GenericVarLenEntryQueue<D1, T1>& src,
+      GenericVarLenEntryQueue<D2, T2>& dst,
+      bool overwrite);
+
+  template <typename D1, typename T1, typename D2, typename T2>
+  friend constexpr void MoveVarLenEntriesImpl(
+      GenericVarLenEntryQueue<D1, T1>& src,
+      GenericVarLenEntryQueue<D2, T2>& dst,
+      bool overwrite);
+
   static_assert(std::is_integral_v<T> || std::is_same_v<T, std::byte>);
   static_assert(sizeof(T) == sizeof(std::byte));
 
@@ -189,43 +239,78 @@ class GenericVarLenEntryQueue : public GenericVarLenEntryQueueBase {
     return *static_cast<const Derived*>(this);
   }
 
-  constexpr bool Push(span<const T> data, bool overwrite) {
-    uint32_t head = GetHead();
-    uint32_t tail = GetTail();
-    bool result = Base::Push(as_bytes(data), overwrite, GetBytes(), head, tail);
-    SetHead(head);
-    SetTail(tail);
-    return result;
-  }
+  /// Add `data` to the tail of queue. If allowed to `overwrite`, remove entries
+  /// from the head to make space as needed. Returns whether enough space was
+  /// found or made and data was added.
+  constexpr bool Push(span<const T> data, bool overwrite);
 };
+
+/// Copies as many consecutive entries as will fit in the destination queue
+/// from a source queue to another, and returns the number of bytes copied.
+template <typename D1, typename T1, typename D2, typename T2>
+constexpr void CopyVarLenEntries(const GenericVarLenEntryQueue<D1, T1>& src,
+                                 GenericVarLenEntryQueue<D2, T2>& dst) {
+  CopyVarLenEntriesImpl(src, dst, /*overwrite=*/false);
+}
+
+/// Copies consecutive entries from one queue to another, discarding entries
+/// from the destination queue as needed to make room. Some entries may not be
+/// copied if the data in the source queue is larger the destination queue's
+/// capacity. Returns the number of bytes copied.
+template <typename D1, typename T1, typename D2, typename T2>
+constexpr void CopyVarLenEntriesOverwrite(
+    const GenericVarLenEntryQueue<D1, T1>& src,
+    GenericVarLenEntryQueue<D2, T2>& dst) {
+  CopyVarLenEntriesImpl(src, dst, /*overwrite=*/true);
+}
+
+/// Moves as many consecutive entries as will fit in the destination queue
+/// from a source queue to another, and returns the number of bytes moved.
+template <typename D1, typename T1, typename D2, typename T2>
+constexpr void MoveVarLenEntries(GenericVarLenEntryQueue<D1, T1>& src,
+                                 GenericVarLenEntryQueue<D2, T2>& dst) {
+  MoveVarLenEntriesImpl(src, dst, /*overwrite=*/false);
+}
+
+/// Moves consecutive entries from one queue to another, discarding entries
+/// from the destination queue as needed to make room. Some entries may not be
+/// moved if the data in the source queue is larger the destination queue's
+/// capacity. Returns the number of bytes moved.
+template <typename D1, typename T1, typename D2, typename T2>
+constexpr void MoveVarLenEntriesOverwrite(
+    GenericVarLenEntryQueue<D1, T1>& src,
+    GenericVarLenEntryQueue<D2, T2>& dst) {
+  MoveVarLenEntriesImpl(src, dst, /*overwrite=*/true);
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Constexpr method implementations.
 
-constexpr size_t GenericVarLenEntryQueueBase::size(ConstByteSpan bytes,
-                                                   uint32_t head,
-                                                   uint32_t tail) {
-  size_t num_entries = 0;
-  uint32_t bytes_size = static_cast<uint32_t>(bytes.size());
-  while (head != tail) {
-    uint32_t entry_size = ReadVarLenEntryEncodedSize(bytes, head);
-    IncrementWithWrap(head, entry_size, bytes_size);
-    ++num_entries;
-  }
-  return num_entries;
-}
-
-constexpr size_t GenericVarLenEntryQueueBase::size_bytes(ConstByteSpan bytes,
-                                                         uint32_t head,
-                                                         uint32_t tail) {
-  size_t total_entry_size_bytes = 0;
+constexpr GenericVarLenEntryQueueBase::Info
+GenericVarLenEntryQueueBase::GetInfo(ConstByteSpan bytes,
+                                     uint32_t head,
+                                     uint32_t tail) {
+  Info info = {0, 0, 0};
   uint32_t bytes_size = static_cast<uint32_t>(bytes.size());
   while (head != tail) {
     auto [prefix_size, data_size] = ReadVarLenEntrySize(bytes, head);
-    IncrementWithWrap(head, prefix_size + data_size, bytes_size);
-    total_entry_size_bytes += data_size;
+    uint32_t entry_size = ReadVarLenEntryEncodedSize(bytes, head);
+    IncrementWithWrap(head, entry_size, bytes_size);
+    ++info.num_entries;
+    info.total_data_size += data_size;
+    info.total_encoded_size += prefix_size;
   }
-  return total_entry_size_bytes;
+  info.total_encoded_size += info.total_data_size;
+  return info;
+}
+
+constexpr uint32_t GenericVarLenEntryQueueBase::AvailableBytes(
+    ConstByteSpan bytes, uint32_t head, uint32_t tail) {
+  uint32_t available_bytes = head - tail - 1;
+  if (head <= tail) {
+    available_bytes += static_cast<uint32_t>(bytes.size());
+  }
+  return available_bytes;
 }
 
 constexpr bool GenericVarLenEntryQueueBase::Push(ConstByteSpan data,
@@ -239,15 +324,10 @@ constexpr bool GenericVarLenEntryQueueBase::Push(ConstByteSpan data,
   size_t encoded = varint::Encode(size_u32, ByteSpan(tmp, sizeof(tmp)));
   ConstByteSpan prefix(tmp, encoded);
 
-  // Calculate how much space is needed.
+  // Calculate how much space is neededvs how much is available.
   size_t needed_bytes = prefix.size() + data.size();
   PW_ASSERT(needed_bytes < bytes.size());
-
-  // Calculate how much space is available.
-  uint32_t available_bytes = head - tail - 1;
-  if (head <= tail) {
-    available_bytes += static_cast<uint32_t>(bytes.size());
-  }
+  uint32_t available_bytes = AvailableBytes(bytes, head, tail);
 
   // Check if sufficient space is available, or can be made available.
   if (overwrite) {
@@ -266,7 +346,67 @@ constexpr bool GenericVarLenEntryQueueBase::Push(ConstByteSpan data,
   return true;
 }
 
-// Private methods
+constexpr size_t GenericVarLenEntryQueueBase::PopNonEmpty(ConstByteSpan bytes,
+                                                          uint32_t& head) {
+  uint32_t entry_size = ReadVarLenEntryEncodedSize(bytes, head);
+  IncrementWithWrap(head, entry_size, static_cast<uint32_t>(bytes.size()));
+  return entry_size;
+}
+
+constexpr void GenericVarLenEntryQueueBase::CopyEntries(ConstByteSpan src_bytes,
+                                                        uint32_t& src_head,
+                                                        uint32_t src_tail,
+                                                        ByteSpan dst_bytes,
+                                                        uint32_t& dst_head,
+                                                        uint32_t& dst_tail,
+                                                        bool overwrite) {
+  uint32_t src_bytes_size = static_cast<uint32_t>(src_bytes.size());
+  uint32_t dst_bytes_size = static_cast<uint32_t>(dst_bytes.size());
+  uint32_t available = AvailableBytes(dst_bytes, dst_head, dst_tail);
+  uint32_t to_copy = 0;
+  uint32_t offset = src_head;
+
+  while (src_head != src_tail) {
+    uint32_t src_entry_size = ReadVarLenEntryEncodedSize(src_bytes, src_head);
+    if (src_entry_size <= available) {
+      // Sufficient room; no-op.
+
+    } else if (!overwrite) {
+      // Not enough room, and cannot make more.
+      break;
+
+    } else if ((dst_bytes_size - 1) < src_entry_size ||
+               (dst_bytes_size - 1 - src_entry_size) < to_copy) {
+      // The next entry is too big to fit even if the destination were cleared.
+      break;
+
+    } else {
+      // Pop just enough elements to make room.
+      while (dst_head != dst_tail && available < src_entry_size) {
+        uint32_t dst_entry_size =
+            ReadVarLenEntryEncodedSize(dst_bytes, dst_head);
+        IncrementWithWrap(dst_head, dst_entry_size, dst_bytes_size);
+        available += dst_entry_size;
+      }
+      // If dst_head == dst_tail, then available is dst_bytes_size - 1, which is
+      // guaranteed to be greater than or equal to src_entry_size.
+    }
+    to_copy += src_entry_size;
+    available -= src_entry_size;
+    IncrementWithWrap(src_head, src_entry_size, src_bytes_size);
+  }
+
+  if (to_copy == 0) {
+    return;
+  }
+  uint32_t src_chunk = src_bytes_size - offset;
+  if (src_chunk >= to_copy) {
+    CopyAndWrap(src_bytes.subspan(offset, to_copy), dst_bytes, dst_tail);
+  } else {
+    CopyAndWrap(src_bytes.subspan(offset), dst_bytes, dst_tail);
+    CopyAndWrap(src_bytes.subspan(0, to_copy - src_chunk), dst_bytes, dst_tail);
+  }
+}
 
 constexpr void GenericVarLenEntryQueueBase::CopyAndWrap(ConstByteSpan data,
                                                         ByteSpan bytes,
@@ -289,11 +429,87 @@ constexpr void GenericVarLenEntryQueueBase::CopyAndWrap(ConstByteSpan data,
   IncrementWithWrap(tail, data_size, bytes_size);
 }
 
-constexpr size_t GenericVarLenEntryQueueBase::PopNonEmpty(ConstByteSpan bytes,
-                                                          uint32_t& head) {
-  uint32_t entry_size = ReadVarLenEntryEncodedSize(bytes, head);
-  IncrementWithWrap(head, entry_size, static_cast<uint32_t>(bytes.size()));
-  return entry_size;
+////////////////////////////////////////////////////////////////////////////////
+// Template method implementations.
+
+template <typename Derived, typename T>
+constexpr void GenericVarLenEntryQueue<Derived, T>::pop() {
+  PW_ASSERT(!empty());
+  uint32_t head = GetHead();
+  PopNonEmpty(GetBytes(), head);
+  SetHead(head);
+}
+
+template <typename Derived, typename T>
+constexpr void GenericVarLenEntryQueue<Derived, T>::clear() {
+  SetHead(0);
+  SetTail(0);
+}
+
+template <typename Derived, typename T>
+constexpr ByteSpan GenericVarLenEntryQueue<Derived, T>::GetBytes() {
+  if constexpr (std::is_same_v<T, std::byte>) {
+    return GetBuffer();
+  } else {
+    return as_writable_bytes(GetBuffer());
+  }
+}
+
+template <typename Derived, typename T>
+constexpr ConstByteSpan GenericVarLenEntryQueue<Derived, T>::GetBytes() const {
+  if constexpr (std::is_same_v<T, std::byte>) {
+    return GetBuffer();
+  } else {
+    return as_bytes(GetBuffer());
+  }
+}
+
+template <typename Derived, typename T>
+constexpr bool GenericVarLenEntryQueue<Derived, T>::Push(span<const T> data,
+                                                         bool overwrite) {
+  uint32_t head = GetHead();
+  uint32_t tail = GetTail();
+  bool result = Base::Push(as_bytes(data), overwrite, GetBytes(), head, tail);
+  SetHead(head);
+  SetTail(tail);
+  return result;
+}
+
+template <typename D1, typename T1, typename D2, typename T2>
+constexpr void CopyVarLenEntriesImpl(const GenericVarLenEntryQueue<D1, T1>& src,
+                                     GenericVarLenEntryQueue<D2, T2>& dst,
+                                     bool overwrite) {
+  uint32_t src_head = src.GetHead();
+  uint32_t dst_head = dst.GetHead();
+  uint32_t dst_tail = dst.GetTail();
+  GenericVarLenEntryQueueBase::CopyEntries(src.GetBytes(),
+                                           src_head,
+                                           src.GetTail(),
+                                           dst.GetBytes(),
+                                           dst_head,
+                                           dst_tail,
+                                           overwrite);
+  dst.SetHead(dst_head);
+  dst.SetTail(dst_tail);
+}
+
+template <typename D1, typename T1, typename D2, typename T2>
+constexpr void MoveVarLenEntriesImpl(GenericVarLenEntryQueue<D1, T1>& src,
+                                     GenericVarLenEntryQueue<D2, T2>& dst,
+                                     bool overwrite) {
+  uint32_t src_head = src.GetHead();
+  uint32_t dst_head = dst.GetHead();
+  uint32_t dst_tail = dst.GetTail();
+  GenericVarLenEntryQueueBase::CopyEntries(src.GetBytes(),
+                                           src_head,
+                                           src.GetTail(),
+                                           dst.GetBytes(),
+                                           dst_head,
+                                           dst_tail,
+                                           overwrite);
+  src.SetHead(src_head);
+  dst.SetHead(dst_head);
+  dst.SetTail(dst_tail);
 }
 
 }  // namespace pw::containers::internal

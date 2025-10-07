@@ -588,4 +588,181 @@ TEST(InlineVarLenEntryQueueClass, Construct_Constexpr) {
   EXPECT_EQ(queue.size(), 0u);
 }
 
+TEST(InlineVarLenEntryQueueClass, CopyEntries) {
+  pw::BasicInlineVarLenEntryQueue<char, 16> src_queue;
+  src_queue.push("one");
+  src_queue.push("two");
+  src_queue.push("three");
+
+  pw::BasicInlineVarLenEntryQueue<char, 32> dest_queue;
+  dest_queue.push("existing");
+
+  CopyVarLenEntries(src_queue, dest_queue);
+
+  // Verify destination
+  ASSERT_EQ(dest_queue.size(), 4u);
+  auto it = dest_queue.begin();
+  EXPECT_TRUE(std::equal(it->begin(), it->end(), "existing"));
+  ++it;
+  EXPECT_TRUE(std::equal(it->begin(), it->end(), "one"));
+  ++it;
+  EXPECT_TRUE(std::equal(it->begin(), it->end(), "two"));
+  ++it;
+  EXPECT_TRUE(std::equal(it->begin(), it->end(), "three"));
+
+  // Verify source is unchanged
+  ASSERT_EQ(src_queue.size(), 3u);
+  auto src_it = src_queue.begin();
+  EXPECT_TRUE(std::equal(src_it->begin(), src_it->end(), "one"));
+  ++src_it;
+  EXPECT_TRUE(std::equal(src_it->begin(), src_it->end(), "two"));
+  ++src_it;
+  EXPECT_TRUE(std::equal(src_it->begin(), src_it->end(), "three"));
+}
+
+TEST(InlineVarLenEntryQueueClass, CopyEntries_DestinationTooSmall) {
+  pw::BasicInlineVarLenEntryQueue<char, 32> src_queue;
+  src_queue.push("12345");
+  src_queue.push("6789012345");
+  src_queue.push("abc");
+
+  pw::BasicInlineVarLenEntryQueue<char, 16> dest_queue;
+  dest_queue.push("existing");  // 8 bytes data, 1 prefix = 9 bytes used
+
+  CopyVarLenEntries(src_queue, dest_queue);
+
+  // "12345" (5 bytes data, 1 prefix) fits.
+  // "6789012345" (10 bytes data, 1 prefix) does not fit.
+  ASSERT_EQ(dest_queue.size(), 2u);
+  auto it = dest_queue.begin();
+  EXPECT_TRUE(std::equal(it->begin(), it->end(), "existing"));
+  ++it;
+  EXPECT_TRUE(std::equal(it->begin(), it->end(), "12345"));
+  ++it;
+  EXPECT_EQ(it, dest_queue.end());
+}
+
+TEST(InlineVarLenEntryQueueClass, CopyEntries_EmptySource) {
+  pw::BasicInlineVarLenEntryQueue<char, 32> src_queue;
+  pw::BasicInlineVarLenEntryQueue<char, 32> dest_queue;
+  dest_queue.push("existing");
+
+  CopyVarLenEntries(src_queue, dest_queue);
+
+  ASSERT_EQ(dest_queue.size(), 1u);
+  EXPECT_TRUE(std::equal(
+      dest_queue.front().begin(), dest_queue.front().end(), "existing"));
+}
+
+TEST(InlineVarLenEntryQueueClass, CopyEntriesOverwrite) {
+  pw::BasicInlineVarLenEntryQueue<char, 32> src_queue;
+  src_queue.push("new1");
+  src_queue.push("new2");
+
+  pw::BasicInlineVarLenEntryQueue<char, 20> dest_queue;
+  dest_queue.push("old1");
+  dest_queue.push("old2");
+  dest_queue.push("old3");
+
+  CopyVarLenEntriesOverwrite(src_queue, dest_queue);
+
+  // "old1" and "old2" should be dropped to make space.
+  ASSERT_EQ(dest_queue.size(), 3u);
+  auto it = dest_queue.begin();
+  EXPECT_TRUE(std::equal(it->begin(), it->end(), "old3"));
+  ++it;
+  EXPECT_TRUE(std::equal(it->begin(), it->end(), "new1"));
+  ++it;
+  EXPECT_TRUE(std::equal(it->begin(), it->end(), "new2"));
+
+  // Verify source is unchanged
+  ASSERT_EQ(src_queue.size(), 2u);
+}
+
+TEST(InlineVarLenEntryQueueClass, MoveEntries) {
+  pw::BasicInlineVarLenEntryQueue<char, 16> src_queue;
+
+  // Push and pop an entry to force wrapping.
+  src_queue.push("placeholder");
+  src_queue.pop();
+
+  src_queue.push("one");
+  src_queue.push("two");
+  src_queue.push("three");
+
+  pw::BasicInlineVarLenEntryQueue<char, 32> dest_queue;
+  dest_queue.push("existing");
+
+  MoveVarLenEntries(src_queue, dest_queue);
+
+  // Verify destination
+  ASSERT_EQ(dest_queue.size(), 4u);
+  auto it = dest_queue.begin();
+  EXPECT_TRUE(std::equal(it->begin(), it->end(), "existing"));
+  ++it;
+  EXPECT_TRUE(std::equal(it->begin(), it->end(), "one"));
+  ++it;
+  EXPECT_TRUE(std::equal(it->begin(), it->end(), "two"));
+  ++it;
+  EXPECT_TRUE(std::equal(it->begin(), it->end(), "three"));
+
+  // Verify source is now empty
+  ASSERT_TRUE(src_queue.empty());
+}
+
+TEST(InlineVarLenEntryQueueClass, MoveEntries_DestinationTooSmall) {
+  pw::BasicInlineVarLenEntryQueue<char, 32> src_queue;
+  src_queue.push("12345");
+  src_queue.push("6789012345");
+  src_queue.push("abc");
+
+  pw::BasicInlineVarLenEntryQueue<char, 16> dest_queue;
+  dest_queue.push("existing");
+
+  MoveVarLenEntries(src_queue, dest_queue);
+
+  // Verify destination has the entries that fit
+  ASSERT_EQ(dest_queue.size(), 2u);
+  auto it = dest_queue.begin();
+  EXPECT_TRUE(std::equal(it->begin(), it->end(), "existing"));
+  ++it;
+  EXPECT_TRUE(std::equal(it->begin(), it->end(), "12345"));
+  ++it;
+  EXPECT_EQ(it, dest_queue.end());
+
+  // Verify source has the remaining entries
+  ASSERT_EQ(src_queue.size(), 2u);
+  it = src_queue.begin();
+  EXPECT_TRUE(std::equal(it->begin(), it->end(), "6789012345"));
+  ++it;
+  EXPECT_TRUE(std::equal(it->begin(), it->end(), "abc"));
+  ++it;
+  EXPECT_EQ(it, src_queue.end());
+}
+
+TEST(InlineVarLenEntryQueueClass, MoveEntriesOverwrite) {
+  pw::BasicInlineVarLenEntryQueue<char, 32> src_queue;
+  src_queue.push("new1");
+  src_queue.push("new2");
+
+  pw::BasicInlineVarLenEntryQueue<char, 20> dest_queue;
+  dest_queue.push("old1");
+  dest_queue.push("old2");
+  dest_queue.push("old3");
+
+  MoveVarLenEntriesOverwrite(src_queue, dest_queue);
+
+  // "old1" and "old2" should be dropped.
+  ASSERT_EQ(dest_queue.size(), 3u);
+  auto it = dest_queue.begin();
+  EXPECT_TRUE(std::equal(it->begin(), it->end(), "old3"));
+  ++it;
+  EXPECT_TRUE(std::equal(it->begin(), it->end(), "new1"));
+  ++it;
+  EXPECT_TRUE(std::equal(it->begin(), it->end(), "new2"));
+
+  // Verify source is empty
+  ASSERT_TRUE(src_queue.empty());
+}
+
 }  // namespace

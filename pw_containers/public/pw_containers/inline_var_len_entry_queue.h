@@ -394,6 +394,24 @@ void pw_InlineVarLenEntryQueue_Clear(pw_InlineVarLenEntryQueue_Handle queue);
 uint32_t pw_InlineVarLenEntryQueue_RawStorageSizeBytes(
     pw_InlineVarLenEntryQueue_ConstHandle queue);
 
+/// @copydoc GenericVarLenEntryQueue::CopyEntries
+void pw_InlineVarLenEntryQueue_CopyEntries(
+    pw_InlineVarLenEntryQueue_ConstHandle from,
+    pw_InlineVarLenEntryQueue_Handle to);
+
+/// @copydoc GenericVarLenEntryQueue::CopyEntriesOverwrite
+void pw_InlineVarLenEntryQueue_CopyEntriesOverwrite(
+    pw_InlineVarLenEntryQueue_ConstHandle from,
+    pw_InlineVarLenEntryQueue_Handle to);
+
+/// @copydoc GenericVarLenEntryQueue::MoveEntries
+void pw_InlineVarLenEntryQueue_MoveEntries(
+    pw_InlineVarLenEntryQueue_Handle from, pw_InlineVarLenEntryQueue_Handle to);
+
+/// @copydoc GenericVarLenEntryQueue::MoveEntriesOverwrite
+void pw_InlineVarLenEntryQueue_MoveEntriesOverwrite(
+    pw_InlineVarLenEntryQueue_Handle from, pw_InlineVarLenEntryQueue_Handle to);
+
 /// @}
 
 PW_EXTERN_C_END

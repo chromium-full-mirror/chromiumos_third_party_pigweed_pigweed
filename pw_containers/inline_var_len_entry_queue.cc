@@ -142,4 +142,36 @@ uint32_t pw_InlineVarLenEntryQueue_RawStorageSizeBytes(
   return static_cast<uint32_t>(cxx_queue.raw_storage().size());
 }
 
+void pw_InlineVarLenEntryQueue_CopyEntries(
+    pw_InlineVarLenEntryQueue_ConstHandle from,
+    pw_InlineVarLenEntryQueue_Handle to) {
+  auto& cxx_from = InlineVarLenEntryQueueC::From(from);
+  auto& cxx_to = InlineVarLenEntryQueueC::From(to);
+  return CopyVarLenEntries(cxx_from, cxx_to);
+}
+
+void pw_InlineVarLenEntryQueue_CopyEntriesOverwrite(
+    pw_InlineVarLenEntryQueue_ConstHandle from,
+    pw_InlineVarLenEntryQueue_Handle to) {
+  auto& cxx_from = InlineVarLenEntryQueueC::From(from);
+  auto& cxx_to = InlineVarLenEntryQueueC::From(to);
+  return CopyVarLenEntriesOverwrite(cxx_from, cxx_to);
+}
+
+void pw_InlineVarLenEntryQueue_MoveEntries(
+    pw_InlineVarLenEntryQueue_Handle from,
+    pw_InlineVarLenEntryQueue_Handle to) {
+  auto& cxx_from = InlineVarLenEntryQueueC::From(from);
+  auto& cxx_to = InlineVarLenEntryQueueC::From(to);
+  return MoveVarLenEntries(cxx_from, cxx_to);
+}
+
+void pw_InlineVarLenEntryQueue_MoveEntriesOverwrite(
+    pw_InlineVarLenEntryQueue_Handle from,
+    pw_InlineVarLenEntryQueue_Handle to) {
+  auto& cxx_from = InlineVarLenEntryQueueC::From(from);
+  auto& cxx_to = InlineVarLenEntryQueueC::From(to);
+  return MoveVarLenEntriesOverwrite(cxx_from, cxx_to);
+}
+
 }  // extern "C"
