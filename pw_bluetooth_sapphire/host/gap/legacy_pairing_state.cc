@@ -37,10 +37,12 @@ const char* const kInspectSecurityPropertiesPropertyName =
 LegacyPairingState::LegacyPairingState(
     Peer::WeakPtr peer,
     PairingDelegate::WeakPtr pairing_delegate,
-    bool outgoing_connection)
+    bool outgoing_connection,
+    pw::async::Dispatcher* dispatcher)
     : peer_id_(peer->identifier()),
       peer_(std::move(peer)),
-      outgoing_connection_(outgoing_connection) {
+      outgoing_connection_(outgoing_connection),
+      dispatcher_(*dispatcher) {
   if (!pairing_delegate.is_alive()) {
     bt_log(WARN,
            "gap-bredr",
@@ -60,10 +62,13 @@ LegacyPairingState::LegacyPairingState(
     PairingDelegate::WeakPtr pairing_delegate,
     WeakPtr<hci::BrEdrConnection> link,
     bool outgoing_connection,
+    pw::async::Dispatcher* dispatcher,
     fit::closure auth_cb,
     StatusCallback status_cb)
-    : LegacyPairingState(
-          std::move(peer), std::move(pairing_delegate), outgoing_connection) {
+    : LegacyPairingState(std::move(peer),
+                         std::move(pairing_delegate),
+                         outgoing_connection,
+                         dispatcher) {
   // We can only populate |link_|, |send_auth_request_callback_|, and
   // |status_callback_| if the ACL connection is complete.
   PW_CHECK(link.is_alive());
@@ -260,8 +265,8 @@ std::optional<hci_spec::LinkKey> LegacyPairingState::OnLinkKeyRequest() {
   if (state_ == State::kIdle) {
     if (link_key.has_value()) {
       PW_CHECK(!is_pairing());
-      current_pairing_ =
-          Pairing::MakeResponderForBonded(peer_->MutBrEdr().RegisterPairing());
+      current_pairing_ = Pairing::MakeResponderForBonded(
+          peer_->MutBrEdr().RegisterPairing(), dispatcher_);
       state_ = State::kWaitEncryption;
       return link_key->key();
     }
@@ -299,7 +304,7 @@ void LegacyPairingState::OnPinCodeRequest(UserPinCodeCallback cb) {
   if (state_ == State::kIdle) {
     PW_CHECK(!is_pairing());
     current_pairing_ = Pairing::MakeResponder(
-        outgoing_connection_, peer_->MutBrEdr().RegisterPairing());
+        outgoing_connection_, peer_->MutBrEdr().RegisterPairing(), dispatcher_);
   }
 
   PW_CHECK(pairing_delegate_.is_alive());
@@ -495,23 +500,26 @@ void LegacyPairingState::OnAuthenticationComplete(
   EnableEncryption();
 }
 
-// Determine if we should ignore an error returned to us during the pairing
-// process. For example, the Central and Peripheral can both initiate the same
-// transaction (e.g. enable encryption) at the same time. In such a situation,
-// the Controller will respond with LMP Error Transction Collision.
-static bool ShouldIgnoreError(
+enum class ActionOnError { kIgnore, kRetry, kFail };
+// Bluetooth core specification Version 6.0, Volume 2, Part C, Section 2.5.1:
+// An LMP Transaction Collision indicates that both the Central and the
+// Peripheral initiated the same LMP transaction at the same time. We only
+// receive this error when we are the Peripheral. The Central's operation
+// takes precedence. Ignore this event and wait for the completion event after
+// the Central LM completes the procedure.
+//
+// In other cases, the Central and Peripheral can both initiate
+// incongruent transactions at the same time. In such a situation, the
+// Controller will respond with Different Transaction Collision and the
+// Central's procedure will take precedence. We should then retry our failed
+// transaction at a later time.
+static ActionOnError GetActionOnError(
     bool is_central,
     const bt::Error<pw::bluetooth::emboss::StatusCode>& error) {
   if (!error.is_protocol_error()) {
-    return false;
+    return ActionOnError::kFail;
   }
 
-  // Bluetooth core specification Version 6.0, Volume 2, Part C, Section 2.5.1:
-  // An LMP Transaction Collision indicates that both the Central and the
-  // Peripheral initiated the same LMP transaction at the same time. We only
-  // receive this error when we are the Peripheral. The Central's operation
-  // takes precedence. Ignore this event and wait for the completion event after
-  // the Central LM completes the procedure.
   if (error.protocol_error() ==
       pw::bluetooth::emboss::StatusCode::LMP_ERROR_TRANSACTION_COLLISION) {
     if (is_central) {
@@ -527,10 +535,28 @@ static bool ShouldIgnoreError(
              "Waiting for local LM to resolve the collision.");
     }
 
-    return true;
+    return ActionOnError::kIgnore;
   }
 
-  return false;
+  if (error.protocol_error() ==
+      pw::bluetooth::emboss::StatusCode::DIFFERENT_TRANSACTION_COLLISION) {
+    if (is_central) {
+      bt_log(INFO,
+             "gap-bredr",
+             "Different transaction collision while attempting to enable "
+             "encryption as the central. Ignoring and letting the LM complete "
+             "the Central's operation.");
+      return ActionOnError::kIgnore;
+    } else {
+      bt_log(WARN,
+             "gap-bredr",
+             "Different transaction collision while attempting to enable "
+             "encryption. Will retry the original operation shortly.");
+      return ActionOnError::kRetry;
+    }
+  }
+
+  return ActionOnError::kFail;
 }
 
 void LegacyPairingState::OnEncryptionChange(hci::Result<bool> result) {
@@ -570,14 +596,28 @@ void LegacyPairingState::OnEncryptionChange(hci::Result<bool> result) {
   }
 
   if (result.is_error()) {
-    const auto& error = result.error_value();
-    if (ShouldIgnoreError(outgoing_connection(), error)) {
-      return;
-    }
+    current_pairing_->retry_enable_encryption_task.set_function(
+        [this](pw::async::Context /*ctx*/, pw::Status status) {
+          if (status.ok() && state_ == State::kWaitEncryption) {
+            bt_log(INFO, "hci-le", "Retrying enabling encryption");
+            EnableEncryption();
+          }
+        });
 
-    state_ = State::kFailed;
-    SignalStatus(result.take_error(), __func__);
-    return;
+    const auto& error = result.error_value();
+    ActionOnError action = GetActionOnError(outgoing_connection(), error);
+    switch (action) {
+      case ActionOnError::kRetry:
+        current_pairing_->retry_enable_encryption_task.PostAfter(
+            kDelayRetryEnableEncryption);
+        return;
+      case ActionOnError::kIgnore:
+        return;
+      case ActionOnError::kFail:
+        state_ = State::kFailed;
+        SignalStatus(result.take_error(), __func__);
+        return;
+    }
   }
 
   // Encryption indicates the end of pairing so reset state for another pairing
@@ -589,10 +629,11 @@ std::unique_ptr<LegacyPairingState::Pairing>
 LegacyPairingState::Pairing::MakeInitiator(
     BrEdrSecurityRequirements security_requirements,
     bool outgoing_connection,
-    Peer::PairingToken&& token) {
+    Peer::PairingToken&& token,
+    pw::async::Dispatcher& dispatcher) {
   // Private constructor is inaccessible to std::make_unique
   std::unique_ptr<Pairing> pairing(
-      new Pairing(outgoing_connection, std::move(token)));
+      new Pairing(outgoing_connection, std::move(token), dispatcher));
   pairing->initiator = true;
   pairing->preferred_security = security_requirements;
   return pairing;
@@ -602,10 +643,11 @@ std::unique_ptr<LegacyPairingState::Pairing>
 LegacyPairingState::Pairing::MakeResponder(
     bool outgoing_connection,
     Peer::PairingToken&& token,
+    pw::async::Dispatcher& dispatcher,
     std::optional<pw::bluetooth::emboss::IoCapability> peer_iocap) {
   // Private constructor is inaccessible to std::make_unique
   std::unique_ptr<Pairing> pairing(
-      new Pairing(outgoing_connection, std::move(token)));
+      new Pairing(outgoing_connection, std::move(token), dispatcher));
   pairing->initiator = false;
   if (peer_iocap.has_value()) {
     pairing->peer_iocap = peer_iocap.value();
@@ -617,9 +659,9 @@ LegacyPairingState::Pairing::MakeResponder(
 
 std::unique_ptr<LegacyPairingState::Pairing>
 LegacyPairingState::Pairing::MakeResponderForBonded(
-    Peer::PairingToken&& token) {
-  std::unique_ptr<Pairing> pairing(
-      new Pairing(/*outgoing_connection=*/false, std::move(token)));
+    Peer::PairingToken&& token, pw::async::Dispatcher& dispatcher) {
+  std::unique_ptr<Pairing> pairing(new Pairing(
+      /*automatic=*/false, std::move(token), dispatcher));
   pairing->initiator = false;
   // Do not try to upgrade security as responder
   pairing->preferred_security = kNoSecurityRequirements;
@@ -684,8 +726,8 @@ void LegacyPairingState::InitiateNextPairingRequest() {
 
   PW_CHECK(peer_.is_alive());
 
-  // If we interrogated the peer and they support SSP, we should be using SSP
-  // since we also support SSP.
+  // If we interrogated the peer and they support SSP, we should be using
+  // SSP since we also support SSP.
   if (peer_->IsSecureSimplePairingSupported()) {
     bt_log(WARN,
            "gap-bredr",
@@ -701,10 +743,10 @@ void LegacyPairingState::InitiateNextPairingRequest() {
 
   PairingRequest& request = request_queue_.front();
 
-  current_pairing_ =
-      Pairing::MakeInitiator(request.security_requirements,
-                             outgoing_connection_,
-                             peer_->MutBrEdr().RegisterPairing());
+  current_pairing_ = Pairing::MakeInitiator(request.security_requirements,
+                                            outgoing_connection_,
+                                            peer_->MutBrEdr().RegisterPairing(),
+                                            dispatcher_);
   bt_log(DEBUG,
          "gap-bredr",
          "Initiating queued pairing on link %#.4x for peer id %s",
@@ -742,12 +784,12 @@ std::vector<fit::closure> LegacyPairingState::CompletePairingRequests(
       sm::SecurityProperties(hci_spec::LinkKeyType::kCombination);
 
   // If a new link key was received, notify all callbacks because we always
-  // negotiate the best security possible. Even though pairing succeeded, send
-  // an error status if the individual request security requirements are not
-  // satisfied.
+  // negotiate the best security possible. Even though pairing succeeded,
+  // send an error status if the individual request security requirements
+  // are not satisfied.
   // TODO(fxbug.dev/42075714): Only notify failure to callbacks of
-  // requests that have the same (or none) on-path attack requirements as the
-  // current pairing.
+  // requests that have the same (or none) on-path attack requirements as
+  // the current pairing.
   bool link_key_received = current_pairing_->security_properties.has_value();
   if (link_key_received) {
     for (auto& request : request_queue_) {
@@ -766,10 +808,10 @@ std::vector<fit::closure> LegacyPairingState::CompletePairingRequests(
     }
     request_queue_.clear();
   } else {
-    // If no new link key was received, then only authentication with an old key
-    // was performed (Legacy Pairing was not required), and unsatisfied requests
-    // should initiate a new pairing rather than failing. If any pairing
-    // requests are satisfied by the existing key, notify them.
+    // If no new link key was received, then only authentication with an old
+    // key was performed (Legacy Pairing was not required), and unsatisfied
+    // requests should initiate a new pairing rather than failing. If any
+    // pairing requests are satisfied by the existing key, notify them.
     auto it = request_queue_.begin();
     while (it != request_queue_.end()) {
       if (!SecurityPropertiesMeetRequirements(security_properties,
@@ -838,5 +880,4 @@ void LegacyPairingState::AttachInspect(inspect::Node& parent,
   bredr_security_.AttachInspect(inspect_node_,
                                 kInspectSecurityPropertiesPropertyName);
 }
-
 }  // namespace bt::gap

@@ -172,6 +172,11 @@ enum class PairingAction {
 // which it was created.
 class SecureSimplePairingState final {
  public:
+  // The amount of time to wait before retrying enabling encryption if we
+  // receive a transaction collision while doing so.
+  static constexpr std::chrono::steady_clock::duration
+      kDelayRetryEnableEncryption = std::chrono::seconds(2);
+
   // Used to report the status of each pairing procedure on this link. |status|
   // will contain HostError::kNotSupported if the pairing procedure does not
   // proceed in the order of events expected.
@@ -350,7 +355,9 @@ class SecureSimplePairingState final {
   };
 
   // Extra information for pairing constructed when a pairing procedure begins
-  // and destroyed when the pairing procedure is reset or errors out.
+  // and destroyed when the pairing procedure is reset or errors
+  // out. |outgoing_connection| should be true if this device connected, and
+  // false if it was an incoming connection.
   //
   // Instances must be heap allocated so that they can be moved without
   // destruction, preserving their WeakPtr holders. WeakPtrs are vended to
@@ -362,15 +369,17 @@ class SecureSimplePairingState final {
     static std::unique_ptr<Pairing> MakeInitiator(
         BrEdrSecurityRequirements security_requirements,
         bool outgoing_connection,
-        Peer::PairingToken&& token);
+        Peer::PairingToken&& token,
+        pw::async::Dispatcher& dispatcher);
     static std::unique_ptr<Pairing> MakeResponder(
         pw::bluetooth::emboss::IoCapability peer_iocap,
-        bool link_inititated,
-        Peer::PairingToken&& token);
+        bool outgoing_connection,
+        Peer::PairingToken&& token,
+        pw::async::Dispatcher& dispatcher);
     // Make a responder for a peer that has initiated a pairing (asked for our
     // key while in idle)
     static std::unique_ptr<Pairing> MakeResponderForBonded(
-        Peer::PairingToken&& token);
+        Peer::PairingToken&& token, pw::async::Dispatcher& dispatcher);
 
     // For a Pairing whose |initiator|, |local_iocap|, and |peer_iocap| are
     // already set, compute and set |action|, |expected_event|, |authenticated|,
@@ -416,10 +425,15 @@ class SecureSimplePairingState final {
 
     Peer::PairingToken pairing_token;
 
+    SmartTask retry_enable_encryption_task;
+
    private:
-    explicit Pairing(bool automatic, Peer::PairingToken&& token)
+    Pairing(bool automatic,
+            Peer::PairingToken&& token,
+            pw::async::Dispatcher& dispatcher)
         : allow_automatic(automatic),
           pairing_token(std::move(token)),
+          retry_enable_encryption_task(dispatcher),
           weak_self_(this) {}
 
     WeakSelf<Pairing> weak_self_;

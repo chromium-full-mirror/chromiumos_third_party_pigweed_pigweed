@@ -3655,8 +3655,149 @@ TEST_F(PairingStateTest, TransactionCollision) {
   ASSERT_EQ(0, status_handler.call_count());
 
   connection()->TriggerEncryptionChangeCallback(fit::ok(true));
+  ASSERT_EQ(1, status_handler.call_count());
   ASSERT_TRUE(status_handler.status());
   EXPECT_EQ(fit::ok(), *status_handler.status());
+}
+
+TEST_F(PairingStateTest, DifferentTransactionCollisionAsCentral) {
+  NoOpPairingDelegate pairing_delegate(kTestLocalIoCap);
+  SecureSimplePairingState pairing_state(
+      peer()->GetWeakPtr(),
+      pairing_delegate.GetWeakPtr(),
+      connection()->GetWeakPtr(),
+      /*outgoing_connection=*/true,
+      MakeAuthRequestCallback(),
+      NoOpStatusCallback,
+      /*low_energy_address_delegate=*/this,
+      /*controller_remote_public_key_validation_supported=*/true,
+      sm_factory_func(),
+      dispatcher());
+
+  TestStatusHandler status_handler;
+  pairing_state.InitiatePairing(kNoSecurityRequirements,
+                                status_handler.MakeStatusCallback());
+  RunUntilIdle();
+  EXPECT_TRUE(peer()->MutBrEdr().SetBondData(
+      sm::LTK(sm::SecurityProperties(kTestUnauthenticatedLinkKeyType192),
+              kTestLinkKey)));
+
+  static_cast<void>(pairing_state.OnLinkKeyRequest());
+  ASSERT_EQ(0, status_handler.call_count());
+
+  pairing_state.OnAuthenticationComplete(
+      pw::bluetooth::emboss::StatusCode::SUCCESS);
+  ASSERT_EQ(0, status_handler.call_count());
+  ASSERT_EQ(1, connection()->start_encryption_count());
+
+  auto tc_result = ToResult(
+      pw::bluetooth::emboss::StatusCode::DIFFERENT_TRANSACTION_COLLISION);
+  hci::Result<bool> result(tc_result.take_error());
+  connection()->TriggerEncryptionChangeCallback(result);
+  ASSERT_EQ(0, status_handler.call_count());
+
+  // Ensure we don't retry as a Central
+  RunFor(SecureSimplePairingState::kDelayRetryEnableEncryption);
+  ASSERT_EQ(1, connection()->start_encryption_count());
+
+  connection()->TriggerEncryptionChangeCallback(fit::ok(true));
+  ASSERT_EQ(1, status_handler.call_count());
+  ASSERT_TRUE(status_handler.status());
+  EXPECT_EQ(fit::ok(), *status_handler.status());
+}
+
+TEST_F(PairingStateTest, DifferentTransactionCollisionAsPeripheral) {
+  NoOpPairingDelegate pairing_delegate(kTestLocalIoCap);
+  SecureSimplePairingState pairing_state(
+      peer()->GetWeakPtr(),
+      pairing_delegate.GetWeakPtr(),
+      connection()->GetWeakPtr(),
+      /*outgoing_connection=*/false,
+      MakeAuthRequestCallback(),
+      NoOpStatusCallback,
+      /*low_energy_address_delegate=*/this,
+      /*controller_remote_public_key_validation_supported=*/true,
+      sm_factory_func(),
+      dispatcher());
+
+  TestStatusHandler status_handler;
+  pairing_state.InitiatePairing(kNoSecurityRequirements,
+                                status_handler.MakeStatusCallback());
+  RunUntilIdle();
+  EXPECT_TRUE(peer()->MutBrEdr().SetBondData(
+      sm::LTK(sm::SecurityProperties(kTestUnauthenticatedLinkKeyType192),
+              kTestLinkKey)));
+
+  static_cast<void>(pairing_state.OnLinkKeyRequest());
+  ASSERT_EQ(0, status_handler.call_count());
+
+  pairing_state.OnAuthenticationComplete(
+      pw::bluetooth::emboss::StatusCode::SUCCESS);
+  ASSERT_EQ(0, status_handler.call_count());
+  ASSERT_EQ(1, connection()->start_encryption_count());
+
+  auto tc_result = ToResult(
+      pw::bluetooth::emboss::StatusCode::DIFFERENT_TRANSACTION_COLLISION);
+  hci::Result<bool> result(tc_result.take_error());
+  connection()->TriggerEncryptionChangeCallback(result);
+  ASSERT_EQ(0, status_handler.call_count());
+
+  // Ensure we retry after kDelayRetryEnableEncryption amount of time
+  RunFor(SecureSimplePairingState::kDelayRetryEnableEncryption);
+  ASSERT_EQ(2, connection()->start_encryption_count());
+
+  connection()->TriggerEncryptionChangeCallback(fit::ok(true));
+  ASSERT_EQ(1, status_handler.call_count());
+  ASSERT_TRUE(status_handler.status());
+  EXPECT_EQ(fit::ok(), *status_handler.status());
+}
+
+TEST_F(PairingStateTest,
+       DifferentTransactionCollisionRetryNotCalledIfSucceeded) {
+  NoOpPairingDelegate pairing_delegate(kTestLocalIoCap);
+  SecureSimplePairingState pairing_state(
+      peer()->GetWeakPtr(),
+      pairing_delegate.GetWeakPtr(),
+      connection()->GetWeakPtr(),
+      /*outgoing_connection=*/false,
+      MakeAuthRequestCallback(),
+      NoOpStatusCallback,
+      /*low_energy_address_delegate=*/this,
+      /*controller_remote_public_key_validation_supported=*/true,
+      sm_factory_func(),
+      dispatcher());
+
+  TestStatusHandler status_handler;
+  pairing_state.InitiatePairing(kNoSecurityRequirements,
+                                status_handler.MakeStatusCallback());
+  RunUntilIdle();
+  EXPECT_TRUE(peer()->MutBrEdr().SetBondData(
+      sm::LTK(sm::SecurityProperties(kTestUnauthenticatedLinkKeyType192),
+              kTestLinkKey)));
+
+  static_cast<void>(pairing_state.OnLinkKeyRequest());
+  ASSERT_EQ(0, status_handler.call_count());
+
+  pairing_state.OnAuthenticationComplete(
+      pw::bluetooth::emboss::StatusCode::SUCCESS);
+  ASSERT_EQ(0, status_handler.call_count());
+  ASSERT_EQ(1, connection()->start_encryption_count());
+
+  auto tc_result = ToResult(
+      pw::bluetooth::emboss::StatusCode::DIFFERENT_TRANSACTION_COLLISION);
+  hci::Result<bool> result(tc_result.take_error());
+  connection()->TriggerEncryptionChangeCallback(result);
+  ASSERT_EQ(0, status_handler.call_count());
+
+  connection()->TriggerEncryptionChangeCallback(fit::ok(true));
+  ASSERT_EQ(1, status_handler.call_count());
+  ASSERT_TRUE(status_handler.status());
+  EXPECT_EQ(fit::ok(), *status_handler.status());
+
+  // Ensure we don't retry if we succeeded in enabling encryption before the
+  // retry handler is called
+  RunFor(SecureSimplePairingState::kDelayRetryEnableEncryption);
+  ASSERT_EQ(1, connection()->start_encryption_count());
 }
 
 }  // namespace
