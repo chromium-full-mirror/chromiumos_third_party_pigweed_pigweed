@@ -82,6 +82,9 @@ class Future {
   /// Calling `Pend` on a completed future will trigger an assertion.
   bool is_complete() const { return derived().DoIsComplete(); }
 
+ protected:
+  constexpr Future() = default;
+
  private:
   Derived& derived() { return static_cast<Derived&>(*this); }
   const Derived& derived() const { return static_cast<const Derived&>(*this); }
@@ -91,6 +94,7 @@ namespace internal {
 
 template <typename D, typename V>
 std::true_type IsFuture(const volatile Future<D, V>*);
+
 std::false_type IsFuture(...);
 
 }  // namespace internal
@@ -128,6 +132,11 @@ constexpr bool is_future_v =
 template <typename FutureType, typename Lock = sync::InterruptSpinLock>
 class ListFutureProvider {
  public:
+  constexpr ListFutureProvider() = default;
+
+  ListFutureProvider(const ListFutureProvider&) = delete;
+  ListFutureProvider& operator=(const ListFutureProvider&) = delete;
+
   /// Adds a future to the end of the list.
   void Push(FutureType& future) {
     std::lock_guard lock(lock_);
@@ -179,11 +188,12 @@ class ListFutureProvider {
 /// itself. The provider is not notified of this event.
 template <typename FutureType>
 class SingleFutureProvider {
-  // TODO: b/401055180 - This publicly inherits from ListFutureProvider because
-  // listable futures store a pointer to their provider and this must be
-  // compatible. Once futures are refactored to not reference their providers,
-  // this could be switched to private inheritance, or separated entirely.
  public:
+  constexpr SingleFutureProvider() = default;
+
+  SingleFutureProvider(const SingleFutureProvider&) = delete;
+  SingleFutureProvider& operator=(const SingleFutureProvider&) = delete;
+
   /// Sets the provider's future. Crashes if a future is already set.
   void Set(FutureType& future) {
     PW_ASSERT(!has_future());
@@ -273,19 +283,6 @@ class ListableFutureWithWaker
   ListableFutureWithWaker& operator=(const ListableFutureWithWaker&) = delete;
 
  protected:
-  Poll<T> DoPend(Context& cx) {
-    static_assert(
-        std::is_same_v<std::remove_extent_t<decltype(Derived::kWaitReason)>,
-                       const char>,
-        "kWaitReason must be a character array");
-
-    Poll<T> poll = derived().DoPend(cx);
-    if (poll.IsPending()) {
-      PW_ASYNC_STORE_WAKER(cx, waker_, Derived::kWaitReason);
-    }
-    return poll;
-  }
-
   using Provider = ListFutureProvider<Derived>;
 
   /// Tag to prevent accidental default construction.
@@ -294,13 +291,13 @@ class ListableFutureWithWaker
   /// Initializes a future in an "empty", moved-from state. This should be used
   /// from derived futures' move constructors, followed by a call to
   /// `MoveFrom` to set the appropriate base state.
-  ListableFutureWithWaker(MovedFromState)
+  explicit ListableFutureWithWaker(MovedFromState)
       : provider_(nullptr), complete_(true) {}
 
-  ListableFutureWithWaker(Provider& provider) : provider_(&provider) {
+  explicit ListableFutureWithWaker(Provider& provider) : provider_(&provider) {
     provider.Push(derived());
   }
-  ListableFutureWithWaker(SingleFutureProvider<Derived>& single)
+  explicit ListableFutureWithWaker(SingleFutureProvider<Derived>& single)
       : ListableFutureWithWaker(single.inner_) {}
 
   ~ListableFutureWithWaker() {
@@ -339,11 +336,24 @@ class ListableFutureWithWaker
  private:
   using Base = Future<ListableFutureWithWaker<Derived, T>, T>;
 
-  void DoMarkComplete() { complete_ = true; }
-  bool DoIsComplete() const { return complete_; }
-
   friend Base;
   friend Provider;
+
+  Poll<T> DoPend(Context& cx) {
+    static_assert(
+        std::is_same_v<std::remove_extent_t<decltype(Derived::kWaitReason)>,
+                       const char>,
+        "kWaitReason must be a character array");
+
+    Poll<T> poll = derived().DoPend(cx);
+    if (poll.IsPending()) {
+      PW_ASYNC_STORE_WAKER(cx, waker_, Derived::kWaitReason);
+    }
+    return poll;
+  }
+
+  void DoMarkComplete() { complete_ = true; }
+  bool DoIsComplete() const { return complete_; }
 
   Derived& derived() { return static_cast<Derived&>(*this); }
 
