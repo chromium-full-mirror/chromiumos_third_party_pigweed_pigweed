@@ -261,7 +261,8 @@ Use `code-block`_. See `Languages`_ for the list of valid language
 keywords.
 
 If Google has a style guide for the programming language in your code block,
-your code should match Google's style guide.
+your code should match Google's style guide. ``./pw format`` automatically
+formats C++ code blocks.
 
 .. code-block:: rst
 

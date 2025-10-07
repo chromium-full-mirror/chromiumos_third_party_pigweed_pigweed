@@ -53,7 +53,7 @@ class TestClangFormatFormatter(unittest.TestCase):
                 (
                     'clang-format',
                     f'--style=file:{_CLANG_FORMAT_CONFIG_PATH}',
-                    str(_TEST_SRC_FILE),
+                    f'--assume-filename={_TEST_SRC_FILE}',
                 )
             ),
         )

@@ -27,6 +27,24 @@ _RST_TEST_FILE = _TEST_DATA_DIR / 'rst_test_data.rst'
 _RST_GOLDEN_FILE = _TEST_DATA_DIR / 'rst_test_data_golden.rst'
 
 
+FORMATTED_CPP = """\
+.. code-block:: cpp
+
+   // clang-format off
+   constexpr int kMyMatrix[] = {
+       100,  23,   0,
+         0, 542,  38,
+         1,   2, 201,
+   };
+   // clang-format on
+
+   int SomeFunction(int x) {
+     PW_ASSERT(x < 9);
+     return kMyMatrix[x];
+   }
+"""
+
+
 class RstFormatterTest(unittest.TestCase):
     """Tests for the RstFormatter."""
 
@@ -77,7 +95,8 @@ class RstFormatterTest(unittest.TestCase):
             (
                 '.. code-block:: cpp',
                 '  int main() {',
-                '    return 0;',
+                '    int x = 0;',
+                '    return x;',
                 '  }',
             )
         )
@@ -86,12 +105,33 @@ class RstFormatterTest(unittest.TestCase):
                 '.. code-block:: cpp',
                 '',
                 '   int main() {',
-                '     return 0;',
+                '     int x = 0;',
+                '     return x;',
                 '   }',
                 '',
             )
         )
         self.assertEqual(expected, self._run_formatter(original))
+
+    def test_code_block_reformat_cpp(self):
+        self.assertEqual(FORMATTED_CPP, self._run_formatter(FORMATTED_CPP))
+
+    def test_code_block_reformat_cpp_repeatedly(self):
+        original = '\n'.join(
+            (
+                '.. code-block:: cpp',
+                '',
+                '   int main() {',
+                '     if (true) {',
+                '       return 0;',
+                '     }',
+                '',
+                '     return 1;',
+                '   }',
+                '',
+            )
+        )
+        self.assertEqual(original, self._run_formatter(original))
 
     def test_code_block_with_options(self):
         original = '\n'.join(
@@ -110,9 +150,7 @@ class RstFormatterTest(unittest.TestCase):
                 '.. code-block:: cpp',
                 '   :caption: My Caption',
                 '',
-                '   int main() {',
-                '     return 0;',
-                '   }',
+                '   int main() { return 0; }',
                 '',
             )
         )

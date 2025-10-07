@@ -60,7 +60,8 @@ class ClangFormatFormatter(FileFormatter):
         """
         proc = self.run_tool(
             'clang-format',
-            self.clang_format_flags + [file_path],
+            self.clang_format_flags + [f'--assume-filename={file_path}'],
+            input=file_contents,
         )
         return FormattedFileContents(
             ok=proc.returncode == 0,
