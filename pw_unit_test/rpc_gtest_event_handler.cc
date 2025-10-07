@@ -88,6 +88,7 @@ void RpcEventHandler::OnTestPartResult(const testing::TestPartResult& result) {
   TestExpectation expectation{
       .expression = "",
       .evaluated_expression = result.summary(),
+      .file_name = result.file_name(),
       .line_number = result.line_number(),
       .success = result.passed(),
   };

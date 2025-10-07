@@ -34,7 +34,7 @@ struct TestCase {
   /// Name of the test case.
   const char* test_name;
 
-  /// Path to the file in which the test case is defined.
+  /// Path to the file in which the test case (`TEST` macro) is defined.
   const char* file_name;
 };
 
@@ -44,6 +44,10 @@ struct TestExpectation {
 
   /// The expression with arguments evaluated.
   const char* evaluated_expression;
+
+  /// Path to the file where the expectation is located. This file may be
+  /// different from the `file_name` in `TestCase`.
+  const char* file_name;
 
   /// Line number at which the expectation is located.
   int line_number;

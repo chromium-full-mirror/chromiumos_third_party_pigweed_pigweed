@@ -271,7 +271,11 @@
 #define ADD_FAILURE()                                                      \
   ::pw::unit_test::internal::ReturnHelper() =                              \
       ::pw::unit_test::internal::Framework::Get().CurrentTestExpectSimple( \
-          "(line is not executed)", "(line was executed)", __LINE__, false)
+          "(line is not executed)",                                        \
+          "(line was executed)",                                           \
+          __FILE__,                                                        \
+          __LINE__,                                                        \
+          false)
 
 /// @def GTEST_FAIL
 ///
@@ -284,7 +288,7 @@
 #define GTEST_SKIP()                                                      \
   return ::pw::unit_test::internal::ReturnHelper() =                      \
              ::pw::unit_test::internal::Framework::Get().CurrentTestSkip( \
-                 __LINE__)
+                 __FILE__, __LINE__)
 
 /// @def FAIL
 /// Generates a fatal failure with a generic message.
@@ -300,7 +304,7 @@
 /// Alias of `SUCCEED`.
 #define GTEST_SUCCEED()                                                \
   ::pw::unit_test::internal::Framework::Get().CurrentTestExpectSimple( \
-      "(success)", "(success)", __LINE__, true)
+      "(success)", "(success)", __FILE__, __LINE__, true)
 
 /// @def SUCCEED
 ///
@@ -557,6 +561,7 @@ class Framework {
                                                   const Rhs& rhs,
                                                   const Epsilon& epsilon,
                                                   const char* expression,
+                                                  const char* file,
                                                   int line) {
     const bool success = expectation(lhs, rhs, epsilon);
     if (!success) {
@@ -568,6 +573,7 @@ class Framework {
                                   " of ",
                                   ConvertForPrint(rhs))
                                   .c_str(),
+                              file,
                               line,
                               success);
     }
@@ -581,6 +587,7 @@ class Framework {
                                        const Rhs& rhs,
                                        const char* expectation_string,
                                        const char* expression,
+                                       const char* file,
                                        int line) {
     const bool success = expectation(lhs, rhs);
     if (!success) {
@@ -592,6 +599,7 @@ class Framework {
                                                           ' ',
                                                           ConvertForPrint(rhs))
               .c_str(),
+          file,
           line,
           success);
     }
@@ -599,12 +607,14 @@ class Framework {
   }
 
   // Skips the current test and dispatches an event for it.
-  ::pw::unit_test::internal::FailureMessageAdapter CurrentTestSkip(int line);
+  ::pw::unit_test::internal::FailureMessageAdapter CurrentTestSkip(
+      const char* file, int line);
 
   // Dispatches an event indicating the result of an expectation.
   ::pw::unit_test::internal::FailureMessageAdapter CurrentTestExpectSimple(
       const char* expression,
       const char* evaluated_expression,
+      const char* file,
       int line,
       bool success);
 
@@ -845,6 +855,7 @@ inline int RUN_ALL_TESTS() {
       value,                                                         \
       "is",                                                          \
       #expr " is " #value,                                           \
+      __FILE__,                                                      \
       __LINE__)
 
 #define _PW_TEST_OP(lhs, rhs, op)                                \
@@ -856,6 +867,7 @@ inline int RUN_ALL_TESTS() {
       (rhs),                                                     \
       #op,                                                       \
       #lhs " " #op " " #rhs,                                     \
+      __FILE__,                                                  \
       __LINE__)
 
 #define _PW_TEST_NEAR(lhs, rhs, epsilon)                                      \
@@ -867,6 +879,7 @@ inline int RUN_ALL_TESTS() {
       (rhs),                                                                  \
       (epsilon),                                                              \
       #lhs " within " #epsilon " of " #rhs,                                   \
+      __FILE__,                                                               \
       __LINE__)
 
 #define _PW_TEST_C_STR(lhs, rhs, op)                             \
@@ -884,6 +897,7 @@ inline int RUN_ALL_TESTS() {
       ::pw::unit_test::internal::CStringArg{rhs},                \
       #op,                                                       \
       #lhs " " #op " " #rhs,                                     \
+      __FILE__,                                                  \
       __LINE__)
 
 // Checks that test suite names between TEST and TEST_F declarations are unique.

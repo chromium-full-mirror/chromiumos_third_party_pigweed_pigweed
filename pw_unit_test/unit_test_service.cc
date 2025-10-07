@@ -161,14 +161,10 @@ void UnitTestThread::WriteTestRunStart() {
 void UnitTestThread::WriteTestRunEnd(const RunTestsSummary& summary) {
   WriteEvent([&](pwpb::Event::StreamEncoder& event) {
     pwpb::TestRunEnd::StreamEncoder test_run_end = event.GetTestRunEndEncoder();
-    test_run_end.WritePassed(summary.passed_tests)
-        .IgnoreError();  // TODO: b/242598609 - Handle Status properly
-    test_run_end.WriteFailed(summary.failed_tests)
-        .IgnoreError();  // TODO: b/242598609 - Handle Status properly
-    test_run_end.WriteSkipped(summary.skipped_tests)
-        .IgnoreError();  // TODO: b/242598609 - Handle Status properly
-    test_run_end.WriteDisabled(summary.disabled_tests)
-        .IgnoreError();  // TODO: b/242598609 - Handle Status properly
+    test_run_end.WritePassed(summary.passed_tests).IgnoreError();
+    test_run_end.WriteFailed(summary.failed_tests).IgnoreError();
+    test_run_end.WriteSkipped(summary.skipped_tests).IgnoreError();
+    test_run_end.WriteDisabled(summary.disabled_tests).IgnoreError();
   });
 }
 
@@ -176,19 +172,16 @@ void UnitTestThread::WriteTestCaseStart(const TestCase& test_case) {
   WriteEvent([&](pwpb::Event::StreamEncoder& event) {
     pwpb::TestCaseDescriptor::StreamEncoder descriptor =
         event.GetTestCaseStartEncoder();
-    descriptor.WriteSuiteName(test_case.suite_name)
-        .IgnoreError();  // TODO: b/242598609 - Handle Status properly
-    descriptor.WriteTestName(test_case.test_name)
-        .IgnoreError();  // TODO: b/242598609 - Handle Status properly
-    descriptor.WriteFileName(test_case.file_name)
-        .IgnoreError();  // TODO: b/242598609 - Handle Status properly
+    descriptor.WriteSuiteName(test_case.suite_name).IgnoreError();
+    descriptor.WriteTestName(test_case.test_name).IgnoreError();
+    descriptor.WriteFileName(test_case.file_name).IgnoreError();
   });
 }
 
 void UnitTestThread::WriteTestCaseEnd(TestResult result) {
   WriteEvent([&](pwpb::Event::StreamEncoder& event) {
     event.WriteTestCaseEnd(static_cast<pwpb::TestCaseResult>(result))
-        .IgnoreError();  // TODO: b/242598609 - Handle Status properly
+        .IgnoreError();
   });
 }
 
@@ -196,12 +189,9 @@ void UnitTestThread::WriteTestCaseDisabled(const TestCase& test_case) {
   WriteEvent([&](pwpb::Event::StreamEncoder& event) {
     pwpb::TestCaseDescriptor::StreamEncoder descriptor =
         event.GetTestCaseDisabledEncoder();
-    descriptor.WriteSuiteName(test_case.suite_name)
-        .IgnoreError();  // TODO: b/242598609 - Handle Status properly
-    descriptor.WriteTestName(test_case.test_name)
-        .IgnoreError();  // TODO: b/242598609 - Handle Status properly
-    descriptor.WriteFileName(test_case.file_name)
-        .IgnoreError();  // TODO: b/242598609 - Handle Status properly
+    descriptor.WriteSuiteName(test_case.suite_name).IgnoreError();
+    descriptor.WriteTestName(test_case.test_name).IgnoreError();
+    descriptor.WriteFileName(test_case.file_name).IgnoreError();
   });
 }
 
@@ -214,15 +204,14 @@ void UnitTestThread::WriteTestCaseExpectation(
   WriteEvent([&](pwpb::Event::StreamEncoder& event) {
     pwpb::TestCaseExpectation::StreamEncoder test_case_expectation =
         event.GetTestCaseExpectationEncoder();
-    test_case_expectation.WriteExpression(expectation.expression)
-        .IgnoreError();  // TODO: b/242598609 - Handle Status properly
+    test_case_expectation.WriteExpression(expectation.expression).IgnoreError();
     test_case_expectation
         .WriteEvaluatedExpression(expectation.evaluated_expression)
-        .IgnoreError();  // TODO: b/242598609 - Handle Status properly
+        .IgnoreError();
+    test_case_expectation.WriteFileName(expectation.file_name).IgnoreError();
     test_case_expectation.WriteLineNumber(expectation.line_number)
-        .IgnoreError();  // TODO: b/242598609 - Handle Status properly
-    test_case_expectation.WriteSuccess(expectation.success)
-        .IgnoreError();  // TODO: b/242598609 - Handle Status properly
+        .IgnoreError();
+    test_case_expectation.WriteSuccess(expectation.success).IgnoreError();
   });
 }
 
