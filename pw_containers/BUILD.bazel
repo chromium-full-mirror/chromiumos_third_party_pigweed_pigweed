@@ -320,6 +320,16 @@ cc_library(
 )
 
 cc_library(
+    name = "generic_var_len_entry_queue_testing",
+    testonly = True,
+    hdrs = [
+        "public/pw_containers/test/generic_var_len_entry_queue_testing.h",
+    ],
+    strip_include_prefix = "public",
+    deps = ["//pw_unit_test"],
+)
+
+cc_library(
     name = "inline_var_len_entry_queue",
     srcs = ["inline_var_len_entry_queue.cc"],
     hdrs = ["public/pw_containers/inline_var_len_entry_queue.h"],
@@ -460,6 +470,7 @@ pw_cc_test(
         "pw_containers_private/inline_var_len_entry_queue_test_oracle.h",
     ],
     deps = [
+        ":generic_var_len_entry_queue_testing",
         ":inline_var_len_entry_queue",
         "//pw_assert:assert",
         "//pw_bytes",

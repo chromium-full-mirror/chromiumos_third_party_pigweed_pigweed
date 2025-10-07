@@ -62,12 +62,12 @@ class VarLenEntryIterator {
 
   friend constexpr VarLenEntryIterator operator+(const VarLenEntryIterator& it,
                                                  difference_type n) {
-    return VarLenEntryIterator(it.entry_, it.index_ + static_cast<size_t>(n));
+    return VarLenEntryIterator(*it.entry_, it.index_ + static_cast<size_t>(n));
   }
 
   friend constexpr VarLenEntryIterator operator+(
       difference_type n, const VarLenEntryIterator& it) {
-    return VarLenEntryIterator(it.entry_, it.index_ + static_cast<size_t>(n));
+    return VarLenEntryIterator(*it.entry_, it.index_ + static_cast<size_t>(n));
   }
 
   [[nodiscard]] friend constexpr bool operator==(
@@ -86,8 +86,8 @@ class VarLenEntryIterator {
   template <typename>
   friend class VarLenEntry;
 
-  constexpr VarLenEntryIterator(const VarLenEntry<T>* entry, size_t index)
-      : entry_(entry), index_(index) {}
+  constexpr VarLenEntryIterator(const VarLenEntry<T>& entry, size_t index)
+      : entry_(&entry), index_(index) {}
 
   const VarLenEntry<T>* entry_ = nullptr;
   size_t index_ = 0;

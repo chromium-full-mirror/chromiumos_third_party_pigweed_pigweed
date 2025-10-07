@@ -262,6 +262,15 @@ pw_add_library(pw_containers.generic_var_len_entry_queue STATIC
     pw_varint
 )
 
+pw_add_library(pw_containers.generic_var_len_entry_queue_testing INTERFACE
+  HEADERS
+    public/pw_containers/test/generic_var_len_entry_queue_testing.h
+  PUBLIC_INCLUDES
+    public
+  PUBLIC_DEPS
+    pw_unit_test
+)
+
 pw_add_library(pw_containers.inline_var_len_entry_queue STATIC
   HEADERS
     public/pw_containers/inline_var_len_entry_queue.h
@@ -607,6 +616,7 @@ pw_add_test(pw_containers.inline_var_len_entry_queue_test
   PRIVATE_DEPS
     pw_assert
     pw_bytes
+    pw_containers.generic_var_len_entry_queue_testing
     pw_containers.inline_var_len_entry_queue
     pw_span
 )

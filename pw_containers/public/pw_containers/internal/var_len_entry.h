@@ -115,11 +115,13 @@ class VarLenEntry {
   /// @param count  Length of the buffer, in bytes.
   constexpr size_t copy(value_type* dest, size_t count) const;
 
-  constexpr iterator begin() const { return iterator(this, 0); }
-  constexpr const_iterator cbegin() const { return const_iterator(this, 0); }
+  constexpr iterator begin() const { return iterator(*this, 0); }
+  constexpr const_iterator cbegin() const { return const_iterator(*this, 0); }
 
-  constexpr iterator end() const { return iterator(this, size()); }
-  constexpr const_iterator cend() const { return const_iterator(this, size()); }
+  constexpr iterator end() const { return iterator(*this, size()); }
+  constexpr const_iterator cend() const {
+    return const_iterator(*this, size());
+  }
 
   [[nodiscard]] friend constexpr bool operator==(const VarLenEntry& lhs,
                                                  const VarLenEntry& rhs) {

@@ -247,6 +247,13 @@ pw_source_set("generic_var_len_entry_queue") {
   ]
 }
 
+pw_source_set("generic_var_len_entry_queue_testing") {
+  public_configs = [ ":public_include_path" ]
+  public = [ "public/pw_containers/test/generic_var_len_entry_queue_testing.h" ]
+  public_deps = [ dir_pw_unit_test ]
+  testonly = pw_unit_test_TESTONLY
+}
+
 pw_source_set("inline_var_len_entry_queue") {
   public_configs = [ ":public_include_path" ]
   public = [ "public/pw_containers/inline_var_len_entry_queue.h" ]
@@ -595,6 +602,7 @@ pw_test("inline_var_len_entry_queue_test") {
     "pw_containers_private/inline_var_len_entry_queue_test_oracle.h",
   ]
   deps = [
+    ":generic_var_len_entry_queue_testing",
     ":inline_var_len_entry_queue",
     dir_pw_assert,
     dir_pw_bytes,
