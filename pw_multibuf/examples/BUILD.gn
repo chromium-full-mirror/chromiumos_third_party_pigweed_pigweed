@@ -14,6 +14,7 @@
 
 import("//build_overrides/pigweed.gni")
 
+import("$dir_pigweed/third_party/emboss/build_defs.gni")
 import("$dir_pw_build/target_types.gni")
 import("$dir_pw_unit_test/test.gni")
 
@@ -25,7 +26,31 @@ config("public_include_path") {
 pw_source_set("protocol") {
   public = [ "public/pw_multibuf/examples/protocol.h" ]
   public_configs = [ ":public_include_path" ]
-  visibility = [ "//pw_multibuf:*" ]
+  visibility = [ "//pw_multibuf/*" ]
+}
+
+if (dir_pw_third_party_emboss != "") {
+  config("emboss_config") {
+    include_dirs = [
+      "$target_gen_dir/public",
+
+      # Emboss headers (.emb.h) need to look for imported Emboss file headers in
+      # Pigweed's root gen directory. This is *not* root_gen_dir in
+      # external repositories depending on Pigweed.
+      "$target_gen_dir/..",
+    ]
+    visibility = [ ":*" ]
+  }
+
+  emboss_cc_library("emboss_protocol") {
+    public_configs = [ ":emboss_config" ]
+    source = "public/pw_multibuf/examples/protocol.emb"
+    import_dirs = [ "public" ]
+    visibility = [ ":*" ]
+  }
+} else {
+  group("emboss_protocol") {
+  }
 }
 
 pw_test("basic") {
@@ -98,6 +123,23 @@ pw_test("scatter_gather") {
   ]
 }
 
+pw_test("top_down_forward") {
+  enable_if = dir_pw_third_party_emboss != ""
+  configs = [ "$dir_pw_multibuf:v2_config" ]
+  deps = [
+    ":emboss_protocol",
+    ":protocol",
+    "$dir_pw_allocator:allocator",
+    "$dir_pw_allocator:libc_allocator",
+    "$dir_pw_assert:check",
+    "$dir_pw_hex_dump:log_bytes",
+    "$dir_pw_log",
+    "$dir_pw_multibuf:multibuf_v2",
+    "$dir_pw_span",
+  ]
+  sources = [ "top_down_forward.cc" ]
+}
+
 pw_test("transfer") {
   sources = [ "transfer.cc" ]
   deps = [
@@ -143,5 +185,6 @@ pw_test_group("tests") {
     ":queue",
     ":scatter_gather",
     ":transfer",
+    ":top_down_forward",
   ]
 }

@@ -388,3 +388,43 @@ place to send "encrypted" messages from one end to the other:
    :end-before: [pw_multibuf-examples-pseudo_encrypt-e2e]
 
 For the complete example, see :cs:`pw_multibuf/examples/pseudo_encrypt.cc`.
+
+-------------------------------
+Top-down forwarding, and Emboss
+-------------------------------
+``examples/top_down_forward.cc`` demonstrates how to decode a received packet
+(bottom-up decoding), and then excerpt the received payload to use it in
+generating a new packet.
+
+.. literalinclude:: examples/top_down_forward.cc
+   :language: cpp
+   :linenos:
+   :start-after: [pw_multibuf-examples-top_down_forward-main]
+   :end-before: [pw_multibuf-examples-top_down_forward-main]
+
+It also serves as an example of using `Emboss`_, which allows the packed data
+for each header to be read and written using view. However it requires some
+manual glue code for each header type.
+
+Here for example is how to use the Emboss view types to serialize and
+deserialize the 6-byte ``DemoLinkHeader``, unpacking it into an 8-byte C/C++
+structure that is friendlier for the CPU to access.
+
+.. literalinclude:: examples/top_down_forward.cc
+   :language: cpp
+   :linenos:
+   :start-after: [pw_multibuf-examples-top_down_forward-demo_link_header_serialize]
+   :end-before: [pw_multibuf-examples-top_down_forward-demo_link_header_serialize]
+
+For that, there is a `.emb` file for the demo protocol that describes the packed
+layout.
+
+.. literalinclude:: examples/public/pw_multibuf/examples/protocol.emb
+   :language: gsql
+   :linenos:
+   :start-after: [pw_multibuf-examples-protocol-link_frame-emboss]
+   :end-before: [pw_multibuf-examples-protocol-link_frame-emboss]
+
+For the complete code, see :cs:`pw_multibuf/examples/top_down_forward.cc`, and
+for the Emboss definition, see
+:cs:`pw_multibuf/examples/public/pw_multibuf/examples/protocol.emb`

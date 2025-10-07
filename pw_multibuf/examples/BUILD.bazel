@@ -12,6 +12,7 @@
 # License for the specific language governing permissions and limitations under
 # the License.
 
+load("@com_google_emboss//:build_defs.bzl", "emboss_cc_library")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_python//sphinxdocs:sphinx_docs_library.bzl", "sphinx_docs_library")
 load("//pw_build:compatibility.bzl", "incompatible_with_mcu")
@@ -25,6 +26,23 @@ cc_library(
     name = "protocol",
     hdrs = ["public/pw_multibuf/examples/protocol.h"],
     strip_include_prefix = "public",
+)
+
+emboss_cc_library(
+    name = "_emboss_protocol",
+    srcs = ["public/pw_multibuf/examples/protocol.emb"],
+    enable_enum_traits = False,
+    import_dirs = ["public"],
+    visibility = ["//visibility:private"],  # Use :emboss_protocol
+)
+
+# emboss_cc_library doesn't support includes, so we need to wrap it. We also
+# need to disable layering_check since this library isn't what generates the
+# headers.
+cc_library(
+    name = "emboss_protocol",
+    includes = ["public"],
+    deps = [":_emboss_protocol"],
 )
 
 pw_cc_test(
@@ -83,6 +101,25 @@ pw_cc_test(
 )
 
 pw_cc_test(
+    name = "pseudo_encrypt",
+    srcs = ["pseudo_encrypt.cc"],
+    deps = [
+        ":protocol",
+        "//pw_allocator",
+        "//pw_allocator:testing",
+        "//pw_assert:check",
+        "//pw_async2:dispatcher",
+        "//pw_async2:pend_func_task",
+        "//pw_async2:poll",
+        "//pw_bytes",
+        "//pw_containers:inline_async_queue",
+        "//pw_multibuf:multibuf_v2",
+        "//pw_random",
+        "//pw_unit_test",
+    ],
+)
+
+pw_cc_test(
     name = "scatter_gather",
     srcs = ["scatter_gather.cc"],
     deps = [
@@ -122,21 +159,24 @@ pw_cc_test(
 )
 
 pw_cc_test(
-    name = "pseudo_encrypt",
-    srcs = ["pseudo_encrypt.cc"],
+    name = "top_down_forward",
+    srcs = ["top_down_forward.cc"],
+    defines = ["PW_MULTIBUF_VERSION=PW_MULTIBUF_V2"],
+    # The _emboss_protocol headers come in via emboss_protocol as the former
+    # does not allow for an "includes" attribute, which violates the layering
+    # check. Turn it off locally so we can build anyway.
+    features = ["-layering_check"],
     deps = [
+        ":emboss_protocol",
         ":protocol",
-        "//pw_allocator",
-        "//pw_allocator:testing",
+        "//pw_allocator:allocator",
+        "//pw_allocator:libc_allocator",
         "//pw_assert:check",
-        "//pw_async2:dispatcher",
-        "//pw_async2:pend_func_task",
-        "//pw_async2:poll",
         "//pw_bytes",
-        "//pw_containers:inline_async_queue",
+        "//pw_hex_dump:log_bytes",
+        "//pw_log",
         "//pw_multibuf:multibuf_v2",
-        "//pw_random",
-        "//pw_unit_test",
+        "//pw_span",
     ],
 )
 
@@ -147,9 +187,11 @@ sphinx_docs_library(
         "basic.cc",
         "iterate.cc",
         "pseudo_encrypt.cc",
+        "public/pw_multibuf/examples/protocol.emb",
         "public/pw_multibuf/examples/protocol.h",
         "queue.cc",
         "scatter_gather.cc",
+        "top_down_forward.cc",
         "transfer.cc",
     ],
     target_compatible_with = incompatible_with_mcu(),

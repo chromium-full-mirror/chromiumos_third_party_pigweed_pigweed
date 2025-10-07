@@ -58,7 +58,7 @@ inline constexpr size_t kDemoNetworkHeaderLen =
 
 // DOCSTAG: [pw_multibuf-examples-protocol-transport_segment]
 // Protocol DemoTransport has segments up to ~4 GiB spanning multiple packets.
-// Each fragment of a segment includes an 12 byte header that includes a
+// Each fragment of a segment includes a 16 byte header that includes a
 // segment ID, offset and length. The first fragment has and additional 4 byte
 // field for the total segment length.
 struct DemoTransportHeader {
