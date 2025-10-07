@@ -49,6 +49,20 @@ pw_add_library(pw_transfer STATIC
     pw_transfer.proto.pwpb
 )
 
+pw_add_library(pw_transfer.handler_allocator STATIC
+  HEADERS
+    public/pw_transfer/handler_allocator.h
+  PUBLIC_INCLUDES
+    public
+  SOURCES
+    handler_allocator.cc
+  PUBLIC_DEPS
+    pw_allocator
+    pw_containers.dynamic_vector
+    pw_sync.mutex
+    pw_transfer.core
+)
+
 pw_add_library(pw_transfer.client STATIC
   HEADERS
     public/pw_transfer/client.h

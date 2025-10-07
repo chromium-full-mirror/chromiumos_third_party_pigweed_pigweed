@@ -60,6 +60,18 @@ pw_source_set("pw_transfer") {
   sources = [ "transfer.cc" ]
 }
 
+pw_source_set("handler_allocator") {
+  public_configs = [ ":public_include_path" ]
+  public_deps = [
+    ":pw_transfer",
+    "$dir_pw_allocator",
+    "$dir_pw_containers:dynamic_vector",
+    "$dir_pw_sync:mutex",
+  ]
+  public = [ "public/pw_transfer/handler_allocator.h" ]
+  sources = [ "handler_allocator.cc" ]
+}
+
 pw_source_set("client") {
   public_configs = [ ":public_include_path" ]
   public_deps = [
@@ -165,6 +177,7 @@ pw_test_group("tests") {
     ":client_test",
     ":transfer_thread_test",
     ":handler_test",
+    ":handler_allocator_test",
     ":atomic_file_transfer_handler_test",
     ":transfer_test",
   ]
@@ -186,6 +199,21 @@ pw_test("handler_test") {
       pw_thread_THREAD_BACKEND != "" && _is_host_toolchain && host_os != "win"
   sources = [ "handler_test.cc" ]
   deps = [ ":pw_transfer" ]
+}
+
+pw_test("handler_allocator_test") {
+  enable_if =
+      pw_thread_THREAD_BACKEND != "" && _is_host_toolchain && host_os != "win"
+  sources = [ "handler_allocator_test.cc" ]
+  deps = [
+    ":handler_allocator",
+    ":pw_transfer",
+    "$dir_pw_allocator:best_fit",
+    "$dir_pw_allocator/block:small_block",
+    "$dir_pw_stream",
+    "$dir_pw_thread:test_thread_context",
+    "$dir_pw_thread:thread",
+  ]
 }
 
 pw_test("atomic_file_transfer_handler_test") {

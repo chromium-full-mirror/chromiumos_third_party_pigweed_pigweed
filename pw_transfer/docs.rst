@@ -189,6 +189,60 @@ thread and registered with the system's RPC server.
      GetSystemRpcServer().RegisterService(transfer_service);
    }
 
+Dynamic handler allocation
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+For ephemeral resources, ``pw_transfer`` provides a ``TransferHandlerAllocator``
+class to simplify the management of dynamic transfer handlers. This class
+allocates handlers from a ``pw::Allocator``, assigns them a unique resource ID,
+and registers them with the transfer service.
+
+When a handler is allocated, a ``TransferResource`` is returned. This is a RAII
+handle that automatically unregisters and deallocates the handler when it goes
+out of scope, ensuring proper cleanup of resources.
+
+**Example of dynamic handler allocation**
+
+.. code-block:: cpp
+
+   #include "pw_allocator/best_fit.h"
+   #include "pw_allocator/block/small_block.h"
+   #include "pw_stream/memory_stream.h"
+   #include "pw_transfer/handler_allocator.h"
+
+   namespace {
+
+   // A transfer service would be defined elsewhere in the system.
+   pw::transfer::TransferService& GetSystemTransferService();
+
+   // Size allocator for kMaxHandlers support
+   constexpr size_t kMaxHandlers = 4;
+   std::array<std::byte,
+              pw::transfer::TransferHandlerAllocator::GetAllocatorSize(
+                  kMaxHandlers, pw::allocator::SmallBlock::kBlockOverhead)>
+       memory_pool_;
+   pw::allocator::BestFitAllocator<pw::allocator::SmallBlock> allocator;
+
+   pw::transfer::TransferHandlerAllocator handler_allocator(
+       GetSystemTransferService(), allocator);
+
+   }  // namespace
+
+   void TransferEphemeralResource() {
+     pw::stream::MemoryReader reader(...);
+
+     // Allocate a handler for the reader. The handler is automatically
+     // registered with the transfer service.
+     pw::Result<pw::transfer::TransferResource> resource =
+         handler_allocator.AllocateReader(reader);
+     ASSERT_TRUE(resource.ok());
+
+     // The resource can now be accessed by a client using the assigned
+     // resource->resource_id().
+
+     // When 'resource' goes out of scope, the handler is automatically
+     // unregistered and the memory is freed.
+   }
+
 Transfer client
 ---------------
 ``pw_transfer`` provides a transfer client capable of running transfers through
