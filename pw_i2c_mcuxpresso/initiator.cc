@@ -21,6 +21,7 @@
 #include "fsl_i2c.h"
 #include "pw_assert/check.h"
 #include "pw_chrono/system_clock.h"
+#include "pw_function/scope_guard.h"
 #include "pw_log/log.h"
 #include "pw_status/status.h"
 #include "pw_status/try.h"
@@ -52,7 +53,9 @@ void McuxpressoInitiator::Enable() {
   // Acquire the clock_tree element. Note that this function only requires the
   // IP clock and not the functional clock. However, ClockMcuxpressoClockIp
   // only provides the combined element, so that's what we use here.
+  // Make sure it's released on any function exits through a scoped guard.
   PW_CHECK_OK(clock_tree_element_.Acquire());
+  pw::ScopeGuard guard([this] { clock_tree_element_.Release().IgnoreError(); });
 
   i2c_master_config_t master_config;
   I2C_MasterGetDefaultConfig(&master_config);
@@ -63,7 +66,6 @@ void McuxpressoInitiator::Enable() {
   I2C_MasterTransferCreateHandle(
       base_, &handle_, McuxpressoInitiator::TransferCompleteCallback, this);
 
-  clock_tree_element_.Release().IgnoreError();
   enabled_ = true;
 }
 
@@ -73,10 +75,11 @@ void McuxpressoInitiator::Disable() {
   // Acquire the clock_tree element. Note that this function only requires the
   // IP clock and not the functional clock. However, ClockMcuxpressoClockIp
   // only provides the combined element, so that's what we use here.
+  // Make sure it's released on any function exits through a scoped guard.
   PW_CHECK_OK(clock_tree_element_.Acquire());
+  pw::ScopeGuard guard([this] { clock_tree_element_.Release().IgnoreError(); });
 
   I2C_MasterDeinit(base_);
-  clock_tree_element_.Release().IgnoreError();
   enabled_ = false;
 }
 
@@ -99,24 +102,21 @@ void McuxpressoInitiator::TransferCompleteCallback(I2C_Type*,
 
 Status McuxpressoInitiator::InitiateNonBlockingTransferUntil(
     chrono::SystemClock::time_point deadline, i2c_master_transfer_t* transfer) {
-  // Acquire the clock_tree_element. Release it from the error paths or after
-  // the transfer completion callback is done.
+  // Acquire the clock_tree_element. Use a scoped guard so it's released from
+  // any function return.
   PW_CHECK_OK(clock_tree_element_.Acquire());
+  pw::ScopeGuard guard([this] { clock_tree_element_.Release().IgnoreError(); });
 
   const status_t status =
       I2C_MasterTransferNonBlocking(base_, &handle_, transfer);
   if (status != kStatus_Success) {
-    clock_tree_element_.Release().IgnoreError();
     return HalStatusToPwStatus(status);
   }
 
   if (!callback_complete_notification_.try_acquire_until(deadline)) {
     I2C_MasterTransferAbort(base_, &handle_);
-    clock_tree_element_.Release().IgnoreError();
     return Status::DeadlineExceeded();
   }
-
-  clock_tree_element_.Release().IgnoreError();
 
   callback_isl_.lock();
   const status_t transfer_status = transfer_status_;
