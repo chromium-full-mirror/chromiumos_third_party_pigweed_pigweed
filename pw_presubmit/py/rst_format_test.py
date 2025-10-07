@@ -19,6 +19,8 @@ from pathlib import Path
 import tempfile
 import unittest
 
+from format_testing_utils import CapturingToolRunner
+from pw_build.runfiles_manager import RunfilesManager
 from pw_presubmit.format.rst import RstFormatter
 
 # Setup paths to test data
@@ -51,6 +53,20 @@ class RstFormatterTest(unittest.TestCase):
     maxDiff = None
 
     def setUp(self):
+        self.runfiles = RunfilesManager()
+        self.runfiles.add_bazel_tool(
+            'clang-format',
+            'llvm_toolchain.clang_format',
+            exclusive=True,
+        )
+        self.runfiles.add_bootstrapped_tool(
+            'clang-format',
+            'clang-format',
+            from_shell_path=True,
+        )
+        self.tool_runner = CapturingToolRunner(
+            {'clang-format': self.runfiles['clang-format']}
+        )
         self.tempdir = tempfile.TemporaryDirectory()
         self.test_file = Path(self.tempdir.name) / 'test.rst'
 
@@ -58,7 +74,7 @@ class RstFormatterTest(unittest.TestCase):
         self.tempdir.cleanup()
 
     def _run_formatter(self, content: str) -> str:
-        formatter = RstFormatter()
+        formatter = RstFormatter(tool_runner=self.tool_runner)
         self.test_file.write_text(content)
         formatter.format_file(self.test_file)
         return self.test_file.read_text()
@@ -69,7 +85,7 @@ class RstFormatterTest(unittest.TestCase):
         if os.name == 'nt':
             return
 
-        formatter = RstFormatter()
+        formatter = RstFormatter(tool_runner=self.tool_runner)
         result = formatter.format_file_in_memory(
             _RST_TEST_FILE, _RST_TEST_FILE.read_bytes()
         )
