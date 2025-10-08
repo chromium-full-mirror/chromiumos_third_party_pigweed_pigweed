@@ -630,27 +630,4 @@ GattNotifyChannel ProxyHostTest::BuildGattNotifyChannel(
   return std::move(channel.value());
 }
 
-RfcommChannel ProxyHostTest::BuildRfcomm(
-    ProxyHost& proxy,
-    RfcommParameters params,
-    Function<void(FlatConstMultiBuf&& payload)>&& receive_fn,
-    ChannelEventCallback&& event_fn) {
-  pw::Result<RfcommChannel> channel = proxy.AcquireRfcommChannel(
-      sut_multibuf_allocator_,
-      params.handle,
-      RfcommChannel::Config{
-          .cid = params.rx_config.cid,
-          .max_information_length = params.rx_config.max_information_length,
-          .credits = params.rx_config.credits},
-      RfcommChannel::Config{
-          .cid = params.tx_config.cid,
-          .max_information_length = params.tx_config.max_information_length,
-          .credits = params.tx_config.credits},
-      params.rfcomm_channel,
-      std::move(receive_fn),
-      std::move(event_fn));
-  PW_TEST_EXPECT_OK(channel);
-  return std::move((channel.value()));
-}
-
 }  // namespace pw::bluetooth::proxy

@@ -39,20 +39,17 @@ struct OneOfEachChannelParameters {
 struct OneOfEachChannel {
   OneOfEachChannel(BasicL2capChannel&& basic,
                    L2capCoc&& coc,
-                   RfcommChannel&& rfcomm,
                    GattNotifyChannel&& gatt)
       : basic_{std::move(basic)},
         coc_{std::move(coc)},
-        rfcomm_{std::move(rfcomm)},
         gatt_{std::move(gatt)} {}
 
   std::vector<L2capChannel*> AllChannels() {
-    return std::vector<L2capChannel*>{&basic_, &coc_, &rfcomm_, &gatt_};
+    return std::vector<L2capChannel*>{&basic_, &coc_, &gatt_};
   }
 
   BasicL2capChannel basic_;
   L2capCoc coc_;
-  RfcommChannel rfcomm_;
   GattNotifyChannel gatt_;
 };
 
@@ -83,13 +80,6 @@ class ChannelProxyTest : public ProxyHostTest {
                       [&shared_event_fn](L2capChannelEvent event) {
                         shared_event_fn(event);
                       }}),
-        BuildRfcomm(proxy,
-                    {.rx_config{.cid = 203}, .tx_config = {.cid = 303}},
-                    /*receive_fn=*/nullptr,
-                    /*event_fn=*/
-                    [&shared_event_fn](L2capChannelEvent event) {
-                      shared_event_fn(event);
-                    }),
         BuildGattNotifyChannel(
             proxy, {.event_fn = [&shared_event_fn](L2capChannelEvent event) {
               shared_event_fn(event);

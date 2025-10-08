@@ -1279,8 +1279,8 @@ TEST_F(NumberOfCompletedPacketsTest, MultipleChannelsDifferentTransports) {
       le_channel.Write(std::move(MultiBufAdapter::Unwrap(empty))).status);
   EXPECT_EQ(capture.sends_called, 1);
 
-  RfcommChannel bredr_channel =
-      BuildRfcomm(proxy, RfcommParameters{.handle = 0x456});
+  BasicL2capChannel bredr_channel = BuildBasicL2capChannel(
+      proxy, {.handle = 0x456, .transport = AclTransportType::kBrEdr});
   FlatMultiBufInstance mbuf_inst = MultiBufFromSpan(pw::span(capture.payload));
   FlatMultiBuf& mbuf = MultiBufAdapter::Unwrap(mbuf_inst);
   PW_TEST_EXPECT_OK(bredr_channel.Write(std::move(mbuf)).status);

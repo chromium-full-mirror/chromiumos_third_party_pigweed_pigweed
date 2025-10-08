@@ -41,8 +41,6 @@ cc_library_static {
         "multibuf_v1.cc",
         "multibuf_v2.cc",
         "recombiner.cc",
-        "rfcomm_channel.cc",
-        "rfcomm_fcs.cc",
         "single_channel_proxy.cc",
     ],
     export_include_dirs: [
@@ -82,7 +80,6 @@ cc_library_static {
         "pw_bluetooth_generate_emboss_hci_events",
         "pw_bluetooth_generate_emboss_hci_h4",
         "pw_bluetooth_generate_emboss_l2cap_frames",
-        "pw_bluetooth_generate_emboss_rfcomm_frames",
     ],
     export_generated_headers: [
         "pw_bluetooth_generate_emboss_att",
@@ -92,7 +89,6 @@ cc_library_static {
         "pw_bluetooth_generate_emboss_hci_events",
         "pw_bluetooth_generate_emboss_hci_h4",
         "pw_bluetooth_generate_emboss_l2cap_frames",
-        "pw_bluetooth_generate_emboss_rfcomm_frames",
     ],
     // LINT.ThenChange(BUILD.gn, BUILD.bazel, CMakeLists.txt)
 }

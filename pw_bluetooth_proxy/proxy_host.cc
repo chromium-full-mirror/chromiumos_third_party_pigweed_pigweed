@@ -371,29 +371,6 @@ pw::Result<GattNotifyChannel> ProxyHost::AcquireGattNotifyChannel(
                                            std::move(event_fn));
 }
 
-pw::Result<RfcommChannel> ProxyHost::AcquireRfcommChannel(
-    MultiBufAllocator& rx_multibuf_allocator,
-    uint16_t connection_handle,
-    RfcommChannel::Config rx_config,
-    RfcommChannel::Config tx_config,
-    uint8_t channel_number,
-    Function<void(FlatConstMultiBuf&& payload)>&& payload_from_controller_fn,
-    ChannelEventCallback&& event_fn) {
-  Status status = acl_data_channel_.CreateAclConnection(
-      connection_handle, AclTransportType::kBrEdr);
-  if (status != OkStatus() && status != Status::AlreadyExists()) {
-    return pw::Status::Unavailable();
-  }
-  return RfcommChannel::Create(l2cap_channel_manager_,
-                               rx_multibuf_allocator,
-                               connection_handle,
-                               rx_config,
-                               tx_config,
-                               channel_number,
-                               std::move(payload_from_controller_fn),
-                               std::move(event_fn));
-}
-
 bool ProxyHost::HasSendLeAclCapability() const {
   return acl_data_channel_.HasSendAclCapability(AclTransportType::kLe);
 }

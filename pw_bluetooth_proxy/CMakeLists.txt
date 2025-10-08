@@ -46,12 +46,10 @@ pw_add_library(pw_bluetooth_proxy STATIC
     public/pw_bluetooth_proxy/internal/locked_l2cap_channel.h
     public/pw_bluetooth_proxy/internal/logical_transport.h
     public/pw_bluetooth_proxy/internal/recombiner.h
-    public/pw_bluetooth_proxy/internal/rfcomm_fcs.h
     public/pw_bluetooth_proxy/l2cap_channel_common.h
     public/pw_bluetooth_proxy/l2cap_coc.h
     public/pw_bluetooth_proxy/l2cap_status_delegate.h
     public/pw_bluetooth_proxy/proxy_host.h
-    public/pw_bluetooth_proxy/rfcomm_channel.h
     public/pw_bluetooth_proxy/single_channel_proxy.h
 # LINT.ThenChange(bt-proxy.bzl, BUILD.gn)
 
@@ -65,7 +63,6 @@ pw_add_library(pw_bluetooth_proxy STATIC
     pw_bluetooth.emboss_hci_events
     pw_bluetooth.emboss_hci_h4
     pw_bluetooth.emboss_l2cap_frames
-    pw_bluetooth.emboss_rfcomm_frames
     pw_containers.flat_map
     pw_containers.inline_queue
     pw_containers.intrusive_forward_list
@@ -92,8 +89,6 @@ pw_add_library(pw_bluetooth_proxy STATIC
     l2cap_status_tracker.cc
     proxy_host.cc
     recombiner.cc
-    rfcomm_channel.cc
-    rfcomm_fcs.cc
     single_channel_proxy.cc
   PRIVATE_DEPS
     pw_bluetooth.emboss_att
@@ -181,8 +176,6 @@ pw_add_test(pw_bluetooth_proxy.pw_bluetooth_proxy_test
     l2cap_coc_test.cc
     proxy_host_test.cc
     recombiner_test.cc
-    rfcomm_fcs_test.cc
-    rfcomm_test.cc
     test_utils.cc
     utils_test.cc
 # LINT.ThenChange(bt-proxy.bzl, BUILD.gn)

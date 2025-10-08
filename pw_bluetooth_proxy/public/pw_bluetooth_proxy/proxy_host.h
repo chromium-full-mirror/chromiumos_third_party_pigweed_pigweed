@@ -23,7 +23,6 @@
 #include "pw_bluetooth_proxy/l2cap_channel_common.h"
 #include "pw_bluetooth_proxy/l2cap_coc.h"
 #include "pw_bluetooth_proxy/l2cap_status_delegate.h"
-#include "pw_bluetooth_proxy/rfcomm_channel.h"
 #include "pw_status/status.h"
 
 /// Lightweight proxy for augmenting Bluetooth functionality
@@ -230,43 +229,6 @@ class ProxyHost {
   pw::Result<GattNotifyChannel> AcquireGattNotifyChannel(
       int16_t connection_handle,
       uint16_t attribute_handle,
-      ChannelEventCallback&& event_fn);
-
-  /// Returns an RFCOMM channel that supports writing to and reading from a
-  /// remote peer.
-  ///
-  /// @param[in] rx_multibuf_allocator
-  ///                              Provides the allocator the channel will use
-  ///                              for its Rx buffers (for both queueing and
-  ///                              returning to the client).
-  ///
-  /// @param[in] connection_handle The connection handle of the remote peer.
-  ///
-  /// @param[in] rx_config         Parameters applying to reading packets.
-  ///                              See `rfcomm_channel.h` for details.
-  ///
-  /// @param[in] tx_config         Parameters applying to writing packets.
-  ///                              See `rfcomm_channel.h` for details.
-  ///
-  /// @param[in] channel_number    RFCOMM channel number to use.
-  ///
-  /// @param[in] payload_from_controller_fn
-  ///                              Read callback to be invoked on Rx frames.
-  ///
-  /// @param[in] event_fn          Handle asynchronous events such as errors
-  ///                              encountered by the channel. See
-  ///                              `l2cap_channel_common.h`.
-  ///
-  /// @returns @Result{the channel}
-  /// * @INVALID_ARGUMENT: Arguments are invalid. Check the logs.
-  /// * @UNAVAILABLE: A channel could not be created.
-  pw::Result<RfcommChannel> AcquireRfcommChannel(
-      MultiBufAllocator& rx_multibuf_allocator,
-      uint16_t connection_handle,
-      RfcommChannel::Config rx_config,
-      RfcommChannel::Config tx_config,
-      uint8_t channel_number,
-      Function<void(FlatConstMultiBuf&& payload)>&& payload_from_controller_fn,
       ChannelEventCallback&& event_fn);
 
   /// Indicates whether the proxy has the capability of sending LE ACL packets.

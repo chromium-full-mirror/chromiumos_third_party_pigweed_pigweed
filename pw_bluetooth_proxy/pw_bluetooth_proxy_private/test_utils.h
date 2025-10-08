@@ -35,7 +35,6 @@
 #include "pw_bluetooth_proxy/l2cap_channel_common.h"
 #include "pw_bluetooth_proxy/l2cap_coc.h"
 #include "pw_bluetooth_proxy/proxy_host.h"
-#include "pw_bluetooth_proxy/rfcomm_channel.h"
 #include "pw_containers/flat_map.h"
 #include "pw_function/function.h"
 #include "pw_status/status.h"
@@ -298,21 +297,6 @@ struct GattNotifyChannelParameters {
   ChannelEventCallback&& event_fn = nullptr;
 };
 
-struct RfcommConfigParameters {
-  uint16_t cid = 123;
-  uint16_t max_information_length = 900;
-  uint16_t credits = 10;
-};
-
-struct RfcommParameters {
-  uint16_t handle = 123;
-  RfcommConfigParameters rx_config = {
-      .cid = 234, .max_information_length = 900, .credits = 10};
-  RfcommConfigParameters tx_config = {
-      .cid = 456, .max_information_length = 900, .credits = 10};
-  uint8_t rfcomm_channel = 3;
-};
-
 /// Helper class that can produce an initialized MultiBufAllocator for either
 /// Multibuf V1 or V2, depending on the `PW_BLUETOOTH_PROXY_MULTIBUF` config
 /// option.
@@ -365,12 +349,6 @@ class ProxyHostTest : public testing::Test {
 
   GattNotifyChannel BuildGattNotifyChannel(ProxyHost& proxy,
                                            GattNotifyChannelParameters params);
-
-  RfcommChannel BuildRfcomm(
-      ProxyHost& proxy,
-      RfcommParameters params = {},
-      Function<void(FlatConstMultiBuf&& payload)>&& receive_fn = nullptr,
-      ChannelEventCallback&& event_fn = nullptr);
 
   template <typename T, size_t N>
   static FlatMultiBufInstance MultiBufFromSpan(span<T, N> buf,
