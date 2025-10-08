@@ -27,6 +27,7 @@
 #include "pw_bytes/endian.h"
 #include "pw_elf/reader.h"
 #include "pw_log/log.h"
+#include "pw_preprocessor/compiler.h"
 #include "pw_result/result.h"
 #include "pw_status/try.h"
 #include "pw_tokenizer/base64.h"

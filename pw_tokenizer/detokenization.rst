@@ -255,6 +255,9 @@ Native Interface (JNI) implementation is provided.
 
 The C++ detokenization library uses a CSV, binary-format (created with
 ``database.py create --type binary``), or ELF section format token database.
+
+Binary database
+===============
 Read the database from a file or include it in the source code. Pass the
 database array to ``TokenDatabase::Create``, and construct a detokenizer.
 
@@ -289,6 +292,30 @@ this check can be done at compile time.
      }
      return Detokenizer(kDefaultDatabase);
    }
+
+Detokenization from CSV
+=======================
+Create a detokenizer from CSV token database text using
+:cc:`pw::tokenizer::Detokenizer::FromCsv`.
+
+Detokenization from an ELF file
+===============================
+Utilize an ELF file (with the appropriate ``.pw_tokenizer.entries`` section
+included) as a token database using
+:cc:`pw::tokenizer::Detokenizer::FromElfFile`.
+
+Detokenization from this program
+================================
+An ELF executable program can use itself as a token database, for detokenizing
+its own tokens. This is primarily intended for testing.
+
+* Link with ``add_detokenize_from_this_program_sections.ld``.
+
+  * For Bazel builds this is handled automatically.
+  * For GN builds use the
+    ``"$dir_pw_tokenizer:detokenize_from_this_program_linker_script"`` config.
+
+* Use :cc:`pw::tokenizer::GetDetokenizerFromThisProgram`.
 
 ----------------------------
 Detokenization in TypeScript

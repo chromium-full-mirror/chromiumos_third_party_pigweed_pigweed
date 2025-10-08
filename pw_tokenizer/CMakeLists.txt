@@ -112,6 +112,18 @@ pw_add_library(pw_tokenizer.decoder STATIC
     pw_varint
 )
 
+pw_add_library(pw_tokenizer.detokenize_from_this_program STATIC
+  HEADERS
+    public/pw_tokenizer/detokenize_from_this_program.h
+  PUBLIC_INCLUDES
+    public
+  PUBLIC_DEPS
+    pw_result
+    pw_tokenizer.decoder
+  SOURCES
+    detokenize_from_this_program.cc
+)
+
 pw_add_library(pw_tokenizer._csv STATIC
   HEADERS
     pw_tokenizer_private/csv.h
