@@ -1,4 +1,4 @@
-# Copyright 2023 The Pigweed Authors
+# Copyright 2025 The Pigweed Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may not
 # use this file except in compliance with the License. You may obtain a copy of
@@ -148,7 +148,7 @@ class TestWorkflowsLauncher(unittest.TestCase):
                 'analyzer_friendly_args: "--check"',
             )
         )
-        actual = cli.dump_fragment('format').strip()
+        actual = cli.describe().describe(['format']).strip()
         self.assertEqual(actual, expected)
 
     def test_group(self):
@@ -164,7 +164,7 @@ class TestWorkflowsLauncher(unittest.TestCase):
                 'analyzers: "owners_lint"',
             )
         )
-        actual = cli.dump_fragment('presubmit').strip()
+        actual = cli.describe().describe(['presubmit']).strip()
         self.assertEqual(actual, expected)
 
     def test_build(self):
@@ -182,7 +182,7 @@ class TestWorkflowsLauncher(unittest.TestCase):
                 'targets: "//..."',
             )
         )
-        actual = cli.dump_fragment('build_rp2040_tests').strip()
+        actual = cli.describe().describe(['build_rp2040_tests']).strip()
         self.assertEqual(actual, expected)
 
     def test_build_config(self):
@@ -194,18 +194,18 @@ class TestWorkflowsLauncher(unittest.TestCase):
                 'build_type: "bazel"',
             )
         )
-        actual = cli.dump_fragment('bazel_default').strip()
+        actual = cli.describe().describe(['bazel_default']).strip()
         self.assertEqual(actual, expected)
 
     def test_empty_config(self):
         cli = self._load_config('{}')
         with self.assertRaises(ValueError):
-            cli.dump_fragment('bazel_default').strip()
+            cli.describe().describe(['bazel_default']).strip()
 
     def test_empty_fragment_name(self):
         cli = self._load_config(_EXAMPLE_CONFIG)
         with self.assertRaises(ValueError):
-            cli.dump_fragment('').strip()
+            cli.describe().describe(['']).strip()
 
 
 if __name__ == '__main__':

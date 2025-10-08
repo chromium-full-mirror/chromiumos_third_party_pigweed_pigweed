@@ -83,6 +83,7 @@ py_library(
     srcs = [
         "pw_build/workflows/bazel_driver.py",
         "pw_build/workflows/build_driver.py",
+        "pw_build/workflows/describe.py",
         "pw_build/workflows/launcher.py",
         "pw_build/workflows/manager.py",
         "pw_build/workflows/private/validator.py",
