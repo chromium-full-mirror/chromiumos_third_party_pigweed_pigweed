@@ -476,9 +476,17 @@ void McuxpressoResponder::CsDeasserted() {
   // the state to kSPI_Idle. Also, the DMA channel interrupts are disabled when
   // CS is respected, because SPI_RxDMACallback() and SPI_TxDMACallback() also
   // change the state to kSPI_Idle.
+#if FSL_SPI_DMA_DRIVER_VERSION >= MAKE_VERSION(2, 2, 2)
+  size_t bytes_remaining = 0;
+  status_t sdk_status =
+      SPI_SlaveTransferGetCountDMA(base_, &handle_, &bytes_remaining);
+  size_t bytes_transferred =
+      current_transaction_.rx_data.size() - bytes_remaining;
+#else
   size_t bytes_transferred = 0;
   status_t sdk_status =
       SPI_SlaveTransferGetCountDMA(base_, &handle_, &bytes_transferred);
+#endif  // FSL_SPI_DMA_DRIVER_VERSION
 
   // Transfer complete.
   Status xfer_status = OkStatus();
