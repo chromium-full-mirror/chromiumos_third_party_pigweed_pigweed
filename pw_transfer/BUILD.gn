@@ -65,6 +65,7 @@ pw_source_set("handler_allocator") {
   public_deps = [
     ":pw_transfer",
     "$dir_pw_allocator",
+    "$dir_pw_assert",
     "$dir_pw_containers:dynamic_vector",
     "$dir_pw_sync:mutex",
   ]

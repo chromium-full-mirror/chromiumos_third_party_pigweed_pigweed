@@ -18,18 +18,63 @@
 
 namespace pw::transfer {
 
+bool TransferHandlerAllocator::IsIdInUse(uint32_t resource_id) {
+  for (const auto& entry : active_handlers_) {
+    if (entry.resource_id == resource_id) {
+      return true;
+    }
+  }
+  return false;
+}
+
 template <typename HandlerType, typename... Args>
 Result<TransferResource> TransferHandlerAllocator::AllocateHandler(
     Args&... args) {
   std::lock_guard lock(lock_);
-  uint32_t resource_id = next_resource_id_;
-  auto handler = allocator_.MakeUnique<HandlerType>(resource_id, args...);
+  std::optional<uint32_t> resource_id;
+
+  // Search for an available resource ID. This is not optimized, and expects
+  // that the number of handlers is small.
+  uint32_t search_start = last_resource_id_ + 1;
+  if (search_start > max_resource_id_ || search_start < min_resource_id_) {
+    search_start = min_resource_id_;
+  }
+
+  // Loop from search_start to max_resource_id_.
+  for (uint32_t id = search_start; id <= max_resource_id_; ++id) {
+    if (id == 0) {
+      continue;
+    }
+    if (!IsIdInUse(id)) {
+      resource_id = id;
+      break;
+    }
+  }
+
+  if (!resource_id.has_value()) {
+    // Loop from min_resource_id_ to search_start.
+    for (uint32_t id = min_resource_id_; id < search_start; ++id) {
+      if (id == 0) {
+        continue;
+      }
+      if (!IsIdInUse(id)) {
+        resource_id = id;
+        break;
+      }
+    }
+  }
+
+  if (!resource_id.has_value()) {
+    return Status::ResourceExhausted();
+  }
+
+  auto handler = allocator_.MakeUnique<HandlerType>(*resource_id, args...);
   if (handler == nullptr) {
     return Status::ResourceExhausted();
   }
 
   if (!active_handlers_.try_emplace_back(HandlerEntry{
-          .resource_id = resource_id,
+          .resource_id = *resource_id,
           .handler = std::move(handler),
       })) {
     return Status::ResourceExhausted();
@@ -42,12 +87,9 @@ Result<TransferResource> TransferHandlerAllocator::AllocateHandler(
     return Status::FailedPrecondition();
   }
 
-  ++next_resource_id_;
-  if (next_resource_id_ == 0) {
-    ++next_resource_id_;
-  }
+  last_resource_id_ = *resource_id;
 
-  return TransferResource(*this, resource_id);
+  return TransferResource(*this, *resource_id);
 }
 
 Result<TransferResource> TransferHandlerAllocator::AllocateReader(

@@ -57,6 +57,7 @@ pw_add_library(pw_transfer.handler_allocator STATIC
   SOURCES
     handler_allocator.cc
   PUBLIC_DEPS
+    pw_assert
     pw_allocator
     pw_containers.dynamic_vector
     pw_sync.mutex

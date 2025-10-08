@@ -28,18 +28,17 @@
 namespace pw::transfer {
 namespace {
 
-class TransferHandlerAllocatorTest : public ::testing::Test {
+class TransferHandlerAllocatorTestBase : public ::testing::Test {
  protected:
-  TransferHandlerAllocatorTest()
+  TransferHandlerAllocatorTestBase()
       : thread_(chunk_buffer_, encode_buffer_),
         system_thread_(system_thread_context_.options(), thread_),
         transfer_service_(thread_, 1024U),
-        allocator_(memory_pool_),
-        handler_allocator_(transfer_service_, allocator_) {}
+        allocator_(memory_pool_) {}
 
   static constexpr size_t kMaxHandlers = 4;
 
-  ~TransferHandlerAllocatorTest() override {
+  ~TransferHandlerAllocatorTestBase() override {
     thread_.Terminate();
     system_thread_.join();
   }
@@ -55,6 +54,13 @@ class TransferHandlerAllocatorTest : public ::testing::Test {
                  kMaxHandlers, allocator::SmallBlock::kBlockOverhead)>
       memory_pool_;
   allocator::BestFitAllocator<allocator::SmallBlock> allocator_;
+};
+
+class TransferHandlerAllocatorTest : public TransferHandlerAllocatorTestBase {
+ protected:
+  TransferHandlerAllocatorTest()
+      : handler_allocator_(transfer_service_, allocator_) {}
+
   TransferHandlerAllocator handler_allocator_;
 };
 
@@ -104,6 +110,45 @@ TEST_F(TransferHandlerAllocatorTest, MultipleAllocationsAndCloses) {
 
   // After clearing one, we can allocate one again.
   PW_TEST_ASSERT_OK(handler_allocator_.AllocateReader(reader1));
+}
+
+using RangedTransferHandlerAllocatorTest = TransferHandlerAllocatorTestBase;
+
+TEST_F(RangedTransferHandlerAllocatorTest, AllocateInRange) {
+  TransferHandlerAllocator handler_allocator(
+      transfer_service_, allocator_, 10, 12);
+  stream::NullStream reader;
+  auto resource1 = handler_allocator.AllocateReader(reader);
+  PW_TEST_ASSERT_OK(resource1);
+  EXPECT_EQ(resource1->resource_id(), 10U);
+  auto resource2 = handler_allocator.AllocateReader(reader);
+  PW_TEST_ASSERT_OK(resource2);
+  EXPECT_EQ(resource2->resource_id(), 11U);
+  auto resource3 = handler_allocator.AllocateReader(reader);
+  PW_TEST_ASSERT_OK(resource3);
+  EXPECT_EQ(resource3->resource_id(), 12U);
+  EXPECT_EQ(handler_allocator.AllocateReader(reader).status(),
+            Status::ResourceExhausted());
+}
+
+TEST_F(RangedTransferHandlerAllocatorTest, ReuseIds) {
+  TransferHandlerAllocator handler_allocator(
+      transfer_service_, allocator_, 10, 11);
+  stream::NullStream reader;
+  auto resource1 = handler_allocator.AllocateReader(reader);
+  PW_TEST_ASSERT_OK(resource1);
+  EXPECT_EQ(resource1->resource_id(), 10U);
+
+  auto resource2 = handler_allocator.AllocateReader(reader);
+  PW_TEST_ASSERT_OK(resource2);
+  EXPECT_EQ(resource2->resource_id(), 11U);
+  EXPECT_EQ(handler_allocator.AllocateReader(reader).status(),
+            Status::ResourceExhausted());
+
+  resource1->Close();
+  auto resource3 = handler_allocator.AllocateReader(reader);
+  PW_TEST_ASSERT_OK(resource3);
+  EXPECT_EQ(resource3->resource_id(), 10U);
 }
 
 }  // namespace

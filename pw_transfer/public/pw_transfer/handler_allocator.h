@@ -13,7 +13,10 @@
 // the License.
 #pragma once
 
+#include <limits>
+
 #include "pw_allocator/allocator.h"
+#include "pw_assert/assert.h"
 #include "pw_containers/dynamic_deque.h"
 #include "pw_result/result.h"
 #include "pw_status/status.h"
@@ -70,9 +73,10 @@ class TransferResource {
 ///
 /// The resource_id is dynamically assigned and registered with the
 /// TransferService on creation and wrapped in a TransferResource. It's released
-/// when TransferResource is destroyed. The resource_id's allocated by this
-/// class start at 1 and continue to UINT_MAX, so this shouldn't be used if
-/// static resources are also in use.
+/// when TransferResource is destroyed.
+///
+/// A range of resource id's can be specified to allocate from. The range must
+/// be between `1` and `std::numeric_limits<uint32_t>::max() - 1` inclusive.
 ///
 /// Takes in a pw::Allocator and allocates memory for the Handler instances and
 /// list to store them.
@@ -97,11 +101,21 @@ class TransferHandlerAllocator {
            2 * allocator_block_overhead;
   }
 
-  TransferHandlerAllocator(TransferService& transfer_service,
-                           Allocator& allocator)
+  TransferHandlerAllocator(
+      TransferService& transfer_service,
+      Allocator& allocator,
+      uint32_t min_resource_id = 1,
+      uint32_t max_resource_id = std::numeric_limits<uint32_t>::max() - 1)
       : transfer_service_(transfer_service),
         allocator_(allocator),
-        active_handlers_(allocator_) {}
+        active_handlers_(allocator),
+        min_resource_id_(min_resource_id),
+        max_resource_id_(max_resource_id),
+        last_resource_id_(min_resource_id - 1) {
+    PW_ASSERT(min_resource_id_ != 0);
+    PW_ASSERT(max_resource_id_ >= min_resource_id_);
+    PW_ASSERT(max_resource_id_ < std::numeric_limits<uint32_t>::max());
+  }
 
   /// Allocates and registers a ReadHandler for the given reader.
   Result<TransferResource> AllocateReader(stream::Reader& reader);
@@ -124,13 +138,17 @@ class TransferHandlerAllocator {
   // Closes and deallocates the handler associated with the given resource_id.
   void Close(uint32_t resource_id);
 
+  bool IsIdInUse(uint32_t resource_id) PW_EXCLUSIVE_LOCKS_REQUIRED(lock_);
+
   template <typename HandlerType, typename... Args>
   Result<TransferResource> AllocateHandler(Args&... args);
 
   TransferService& transfer_service_;
   Allocator& allocator_ PW_GUARDED_BY(lock_);
   DynamicDeque<HandlerEntry> active_handlers_ PW_GUARDED_BY(lock_);
-  uint32_t next_resource_id_ PW_GUARDED_BY(lock_) = 1;
+  const uint32_t min_resource_id_;
+  const uint32_t max_resource_id_;
+  uint32_t last_resource_id_ PW_GUARDED_BY(lock_);
   sync::Mutex lock_;
 };
 
