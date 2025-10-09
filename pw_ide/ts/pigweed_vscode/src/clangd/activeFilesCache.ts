@@ -65,7 +65,13 @@ export async function parseForSourceFiles(
 
   for (const command of compDb.db) {
     if (isNotInExcludedDirs(excludedDirs, command.sourceFilePath)) {
-      files.set(path.relative(_workingDir, command.sourceFilePath), command);
+      try {
+        const realPath = await fs_p.realpath(command.sourceFilePath);
+        const relativeRealPath = path.relative(_workingDir, realPath);
+        files.set(relativeRealPath, command);
+      } catch (error) {
+        // Ignore errors, for example if the file doesn't exist
+      }
     }
   }
 
@@ -119,7 +125,14 @@ export class ClangdActiveFilesCache extends Disposable {
     targets: string[];
     error?: Error;
   }> => {
-    const fileName = path.relative(projectRoot, uri.fsPath);
+    let fileName = path.relative(projectRoot, uri.fsPath);
+    try {
+      const realPath = await fs_p.realpath(uri.fsPath);
+      fileName = path.relative(projectRoot, realPath);
+    } catch (error) {
+      // Ignore errors, for example if the file doesn't exist
+    }
+
     const activeFiles = target ? await this.getForTarget(target) : new Map();
     const targets = this.targetsForFile(fileName);
     const command = activeFiles.get(fileName);
