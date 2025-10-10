@@ -49,6 +49,7 @@ class Describe:
                 'workflows configuration.'
             ),
         )
+
         parser.add_argument(
             'name',
             nargs='*',
@@ -59,18 +60,27 @@ class Describe:
                 'TextProto.'
             ),
         )
+
         parser.add_argument(
             '--dump-build-requests',
             nargs='?',
             metavar='FILE_PATH',
             const=sys.stdout,
             type=argparse.FileType('w'),
+            help=argparse.SUPPRESS,
+        )
+
+        parser.add_argument(
+            '--infra-metadata',
+            action='store_true',
             help=(
                 'Emits all build driver requests produced by the requested '
                 'items as a TextProto BuildDriverRequest message.'
             ),
         )
+
         args = parser.parse_args(plugin_args)
+
         if self.config is None:
             return 'Config is empty\n'
 
@@ -83,6 +93,9 @@ class Describe:
                 file=args.dump_build_requests,
             )
             return ''
+
+        if args.infra_metadata:
+            return self.dump_build_request(args.name)
 
         result = []
         for name in args.name:
