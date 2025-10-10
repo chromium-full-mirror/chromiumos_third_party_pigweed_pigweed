@@ -14,6 +14,8 @@
 
 #include "pw_containers/internal/aa_tree_item.h"
 
+#include <algorithm>
+
 namespace pw::containers::internal {
 
 uint8_t AATreeItem::GetLevel() const {
