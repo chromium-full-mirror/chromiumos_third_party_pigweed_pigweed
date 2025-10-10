@@ -952,7 +952,8 @@ void AdapterImpl::ParseLEGetVendorCapabilitiesCommandComplete(
   packet.mutable_data().Write(event.data().data(), copy_size);
 
   auto params = packet.view();
-  state_.android_vendor_capabilities = AndroidVendorCapabilities::New(params);
+  state_.android_vendor_capabilities = AndroidVendorCapabilities::New(
+      params, config_.override_vendor_capabilites_version);
 
   uint8_t major = params.version_supported().major_number().Read();
   uint8_t minor = params.version_supported().minor_number().Read();

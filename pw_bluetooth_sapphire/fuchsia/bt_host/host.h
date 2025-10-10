@@ -54,7 +54,8 @@ class BtHostComponent {
       fidl::ClientEnd<fuchsia_hardware_bluetooth::Vendor> vendor_client_end,
       InitCallback init_cb,
       ErrorCallback error_cb,
-      bool legacy_pairing_enabled);
+      bool legacy_pairing_enabled,
+      uint16_t override_vendor_capabilites_version);
 
   // Shuts down all systems.
   void ShutDown();

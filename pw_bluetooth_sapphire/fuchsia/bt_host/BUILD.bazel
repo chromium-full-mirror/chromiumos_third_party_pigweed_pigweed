@@ -121,6 +121,7 @@ fuchsia_structured_config_values(
         "device_path": "/dev/class/bt-hci/000",
         "enable_suspend": False,
         "legacy_pairing_enabled": False,
+        "override_vendor_capabilites_version": 0,
         "sco_offload_path_index": 6,
     },
 )

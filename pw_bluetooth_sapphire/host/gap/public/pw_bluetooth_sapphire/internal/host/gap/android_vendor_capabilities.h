@@ -21,7 +21,8 @@ class AndroidVendorCapabilities final {
  public:
   static AndroidVendorCapabilities New(
       const pw::bluetooth::vendor::android_hci::
-          LEGetVendorCapabilitiesCommandCompleteEventView& c);
+          LEGetVendorCapabilitiesCommandCompleteEventView& c,
+      const uint16_t override_vendor_capabilites_version);
 
   // Number of advertisement instances supported.
   //

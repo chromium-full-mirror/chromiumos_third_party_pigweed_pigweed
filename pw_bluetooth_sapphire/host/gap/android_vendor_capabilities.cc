@@ -14,7 +14,11 @@
 
 #include "pw_bluetooth_sapphire/internal/host/gap/android_vendor_capabilities.h"
 
+#include <stdexcept>
+
+#include "public/pw_bluetooth_sapphire/internal/host/gap/android_vendor_capabilities.h"
 #include "pw_bluetooth_sapphire/internal/host/common/log.h"
+#include "pw_bluetooth_sapphire/internal/host/transport/control_packets.h"
 
 namespace bt::gap {
 
@@ -44,7 +48,32 @@ bool AndroidVendorCapabilities::IsVersion(uint8_t major, uint8_t minor) const {
 }
 
 AndroidVendorCapabilities AndroidVendorCapabilities::New(
-    const android_emb::LEGetVendorCapabilitiesCommandCompleteEventView& e) {
+    const android_emb::LEGetVendorCapabilitiesCommandCompleteEventView& orig_e,
+    const uint16_t override_vendor_capabilites_version) {
+  auto mutable_event = hci::EventPacket::New<
+      android_emb::LEGetVendorCapabilitiesCommandCompleteEventWriter>(
+      orig_e.BackingStorage().SizeInBytes());
+  mutable_event.mutable_data().Write(
+      orig_e.BackingStorage().data(), orig_e.BackingStorage().SizeInBytes(), 0);
+  if (override_vendor_capabilites_version != 0) {
+    uint8_t major_override = override_vendor_capabilites_version & 0xFF;
+    uint8_t minor_override = override_vendor_capabilites_version >> 8;
+    bt_log(INFO,
+           "android_vendor_extensions",
+           "Override Vendor Version (%d.%d) -> 0x%04X (%d.%d)",
+           orig_e.version_supported().major_number().Read(),
+           orig_e.version_supported().minor_number().Read(),
+           override_vendor_capabilites_version,
+           major_override,
+           minor_override);
+    // TODO(fxbug.dev/450278813): Remove these manual overrides
+    mutable_event.view_t().version_supported().major_number().Write(
+        major_override);
+    mutable_event.view_t().version_supported().minor_number().Write(
+        minor_override);
+  }
+  auto e = mutable_event.unchecked_view_t();
+
   AndroidVendorCapabilities c;
 
   if (e.status().Read() != pw::bluetooth::emboss::StatusCode::SUCCESS) {
@@ -88,6 +117,11 @@ AndroidVendorCapabilities AndroidVendorCapabilities::New(
   if (e.version_supported().minor_number().IsComplete()) {
     c.version_minor_ = e.version_supported().minor_number().Read();
   }
+  bt_log(INFO,
+         "android_vendor_extensions",
+         "Vendor Version: %d.%d",
+         c.version_major_,
+         c.version_minor_);
 
   // If we didn't receive a version number from the Controller, assume it's the
   // base version, Version 0.55.
@@ -114,9 +148,17 @@ AndroidVendorCapabilities AndroidVendorCapabilities::New(
         e.a2dp_source_offload_capability_mask().BackingStorage().ReadUInt();
     c.supports_bluetooth_quality_report_ =
         AsBool(e.bluetooth_quality_report_support().Read());
+    bt_log(INFO,
+           "android_vendor_extensions",
+           "Adding A2DP vendor extensions v1: 0x%02X",
+           c.a2dp_source_offload_capability_mask_);
   } else if (c.IsVersion(0, 99)) {
     c.a2dp_source_offload_capability_mask_ =
         e.v99_a2dp_source_offload_capability_mask().BackingStorage().ReadUInt();
+    bt_log(INFO,
+           "android_vendor_extensions",
+           "Adding A2DP vendor extensions v0.99: 0x%02X",
+           c.a2dp_source_offload_capability_mask_);
     // 0.99 doesn't have the Supports Bluetooth Quality Report
   }
 

@@ -60,6 +60,18 @@
             default: 6,
         },
         {
+            // If this is set, override the vendor capabilities version that is returned by the firmware
+            // and parse it based on this version.
+            // Provided as a uint16_t, the minor version is usually in the upper 8 bits, with the major 
+            // version being in the lower 8 bits.  i.e. `(minor << 8) | major`
+            // See fxbug.dev/450278813
+            config: "fuchsia.bluetooth.OverrideVendorCapabilitiesVersion",
+            key: "override_vendor_capabilites_version",
+            type: "uint16",
+            availability: "optional",
+            default: 0,
+        },
+        {
             directory: "dev-bt-hci-instance",
             rights: [ "r*" ],
             path: "/dev/class/bt-hci/default",

@@ -84,7 +84,8 @@ bool BtHostComponent::Initialize(
     fidl::ClientEnd<fuchsia_hardware_bluetooth::Vendor> vendor_client_end,
     InitCallback init_cb,
     ErrorCallback error_cb,
-    bool legacy_pairing_enabled) {
+    bool legacy_pairing_enabled,
+    uint16_t override_vendor_capabilites_version) {
   std::unique_ptr<bt::controllers::FidlController> controller =
       std::make_unique<bt::controllers::FidlController>(
           std::move(vendor_client_end), async_get_default_dispatcher());
@@ -97,6 +98,8 @@ bool BtHostComponent::Initialize(
   gatt_ = gatt::GATT::Create();
   gap::Adapter::Config config = {
       .legacy_pairing_enabled = legacy_pairing_enabled,
+      .override_vendor_capabilites_version =
+          override_vendor_capabilites_version,
   };
   gap_ = gap::Adapter::Create(pw_dispatcher_,
                               hci_->GetWeakPtr(),

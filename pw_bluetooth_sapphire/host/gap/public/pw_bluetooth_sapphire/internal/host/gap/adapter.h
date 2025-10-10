@@ -78,6 +78,10 @@ class Adapter {
     // When True, BR/EDR pairing may attempt to use legacy pairing if the peer
     // does not support SSP.
     bool legacy_pairing_enabled = false;
+    // When non-zero force the AndroidVendorCapabilites to be parsed as if the
+    // version bytes were set to these.
+    // TODO(b/450278813): remove this once we have a long term solution
+    uint16_t override_vendor_capabilites_version = 0;
   };
 
   static constexpr const char* kMetricsInspectNodeName = "metrics";
