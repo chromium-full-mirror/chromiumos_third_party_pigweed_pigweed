@@ -38,6 +38,7 @@ pw_source_set("pw_uuid") {
   public_configs = [ ":public_include_path" ]
   public = [ "public/pw_uuid/uuid.h" ]
   public_deps = [
+    "$dir_pw_containers:algorithm",
     "$dir_pw_string:hex",
     "$dir_pw_string:string",
     dir_pw_assert,

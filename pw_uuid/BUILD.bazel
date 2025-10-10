@@ -30,6 +30,7 @@ cc_library(
     deps = [
         "//pw_assert:assert",
         "//pw_bytes",
+        "//pw_containers:algorithm",
         "//pw_result",
         "//pw_status",
         "//pw_string:hex",

@@ -22,6 +22,7 @@ pw_add_library(pw_uuid INTERFACE
   PUBLIC_DEPS
     pw_assert
     pw_bytes
+    pw_containers.algorithm
     pw_result
     pw_status
     pw_string.hex

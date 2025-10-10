@@ -14,13 +14,14 @@
 
 #pragma once
 
-#include <algorithm>
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <string_view>
 
 #include "pw_assert/assert.h"
 #include "pw_bytes/span.h"
+#include "pw_containers/algorithm.h"
 #include "pw_result/result.h"
 #include "pw_status/status.h"
 #include "pw_string/hex.h"
@@ -40,28 +41,103 @@ class Uuid {
   static constexpr size_t kStringSize =
       std::string_view{"xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"}.size();
 
-  /// Create a Uuid from a const uint8_t span
+  // Default constructor initializes the uuid to the Nil UUID
+  constexpr explicit Uuid() : uuid_() {}
+
+  /// @brief Creates a Uuid from a pw::span of 16 const bytes.
   ///
-  /// @param span span containing uuid
-  static constexpr Result<Uuid> FromSpan(span<const uint8_t> span) {
-    Status status = ValidateSpan(span);
-    if (!status.ok()) {
-      return status;
+  /// This constructor is `constexpr` and guaranteed to be successful as the
+  /// size is enforced by the type system.
+  ///
+  /// @param uuid_span A span containing the 16 bytes of the UUID.
+  constexpr explicit Uuid(span<const uint8_t, kSizeBytes> uuid_span) : uuid_() {
+    pw::copy(uuid_span.begin(), uuid_span.end(), uuid_.begin());
+  }
+
+  /// @brief Creates a Uuid from a pw::span of 16 const std::byte.
+  ///
+  /// This constructor is `constexpr` and guaranteed to be successful as the
+  /// size is enforced by the type system.
+  ///
+  /// @param uuid_span A span containing the 16 bytes of the UUID.
+  constexpr explicit Uuid(span<const std::byte, kSizeBytes> uuid_span)
+      : uuid_() {
+    // Manually copy to use static_cast which is constexpr
+    for (size_t i = 0; i < uuid_.size(); i++) {
+      uuid_[i] = static_cast<uint8_t>(uuid_span[i]);
     }
-    return Uuid(span);
   }
 
-  /// Create a Uuid from a const std::byte span
+  /// @brief Create a Uuid from a const uint8_t span.
   ///
-  /// @param span span containing uuid
-  static Result<Uuid> FromSpan(ConstByteSpan span) {
-    return FromSpan(
-        {reinterpret_cast<const uint8_t*>(span.data()), span.size()});
+  /// @param uuid_span A span containing the UUID bytes.
+  static constexpr Result<Uuid> FromSpan(span<const uint8_t> uuid_span) {
+    if (uuid_span.size() != kSizeBytes) {
+      return Status::FailedPrecondition();
+    }
+    return Uuid(
+        span<const uint8_t, kSizeBytes>(uuid_span.data(), uuid_span.size()));
   }
 
-  /// Create a Uuid from a string
+  /// @brief Create a Uuid from a const std::byte span.
   ///
-  /// @param string string containing uuid
+  /// @param uuid_span A span containing the UUID bytes.
+  static constexpr Result<Uuid> FromSpan(ConstByteSpan uuid_span) {
+    if (uuid_span.size() != kSizeBytes) {
+      return Status::FailedPrecondition();
+    }
+    return Uuid(
+        span<const std::byte, kSizeBytes>(uuid_span.data(), uuid_span.size()));
+  }
+
+  /// @brief Creates a Uuid from a std::array of 16 const uint8_t.
+  ///
+  /// This is guaranteed to be successful as the size is enforced by the type
+  /// system.
+  ///
+  /// @param uuid_array A std::array containing the 16 bytes of the UUID.
+  template <size_t kSize, typename = std::enable_if_t<kSize == kSizeBytes>>
+  static constexpr Uuid FromSpan(const std::array<uint8_t, kSize>& uuid_array) {
+    return Uuid(uuid_array);
+  }
+
+  /// @brief Creates a Uuid from a std::array of 16 const bytes.
+  ///
+  /// This is guaranteed to be successful as the size is enforced by the type
+  /// system.
+  ///
+  /// @param uuid_array A std::array containing the 16 bytes of the UUID.
+  template <size_t kSize, typename = std::enable_if_t<kSize == kSizeBytes>>
+  static constexpr Uuid FromSpan(
+      const std::array<std::byte, kSize>& uuid_array) {
+    return Uuid(uuid_array);
+  }
+
+  /// @brief Creates a Uuid from a C-style array of 16 const uint8_t.
+  ///
+  /// This is guaranteed to be successful as the size is enforced by the type
+  /// system.
+  ///
+  /// @param uuid_array A C-style array containing the 16 bytes of the UUID.
+  template <size_t kSize, typename = std::enable_if_t<kSize == kSizeBytes>>
+  static constexpr Uuid FromSpan(const uint8_t (&uuid_array)[kSize]) {
+    return Uuid(span<const uint8_t, kSizeBytes>(uuid_array));
+  }
+
+  /// @brief Creates a Uuid from a C-style array of 16 const bytes.
+  ///
+  /// This is guaranteed to be successful as the size is enforced by the type
+  /// system.
+  ///
+  /// @param uuid_array A C-style array containing the 16 bytes of the UUID.
+  template <size_t kSize, typename = std::enable_if_t<kSize == kSizeBytes>>
+  static constexpr Uuid FromSpan(const std::byte (&uuid_array)[kSize]) {
+    return Uuid(span<const std::byte, kSizeBytes>(uuid_array));
+  }
+
+  /// @brief Create a Uuid from a string.
+  ///
+  /// @param string A string representation of the UUID.
   static constexpr Result<Uuid> FromString(std::string_view string) {
     Status status = ValidateString(string);
     if (!status.ok()) {
@@ -71,9 +147,7 @@ class Uuid {
   }
 
   /// Return the backing span holding the uuid
-  constexpr pw::span<const uint8_t, kSizeBytes> GetSpan() const {
-    return uuid_;
-  }
+  constexpr span<const uint8_t, kSizeBytes> GetSpan() const { return uuid_; }
 
   constexpr bool operator==(const Uuid& other) const {
     for (size_t i = 0; i < kSizeBytes; i++) {
@@ -102,20 +176,7 @@ class Uuid {
     return out;
   }
 
-  // Default constructor initializes the uuid to the Nil UUID
-  constexpr explicit Uuid() : uuid_() {}
-
  private:
-  /// Create a Uuid from a const uint8_t span
-  ///
-  /// @param span span containing uuid
-  constexpr explicit Uuid(span<const uint8_t> span) : uuid_() {
-    PW_ASSERT(span.size() == uuid_.size());
-    for (size_t i = 0; i < uuid_.size(); i++) {
-      uuid_[i] = span[i];
-    }
-  }
-
   /// Create a Uuid from a string
   ///
   /// @param string string containing uuid
@@ -162,20 +223,6 @@ class Uuid {
       if (string::IsHexDigit(uuid_str[i]) == 0) {
         return Status::InvalidArgument();
       }
-    }
-    return OkStatus();
-  }
-
-  /// Validate a UUID span
-  ///
-  /// @param span span containing uuid
-  ///
-  /// @returns
-  /// * @OK: The UUID is valid.
-  /// * @FAILED_PRECONDITION: The span is the wrong size.
-  static constexpr Status ValidateSpan(span<const uint8_t> span) {
-    if (span.size() != kSizeBytes) {
-      return Status::FailedPrecondition();
     }
     return OkStatus();
   }
