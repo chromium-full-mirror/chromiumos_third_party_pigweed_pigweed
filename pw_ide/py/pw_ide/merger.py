@@ -191,6 +191,13 @@ def _build_and_collect_fragments(
         # Remove initial double-dash.
         forwarded_args.pop(0)
 
+    # `bazel run` commands might bundle a `--`. These application-specific
+    # arguments will cause problems when calling `bazel build`, so remove them.
+    try:
+        forwarded_args = forwarded_args[: forwarded_args.index('--')]
+    except ValueError:
+        pass
+
     subcommand_index = None
     for i, arg in enumerate(forwarded_args):
         if arg in _SUPPORTED_SUBCOMMANDS:

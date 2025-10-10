@@ -349,9 +349,8 @@ class MergerTest(fake_filesystem_unittest.TestCase):
             self.assertEqual(merger.main(), 1)
             self.assertIn('not found', buf.getvalue())
 
-    @mock.patch('pw_ide.merger._run_bazel')
-    def test_build_and_collect_fragments(self, mock_run_bazel):
-        """Tests that fragments are collected via `bazel build`."""
+    def _configure_bep_based_collection(self, mock_run_bazel):
+        """Configure a test for bep-based collection."""
 
         def run_bazel_side_effect(
             args,
@@ -371,61 +370,67 @@ class MergerTest(fake_filesystem_unittest.TestCase):
             )
             bep_path = Path(bep_path_arg.split('=', 1)[1])
             bep_path.write_text(_BEP_CONTENT)
+
+            self.fs.create_file(
+                self.output_path.joinpath(
+                    'k8-fastbuild',
+                    'bin',
+                    'pw_status',
+                    'pw_status.k8-fastbuild' + _FRAGMENT_SUFFIX,
+                ),
+                contents=json.dumps(
+                    [
+                        {
+                            'file': 'a.cc',
+                            'directory': '__WORKSPACE_ROOT__',
+                            'arguments': ['c', 'd'],
+                        }
+                    ]
+                ),
+            )
+            self.fs.create_file(
+                self.output_path.joinpath(
+                    'k8-fastbuild',
+                    'bin',
+                    'pw_unit_test',
+                    'simple_printing_main.k8-fastbuild' + _FRAGMENT_SUFFIX,
+                ),
+                contents=json.dumps(
+                    [
+                        {
+                            'file': 'b.cc',
+                            'directory': '__WORKSPACE_ROOT__',
+                            'arguments': ['e', 'f'],
+                        }
+                    ]
+                ),
+            )
+            self.fs.create_file(
+                self.output_path.joinpath(
+                    'k8-fastbuild',
+                    'bin',
+                    'pw_string',
+                    'format.k8-fastbuild' + _FRAGMENT_SUFFIX,
+                ),
+                contents=json.dumps(
+                    [
+                        {
+                            'file': 'c.cc',
+                            'directory': '__WORKSPACE_ROOT__',
+                            'arguments': ['e', 'f', 'g'],
+                        }
+                    ]
+                ),
+            )
+
             return mock.Mock(returncode=0)
 
         mock_run_bazel.side_effect = run_bazel_side_effect
 
-        self.fs.create_file(
-            self.output_path.joinpath(
-                'k8-fastbuild',
-                'bin',
-                'pw_status',
-                'pw_status.k8-fastbuild' + _FRAGMENT_SUFFIX,
-            ),
-            contents=json.dumps(
-                [
-                    {
-                        'file': 'a.cc',
-                        'directory': '__WORKSPACE_ROOT__',
-                        'arguments': ['c', 'd'],
-                    }
-                ]
-            ),
-        )
-        self.fs.create_file(
-            self.output_path.joinpath(
-                'k8-fastbuild',
-                'bin',
-                'pw_unit_test',
-                'simple_printing_main.k8-fastbuild' + _FRAGMENT_SUFFIX,
-            ),
-            contents=json.dumps(
-                [
-                    {
-                        'file': 'b.cc',
-                        'directory': '__WORKSPACE_ROOT__',
-                        'arguments': ['e', 'f'],
-                    }
-                ]
-            ),
-        )
-        self.fs.create_file(
-            self.output_path.joinpath(
-                'k8-fastbuild',
-                'bin',
-                'pw_string',
-                'format.k8-fastbuild' + _FRAGMENT_SUFFIX,
-            ),
-            contents=json.dumps(
-                [
-                    {
-                        'file': 'c.cc',
-                        'directory': '__WORKSPACE_ROOT__',
-                        'arguments': ['e', 'f', 'g'],
-                    }
-                ]
-            ),
-        )
+    @mock.patch('pw_ide.merger._run_bazel')
+    def test_build_and_collect_fragments(self, mock_run_bazel):
+        """Tests that fragments are collected via `bazel build`."""
+        self._configure_bep_based_collection(mock_run_bazel)
 
         with mock.patch.object(
             sys, 'argv', ['merger.py', '--', 'build', '//...']
@@ -446,6 +451,40 @@ class MergerTest(fake_filesystem_unittest.TestCase):
         self.assertIn('a.cc', files)
         self.assertIn('b.cc', files)
         self.assertIn('c.cc', files)
+
+    @mock.patch('pw_ide.merger._run_bazel')
+    def test_build_and_collect_fragments_with_forwarded_args(
+        self, mock_run_bazel
+    ):
+        """Tests that forwarded `bazel run` args are stripped."""
+        self._configure_bep_based_collection(mock_run_bazel)
+
+        with mock.patch.object(
+            sys,
+            'argv',
+            ['merger.py', '--', 'run', '//...', '--', 'some-arg', '--another'],
+        ):
+            self.assertEqual(merger.main(), 0)
+
+        # Check that 'run' was converted to 'build' and '-- extra' was stripped.
+        build_args = mock_run_bazel.call_args_list[-1].args[0]
+        self.assertIn('build', build_args)
+        self.assertIn('//...', build_args)
+        self.assertNotIn('run', build_args)
+        self.assertNotIn('--', build_args)
+        self.assertNotIn('some-arg', build_args)
+        self.assertNotIn('--another', build_args)
+
+        merged_path = (
+            self.workspace_root
+            / '.compile_commands'
+            / 'k8-fastbuild'
+            / 'compile_commands.json'
+        )
+        self.assertTrue(merged_path.exists())
+        with open(merged_path, 'r') as f:
+            data = json.load(f)
+        self.assertEqual(len(data), 3)
 
 
 if __name__ == '__main__':
