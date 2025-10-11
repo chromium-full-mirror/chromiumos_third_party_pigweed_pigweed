@@ -51,10 +51,11 @@ void L2capChannelManager::RegisterChannelLocked(L2capChannel& channel) {
 }
 
 void L2capChannelManager::DeregisterChannelLocked(L2capChannel& channel) {
-  if (&channel == &(*lrd_channel_)) {
+  if (lrd_channel_ != channels_.end() && &channel == &(*lrd_channel_)) {
     Advance(lrd_channel_);
   }
-  if (&channel == &(*round_robin_terminus_)) {
+  if (round_robin_terminus_ != channels_.end() &&
+      &channel == &(*round_robin_terminus_)) {
     Advance(round_robin_terminus_);
   }
 
