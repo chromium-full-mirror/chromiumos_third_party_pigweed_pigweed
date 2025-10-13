@@ -27,8 +27,10 @@
 
 namespace pw::bluetooth::proxy {
 
-L2capChannelManager::L2capChannelManager(AclDataChannel& acl_data_channel)
+L2capChannelManager::L2capChannelManager(AclDataChannel& acl_data_channel,
+                                         pw::Allocator* allocator)
     : acl_data_channel_(acl_data_channel),
+      allocator_(allocator ? *allocator : synchronized_internal_allocator_),
       lrd_channel_(channels_.end()),
       round_robin_terminus_(channels_.end()) {}
 
@@ -99,7 +101,7 @@ pw::Result<H4PacketWithH4> L2capChannelManager::GetAclH4Packet(uint16_t size) {
   // be a breaking change to H4PacketWithH4 or not fit in Function's default
   // capture size of 1 pointer.
   void* allocation =
-      h4_allocator_.Allocate(allocator::Layout(size, alignof(uint8_t)));
+      allocator_.Allocate(allocator::Layout(size, alignof(uint8_t)));
   if (allocation == nullptr) {
     PW_LOG_WARN("Could not allocate H4 buffer of size %hu", size);
     return pw::Status::Unavailable();
@@ -112,7 +114,7 @@ pw::Result<H4PacketWithH4> L2capChannelManager::GetAclH4Packet(uint16_t size) {
         // This const_cast is needed to avoid changing the
         // function signature and breaking downstream
         // users.
-        synchronized_h4_allocator_.Deallocate(const_cast<uint8_t*>(buffer));
+        allocator_.Deallocate(const_cast<uint8_t*>(buffer));
         // TODO: https://pwbug.dev/421249712 - Only report
         // if we were previously out of buffers.
         ForceDrainChannelQueues();

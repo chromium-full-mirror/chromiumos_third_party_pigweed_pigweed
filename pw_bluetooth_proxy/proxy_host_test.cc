@@ -4522,5 +4522,68 @@ TEST_F(AclFragTest,
   EXPECT_EQ(packets_sent_to_host_, 0);
 }
 
+TEST_F(ProxyHostTest, ClientProvidedAllocatorUsedForH4) {
+  std::array<uint8_t, 100> payload = {};
+  pw::allocator::test::AllocatorForTest<150> allocator;
+
+  struct {
+    int sends_called = 0;
+    pw::Vector<H4PacketWithH4, 5> sent_packets;
+  } capture;
+
+  pw::Function<void(H4PacketWithHci && packet)>&& send_to_host_fn(
+      []([[maybe_unused]] H4PacketWithHci&& packet) {});
+  pw::Function<void(H4PacketWithH4 && packet)>&& send_to_controller_fn(
+      [&capture](H4PacketWithH4&& packet) {
+        ++capture.sends_called;
+        capture.sent_packets.emplace_back(std::move(packet));
+      });
+
+  ProxyHost proxy = ProxyHost(std::move(send_to_host_fn),
+                              std::move(send_to_controller_fn),
+                              /*le_acl_credits_to_reserve=*/10,
+                              /*br_edr_acl_credits_to_reserve=*/0,
+                              &allocator);
+  // Allow proxy to reserve 1 LE credit.
+  PW_TEST_EXPECT_OK(SendLeReadBufferResponseFromController(proxy, 10));
+
+  constexpr uint16_t handle = 0x0ACB;
+  constexpr uint16_t remote_channel_id = 0x1234;
+  constexpr uint16_t local_channel_id = 0x4321;
+
+  BasicL2capChannel channel =
+      BuildBasicL2capChannel(proxy,
+                             {.handle = handle,
+                              .local_cid = local_channel_id,
+                              .remote_cid = remote_channel_id,
+                              .transport = AclTransportType::kLe});
+
+  EXPECT_EQ(allocator.GetAllocated(), 0u);
+  {
+    FlatMultiBufInstance mbuf_inst = MultiBufFromSpan(pw::span(payload));
+    FlatMultiBuf& mbuf = MultiBufAdapter::Unwrap(mbuf_inst);
+    PW_TEST_EXPECT_OK(channel.Write(std::move(mbuf)).status);
+    EXPECT_EQ(capture.sends_called, 1);
+  }
+  EXPECT_GT(allocator.GetAllocated(), payload.size());
+
+  // The second packet should be queued and not sent because the allocator is
+  // full.
+  {
+    FlatMultiBufInstance mbuf_inst = MultiBufFromSpan(pw::span(payload));
+    FlatMultiBuf& mbuf = MultiBufAdapter::Unwrap(mbuf_inst);
+    PW_TEST_EXPECT_OK(channel.Write(std::move(mbuf)).status);
+    EXPECT_EQ(capture.sends_called, 1);
+  }
+
+  {
+    H4PacketWithH4 packet = std::move(capture.sent_packets.back());
+    capture.sent_packets.clear();
+  }
+  EXPECT_EQ(capture.sends_called, 2);
+  capture.sent_packets.clear();
+  EXPECT_EQ(allocator.GetAllocated(), 0u);
+}
+
 }  // namespace
 }  // namespace pw::bluetooth::proxy

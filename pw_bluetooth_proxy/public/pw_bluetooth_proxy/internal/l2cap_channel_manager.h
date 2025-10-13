@@ -42,7 +42,11 @@ namespace pw::bluetooth::proxy {
 // around channels.
 class L2capChannelManager {
  public:
-  L2capChannelManager(AclDataChannel& acl_data_channel);
+  /// @param[in] allocator - General purpose allocator to use for internal
+  /// packet buffers and objects. If null, an internal allocator and memory pool
+  /// will be used.
+  L2capChannelManager(AclDataChannel& acl_data_channel,
+                      pw::Allocator* allocator);
 
   // Start proxying L2CAP packets addressed to `channel` arriving from
   // the controller and allow `channel` to send & queue Tx L2CAP packets.
@@ -162,12 +166,16 @@ class L2capChannelManager {
   // Reference to the ACL data channel owned by the proxy.
   AclDataChannel& acl_data_channel_;
 
-  // TODO: https://pwbug.dev/369849508 - Migrate to client-provided allocator.
+  // TODO: https://pwbug.dev/369849508 - Fully migrate to client-provided
+  // allocator and remove internal allocator.
   static constexpr uint16_t kH4PoolSize = 10260;
   std::array<std::byte, kH4PoolSize> storage_region_;
-  pw::allocator::BestFitAllocator<> h4_allocator_{storage_region_};
-  pw::allocator::SynchronizedAllocator<sync::Mutex> synchronized_h4_allocator_{
-      h4_allocator_};
+  pw::allocator::BestFitAllocator<> internal_allocator_{storage_region_};
+  pw::allocator::SynchronizedAllocator<sync::Mutex>
+      synchronized_internal_allocator_{internal_allocator_};
+  // allocator_ is set to client-provided allocator if not null, otherwise it
+  // is synchronized_internal_allocator_.
+  pw::Allocator& allocator_;
 
   std::atomic<std::optional<uint16_t>> le_acl_data_packet_length_{std::nullopt};
 
