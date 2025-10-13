@@ -92,12 +92,13 @@ class H4PacketWithHci final : public H4PacketInterface {
 /// H4PacketWithH4 is an H4Packet backed by an H4 buffer.
 class H4PacketWithH4 final : public H4PacketInterface {
  public:
+  using ReleaseFn = Function<void(const uint8_t*)>;
+
   H4PacketWithH4() = default;
   H4PacketWithH4(pw::span<uint8_t> h4_span) : h4_span_(h4_span) {}
 
   /// release_fn (if callable) will be called when H4PacketWithH4 is destructed.
-  H4PacketWithH4(pw::span<uint8_t> h4_span,
-                 pw::Function<void(const uint8_t* buffer)>&& release_fn)
+  H4PacketWithH4(pw::span<uint8_t> h4_span, ReleaseFn&& release_fn)
       : h4_span_(h4_span), release_fn_(std::move(release_fn)) {}
 
   H4PacketWithH4(emboss::H4PacketType h4_type, pw::span<uint8_t> h4_span)
@@ -149,8 +150,8 @@ class H4PacketWithH4 final : public H4PacketInterface {
   // Essentially it moves ownership of the buffer to the caller (who should have
   // already stored `GetH4Span()` since packet's span will be reset by this
   // call).
-  pw::Function<void(const uint8_t*)> ResetAndReturnReleaseFn() {
-    pw::Function<void(const uint8_t* packet)> fn = std::move(release_fn_);
+  ReleaseFn ResetAndReturnReleaseFn() {
+    ReleaseFn fn = std::move(release_fn_);
     Reset();
     return fn;
   }
@@ -179,7 +180,7 @@ class H4PacketWithH4 final : public H4PacketInterface {
 
   pw::span<uint8_t> h4_span_;
 
-  pw::Function<void(const uint8_t* packet)> release_fn_{};
+  ReleaseFn release_fn_{};
 };
 
 }  // namespace pw::bluetooth::proxy

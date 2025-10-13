@@ -1727,14 +1727,10 @@ TEST_F(L2capCocQueueTest, RemovingLrdChannelDoesNotInvalidateRoundRobin) {
 }
 
 TEST_F(L2capCocQueueTest, H4BufferReleaseTriggersQueueDrain) {
-  constexpr size_t kNumSends =
-      ProxyHost::GetNumSimultaneousAclSendsSupported() + 1;
-
+  constexpr uint8_t kAclLeCredits = 255;
   struct {
     size_t sends_called = 0;
-    // TODO: https://pwbug.dev/403330161 - Switch back to pw Vector once
-    // its use-of-uninitialized-value is fixed.
-    std::vector<H4PacketWithH4> packet_store;
+    pw::Vector<H4PacketWithH4, 50> packet_store;
   } capture;
   pw::Function<void(H4PacketWithHci && packet)>&& send_to_host_fn(
       []([[maybe_unused]] H4PacketWithHci&& packet) {});
@@ -1743,32 +1739,51 @@ TEST_F(L2capCocQueueTest, H4BufferReleaseTriggersQueueDrain) {
         ++capture.sends_called;
         capture.packet_store.push_back(std::move(packet));
       });
-  ProxyHost proxy = ProxyHost(std::move(send_to_host_fn),
-                              std::move(send_to_controller_fn),
-                              /*le_acl_credits_to_reserve=*/kNumSends,
-                              /*br_edr_acl_credits_to_reserve=*/0);
-  PW_TEST_EXPECT_OK(SendLeReadBufferResponseFromController(proxy, kNumSends));
-  EXPECT_EQ(proxy.GetNumFreeLeAclPackets(), kNumSends);
+  ProxyHost proxy(std::move(send_to_host_fn),
+                  std::move(send_to_controller_fn),
+                  /*le_acl_credits_to_reserve=*/kAclLeCredits,
+                  /*br_edr_acl_credits_to_reserve=*/0);
+  PW_TEST_EXPECT_OK(
+      SendLeReadBufferResponseFromController(proxy, kAclLeCredits));
+  EXPECT_EQ(proxy.GetNumFreeLeAclPackets(), kAclLeCredits);
 
   constexpr uint16_t kHandle = 0x123;
   constexpr uint16_t kRemoteCid = 0x456;
   L2capCoc channel = BuildCoc(proxy,
-                              CocParameters{.handle = kHandle,
-                                            .remote_cid = kRemoteCid,
-                                            .tx_credits = kNumSends});
-
+                              CocParameters{
+                                  .handle = kHandle,
+                                  .remote_cid = kRemoteCid,
+                                  .tx_mtu = 1000,
+                                  .tx_mps = 1000,
+                                  .tx_credits = kAclLeCredits,
+                              });
+  EXPECT_EQ(capture.sends_called, 0u);
   // Occupy all buffers. Final Write should queue and not send.
-  for (size_t i = 0; i < kNumSends; ++i) {
-    FlatMultiBufInstance empty = MakeEmptyMultiBuf();
+  std::array<uint8_t, 240> payload = {};
+  size_t num_writes = 0;
+  do {
+    FlatMultiBufInstance mbuf = MultiBufFromSpan(span(payload));
     PW_TEST_EXPECT_OK(
-        channel.Write(std::move(MultiBufAdapter::Unwrap(empty))).status);
-  }
-  EXPECT_EQ(capture.sends_called, kNumSends - 1);
+        channel.Write(std::move(MultiBufAdapter::Unwrap(mbuf))).status);
+    ++num_writes;
+  } while (capture.sends_called == num_writes);
+  // The final write should be queued and not sent.
+  EXPECT_EQ(capture.sends_called, num_writes - 1);
+  // Sending should have stopped because the allocator is full, not because ACL
+  // credits ran out.
+  EXPECT_LT(capture.sends_called, kAclLeCredits);
 
-  // Release a buffer. Queued packet should then send.
+  // Destroying an H4 packet will send the next packet in the destructor, so we
+  // need to first extract the packet from the vector to avoid appending to
+  // the vector during pop_back.
+  std::optional<H4PacketWithH4> packet = std::move(capture.packet_store.back());
   capture.packet_store.pop_back();
-  EXPECT_EQ(capture.sends_called, kNumSends);
+  // Release a buffer. Queued packet should then send.
+  packet.reset();
+  EXPECT_EQ(capture.sends_called, num_writes);
 
+  // Free all buffers before the allocator is destroyed.
+  channel.Close();
   capture.packet_store.clear();
 }
 

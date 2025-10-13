@@ -44,7 +44,6 @@ _pw_bluetooth_proxy_public = [
   "public/pw_bluetooth_proxy/h4_packet.h",
   "public/pw_bluetooth_proxy/internal/acl_data_channel.h",
   "public/pw_bluetooth_proxy/internal/gatt_notify_channel_internal.h",
-  "public/pw_bluetooth_proxy/internal/h4_storage.h",
   "public/pw_bluetooth_proxy/internal/hci_transport.h",
   "public/pw_bluetooth_proxy/internal/l2cap_aclu_signaling_channel.h",
   "public/pw_bluetooth_proxy/internal/l2cap_channel.h",
@@ -93,6 +92,8 @@ _pw_bluetooth_proxy_public_deps = [
 ]
 
 _pw_bluetooth_proxy_deps = [
+  "$dir_pw_allocator:best_fit",
+  "$dir_pw_allocator:synchronized_allocator",
   "$dir_pw_assert:check",
   "$dir_pw_bluetooth:emboss_att",
   "$dir_pw_bluetooth:emboss_hci_commands",
@@ -107,7 +108,6 @@ _pw_bluetooth_proxy_sources = [
   "basic_l2cap_channel.cc",
   "channel_proxy.cc",
   "gatt_notify_channel.cc",
-  "h4_storage.cc",
   "l2cap_aclu_signaling_channel.cc",
   "l2cap_channel.cc",
   "l2cap_channel_manager.cc",

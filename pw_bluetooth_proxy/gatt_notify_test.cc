@@ -288,13 +288,13 @@ TEST_F(GattNotifyTest, ReturnsErrorIfAttributeTooLarge) {
                               std::move(send_to_controller_fn),
                               /*le_acl_credits_to_reserve=*/0,
                               /*br_edr_acl_credits_to_reserve=*/0);
-  PW_TEST_EXPECT_OK(SendLeReadBufferResponseFromController(proxy, 0));
+  const uint16_t kLeAclLength = 250;
+  PW_TEST_EXPECT_OK(
+      SendLeReadBufferResponseFromController(proxy, 0, kLeAclLength));
 
   // attribute_value 1 byte too large
   std::array<uint8_t,
-             proxy.GetMaxAclSendSize() -
-                 emboss::AclDataFrameHeader::IntrinsicSizeInBytes() -
-                 emboss::BasicL2capHeader::IntrinsicSizeInBytes() -
+             kLeAclLength - emboss::BasicL2capHeader::IntrinsicSizeInBytes() -
                  emboss::AttHandleValueNtf::MinSizeInBytes() + 1>
       attribute_value_too_large;
   GattNotifyChannel channel = BuildGattNotifyChannel(proxy, {});

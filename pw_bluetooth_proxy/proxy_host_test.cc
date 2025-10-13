@@ -1817,18 +1817,12 @@ TEST_F(ResetTest, HandleHciReset) {
 class MultiSendTest : public ProxyHostTest {};
 
 TEST_F(MultiSendTest, CanOccupyAllThenReuseEachBuffer) {
-  constexpr size_t kAclBuffersSize =
-      ProxyHost::GetNumSimultaneousAclSendsSupported();
-  // Total number of expected sends for this test.
-  constexpr size_t kExpectedSendCount = (2 * kAclBuffersSize) + 1;
-  // We allocate some extra slots in case there is a bug (which will be caught
-  // by the test EXPECTs).
-  constexpr size_t kMaxSendCount = kExpectedSendCount + 5;
+  constexpr uint8_t kAclCredits = 255;
   struct {
     size_t sends_called = 0;
     // These are packets that have been sent towards controller, but not
     // released yet by container.
-    pw::Vector<H4PacketWithH4, kMaxSendCount> in_flight_packets{};
+    pw::Vector<H4PacketWithH4, 50> in_flight_packets{};
   } capture;
 
   pw::Function<void(H4PacketWithHci && packet)>&& send_to_host_fn(
@@ -1842,99 +1836,60 @@ TEST_F(MultiSendTest, CanOccupyAllThenReuseEachBuffer) {
 
   ProxyHost proxy = ProxyHost(std::move(send_to_host_fn),
                               std::move(send_to_controller_fn),
-                              /*le_acl_credits_to_reserve=*/kMaxSendCount,
+                              /*le_acl_credits_to_reserve=*/kAclCredits,
                               /*br_edr_acl_credits_to_reserve=*/0);
-  PW_TEST_EXPECT_OK(
-      SendLeReadBufferResponseFromController(proxy, kMaxSendCount));
+  PW_TEST_EXPECT_OK(SendLeReadBufferResponseFromController(proxy, kAclCredits));
 
   GattNotifyChannel channel = BuildGattNotifyChannel(proxy, {});
 
-  std::array<uint8_t, 1> attribute_value = {0xF};
+  std::array<uint8_t, 240> attribute_value = {};
 
-  // Occupy all H4 buffers.
-  for (size_t sent = 1; sent <= kAclBuffersSize; ++sent) {
-    FlatMultiBufInstance mbuf_inst = MultiBufFromArray(attribute_value);
-    FlatMultiBuf& mbuf = MultiBufAdapter::Unwrap(mbuf_inst);
-    PW_TEST_EXPECT_OK(channel.Write(std::move(mbuf)).status);
-    // Each write is sent towards controller
-    EXPECT_EQ(capture.sends_called, sent);
-    EXPECT_EQ(proxy.GetNumFreeLeAclPackets(), kMaxSendCount - sent);
-    // Container holds on to each H4 buffer.
-    EXPECT_EQ(capture.in_flight_packets.size(), sent);
-  }
+  // Occupy all H4 buffers and queue 1 packet.
+  size_t num_writes_0 = 0;
+  do {
+    FlatMultiBufInstance mbuf = MultiBufFromSpan(span(attribute_value));
+    PW_TEST_EXPECT_OK(
+        channel.Write(std::move(MultiBufAdapter::Unwrap(mbuf))).status);
+    ++num_writes_0;
+  } while (capture.sends_called == num_writes_0);
+  // The final write should be queued and not sent.
+  EXPECT_EQ(capture.sends_called, num_writes_0 - 1);
 
-  // This was already verified in last iteration of loop above, but we EXPECT
-  // again to provide reader context for EXPECTs after the following Write.
-  EXPECT_EQ(capture.sends_called, kAclBuffersSize);
-  EXPECT_EQ(proxy.GetNumFreeLeAclPackets(), kMaxSendCount - kAclBuffersSize);
-  EXPECT_EQ(capture.in_flight_packets.size(), kAclBuffersSize);
-
-  // At this point all H4 buffers are in use. We can still write to channel, but
-  // those payloads will queue in the channel until H4 packets are freed.
-  FlatMultiBufInstance mbuf_inst = MultiBufFromArray(attribute_value);
-  FlatMultiBuf& mbuf = MultiBufAdapter::Unwrap(mbuf_inst);
-  PW_TEST_EXPECT_OK(channel.Write(std::move(mbuf)).status);
-
-  // No send (since H4 buffers are all in use).
-  EXPECT_EQ(capture.sends_called, kAclBuffersSize);
-  EXPECT_EQ(proxy.GetNumFreeLeAclPackets(), kMaxSendCount - kAclBuffersSize);
-  // H4 buffers still all in use.
-  EXPECT_EQ(capture.in_flight_packets.size(), kAclBuffersSize);
-
-  // This simulates the container/controller releasing an H4 buffer. That
-  // should result in another send to controller.
-  {
-    // We move the H4 packet out of the container so we can dtor it separately
-    // from the container's pop_back. The dtor of the H4 packet will trigger a
-    // push_back on the same container in this test's send_to_controller_fn
-    // lambda. We don't want that to happen nested inside a container pop_back
-    // as some containers (including pw::Vector and std::vector) don't handle
-    // nested modifications well.
-    H4PacketWithH4 last_packet = std::move(capture.in_flight_packets.back());
-  }
-  // At this point the second to last in_flight_packets is the one we moved
-  // from. So erase that entry.
-  capture.in_flight_packets.erase(
-      std::prev(capture.in_flight_packets.end(), 2));
-
-  // Send of queued payload.
-  EXPECT_EQ(capture.sends_called, kAclBuffersSize + 1);
-  EXPECT_EQ(proxy.GetNumFreeLeAclPackets(),
-            kMaxSendCount - kAclBuffersSize - 1);
-  // We freed a H4 buffer, but then sending the queued payload used it.
-  EXPECT_EQ(capture.in_flight_packets.size(), kAclBuffersSize);
+  // Release an H4 buffer, which should result in the queued packet being sent.
+  // Move the packet first to avoid a push_back to in_flight_packets during a
+  // pop_back.
+  std::optional<H4PacketWithH4> last_packet =
+      std::move(capture.in_flight_packets.back());
+  capture.in_flight_packets.pop_back();
+  last_packet.reset();
+  EXPECT_EQ(capture.sends_called, num_writes_0);
 
   // Free up remaining slots.
   capture.in_flight_packets.clear();
+
   // There should have been no more sends since there were no payloads queued.
-  EXPECT_EQ(capture.sends_called, kAclBuffersSize + 1);
-  EXPECT_EQ(proxy.GetNumFreeLeAclPackets(),
-            kMaxSendCount - kAclBuffersSize - 1);
-  // And of course in flight packets are cleared (which indicates mean all H4
-  // buffers are free for use).
-  EXPECT_EQ(capture.in_flight_packets.size(), 0u);
+  EXPECT_EQ(capture.sends_called, num_writes_0);
 
   // Confirm we can now reoccupy each H4 buffer slot.
-  for (size_t sent = 1; sent <= kAclBuffersSize; ++sent) {
-    mbuf_inst = MultiBufFromArray(attribute_value);
+  size_t num_writes_1 = 0;
+  capture.sends_called = 0;
+  do {
+    FlatMultiBufInstance mbuf = MultiBufFromSpan(span(attribute_value));
     PW_TEST_EXPECT_OK(
-        channel.Write(std::move(MultiBufAdapter::Unwrap(mbuf_inst))).status);
-    // Each write is sent towards controller
-    EXPECT_EQ(capture.sends_called, kAclBuffersSize + 1 + sent);
-    EXPECT_EQ(proxy.GetNumFreeLeAclPackets(),
-              kMaxSendCount - kAclBuffersSize - 1 - sent);
-    // Container holds on to each H4 buffer.
-    EXPECT_EQ(capture.in_flight_packets.size(), sent);
-  }
+        channel.Write(std::move(MultiBufAdapter::Unwrap(mbuf))).status);
+    ++num_writes_1;
+  } while (capture.sends_called == num_writes_1);
+  EXPECT_EQ(num_writes_0, num_writes_1);
+  // The final write should be queued and not sent.
+  EXPECT_EQ(capture.sends_called, num_writes_1 - 1);
 
-  // If captured packets are not reset here, they may destruct after the proxy
-  // and lead to a crash when trying to lock the proxy's destructed mutex.
+  // Free all packets before destroying ProxyHost to avoid UAF.
+  channel.Close();
   capture.in_flight_packets.clear();
 }
 
 TEST_F(MultiSendTest, CanRepeatedlyReuseOneBuffer) {
-  constexpr size_t kAclBuffersSize =
-      ProxyHost::GetNumSimultaneousAclSendsSupported();
+  constexpr size_t kAclBuffersSize = 10;
   struct {
     size_t sends_called = 0;
     // These are packets that have been sent towards controller, but not
@@ -2164,10 +2119,13 @@ TEST_F(BasicL2capChannelTest, ErrorOnWriteTooLarge) {
                               /*le_acl_credits_to_reserve=*/1,
                               /*br_edr_acl_credits_to_reserve=*/0);
   // Allow proxy to reserve 1 credit.
+  // TODO: https://pwbug.dev/438315637 - Set the controller's
+  // acl_data_packet_length once ProxyHost reads it.
   PW_TEST_EXPECT_OK(SendReadBufferResponseFromController(proxy, 1));
 
+  constexpr uint16_t kLegacyH4BuffSize = 1026;
   std::array<uint8_t,
-             ProxyHost::GetMaxAclSendSize() -
+             kLegacyH4BuffSize -
                  emboss::AclDataFrameHeader::IntrinsicSizeInBytes() -
                  emboss::BasicL2capHeader::IntrinsicSizeInBytes() + 1>
       hci_arr;

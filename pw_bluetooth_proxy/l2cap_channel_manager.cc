@@ -95,32 +95,31 @@ void L2capChannelManager::DeregisterAndCloseChannels(L2capChannelEvent event) {
 }
 
 pw::Result<H4PacketWithH4> L2capChannelManager::GetAclH4Packet(uint16_t size) {
-  if (size > GetH4BuffSize()) {
-    PW_LOG_ERROR(
-        "Requested packet is too large for H4 buffer. So will not send.");
-    return pw::Status::InvalidArgument();
-  }
-
-  std::optional<span<uint8_t>> h4_buff = h4_storage_.ReserveH4Buff();
-  if (!h4_buff) {
-    PW_LOG_WARN("No H4 buffers available.");
+  // Use Allocate instead of New to avoid tracking the size, which would either
+  // be a breaking change to H4PacketWithH4 or not fit in Function's default
+  // capture size of 1 pointer.
+  void* allocation =
+      h4_allocator_.Allocate(allocator::Layout(size, alignof(uint8_t)));
+  if (allocation == nullptr) {
+    PW_LOG_WARN("Could not allocate H4 buffer of size %hu", size);
     return pw::Status::Unavailable();
   }
+  span<uint8_t> h4_buff(static_cast<uint8_t*>(allocation), size);
 
-  H4PacketWithH4 h4_packet(span(h4_buff->data(), size),
-                           /*release_fn=*/[this](const uint8_t* buffer) {
-                             this->h4_storage_.ReleaseH4Buff(buffer);
-                             // TODO: https://pwbug.dev/421249712 - Only report
-                             // if we were previously out of buffers.
-                             ForceDrainChannelQueues();
-                           });
+  H4PacketWithH4 h4_packet(
+      h4_buff,
+      /*release_fn=*/[this](const uint8_t* buffer) {
+        // This const_cast is needed to avoid changing the
+        // function signature and breaking downstream
+        // users.
+        synchronized_h4_allocator_.Deallocate(const_cast<uint8_t*>(buffer));
+        // TODO: https://pwbug.dev/421249712 - Only report
+        // if we were previously out of buffers.
+        ForceDrainChannelQueues();
+      });
   h4_packet.SetH4Type(emboss::H4PacketType::ACL_DATA);
 
   return h4_packet;
-}
-
-uint16_t L2capChannelManager::GetH4BuffSize() const {
-  return H4Storage::GetH4BuffSize();
 }
 
 void L2capChannelManager::ForceDrainChannelQueues() {

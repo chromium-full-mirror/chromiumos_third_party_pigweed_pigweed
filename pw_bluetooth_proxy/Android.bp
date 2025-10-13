@@ -29,7 +29,6 @@ cc_library_static {
         "basic_l2cap_channel.cc",
         "channel_proxy.cc",
         "gatt_notify_channel.cc",
-        "h4_storage.cc",
         "l2cap_aclu_signaling_channel.cc",
         "l2cap_channel.cc",
         "l2cap_channel_manager.cc",
@@ -90,5 +89,5 @@ cc_library_static {
         "pw_bluetooth_generate_emboss_hci_h4",
         "pw_bluetooth_generate_emboss_l2cap_frames",
     ],
-    // LINT.ThenChange(BUILD.gn, BUILD.bazel, CMakeLists.txt)
+    // LINT.ThenChange(BUILD.gn, bt-proxy.bzl, CMakeLists.txt)
 }

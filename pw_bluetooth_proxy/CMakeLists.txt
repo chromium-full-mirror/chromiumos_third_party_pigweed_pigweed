@@ -34,7 +34,6 @@ pw_add_library(pw_bluetooth_proxy STATIC
     public/pw_bluetooth_proxy/h4_packet.h
     public/pw_bluetooth_proxy/internal/acl_data_channel.h
     public/pw_bluetooth_proxy/internal/gatt_notify_channel_internal.h
-    public/pw_bluetooth_proxy/internal/h4_storage.h
     public/pw_bluetooth_proxy/internal/hci_transport.h
     public/pw_bluetooth_proxy/internal/l2cap_aclu_signaling_channel.h
     public/pw_bluetooth_proxy/internal/l2cap_channel_manager.h
@@ -79,7 +78,6 @@ pw_add_library(pw_bluetooth_proxy STATIC
     basic_l2cap_channel.cc
     channel_proxy.cc
     gatt_notify_channel.cc
-    h4_storage.cc
     l2cap_aclu_signaling_channel.cc
     l2cap_channel_manager.cc
     l2cap_channel.cc
@@ -91,6 +89,8 @@ pw_add_library(pw_bluetooth_proxy STATIC
     recombiner.cc
     single_channel_proxy.cc
   PRIVATE_DEPS
+    pw_allocator.best_fit
+    pw_allocator.synchronized_allocator
     pw_bluetooth.emboss_att
     pw_bluetooth.emboss_hci_commands
     pw_bluetooth.emboss_util

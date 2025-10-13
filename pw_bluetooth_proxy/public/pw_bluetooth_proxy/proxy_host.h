@@ -16,7 +16,6 @@
 
 #include "pw_bluetooth_proxy/gatt_notify_channel.h"
 #include "pw_bluetooth_proxy/internal/acl_data_channel.h"
-#include "pw_bluetooth_proxy/internal/h4_storage.h"
 #include "pw_bluetooth_proxy/internal/hci_transport.h"
 #include "pw_bluetooth_proxy/internal/l2cap_channel_manager.h"
 #include "pw_bluetooth_proxy/internal/multibuf.h"
@@ -248,17 +247,6 @@ class ProxyHost {
   /// Returns the number of available BR/EDR ACL send credits for the proxy.
   /// Can be zero if the controller has not yet been initialized by the host.
   uint16_t GetNumFreeBrEdrAclPackets() const;
-
-  /// Returns the max number of LE ACL sends that can be in-flight at one time.
-  /// That is, ACL packets that have been sent and not yet released.
-  static constexpr size_t GetNumSimultaneousAclSendsSupported() {
-    return H4Storage::GetNumH4Buffs();
-  }
-
-  /// Returns the max LE ACL packet size supported to be sent.
-  static constexpr size_t GetMaxAclSendSize() {
-    return H4Storage::GetH4BuffSize() - sizeof(emboss::H4PacketType);
-  }
 
   /// Returns the max number of simultaneous LE ACL connections supported.
   static constexpr size_t GetMaxNumAclConnections() {
