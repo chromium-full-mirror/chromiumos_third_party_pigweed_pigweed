@@ -470,27 +470,46 @@ export class Root extends LitElement {
                   <b class="title"> Debug Code Intelligence </b>
                 </summary>
                 <div>
-                  <div class="row">
-                    <div>Restart clangd language server</div>
-                    <div>
-                      <button
-                        class="vscode-button"
-                        @click="${() => {
-                          vscode.postMessage({
-                            type: 'restartClangd',
-                          });
-                        }}"
-                      >
-                        Restart
-                      </button>
-                    </div>
-                  </div>
+                  ${this.cipdReport.clangdPath
+                    ? html`
+                        <div class="row">
+                          <div>Restart clangd language server</div>
+                          <div>
+                            <button
+                              class="vscode-button"
+                              @click="${() => {
+                                vscode.postMessage({
+                                  type: 'restartClangd',
+                                });
+                              }}"
+                            >
+                              Restart
+                            </button>
+                          </div>
+                        </div>
+                      `
+                    : ''}
                   <div class="row">
                     <div>
                       <b>Clangd is available</b><br />
                       <sub>${this.cipdReport.clangdPath || 'N/A'}</sub>
                     </div>
-                    <div>${this.cipdReport.clangdPath ? '✅' : '❌'}</div>
+                    <div>
+                      ${this.cipdReport.clangdPath
+                        ? '✅'
+                        : html`
+                            <button
+                              class="vscode-button"
+                              @click="${() => {
+                                vscode.postMessage({
+                                  type: 'retryClangdPath',
+                                });
+                              }}"
+                            >
+                              Repair
+                            </button>
+                          `}
+                    </div>
                   </div>
                   <div class="row">
                     <div>

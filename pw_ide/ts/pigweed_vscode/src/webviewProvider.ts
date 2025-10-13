@@ -17,6 +17,7 @@ import fs from 'fs';
 import * as vscode from 'vscode';
 import { checkExtensionsAndGetStatus } from './extensionManagement';
 import { restartClangd, setTargetWithClangd } from './clangd';
+import { initBazelClangdPath } from './clangd/bazel';
 import logging, { output } from './logging';
 import { getSettingsData } from './configParsing';
 import getCipdReport from './clangd/report';
@@ -240,6 +241,12 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
         }
         case 'restartClangd': {
           await restartClangd();
+          break;
+        }
+        case 'retryClangdPath': {
+          output.show();
+          await initBazelClangdPath();
+          await this.sendCipdReport();
           break;
         }
         case 'openExtension': {
