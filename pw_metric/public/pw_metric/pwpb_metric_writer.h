@@ -19,6 +19,7 @@
 #include "pw_metric/metric.h"
 #include "pw_metric/metric_walker.h"
 #include "pw_metric_proto/metric_service.pwpb.h"
+#include "pw_protobuf/encoder.h"
 #include "pw_protobuf/serialized_size.h"
 #include "pw_status/status.h"
 
@@ -111,6 +112,89 @@ class PwpbMetricWriter : public internal::MetricWriter {
  private:
   ParentEncoder& parent_encoder_;
   size_t& metric_limit_;
+};
+
+// Writes all metrics from a MetricWalker into a pwpb stream encoder using the
+// two-pass encoding method.
+//
+// This writer is specialized for streaming use cases where intermediate copies
+// should be avoided and the total size of the output is not known ahead of
+// time. It does NOT perform any size checks, relying on the underlying stream
+// to handle flow control or report errors.
+//
+// This contrasts with PwpbMetricWriter, which is designed for size-aware,
+// bounded `pw::protobuf::MemoryEncoder` instances.
+//
+// @tparam ParentEncoder The specific pwpb stream encoder for the parent message
+//    (e.g., proto::pwpb::WalkResponse::StreamEncoder).
+// @tparam kMetricsFieldTag The field number (tag) of the
+//    `repeated pw.metric.proto.Metric` field in the parent proto.
+template <typename ParentEncoder, uint32_t kMetricsFieldTag>
+class PwpbStreamingMetricWriter : public internal::MetricWriter {
+ public:
+  // Constructs a new pwpb streaming metric writer.
+  //
+  // @param parent_encoder A pwpb stream encoder for the parent message.
+  // @param metric_limit An optional limit on the number of metrics to
+  //    write. The walk will stop when this many metrics have been written.
+  //    Defaults to `std::numeric_limits<size_t>::max()` (no limit).
+  PwpbStreamingMetricWriter(
+      ParentEncoder& parent_encoder,
+      size_t metric_limit = std::numeric_limits<size_t>::max())
+      : parent_encoder_(parent_encoder), metric_limit_(metric_limit) {}
+
+  pw::Status Write(const Metric& metric, const Vector<Token>& path) override {
+    if (metric_limit_ == 0) {
+      return pw::Status::ResourceExhausted();
+    }
+
+    // This struct bundles the necessary state for the lambda.
+    struct WriteContext {
+      const Vector<Token>& path;
+      const bool is_float;
+      const float float_value;
+      const uint32_t int_value;
+    };
+
+    // Read the atomic metric value into the context struct once to ensure the
+    // same value is used for both the sizing and writing passes of
+    // `WriteNestedMessage`. This prevents a race condition where the metric's
+    // value could change between the two passes.
+    const WriteContext context = {
+        .path = path,
+        .is_float = metric.is_float(),
+        .float_value = metric.is_float() ? metric.as_float() : 0.0f,
+        .int_value = metric.is_float() ? 0 : metric.as_int(),
+    };
+
+    // Use the two-pass WriteNestedMessage API to write the metric directly to
+    // the stream without an intermediate buffer. The lambda will be called
+    // twice: once to measure the size, and a second time to write.
+    pw::Status status = parent_encoder_.WriteNestedMessage(
+        kMetricsFieldTag,
+        [&context](pw::protobuf::StreamEncoder& base_encoder) {
+          auto& metric_encoder = pw::protobuf::StreamEncoderCast<
+              pw::metric::proto::pwpb::Metric::StreamEncoder>(base_encoder);
+
+          metric_encoder.WriteTokenPath(context.path).IgnoreError();
+          if (context.is_float) {
+            metric_encoder.WriteAsFloat(context.float_value).IgnoreError();
+          } else {
+            metric_encoder.WriteAsInt(context.int_value).IgnoreError();
+          }
+          return metric_encoder.status();
+        });
+
+    if (status.ok()) {
+      --metric_limit_;
+    }
+
+    return status;
+  }
+
+ private:
+  ParentEncoder& parent_encoder_;
+  size_t metric_limit_;
 };
 
 }  // namespace pw::metric

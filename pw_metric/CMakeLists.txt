@@ -183,6 +183,7 @@ pw_add_test(pw_metric.metric_service_pwpb_test
     pw_rpc.pwpb.test_method_context
     pw_rpc.raw.test_method_context
     pw_rpc.test_helpers
+    pw_stream
   GROUPS
     modules
     pw_metric

@@ -159,6 +159,7 @@ pw_test("metric_service_pwpb_test") {
     "$dir_pw_rpc:test_helpers",
     "$dir_pw_rpc/pwpb:test_method_context",
     "$dir_pw_rpc/raw:test_method_context",
+    "$dir_pw_stream",
   ]
   sources = [ "metric_service_pwpb_test.cc" ]
 
