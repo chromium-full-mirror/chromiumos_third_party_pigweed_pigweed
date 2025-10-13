@@ -25,6 +25,7 @@
 #include "pw_result/result.h"
 #include "pw_span/span.h"
 #include "pw_status/status.h"
+#include "pw_stream/stream.h"
 #include "pw_sync/lock_annotations.h"
 #include "pw_sync/mutex.h"
 #include "pw_sync/virtual_basic_lockable.h"
@@ -66,10 +67,12 @@ class Snoop {
     is_enabled_ = true;
   }
 
-  /// Disable the snoop log
-  void Disable() {
+  /// Disable the snoop log. Returns if it was enabled.
+  bool Disable() {
     std::lock_guard lock(queue_lock_);
+    bool was_enabled = is_enabled_;
     is_enabled_ = false;
+    return was_enabled;
   }
 
   bool IsEnabled() {
@@ -120,6 +123,31 @@ class Snoop {
     AddEntry(emboss::snoop_log::PacketFlags::RECEIVED, packet);
   }
 
+  class Reader : public stream::NonSeekableReader {
+   public:
+    Reader(const Reader&) = delete;
+    Reader& operator=(const Reader&) = delete;
+    Reader(Reader&&);
+    Reader& operator=(Reader&&);
+    ~Reader() override;
+
+   private:
+    friend class Snoop;
+    explicit Reader(Snoop& snoop);
+    StatusWithSize DoRead(ByteSpan dest) override;
+    Snoop* snoop_;
+    containers::internal::VarLenEntryQueueIterator<std::byte> entry_iterator_;
+    size_t offset_in_entry_;
+    size_t header_offset_;
+    bool was_enabled_;
+  };
+
+  /// Get a reader to the snoop log. Only one reader should be active at a time.
+  ///
+  /// Note: while the reader is alive, the snoop log will be disabled.
+  /// Returns FAILED_PRECONDITION if another reader is active.
+  Result<Reader> GetReader();
+
  protected:
   /// @param system_clock system clock to use
   /// @param queue queue to hold all records
@@ -144,14 +172,10 @@ class Snoop {
   void AddEntry(emboss::snoop_log::PacketFlags emboss_packet_flag,
                 proxy::H4PacketInterface& hci_packet);
 
-  /// Generates the snoop log file header and sends it to the callback
-  ///
-  /// @param callback callback to invoke
-  Status DumpSnoopLogFileHeader(
-      const Function<Status(ConstByteSpan data)>& callback);
+  void ClearReader();
 
-  constexpr static uint32_t kEmbossFileVersion = 1;
   bool is_enabled_ PW_GUARDED_BY(queue_lock_) = true;
+  bool reader_active_ PW_GUARDED_BY(queue_lock_) = false;
   chrono::VirtualSystemClock& system_clock_;
   InlineVarLenEntryQueue<>& queue_ PW_GUARDED_BY(queue_lock_);
   span<uint8_t> scratch_buffer_ PW_GUARDED_BY(queue_lock_);

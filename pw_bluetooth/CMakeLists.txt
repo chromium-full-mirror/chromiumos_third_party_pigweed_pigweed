@@ -280,6 +280,7 @@ pw_add_library(pw_bluetooth.snoop STATIC
     pw_containers.inline_var_len_entry_queue
     pw_hex_dump
     pw_log
+    pw_stream
     pw_sync.mutex
     pw_sync.virtual_basic_lockable
     pw_result

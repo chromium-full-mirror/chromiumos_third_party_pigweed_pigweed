@@ -167,6 +167,7 @@ cc_library(
         "//pw_log",
         "//pw_result",
         "//pw_span",
+        "//pw_stream",
         "//pw_sync:mutex",
         "//pw_sync:virtual_basic_lockable",
     ],

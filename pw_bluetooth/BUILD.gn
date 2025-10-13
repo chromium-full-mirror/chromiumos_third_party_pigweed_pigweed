@@ -169,6 +169,7 @@ pw_source_set("snoop") {
     dir_pw_hex_dump,
     dir_pw_log,
     dir_pw_result,
+    dir_pw_stream,
   ]
 }
 

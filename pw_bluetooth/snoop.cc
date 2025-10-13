@@ -31,9 +31,167 @@
 #include "pw_result/result.h"
 #include "pw_span/span.h"
 #include "pw_status/status.h"
+#include "pw_stream/stream.h"
 #include "pw_sync/mutex.h"
 
 namespace pw::bluetooth {
+
+namespace {
+
+/// Copies as many items from src into dest as possible,
+/// returning the number of items copied.
+/// Note: The spans must not overlap.
+template <typename T>
+size_t CopyMax(span<const T> src, span<T> dest) {
+  size_t n = std::min(src.size(), dest.size());
+  std::copy_n(src.begin(), n, dest.begin());
+  return n;
+}
+
+constexpr uint32_t kEmbossFileVersion = 1;
+constexpr size_t kHeaderSize = 16;
+
+// Generates the snoop log file header
+//
+// @returns the file header
+Result<std::array<uint8_t, kHeaderSize>> GetSnoopLogFileHeader() {
+  std::array<uint8_t, kHeaderSize> file_header_data;
+  pw::Result<emboss::snoop_log::FileHeaderWriter> result =
+      MakeEmbossWriter<emboss::snoop_log::FileHeaderWriter>(file_header_data);
+  if (!result.ok()) {
+    return result.status();
+  }
+  emboss::snoop_log::FileHeaderWriter writer = result.value();
+  constexpr std::array<uint8_t, 8> kBtSnoopIdentificationPatternData = {
+      0x62, 0x74, 0x73, 0x6E, 0x6F, 0x6F, 0x70, 0x00};
+
+  auto identification_pattern_storage =
+      writer.identification_pattern().BackingStorage();
+  PW_ASSERT(kBtSnoopIdentificationPatternData.size() ==
+            identification_pattern_storage.SizeInBytes());
+  std::copy(kBtSnoopIdentificationPatternData.begin(),
+            kBtSnoopIdentificationPatternData.end(),
+            identification_pattern_storage.begin());
+  writer.version_number().Write(kEmbossFileVersion);
+  writer.datalink_type().Write(emboss::snoop_log::DataLinkType::HCI_UART_H4);
+  return file_header_data;
+}
+
+}  // namespace
+
+Snoop::Reader::Reader(Snoop& snoop)
+    : snoop_(&snoop),
+      entry_iterator_(snoop_->queue_.begin()),
+      offset_in_entry_(0),
+      header_offset_(0),
+      was_enabled_(snoop_->Disable()) {}
+
+Snoop::Reader::Reader(Snoop::Reader&& other)
+    : snoop_(other.snoop_),
+      entry_iterator_(std::move(other.entry_iterator_)),
+      offset_in_entry_(other.offset_in_entry_),
+      header_offset_(other.header_offset_),
+      was_enabled_(other.was_enabled_) {
+  other.snoop_ = nullptr;
+}
+
+Snoop::Reader& Snoop::Reader::operator=(Snoop::Reader&& other) {
+  if (this == &other) {
+    return *this;
+  }
+
+  if (snoop_ && was_enabled_) {
+    snoop_->ClearReader();
+    snoop_->Enable();
+  }
+
+  snoop_ = other.snoop_;
+  other.snoop_ = nullptr;
+  entry_iterator_ = std::move(other.entry_iterator_);
+  offset_in_entry_ = other.offset_in_entry_;
+  header_offset_ = other.header_offset_;
+  was_enabled_ = other.was_enabled_;
+  return *this;
+}
+
+Snoop::Reader::~Reader() {
+  if (snoop_ && was_enabled_) {
+    snoop_->ClearReader();
+    snoop_->Enable();
+  }
+}
+
+StatusWithSize Snoop::Reader::DoRead(ByteSpan dest) {
+  size_t bytes_written = 0;
+
+  // Header
+
+  if (header_offset_ < kHeaderSize) {
+    Result<std::array<uint8_t, kHeaderSize>> header = GetSnoopLogFileHeader();
+    if (!header.ok()) {
+      return StatusWithSize::Internal();
+    }
+
+    const size_t num_copied =
+        CopyMax(as_bytes(span(*header)).subspan(header_offset_), dest);
+    header_offset_ += num_copied;
+    bytes_written += num_copied;
+    dest = dest.subspan(num_copied);
+  }
+
+  if (dest.empty()) {
+    return StatusWithSize(bytes_written);
+  }
+
+  std::lock_guard lock(snoop_->queue_lock_);
+
+  // Queue
+  while (!dest.empty() && entry_iterator_ != snoop_->queue_.end()) {
+    const auto& entry = *entry_iterator_;
+    const auto data_parts = entry.contiguous_data();
+
+    ConstByteSpan src;
+    if (offset_in_entry_ < data_parts.first.size()) {
+      src = data_parts.first.subspan(offset_in_entry_);
+    } else {
+      const size_t offset_in_part2 = offset_in_entry_ - data_parts.first.size();
+      src = data_parts.second.subspan(offset_in_part2);
+    }
+
+    const size_t num_copied = CopyMax(src, dest);
+    offset_in_entry_ += num_copied;
+    bytes_written += num_copied;
+    dest = dest.subspan(num_copied);
+
+    if (offset_in_entry_ == entry.size()) {
+      ++entry_iterator_;
+      offset_in_entry_ = 0;
+    }
+  }
+
+  if (bytes_written == 0) {
+    return StatusWithSize::OutOfRange();
+  } else {
+    return StatusWithSize(bytes_written);
+  }
+}
+
+Result<Snoop::Reader> Snoop::GetReader() {
+  {
+    std::lock_guard lock(queue_lock_);
+    if (reader_active_) {
+      return Status::FailedPrecondition();
+    }
+    reader_active_ = true;
+  }
+
+  return Snoop::Reader(*this);
+}
+
+void Snoop::ClearReader() {
+  std::lock_guard lock(queue_lock_);
+  reader_active_ = false;
+}
 
 // Dump the snoop log to the log as a hex string
 Status Snoop::DumpToLog() {
@@ -76,7 +234,11 @@ Status Snoop::DumpToLog() {
 /// @param callback callback to invoke
 Status Snoop::DumpUnlocked(
     const Function<Status(ConstByteSpan data)>& callback) {
-  Status status = DumpSnoopLogFileHeader(callback);
+  Result<std::array<uint8_t, 16>> result = GetSnoopLogFileHeader();
+  if (!result.ok()) {
+    return result.status();
+  }
+  Status status = callback(as_bytes(span(result.value())));
   if (!status.ok()) {
     return status;
   }
@@ -142,33 +304,6 @@ void Snoop::AddEntry(emboss::snoop_log::PacketFlags emboss_packet_flag,
   // save the entry!
   queue_.push_overwrite(
       as_bytes(span{scratch_buffer_.data(), total_entry_size}));
-}
-
-/// Generates the snoop log file header
-///
-/// @returns the file header
-Status Snoop::DumpSnoopLogFileHeader(
-    const Function<Status(ConstByteSpan data)>& callback) {
-  std::array<uint8_t, 16> file_header_data;
-  pw::Result<emboss::snoop_log::FileHeaderWriter> result =
-      MakeEmbossWriter<emboss::snoop_log::FileHeaderWriter>(file_header_data);
-  if (!result.ok()) {
-    return result.status();
-  }
-  emboss::snoop_log::FileHeaderWriter writer = result.value();
-  constexpr std::array<uint8_t, 8> kBtSnoopIdentificationPatternData = {
-      0x62, 0x74, 0x73, 0x6E, 0x6F, 0x6F, 0x70, 0x00};
-
-  auto identification_pattern_storage =
-      writer.identification_pattern().BackingStorage();
-  PW_ASSERT(kBtSnoopIdentificationPatternData.size() ==
-            identification_pattern_storage.SizeInBytes());
-  std::copy(kBtSnoopIdentificationPatternData.begin(),
-            kBtSnoopIdentificationPatternData.end(),
-            identification_pattern_storage.begin());
-  writer.version_number().Write(kEmbossFileVersion);
-  writer.datalink_type().Write(emboss::snoop_log::DataLinkType::HCI_UART_H4);
-  return callback(as_bytes(span(file_header_data)));
 }
 
 }  // namespace pw::bluetooth
