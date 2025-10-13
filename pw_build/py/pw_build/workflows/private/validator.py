@@ -48,13 +48,16 @@ Fragment = (
     | workflows_pb2.TaskGroup
     | workflows_pb2.Tool
     | workflows_pb2.Build
+    | workflows_pb2.OutputGroupSpec
 )
 
 
 def collect_all_fragments(
     workflow_suite: workflows_pb2.WorkflowSuite,
 ) -> list[Fragment]:
+    """Collect all Fragments into one list."""
     all_fragments: list[Fragment] = []
+    all_fragments.extend(workflow_suite.output_specs)
     all_fragments.extend(workflow_suite.configs)
     all_fragments.extend(workflow_suite.builds)
     all_fragments.extend(
@@ -73,6 +76,14 @@ def collect_all_fragments(
         ]
     )
     all_fragments.extend(workflow_suite.groups)
+
+    output_specs: list[workflows_pb2.OutputGroupSpec] = []
+    for build in workflow_suite.builds:
+        output_specs.extend(build.output_spec)
+    for tool in workflow_suite.tools:
+        output_specs.extend(tool.output_spec)
+    all_fragments.extend(output_specs)
+
     return all_fragments
 
 
@@ -94,6 +105,9 @@ class Validator:
         self._shared_config_names = {
             config.name for config in self._workflow_suite.configs
         }
+        self._shared_output_names = {
+            output.name for output in self._workflow_suite.output_specs
+        }
 
     def validate(self) -> None:
         """Runs all checks on the loaded Workflows config.
@@ -111,6 +125,9 @@ class Validator:
         ] = []
         tool_fragment_checks: list[Callable[[workflows_pb2.Tool], None]] = []
         build_fragment_checks: list[Callable[[workflows_pb2.Build], None]] = []
+        output_fragment_checks: list[
+            Callable[[workflows_pb2.OutputGroupSpec], None]
+        ] = []
         for attr in dir(self):
             if attr.startswith('check_fragment_'):
                 all_fragment_checks.append(getattr(self, attr))
@@ -122,6 +139,8 @@ class Validator:
                 tool_fragment_checks.append(getattr(self, attr))
             elif attr.startswith('check_group_'):
                 group_fragment_checks.append(getattr(self, attr))
+            elif attr.startswith('check_output_'):
+                output_fragment_checks.append(getattr(self, attr))
         for fragment in self._all_fragments:
             for check in all_fragment_checks:
                 check(fragment)
@@ -137,6 +156,9 @@ class Validator:
             elif isinstance(fragment, workflows_pb2.TaskGroup):
                 for group_check in group_fragment_checks:
                     group_check(fragment)
+            elif isinstance(fragment, workflows_pb2.OutputGroupSpec):
+                for output_check in output_fragment_checks:
+                    output_check(fragment)
             else:
                 raise ValidationError(f'Unknown fragment type: {fragment}')
 
@@ -185,6 +207,16 @@ class Validator:
                 f'`{build.use_config}`'
             )
 
+    def check_build_references_real_output(
+        self, build: workflows_pb2.Build
+    ) -> None:
+        for output in build.use_output:
+            if output not in self._shared_output_names:
+                raise ValidationError(
+                    f'Build `{build.name}` references missing output spec '
+                    f'`{output}`'
+                )
+
     @staticmethod
     def check_build_has_config(build: workflows_pb2.Build) -> None:
         which = build.WhichOneof('config')
@@ -206,6 +238,16 @@ class Validator:
                 f'Tool `{tool.name}` references missing build config '
                 f'`{tool.use_config}`'
             )
+
+    def check_tool_references_real_output(
+        self, tool: workflows_pb2.Tool
+    ) -> None:
+        for output in tool.use_output:
+            if output not in self._shared_output_names:
+                raise ValidationError(
+                    f'Tool `{tool.name}` references missing output spec '
+                    f'`{output}`'
+                )
 
     @staticmethod
     def check_tool_has_config(tool: workflows_pb2.Tool) -> None:
@@ -266,3 +308,12 @@ class Validator:
                     f'`{analyzer_name}` which is not of type ANALYZER and '
                     'has no analyzer_friendly_args.'
                 )
+
+    @staticmethod
+    def check_output_has_patterns(
+        output: workflows_pb2.OutputGroupSpec,
+    ) -> None:
+        if not output.glob_patterns:
+            raise ValidationError(
+                f'Output group spec `{output.name}` has no glob_patterns.',
+            )

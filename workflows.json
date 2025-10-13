@@ -28,6 +28,7 @@
       "env": {}
     }
   ],
+  "output_specs": [],
   "builds": [
     {
       "name": "all_host",

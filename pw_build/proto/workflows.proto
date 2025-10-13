@@ -18,6 +18,45 @@ package pw.build.proto;
 
 import "google/protobuf/any.proto";
 
+// Describes a group of outputs of a build action.
+message OutputGroupSpec {
+  // The name by which this output group can be referenced.
+  string name = 1;
+
+  // File glob patterns that are included in this output group.
+  // These follow starlark/python file globbing semantics.
+  repeated string glob_patterns = 2;
+
+  // The prefix that should be stripped from these paths when they are
+  // packaged or exported.
+  //
+  // If any files in the glob patterns aren't beneath this prefix, an error
+  // will be raised.
+  string strip_prefix = 3;
+
+  // If a build succeeds and no files are captured by this output group then
+  // an error will be raised. Setting this field to True suppresses this error.
+  bool allow_empty = 4;
+}
+
+message OutputGroup {
+  // Files that match the given globs.
+  repeated string matching_files = 1;
+
+  // The prefix that should be stripped from these paths when they are
+  // packaged or exported.
+  string strip_prefix = 2;
+}
+
+message BuildArtifacts {
+  // The root of the output directory. All OutputGroupSpec paths are
+  // relative to this root.
+  string output_root = 1;
+
+  // Output groups related to the requested build.
+  repeated OutputGroup output_groups = 2;
+}
+
 // A distinct build configuration.
 //
 // Build configurations are expected to be hermetic, meaning that if the
@@ -76,6 +115,12 @@ message Build {
   //
   // If this is not set, the assumed way to run this build is `build [name]`.
   string rerun_shortcut = 6;
+
+  // The ID/name of shared OutputGroupSpecs.
+  repeated string use_output = 7;
+
+  // Unique one-off specs.
+  repeated OutputGroupSpec output_spec = 8;
 }
 
 // A runnable tool.
@@ -133,6 +178,12 @@ message Tool {
   // unsupported for other tool types.
   // If this is not set, the assumed way to run this analyzer is `check [name]`.
   string rerun_shortcut = 8;
+
+  // The ID/name of shared OutputGroupSpecs.
+  repeated string use_output = 9;
+
+  // Unique one-off specs.
+  repeated OutputGroupSpec output_spec = 10;
 }
 
 // A series of builds and analyzers that are launchable as a group to
@@ -187,4 +238,5 @@ message WorkflowSuite {
   repeated Build builds = 3;
   repeated Tool tools = 4;
   repeated TaskGroup groups = 5;
+  repeated OutputGroupSpec output_specs = 6;
 }

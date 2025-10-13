@@ -57,6 +57,12 @@ class WorkflowsManagerTest(unittest.TestCase):
                     build_type='fake_build_type',
                 )
             ],
+            output_specs=[
+                workflows_pb2.OutputGroupSpec(
+                    name='output_1',
+                    glob_patterns=['one*'],
+                ),
+            ],
             tools=[
                 workflows_pb2.Tool(
                     name='my_tool',
@@ -65,11 +71,18 @@ class WorkflowsManagerTest(unittest.TestCase):
                         build_type='fake_build_type',
                     ),
                     target='//my_tool',
+                    use_output=['output_1'],
                 ),
                 workflows_pb2.Tool(
                     name='tool_with_shared_config',
                     use_config='shared_config',
                     target='//another_tool',
+                    output_spec=[
+                        workflows_pb2.OutputGroupSpec(
+                            name='output_2',
+                            glob_patterns=['two*'],
+                        ),
+                    ],
                 ),
                 workflows_pb2.Tool(
                     name='analyzer_tool',
@@ -79,6 +92,7 @@ class WorkflowsManagerTest(unittest.TestCase):
                         build_type='fake_build_type',
                     ),
                     target='//my_tool',
+                    use_output=['output_1'],
                 ),
                 workflows_pb2.Tool(
                     name='analyzer_friendly_tool',

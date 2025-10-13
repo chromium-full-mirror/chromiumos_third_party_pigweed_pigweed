@@ -67,6 +67,15 @@ class ValidatorTest(unittest.TestCase):
         with self.assertRaises(validator.ValidationError):
             val.check_build_references_real_config(build)
 
+    def test_check_build_references_real_output(self):
+        """Test that builds reference real outputs."""
+        workflow_suite = workflows_pb2.WorkflowSuite()
+        build = workflow_suite.builds.add(name='test-build')
+        build.use_output.append('missing-output')
+        val = validator.Validator(workflow_suite, {})
+        with self.assertRaises(validator.ValidationError):
+            val.check_build_references_real_output(build)
+
     def test_check_build_has_config(self):
         """Test that builds have a config."""
         workflow_suite = workflows_pb2.WorkflowSuite()
@@ -93,6 +102,15 @@ class ValidatorTest(unittest.TestCase):
         val = validator.Validator(workflow_suite, {})
         with self.assertRaises(validator.ValidationError):
             val.check_tool_references_real_config(tool)
+
+    def test_check_tool_references_real_output(self):
+        """Test that tools reference real configs."""
+        workflow_suite = workflows_pb2.WorkflowSuite()
+        tool = workflow_suite.tools.add(name='test-tool')
+        tool.use_output.append('missing-output')
+        val = validator.Validator(workflow_suite, {})
+        with self.assertRaises(validator.ValidationError):
+            val.check_tool_references_real_output(tool)
 
     def test_check_tool_has_config(self):
         """Test that tools have a config."""

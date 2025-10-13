@@ -102,6 +102,9 @@ class WorkflowsManager:
         self._shared_configs: dict[str, workflows_pb2.BuildConfig] = {
             config.name: config for config in self._workflow_suite.configs
         }
+        self._shared_output_specs: dict[str, workflows_pb2.OutputGroupSpec] = {
+            spec.name: spec for spec in self._workflow_suite.output_specs
+        }
         if project_root is not None:
             self._project_root = project_root
         elif _BAZEL_PROJECT_ROOT_ENV_VAR in os.environ:
@@ -304,6 +307,12 @@ class WorkflowsManager:
                 config = self._get_build_config(fragment)
                 fragment.ClearField('use_config')
                 fragment.build_config.CopyFrom(config)
+            if hasattr(fragment, "use_outputs"):
+                for spec_name in fragment.use_output:
+                    fragment.output_spec.append(
+                        self._shared_output_specs[spec_name],
+                    )
+                fragment.ClearField('use_output')
 
             build_type = fragment.build_config.build_type
             if build_type in self._extra_build_args:
