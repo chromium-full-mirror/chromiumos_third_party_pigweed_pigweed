@@ -27,9 +27,9 @@ import pw_package.git_repo
 import pw_package.package_manager
 
 # ROLL: Warning: this variable is automatically updated.
-# ROLL: Last updated 2025-09-30.
-# ROLL: By https://cr-buildbucket.appspot.com/build/8702292033681818001.
-_ZEPHYR_COMMIT_SHA = '5ad9494835ab618f48635f4fd8b6d6c77516807d'
+# ROLL: Last updated 2025-10-13.
+# ROLL: By https://cr-buildbucket.appspot.com/build/8701142467237535809.
+_ZEPHYR_COMMIT_SHA = '18d885d76cc20183b820d2aac8127464dabe9521'
 
 
 class Zephyr(pw_package.git_repo.GitRepo):
