@@ -29,6 +29,7 @@ from typing import Iterable, NamedTuple, Sequence, TextIO
 import pw_cli.log
 
 from pw_compilation_testing.generator import (
+    MalformedTestError,
     ParseError,
     TestCase,
     enumerate_tests,
@@ -122,14 +123,24 @@ def _execute_tests_and_report_results(
     _LOG.debug('%d of %d PW_NC_TESTs passed.', len(passes), len(tests))
 
 
+def _enumeration_error(title: str, details: str) -> None:
+    print('\n\033[31;1mERROR:\033[0m', title, file=sys.stderr)
+    print(file=sys.stderr)
+    print(details, file=sys.stderr)
+    print(file=sys.stderr)
+
+
 def _main(name: str, results: Path, sources: dict[Path, Path]) -> int:
-    """Generates and runs negative compilation tests."""
+    """Parses and runs negative compilation tests."""
     pw_cli.log.install(level=logging.INFO)
 
     try:
         tests = enumerate_tests(name[name.rfind(':') + 1 :], sources.keys())
-    except (ValueError, ParseError) as err:
-        _LOG.error(err)
+    except MalformedTestError as err:
+        _enumeration_error(f'{name} is invalid.', err.message)
+        return 1
+    except ParseError as err:
+        _enumeration_error(f'Parse error in {name}', err.message)
         return 1
 
     with results.open('w') as result_script:

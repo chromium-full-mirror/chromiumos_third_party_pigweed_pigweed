@@ -21,6 +21,7 @@ import unittest
 from pw_compilation_testing.generator import (
     Compiler,
     Expectation,
+    MalformedTestError,
     ParseError,
     TestCase,
     enumerate_tests,
@@ -136,7 +137,9 @@ class ParserTest(unittest.TestCase):
     def test_no_tests(self) -> None:
         try:
             path = _write_to_temp_file(NO_TESTS_SOURCE)
-            with self.assertRaisesRegex(ValueError, 'no negative compilation'):
+            with self.assertRaisesRegex(
+                MalformedTestError, 'no negative compilation test cases'
+            ):
                 enumerate_tests('MySuite', [path])
         finally:
             path.unlink()
@@ -144,7 +147,9 @@ class ParserTest(unittest.TestCase):
     def test_duplicate_tests(self) -> None:
         try:
             path = _write_to_temp_file(DUPLICATE_SOURCE)
-            with self.assertRaisesRegex(ValueError, 'duplicate negative'):
+            with self.assertRaisesRegex(
+                MalformedTestError, 'duplicate negative compilation test cases'
+            ):
                 enumerate_tests('MySuite', [path])
         finally:
             path.unlink()

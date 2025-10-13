@@ -109,6 +109,14 @@ class TestCase:
         return pickle.loads(base64.b64decode(serialized))
 
 
+class MalformedTestError(Exception):
+    """The tests are syntactically correct, but the test file is invalid."""
+
+    def __init__(self, message: str) -> None:
+        self.message = message
+        super().__init__(self, self.message)
+
+
 class ParseError(Exception):
     """Failed to parse a PW_NC_TEST."""
 
@@ -119,9 +127,11 @@ class ParseError(Exception):
         lines: Sequence[str],
         error_lines: Sequence[int],
     ) -> None:
-        for i in error_lines:
-            message += f'\n{file.name}:{i + 1}: {lines[i]}'
-        super().__init__(message)
+        lines = '\n'.join(
+            f'{file.name}:{i + 1}: {lines[i].rstrip()}' for i in error_lines
+        )
+        self.message = f'{message}\n\n{lines}'
+        super().__init__(self.message)
 
 
 class _ExpectationParser:
@@ -305,7 +315,7 @@ def enumerate_tests(name: str, sources: Iterable[Path]) -> Sequence[TestCase]:
 
     Raises:
         ParseError: if parsing fails.
-        ValueError: if there are no tests or if there are duplicate tests.
+        MalformedTestError: if there are no tests or duplicate tests.
     """
     tests = list(
         itertools.chain.from_iterable(
@@ -314,9 +324,9 @@ def enumerate_tests(name: str, sources: Iterable[Path]) -> Sequence[TestCase]:
     )
 
     if not tests:
-        raise ValueError(
-            f'The test "{name}" has no negative compilation tests!\n'
-            'Add PW_NC_TEST() cases or remove this negative compilation test'
+        raise MalformedTestError(
+            f'The test "{name}" has no negative compilation test cases!\n'
+            'Add PW_NC_TEST() cases or remove this negative compilation test.'
         )
 
     tests_by_case: dict[str, list[TestCase]] = defaultdict(list)
@@ -335,7 +345,7 @@ def enumerate_tests(name: str, sources: Iterable[Path]) -> Sequence[TestCase]:
             )
             for test in dup_tests:
                 message.append(f'        {test.source.name}:{test.line}')
-        raise ValueError('\n'.join(message))
+        raise MalformedTestError('\n'.join(message))
 
     return tests
 
@@ -405,7 +415,7 @@ def _main(
 
     try:
         tests = enumerate_tests(name, (s.file_path for s in sources))
-    except (ParseError, ValueError) as error:
+    except (MalformedTestError, ParseError) as error:
         print_stderr(f'ERROR: {error}')
         return 1
 
