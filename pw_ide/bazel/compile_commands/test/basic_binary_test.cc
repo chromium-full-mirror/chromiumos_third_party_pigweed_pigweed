@@ -12,7 +12,7 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 
-// This files is unique so its real path can be identified during testing.
+// This file is unique so its real path can be identified during testing.
 // Generated files have different paths, so this is a real file that is
 // checked-in to the repo.
 
