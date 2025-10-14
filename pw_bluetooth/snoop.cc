@@ -67,8 +67,8 @@ Result<std::array<uint8_t, kHeaderSize>> GetSnoopLogFileHeader() {
 
   auto identification_pattern_storage =
       writer.identification_pattern().BackingStorage();
-  PW_ASSERT(kBtSnoopIdentificationPatternData.size() ==
-            identification_pattern_storage.SizeInBytes());
+  PW_CHECK(kBtSnoopIdentificationPatternData.size() ==
+           identification_pattern_storage.SizeInBytes());
   std::copy(kBtSnoopIdentificationPatternData.begin(),
             kBtSnoopIdentificationPatternData.end(),
             identification_pattern_storage.begin());
@@ -100,10 +100,8 @@ Snoop::Reader& Snoop::Reader::operator=(Snoop::Reader&& other) {
     return *this;
   }
 
-  if (snoop_ && was_enabled_) {
-    snoop_->ClearReader();
-    snoop_->Enable();
-  }
+  // Not supported due to one Reader policy.
+  PW_CHECK(!snoop_);
 
   snoop_ = other.snoop_;
   other.snoop_ = nullptr;
