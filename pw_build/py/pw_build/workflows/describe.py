@@ -100,7 +100,7 @@ class Describe:
         result = []
         for name in args.name:
             result.append(self.dump_fragment(name))
-        return ''.join(f'{x}\n' for x in result)
+        return '\n---\n'.join(f'{x.strip()}' for x in result)
 
     def dump_config(self) -> str:
         """Dumps the entire config in a human-readable format."""

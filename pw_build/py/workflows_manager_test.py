@@ -183,6 +183,22 @@ class WorkflowsManagerTest(unittest.TestCase):
         step = recipe.steps[0]
         self.assertEqual(step.command, ['fake_executable', 'fake_arg'])
 
+    def test_program_tool_with_forwarded_args(self):
+        """Test that program_tool forwards arguments correctly."""
+        manager = WorkflowsManager(
+            self.workflow_suite,
+            self.build_drivers,
+            self.working_dir,
+            self.base_out_dir,
+            self.project_root,
+        )
+        with patch.object(
+            manager, '_create_build_recipes', return_value=[]
+        ) as mock_create:
+            manager.program_tool('my_tool', ['--forwarded'])
+            mock_create.assert_called_once()
+            self.assertEqual(mock_create.call_args[0][1], ['--forwarded'])
+
     def test_program_tool_not_a_tool_raises_error(self):
         """Test that TypeError is raised for non-tool fragments."""
         manager = WorkflowsManager(

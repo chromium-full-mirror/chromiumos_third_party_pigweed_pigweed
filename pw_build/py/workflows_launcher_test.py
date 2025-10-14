@@ -151,6 +151,24 @@ class TestWorkflowsLauncher(unittest.TestCase):
         actual = cli.describe().describe(['format']).strip()
         self.assertEqual(actual, expected)
 
+    def test_describe_multiple(self):
+        cli = self._load_config(_EXAMPLE_CONFIG)
+        expected = '''name: "format"
+description: "Find and fix code formatting issues"
+use_config: "bazel_default"
+target: "@pigweed//:format"
+analyzer_friendly_args: "--check"
+---
+name: "presubmit"
+builds: "all_host"
+builds: "docs"
+builds: "rp2040"
+builds: "rp2350"
+analyzers: "format"
+analyzers: "owners_lint"'''
+        actual = cli.describe().describe(['format', 'presubmit']).strip()
+        self.assertEqual(actual, expected)
+
     def test_group(self):
         cli = self._load_config(_EXAMPLE_CONFIG)
         expected = '\n'.join(
