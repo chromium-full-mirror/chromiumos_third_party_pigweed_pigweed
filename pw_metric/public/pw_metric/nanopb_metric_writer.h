@@ -30,7 +30,7 @@ namespace pw::metric {
 
 // Writes all metrics from a MetricWalker into a nanopb C struct array.
 //
-// This utility class implements the pw::metric::internal::MetricWriter
+// This utility class implements the pw::metric::MetricWriter
 // interface to bridge the MetricWalker to any nanopb message that contains a
 // `repeated pw_metric_proto_Metric` field (e.g., WalkResponse or a
 // custom snapshot proto).
@@ -39,7 +39,7 @@ namespace pw::metric {
 // and gracefully stops the walk by returning ResourceExhausted if
 // either the array runs out of space or an application-defined
 // metric count limit is reached.
-class NanopbMetricWriter : public internal::MetricWriter {
+class NanopbMetricWriter : public MetricWriter {
  public:
   // Constructs a new nanopb metric writer.
   //

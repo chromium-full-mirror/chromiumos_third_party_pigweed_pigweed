@@ -384,7 +384,7 @@ TEST(NanopbMetricWriter, BasicWalk) {
 
   NanopbMetricWriter writer(
       response.metrics, response.metrics_count, metric_limit);
-  internal::MetricWalker walker(writer);
+  MetricWalker walker(writer);
 
   Status walk_status = walker.Walk(root);
   ASSERT_EQ(OkStatus(), walk_status);
@@ -406,7 +406,7 @@ TEST(NanopbMetricWriter, StopsAtMetricLimit) {
 
   NanopbMetricWriter writer(
       response.metrics, response.metrics_count, metric_limit);
-  internal::MetricWalker walker(writer);
+  MetricWalker walker(writer);
 
   // The writer will return ResourceExhausted when the limit hits 0.
   Status walk_status = walker.Walk(root);
@@ -442,7 +442,7 @@ TEST(NanopbMetricWriter, StopsAtBufferLimit) {
 
   NanopbMetricWriter writer(
       response.metrics, response.metrics_count, metric_limit);
-  internal::MetricWalker walker(writer);
+  MetricWalker walker(writer);
 
   // The writer will return ResourceExhausted when it tries to write the 11th
   // metric (m0) into the 10-slot array.
@@ -481,7 +481,7 @@ TEST(NanopbMetricWriter, StopsAtBufferLimitWhenMetricLimitIsMax) {
 
   NanopbMetricWriter writer(
       response.metrics, response.metrics_count, metric_limit);
-  internal::MetricWalker walker(writer);
+  MetricWalker walker(writer);
 
   // The writer will return ResourceExhausted when it tries to write the 11th
   // metric (m0) into the 10-slot array.
@@ -507,7 +507,7 @@ TEST(NanopbMetricWriter, WalksEmptyRoot) {
 
   NanopbMetricWriter writer(
       response.metrics, response.metrics_count, metric_limit);
-  internal::MetricWalker walker(writer);
+  MetricWalker walker(writer);
 
   Status walk_status = walker.Walk(root);
   ASSERT_EQ(OkStatus(), walk_status);

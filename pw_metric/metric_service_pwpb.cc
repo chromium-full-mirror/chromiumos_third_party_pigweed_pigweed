@@ -43,7 +43,7 @@ constexpr size_t kMaxNumPackedEntries = 3;
 
 namespace {
 
-class PwpbStreamingMetricWriter : public virtual internal::MetricWriter {
+class PwpbStreamingMetricWriter : public virtual MetricWriter {
  public:
   PwpbStreamingMetricWriter(span<std::byte> response,
                             rpc::RawServerWriter& response_writer)
@@ -106,7 +106,7 @@ constexpr size_t kWalkResponseOverhead =
 
 // A UnaryMetricWriter that uses a pw::protobuf::MemoryEncoder to serialize
 // metrics for the paginated Walk RPC.
-class PwpbUnaryMetricWriter final : public internal::UnaryMetricWriter {
+class PwpbUnaryMetricWriter final : public UnaryMetricWriter {
  public:
   explicit PwpbUnaryMetricWriter(
       proto::pwpb::WalkResponse::MemoryEncoder& encoder, size_t capacity)
@@ -206,7 +206,7 @@ void MetricService::Get(ConstByteSpan /*request*/,
   std::array<std::byte, kEncodeBufferSize> encode_buffer;
 
   PwpbStreamingMetricWriter writer(encode_buffer, raw_response);
-  internal::MetricWalker walker(writer);
+  MetricWalker walker(writer);
 
   // This will stream all the metrics in the span of this Get() method call.
   // This will have the effect of blocking the RPC thread until all the metrics
@@ -269,7 +269,7 @@ void MetricService::Walk(ConstByteSpan serialized_request,
     // responder before the callback. This is our ground truth for the
     // payload size.
     PwpbUnaryMetricWriter writer(encoder, context.capacity);
-    internal::ResumableMetricWalker walker(writer);
+    ResumableMetricWalker walker(writer);
 
     Result<uint64_t> result = walker.Walk(
         context.service.metrics_, context.service.groups_, context.cursor);

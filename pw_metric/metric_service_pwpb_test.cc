@@ -607,7 +607,7 @@ TEST(PwpbMetricWriter, BasicWalk) {
                        proto::pwpb::WalkResponse::Fields::kMetrics)>
       writer(parent_encoder, metric_limit);
 
-  internal::MetricWalker walker(writer);
+  MetricWalker walker(writer);
 
   Status walk_status = walker.Walk(root);
   PW_TEST_ASSERT_OK(walk_status);
@@ -636,7 +636,7 @@ TEST(PwpbMetricWriter, StopsAtMetricLimit) {
                        proto::pwpb::WalkResponse::Fields::kMetrics)>
       writer(parent_encoder, metric_limit);
 
-  internal::MetricWalker walker(writer);
+  MetricWalker walker(writer);
 
   // The writer will return ResourceExhausted when the limit hits 0, which
   // stops the walker.
@@ -702,7 +702,7 @@ TEST(PwpbMetricWriter, StopsAtBufferLimit) {
                        proto::pwpb::WalkResponse::Fields::kMetrics)>
       writer(parent_encoder, metric_limit);
 
-  internal::MetricWalker walker(writer);
+  MetricWalker walker(writer);
 
   Status walk_status = walker.Walk(root);
   ASSERT_EQ(Status::ResourceExhausted(), walk_status);
@@ -759,7 +759,7 @@ TEST(PwpbMetricWriter, StopsAtBufferLimitWhenMetricLimitIsMax) {
                        proto::pwpb::WalkResponse::Fields::kMetrics)>
       writer(parent_encoder, metric_limit);
 
-  internal::MetricWalker walker(writer);
+  MetricWalker walker(writer);
 
   Status walk_status = walker.Walk(root);
   ASSERT_EQ(Status::ResourceExhausted(), walk_status);
@@ -787,7 +787,7 @@ TEST(PwpbMetricWriter, WalksEmptyRoot) {
                    static_cast<uint32_t>(
                        proto::pwpb::WalkResponse::Fields::kMetrics)>
       writer(parent_encoder, metric_limit);
-  internal::MetricWalker walker(writer);
+  MetricWalker walker(writer);
 
   Status walk_status = walker.Walk(root);
   PW_TEST_ASSERT_OK(walk_status);
@@ -822,7 +822,7 @@ TEST(PwpbMetricWriter, StopsWhenSingleMetricIsTooLarge) {
                    static_cast<uint32_t>(
                        proto::pwpb::WalkResponse::Fields::kMetrics)>
       writer(parent_encoder, metric_limit);
-  internal::MetricWalker walker(writer);
+  MetricWalker walker(writer);
 
   // The first call to Write() should fail.
   Status walk_status = walker.Walk(root);
@@ -872,7 +872,7 @@ TEST(PwpbMetricWriter, WalksWithMixedTypesAndExactBuffer) {
                    static_cast<uint32_t>(
                        proto::pwpb::WalkResponse::Fields::kMetrics)>
       writer(parent_encoder, metric_limit);
-  internal::MetricWalker walker(writer);
+  MetricWalker walker(writer);
 
   Status walk_status = walker.Walk(root);
   PW_TEST_ASSERT_OK(walk_status);
@@ -933,7 +933,7 @@ TEST(PwpbStreamingMetricWriter, WriteIsAtomic) {
                                 proto::pwpb::WalkResponse::Fields::kMetrics)>
       writer(parent_encoder);
 
-  internal::MetricWalker walker(writer);
+  MetricWalker walker(writer);
   PW_TEST_ASSERT_OK(walker.Walk(root));
   PW_TEST_ASSERT_OK(parent_encoder.status());
 
@@ -985,7 +985,7 @@ TEST(PwpbStreamingMetricWriter, BasicWalk) {
                                 proto::pwpb::WalkResponse::Fields::kMetrics)>
       writer(parent_encoder);
 
-  internal::MetricWalker walker(writer);
+  MetricWalker walker(writer);
 
   Status walk_status = walker.Walk(root);
   PW_TEST_ASSERT_OK(walk_status);
@@ -1010,7 +1010,7 @@ TEST(PwpbStreamingMetricWriter, StopsAtMetricLimit) {
                                 proto::pwpb::WalkResponse::Fields::kMetrics)>
       writer(parent_encoder, metric_limit);
 
-  internal::MetricWalker walker(writer);
+  MetricWalker walker(writer);
 
   Status walk_status = walker.Walk(root);
   ASSERT_EQ(Status::ResourceExhausted(), walk_status);
@@ -1035,7 +1035,7 @@ TEST(PwpbStreamingMetricWriter, StopsWhenStreamIsFull) {
                                 proto::pwpb::WalkResponse::Fields::kMetrics)>
       writer(parent_encoder);
 
-  internal::MetricWalker walker(writer);
+  MetricWalker walker(writer);
 
   Status walk_status = walker.Walk(root);
 
@@ -1061,7 +1061,7 @@ TEST(PwpbStreamingMetricWriter, WalksEmptyMetricTree) {
                             static_cast<uint32_t>(
                                 proto::pwpb::WalkResponse::Fields::kMetrics)>
       writer(parent_encoder);
-  internal::MetricWalker walker(writer);
+  MetricWalker walker(writer);
 
   Status walk_status = walker.Walk(root);
   PW_TEST_ASSERT_OK(walk_status);
@@ -1083,7 +1083,7 @@ TEST(PwpbStreamingMetricWriter, StopsWithZeroMetricLimit) {
                             static_cast<uint32_t>(
                                 proto::pwpb::WalkResponse::Fields::kMetrics)>
       writer(parent_encoder, metric_limit);
-  internal::MetricWalker walker(writer);
+  MetricWalker walker(writer);
 
   Status walk_status = walker.Walk(root);
   ASSERT_EQ(Status::ResourceExhausted(), walk_status);

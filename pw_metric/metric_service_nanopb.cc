@@ -58,7 +58,7 @@ void WriteMetricToResponse(const Metric& metric,
 
 // A MetricWriter for the legacy, streaming Get RPC. It writes metrics to a
 // nanopb struct and flushes the batch when it's full.
-class NanopbStreamingMetricWriter : public virtual internal::MetricWriter {
+class NanopbStreamingMetricWriter : public virtual MetricWriter {
  public:
   NanopbStreamingMetricWriter(
       MetricService::ServerWriter<pw_metric_proto_MetricResponse>&
@@ -102,7 +102,7 @@ class NanopbStreamingMetricWriter : public virtual internal::MetricWriter {
 
 // A UnaryMetricWriter that populates a nanopb WalkResponse struct. This writer
 // is used by the ResumableMetricWalker to fill a page of metrics.
-class NanopbUnaryMetricWriter : public internal::UnaryMetricWriter {
+class NanopbUnaryMetricWriter : public UnaryMetricWriter {
  public:
   explicit NanopbUnaryMetricWriter(pw_metric_proto_WalkResponse& response)
       : response_(response) {}
@@ -149,7 +149,7 @@ void MetricService::Get(
     ServerWriter<pw_metric_proto_MetricResponse>& response) {
   // For now, ignore the request and just stream all the metrics back.
   NanopbStreamingMetricWriter writer(response);
-  internal::MetricWalker walker(writer);
+  MetricWalker walker(writer);
 
   // This will stream all the metrics in the span of this Get() method call.
   // This will have the effect of blocking the RPC thread until all the metrics
@@ -176,7 +176,7 @@ Status MetricService::Walk(const pw_metric_proto_WalkRequest& request,
 
   response = pw_metric_proto_WalkResponse_init_zero;
   NanopbUnaryMetricWriter writer(response);
-  internal::ResumableMetricWalker walker(writer);
+  ResumableMetricWalker walker(writer);
 
   Result<uint64_t> result = walker.Walk(
       metrics_,

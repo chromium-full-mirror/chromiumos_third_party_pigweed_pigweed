@@ -25,7 +25,7 @@
 #include "pw_status/status.h"
 #include "pw_status/try.h"
 
-namespace pw::metric::internal {
+namespace pw::metric {
 
 // Private implementation of ScopedName. Exists to safely push/pop parent groups
 // from the explicit stack during a metric walk.
@@ -113,4 +113,4 @@ Status ResumableMetricWalker::RecursiveWalkHelper(
   return OkStatus();
 }
 
-}  // namespace pw::metric::internal
+}  // namespace pw::metric

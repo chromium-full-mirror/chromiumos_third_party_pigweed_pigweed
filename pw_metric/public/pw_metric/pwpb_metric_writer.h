@@ -27,7 +27,7 @@ namespace pw::metric {
 
 // Writes all metrics from a MetricWalker into a pwpb stream encoder.
 //
-// This utility class implements the pw::metric::internal::MetricWriter
+// This utility class implements the pw::metric::MetricWriter
 // interface to bridge the MetricWalker to any pwpb stream encoder that has a
 // repeated pw.metric.proto.Metric field. This is useful for generically
 // dumping all metrics into any container proto (like a snapshot, telemetry
@@ -42,7 +42,7 @@ namespace pw::metric {
 // @tparam kMetricsFieldTag The field number (tag) of the
 //    `repeated pw.metric.proto.Metric` field in the parent proto.
 template <typename ParentEncoder, uint32_t kMetricsFieldTag>
-class PwpbMetricWriter : public internal::MetricWriter {
+class PwpbMetricWriter : public MetricWriter {
  public:
   // Constructs a new pwpb metric writer.
   //
@@ -130,7 +130,7 @@ class PwpbMetricWriter : public internal::MetricWriter {
 // @tparam kMetricsFieldTag The field number (tag) of the
 //    `repeated pw.metric.proto.Metric` field in the parent proto.
 template <typename ParentEncoder, uint32_t kMetricsFieldTag>
-class PwpbStreamingMetricWriter : public internal::MetricWriter {
+class PwpbStreamingMetricWriter : public MetricWriter {
  public:
   // Constructs a new pwpb streaming metric writer.
   //

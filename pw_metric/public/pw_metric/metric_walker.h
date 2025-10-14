@@ -25,7 +25,7 @@
 #include "pw_status/try.h"
 #include "pw_tokenizer/tokenize.h"
 
-namespace pw::metric::internal {
+namespace pw::metric {
 
 // Streaming RPC Writer
 class MetricWriter {
@@ -120,4 +120,9 @@ class ResumableMetricWalker {
   uint64_t next_cursor_ = 0;
 };
 
-}  // namespace pw::metric::internal
+// Remove this when all downstreams are migrated.
+namespace internal {
+using MetricWalker = pw::metric::MetricWalker;
+}  // namespace internal
+
+}  // namespace pw::metric
