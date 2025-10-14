@@ -14,12 +14,12 @@
 
 #include "pw_bluetooth/snoop.h"
 
-#include <vector>
-
 #include "pw_bluetooth_proxy/h4_packet.h"
 #include "pw_bytes/span.h"
 #include "pw_chrono/simulated_system_clock.h"
+#include "pw_containers/vector.h"
 #include "pw_status/status.h"
+#include "pw_string/string.h"
 #include "pw_unit_test/framework.h"
 
 namespace pw::bluetooth {
@@ -47,8 +47,8 @@ constexpr uint8_t hex_char_to_int(char c) {
   }
 }
 
-std::vector<std::byte> hex_string_to_bytes(std::string_view hex_str) {
-  std::vector<std::byte> bytes{};
+pw::Vector<std::byte, 512> hex_string_to_bytes(std::string_view hex_str) {
+  pw::Vector<std::byte, 512> bytes{};
   uint8_t value = 0;
   for (size_t i = 0; i < hex_str.size(); i++) {
     if (i % 2 == 0) {
@@ -61,8 +61,8 @@ std::vector<std::byte> hex_string_to_bytes(std::string_view hex_str) {
   return bytes;
 }
 
-std::vector<std::byte> get_snoop_log(Snoop& snoop) {
-  std::vector<std::byte> snoop_data;
+pw::Vector<std::byte, 4096> get_snoop_log(Snoop& snoop) {
+  pw::Vector<std::byte, 4096> snoop_data;
   Status status = snoop.Dump([&snoop_data](ConstByteSpan data) {
     for (const std::byte item : data) {
       snoop_data.push_back(item);
@@ -90,22 +90,22 @@ TEST(SnoopTest, HeaderTx) {
   snoop.AddTx(packet);
 
   // Validate
-  const std::string expected_snoop_data = std::string(kSnoopFileHeader) +
-                                          // Packet 1
-                                          // Original Length (32-bit)
-                                          "00000006"
-                                          // Included Length (32-bit)
-                                          "00000006"
-                                          // Packet Flags (32-bit)
-                                          "00000000"
-                                          // Cumulative Drops (32-bit)
-                                          "00000000"
-                                          // Timestamp Microseconds (64-bit)
-                                          "0000000000000000"
-                                          // Packet Data[0] - HCI_TYPE (8-bit)
-                                          "02"
-                                          // Packet Data[1-N] - Data
-                                          "123456789a";
+  pw::InlineString<512> expected_snoop_data(kSnoopFileHeader);
+  // Packet 1
+  // Original Length (32-bit)
+  expected_snoop_data.append("00000006");
+  // Included Length (32-bit)
+  expected_snoop_data.append("00000006");
+  // Packet Flags (32-bit)
+  expected_snoop_data.append("00000000");
+  // Cumulative Drops (32-bit)
+  expected_snoop_data.append("00000000");
+  // Timestamp Microseconds (64-bit)
+  expected_snoop_data.append("0000000000000000");
+  // Packet Data[0] - HCI_TYPE (8-bit)
+  expected_snoop_data.append("02");
+  // Packet Data[1-N] - Data
+  expected_snoop_data.append("123456789a");
   EXPECT_EQ(hex_string_to_bytes(expected_snoop_data), get_snoop_log(snoop));
 }
 
@@ -119,22 +119,22 @@ TEST(SnoopTest, HeaderTxTruncated) {
   snoop.AddTx(packet);
 
   // Validate
-  const std::string expected_snoop_data = std::string(kSnoopFileHeader) +
-                                          // Packet 1
-                                          // Original Length (32-bit)
-                                          "00000006"
-                                          // Included Length (32-bit)
-                                          "00000004"
-                                          // Packet Flags (32-bit)
-                                          "00000000"
-                                          // Cumulative Drops (32-bit)
-                                          "00000000"
-                                          // Timestamp Microseconds (64-bit)
-                                          "0000000000000000"
-                                          // Packet Data[0] - HCI_TYPE (8-bit)
-                                          "02"
-                                          // Packet Data[1-N] - Data
-                                          "123456";
+  pw::InlineString<512> expected_snoop_data(kSnoopFileHeader);
+  // Packet 1
+  // Original Length (32-bit)
+  expected_snoop_data.append("00000006");
+  // Included Length (32-bit)
+  expected_snoop_data.append("00000004");
+  // Packet Flags (32-bit)
+  expected_snoop_data.append("00000000");
+  // Cumulative Drops (32-bit)
+  expected_snoop_data.append("00000000");
+  // Timestamp Microseconds (64-bit)
+  expected_snoop_data.append("0000000000000000");
+  // Packet Data[0] - HCI_TYPE (8-bit)
+  expected_snoop_data.append("02");
+  // Packet Data[1-N] - Data
+  expected_snoop_data.append("123456");
   EXPECT_EQ(hex_string_to_bytes(expected_snoop_data), get_snoop_log(snoop));
 }
 
@@ -148,22 +148,22 @@ TEST(SnoopTest, HeaderRx) {
   snoop.AddRx(packet);
 
   // Validate
-  const std::string expected_snoop_data = std::string(kSnoopFileHeader) +
-                                          // Packet 1
-                                          // Original Length (32-bit)
-                                          "00000006"
-                                          // Included Length (32-bit)
-                                          "00000006"
-                                          // Packet Flags (32-bit)
-                                          "00000001"
-                                          // Cumulative Drops (32-bit)
-                                          "00000000"
-                                          // Timestamp Microseconds (64-bit)
-                                          "0000000000000000"
-                                          // Packet Data[0] - HCI_TYPE (8-bit)
-                                          "02"
-                                          // Packet Data[1-N] - Data
-                                          "123456789a";
+  pw::InlineString<512> expected_snoop_data(kSnoopFileHeader);
+  // Packet 1
+  // Original Length (32-bit)
+  expected_snoop_data.append("00000006");
+  // Included Length (32-bit)
+  expected_snoop_data.append("00000006");
+  // Packet Flags (32-bit)
+  expected_snoop_data.append("00000001");
+  // Cumulative Drops (32-bit)
+  expected_snoop_data.append("00000000");
+  // Timestamp Microseconds (64-bit)
+  expected_snoop_data.append("0000000000000000");
+  // Packet Data[0] - HCI_TYPE (8-bit)
+  expected_snoop_data.append("02");
+  // Packet Data[1-N] - Data
+  expected_snoop_data.append("123456789a");
   EXPECT_EQ(hex_string_to_bytes(expected_snoop_data), get_snoop_log(snoop));
 }
 
@@ -177,22 +177,22 @@ TEST(SnoopTest, HeaderRxTruncated) {
   snoop.AddRx(packet);
 
   // Validate
-  const std::string expected_snoop_data = std::string(kSnoopFileHeader) +
-                                          // Packet 1
-                                          // Original Length (32-bit)
-                                          "00000006"
-                                          // Included Length (32-bit)
-                                          "00000004"
-                                          // Packet Flags (32-bit)
-                                          "00000001"
-                                          // Cumulative Drops (32-bit)
-                                          "00000000"
-                                          // Timestamp Microseconds (64-bit)
-                                          "0000000000000000"
-                                          // Packet Data[0] - HCI_TYPE (8-bit)
-                                          "02"
-                                          // Packet Data[1-N] - Data
-                                          "123456";
+  pw::InlineString<512> expected_snoop_data(kSnoopFileHeader);
+  // Packet 1
+  // Original Length (32-bit)
+  expected_snoop_data.append("00000006");
+  // Included Length (32-bit)
+  expected_snoop_data.append("00000004");
+  // Packet Flags (32-bit)
+  expected_snoop_data.append("00000001");
+  // Cumulative Drops (32-bit)
+  expected_snoop_data.append("00000000");
+  // Timestamp Microseconds (64-bit)
+  expected_snoop_data.append("0000000000000000");
+  // Packet Data[0] - HCI_TYPE (8-bit)
+  expected_snoop_data.append("02");
+  // Packet Data[1-N] - Data
+  expected_snoop_data.append("123456");
   EXPECT_EQ(hex_string_to_bytes(expected_snoop_data), get_snoop_log(snoop));
 }
 
@@ -212,37 +212,37 @@ TEST(SnoopTest, HeaderTxTx) {
   snoop.AddTx(packet2);
 
   // Validate
-  const std::string expected_snoop_data = std::string(kSnoopFileHeader) +
-                                          // Packet 1
-                                          // Original Length (32-bit)
-                                          "00000006"
-                                          // Included Length (32-bit)
-                                          "00000006"
-                                          // Packet Flags (32-bit)
-                                          "00000000"
-                                          // Cumulative Drops (32-bit)
-                                          "00000000"
-                                          // Timestamp Microseconds (64-bit)
-                                          "0000000000000000"
-                                          // Packet Data[0] - HCI_TYPE (8-bit)
-                                          "02"
-                                          // Packet Data[1-N] - Data
-                                          "123456789a"
-                                          // Packet 2
-                                          // Original Length (32-bit)
-                                          "00000004"
-                                          // Included Length (32-bit)
-                                          "00000004"
-                                          // Packet Flags (32-bit)
-                                          "00000000"
-                                          // Cumulative Drops (32-bit)
-                                          "00000000"
-                                          // Timestamp Microseconds (64-bit)
-                                          "0000000000000001"
-                                          // Packet Data[0] - HCI_TYPE (8-bit)
-                                          "01"
-                                          // Packet Data[1-N] - Data
-                                          "BCDEF0";
+  pw::InlineString<1024> expected_snoop_data(kSnoopFileHeader);
+  // Packet 1
+  // Original Length (32-bit)
+  expected_snoop_data.append("00000006");
+  // Included Length (32-bit)
+  expected_snoop_data.append("00000006");
+  // Packet Flags (32-bit)
+  expected_snoop_data.append("00000000");
+  // Cumulative Drops (32-bit)
+  expected_snoop_data.append("00000000");
+  // Timestamp Microseconds (64-bit)
+  expected_snoop_data.append("0000000000000000");
+  // Packet Data[0] - HCI_TYPE (8-bit)
+  expected_snoop_data.append("02");
+  // Packet Data[1-N] - Data
+  expected_snoop_data.append("123456789a");
+  // Packet 2
+  // Original Length (32-bit)
+  expected_snoop_data.append("00000004");
+  // Included Length (32-bit)
+  expected_snoop_data.append("00000004");
+  // Packet Flags (32-bit)
+  expected_snoop_data.append("00000000");
+  // Cumulative Drops (32-bit)
+  expected_snoop_data.append("00000000");
+  // Timestamp Microseconds (64-bit)
+  expected_snoop_data.append("0000000000000001");
+  // Packet Data[0] - HCI_TYPE (8-bit)
+  expected_snoop_data.append("01");
+  // Packet Data[1-N] - Data
+  expected_snoop_data.append("BCDEF0");
   EXPECT_EQ(hex_string_to_bytes(expected_snoop_data), get_snoop_log(snoop));
 }
 
@@ -262,37 +262,37 @@ TEST(SnoopTest, HeaderRxRx) {
   snoop.AddRx(packet2);
 
   // Validate
-  const std::string expected_snoop_data = std::string(kSnoopFileHeader) +
-                                          // Packet 1
-                                          // Original Length (32-bit)
-                                          "00000006"
-                                          // Included Length (32-bit)
-                                          "00000006"
-                                          // Packet Flags (32-bit)
-                                          "00000001"
-                                          // Cumulative Drops (32-bit)
-                                          "00000000"
-                                          // Timestamp Microseconds (64-bit)
-                                          "0000000000000000"
-                                          // Packet Data[0] - HCI_TYPE (8-bit)
-                                          "02"
-                                          // Packet Data[1-N] - Data
-                                          "123456789a"
-                                          // Packet 2
-                                          // Original Length (32-bit)
-                                          "00000004"
-                                          // Included Length (32-bit)
-                                          "00000004"
-                                          // Packet Flags (32-bit)
-                                          "00000001"
-                                          // Cumulative Drops (32-bit)
-                                          "00000000"
-                                          // Timestamp Microseconds (64-bit)
-                                          "0000000000000001"
-                                          // Packet Data[0] - HCI_TYPE (8-bit)
-                                          "01"
-                                          // Packet Data[1-N] - Data
-                                          "BCDEF0";
+  pw::InlineString<1024> expected_snoop_data(kSnoopFileHeader);
+  // Packet 1
+  // Original Length (32-bit)
+  expected_snoop_data.append("00000006");
+  // Included Length (32-bit)
+  expected_snoop_data.append("00000006");
+  // Packet Flags (32-bit)
+  expected_snoop_data.append("00000001");
+  // Cumulative Drops (32-bit)
+  expected_snoop_data.append("00000000");
+  // Timestamp Microseconds (64-bit)
+  expected_snoop_data.append("0000000000000000");
+  // Packet Data[0] - HCI_TYPE (8-bit)
+  expected_snoop_data.append("02");
+  // Packet Data[1-N] - Data
+  expected_snoop_data.append("123456789a");
+  // Packet 2
+  // Original Length (32-bit)
+  expected_snoop_data.append("00000004");
+  // Included Length (32-bit)
+  expected_snoop_data.append("00000004");
+  // Packet Flags (32-bit)
+  expected_snoop_data.append("00000001");
+  // Cumulative Drops (32-bit)
+  expected_snoop_data.append("00000000");
+  // Timestamp Microseconds (64-bit)
+  expected_snoop_data.append("0000000000000001");
+  // Packet Data[0] - HCI_TYPE (8-bit)
+  expected_snoop_data.append("01");
+  // Packet Data[1-N] - Data
+  expected_snoop_data.append("BCDEF0");
   EXPECT_EQ(hex_string_to_bytes(expected_snoop_data), get_snoop_log(snoop));
 }
 
@@ -324,67 +324,67 @@ TEST(SnoopTest, HeaderRxTxRxTx) {
   snoop.AddTx(packet4);
 
   // Validate
-  const std::string expected_snoop_data = std::string(kSnoopFileHeader) +
-                                          // Packet 1
-                                          // Original Length (32-bit)
-                                          "00000006"
-                                          // Included Length (32-bit)
-                                          "00000006"
-                                          // Packet Flags (32-bit)
-                                          "00000001"
-                                          // Cumulative Drops (32-bit)
-                                          "00000000"
-                                          // Timestamp Microseconds (64-bit)
-                                          "0000000000000000"
-                                          // Packet Data[0] - HCI_TYPE (8-bit)
-                                          "02"
-                                          // Packet Data[1-N] - Data
-                                          "123456789a"
-                                          // Packet 2
-                                          // Original Length (32-bit)
-                                          "00000004"
-                                          // Included Length (32-bit)
-                                          "00000004"
-                                          // Packet Flags (32-bit)
-                                          "00000000"
-                                          // Cumulative Drops (32-bit)
-                                          "00000000"
-                                          // Timestamp Microseconds (64-bit)
-                                          "0000000000000001"
-                                          // Packet Data[0] - HCI_TYPE (8-bit)
-                                          "01"
-                                          // Packet Data[1-N] - Data
-                                          "BCDEF0"
-                                          // Packet 3
-                                          // Original Length (32-bit)
-                                          "00000006"
-                                          // Included Length (32-bit)
-                                          "00000006"
-                                          // Packet Flags (32-bit)
-                                          "00000001"
-                                          // Cumulative Drops (32-bit)
-                                          "00000000"
-                                          // Timestamp Microseconds (64-bit)
-                                          "0000000000000002"
-                                          // Packet Data[0] - HCI_TYPE (8-bit)
-                                          "02"
-                                          // Packet Data[1-N] - Data
-                                          "21436587a9"
-                                          // Packet 4
-                                          // Original Length (32-bit)
-                                          "00000004"
-                                          // Included Length (32-bit)
-                                          "00000004"
-                                          // Packet Flags (32-bit)
-                                          "00000000"
-                                          // Cumulative Drops (32-bit)
-                                          "00000000"
-                                          // Timestamp Microseconds (64-bit)
-                                          "0000000000000003"
-                                          // Packet Data[0] - HCI_TYPE (8-bit)
-                                          "01"
-                                          // Packet Data[1-N] - Data
-                                          "CBED0F";
+  pw::InlineString<1024> expected_snoop_data(kSnoopFileHeader);
+  // Packet 1
+  // Original Length (32-bit)
+  expected_snoop_data.append("00000006");
+  // Included Length (32-bit)
+  expected_snoop_data.append("00000006");
+  // Packet Flags (32-bit)
+  expected_snoop_data.append("00000001");
+  // Cumulative Drops (32-bit)
+  expected_snoop_data.append("00000000");
+  // Timestamp Microseconds (64-bit)
+  expected_snoop_data.append("0000000000000000");
+  // Packet Data[0] - HCI_TYPE (8-bit)
+  expected_snoop_data.append("02");
+  // Packet Data[1-N] - Data
+  expected_snoop_data.append("123456789a");
+  // Packet 2
+  // Original Length (32-bit)
+  expected_snoop_data.append("00000004");
+  // Included Length (32-bit)
+  expected_snoop_data.append("00000004");
+  // Packet Flags (32-bit)
+  expected_snoop_data.append("00000000");
+  // Cumulative Drops (32-bit)
+  expected_snoop_data.append("00000000");
+  // Timestamp Microseconds (64-bit)
+  expected_snoop_data.append("0000000000000001");
+  // Packet Data[0] - HCI_TYPE (8-bit)
+  expected_snoop_data.append("01");
+  // Packet Data[1-N] - Data
+  expected_snoop_data.append("BCDEF0");
+  // Packet 3
+  // Original Length (32-bit)
+  expected_snoop_data.append("00000006");
+  // Included Length (32-bit)
+  expected_snoop_data.append("00000006");
+  // Packet Flags (32-bit)
+  expected_snoop_data.append("00000001");
+  // Cumulative Drops (32-bit)
+  expected_snoop_data.append("00000000");
+  // Timestamp Microseconds (64-bit)
+  expected_snoop_data.append("0000000000000002");
+  // Packet Data[0] - HCI_TYPE (8-bit)
+  expected_snoop_data.append("02");
+  // Packet Data[1-N] - Data
+  expected_snoop_data.append("21436587a9");
+  // Packet 4
+  // Original Length (32-bit)
+  expected_snoop_data.append("00000004");
+  // Included Length (32-bit)
+  expected_snoop_data.append("00000004");
+  // Packet Flags (32-bit)
+  expected_snoop_data.append("00000000");
+  // Cumulative Drops (32-bit)
+  expected_snoop_data.append("00000000");
+  // Timestamp Microseconds (64-bit)
+  expected_snoop_data.append("0000000000000003");
+  // Packet Data[0] - HCI_TYPE (8-bit)
+  expected_snoop_data.append("01");
+  // Packet Data[1-N] - Data
+  expected_snoop_data.append("CBED0F");
   EXPECT_EQ(hex_string_to_bytes(expected_snoop_data), get_snoop_log(snoop));
 }
 
@@ -431,22 +431,22 @@ TEST(SnoopTest, DisabledEnable) {
   snoop.AddTx(packet2);
 
   // Validate
-  const std::string expected_snoop_data = std::string(kSnoopFileHeader) +
-                                          // Packet 2
-                                          // Original Length (32-bit)
-                                          "00000004"
-                                          // Included Length (32-bit)
-                                          "00000004"
-                                          // Packet Flags (32-bit)
-                                          "00000000"
-                                          // Cumulative Drops (32-bit)
-                                          "00000000"
-                                          // Timestamp Microseconds (64-bit)
-                                          "0000000000000001"
-                                          // Packet Data[0] - HCI_TYPE (8-bit)
-                                          "01"
-                                          // Packet Data[1-N] - Data
-                                          "BCDEF0";
+  pw::InlineString<512> expected_snoop_data(kSnoopFileHeader);
+  // Packet 2
+  // Original Length (32-bit)
+  expected_snoop_data.append("00000004");
+  // Included Length (32-bit)
+  expected_snoop_data.append("00000004");
+  // Packet Flags (32-bit)
+  expected_snoop_data.append("00000000");
+  // Cumulative Drops (32-bit)
+  expected_snoop_data.append("00000000");
+  // Timestamp Microseconds (64-bit)
+  expected_snoop_data.append("0000000000000001");
+  // Packet Data[0] - HCI_TYPE (8-bit)
+  expected_snoop_data.append("01");
+  // Packet Data[1-N] - Data
+  expected_snoop_data.append("BCDEF0");
   EXPECT_EQ(hex_string_to_bytes(expected_snoop_data), get_snoop_log(snoop));
 }
 
@@ -460,27 +460,26 @@ TEST(SnoopTest, Stream) {
   snoop.AddTx(packet);
 
   // Validate
-  const std::string expected_snoop_data_str =
-      std::string(kSnoopFileHeader) +
-      // Packet 1
-      // Original Length (32-bit)
-      "00000006"
-      // Included Length (32-bit)
-      "00000006"
-      // Packet Flags (32-bit)
-      "00000000"
-      // Cumulative Drops (32-bit)
-      "00000000"
-      // Timestamp Microseconds (64-bit)
-      "0000000000000000"
-      // Packet Data[0] - HCI_TYPE (8-bit)
-      "02"
-      // Packet Data[1-N] - Data
-      "123456789a";
-  std::vector<std::byte> expected_snoop_data =
+  pw::InlineString<1024> expected_snoop_data_str(kSnoopFileHeader);
+  // Packet 1
+  // Original Length (32-bit)
+  expected_snoop_data_str.append("00000006");
+  // Included Length (32-bit)
+  expected_snoop_data_str.append("00000006");
+  // Packet Flags (32-bit)
+  expected_snoop_data_str.append("00000000");
+  // Cumulative Drops (32-bit)
+  expected_snoop_data_str.append("00000000");
+  // Timestamp Microseconds (64-bit)
+  expected_snoop_data_str.append("0000000000000000");
+  // Packet Data[0] - HCI_TYPE (8-bit)
+  expected_snoop_data_str.append("02");
+  // Packet Data[1-N] - Data
+  expected_snoop_data_str.append("123456789a");
+  pw::Vector<std::byte, 512> expected_snoop_data =
       hex_string_to_bytes(expected_snoop_data_str);
 
-  std::vector<std::byte> snoop_data;
+  pw::Vector<std::byte, 4096> snoop_data;
   snoop_data.resize(expected_snoop_data.size());
   auto reader = snoop.GetReader();
   PW_TEST_ASSERT_OK(reader);
@@ -500,27 +499,26 @@ TEST(SnoopTest, StreamPartialRead) {
   snoop.AddTx(packet);
 
   // Validate
-  const std::string expected_snoop_data_str =
-      std::string(kSnoopFileHeader) +
-      // Packet 1
-      // Original Length (32-bit)
-      "00000006"
-      // Included Length (32-bit)
-      "00000006"
-      // Packet Flags (32-bit)
-      "00000000"
-      // Cumulative Drops (32-bit)
-      "00000000"
-      // Timestamp Microseconds (64-bit)
-      "0000000000000000"
-      // Packet Data[0] - HCI_TYPE (8-bit)
-      "02"
-      // Packet Data[1-N] - Data
-      "123456789a";
-  std::vector<std::byte> expected_snoop_data =
+  pw::InlineString<1024> expected_snoop_data_str(kSnoopFileHeader);
+  // Packet 1
+  // Original Length (32-bit)
+  expected_snoop_data_str.append("00000006");
+  // Included Length (32-bit)
+  expected_snoop_data_str.append("00000006");
+  // Packet Flags (32-bit)
+  expected_snoop_data_str.append("00000000");
+  // Cumulative Drops (32-bit)
+  expected_snoop_data_str.append("00000000");
+  // Timestamp Microseconds (64-bit)
+  expected_snoop_data_str.append("0000000000000000");
+  // Packet Data[0] - HCI_TYPE (8-bit)
+  expected_snoop_data_str.append("02");
+  // Packet Data[1-N] - Data
+  expected_snoop_data_str.append("123456789a");
+  pw::Vector<std::byte, 512> expected_snoop_data =
       hex_string_to_bytes(expected_snoop_data_str);
 
-  std::vector<std::byte> snoop_data;
+  pw::Vector<std::byte, 4096> snoop_data;
   snoop_data.resize(expected_snoop_data.size());
   auto reader = snoop.GetReader();
   PW_TEST_ASSERT_OK(reader);
@@ -545,27 +543,26 @@ TEST(SnoopTest, StreamPartialReadByteByByte) {
   snoop.AddTx(packet);
 
   // Validate
-  const std::string expected_snoop_data_str =
-      std::string(kSnoopFileHeader) +
-      // Packet 1
-      // Original Length (32-bit)
-      "00000006"
-      // Included Length (32-bit)
-      "00000006"
-      // Packet Flags (32-bit)
-      "00000000"
-      // Cumulative Drops (32-bit)
-      "00000000"
-      // Timestamp Microseconds (64-bit)
-      "0000000000000000"
-      // Packet Data[0] - HCI_TYPE (8-bit)
-      "02"
-      // Packet Data[1-N] - Data
-      "123456789a";
-  std::vector<std::byte> expected_snoop_data =
+  pw::InlineString<1024> expected_snoop_data_str(kSnoopFileHeader);
+  // Packet 1
+  // Original Length (32-bit)
+  expected_snoop_data_str.append("00000006");
+  // Included Length (32-bit)
+  expected_snoop_data_str.append("00000006");
+  // Packet Flags (32-bit)
+  expected_snoop_data_str.append("00000000");
+  // Cumulative Drops (32-bit)
+  expected_snoop_data_str.append("00000000");
+  // Timestamp Microseconds (64-bit)
+  expected_snoop_data_str.append("0000000000000000");
+  // Packet Data[0] - HCI_TYPE (8-bit)
+  expected_snoop_data_str.append("02");
+  // Packet Data[1-N] - Data
+  expected_snoop_data_str.append("123456789a");
+  pw::Vector<std::byte, 512> expected_snoop_data =
       hex_string_to_bytes(expected_snoop_data_str);
 
-  std::vector<std::byte> snoop_data;
+  pw::Vector<std::byte, 4096> snoop_data;
   snoop_data.resize(expected_snoop_data.size());
   auto reader = snoop.GetReader();
   PW_TEST_ASSERT_OK(reader);
@@ -608,23 +605,22 @@ TEST(SnoopTest, MultipleStreamDisabled) {
   EXPECT_TRUE(snoop.IsEnabled());
 
   // Validate that the second packet was not added.
-  const std::string expected_snoop_data_str =
-      std::string(kSnoopFileHeader) +
-      // Packet 1
-      // Original Length (32-bit)
-      "00000006"
-      // Included Length (32-bit)
-      "00000006"
-      // Packet Flags (32-bit)
-      "00000000"
-      // Cumulative Drops (32-bit)
-      "00000000"
-      // Timestamp Microseconds (64-bit)
-      "0000000000000000"
-      // Packet Data[0] - HCI_TYPE (8-bit)
-      "02"
-      // Packet Data[1-N] - Data
-      "123456789a";
+  pw::InlineString<1024> expected_snoop_data_str(kSnoopFileHeader);
+  // Packet 1
+  // Original Length (32-bit)
+  expected_snoop_data_str.append("00000006");
+  // Included Length (32-bit)
+  expected_snoop_data_str.append("00000006");
+  // Packet Flags (32-bit)
+  expected_snoop_data_str.append("00000000");
+  // Cumulative Drops (32-bit)
+  expected_snoop_data_str.append("00000000");
+  // Timestamp Microseconds (64-bit)
+  expected_snoop_data_str.append("0000000000000000");
+  // Packet Data[0] - HCI_TYPE (8-bit)
+  expected_snoop_data_str.append("02");
+  // Packet Data[1-N] - Data
+  expected_snoop_data_str.append("123456789a");
   EXPECT_EQ(hex_string_to_bytes(expected_snoop_data_str), get_snoop_log(snoop));
 
   // Test we can continue to make readers.
