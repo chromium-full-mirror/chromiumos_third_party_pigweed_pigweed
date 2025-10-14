@@ -13,7 +13,7 @@
 // the License.
 
 use kernel::MemoryRegionType;
-use regs::{ro_bool_field, rw_bool_field};
+use regs::rw_bool_field;
 
 use crate::regs::pmp::{PmpCfgAddressMode, PmpCfgVal};
 use crate::rw_csr_reg;
