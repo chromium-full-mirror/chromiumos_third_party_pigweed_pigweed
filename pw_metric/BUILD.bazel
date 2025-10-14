@@ -239,6 +239,23 @@ pw_cc_test(
     ],
 )
 
+# TODO: https://pwbug.dev/452108892 - Remove this
+pw_cc_test(
+    name = "metric_service_pwpb_test_old",
+    srcs = [
+        "metric_service_pwpb_test_old.cc",
+    ],
+    features = ["-conversion_warnings"],
+    deps = [
+        ":metric_service_pwpb",
+        ":metric_walker",
+        "//pw_rpc:test_helpers",
+        "//pw_rpc/pwpb:test_method_context",
+        "//pw_rpc/raw:test_method_context",
+        "//pw_stream",
+    ],
+)
+
 pw_size_diff(
     name = "one_metric_size_diff",
     base = "//pw_metric/size_report:base",

@@ -12,6 +12,9 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 
+// TODO: https://pwbug.dev/452108892 - Remove this
+#define PW_METRIC_PWPB_WRITER_NEW 1
+
 #include "pw_metric/metric_service_pwpb.h"
 
 #include <limits>
@@ -602,10 +605,10 @@ TEST(PwpbMetricWriter, BasicWalk) {
   // Set limit to more than total metrics.
   size_t metric_limit = 5;
 
-  PwpbMetricWriter<proto::pwpb::WalkResponse::MemoryEncoder,
-                   static_cast<uint32_t>(
-                       proto::pwpb::WalkResponse::Fields::kMetrics)>
-      writer(parent_encoder, metric_limit);
+  PwpbMetricWriter writer(
+      parent_encoder,
+      static_cast<uint32_t>(proto::pwpb::WalkResponse::Fields::kMetrics),
+      metric_limit);
 
   MetricWalker walker(writer);
 
@@ -631,10 +634,10 @@ TEST(PwpbMetricWriter, StopsAtMetricLimit) {
   // Set limit to less than total metrics.
   size_t metric_limit = 2;
 
-  PwpbMetricWriter<proto::pwpb::WalkResponse::MemoryEncoder,
-                   static_cast<uint32_t>(
-                       proto::pwpb::WalkResponse::Fields::kMetrics)>
-      writer(parent_encoder, metric_limit);
+  PwpbMetricWriter writer(
+      parent_encoder,
+      static_cast<uint32_t>(proto::pwpb::WalkResponse::Fields::kMetrics),
+      metric_limit);
 
   MetricWalker walker(writer);
 
@@ -697,10 +700,10 @@ TEST(PwpbMetricWriter, StopsAtBufferLimit) {
   // Set a high limit so that the buffer is the constraint.
   size_t metric_limit = 10;
 
-  PwpbMetricWriter<proto::pwpb::WalkResponse::MemoryEncoder,
-                   static_cast<uint32_t>(
-                       proto::pwpb::WalkResponse::Fields::kMetrics)>
-      writer(parent_encoder, metric_limit);
+  PwpbMetricWriter writer(
+      parent_encoder,
+      static_cast<uint32_t>(proto::pwpb::WalkResponse::Fields::kMetrics),
+      metric_limit);
 
   MetricWalker walker(writer);
 
@@ -754,10 +757,10 @@ TEST(PwpbMetricWriter, StopsAtBufferLimitWhenMetricLimitIsMax) {
   // Set a "no limit" metric limit.
   size_t metric_limit = std::numeric_limits<size_t>::max();
 
-  PwpbMetricWriter<proto::pwpb::WalkResponse::MemoryEncoder,
-                   static_cast<uint32_t>(
-                       proto::pwpb::WalkResponse::Fields::kMetrics)>
-      writer(parent_encoder, metric_limit);
+  PwpbMetricWriter writer(
+      parent_encoder,
+      static_cast<uint32_t>(proto::pwpb::WalkResponse::Fields::kMetrics),
+      metric_limit);
 
   MetricWalker walker(writer);
 
@@ -783,10 +786,10 @@ TEST(PwpbMetricWriter, WalksEmptyRoot) {
   proto::pwpb::WalkResponse::MemoryEncoder parent_encoder(encode_buffer);
 
   size_t metric_limit = 5;
-  PwpbMetricWriter<proto::pwpb::WalkResponse::MemoryEncoder,
-                   static_cast<uint32_t>(
-                       proto::pwpb::WalkResponse::Fields::kMetrics)>
-      writer(parent_encoder, metric_limit);
+  PwpbMetricWriter writer(
+      parent_encoder,
+      static_cast<uint32_t>(proto::pwpb::WalkResponse::Fields::kMetrics),
+      metric_limit);
   MetricWalker walker(writer);
 
   Status walk_status = walker.Walk(root);
@@ -818,10 +821,10 @@ TEST(PwpbMetricWriter, StopsWhenSingleMetricIsTooLarge) {
   proto::pwpb::WalkResponse::MemoryEncoder parent_encoder(encode_buffer);
 
   size_t metric_limit = 10;
-  PwpbMetricWriter<proto::pwpb::WalkResponse::MemoryEncoder,
-                   static_cast<uint32_t>(
-                       proto::pwpb::WalkResponse::Fields::kMetrics)>
-      writer(parent_encoder, metric_limit);
+  PwpbMetricWriter writer(
+      parent_encoder,
+      static_cast<uint32_t>(proto::pwpb::WalkResponse::Fields::kMetrics),
+      metric_limit);
   MetricWalker walker(writer);
 
   // The first call to Write() should fail.
@@ -868,10 +871,10 @@ TEST(PwpbMetricWriter, WalksWithMixedTypesAndExactBuffer) {
   proto::pwpb::WalkResponse::MemoryEncoder parent_encoder(encode_buffer);
 
   size_t metric_limit = 10;
-  PwpbMetricWriter<proto::pwpb::WalkResponse::MemoryEncoder,
-                   static_cast<uint32_t>(
-                       proto::pwpb::WalkResponse::Fields::kMetrics)>
-      writer(parent_encoder, metric_limit);
+  PwpbMetricWriter writer(
+      parent_encoder,
+      static_cast<uint32_t>(proto::pwpb::WalkResponse::Fields::kMetrics),
+      metric_limit);
   MetricWalker walker(writer);
 
   Status walk_status = walker.Walk(root);
@@ -928,10 +931,9 @@ TEST(PwpbStreamingMetricWriter, WriteIsAtomic) {
   });
   proto::pwpb::WalkResponse::StreamEncoder parent_encoder(writer_with_hook, {});
 
-  PwpbStreamingMetricWriter<proto::pwpb::WalkResponse::StreamEncoder,
-                            static_cast<uint32_t>(
-                                proto::pwpb::WalkResponse::Fields::kMetrics)>
-      writer(parent_encoder);
+  PwpbStreamingMetricWriter writer(
+      parent_encoder,
+      static_cast<uint32_t>(proto::pwpb::WalkResponse::Fields::kMetrics));
 
   MetricWalker walker(writer);
   PW_TEST_ASSERT_OK(walker.Walk(root));
@@ -980,10 +982,9 @@ TEST(PwpbStreamingMetricWriter, BasicWalk) {
   // use case. The MemoryWriter is just for capturing the output.
   proto::pwpb::WalkResponse::StreamEncoder parent_encoder(memory_writer, {});
 
-  PwpbStreamingMetricWriter<proto::pwpb::WalkResponse::StreamEncoder,
-                            static_cast<uint32_t>(
-                                proto::pwpb::WalkResponse::Fields::kMetrics)>
-      writer(parent_encoder);
+  PwpbStreamingMetricWriter writer(
+      parent_encoder,
+      static_cast<uint32_t>(proto::pwpb::WalkResponse::Fields::kMetrics));
 
   MetricWalker walker(writer);
 
@@ -1005,10 +1006,10 @@ TEST(PwpbStreamingMetricWriter, StopsAtMetricLimit) {
   proto::pwpb::WalkResponse::StreamEncoder parent_encoder(memory_writer, {});
 
   size_t metric_limit = 2;
-  PwpbStreamingMetricWriter<proto::pwpb::WalkResponse::StreamEncoder,
-                            static_cast<uint32_t>(
-                                proto::pwpb::WalkResponse::Fields::kMetrics)>
-      writer(parent_encoder, metric_limit);
+  PwpbStreamingMetricWriter writer(
+      parent_encoder,
+      static_cast<uint32_t>(proto::pwpb::WalkResponse::Fields::kMetrics),
+      metric_limit);
 
   MetricWalker walker(writer);
 
@@ -1030,10 +1031,9 @@ TEST(PwpbStreamingMetricWriter, StopsWhenStreamIsFull) {
   stream::MemoryWriter memory_writer(encode_buffer);
   proto::pwpb::WalkResponse::StreamEncoder parent_encoder(memory_writer, {});
 
-  PwpbStreamingMetricWriter<proto::pwpb::WalkResponse::StreamEncoder,
-                            static_cast<uint32_t>(
-                                proto::pwpb::WalkResponse::Fields::kMetrics)>
-      writer(parent_encoder);
+  PwpbStreamingMetricWriter writer(
+      parent_encoder,
+      static_cast<uint32_t>(proto::pwpb::WalkResponse::Fields::kMetrics));
 
   MetricWalker walker(writer);
 
@@ -1057,10 +1057,9 @@ TEST(PwpbStreamingMetricWriter, WalksEmptyMetricTree) {
   stream::MemoryWriter memory_writer(encode_buffer);
   proto::pwpb::WalkResponse::StreamEncoder parent_encoder(memory_writer, {});
 
-  PwpbStreamingMetricWriter<proto::pwpb::WalkResponse::StreamEncoder,
-                            static_cast<uint32_t>(
-                                proto::pwpb::WalkResponse::Fields::kMetrics)>
-      writer(parent_encoder);
+  PwpbStreamingMetricWriter writer(
+      parent_encoder,
+      static_cast<uint32_t>(proto::pwpb::WalkResponse::Fields::kMetrics));
   MetricWalker walker(writer);
 
   Status walk_status = walker.Walk(root);
@@ -1079,10 +1078,10 @@ TEST(PwpbStreamingMetricWriter, StopsWithZeroMetricLimit) {
   proto::pwpb::WalkResponse::StreamEncoder parent_encoder(memory_writer, {});
 
   size_t metric_limit = 0;
-  PwpbStreamingMetricWriter<proto::pwpb::WalkResponse::StreamEncoder,
-                            static_cast<uint32_t>(
-                                proto::pwpb::WalkResponse::Fields::kMetrics)>
-      writer(parent_encoder, metric_limit);
+  PwpbStreamingMetricWriter writer(
+      parent_encoder,
+      static_cast<uint32_t>(proto::pwpb::WalkResponse::Fields::kMetrics),
+      metric_limit);
   MetricWalker walker(writer);
 
   Status walk_status = walker.Walk(root);
