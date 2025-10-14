@@ -41,6 +41,7 @@ cc_library(
     name = "basic_library_direct_includes",
     srcs = ["basic_source_test.cc"],
     hdrs = ["public/real_included_header.h"],
+    additional_compiler_inputs = ["uncompiled_cc_test.cc"],
     includes = ["public"],
     tags = ["manual"],
 )

@@ -262,6 +262,18 @@ class CompileCommandsTestBase(unittest.TestCase):
             'Assembly files should not end up in the database.',
         )
 
+    def test_uncompiled_files_are_not_present(self):
+        """Checks uncompiled files don't end up in the command databases."""
+        matches = self._find_commands_for_file(
+            _ANY_TEST_PACKAGE + r'.*uncompiled_cc_test\.cc',
+            platform_pattern=_HOST_OR_DEVICE,
+        )
+        self.assertEqual(
+            len(matches),
+            0,
+            'Uncompiled files should not end up in the database.',
+        )
+
     def test_external_include_path_is_present(self):
         """Checks for an external repo's include path."""
         matches = self._find_commands_for_file(

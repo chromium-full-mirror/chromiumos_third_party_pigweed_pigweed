@@ -222,6 +222,11 @@ def _get_cpp_compile_commands(ctx, target):
     commands = []
     for action in target.actions:
         for src in action.inputs.to_list():
+            # Don't generate compile commands for arbitrary inputs that aren't
+            # compiled. E.g. sources placed in `extra_compiler_inputs`.
+            if action.argv and src.path not in action.argv:
+                continue
+
             result = _get_one_compile_command(ctx, src, action)
             if result != None:
                 commands.append(result)
