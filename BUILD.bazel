@@ -179,7 +179,7 @@ refresh_compile_commands(
 )
 
 sphinx_docs_library(
-    name = "docs",
+    name = "extra_docs_inputs",
     srcs = [
         ".bazelversion",
         ".clang-tidy",

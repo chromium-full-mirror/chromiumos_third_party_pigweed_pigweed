@@ -160,7 +160,7 @@ sphinx_docs_library(
         "style/rest.rst",
         "style/writing.rst",
         "style_guide.rst",
-        "//:docs",
+        "//:extra_docs_inputs",
         "//docker:docs",
         "//docs/doxygen:docs",
         "//kudzu:docs",
