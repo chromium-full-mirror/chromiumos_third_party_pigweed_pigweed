@@ -121,6 +121,79 @@ class TestFindConfig(fake_filesystem_unittest.TestCase):
 
         self.assertEqual(dict(paths_by_config), {})
 
+    def test_configs_in_parents_with_list(self):
+        """Tests configs_in_parents with a list of config names."""
+        self.fs.create_file('foo.conf')
+        self.fs.create_file('pigweed/foo.yml')
+        self.fs.create_file('pigweed/pw_cli/baz.txt')
+
+        configs = find_config.configs_in_parents(
+            ['foo.conf', 'foo.yml'], Path('pigweed/pw_cli/baz.txt')
+        )
+
+        self.assertEqual(
+            list(configs),
+            [
+                Path('pigweed/foo.yml').resolve(),
+                Path('foo.conf').resolve(),
+            ],
+        )
+
+    def test_configs_in_parents_conflicting(self):
+        """Tests configs_in_parents with conflicting configs."""
+        self.fs.create_file('project/foo.conf')
+        self.fs.create_file('project/foo.yml')
+
+        with self.assertRaises(find_config.ConflictingConfigsError):
+            list(
+                find_config.configs_in_parents(
+                    ['foo.conf', 'foo.yml'], Path('project')
+                )
+            )
+
+    def test_paths_by_nearest_config_with_list(self):
+        """Tests paths_by_nearest_config with a list of config names."""
+        self.fs.create_file('foo.conf')
+        self.fs.create_file('pigweed/foo.yml')
+        self.fs.create_file('pigweed/pw_cli/baz.txt')
+
+        paths_by_config = find_config.paths_by_nearest_config(
+            ['foo.conf', 'foo.yml'],
+            [
+                Path('pigweed/pw_cli/baz.txt'),
+                Path('pigweed/foo.yml'),
+                Path('foo.conf'),
+            ],
+        )
+
+        self.assertEqual(
+            dict(paths_by_config),
+            {
+                Path('pigweed/foo.yml').resolve(): [
+                    Path('pigweed/pw_cli/baz.txt'),
+                    Path('pigweed/foo.yml'),
+                ],
+                Path('foo.conf').resolve(): [
+                    Path('foo.conf'),
+                ],
+            },
+        )
+
+    def test_paths_by_nearest_config_with_list_no_configs(self):
+        """Tests paths_by_nearest_config with a list and no configs."""
+        self.fs.create_file('pigweed/pw_cli/baz.txt')
+
+        paths_by_config = find_config.paths_by_nearest_config(
+            ['foo.conf', 'foo.yml'], [Path('pigweed/pw_cli/baz.txt')]
+        )
+
+        self.assertEqual(
+            dict(paths_by_config),
+            {
+                None: [Path('pigweed/pw_cli/baz.txt')],
+            },
+        )
+
 
 if __name__ == '__main__':
     unittest.main()

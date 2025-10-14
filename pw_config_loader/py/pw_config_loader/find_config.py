@@ -14,11 +14,23 @@
 """Helpers for finding config files."""
 
 from collections import defaultdict
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Iterable, Iterator, List, Mapping
 
 
-def configs_in_parents(config_file_name: str, path: Path) -> Iterator[Path]:
+class ConflictingConfigsError(Exception):
+    """An exception raised when multiple configs live in the same directory.
+
+    This error is raised when a configuration file search has multiple candidate
+    patterns (e.g. foo.toml or foo.yaml), and both candidates reside in the same
+    directory.
+    """
+
+
+def configs_in_parents(
+    config_file_name: str | Sequence[str], path: Path
+) -> Iterator[Path]:
     """Finds all config files in a file's parent directories.
 
     Given the following file system:
@@ -29,6 +41,7 @@ def configs_in_parents(config_file_name: str, path: Path) -> Iterator[Path]:
          home/
            gregory/
              foo.conf
+             .foo.yaml
              pigweed/
                foo.conf
                pw_cli/
@@ -41,28 +54,53 @@ def configs_in_parents(config_file_name: str, path: Path) -> Iterator[Path]:
     - ``/home/gregory/pigweed/foo.conf``
     - ``/home/gregory/foo.conf``
 
+    Multiple names may be provided to support alternative names, or multiple
+    formats. In cases where multiple matches are found in the same directory,
+    a ``ConflictingConfigsError`` is raised.
+
     Args:
-        config_file_name: The basename of the config file of interest.
+        config_file_name: The basename of the config file of interest, or a
+            sequence of basenames.
         path: The path to search for config files from.
 
     Yields:
         The paths to all config files that match the provided
-        ``config_file_name``, ordered from nearest to ``path`` to farthest.
+        ``config_file_name`` patterns, ordered from nearest to ``path`` to
+        farthest.
     """
     path = path.resolve()
     if path.is_file():
         path = path.parent
+
+    choices: Sequence[str] = (
+        [config_file_name]
+        if isinstance(config_file_name, str)
+        else config_file_name
+    )
+
     while True:
-        maybe_config = path / config_file_name
-        if maybe_config.is_file():
-            yield maybe_config
+        configs_found_in_dir = []
+        for choice in choices:
+            maybe_config = path / choice
+
+            if maybe_config.is_file():
+                configs_found_in_dir.append(maybe_config)
+
+        if len(configs_found_in_dir) > 1:
+            raise ConflictingConfigsError(
+                'Found multiple potentially conflicting in the same '
+                f'directory: {configs_found_in_dir}'
+            )
+
+        yield from configs_found_in_dir
+
         if str(path) == path.anchor:
             break
         path = path.parent
 
 
 def paths_by_nearest_config(
-    config_file_name: str, paths: Iterable[Path]
+    config_file_name: str | Sequence[str], paths: Iterable[Path]
 ) -> Mapping[Path | None, List[Path]]:
     """Groups a series of paths by their nearest config file.
 
@@ -91,7 +129,8 @@ def paths_by_nearest_config(
            )
 
     Args:
-        config_file_name: The basename of the config file of interest.
+        config_file_name: The basename of the config file of interest, or a
+            sequence of basenames.
         paths: The paths that should be mapped to their nearest config.
 
     Returns:
