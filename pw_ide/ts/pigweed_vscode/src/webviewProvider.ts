@@ -66,69 +66,58 @@ function spawnAsync(
   command: string,
   args: string[],
   cwd: string,
-  logger: LoggerUI,
+  logger?: LoggerUI,
+  bazelBinary?: string,
 ): Promise<number> {
   return new Promise((resolve) => {
-    logger.addStdout(`Running command: ${command} ${args.join(' ')}\n`);
-    const child = spawn(command, args, { cwd });
+    bazelBinary = getReliableBazelExecutable();
+    logger?.addStdout(`Running command: ${command} ${args.join(' ')}\n`);
+    const env = bazelBinary
+      ? {
+          ...process.env,
+          PATH: `${path.dirname(bazelBinary)}:${process.env?.PATH || ''}`,
+          BAZELISK_SKIP_WRAPPER: '1',
+        }
+      : process.env;
+    const child = spawn(command, args, { cwd, env });
 
-    child.stdout.on('data', (data) => logger.addStdout(data.toString()));
-    child.stderr.on('data', (data) => logger.addStderr(data.toString()));
+    child.stdout.on('data', (data) => logger?.addStdout(data.toString()));
+    child.stderr.on('data', (data) => logger?.addStderr(data.toString()));
     child.on('close', (code) => resolve(code ?? -1));
   });
 }
 
-async function generateAspectCompileCommands(
+export async function generateAspectCompileCommands(
   bazelBinary: string,
   buildCmd: string,
   cwd: string,
-  logger: LoggerUI,
+  logger?: LoggerUI,
 ) {
   // Aspect-based generator
-  logger.addStdout('Cleaning old compile commands...\n');
-  let exitCode = await spawnAsync(
+  logger?.addStdout('Building with compile commands aspect...\n');
+  const exitCode = await spawnAsync(
     bazelBinary,
-    ['run', '@pigweed//pw_ide/bazel:clean_compile_commands'],
+    [
+      'run',
+      '@pigweed//pw_ide/bazel:update_compile_commands',
+      '--',
+      '--',
+      'build',
+      buildCmd,
+    ],
     cwd,
     logger,
+    bazelBinary,
   );
 
   if (exitCode !== 0) {
-    logger.addStderr('Clean command failed, continuing...\n');
-  }
-
-  logger.addStdout('Building with compile commands aspect...\n');
-  const aspect =
-    '--aspects=@pigweed//pw_ide/bazel/compile_commands:defs.bzl%compile_commands_aspect';
-  const outputGroups = '--output_groups=+compile_commands_fragments';
-  exitCode = await spawnAsync(
-    bazelBinary,
-    ['build', aspect, outputGroups, buildCmd],
-    cwd,
-    logger,
-  );
-
-  if (exitCode !== 0) {
-    logger.finishWithError(`❌ Bazel build failed with exit code ${exitCode}.`);
-    return;
-  }
-
-  logger.addStdout('Updating compile commands...\n');
-  exitCode = await spawnAsync(
-    bazelBinary,
-    ['run', '@pigweed//pw_ide/bazel:update_compile_commands'],
-    cwd,
-    logger,
-  );
-
-  if (exitCode !== 0) {
-    logger.finishWithError(
-      `❌ Update command failed with exit code ${exitCode}.`,
+    logger?.finishWithError(
+      `❌ Updating compile commands failed with exit code ${exitCode}.`,
     );
     return;
   }
 
-  logger.finish('✅ Compile commands generated successfully.');
+  logger?.finish('✅ Compile commands generated successfully.');
   saveLastBazelCommand(cwd, `build ${buildCmd}`, logger);
 }
 
