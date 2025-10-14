@@ -14,45 +14,37 @@
 
 #![no_std]
 
-use core::ptr::{with_exposed_provenance, with_exposed_provenance_mut};
+#[doc(hidden)]
+pub mod __private {
+    use core::ptr;
 
-pub trait RO<T> {
-    const ADDR: usize;
-
-    /// Read a raw value from the register
-    ///
-    /// # Safety
-    /// The caller must guarantee that provided `ADDR` is accessible.
-    #[inline]
-    unsafe fn raw_read(&self) -> T {
-        let ptr = with_exposed_provenance::<T>(Self::ADDR);
-        unsafe { ptr.read_volatile() }
-    }
-}
-
-pub trait RW<T> {
-    const ADDR: usize;
+    pub use paste::paste;
 
     /// Read a raw value from the register
     ///
     /// # Safety
-    /// The caller must guarantee that provided `ADDR` is accessible.
+    /// The caller must guarantee that provided `addr` is accessible.
     #[inline]
-    unsafe fn raw_read(&self) -> T {
-        let ptr = with_exposed_provenance::<T>(Self::ADDR);
+    #[must_use]
+    pub unsafe fn raw_read<T>(addr: usize) -> T {
+        let ptr = ptr::with_exposed_provenance::<T>(addr);
         unsafe { ptr.read_volatile() }
     }
 
     /// Write a raw value to the specified register
     ///
     /// # Safety
-    /// The caller must guarantee that the value is valid for the provided `ADDR`
-    /// and the `ADDR` is accessible.
+    /// The caller must guarantee that the value is valid for the provided `addr`
+    /// and the `addr` is accessible.
     #[inline]
-    unsafe fn raw_write(&mut self, val: T) {
-        let ptr = with_exposed_provenance_mut::<T>(Self::ADDR);
+    pub unsafe fn raw_write<T>(addr: usize, val: T) {
+        let ptr = ptr::with_exposed_provenance_mut::<T>(addr);
         unsafe { ptr.write_volatile(val) }
     }
+}
+
+pub trait BaseAddress {
+    fn base_address(&self) -> usize;
 }
 
 #[macro_export]
@@ -71,8 +63,8 @@ macro_rules! ro_bool_field {
 #[macro_export]
 macro_rules! rw_bool_field {
     ($val_type:ty, $name:ident, $offset:literal, $desc:literal) => {
-        ro_bool_field!($val_type, $name, $offset, $desc);
-        paste::paste! {
+        $crate::ro_bool_field!($val_type, $name, $offset, $desc);
+        $crate::__private::paste! {
           #[doc = "Update "]
           #[doc = $desc]
           #[doc = "field"]
@@ -100,8 +92,8 @@ macro_rules! ro_int_field {
 #[macro_export]
 macro_rules! rw_int_field {
     ($val_type:ty, $name:ident, $start:literal, $end:literal, $ty:ty, $desc:literal) => {
-        ro_int_field!($val_type, $name, $start, $end, $ty, $desc);
-        paste::paste! {
+        $crate::ro_int_field!($val_type, $name, $start, $end, $ty, $desc);
+        $crate::__private::paste! {
           #[doc = "Update "]
           #[doc = $desc]
           #[doc = "field"]
@@ -134,8 +126,8 @@ macro_rules! ro_enum_field {
 #[macro_export]
 macro_rules! rw_enum_field {
     ($val_type:ty, $name:ident, $start:literal, $end:literal, $enum:ty, $desc:literal) => {
-        ro_enum_field!($val_type, $name, $start, $end, $enum, $desc);
-        paste::paste! {
+        $crate::ro_enum_field!($val_type, $name, $start, $end, $enum, $desc);
+        $crate::__private::paste! {
           #[doc = "Update "]
           #[doc = $desc]
           #[doc = "field"]
@@ -164,9 +156,8 @@ macro_rules! ro_masked_field {
 #[macro_export]
 macro_rules! rw_masked_field {
     ($name:ident, $mask:expr, $ty:ty, $desc:literal) => {
-        ro_masked_field!($name, $mask, $ty, $desc);
-
-        paste::paste! {
+        $crate::ro_masked_field!($name, $mask, $ty, $desc);
+        $crate::__private::paste! {
             #[doc = "Update "]
             #[doc = $desc]
             #[doc = "field"]
@@ -180,16 +171,13 @@ macro_rules! rw_masked_field {
 
 #[macro_export]
 macro_rules! ro_reg {
-    ($name:ident, $val_type:ident, $addr:literal, $doc:literal) => {
+    ($name:ident, $val_type:ident, $ty:ty, $addr:literal, $doc:literal) => {
         #[doc = $doc]
         pub struct $name;
-        impl RO<u32> for $name {
-            const ADDR: usize = $addr;
-        }
         impl $name {
             #[inline]
             pub fn read(&self) -> $val_type {
-                $val_type(unsafe { self.raw_read() })
+                $val_type(unsafe { $crate::__private::raw_read::<$ty>($addr) })
             }
         }
     };
@@ -197,21 +185,55 @@ macro_rules! ro_reg {
 
 #[macro_export]
 macro_rules! rw_reg {
-    ($name:ident, $val_type:ident, $addr:literal, $doc:literal) => {
+    ($name:ident, $val_type:ident, $ty:ty, $addr:literal, $doc:literal) => {
         #[doc = $doc]
         pub struct $name;
-        impl RW<u32> for $name {
-            const ADDR: usize = $addr;
-        }
         impl $name {
             #[inline]
             pub fn read(&self) -> $val_type {
-                $val_type(unsafe { self.raw_read() })
+                $val_type(unsafe { $crate::__private::raw_read::<$ty>($addr) })
             }
 
             #[inline]
             pub fn write(&mut self, val: $val_type) {
-                unsafe { self.raw_write(val.0) }
+                unsafe { $crate::__private::raw_write::<$ty>($addr, val.0) }
+            }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! ro_block_reg {
+    ($name:ident, $val_type:ident, $ty:ty, $addr_trait:path, $offset:literal, $doc:literal) => {
+        #[doc = $doc]
+        pub struct $name;
+        impl $name {
+            #[inline]
+            pub fn read<A: $addr_trait>(&self, addr: &A) -> $val_type {
+                $val_type(unsafe {
+                    $crate::__private::raw_read::<$ty>(addr.base_address() + $offset)
+                })
+            }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! rw_block_reg {
+    ($name:ident, $val_type:ident, $ty:ty, $addr_trait:path, $offset:literal, $doc:literal) => {
+        #[doc = $doc]
+        pub struct $name;
+        impl $name {
+            #[inline]
+            pub fn read<A: $addr_trait>(&self, addr: &A) -> $val_type {
+                $val_type(unsafe {
+                    $crate::__private::raw_read::<$ty>(addr.base_address() + $offset)
+                })
+            }
+
+            #[inline]
+            pub fn write<A: $addr_trait>(&mut self, addr: &A, val: $val_type) {
+                unsafe { $crate::__private::raw_write::<$ty>(addr.base_address() + $offset, val.0) }
             }
         }
     };

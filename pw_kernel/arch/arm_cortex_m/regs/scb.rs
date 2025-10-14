@@ -44,7 +44,7 @@ impl CpuIdVal {
     ro_int_field!(u32, implementer, 24, 31, u32, "implementer code");
 }
 
-ro_reg!(CpuId, CpuIdVal, 0xe000ed00, "CPUID Base Register");
+ro_reg!(CpuId, CpuIdVal, u32, 0xe000ed00, "CPUID Base Register");
 
 #[repr(transparent)]
 pub struct ShcsrVal(u32);
@@ -98,6 +98,7 @@ impl ShcsrVal {
 rw_reg!(
     Shcsr,
     ShcsrVal,
+    u32,
     0xe000ed24,
     "SCB System Handler Control and State Register"
 );

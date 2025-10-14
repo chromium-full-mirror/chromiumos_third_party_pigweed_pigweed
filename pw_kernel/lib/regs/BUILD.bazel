@@ -20,6 +20,9 @@ rust_library(
     name = "regs",
     srcs = ["regs.rs"],
     edition = "2024",
+    proc_macro_deps = [
+        "@rust_crates//:paste",
+    ],
     rustc_flags = KERNEL_TEST_RUSTC_FLAGS,
     tags = ["kernel"],
     visibility = ["//visibility:public"],

@@ -69,6 +69,7 @@ impl CsrVal {
 rw_reg!(
     Csr,
     CsrVal,
+    u32,
     0xe000e010,
     "SysTick Control and Status Register"
 );
@@ -78,14 +79,26 @@ pub struct RvrVal(u32);
 impl RvrVal {
     rw_int_field!(u32, reload, 0, 23, u32, "reload value");
 }
-rw_reg!(Rvr, RvrVal, 0xe000e014, "SysTick Reload Value Register");
+rw_reg!(
+    Rvr,
+    RvrVal,
+    u32,
+    0xe000e014,
+    "SysTick Reload Value Register"
+);
 
 #[repr(transparent)]
 pub struct CvrVal(u32);
 impl CvrVal {
     rw_int_field!(u32, current, 0, 23, u32, "current value");
 }
-rw_reg!(Cvr, CvrVal, 0xe000e018, "SysTick Current Value Register");
+rw_reg!(
+    Cvr,
+    CvrVal,
+    u32,
+    0xe000e018,
+    "SysTick Current Value Register"
+);
 
 #[repr(transparent)]
 pub struct CalibVal(u32);
@@ -94,4 +107,10 @@ impl CalibVal {
     rw_bool_field!(u32, skew, 30, "skew");
     rw_bool_field!(u32, noref, 31, "no reference");
 }
-rw_reg!(Calib, CalibVal, 0xe000e01c, "SysTick Calibration Register");
+rw_reg!(
+    Calib,
+    CalibVal,
+    u32,
+    0xe000e01c,
+    "SysTick Calibration Register"
+);
