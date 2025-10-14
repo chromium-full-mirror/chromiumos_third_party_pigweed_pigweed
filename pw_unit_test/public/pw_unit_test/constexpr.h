@@ -53,6 +53,35 @@
     return true;                                                         \
   }())
 
+/// Like `PW_CONSTEXPR_TEST`, but only executes at compile time when using
+/// Clang.
+///
+/// In theory, different compilers should be able to constant-evaluate the same
+/// expressions. In practice, however, discrepancies and defects may result in
+/// some expressions only being constexpr for a particular compiler.
+#ifdef __clang__
+#define PW_CONSTEXPR_TEST_IF_CLANG PW_CONSTEXPR_TEST
+#else
+#define PW_CONSTEXPR_TEST_IF_CLANG(test_suite, test_case, ...) \
+  TEST(test_suite, test_case)                                  \
+  __VA_ARGS__                                                  \
+  static_assert(true)
+#endif  // __clang__
+
+/// Like `PW_CONSTEXPR_TEST`, but only executes at compile time when using GCC.
+///
+/// In theory, different compilers should be able to constant-evaluate the same
+/// expressions. In practice, however, discrepancies and defects may result in
+/// some expressions only being constexpr for a particular compiler.
+#if !defined(__clang__) && defined(__GNUC__)
+#define PW_CONSTEXPR_TEST_IF_GCC PW_CONSTEXPR_TEST
+#else
+#define PW_CONSTEXPR_TEST_IF_GCC(test_suite, test_case, ...) \
+  TEST(test_suite, test_case)                                \
+  __VA_ARGS__                                                \
+  static_assert(true)
+#endif  // !defined(__clang__) && defined(__GNUC__)
+
 // GoogleTest-style test macros for PW_CONSTEXPR_TEST.
 
 #define PW_TEST_EXPECT_TRUE(expr) _PW_CEXPECT(TRUE, expr)

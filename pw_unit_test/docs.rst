@@ -493,6 +493,16 @@ compile time, use a plain ``TEST()``.
    :start-after: [pw_unit_test-constexpr-skip]
    :end-before: [pw_unit_test-constexpr-skip]
 
+.. _module-pw_unit_test-constexpr-if-compiler:
+
+Limit ``constexpr`` tests to a specific compiler
+------------------------------------------------
+Due to differences in compilers and their maintainers interpretation of the C++
+standard, there may be cases when an expression can be constant evaluated with
+some compilers but not others. In these cases, you can restrict the
+``constexpr`` portion of a :cc:`PW_CONSTEXPR_TEST` test by using either
+:cc:`PW_CONSTEXPR_TEST_IF_CLANG` or :cc:`PW_CONSTEXPR_TEST_IF_GCC`.
+
 .. _module-pw_unit_test-static:
 
 Run tests in static libraries
