@@ -177,7 +177,7 @@ class OptionalTuple {
   // swap() is not yet implemented.
 
   /// Checks if the `OptionalTuple` contains no active elements.
-  constexpr bool empty() const { return active().none(); }
+  [[nodiscard]] constexpr bool empty() const { return active().none(); }
 
   /// Returns the number of active elements in the `OptionalTuple`.
   constexpr size_t count() const { return active().count(); }
@@ -260,7 +260,7 @@ class OptionalTuple {
 
   /// Returns the element at the specified index, if present. Otherwise, returns
   /// `default_value`.
-  template <size_t kIndex, int... kExplicitGuard, typename U>
+  template <size_t kIndex, int&... kExplicitGuard, typename U>
   constexpr Element<kIndex> value_or(U&& default_value) const& {
     return has_value<kIndex>()
                ? RawValue<kIndex>()
@@ -269,14 +269,14 @@ class OptionalTuple {
 
   /// Returns the element with the specified type, if present. Otherwise,
   /// returns `default_value`.
-  template <typename T, int... kExplicitGuard, typename U>
+  template <typename T, int&... kExplicitGuard, typename U>
   constexpr ElementByType<T> value_or(U&& default_value) const& {
     return value_or<TypeToIndex<T>()>(std::forward<U>(default_value));
   }
 
   /// Moves and returns the element at the specified index, if present.
   /// Otherwise, returns `default_value`.
-  template <size_t kIndex, int... kExplicitGuard, typename U>
+  template <size_t kIndex, int&... kExplicitGuard, typename U>
   constexpr Element<kIndex> value_or(U&& default_value) && {
     return has_value<kIndex>()
                ? std::move(RawValue<kIndex>())
@@ -285,7 +285,7 @@ class OptionalTuple {
 
   /// Moves and returns the element with the specified type, if present.
   /// Otherwise, returns `default_value`.
-  template <typename T, int... kExplicitGuard, typename U>
+  template <typename T, int&... kExplicitGuard, typename U>
   constexpr ElementByType<T> value_or(U&& default_value) && {
     return std::move(*this).template value_or<TypeToIndex<T>()>(
         std::forward<U>(default_value));
@@ -295,7 +295,7 @@ class OptionalTuple {
   /// value, if any.
   ///
   /// @returns A reference to the newly initialized item.
-  template <size_t kIndex, int... kExplicitGuard, typename... Args>
+  template <size_t kIndex, int&... kExplicitGuard, typename... Args>
   constexpr Element<kIndex>& emplace(Args&&... args) {
     DestroyIfActive<kIndex>();
     active().template set<kIndex>();
@@ -307,7 +307,7 @@ class OptionalTuple {
   /// the previous value, if any.
   ///
   /// @returns A reference to the newly initialized item.
-  template <typename T, int... kExplicitGuard, typename... Args>
+  template <typename T, int&... kExplicitGuard, typename... Args>
   constexpr ElementByType<T>& emplace(Args&&... args) {
     return emplace<TypeToIndex<T>()>(std::forward<Args>(args)...);
   }
