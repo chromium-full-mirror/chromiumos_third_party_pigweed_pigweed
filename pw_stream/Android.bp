@@ -88,3 +88,24 @@ cc_library_static {
         "pw_toolchain",
     ],
 }
+
+cc_library {
+    name: "pw_stream_interval_reader",
+    srcs: [
+        "interval_reader.cc"
+    ],
+    defaults: [
+        "pw_android_common_backends",
+        "pw_android_common_target_support",
+    ],
+    header_libs: [
+        "pw_assert",
+    ],
+    export_include_dirs: [
+        "public",
+    ],
+    whole_static_libs: [
+        "pw_bytes",
+        "pw_stream"
+    ],
+}
