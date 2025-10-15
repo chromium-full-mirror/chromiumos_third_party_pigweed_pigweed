@@ -2921,11 +2921,13 @@ TEST_F(L2capSignalingTest, RemoteLocalCidCollisionBetweenProfiles) {
         break;
     }
   });
-  BasicL2capChannel channel = BuildBasicL2capChannel(proxy,
-                                                     {.handle = kHandle,
-                                                      .local_cid = kLocalCID,
-                                                      .remote_cid = kRemoteCID,
-                                                      .event_fn = event_fn});
+  BasicL2capChannel channel =
+      BuildBasicL2capChannel(proxy,
+                             {.handle = kHandle,
+                              .local_cid = kLocalCID,
+                              .remote_cid = kRemoteCID,
+                              .transport = AclTransportType::kBrEdr,
+                              .event_fn = event_fn});
 
   // Receive L2capConnectionReq on second PSM
   EXPECT_EQ(SendL2capConnectionReq(

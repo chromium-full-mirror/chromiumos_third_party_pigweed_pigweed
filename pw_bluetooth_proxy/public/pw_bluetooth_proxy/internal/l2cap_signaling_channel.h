@@ -29,21 +29,21 @@ namespace pw::bluetooth::proxy {
 // channels or LE-U signaling channels.
 //
 // Write and Read payloads are L2CAP signal commands.
-class L2capSignalingChannel : public BasicL2capChannel {
+class L2capSignalingChannel final : public BasicL2capChannel {
  public:
-  explicit L2capSignalingChannel(L2capChannelManager& l2cap_channel_manager,
-                                 uint16_t connection_handle,
-                                 AclTransportType transport,
-                                 uint16_t fixed_cid);
+  static L2capSignalingChannel Create(
+      L2capChannelManager& l2cap_channel_manager,
+      uint16_t connection_handle,
+      AclTransportType transport);
 
   L2capSignalingChannel(L2capSignalingChannel&&);
   L2capSignalingChannel& operator=(L2capSignalingChannel&& other);
 
-  // Process the payload of a CFrame. Implementations should return true if the
-  // CFrame was consumed by the channel. Otherwise, return false and the PDU
-  // containing this CFrame will be forwarded on by the ProxyHost.
-  virtual bool OnCFramePayload(Direction direction,
-                               pw::span<const uint8_t> cframe_payload) = 0;
+  // Process the payload of a CFrame. Returns true if the CFrame was consumed by
+  // the channel. Otherwise, returns false and the PDU containing this CFrame
+  // will be forwarded on by the ProxyHost.
+  bool OnCFramePayload(Direction direction,
+                       pw::span<const uint8_t> cframe_payload);
 
   // Process an individual signaling command.
   //
@@ -94,23 +94,6 @@ class L2capSignalingChannel : public BasicL2capChannel {
                                   uint16_t credits,
                                   MultiBufAllocator& multibuf_allocator);
 
- protected:
-  // Process a C-frame.
-  //
-  // Returns false if the C-frame is to be forwarded on to the Bluetooth host,
-  // either because the command is not directed towards a channel managed by
-  // `L2capChannelManager` or because the C-frame is invalid and should be
-  // handled by the Bluetooth host.
-  bool DoHandlePduFromController(pw::span<uint8_t> cframe) override;
-
-  bool HandlePduFromHost(pw::span<uint8_t> cframe) override;
-
-  // Get the next Identifier value that should be written to a signaling
-  // command and increment the Identifier.
-  uint8_t GetNextIdentifierAndIncrement() PW_LOCKS_EXCLUDED(mutex_);
-
-  L2capChannelManager& l2cap_channel_manager_;
-
  private:
   struct PendingConnection {
     Direction direction;
@@ -131,6 +114,26 @@ class L2capSignalingChannel : public BasicL2capChannel {
   // The maximum number of pending L2CAP configuration (inbound/outbound ).
   static constexpr size_t kMaxPendingConfigurations =
       2 * kMaxPendingConnections;
+
+  explicit L2capSignalingChannel(L2capChannelManager& l2cap_channel_manager,
+                                 uint16_t connection_handle,
+                                 AclTransportType transport);
+
+  // Process a C-frame.
+  //
+  // Returns false if the C-frame is to be forwarded on to the Bluetooth host,
+  // either because the command is not directed towards a channel managed by
+  // `L2capChannelManager` or because the C-frame is invalid and should be
+  // handled by the Bluetooth host.
+  bool DoHandlePduFromController(pw::span<uint8_t> cframe) override;
+
+  bool HandlePduFromHost(pw::span<uint8_t> cframe) override;
+
+  // Get the next Identifier value that should be written to a signaling
+  // command and increment the Identifier.
+  uint8_t GetNextIdentifierAndIncrement() PW_LOCKS_EXCLUDED(mutex_);
+
+  L2capChannelManager& l2cap_channel_manager_;
 
   // TODO(b/405190891): Properly clean-up pending_connections_ and
   // pending_configurations_

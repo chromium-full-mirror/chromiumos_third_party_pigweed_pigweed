@@ -20,8 +20,6 @@
 #include "pw_bluetooth/hci_events.emb.h"
 #include "pw_bluetooth_proxy/direction.h"
 #include "pw_bluetooth_proxy/internal/hci_transport.h"
-#include "pw_bluetooth_proxy/internal/l2cap_aclu_signaling_channel.h"
-#include "pw_bluetooth_proxy/internal/l2cap_leu_signaling_channel.h"
 #include "pw_bluetooth_proxy/internal/l2cap_signaling_channel.h"
 #include "pw_bluetooth_proxy/internal/logical_transport.h"
 #include "pw_bluetooth_proxy/internal/recombiner.h"
@@ -197,13 +195,7 @@ class AclDataChannel {
       num_pending_packets_ = new_val;
     }
 
-    L2capSignalingChannel* signaling_channel() {
-      if (transport_ == AclTransportType::kLe) {
-        return &leu_signaling_channel_;
-      } else {
-        return &aclu_signaling_channel_;
-      }
-    }
+    L2capSignalingChannel* signaling_channel() { return &signaling_channel_; }
 
     Recombiner& GetRecombiner(Direction direction) {
       return get_recombination_buffer(direction);
@@ -213,10 +205,7 @@ class AclDataChannel {
     AclTransportType transport_;
     uint16_t connection_handle_;
     uint16_t num_pending_packets_;
-    L2capLeUSignalingChannel leu_signaling_channel_;
-    // TODO: https://pwbug.dev/379172336 - Create correct signaling channel
-    // type based on link type.
-    L2capAclUSignalingChannel aclu_signaling_channel_;
+    L2capSignalingChannel signaling_channel_;
 
     std::array<Recombiner, kNumDirections> recombination_buffers_{
         Recombiner{Direction{0}}, Recombiner{Direction{1}}};

@@ -32,17 +32,35 @@
 
 namespace pw::bluetooth::proxy {
 
+namespace {
+uint16_t ChannelIdForTransport(AclTransportType transport) {
+  if (transport == AclTransportType::kBrEdr) {
+    return cpp23::to_underlying(emboss::L2capFixedCid::ACL_U_SIGNALING);
+  }
+  return cpp23::to_underlying(emboss::L2capFixedCid::LE_U_SIGNALING);
+}
+}  // namespace
+
+L2capSignalingChannel L2capSignalingChannel::Create(
+    L2capChannelManager& l2cap_channel_manager,
+    uint16_t connection_handle,
+    AclTransportType transport) {
+  L2capSignalingChannel channel(
+      l2cap_channel_manager, connection_handle, transport);
+  channel.Init();
+  return channel;
+}
+
 L2capSignalingChannel::L2capSignalingChannel(
     L2capChannelManager& l2cap_channel_manager,
     uint16_t connection_handle,
-    AclTransportType transport,
-    uint16_t fixed_cid)
+    AclTransportType transport)
     : BasicL2capChannel(l2cap_channel_manager,
                         /*rx_multibuf_allocator=*/nullptr,
                         /*connection_handle=*/connection_handle,
                         /*transport*/ transport,
-                        /*local_cid=*/fixed_cid,
-                        /*remote_cid=*/fixed_cid,
+                        /*local_cid=*/ChannelIdForTransport(transport),
+                        /*remote_cid=*/ChannelIdForTransport(transport),
                         /*payload_from_controller_fn=*/nullptr,
                         /*payload_from_host_fn=*/nullptr,
                         /*event_fn=*/nullptr),
@@ -69,6 +87,60 @@ L2capSignalingChannel& L2capSignalingChannel::operator=(
   next_identifier_ = std::exchange(other.next_identifier_, 0);
 
   return *this;
+}
+
+bool L2capSignalingChannel::OnCFramePayload(
+    Direction direction, pw::span<const uint8_t> cframe_payload) {
+  std::optional<bool> any_commands_consumed;
+
+  do {
+    auto cmd = emboss::MakeL2capSignalingCommandView(cframe_payload.data(),
+                                                     cframe_payload.size());
+    if (!cmd.Ok()) {
+      PW_LOG_WARN(
+          "Remaining buffer is too small for L2CAP command. So will forward "
+          "without processing.");
+
+      // TODO: https://pwbug.dev/379172336 - Handle partially consumed
+      // signaling command packets.
+      if (any_commands_consumed.value_or(false)) {
+        PW_LOG_ERROR("Forwarding partially consumed C-frame");
+      }
+      return false;
+    }
+
+    bool current_command_consumed = HandleL2capSignalingCommand(direction, cmd);
+
+    // TODO: https://pwbug.dev/379172336 - Handle partially consumed signaling
+    // command packets.
+    if (any_commands_consumed.has_value() &&
+        *any_commands_consumed != current_command_consumed) {
+      PW_LOG_ERROR(
+          "Wasn't able to consume all commands, but don't yet support "
+          "passing on some of them");
+    }
+
+    any_commands_consumed = current_command_consumed;
+
+    cframe_payload = cframe_payload.subspan(cmd.SizeInBytes());
+
+    // LE C-frames contain one signaling packet, while BR/EDR C-frames can
+    // contain multiple.
+  } while (transport() == AclTransportType::kBrEdr && !cframe_payload.empty());
+
+  if (!cframe_payload.empty()) {
+    PW_LOG_WARN("Received C-frame with extra bytes, forwarding to host");
+
+    // TODO: https://pwbug.dev/379172336 - Handle partially consumed signaling
+    // command packets.
+    if (any_commands_consumed.value_or(false)) {
+      PW_LOG_ERROR("Forwarding partially consumed C-frame");
+    }
+    return false;
+  }
+
+  PW_CHECK(any_commands_consumed.has_value());
+  return any_commands_consumed.value();
 }
 
 bool L2capSignalingChannel::DoHandlePduFromController(
