@@ -120,9 +120,4 @@ class ResumableMetricWalker {
   uint64_t next_cursor_ = 0;
 };
 
-// Remove this when all downstreams are migrated.
-namespace internal {
-using MetricWalker = pw::metric::MetricWalker;
-}  // namespace internal
-
 }  // namespace pw::metric
