@@ -64,6 +64,7 @@
                                               MoveEntriesOverwrite)            \
   _PW_GENERIC_VAR_LEN_ENTRY_QUEUE_INVOKE_TEST(TestFixture,                     \
                                               ContiguousRawStorage)            \
+  _PW_GENERIC_VAR_LEN_ENTRY_QUEUE_INVOKE_TEST(TestFixture, Dering)             \
   static_assert(true, "use a semicolon")
 
 #define _PW_GENERIC_VAR_LEN_ENTRY_QUEUE_INVOKE_TEST(TestFixture, TestCase) \
@@ -474,6 +475,7 @@ class GenericVarLenEntryQueueTest : public ::testing::Test {
     auto [first1, second1] = queue.contiguous_raw_storage();
     EXPECT_TRUE(first1.empty());
     EXPECT_TRUE(second1.empty());
+    EXPECT_EQ(queue.encoded_size_bytes(), first1.size() + second1.size());
 
     // Each string is 6 chars long (with a null terminartor), and has a one byte
     // prefix.
@@ -485,6 +487,7 @@ class GenericVarLenEntryQueueTest : public ::testing::Test {
     EXPECT_EQ(queue.size(), 4u);
     EXPECT_EQ(first2.size(), 4u * (1u + 6u));
     EXPECT_TRUE(second2.empty());
+    EXPECT_EQ(queue.encoded_size_bytes(), first2.size() + second2.size());
 
     // 3 of the original entries remain, while 1 entry is wrapped.
     queue.push_overwrite("item5");
@@ -492,6 +495,43 @@ class GenericVarLenEntryQueueTest : public ::testing::Test {
     EXPECT_EQ(queue.size(), 4u);
     EXPECT_GE(first3.size(), 3u * (1u + 6u));
     EXPECT_LE(second3.size(), 1u * (1u + 6u));
+    EXPECT_EQ(queue.encoded_size_bytes(), first3.size() + second3.size());
+  }
+
+  void Dering() {
+    auto queue = derived().template MakeQueue<char, 32>();
+
+    // Deringing when empty is a no-op.
+    auto deringed1 = queue.dering();
+    EXPECT_TRUE(deringed1.empty());
+
+    // Each string is 6 chars long (with a null terminartor), and has a one byte
+    // prefix.
+    queue.push("item1");
+    queue.push("item2");
+    queue.push("item3");
+    queue.push("item4");
+    auto [first1, second1] = queue.contiguous_raw_storage();
+    ASSERT_FALSE(first1.empty());
+    EXPECT_TRUE(second1.empty());
+
+    // Deringing when contiguous is a no-op.
+    auto deringed2 = queue.dering();
+    EXPECT_EQ(deringed2.data(), first1.data());
+    EXPECT_EQ(deringed2.size(), first1.size());
+
+    // 3 of the original entries remain, while 1 entry is wrapped.
+    queue.push_overwrite("item5");
+    auto [first3, second3] = queue.contiguous_raw_storage();
+    ASSERT_FALSE(first3.empty());
+    ASSERT_FALSE(second3.empty());
+    EXPECT_NE(first3.data(), first1.data());
+    size_t len = first3.size() + second3.size();
+
+    // Deringing when wrapped makes the data contiguous.
+    auto deringed3 = queue.dering();
+    EXPECT_EQ(deringed3.data(), first1.data());
+    EXPECT_EQ(deringed3.size(), len);
   }
 };
 

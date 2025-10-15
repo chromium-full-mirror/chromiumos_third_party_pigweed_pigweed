@@ -62,7 +62,6 @@ class GenericVarLenEntryQueueBase {
   struct Info {
     size_t num_entries;
     size_t total_data_size;
-    size_t total_encoded_size;
   };
 
   /// Returns the number, total data, and total size of the variable-length
@@ -109,6 +108,11 @@ class GenericVarLenEntryQueueBase {
   static constexpr std::pair<ConstByteSpan, ConstByteSpan> ContiguousRawStorage(
       ConstByteSpan bytes, size_t head, size_t tail);
 
+  /// Moves entries to be contiguous and start from the beginning of the buffer.
+  static void Dering(ByteSpan bytes, size_t head) {
+    std::rotate(bytes.begin(), bytes.begin() + head, bytes.end());
+  }
+
  private:
   template <typename D1, typename T1, typename D2, typename T2>
   friend constexpr void CopyVarLenEntriesImpl(
@@ -128,7 +132,7 @@ class GenericVarLenEntryQueueBase {
 /// This type use CRTP to allow a derived class to specify access to the backing
 /// storage and indicate where the queue head and tail are within it.
 template <typename Derived, typename T>
-class GenericVarLenEntryQueue : public GenericVarLenEntryQueueBase {
+class GenericVarLenEntryQueue : private GenericVarLenEntryQueueBase {
  private:
   using Base = GenericVarLenEntryQueueBase;
 
@@ -179,7 +183,7 @@ class GenericVarLenEntryQueue : public GenericVarLenEntryQueueBase {
   /// Returns the combined size in bytes of all entries in the queue, including
   /// metadata. This is at most O(n) in the number of entries in the queue.
   constexpr size_t encoded_size_bytes() const {
-    return Base::GetInfo(GetBytes(), GetHead(), GetTail()).total_encoded_size;
+    return max_size() - Base::AvailableBytes(GetBytes(), GetHead(), GetTail());
   }
 
   /// Returns the maximum number of bytes that can be stored in the queue.
@@ -229,12 +233,12 @@ class GenericVarLenEntryQueue : public GenericVarLenEntryQueueBase {
 
   /// @copydoc GenericVarLenEntryQueueBase::ContiguousRawStorage
   constexpr std::pair<span<const T>, span<const T>> contiguous_raw_storage()
-      const {
-    auto [first, second] =
-        Base::ContiguousRawStorage(GetBytes(), GetHead(), GetTail());
-    return std::make_pair(span_cast<const T>(first),
-                          span_cast<const T>(second));
-  }
+      const;
+
+  /// @copydoc GenericVarLenEntryQueueBase::Dering
+  ///
+  /// Returns a view to the contiguous data.
+  span<const T> dering();
 
  protected:
   constexpr GenericVarLenEntryQueue() = default;
@@ -335,16 +339,14 @@ constexpr GenericVarLenEntryQueueBase::Info
 GenericVarLenEntryQueueBase::GetInfo(ConstByteSpan bytes,
                                      size_t head,
                                      size_t tail) {
-  Info info = {0, 0, 0};
+  Info info = {0, 0};
   while (head != tail) {
     auto [prefix_size, data_size] = ReadVarLenEntrySize(bytes, head);
     size_t entry_size = ReadVarLenEntryEncodedSize(bytes, head);
     IncrementWithWrap(head, entry_size, bytes.size());
     ++info.num_entries;
     info.total_data_size += data_size;
-    info.total_encoded_size += prefix_size;
   }
-  info.total_encoded_size += info.total_data_size;
   return info;
 }
 
@@ -509,6 +511,24 @@ template <typename Derived, typename T>
 constexpr void GenericVarLenEntryQueue<Derived, T>::clear() {
   SetHead(0);
   SetTail(0);
+}
+
+template <typename Derived, typename T>
+constexpr std::pair<span<const T>, span<const T>>
+GenericVarLenEntryQueue<Derived, T>::contiguous_raw_storage() const {
+  auto [first, second] =
+      Base::ContiguousRawStorage(GetBytes(), GetHead(), GetTail());
+  return std::make_pair(span_cast<const T>(first), span_cast<const T>(second));
+}
+
+template <typename Derived, typename T>
+span<const T> GenericVarLenEntryQueue<Derived, T>::dering() {
+  ByteSpan bytes = GetBytes();
+  size_t tail = encoded_size_bytes();
+  Base::Dering(bytes, GetHead());
+  SetHead(0);
+  SetTail(tail);
+  return span_cast<const T>(bytes.subspan(0, tail));
 }
 
 template <typename Derived, typename T>
