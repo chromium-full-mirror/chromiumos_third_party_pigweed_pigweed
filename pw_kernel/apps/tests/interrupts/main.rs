@@ -22,7 +22,7 @@ use pw_status::Result;
 // If the UART buffer is full, write() will fail until it's read from.
 pub trait TestUart {
     fn enable_loopback();
-    fn read() -> Option<u8>;
+    fn read() -> Result<Option<u8>>;
     fn write(byte: u8) -> Result<()>;
 }
 
@@ -30,28 +30,37 @@ pub fn main<K: Kernel, U: TestUart>(_kernel: K) -> Result<()> {
     // enable lo to support writing and then reading back the result.
     U::enable_loopback();
 
-    pw_assert::assert!(U::read().is_none(), "uart buffer initially empty");
+    pw_assert::assert!(
+        U::read().is_ok_and(|val| val.is_none()),
+        "uart buffer initially empty"
+    );
 
     U::write(7)?;
-    if let Some(value) = U::read() {
+    if let Ok(Some(value)) = U::read() {
         pw_assert::eq!(value as u8, 7 as u8);
     } else {
         pw_assert::panic!("U::read() returned no value");
     }
-    pw_assert::assert!(U::read().is_none(), "buffer empty after read");
+    pw_assert::assert!(
+        U::read().is_ok_and(|val| val.is_none()),
+        "buffer empty after read"
+    );
 
     for i in 0..3 {
         U::write(i)?;
     }
 
     for i in 0..3u8 {
-        if let Some(value) = U::read() {
+        if let Ok(Some(value)) = U::read() {
             pw_assert::eq!(value as u8, i as u8);
         } else {
             pw_assert::panic!("U::read() returned no value");
         }
     }
-    pw_assert::assert!(U::read().is_none(), "buffer empty multiple reads");
+    pw_assert::assert!(
+        U::read().is_ok_and(|val| val.is_none()),
+        "buffer empty multiple reads"
+    );
 
     Ok(())
 }

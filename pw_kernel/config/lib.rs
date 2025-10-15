@@ -76,7 +76,7 @@ pub type InterruptHandler = fn();
 pub type InterruptTableEntry = Option<InterruptHandler>;
 pub type InterruptTable = [InterruptTableEntry];
 
-/// PLIC configuration
+/// PLIC configuration.
 pub trait PlicConfigInterface {
     /// The PLIC base address.
     const PLIC_BASE_ADDRESS: usize;
@@ -94,7 +94,7 @@ pub trait PlicConfigInterface {
     fn interrupt_table() -> &'static InterruptTable;
 }
 
-/// CLINT timer config
+/// CLINT timer config.
 pub trait ClintTimerConfigInterface {
     /// Address of mtime register.
     const MTIME_REGISTER: usize;
@@ -103,7 +103,7 @@ pub trait ClintTimerConfigInterface {
     const MTIMECMP_REGISTER: usize;
 }
 
-/// mtime timer config
+/// mtime timer config.
 pub trait MTimeTimerConfigInterface {
     /// Address of mtime register.
     const MTIME_REGISTER: usize;

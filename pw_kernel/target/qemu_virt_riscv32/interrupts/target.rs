@@ -15,36 +15,25 @@
 #![no_main]
 
 use arch_riscv::Arch;
-use kernel_config::{InterruptTableEntry, PlicConfig, PlicConfigInterface};
 use pw_status::Result;
 use riscv_semihosting::debug::{EXIT_FAILURE, EXIT_SUCCESS, exit};
 use target_common::{TargetInterface, declare_target};
 use {console_backend as _, entry as _, kernel as _};
-
-#[unsafe(no_mangle)]
-pub static INTERRUPT_TABLE: [InterruptTableEntry; PlicConfig::INTERRUPT_TABLE_SIZE] = {
-    let mut interrupt_table: [InterruptTableEntry; PlicConfig::INTERRUPT_TABLE_SIZE] =
-        [None; PlicConfig::INTERRUPT_TABLE_SIZE];
-    interrupt_table[uart::IRQ_UART0 as usize] = Some(uart::uart_interrupt_handler);
-    interrupt_table
-};
-
-static UART: uart::Uart = uart::Uart {};
 
 pub struct Target {}
 struct TargetUart {}
 
 impl interrupts::TestUart for TargetUart {
     fn enable_loopback() {
-        UART.enable_loopback()
+        entry::UART0.enable_loopback()
     }
 
-    fn read() -> Option<u8> {
-        UART.read()
+    fn read() -> Result<Option<u8>> {
+        entry::UART0.read(Arch)
     }
 
     fn write(byte: u8) -> Result<()> {
-        UART.write(byte)
+        entry::UART0.write(byte)
     }
 }
 

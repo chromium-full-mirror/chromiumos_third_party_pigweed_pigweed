@@ -19,6 +19,7 @@ pub use kernel_config::{
     ClintTimerConfigInterface, ExceptionMode, InterruptHandler, InterruptTable,
     InterruptTableEntry, KernelConfigInterface, PlicConfigInterface, RiscVKernelConfigInterface,
 };
+use uart_16550_config::UartConfigInterface;
 
 pub struct KernelConfig;
 
@@ -48,12 +49,12 @@ unsafe extern "Rust" {
 }
 
 impl PlicConfigInterface for PlicConfig {
-    const PLIC_BASE_ADDRESS: usize = 0x0c000000;
+    const PLIC_BASE_ADDRESS: usize = 0x0c00_0000;
 
     const NUM_IRQS: u32 = 128;
 
-    // 11 as the UART IRQ 10 is the highest handled interrupt.
-    const INTERRUPT_TABLE_SIZE: usize = 11;
+    // UART0 is the highest value handled IRQ.
+    const INTERRUPT_TABLE_SIZE: usize = Uart0Config::IRQ + 1;
 
     fn interrupt_table() -> &'static InterruptTable {
         unsafe { &INTERRUPT_TABLE }
@@ -67,4 +68,11 @@ const TIMER_BASE: usize = 0x200_0000;
 impl ClintTimerConfigInterface for TimerConfig {
     const MTIME_REGISTER: usize = TIMER_BASE + 0xbff8;
     const MTIMECMP_REGISTER: usize = TIMER_BASE + 0x4000;
+}
+
+pub struct Uart0Config;
+
+impl uart_16550_config::UartConfigInterface for Uart0Config {
+    const BASE_ADDRESS: usize = 0x1000_0000;
+    const IRQ: usize = 10;
 }

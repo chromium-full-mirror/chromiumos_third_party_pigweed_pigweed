@@ -16,7 +16,8 @@
 
 use arch_riscv::Arch;
 use kernel::{self as _};
-use uart as _;
+use kernel_config::{InterruptTableEntry, PlicConfig, PlicConfigInterface, Uart0Config};
+use uart_16550_config::UartConfigInterface;
 
 #[unsafe(no_mangle)]
 #[allow(non_snake_case)]
@@ -25,11 +26,23 @@ pub extern "C" fn pw_assert_HandleFailure() -> ! {
     Arch::panic()
 }
 
+uart_16550::declare_uarts!(Arch, UARTS, [
+    UART0: Uart0Config,
+]);
+
+#[unsafe(no_mangle)]
+pub static INTERRUPT_TABLE: [InterruptTableEntry; PlicConfig::INTERRUPT_TABLE_SIZE] = {
+    let mut interrupt_table: [InterruptTableEntry; PlicConfig::INTERRUPT_TABLE_SIZE] =
+        [None; PlicConfig::INTERRUPT_TABLE_SIZE];
+    interrupt_table[Uart0Config::IRQ] = Some(interrupt_handler_uart0);
+    interrupt_table
+};
+
 #[riscv_rt::entry]
 fn main() -> ! {
     kernel::static_init_state!(static mut INIT_STATE: InitKernelState<Arch>);
 
-    uart::init();
+    uart_16550::init(&UARTS);
 
     // SAFETY: `main` is only executed once, so we never generate more than one
     // `&mut` reference to `INIT_STATE`.

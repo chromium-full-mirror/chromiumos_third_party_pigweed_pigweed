@@ -52,8 +52,10 @@ rust_library(
     tags = ["kernel"],
     target_compatible_with = TARGET_COMPATIBLE_WITH,
     deps = [
+        ":config",
         ":uart",
         "//pw_kernel/arch/riscv:arch_riscv",
+        "//pw_kernel/drivers/uart/uart_16550:uart_16550_config",
         "//pw_kernel/kernel",
         "@rust_crates//:riscv-rt",
     ],
@@ -68,24 +70,13 @@ rust_library(
     target_compatible_with = TARGET_COMPATIBLE_WITH,
     deps = [
         "//pw_kernel/config:kernel_config_interface",
+        "//pw_kernel/drivers/uart/uart_16550:uart_16550_config",
     ],
 )
 
-rust_library(
+alias(
     name = "uart",
-    srcs = ["uart.rs"],
-    edition = "2024",
-    tags = ["kernel"],
-    target_compatible_with = TARGET_COMPATIBLE_WITH,
-    deps = [
-        "//pw_kernel/arch/riscv:arch_riscv",
-        "//pw_kernel/kernel",
-        "//pw_kernel/lib/circular_buffer",
-        "//pw_kernel/lib/log_if",
-        "//pw_log/rust:pw_log",
-        "//pw_status/rust:pw_status",
-        "@rust_crates//:bitflags",
-    ],
+    actual = "//pw_kernel/drivers/uart/uart_16550",
 )
 
 filegroup(
