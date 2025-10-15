@@ -27,6 +27,8 @@ class HeapDispatcher final : public FunctionDispatcher {
   HeapDispatcher(Dispatcher& dispatcher) : dispatcher_(dispatcher) {}
   ~HeapDispatcher() override = default;
 
+  Dispatcher& inner() const { return dispatcher_; }
+
   // FunctionDispatcher overrides:
   Status PostAt(TaskFunction&& task_func,
                 chrono::SystemClock::time_point time) override;
