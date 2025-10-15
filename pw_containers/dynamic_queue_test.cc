@@ -14,6 +14,7 @@
 
 #include "pw_containers/dynamic_queue.h"
 
+#include <limits>
 #include <type_traits>
 
 #include "pw_allocator/fault_injecting_allocator.h"
@@ -40,6 +41,7 @@ TEST_F(DynamicQueueTest, BasicOperations) {
   EXPECT_TRUE(queue.empty());
   EXPECT_EQ(queue.size(), 0u);
   EXPECT_GE(queue.capacity(), 0u);
+  EXPECT_EQ(queue.max_size(), std::numeric_limits<uint16_t>::max());
 
   queue.push(10);
   EXPECT_FALSE(queue.empty());

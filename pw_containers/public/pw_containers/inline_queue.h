@@ -71,7 +71,7 @@ class BasicInlineQueue
 
   // Constructors
 
-  BasicInlineQueue() noexcept {}
+  BasicInlineQueue() noexcept = default;
 
   // Explicit zero element constexpr constructor. Using this constructor will
   // place the entire object in .data, which will increase ROM size. Use with
@@ -289,13 +289,7 @@ class BasicInlineQueueImpl : public GenericQueue<Derived, Deque> {
   const_iterator end() const noexcept { return cend(); }
   const_iterator cend() const noexcept { return deque().cend(); }
 
-  // Size
-
-  [[nodiscard]] bool full() const noexcept { return deque().full(); }
-
   // Modify
-
-  void clear() noexcept { deque().clear(); }
 
   void push_overwrite(const value_type& value) { emplace_overwrite(value); }
 
@@ -305,7 +299,7 @@ class BasicInlineQueueImpl : public GenericQueue<Derived, Deque> {
 
   template <typename... Args>
   void emplace_overwrite(Args&&... args) {
-    if (full()) {
+    if (Base::full()) {
       Base::pop();
     }
     Base::emplace(std::forward<Args>(args)...);

@@ -91,7 +91,7 @@ class BasicInlineDequeImpl
   using typename Base::value_type;
 
   /// Constructs with zero elements.
-  BasicInlineDequeImpl() noexcept {}
+  BasicInlineDequeImpl() noexcept = default;
 
   // Explicit zero element constexpr constructor. Using this constructor will
   // place the entire object in .data, which will increase ROM size. Use with
@@ -264,10 +264,6 @@ class BasicInlineDequeImpl<ValueType, CountAndCapacityType, kGenericSized>
   using Base::operator=;
 
   size_type max_size() const noexcept { return Base::capacity(); }
-
-  [[nodiscard]] bool full() const noexcept {
-    return Base::size() == Base::capacity();
-  }
 
  protected:
   constexpr BasicInlineDequeImpl(size_type capacity) noexcept

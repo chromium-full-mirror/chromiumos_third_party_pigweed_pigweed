@@ -24,6 +24,7 @@
 #include <type_traits>
 #include <utility>
 
+#include "lib/stdcompat/utility.h"
 #include "pw_assert/assert.h"
 #include "pw_containers/internal/deque_iterator.h"
 #include "pw_containers/internal/traits.h"
@@ -60,6 +61,10 @@ class GenericDequeBase {
 
   [[nodiscard]] constexpr bool empty() const noexcept { return size() == 0; }
 
+  [[nodiscard]] constexpr bool full() const noexcept {
+    return size() == capacity();
+  }
+
   /// Returns the number of elements in the deque.
   constexpr size_type size() const noexcept {
     return count_and_capacity_.count();
@@ -79,8 +84,8 @@ class GenericDequeBase {
 
   constexpr void MoveAssignIndices(GenericDequeBase& other) noexcept {
     count_and_capacity_ = std::move(other.count_and_capacity_);
-    head_ = std::exchange(other.head_, 0);
-    tail_ = std::exchange(other.tail_, 0);
+    head_ = cpp20::exchange(other.head_, 0);
+    tail_ = cpp20::exchange(other.tail_, 0);
   }
 
   void SwapIndices(GenericDequeBase& other) noexcept {
@@ -294,10 +299,8 @@ class GenericDeque : public GenericDequeBase<CountAndCapacityType> {
 
   // Infallible modify
 
-  void clear() {
-    if constexpr (!std::is_trivially_destructible_v<value_type>) {
-      std::destroy(begin(), end());
-    }
+  constexpr void clear() {
+    DestroyAll();
     Base::ClearIndices();
   }
 
@@ -406,6 +409,12 @@ class GenericDeque : public GenericDequeBase<CountAndCapacityType> {
  protected:
   explicit constexpr GenericDeque(size_type initial_capacity) noexcept
       : GenericDequeBase<CountAndCapacityType>(initial_capacity) {}
+
+  constexpr void DestroyAll() {
+    if constexpr (!std::is_trivially_destructible_v<value_type>) {
+      std::destroy(begin(), end());
+    }
+  }
 
   // Infallible assignment operators
 

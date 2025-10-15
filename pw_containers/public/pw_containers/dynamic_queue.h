@@ -39,6 +39,7 @@ class DynamicQueue
                                                 DynamicDeque<T, SizeType>> {
  private:
   using Deque = DynamicDeque<T, SizeType>;
+  using Base = containers::internal::GenericQueue<DynamicQueue, Deque>;
 
  public:
   using const_iterator = typename Deque::const_iterator;
@@ -62,9 +63,6 @@ class DynamicQueue
   /// Move operations are supported and incur no allocations.
   constexpr DynamicQueue(DynamicQueue&&) = default;
   DynamicQueue& operator=(DynamicQueue&&) = default;
-
-  /// Removes all elements from the queue.
-  void clear() { deque_.clear(); }
 
   /// Attempts to add an element to the back of the queue.
   [[nodiscard]] bool try_push(const value_type& value) {
@@ -106,8 +104,10 @@ class DynamicQueue
   void swap(DynamicQueue& other) { deque_.swap(other.deque_); }
 
  private:
-  template <typename, typename>
-  friend class containers::internal::GenericQueue;
+  friend Base;
+
+  // Hide full() since the capacity can grow.
+  using Base::full;
 
   Deque& deque() { return deque_; }
   const Deque& deque() const { return deque_; }

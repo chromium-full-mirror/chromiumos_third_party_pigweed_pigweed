@@ -41,9 +41,15 @@ class CommonTest
     : public ::pw::containers::test::CommonTestFixture<CommonTest<kCapacity>> {
  public:
   template <typename T>
-  class Container : public pw::InlineAsyncDeque<T, kCapacity> {
+  class Container {
    public:
     Container(CommonTest&) {}
+
+    pw::InlineAsyncDeque<T, kCapacity>& get() { return container_; }
+    const pw::InlineAsyncDeque<T, kCapacity>& get() const { return container_; }
+
+   private:
+    pw::InlineAsyncDeque<T, kCapacity> container_;
   };
 };
 

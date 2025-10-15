@@ -91,8 +91,8 @@ class DynamicDeque : public containers::internal::GenericDeque<
   /// construction/assignment is not supported. Can use
   /// `assign()`/`try_assign()` instead.
   constexpr DynamicDeque(DynamicDeque&& other) noexcept
-      : allocator_(other.allocator_), buffer_(other.buffer_) {
-    other.buffer_ = nullptr;  // clean other's buffer_, but not its allocator_
+      : Base(0), allocator_(other.allocator_), buffer_(other.buffer_) {
+    other.buffer_ = nullptr;  // clear other's buffer_, but not its allocator_
     Base::MoveAssignIndices(other);
   }
 
@@ -193,6 +193,9 @@ class DynamicDeque : public containers::internal::GenericDeque<
 
   static constexpr bool kFixedCapacity = false;  // uses dynamic allocation
 
+  // Hide full() since the capacity can grow.
+  using Base::full;
+
   pointer data() { return std::launder(reinterpret_cast<pointer>(buffer_)); }
   const_pointer data() const {
     return std::launder(reinterpret_cast<const_pointer>(buffer_));
@@ -219,12 +222,11 @@ class DynamicDeque : public containers::internal::GenericDeque<
 template <typename ValueType, typename SizeType>
 DynamicDeque<ValueType, SizeType>& DynamicDeque<ValueType, SizeType>::operator=(
     DynamicDeque&& other) noexcept {
-  Base::clear();
+  Base::DestroyAll();
   allocator_->Deallocate(buffer_);
 
   allocator_ = other.allocator_;  // The other deque keeps its allocator
-  buffer_ = other.buffer_;
-  other.buffer_ = nullptr;
+  buffer_ = std::exchange(other.buffer_, nullptr);
 
   Base::MoveAssignIndices(other);
   return *this;
@@ -232,7 +234,7 @@ DynamicDeque<ValueType, SizeType>& DynamicDeque<ValueType, SizeType>::operator=(
 
 template <typename ValueType, typename SizeType>
 DynamicDeque<ValueType, SizeType>::~DynamicDeque() {
-  Base::clear();
+  Base::DestroyAll();
   allocator_->Deallocate(buffer_);
 }
 

@@ -94,6 +94,7 @@ pw_add_library(pw_containers._deque_common INTERFACE
     pw_assert
     pw_containers._common
     pw_span
+    pw_third_party.fuchsia.stdcompat
 )
 
 pw_add_library(pw_containers.async_count_and_capacity INTERFACE

@@ -28,6 +28,7 @@ namespace {
 
 using ::pw::containers::test::Counter;
 using ::pw::containers::test::MoveOnly;
+using ::pw::containers::test::TrivialMoveOnly;
 
 static_assert(
     sizeof(pw::OptionalTuple<uint32_t, uint8_t, uint8_t, uint8_t>) ==
@@ -100,7 +101,7 @@ TEST(OptionalTuple, SameTypes) {
 }
 
 TEST(OptionalTuple, Constinit_Default) {
-  PW_CONSTINIT static pw::OptionalTuple<int, MoveOnly, bool> tuple;
+  PW_CONSTINIT static pw::OptionalTuple<int, TrivialMoveOnly, bool> tuple;
 
   EXPECT_FALSE(tuple.has_value<0>());
   EXPECT_FALSE(tuple.has_value<1>());
@@ -117,8 +118,8 @@ TEST(OptionalTuple, Constinit_Default) {
 }
 
 TEST(OptionalTuple, Constinit_Initialized) {
-  PW_CONSTINIT static pw::OptionalTuple<const char*, MoveOnly, int> tuple(
-      "?", MoveOnly(42), pw::kTupleNull);
+  PW_CONSTINIT static pw::OptionalTuple<const char*, TrivialMoveOnly, int>
+      tuple("?", TrivialMoveOnly(42), pw::kTupleNull);
 
   EXPECT_EQ(tuple.count(), 2u);
   EXPECT_TRUE(tuple.has_value<0>());
@@ -257,7 +258,7 @@ TEST(OptionalTuple, MoveValue) {
 
   EXPECT_TRUE(tuple.has_value<0>()) << "moved value is still present";
   // NOLINTNEXTLINE(bugprone-use-after-move)
-  EXPECT_EQ(tuple.value<0>().value, MoveOnly::kDeleted);
+  EXPECT_EQ(tuple.value<0>().value, MoveOnly::kMoved);
 }
 
 TEST(OptionalTuple, RvalueValue) {
@@ -268,7 +269,7 @@ TEST(OptionalTuple, RvalueValue) {
   EXPECT_EQ(moved.value, 42);
 
   // NOLINTNEXTLINE(bugprone-use-after-move)
-  EXPECT_EQ(tuple.value<0>().value, MoveOnly::kDeleted);
+  EXPECT_EQ(tuple.value<0>().value, MoveOnly::kMoved);
   // NOLINTNEXTLINE(bugprone-use-after-move)
   EXPECT_TRUE(tuple.has_value<0>()) << "moved value is still present";
 }
@@ -281,7 +282,7 @@ TEST(OptionalTuple, RvalueValueByType) {
   EXPECT_EQ(moved.value, 42);
 
   // NOLINTNEXTLINE(bugprone-use-after-move)
-  EXPECT_EQ(tuple.value<MoveOnly>().value, MoveOnly::kDeleted);
+  EXPECT_EQ(tuple.value<MoveOnly>().value, MoveOnly::kMoved);
   // NOLINTNEXTLINE(bugprone-use-after-move)
   EXPECT_TRUE(tuple.has_value<MoveOnly>()) << "moved value is still present";
 }
@@ -476,7 +477,7 @@ TEST(OptionalTuple, ValueOr_ByIndex_RvalueRefMoved) {
   // NOLINTNEXTLINE(bugprone-use-after-move)
   EXPECT_TRUE(tuple.has_value<1>());
   // NOLINTNEXTLINE(bugprone-use-after-move)
-  EXPECT_EQ(tuple.value<1>().value, MoveOnly::kDeleted);
+  EXPECT_EQ(tuple.value<1>().value, MoveOnly::kMoved);
 }
 
 TEST(OptionalTuple, ValueOr_ByType_RvalueRefDefault) {
@@ -495,7 +496,7 @@ TEST(OptionalTuple, ValueOr_ByType_RvalueRefMoved) {
   // NOLINTNEXTLINE(bugprone-use-after-move)
   EXPECT_TRUE(tuple.has_value<1>());
   // NOLINTNEXTLINE(bugprone-use-after-move)
-  EXPECT_EQ(tuple.value<1>().value, MoveOnly::kDeleted);
+  EXPECT_EQ(tuple.value<1>().value, MoveOnly::kMoved);
 }
 
 #if PW_CXX_STANDARD_IS_SUPPORTED(20)

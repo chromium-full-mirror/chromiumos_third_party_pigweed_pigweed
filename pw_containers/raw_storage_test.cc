@@ -25,7 +25,6 @@ namespace {
 
 using test::CopyOnly;
 using test::Counter;
-using test::MoveOnly;
 
 class Empty {
  public:
@@ -68,7 +67,7 @@ TEST(RawStorage, Construct_CopyOnly) {
 }
 
 TEST(RawStorage, Construct_MoveOnly) {
-  internal::RawStorage<Empty, MoveOnly, 2> array;
+  internal::RawStorage<Empty, test::TrivialMoveOnly, 2> array;
   EXPECT_EQ(array.max_size(), 2u);
 }
 

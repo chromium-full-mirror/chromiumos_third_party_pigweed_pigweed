@@ -105,7 +105,7 @@ TEST(Vector, Construct_Move) {
 
   // NOLINTNEXTLINE(bugprone-use-after-move)
   for (unsigned short i = 0; i < origin_vector.size(); ++i) {
-    EXPECT_EQ(origin_vector[i].value, MoveOnly::kDeleted);
+    EXPECT_EQ(origin_vector[i].value, MoveOnly::kMoved);
   }
 }
 
@@ -275,7 +275,7 @@ TEST(Vector, Assign_Move) {
 
   // NOLINTNEXTLINE(bugprone-use-after-move)
   for (unsigned short i = 0; i < origin_vector.size(); ++i) {
-    EXPECT_EQ(origin_vector[i].value, MoveOnly::kDeleted);
+    EXPECT_EQ(origin_vector[i].value, MoveOnly::kMoved);
   }
 }
 
@@ -714,10 +714,7 @@ TEST(Vector, DeleteAndDestructionDisallowedOnDynamicCapacity) {
 }
 
 // Test that Vector<T> is trivially destructible when its type is.
-static_assert(std::is_trivially_destructible_v<Vector<int, 4>>);
-
-static_assert(std::is_trivially_destructible_v<MoveOnly>);
-static_assert(std::is_trivially_destructible_v<Vector<MoveOnly, 1>>);
+static_assert(std::is_trivially_destructible_v<Vector<int, 1>>);
 
 static_assert(std::is_trivially_destructible_v<CopyOnly>);
 static_assert(std::is_trivially_destructible_v<Vector<CopyOnly, 99>>);

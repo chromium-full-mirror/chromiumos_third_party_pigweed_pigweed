@@ -14,6 +14,7 @@
 #pragma once
 
 #include <cstddef>
+#include <utility>
 
 namespace pw::containers::test {
 
@@ -28,26 +29,6 @@ struct CopyOnly {
   }
 
   CopyOnly(CopyOnly&&) = delete;
-
-  int value;
-};
-
-struct MoveOnly {
-  explicit constexpr MoveOnly(int val) : value(val) {}
-
-  MoveOnly(const MoveOnly&) = delete;
-  MoveOnly& operator=(const MoveOnly&) = delete;
-
-  constexpr MoveOnly(MoveOnly&& other) : value(other.value) {
-    other.value = kDeleted;
-  }
-  constexpr MoveOnly& operator=(MoveOnly&& other) {
-    value = other.value;
-    other.value = kDeleted;
-    return *this;
-  }
-
-  static constexpr int kDeleted = -1138;
 
   int value;
 };
@@ -101,6 +82,39 @@ struct Counter {
   static ObjectCounter objects_;
 
   Counter* set_to_this_when_constructed_;
+};
+
+struct MoveOnly : public Counter {
+  static constexpr int kMoved = -1138;  // Arbitrary value for moved objects
+
+  MoveOnly(int val) : Counter(val) {}
+
+  MoveOnly(const MoveOnly&) = delete;
+  MoveOnly& operator=(const MoveOnly&) = delete;
+
+  MoveOnly(MoveOnly&& other) : Counter(std::exchange(other.value, kMoved)) {}
+  MoveOnly& operator=(MoveOnly&& other) {
+    value = std::exchange(other.value, kMoved);
+    return *this;
+  }
+};
+
+struct TrivialMoveOnly {
+  explicit constexpr TrivialMoveOnly(int val) : value(val) {}
+
+  TrivialMoveOnly(const TrivialMoveOnly&) = delete;
+  TrivialMoveOnly& operator=(const TrivialMoveOnly&) = delete;
+
+  constexpr TrivialMoveOnly(TrivialMoveOnly&& other) : value(other.value) {
+    other.value = MoveOnly::kMoved;
+  }
+  constexpr TrivialMoveOnly& operator=(TrivialMoveOnly&& other) {
+    value = other.value;
+    other.value = MoveOnly::kMoved;
+    return *this;
+  }
+
+  int value;
 };
 
 }  // namespace pw::containers::test

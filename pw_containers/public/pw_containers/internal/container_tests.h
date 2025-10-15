@@ -19,6 +19,7 @@
 #include <iterator>     // std::input_iterator_tag
 #include <type_traits>  // std::is_base_of_v, std::is_same_v, etc.
 
+#include "lib/stdcompat/type_traits.h"
 #include "pw_containers/algorithm.h"
 #include "pw_containers/internal/test_helpers.h"
 #include "pw_unit_test/framework.h"
@@ -31,159 +32,174 @@
 // differing template and constructor parameters.
 
 // Instantiates a set of tests for deques.
-#define PW_CONTAINERS_COMMON_DEQUE_TESTS(f)                                   \
-  TEST_F(f, Move_BothEmpty) { Move_BothEmpty(); }                             \
-  TEST_F(f, Move_EmptyToNonEmpty) { Move_EmptyToNonEmpty(); }                 \
-  TEST_F(f, Move_NonEmptyToEmpty) { Move_NonEmptyToEmpty(); }                 \
-  TEST_F(f, Move_BothNonEmpty) { Move_BothNonEmpty(); }                       \
-                                                                              \
-  TEST_F(f, Destructor_Empty) { Destructor_Empty(); }                         \
-  TEST_F(f, Destructor_NonEmpty) { Destructor_NonEmpty(); }                   \
-                                                                              \
-  TEST_F(f, Assign_ZeroCopies) { Assign_ZeroCopies(); }                       \
-  TEST_F(f, Assign_MultipleCopies) { Assign_MultipleCopies(); }               \
-  TEST_F(f, Assign_ForwardIterator) { Assign_ForwardIterator(); }             \
-  TEST_F(f, Assign_InputIterator) { Assign_InputIterator(); }                 \
-  TEST_F(f, Assign_InitializerList) { Assign_InitializerList(); }             \
-                                                                              \
-  TEST_F(f, Access_Iterator) { Access_Iterator(); }                           \
-  TEST_F(f, Access_ConstIterator) { Access_ConstIterator(); }                 \
-  TEST_F(f, Access_Empty) { Access_Empty(); }                                 \
-  TEST_F(f, Access_DequeContiguousData) { Access_DequeContiguousData(); }     \
-  TEST_F(f, Access_DequeConstContiguousData) {                                \
-    Access_DequeConstContiguousData();                                        \
-  }                                                                           \
-                                                                              \
-  TEST_F(f, Modify_ClearNonEmpty) { Modify_ClearNonEmpty(); }                 \
-  TEST_F(f, Modify_PushBackCopy) { Modify_PushBackCopy(); }                   \
-  TEST_F(f, Modify_PushBackMove) { Modify_PushBackMove(); }                   \
-  TEST_F(f, Modify_EmplaceBack) { Modify_EmplaceBack(); }                     \
-  TEST_F(f, Modify_DequeWrapForwards) { Modify_DequeWrapForwards(); }         \
-  TEST_F(f, Modify_DequeWrapBackwards) { Modify_DequeWrapBackwards(); }       \
-  TEST_F(f, Modify_PushFrontCopy) { Modify_PushFrontCopy(); }                 \
-  TEST_F(f, Modify_PushFrontMove) { Modify_PushFrontMove(); }                 \
-  TEST_F(f, Modify_EmplaceFront) { Modify_EmplaceFront(); }                   \
-  TEST_F(f, Modify_PopBack) { Modify_PopBack(); }                             \
-  TEST_F(f, Modify_PopFront) { Modify_PopFront(); }                           \
-  TEST_F(f, Modify_ResizeLarger) { Modify_ResizeLarger(); }                   \
-  TEST_F(f, Modify_ResizeSmaller) { Modify_ResizeSmaller(); }                 \
-  TEST_F(f, Modify_ResizeZero) { Modify_ResizeZero(); }                       \
-  TEST_F(f, Modify_Erase_FirstElement) { Modify_Erase_FirstElement(); }       \
-  TEST_F(f, Modify_Erase_LastElement) { Modify_Erase_LastElement(); }         \
-  TEST_F(f, Modify_Erase_MiddleElement) { Modify_Erase_MiddleElement(); }     \
-  TEST_F(f, Modify_Erase_OnlyElement) { Modify_Erase_OnlyElement(); }         \
-  TEST_F(f, Modify_Erase_AfterPopFront) { Modify_Erase_AfterPopFront(); }     \
-  TEST_F(f, Modify_EraseRange_ZeroElements) {                                 \
-    Modify_EraseRange_ZeroElements();                                         \
-  }                                                                           \
-  TEST_F(f, Modify_EraseRange_OneElement) { Modify_EraseRange_OneElement(); } \
-  TEST_F(f, Modify_EraseRange_ToTheBeginning) {                               \
-    Modify_EraseRange_ToTheBeginning();                                       \
-  }                                                                           \
-  TEST_F(f, Modify_EraseRange_ToTheEnd) { Modify_EraseRange_ToTheEnd(); }     \
-  TEST_F(f, Modify_EraseRange_Everything) { Modify_EraseRange_Everything(); } \
-  TEST_F(f, Modify_EraseRange_AfterPopFront) {                                \
-    Modify_EraseRange_AfterPopFront();                                        \
-  }                                                                           \
-                                                                              \
-  TEST_F(f, Modify_Emplace_Empty) { Modify_Emplace_Empty(); }                 \
-  TEST_F(f, Modify_Emplace_Front) { Modify_Emplace_Front(); }                 \
-  TEST_F(f, Modify_Emplace_Back) { Modify_Emplace_Back(); }                   \
-  TEST_F(f, Modify_Emplace_Middle) { Modify_Emplace_Middle(); }               \
-  TEST_F(f, Modify_Emplace_BeginPlusOne) { Modify_Emplace_BeginPlusOne(); }   \
-  TEST_F(f, Modify_Emplace_EndMinusOne) { Modify_Emplace_EndMinusOne(); }     \
-                                                                              \
-  TEST_F(f, Modify_InsertCopy) { Modify_InsertCopy(); }                       \
-  TEST_F(f, Modify_InsertMove) { Modify_InsertMove(); }                       \
-  TEST_F(f, Modify_InsertCopies_NearBegin_FewerThanBefore) {                  \
-    Modify_InsertCopies_NearBegin_FewerThanBefore();                          \
-  }                                                                           \
-  TEST_F(f, Modify_InsertCopies_NearBegin_SameAsBefore) {                     \
-    Modify_InsertCopies_NearBegin_SameAsBefore();                             \
-  }                                                                           \
-  TEST_F(f, Modify_InsertCopies_NearBegin_MoreThanBefore) {                   \
-    Modify_InsertCopies_NearBegin_MoreThanBefore();                           \
-  }                                                                           \
-  TEST_F(f, Modify_InsertCopies_NearEnd_FewerThanAfter) {                     \
-    Modify_InsertCopies_NearEnd_FewerThanAfter();                             \
-  }                                                                           \
-  TEST_F(f, Modify_InsertCopies_NearEnd_SameAsAfter) {                        \
-    Modify_InsertCopies_NearEnd_SameAsAfter();                                \
-  }                                                                           \
-  TEST_F(f, Modify_InsertCopies_NearEnd_MoreThanAfter) {                      \
-    Modify_InsertCopies_NearEnd_MoreThanAfter();                              \
-  }                                                                           \
-  TEST_F(f, Modify_InsertCopies_AtBegin_1) {                                  \
-    Modify_InsertCopies_AtBegin_1();                                          \
-  }                                                                           \
-  TEST_F(f, Modify_InsertCopies_AtBegin_2) {                                  \
-    Modify_InsertCopies_AtBegin_2();                                          \
-  }                                                                           \
-  TEST_F(f, Modify_InsertCopies_AtEnd_1) { Modify_InsertCopies_AtEnd_1(); }   \
-  TEST_F(f, Modify_InsertCopies_AtEnd_2) { Modify_InsertCopies_AtEnd_2(); }   \
-  TEST_F(f, Modify_InsertIterators_NearBegin_FewerThanBefore) {               \
-    Modify_InsertIterators_NearBegin_FewerThanBefore();                       \
-  }                                                                           \
-  TEST_F(f, Modify_InsertIterators_NearBegin_SameAsBefore) {                  \
-    Modify_InsertIterators_NearBegin_SameAsBefore();                          \
-  }                                                                           \
-  TEST_F(f, Modify_InsertIterators_NearBegin_MoreThanBefore) {                \
-    Modify_InsertIterators_NearBegin_MoreThanBefore();                        \
-  }                                                                           \
-  TEST_F(f, Modify_InsertIterators_NearEnd_FewerThanAfter) {                  \
-    Modify_InsertIterators_NearEnd_FewerThanAfter();                          \
-  }                                                                           \
-  TEST_F(f, Modify_InsertIterators_NearEnd_SameAsAfter) {                     \
-    Modify_InsertIterators_NearEnd_SameAsAfter();                             \
-  }                                                                           \
-  TEST_F(f, Modify_InsertIterators_NearEnd_MoreThanAfter) {                   \
-    Modify_InsertIterators_NearEnd_MoreThanAfter();                           \
-  }                                                                           \
-  TEST_F(f, Modify_InsertIterators_AtBegin_1) {                               \
-    Modify_InsertIterators_AtBegin_1();                                       \
-  }                                                                           \
-  TEST_F(f, Modify_InsertIterators_AtBegin_2) {                               \
-    Modify_InsertIterators_AtBegin_2();                                       \
-  }                                                                           \
-  TEST_F(f, Modify_InsertIterators_AtEnd_1) {                                 \
-    Modify_InsertIterators_AtEnd_1();                                         \
-  }                                                                           \
-  TEST_F(f, Modify_InsertIterators_AtEnd_2) {                                 \
-    Modify_InsertIterators_AtEnd_2();                                         \
-  }                                                                           \
-  TEST_F(f, Modify_InsertInitializerList) { Modify_InsertInitializerList(); } \
-  TEST_F(f, Modify_InsertInputIterator) { Modify_InsertInputIterator(); }     \
-                                                                              \
-  TEST_F(f, Algorithm_StdMaxElement) { Algorithm_StdMaxElement(); }           \
-  TEST_F(f, Algorithm_StdMaxElementConst) { Algorithm_StdMaxElementConst(); } \
-                                                                              \
-  TEST_F(f, Iterator_OperatorPlus) { Iterator_OperatorPlus(); }               \
-  TEST_F(f, Iterator_OperatorPlusPlus) { Iterator_OperatorPlusPlus(); }       \
-  TEST_F(f, Iterator_OperatorPlusEquals) { Iterator_OperatorPlusEquals(); }   \
-  TEST_F(f, Iterator_OperatorMinus) { Iterator_OperatorMinus(); }             \
-  TEST_F(f, Iterator_OperatorMinusMinus) { Iterator_OperatorMinusMinus(); }   \
-  TEST_F(f, Iterator_OperatorMinusEquals) { Iterator_OperatorMinusEquals(); } \
-  TEST_F(f, Iterator_OperatorSquareBracket) {                                 \
-    Iterator_OperatorSquareBracket();                                         \
-  }                                                                           \
-  TEST_F(f, Iterator_OperatorLessThan) { Iterator_OperatorLessThan(); }       \
-  TEST_F(f, Iterator_OperatorLessThanEqual) {                                 \
-    Iterator_OperatorLessThanEqual();                                         \
-  }                                                                           \
-  TEST_F(f, Iterator_OperatorGreater) { Iterator_OperatorGreater(); }         \
-  TEST_F(f, Iterator_OperatorGreaterThanEqual) {                              \
-    Iterator_OperatorGreaterThanEqual();                                      \
-  }                                                                           \
-  TEST_F(f, Iterator_OperatorDereference) { Iterator_OperatorDereference(); } \
-                                                                              \
-  static_assert(std::is_integral_v<f::Container<int>::size_type>);            \
-  static_assert(std::is_same_v<f::Container<int>::value_type, int>);          \
-  static_assert(std::is_integral_v<f::Container<int>::difference_type>);      \
-  static_assert(std::is_same_v<f::Container<int>::reference, int&>);          \
-  static_assert(                                                              \
-      std::is_same_v<f::Container<int>::const_reference, const int&>);        \
-  static_assert(std::is_same_v<f::Container<int>::pointer, int*>);            \
-  static_assert(std::is_same_v<f::Container<int>::const_pointer, const int*>)
+#define PW_CONTAINERS_COMMON_DEQUE_TESTS(f)                                    \
+  TEST_F(f, Move_BothEmpty) { Move_BothEmpty(); }                              \
+  TEST_F(f, Move_EmptyToNonEmpty) { Move_EmptyToNonEmpty(); }                  \
+  TEST_F(f, Move_NonEmptyToEmpty) { Move_NonEmptyToEmpty(); }                  \
+  TEST_F(f, Move_BothNonEmpty) { Move_BothNonEmpty(); }                        \
+                                                                               \
+  TEST_F(f, Destructor_Empty) { Destructor_Empty(); }                          \
+  TEST_F(f, Destructor_NonEmpty) { Destructor_NonEmpty(); }                    \
+                                                                               \
+  TEST_F(f, Assign_ZeroCopies) { Assign_ZeroCopies(); }                        \
+  TEST_F(f, Assign_MultipleCopies) { Assign_MultipleCopies(); }                \
+  TEST_F(f, Assign_ForwardIterator) { Assign_ForwardIterator(); }              \
+  TEST_F(f, Assign_InputIterator) { Assign_InputIterator(); }                  \
+  TEST_F(f, Assign_InitializerList) { Assign_InitializerList(); }              \
+                                                                               \
+  TEST_F(f, Access_Iterator) { Access_Iterator(); }                            \
+  TEST_F(f, Access_ConstIterator) { Access_ConstIterator(); }                  \
+  TEST_F(f, Access_Empty) { Access_Empty(); }                                  \
+  TEST_F(f, Access_DequeContiguousData) { Access_DequeContiguousData(); }      \
+  TEST_F(f, Access_DequeConstContiguousData) {                                 \
+    Access_DequeConstContiguousData();                                         \
+  }                                                                            \
+                                                                               \
+  TEST_F(f, Modify_ClearNonEmpty) { Modify_ClearNonEmpty(); }                  \
+  TEST_F(f, Modify_PushBackCopy) { Modify_PushBackCopy(); }                    \
+  TEST_F(f, Modify_PushBackMove) { Modify_PushBackMove(); }                    \
+  TEST_F(f, Modify_EmplaceBack) { Modify_EmplaceBack(); }                      \
+  TEST_F(f, Modify_DequeWrapForwards) { Modify_DequeWrapForwards(); }          \
+  TEST_F(f, Modify_DequeWrapBackwards) { Modify_DequeWrapBackwards(); }        \
+  TEST_F(f, Modify_PushFrontCopy) { Modify_PushFrontCopy(); }                  \
+  TEST_F(f, Modify_PushFrontMove) { Modify_PushFrontMove(); }                  \
+  TEST_F(f, Modify_EmplaceFront) { Modify_EmplaceFront(); }                    \
+  TEST_F(f, Modify_PopBack) { Modify_PopBack(); }                              \
+  TEST_F(f, Modify_PopFront) { Modify_PopFront(); }                            \
+  TEST_F(f, Modify_ResizeLarger) { Modify_ResizeLarger(); }                    \
+  TEST_F(f, Modify_ResizeSmaller) { Modify_ResizeSmaller(); }                  \
+  TEST_F(f, Modify_ResizeZero) { Modify_ResizeZero(); }                        \
+  TEST_F(f, Modify_Erase_FirstElement) { Modify_Erase_FirstElement(); }        \
+  TEST_F(f, Modify_Erase_LastElement) { Modify_Erase_LastElement(); }          \
+  TEST_F(f, Modify_Erase_MiddleElement) { Modify_Erase_MiddleElement(); }      \
+  TEST_F(f, Modify_Erase_OnlyElement) { Modify_Erase_OnlyElement(); }          \
+  TEST_F(f, Modify_Erase_AfterPopFront) { Modify_Erase_AfterPopFront(); }      \
+  TEST_F(f, Modify_EraseRange_ZeroElements) {                                  \
+    Modify_EraseRange_ZeroElements();                                          \
+  }                                                                            \
+  TEST_F(f, Modify_EraseRange_OneElement) { Modify_EraseRange_OneElement(); }  \
+  TEST_F(f, Modify_EraseRange_ToTheBeginning) {                                \
+    Modify_EraseRange_ToTheBeginning();                                        \
+  }                                                                            \
+  TEST_F(f, Modify_EraseRange_ToTheEnd) { Modify_EraseRange_ToTheEnd(); }      \
+  TEST_F(f, Modify_EraseRange_Everything) { Modify_EraseRange_Everything(); }  \
+  TEST_F(f, Modify_EraseRange_AfterPopFront) {                                 \
+    Modify_EraseRange_AfterPopFront();                                         \
+  }                                                                            \
+                                                                               \
+  TEST_F(f, Modify_Emplace_Empty) { Modify_Emplace_Empty(); }                  \
+  TEST_F(f, Modify_Emplace_Front) { Modify_Emplace_Front(); }                  \
+  TEST_F(f, Modify_Emplace_Back) { Modify_Emplace_Back(); }                    \
+  TEST_F(f, Modify_Emplace_Middle) { Modify_Emplace_Middle(); }                \
+  TEST_F(f, Modify_Emplace_BeginPlusOne) { Modify_Emplace_BeginPlusOne(); }    \
+  TEST_F(f, Modify_Emplace_EndMinusOne) { Modify_Emplace_EndMinusOne(); }      \
+                                                                               \
+  TEST_F(f, Modify_InsertCopy) { Modify_InsertCopy(); }                        \
+  TEST_F(f, Modify_InsertMove) { Modify_InsertMove(); }                        \
+  TEST_F(f, Modify_InsertCopies_NearBegin_FewerThanBefore) {                   \
+    Modify_InsertCopies_NearBegin_FewerThanBefore();                           \
+  }                                                                            \
+  TEST_F(f, Modify_InsertCopies_NearBegin_SameAsBefore) {                      \
+    Modify_InsertCopies_NearBegin_SameAsBefore();                              \
+  }                                                                            \
+  TEST_F(f, Modify_InsertCopies_NearBegin_MoreThanBefore) {                    \
+    Modify_InsertCopies_NearBegin_MoreThanBefore();                            \
+  }                                                                            \
+  TEST_F(f, Modify_InsertCopies_NearEnd_FewerThanAfter) {                      \
+    Modify_InsertCopies_NearEnd_FewerThanAfter();                              \
+  }                                                                            \
+  TEST_F(f, Modify_InsertCopies_NearEnd_SameAsAfter) {                         \
+    Modify_InsertCopies_NearEnd_SameAsAfter();                                 \
+  }                                                                            \
+  TEST_F(f, Modify_InsertCopies_NearEnd_MoreThanAfter) {                       \
+    Modify_InsertCopies_NearEnd_MoreThanAfter();                               \
+  }                                                                            \
+  TEST_F(f, Modify_InsertCopies_AtBegin_1) {                                   \
+    Modify_InsertCopies_AtBegin_1();                                           \
+  }                                                                            \
+  TEST_F(f, Modify_InsertCopies_AtBegin_2) {                                   \
+    Modify_InsertCopies_AtBegin_2();                                           \
+  }                                                                            \
+  TEST_F(f, Modify_InsertCopies_AtEnd_1) { Modify_InsertCopies_AtEnd_1(); }    \
+  TEST_F(f, Modify_InsertCopies_AtEnd_2) { Modify_InsertCopies_AtEnd_2(); }    \
+  TEST_F(f, Modify_InsertIterators_NearBegin_FewerThanBefore) {                \
+    Modify_InsertIterators_NearBegin_FewerThanBefore();                        \
+  }                                                                            \
+  TEST_F(f, Modify_InsertIterators_NearBegin_SameAsBefore) {                   \
+    Modify_InsertIterators_NearBegin_SameAsBefore();                           \
+  }                                                                            \
+  TEST_F(f, Modify_InsertIterators_NearBegin_MoreThanBefore) {                 \
+    Modify_InsertIterators_NearBegin_MoreThanBefore();                         \
+  }                                                                            \
+  TEST_F(f, Modify_InsertIterators_NearEnd_FewerThanAfter) {                   \
+    Modify_InsertIterators_NearEnd_FewerThanAfter();                           \
+  }                                                                            \
+  TEST_F(f, Modify_InsertIterators_NearEnd_SameAsAfter) {                      \
+    Modify_InsertIterators_NearEnd_SameAsAfter();                              \
+  }                                                                            \
+  TEST_F(f, Modify_InsertIterators_NearEnd_MoreThanAfter) {                    \
+    Modify_InsertIterators_NearEnd_MoreThanAfter();                            \
+  }                                                                            \
+  TEST_F(f, Modify_InsertIterators_AtBegin_1) {                                \
+    Modify_InsertIterators_AtBegin_1();                                        \
+  }                                                                            \
+  TEST_F(f, Modify_InsertIterators_AtBegin_2) {                                \
+    Modify_InsertIterators_AtBegin_2();                                        \
+  }                                                                            \
+  TEST_F(f, Modify_InsertIterators_AtEnd_1) {                                  \
+    Modify_InsertIterators_AtEnd_1();                                          \
+  }                                                                            \
+  TEST_F(f, Modify_InsertIterators_AtEnd_2) {                                  \
+    Modify_InsertIterators_AtEnd_2();                                          \
+  }                                                                            \
+  TEST_F(f, Modify_InsertInitializerList) { Modify_InsertInitializerList(); }  \
+  TEST_F(f, Modify_InsertInputIterator) { Modify_InsertInputIterator(); }      \
+                                                                               \
+  TEST_F(f, Algorithm_StdMaxElement) { Algorithm_StdMaxElement(); }            \
+  TEST_F(f, Algorithm_StdMaxElementConst) { Algorithm_StdMaxElementConst(); }  \
+                                                                               \
+  TEST_F(f, Iterator_OperatorPlus) { Iterator_OperatorPlus(); }                \
+  TEST_F(f, Iterator_OperatorPlusPlus) { Iterator_OperatorPlusPlus(); }        \
+  TEST_F(f, Iterator_OperatorPlusEquals) { Iterator_OperatorPlusEquals(); }    \
+  TEST_F(f, Iterator_OperatorMinus) { Iterator_OperatorMinus(); }              \
+  TEST_F(f, Iterator_OperatorMinusMinus) { Iterator_OperatorMinusMinus(); }    \
+  TEST_F(f, Iterator_OperatorMinusEquals) { Iterator_OperatorMinusEquals(); }  \
+  TEST_F(f, Iterator_OperatorSquareBracket) {                                  \
+    Iterator_OperatorSquareBracket();                                          \
+  }                                                                            \
+  TEST_F(f, Iterator_OperatorLessThan) { Iterator_OperatorLessThan(); }        \
+  TEST_F(f, Iterator_OperatorLessThanEqual) {                                  \
+    Iterator_OperatorLessThanEqual();                                          \
+  }                                                                            \
+  TEST_F(f, Iterator_OperatorGreater) { Iterator_OperatorGreater(); }          \
+  TEST_F(f, Iterator_OperatorGreaterThanEqual) {                               \
+    Iterator_OperatorGreaterThanEqual();                                       \
+  }                                                                            \
+  TEST_F(f, Iterator_OperatorDereference) { Iterator_OperatorDereference(); }  \
+                                                                               \
+  static_assert(                                                               \
+      std::is_integral_v<                                                      \
+          typename ::pw::containers::test::Container<f, int>::size_type>);     \
+  static_assert(                                                               \
+      std::is_same_v<                                                          \
+          typename ::pw::containers::test::Container<f, int>::value_type,      \
+          int>);                                                               \
+  static_assert(std::is_integral_v<typename ::pw::containers::test::           \
+                                       Container<f, int>::difference_type>);   \
+  static_assert(std::is_same_v<                                                \
+                typename ::pw::containers::test::Container<f, int>::reference, \
+                int&>);                                                        \
+  static_assert(                                                               \
+      std::is_same_v<                                                          \
+          typename ::pw::containers::test::Container<f, int>::const_reference, \
+          const int&>);                                                        \
+  static_assert(std::is_same_v<                                                \
+                typename ::pw::containers::test::Container<f, int>::pointer,   \
+                int*>);                                                        \
+  static_assert(                                                               \
+      std::is_same_v<                                                          \
+          typename ::pw::containers::test::Container<f, int>::const_pointer,   \
+          const int*>)
 
 namespace pw::containers::test {
 
@@ -273,8 +289,18 @@ struct IteratorProperties {
   static constexpr bool kPasses = true;
 };
 
+// Gets the actual container type declared by the derived test fixture.
 template <typename Derived, typename T>
-using Container = typename Derived::template Container<T>;
+using Container = cpp20::remove_cvref_t<
+    decltype(std::declval<typename Derived::template Container<T>>().get())>;
+
+// Containers are declared by a wrapper class, in case they need additional
+// setup. This declares the wrapper then gets a reference to the actual
+// container.
+#define PW_DECLARE_CONTAINER(variable, type)                              \
+  typename Derived::template Container<type> test_wrapper_for_##variable( \
+      fixture());                                                         \
+  auto& variable = test_wrapper_for_##variable.get()
 
 template <typename Derived>
 class CommonTestFixture : public ::testing::Test {
@@ -282,8 +308,8 @@ class CommonTestFixture : public ::testing::Test {
   CommonTestFixture() { Counter::Reset(); }
 
   void Move_BothEmpty() {
-    Container<Derived, Counter> container_1(fixture());
-    Container<Derived, Counter> container_2(fixture());
+    PW_DECLARE_CONTAINER(container_1, Counter);
+    PW_DECLARE_CONTAINER(container_2, Counter);
 
     container_1 = std::move(container_2);
 
@@ -292,10 +318,10 @@ class CommonTestFixture : public ::testing::Test {
   }
 
   void Move_EmptyToNonEmpty() {
-    Container<Derived, Counter> container_1(fixture());
+    PW_DECLARE_CONTAINER(container_1, Counter);
     container_1.assign({1, 2});
 
-    Container<Derived, Counter> container_2(fixture());
+    PW_DECLARE_CONTAINER(container_2, Counter);
 
     container_1 = std::move(container_2);
 
@@ -304,9 +330,9 @@ class CommonTestFixture : public ::testing::Test {
   }
 
   void Move_NonEmptyToEmpty() {
-    Container<Derived, Counter> container_1(fixture());
+    PW_DECLARE_CONTAINER(container_1, Counter);
 
-    Container<Derived, Counter> container_2(fixture());
+    PW_DECLARE_CONTAINER(container_2, Counter);
     container_2.assign({-1, -2, -3, -4});
     container_2.pop_front();
     container_2.pop_front();
@@ -319,10 +345,10 @@ class CommonTestFixture : public ::testing::Test {
   }
 
   void Move_BothNonEmpty() {
-    Container<Derived, Counter> container_1(fixture());
+    PW_DECLARE_CONTAINER(container_1, Counter);
     container_1.assign({1, 2});
 
-    Container<Derived, Counter> container_2(fixture());
+    PW_DECLARE_CONTAINER(container_2, Counter);
     container_2.assign({-1, -2, -3, -4});
     container_2.pop_front();
 
@@ -334,7 +360,7 @@ class CommonTestFixture : public ::testing::Test {
 
   void Destructor_Empty() {
     {
-      Container<Derived, Counter> container(fixture());
+      PW_DECLARE_CONTAINER(container, Counter);
       EXPECT_EQ(container.size(), 0u);
     }
     EXPECT_EQ(Counter::created, 0);
@@ -347,7 +373,7 @@ class CommonTestFixture : public ::testing::Test {
 
     typename Container<Derived, Counter>::size_type count;
     {
-      Container<Derived, Counter> container(fixture());
+      PW_DECLARE_CONTAINER(container, Counter);
       count = ArbitrarySizeThatFits(container);
       container.assign(count, value);
       ASSERT_EQ(container.size(), count);
@@ -358,7 +384,7 @@ class CommonTestFixture : public ::testing::Test {
   }
 
   void Assign_ZeroCopies() {
-    Container<Derived, Counter> container(fixture());
+    PW_DECLARE_CONTAINER(container, Counter);
     container.assign(1, Counter());
 
     container.assign(0, Counter(123));
@@ -366,7 +392,7 @@ class CommonTestFixture : public ::testing::Test {
   }
 
   void Assign_MultipleCopies() {
-    Container<Derived, Counter> container(fixture());
+    PW_DECLARE_CONTAINER(container, Counter);
 
     container.assign(3, Counter(123));
 
@@ -383,7 +409,7 @@ class CommonTestFixture : public ::testing::Test {
   }
 
   void Assign_ForwardIterator() {
-    Container<Derived, int> container(fixture());
+    PW_DECLARE_CONTAINER(container, int);
     container.assign(5u, -1);
 
     std::array<int, 5> array{0, 1, 2, 3, 4};
@@ -400,7 +426,7 @@ class CommonTestFixture : public ::testing::Test {
   }
 
   void Assign_InputIterator() {
-    Container<Derived, int> container(fixture());
+    PW_DECLARE_CONTAINER(container, int);
     container.assign(InputIt(5), InputIt(9));
 
     ASSERT_EQ(4u, container.size());
@@ -411,7 +437,7 @@ class CommonTestFixture : public ::testing::Test {
   }
 
   void Assign_InitializerList() {
-    Container<Derived, int> container(fixture());
+    PW_DECLARE_CONTAINER(container, int);
     container.assign({1, 3, 5, 7});
 
     ASSERT_EQ(4u, container.size());
@@ -423,7 +449,7 @@ class CommonTestFixture : public ::testing::Test {
   }
 
   void Access_Iterator() {
-    Container<Derived, Counter> container(fixture());
+    PW_DECLARE_CONTAINER(container, Counter);
     container.assign(2, Counter());
 
     for (Counter& item : container) {
@@ -435,7 +461,7 @@ class CommonTestFixture : public ::testing::Test {
   }
 
   void Access_ConstIterator() {
-    Container<Derived, Counter> container(fixture());
+    PW_DECLARE_CONTAINER(container, Counter);
     container.assign(2, Counter());
 
     for (const Counter& item :
@@ -445,7 +471,7 @@ class CommonTestFixture : public ::testing::Test {
   }
 
   void Access_Empty() {
-    Container<Derived, Counter> container(fixture());
+    PW_DECLARE_CONTAINER(container, Counter);
 
     EXPECT_EQ(0u, container.size());
     EXPECT_TRUE(container.empty());
@@ -458,7 +484,7 @@ class CommonTestFixture : public ::testing::Test {
 
   void Access_DequeContiguousData() {
     // Content = {}, Storage = [x, x]
-    Container<Derived, int> container(fixture());
+    PW_DECLARE_CONTAINER(container, int);
 
     {
       auto [first, second] = container.contiguous_data();
@@ -506,7 +532,7 @@ class CommonTestFixture : public ::testing::Test {
 
   void Access_DequeConstContiguousData() {
     // Content = {1, 2}, Storage = [1, 2]
-    Container<Derived, int> container(fixture());
+    PW_DECLARE_CONTAINER(container, int);
     container.assign({1, 2});
     const Container<Derived, int>& const_container = container;
 
@@ -519,7 +545,7 @@ class CommonTestFixture : public ::testing::Test {
   }
 
   void Modify_ClearNonEmpty() {
-    Container<Derived, Counter> container(fixture());
+    PW_DECLARE_CONTAINER(container, Counter);
     container.emplace_back();
     container.emplace_back();
     container.emplace_back();
@@ -535,7 +561,7 @@ class CommonTestFixture : public ::testing::Test {
     Counter::Reset();
 
     {
-      Container<Derived, Counter> container(fixture());
+      PW_DECLARE_CONTAINER(container, Counter);
       container.push_back(value);
 
       ASSERT_EQ(container.size(), 1u);
@@ -549,7 +575,7 @@ class CommonTestFixture : public ::testing::Test {
   void Modify_PushBackMove() {
     {
       Counter value(99);
-      Container<Derived, Counter> container(fixture());
+      PW_DECLARE_CONTAINER(container, Counter);
       container.push_back(std::move(value));
 
       EXPECT_EQ(container.size(), 1u);
@@ -565,7 +591,7 @@ class CommonTestFixture : public ::testing::Test {
 
   void Modify_EmplaceBack() {
     {
-      Container<Derived, Counter> container(fixture());
+      PW_DECLARE_CONTAINER(container, Counter);
       container.emplace_back(314);
 
       ASSERT_EQ(container.size(), 1u);
@@ -578,7 +604,7 @@ class CommonTestFixture : public ::testing::Test {
 
   void Modify_DequeWrapForwards() {
     {
-      Container<Derived, Counter> container(fixture());
+      PW_DECLARE_CONTAINER(container, Counter);
       container.emplace_back(1);
       container.emplace_back(2);
       container.emplace_back(3);
@@ -607,7 +633,7 @@ class CommonTestFixture : public ::testing::Test {
 
   void Modify_DequeWrapBackwards() {
     {
-      Container<Derived, Counter> container(fixture());
+      PW_DECLARE_CONTAINER(container, Counter);
       container.emplace_front(1);
       container.emplace_front(2);
       container.emplace_front(3);
@@ -639,7 +665,7 @@ class CommonTestFixture : public ::testing::Test {
     Counter::Reset();
 
     {
-      Container<Derived, Counter> container(fixture());
+      PW_DECLARE_CONTAINER(container, Counter);
       container.push_front(value);
 
       EXPECT_EQ(container.size(), 1u);
@@ -653,7 +679,7 @@ class CommonTestFixture : public ::testing::Test {
   void Modify_PushFrontMove() {
     {
       Counter value(99);
-      Container<Derived, Counter> container(fixture());
+      PW_DECLARE_CONTAINER(container, Counter);
       container.push_front(std::move(value));
 
       EXPECT_EQ(container.size(), 1u);
@@ -669,7 +695,7 @@ class CommonTestFixture : public ::testing::Test {
 
   void Modify_EmplaceFront() {
     {
-      Container<Derived, Counter> container(fixture());
+      PW_DECLARE_CONTAINER(container, Counter);
       container.emplace_front(314);
 
       EXPECT_EQ(container.size(), 1u);
@@ -682,7 +708,7 @@ class CommonTestFixture : public ::testing::Test {
 
   void Modify_PopBack() {
     {
-      Container<Derived, Counter> container(fixture());
+      PW_DECLARE_CONTAINER(container, Counter);
       container.emplace_front(1);  // This wraps to the other end.
       container.emplace_back(2);   // This is the first entry in storage.
       container.emplace_back(3);
@@ -713,7 +739,7 @@ class CommonTestFixture : public ::testing::Test {
 
   void Modify_PopFront() {
     {
-      Container<Derived, Counter> container(fixture());
+      PW_DECLARE_CONTAINER(container, Counter);
       container.emplace_front(1);  // This wraps to the other end.
       container.emplace_back(2);   // This is the first entry in storage.
       container.emplace_back(3);
@@ -743,7 +769,7 @@ class CommonTestFixture : public ::testing::Test {
   }
 
   void Modify_ResizeLarger() {
-    Container<Derived, CopyOnly> container(fixture());
+    PW_DECLARE_CONTAINER(container, CopyOnly);
     container.assign(1, CopyOnly(123));
     ASSERT_EQ(container.size(), 1u);
 
@@ -756,7 +782,7 @@ class CommonTestFixture : public ::testing::Test {
   }
 
   void Modify_ResizeSmaller() {
-    Container<Derived, CopyOnly> container(fixture());
+    PW_DECLARE_CONTAINER(container, CopyOnly);
 
     auto count = ArbitrarySizeThatFits(container);
 
@@ -772,7 +798,7 @@ class CommonTestFixture : public ::testing::Test {
   }
 
   void Modify_ResizeZero() {
-    Container<Derived, CopyOnly> container(fixture());
+    PW_DECLARE_CONTAINER(container, CopyOnly);
     auto count = ArbitrarySizeThatFits(container);
     container.assign(count, CopyOnly(123));
     ASSERT_EQ(container.size(), count);
@@ -784,7 +810,7 @@ class CommonTestFixture : public ::testing::Test {
   }
 
   void Modify_Erase_FirstElement() {
-    Container<Derived, Counter> container(fixture());
+    PW_DECLARE_CONTAINER(container, Counter);
     container.assign({1, 2, 3});
     Counter::Reset();
 
@@ -796,7 +822,7 @@ class CommonTestFixture : public ::testing::Test {
   }
 
   void Modify_Erase_LastElement() {
-    Container<Derived, Counter> container(fixture());
+    PW_DECLARE_CONTAINER(container, Counter);
     container.assign({1, 2, 3});
     Counter::Reset();
 
@@ -807,7 +833,7 @@ class CommonTestFixture : public ::testing::Test {
   }
 
   void Modify_Erase_MiddleElement() {
-    Container<Derived, Counter> container(fixture());
+    PW_DECLARE_CONTAINER(container, Counter);
     container.assign({1, 2, 3});
     Counter::Reset();
 
@@ -819,7 +845,7 @@ class CommonTestFixture : public ::testing::Test {
   }
 
   void Modify_Erase_OnlyElement() {
-    Container<Derived, Counter> container(fixture());
+    PW_DECLARE_CONTAINER(container, Counter);
     container.assign({1});
     Counter::Reset();
 
@@ -830,7 +856,7 @@ class CommonTestFixture : public ::testing::Test {
   }
 
   void Modify_Erase_AfterPopFront() {
-    Container<Derived, Counter> container(fixture());
+    PW_DECLARE_CONTAINER(container, Counter);
     container.assign({1, 2, 3, 4});
     container.pop_front();
     container.push_back(5);
@@ -845,7 +871,7 @@ class CommonTestFixture : public ::testing::Test {
   }
 
   void Modify_EraseRange_ZeroElements() {
-    Container<Derived, Counter> container(fixture());
+    PW_DECLARE_CONTAINER(container, Counter);
     container.assign({1, 2, 3});
     Counter::Reset();
 
@@ -856,7 +882,7 @@ class CommonTestFixture : public ::testing::Test {
   }
 
   void Modify_EraseRange_OneElement() {
-    Container<Derived, Counter> container(fixture());
+    PW_DECLARE_CONTAINER(container, Counter);
     container.assign({1, 2, 3});
     Counter::Reset();
 
@@ -868,7 +894,7 @@ class CommonTestFixture : public ::testing::Test {
   }
 
   void Modify_EraseRange_ToTheBeginning() {
-    Container<Derived, Counter> container(fixture());
+    PW_DECLARE_CONTAINER(container, Counter);
     container.assign({1, 2, 3, 4});
     Counter::Reset();
 
@@ -880,7 +906,7 @@ class CommonTestFixture : public ::testing::Test {
   }
 
   void Modify_EraseRange_ToTheEnd() {
-    Container<Derived, Counter> container(fixture());
+    PW_DECLARE_CONTAINER(container, Counter);
     container.assign({1, 2, 3, 4});
     Counter::Reset();
 
@@ -891,7 +917,7 @@ class CommonTestFixture : public ::testing::Test {
   }
 
   void Modify_EraseRange_Everything() {
-    Container<Derived, Counter> container(fixture());
+    PW_DECLARE_CONTAINER(container, Counter);
     container.assign({1, 2, 3, 4});
     Counter::Reset();
 
@@ -902,7 +928,7 @@ class CommonTestFixture : public ::testing::Test {
   }
 
   void Modify_EraseRange_AfterPopFront() {
-    Container<Derived, Counter> container(fixture());
+    PW_DECLARE_CONTAINER(container, Counter);
     container.assign({1, 2, 3, 4, 5});
     container.pop_front();
     container.push_back(6);
@@ -917,7 +943,7 @@ class CommonTestFixture : public ::testing::Test {
   }
 
   void Modify_Emplace_Empty() {
-    Container<Derived, Counter> container(fixture());
+    PW_DECLARE_CONTAINER(container, Counter);
     Counter::Reset();
 
     auto it = container.emplace(container.cbegin(), 1);
@@ -927,7 +953,7 @@ class CommonTestFixture : public ::testing::Test {
   }
 
   void Modify_Emplace_Front() {
-    Container<Derived, Counter> container(fixture());
+    PW_DECLARE_CONTAINER(container, Counter);
     container.assign({1, 2, 3});
     Counter::Reset();
 
@@ -938,7 +964,7 @@ class CommonTestFixture : public ::testing::Test {
   }
 
   void Modify_Emplace_Back() {
-    Container<Derived, Counter> container(fixture());
+    PW_DECLARE_CONTAINER(container, Counter);
     container.assign({1, 2, 3});
     Counter::Reset();
 
@@ -949,7 +975,7 @@ class CommonTestFixture : public ::testing::Test {
   }
 
   void Modify_Emplace_Middle() {
-    Container<Derived, Counter> container(fixture());
+    PW_DECLARE_CONTAINER(container, Counter);
     container.assign({0, 1, 3});
 
     auto it = container.emplace(container.cbegin() + 2, 2);
@@ -958,7 +984,7 @@ class CommonTestFixture : public ::testing::Test {
   }
 
   void Modify_Emplace_BeginPlusOne() {
-    Container<Derived, Counter> container(fixture());
+    PW_DECLARE_CONTAINER(container, Counter);
     container.assign({10, 30, 40});
     Counter::Reset();
 
@@ -970,7 +996,7 @@ class CommonTestFixture : public ::testing::Test {
   }
 
   void Modify_Emplace_EndMinusOne() {
-    Container<Derived, Counter> container(fixture());
+    PW_DECLARE_CONTAINER(container, Counter);
     container.assign({10, 20, 40});
     Counter::Reset();
 
@@ -982,7 +1008,7 @@ class CommonTestFixture : public ::testing::Test {
   }
 
   void Modify_InsertCopy() {
-    Container<Derived, Counter> container(fixture());
+    PW_DECLARE_CONTAINER(container, Counter);
     container.assign({1, 2, 4});
     Counter value(3);
 
@@ -993,7 +1019,7 @@ class CommonTestFixture : public ::testing::Test {
   }
 
   void Modify_InsertMove() {
-    Container<Derived, Counter> container(fixture());
+    PW_DECLARE_CONTAINER(container, Counter);
     container.assign({1, 2, 4});
     Counter value(3);
 
@@ -1004,7 +1030,7 @@ class CommonTestFixture : public ::testing::Test {
   }
 
   void Modify_InsertCopies_NearBegin_FewerThanBefore() {
-    Container<Derived, Counter> container(fixture());
+    PW_DECLARE_CONTAINER(container, Counter);
     container.assign({10, 20, 30, 40, 50, 60});
     Counter value(99);
     Counter::Reset();
@@ -1017,7 +1043,7 @@ class CommonTestFixture : public ::testing::Test {
   }
 
   void Modify_InsertCopies_NearBegin_SameAsBefore() {
-    Container<Derived, Counter> container(fixture());
+    PW_DECLARE_CONTAINER(container, Counter);
     container.assign({10, 20, 30, 40, 50, 60});
     Counter value(99);
     Counter::Reset();
@@ -1030,7 +1056,7 @@ class CommonTestFixture : public ::testing::Test {
   }
 
   void Modify_InsertCopies_NearBegin_MoreThanBefore() {
-    Container<Derived, Counter> container(fixture());
+    PW_DECLARE_CONTAINER(container, Counter);
     container.assign({10, 20, 30, 40, 50, 60});
     Counter value(99);
     Counter::Reset();
@@ -1044,7 +1070,7 @@ class CommonTestFixture : public ::testing::Test {
   }
 
   void Modify_InsertCopies_NearEnd_FewerThanAfter() {
-    Container<Derived, Counter> container(fixture());
+    PW_DECLARE_CONTAINER(container, Counter);
     container.assign({10, 20, 30, 40, 50, 60});
     Counter value(99);
     Counter::Reset();
@@ -1057,7 +1083,7 @@ class CommonTestFixture : public ::testing::Test {
   }
 
   void Modify_InsertCopies_NearEnd_SameAsAfter() {
-    Container<Derived, Counter> container(fixture());
+    PW_DECLARE_CONTAINER(container, Counter);
     container.assign({10, 20, 30, 40, 50, 60});
     Counter value(99);
     Counter::Reset();
@@ -1070,7 +1096,7 @@ class CommonTestFixture : public ::testing::Test {
   }
 
   void Modify_InsertCopies_NearEnd_MoreThanAfter() {
-    Container<Derived, Counter> container(fixture());
+    PW_DECLARE_CONTAINER(container, Counter);
     container.assign({10, 20, 30, 40, 50, 60});
     Counter value(99);
     Counter::Reset();
@@ -1084,7 +1110,7 @@ class CommonTestFixture : public ::testing::Test {
   }
 
   void Modify_InsertCopies_AtBegin_1() {
-    Container<Derived, Counter> container(fixture());
+    PW_DECLARE_CONTAINER(container, Counter);
     container.assign({10, 20, 30, 40, 50, 60});
     Counter value(99);
     Counter::Reset();
@@ -1097,7 +1123,7 @@ class CommonTestFixture : public ::testing::Test {
   }
 
   void Modify_InsertCopies_AtBegin_2() {
-    Container<Derived, Counter> container(fixture());
+    PW_DECLARE_CONTAINER(container, Counter);
     container.assign({10, 20, 30, 40, 50, 60});
     Counter value(99);
     Counter::Reset();
@@ -1110,7 +1136,7 @@ class CommonTestFixture : public ::testing::Test {
   }
 
   void Modify_InsertCopies_AtEnd_1() {
-    Container<Derived, Counter> container(fixture());
+    PW_DECLARE_CONTAINER(container, Counter);
     container.assign({10, 20, 30, 40, 50, 60});
     Counter value(99);
     Counter::Reset();
@@ -1123,7 +1149,7 @@ class CommonTestFixture : public ::testing::Test {
   }
 
   void Modify_InsertCopies_AtEnd_2() {
-    Container<Derived, Counter> container(fixture());
+    PW_DECLARE_CONTAINER(container, Counter);
     container.assign({10, 20, 30, 40, 50, 60});
     Counter value(99);
     Counter::Reset();
@@ -1136,7 +1162,7 @@ class CommonTestFixture : public ::testing::Test {
   }
 
   void Modify_InsertIterators_NearBegin_FewerThanBefore() {
-    Container<Derived, Counter> container(fixture());
+    PW_DECLARE_CONTAINER(container, Counter);
     container.assign({10, 20, 30, 40, 50, 60});
     std::array<Counter, 1> values{Counter(99)};
     Counter::Reset();
@@ -1151,7 +1177,7 @@ class CommonTestFixture : public ::testing::Test {
   }
 
   void Modify_InsertIterators_NearBegin_SameAsBefore() {
-    Container<Derived, Counter> container(fixture());
+    PW_DECLARE_CONTAINER(container, Counter);
     container.assign({10, 20, 30, 40, 50, 60});
     std::array<Counter, 2> values{Counter(99), Counter(99)};
     Counter::Reset();
@@ -1166,7 +1192,7 @@ class CommonTestFixture : public ::testing::Test {
   }
 
   void Modify_InsertIterators_NearBegin_MoreThanBefore() {
-    Container<Derived, Counter> container(fixture());
+    PW_DECLARE_CONTAINER(container, Counter);
     container.assign({10, 20, 30, 40, 50, 60});
     std::array<Counter, 3> values{Counter(99), Counter(99), Counter(99)};
     Counter::Reset();
@@ -1182,7 +1208,7 @@ class CommonTestFixture : public ::testing::Test {
   }
 
   void Modify_InsertIterators_NearEnd_FewerThanAfter() {
-    Container<Derived, Counter> container(fixture());
+    PW_DECLARE_CONTAINER(container, Counter);
     container.assign({10, 20, 30, 40, 50, 60});
     std::array<Counter, 1> values{Counter(99)};
     Counter::Reset();
@@ -1197,7 +1223,7 @@ class CommonTestFixture : public ::testing::Test {
   }
 
   void Modify_InsertIterators_NearEnd_SameAsAfter() {
-    Container<Derived, Counter> container(fixture());
+    PW_DECLARE_CONTAINER(container, Counter);
     container.assign({10, 20, 30, 40, 50, 60});
     std::array<Counter, 2> values{Counter(99), Counter(99)};
     Counter::Reset();
@@ -1212,7 +1238,7 @@ class CommonTestFixture : public ::testing::Test {
   }
 
   void Modify_InsertIterators_NearEnd_MoreThanAfter() {
-    Container<Derived, Counter> container(fixture());
+    PW_DECLARE_CONTAINER(container, Counter);
     container.assign({10, 20, 30, 40, 50, 60});
     std::array<Counter, 3> values{Counter(99), Counter(99), Counter(99)};
     Counter::Reset();
@@ -1228,7 +1254,7 @@ class CommonTestFixture : public ::testing::Test {
   }
 
   void Modify_InsertIterators_AtBegin_1() {
-    Container<Derived, Counter> container(fixture());
+    PW_DECLARE_CONTAINER(container, Counter);
     container.assign({10, 20, 30, 40, 50, 60});
     std::array<Counter, 1> values{Counter(99)};
     Counter::Reset();
@@ -1243,7 +1269,7 @@ class CommonTestFixture : public ::testing::Test {
   }
 
   void Modify_InsertIterators_AtBegin_2() {
-    Container<Derived, Counter> container(fixture());
+    PW_DECLARE_CONTAINER(container, Counter);
     container.assign({10, 20, 30, 40, 50, 60});
     std::array<Counter, 2> values{Counter(99), Counter(99)};
     Counter::Reset();
@@ -1258,7 +1284,7 @@ class CommonTestFixture : public ::testing::Test {
   }
 
   void Modify_InsertIterators_AtEnd_1() {
-    Container<Derived, Counter> container(fixture());
+    PW_DECLARE_CONTAINER(container, Counter);
     container.assign({10, 20, 30, 40, 50, 60});
     std::array<Counter, 1> values{Counter(99)};
     Counter::Reset();
@@ -1273,7 +1299,7 @@ class CommonTestFixture : public ::testing::Test {
   }
 
   void Modify_InsertIterators_AtEnd_2() {
-    Container<Derived, Counter> container(fixture());
+    PW_DECLARE_CONTAINER(container, Counter);
     container.assign({10, 20, 30, 40, 50, 60});
     std::array<Counter, 2> values{Counter(99), Counter(99)};
     Counter::Reset();
@@ -1288,7 +1314,7 @@ class CommonTestFixture : public ::testing::Test {
   }
 
   void Modify_InsertInitializerList() {
-    Container<Derived, Counter> container(fixture());
+    PW_DECLARE_CONTAINER(container, Counter);
     container.assign({1, 5});
 
     auto it = container.insert(container.cbegin() + 1, {2, 3, 4});
@@ -1297,7 +1323,7 @@ class CommonTestFixture : public ::testing::Test {
   }
 
   void Modify_InsertInputIterator() {
-    Container<Derived, int> container(fixture());
+    PW_DECLARE_CONTAINER(container, int);
     container.assign({1, 5});
 
     auto it = container.insert(container.cbegin() + 1, InputIt(2), InputIt(5));
@@ -1307,7 +1333,7 @@ class CommonTestFixture : public ::testing::Test {
 
   void Algorithm_StdMaxElement() {
     // Content = {1, 2, 3, 4}, Storage = [1, 2, 3, 4]
-    Container<Derived, int> container(fixture());
+    PW_DECLARE_CONTAINER(container, int);
     container.assign({1, 2, 3, 4});
 
     auto max_element_it = std::max_element(container.begin(), container.end());
@@ -1336,7 +1362,7 @@ class CommonTestFixture : public ::testing::Test {
 
   void Algorithm_StdMaxElementConst() {
     // Content = {1, 2, 3, 4}, Storage = [1, 2, 3, 4]
-    Container<Derived, int> container(fixture());  // mutable container
+    PW_DECLARE_CONTAINER(container, int);  // mutable container
     container.assign({1, 2, 3, 4});
 
     auto max_element_it =
@@ -1366,7 +1392,7 @@ class CommonTestFixture : public ::testing::Test {
 
   void Iterator_OperatorPlus() {
     // Content = {0, 0, 1, 2}, Storage = [0, 0, 1, 2]
-    Container<Derived, int> container(fixture());
+    PW_DECLARE_CONTAINER(container, int);
     container.assign({0, 0, 1, 2});
     // Content = {0, 1, 2}, Storage = [x, 0, 1, 2]
     container.pop_front();
@@ -1387,7 +1413,7 @@ class CommonTestFixture : public ::testing::Test {
 
   void Iterator_OperatorPlusPlus() {
     // Content = {0, 0, 1, 2}, Storage = [0, 0, 1, 2]
-    Container<Derived, int> container(fixture());
+    PW_DECLARE_CONTAINER(container, int);
     container.assign({0, 0, 1, 2});
     // Content = {0, 1, 2}, Storage = [x, 0, 1, 2]
     container.pop_front();
@@ -1414,7 +1440,7 @@ class CommonTestFixture : public ::testing::Test {
 
   void Iterator_OperatorPlusEquals() {
     // Content = {0, 0, 1, 2}, Storage = [0, 0, 1, 2]
-    Container<Derived, int> container(fixture());
+    PW_DECLARE_CONTAINER(container, int);
     container.assign({0, 0, 1, 2});
     // Content = {0, 1, 2}, Storage = [x, 0, 1, 2]
     container.pop_front();
@@ -1452,7 +1478,7 @@ class CommonTestFixture : public ::testing::Test {
 
   void Iterator_OperatorMinus() {
     // Content = {0, 0, 1, 2}, Storage = [0, 0, 1, 2]
-    Container<Derived, int> container(fixture());
+    PW_DECLARE_CONTAINER(container, int);
     container.assign({0, 0, 1, 2});
     // Content = {0, 1, 2}, Storage = [x, 0, 1, 2]
     container.pop_front();
@@ -1471,7 +1497,7 @@ class CommonTestFixture : public ::testing::Test {
   }
   void Iterator_OperatorMinusMinus() {
     // Content = {0, 0, 1, 2}, Storage = [0, 0, 1, 2]
-    Container<Derived, int> container(fixture());
+    PW_DECLARE_CONTAINER(container, int);
     container.assign({0, 0, 1, 2});
     // Content = {0, 1, 2}, Storage = [x, 0, 1, 2]
     container.pop_front();
@@ -1498,7 +1524,7 @@ class CommonTestFixture : public ::testing::Test {
 
   void Iterator_OperatorMinusEquals() {
     // Content = {0, 0, 1, 2}, Storage = [0, 0, 1, 2]
-    Container<Derived, int> container(fixture());
+    PW_DECLARE_CONTAINER(container, int);
     container.assign({0, 0, 1, 2});
     // Content = {0, 1, 2}, Storage = [x, 0, 1, 2]
     container.pop_front();
@@ -1539,7 +1565,7 @@ class CommonTestFixture : public ::testing::Test {
 
   void Iterator_OperatorSquareBracket() {
     // Content = {0, 0, 1, 2}, Storage = [0, 0, 1, 2]
-    Container<Derived, int> container(fixture());
+    PW_DECLARE_CONTAINER(container, int);
     container.assign({0, 0, 1, 2});
     // Content = {0, 1, 2}, Storage = [x, 0, 1, 2]
     container.pop_front();
@@ -1550,7 +1576,8 @@ class CommonTestFixture : public ::testing::Test {
     // Content = {1, 2, 3, 4}, Storage = [3, 4, 1, 2]
     container.push_back(4);
 
-    for (typename decltype(container)::size_type i = 0; i < container.size();
+    for (typename Container<Derived, int>::size_type i = 0;
+         i < container.size();
          i++) {
       ASSERT_EQ(container.begin()[i], static_cast<int>(i + 1));
     }
@@ -1558,7 +1585,7 @@ class CommonTestFixture : public ::testing::Test {
 
   void Iterator_OperatorLessThan() {
     // Content = {0, 0, 1, 2}, Storage = [0, 0, 1, 2]
-    Container<Derived, int> container(fixture());
+    PW_DECLARE_CONTAINER(container, int);
     container.assign({0, 0, 1, 2});
     // Content = {0, 1, 2}, Storage = [x, 0, 1, 2]
     container.pop_front();
@@ -1569,7 +1596,7 @@ class CommonTestFixture : public ::testing::Test {
     // Content = {1, 2, 3, 4}, Storage = [3, 4, 1, 2]
     container.push_back(4);
 
-    using size_type = typename decltype(container)::size_type;
+    using size_type = typename Container<Derived, int>::size_type;
     for (size_type i = 0; i < container.size(); i++) {
       for (size_type j = 0; j < i; j++) {
         ASSERT_TRUE((container.begin() + j) < (container.begin() + i));
@@ -1581,7 +1608,7 @@ class CommonTestFixture : public ::testing::Test {
 
   void Iterator_OperatorLessThanEqual() {
     // Content = {0, 0, 1, 2}, Storage = [0, 0, 1, 2]
-    Container<Derived, int> container(fixture());
+    PW_DECLARE_CONTAINER(container, int);
     container.assign({0, 0, 1, 2});
     // Content = {0, 1, 2}, Storage = [x, 0, 1, 2]
     container.pop_front();
@@ -1592,7 +1619,7 @@ class CommonTestFixture : public ::testing::Test {
     // Content = {1, 2, 3, 4}, Storage = [3, 4, 1, 2]
     container.push_back(4);
 
-    using size_type = typename decltype(container)::size_type;
+    using size_type = typename Container<Derived, int>::size_type;
     for (size_type i = 0; i < container.size(); i++) {
       for (size_type j = 0; j <= i; j++) {
         ASSERT_TRUE((container.begin() + j) <= (container.begin() + i));
@@ -1604,7 +1631,7 @@ class CommonTestFixture : public ::testing::Test {
 
   void Iterator_OperatorGreater() {
     // Content = {0, 0, 1, 2}, Storage = [0, 0, 1, 2]
-    Container<Derived, int> container(fixture());
+    PW_DECLARE_CONTAINER(container, int);
     container.assign({0, 0, 1, 2});
     // Content = {0, 1, 2}, Storage = [x, 0, 1, 2]
     container.pop_front();
@@ -1615,7 +1642,7 @@ class CommonTestFixture : public ::testing::Test {
     // Content = {1, 2, 3, 4}, Storage = [3, 4, 1, 2]
     container.push_back(4);
 
-    using size_type = typename decltype(container)::size_type;
+    using size_type = typename Container<Derived, int>::size_type;
     for (size_type i = 0; i < container.size(); i++) {
       for (size_type j = i + 1; j < container.size(); j++) {
         ASSERT_TRUE((container.begin() + j) > (container.begin() + i));
@@ -1626,7 +1653,7 @@ class CommonTestFixture : public ::testing::Test {
 
   void Iterator_OperatorGreaterThanEqual() {
     // Content = {0, 0, 1, 2}, Storage = [0, 0, 1, 2]
-    Container<Derived, int> container(fixture());
+    PW_DECLARE_CONTAINER(container, int);
     container.assign({0, 0, 1, 2});
     // Content = {0, 1, 2}, Storage = [x, 0, 1, 2]
     container.pop_front();
@@ -1637,7 +1664,7 @@ class CommonTestFixture : public ::testing::Test {
     // Content = {1, 2, 3, 4}, Storage = [3, 4, 1, 2]
     container.push_back(4);
 
-    using size_type = typename decltype(container)::size_type;
+    using size_type = typename Container<Derived, int>::size_type;
     for (size_type i = 0; i < container.size(); i++) {
       for (size_type j = i; j < container.size(); j++) {
         ASSERT_TRUE((container.begin() + j) >= (container.begin() + i));
@@ -1648,7 +1675,7 @@ class CommonTestFixture : public ::testing::Test {
 
   void Iterator_OperatorDereference() {
     // Content = {0, 0, 1, 2}, Storage = [0, 0, 1, 2]
-    Container<Derived, int> container(fixture());
+    PW_DECLARE_CONTAINER(container, int);
     container.assign({0, 0, 1, 2});
     // Content = {0, 1, 2}, Storage = [x, 0, 1, 2]
     container.pop_front();
@@ -1659,7 +1686,7 @@ class CommonTestFixture : public ::testing::Test {
     // Content = {1, 2, 3, 4}, Storage = [3, 4, 1, 2]
     container.push_back(4);
 
-    using size_type = typename decltype(container)::size_type;
+    using size_type = typename Container<Derived, int>::size_type;
     for (size_type i = 0; i < container.size(); i++) {
       const auto it = container.begin() + i;
       ASSERT_EQ(*(it.operator->()), static_cast<int>(i + 1));
@@ -1681,6 +1708,8 @@ class CommonTestFixture : public ::testing::Test {
   static bool SpansContain(const Spans& spans,
                            std::initializer_list<T> expected_contents);
 };
+
+#undef PW_DECLARE_CONTAINER
 
 template <typename Derived>
 template <typename Spans, typename T>

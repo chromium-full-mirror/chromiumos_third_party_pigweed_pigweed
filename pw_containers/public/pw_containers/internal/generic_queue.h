@@ -13,10 +13,7 @@
 // the License.
 #pragma once
 
-#include <initializer_list>
 #include <utility>
-
-#include "pw_containers/internal/traits.h"
 
 namespace pw::containers::internal {
 
@@ -48,17 +45,22 @@ class GenericQueue {
   // Size
   [[nodiscard]] bool empty() const noexcept { return deque().empty(); }
 
+  [[nodiscard]] constexpr bool full() const noexcept { return deque().full(); }
+
   size_type size() const noexcept { return deque().size(); }
 
-  size_type max_size() const noexcept { return capacity(); }
+  size_type max_size() const noexcept { return deque().max_size(); }
 
   size_type capacity() const noexcept { return deque().capacity(); }
 
   // Modify
 
-  void push(const value_type& value) { emplace(value); }
+  /// Removes all elements from the queue.
+  void clear() { deque().clear(); }
 
-  void push(value_type&& value) { emplace(std::move(value)); }
+  void push(const value_type& value) { deque().push_back(value); }
+
+  void push(value_type&& value) { deque().push_back(std::move(value)); }
 
   template <typename... Args>
   void emplace(Args&&... args) {
@@ -68,11 +70,9 @@ class GenericQueue {
   void pop() { deque().pop_front(); }
 
  protected:
-  // Constructors
-  constexpr GenericQueue() noexcept {}
+  constexpr GenericQueue() noexcept = default;
 
   // `GenericQueue` may not be used with `unique_ptr` or `delete`.
-  // `delete` could be supported using C++20's destroying delete.
   ~GenericQueue() = default;
 
   constexpr Deque& deque() { return static_cast<Derived&>(*this).deque(); }

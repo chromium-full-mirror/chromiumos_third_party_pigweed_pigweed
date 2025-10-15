@@ -181,9 +181,7 @@ class BasicInlineAsyncQueue
   using Base::PendNotEmpty;
 
  private:
-  friend class BasicInlineAsyncQueue<ValueType,
-                                     SizeType,
-                                     containers::internal::kGenericSized>;
+  friend Base;
 
   Deque deque_;
 };

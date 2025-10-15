@@ -42,10 +42,15 @@ class CommonTest
  public:
   // "Container" declares an empty container usable in the test.
   template <typename T>
-  class Container : public pw::DynamicDeque<T, SizeType> {
+  class Container {
    public:
-    constexpr Container(CommonTest& fixture)
-        : pw::DynamicDeque<T, SizeType>(fixture.allocator_) {}
+    constexpr Container(CommonTest& fixture) : container_(fixture.allocator_) {}
+
+    pw::DynamicDeque<T, SizeType>& get() { return container_; }
+    const pw::DynamicDeque<T, SizeType>& get() const { return container_; }
+
+   private:
+    pw::DynamicDeque<T, SizeType> container_;
   };
 
  private:
@@ -75,6 +80,24 @@ TEST(DynamicDeque, Constinit) {
   for (auto unused : kEmpty) {
     ADD_FAILURE() << unused;
   }
+}
+
+TEST_F(DynamicDequeTest, MoveConstruct) {
+  pw::DynamicDeque<MoveOnly> deque(allocator_);
+  deque.emplace_back(MoveOnly(1));
+  deque.emplace_back(MoveOnly(2));
+  deque.emplace_back(MoveOnly(3));
+  deque.emplace_back(MoveOnly(4));
+
+  pw::DynamicDeque<MoveOnly> moved_into(std::move(deque));
+
+  EXPECT_EQ(0u, deque.size());  // NOLINT(bugprone-use-after-move)
+
+  ASSERT_EQ(4u, moved_into.size());
+  EXPECT_EQ(1, moved_into[0].value);
+  EXPECT_EQ(2, moved_into[1].value);
+  EXPECT_EQ(3, moved_into[2].value);
+  EXPECT_EQ(4, moved_into[3].value);
 }
 
 TEST_F(DynamicDequeTest, AllocationFailure) {
