@@ -12,9 +12,6 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 
-// TODO: https://pwbug.dev/452108892 - Remove this
-#define PW_METRIC_PWPB_WRITER_NEW 1
-
 #include "pw_metric/metric_service_pwpb.h"
 
 #include <limits>

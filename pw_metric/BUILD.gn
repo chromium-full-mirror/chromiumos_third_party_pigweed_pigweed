@@ -170,27 +170,6 @@ pw_test("metric_service_pwpb_test") {
               pw_sync_COUNTING_SEMAPHORE_BACKEND != ""
 }
 
-# TODO: https://pwbug.dev/452108892 - Remove this
-pw_test("metric_service_pwpb_test_old") {
-  deps = [
-    ":global",
-    ":metric_service_proto.pwpb",
-    ":metric_service_pwpb",
-    ":metric_walker",
-    "$dir_pw_rpc:test_helpers",
-    "$dir_pw_rpc/pwpb:test_method_context",
-    "$dir_pw_rpc/raw:test_method_context",
-    "$dir_pw_stream",
-  ]
-  sources = [ "metric_service_pwpb_test_old.cc" ]
-
-  # This test depends on pw_rpc:test_helpers, which requires a system_clock
-  # and counting_semaphore backend. This conditionally disables the test for
-  # toolchains that do not provide these backends.
-  enable_if = pw_chrono_SYSTEM_CLOCK_BACKEND != "" &&
-              pw_sync_COUNTING_SEMAPHORE_BACKEND != ""
-}
-
 ################################################################################
 
 pw_test_group("tests") {
@@ -198,7 +177,6 @@ pw_test_group("tests") {
     ":metric_test",
     ":global_test",
     ":metric_service_pwpb_test",
-    ":metric_service_pwpb_test_old",
   ]
   if (dir_pw_third_party_nanopb != "") {
     tests += [ ":metric_service_nanopb_test" ]

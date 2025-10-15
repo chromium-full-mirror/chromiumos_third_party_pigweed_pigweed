@@ -23,15 +23,6 @@
 #include "pw_protobuf/serialized_size.h"
 #include "pw_status/status.h"
 
-// Temporary migration path:
-// * Existing consumers will not define anything, so PW_METRIC_PWPB_WRITER_NEW
-//   will not be defined. We default it to 0 (old).
-// * New / updated consumers will define PW_METRIC_PWPB_WRITER_NEW = 1.
-// TODO: https://pwbug.dev/452108892 - Remove this
-#ifndef PW_METRIC_PWPB_WRITER_NEW
-#define PW_METRIC_PWPB_WRITER_NEW 0
-#endif  // PW_METRIC_PWPB_WRITER_NEW
-
 namespace pw::metric {
 
 // Writes all metrics from a MetricWalker into a pwpb stream encoder.
@@ -45,9 +36,6 @@ namespace pw::metric {
 // This class handles all sizing logic and gracefully stops the walk by
 // returning ResourceExhausted if either the provided buffer runs out of space
 // or an application-defined metric count limit is reached.
-#if PW_METRIC_PWPB_WRITER_NEW == 0
-template <typename ParentEncoder, uint32_t kMetricsFieldTag>
-#endif  // PW_METRIC_PWPB_WRITER_NEW == 0
 class PwpbMetricWriter : public MetricWriter {
  public:
   // Constructs a new pwpb metric writer.
@@ -67,12 +55,6 @@ class PwpbMetricWriter : public MetricWriter {
       : parent_encoder_(parent_encoder),
         field_number_(field_number),
         metric_limit_(metric_limit) {}
-
-#if PW_METRIC_PWPB_WRITER_NEW == 0
-  PwpbMetricWriter(protobuf::StreamEncoder& parent_encoder,
-                   size_t& metric_limit)
-      : PwpbMetricWriter(parent_encoder, kMetricsFieldTag, metric_limit) {}
-#endif  // PW_METRIC_PWPB_WRITER_NEW == 0
 
   pw::Status Write(const Metric& metric, const Vector<Token>& path) override {
     if (metric_limit_ == 0) {
