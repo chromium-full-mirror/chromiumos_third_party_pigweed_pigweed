@@ -369,6 +369,13 @@ for entire blocks by using "inclusive-language: disable" before the block and
 .. In case things get moved around in the previous paragraphs the enable line
 .. is repeated here: inclusive-language: enable.
 
+pw::module::internal Namespace Usage
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Pigweed modules sometimes have namespaces like ``pw::module::internal`` that
+contain implementation details. This code is not stable and should not be relied
+on outside of the module using the code. Pigweed has a check to prevent
+references to such code from being checked into projects using Pigweed.
+
 OWNERS
 ^^^^^^
 There's a check that requires folders matching specific patterns contain

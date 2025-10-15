@@ -70,6 +70,7 @@ pw_python_package("py") {
     "pw_presubmit/pigweed_presubmit.py",
     "pw_presubmit/presubmit.py",
     "pw_presubmit/presubmit_context.py",
+    "pw_presubmit/pw_internal_namespace.py",
     "pw_presubmit/python_checks.py",
     "pw_presubmit/repo.py",
     "pw_presubmit/shell_checks.py",

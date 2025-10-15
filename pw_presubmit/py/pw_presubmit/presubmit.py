@@ -837,7 +837,7 @@ class Check:
             self.doc = doc
 
         if not self.name:
-            raise ValueError('no name for step')
+            raise ValueError(f'no name for step: {check}')
 
         self._substeps_raw: Iterable[SubStep]
         if isinstance(check, collections.abc.Iterator):
