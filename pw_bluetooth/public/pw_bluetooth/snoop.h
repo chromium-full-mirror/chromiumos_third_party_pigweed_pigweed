@@ -112,14 +112,14 @@ class Snoop {
   /// Add a Tx transaction
   ///
   /// @param packet Packet to save to snoop log
-  void AddTx(proxy::H4PacketInterface& packet) {
+  void AddTx(const proxy::H4PacketInterface& packet) {
     AddEntry(emboss::snoop_log::PacketFlags::SENT, packet);
   }
 
   // Add an Rx transaction
   ///
   /// @param packet Packet to save to snoop log
-  void AddRx(proxy::H4PacketInterface& packet) {
+  void AddRx(const proxy::H4PacketInterface& packet) {
     AddEntry(emboss::snoop_log::PacketFlags::RECEIVED, packet);
   }
 
@@ -170,7 +170,7 @@ class Snoop {
   /// @param packet Packet to save to snoop log
   /// @param scratch_entry scratch buffer used to assemble the entry
   void AddEntry(emboss::snoop_log::PacketFlags emboss_packet_flag,
-                proxy::H4PacketInterface& hci_packet);
+                const proxy::H4PacketInterface& hci_packet);
 
   void ClearReader();
 

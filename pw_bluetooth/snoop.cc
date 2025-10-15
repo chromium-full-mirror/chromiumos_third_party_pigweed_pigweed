@@ -258,7 +258,7 @@ Status Snoop::DumpUnlocked(
 }
 
 void Snoop::AddEntry(emboss::snoop_log::PacketFlags emboss_packet_flag,
-                     proxy::H4PacketInterface& hci_packet) {
+                     const proxy::H4PacketInterface& hci_packet) {
   std::lock_guard lock(queue_lock_);
   if (!is_enabled_) {
     return;
@@ -294,8 +294,8 @@ void Snoop::AddEntry(emboss::snoop_log::PacketFlags emboss_packet_flag,
   writer.packet_h4_type().Write(static_cast<uint8_t>(hci_packet.GetH4Type()));
 
   // write hci packet
-  pw::span<uint8_t> hci_packet_trimmed{hci_packet.GetHciSpan().data(),
-                                       hci_packet_length_to_include};
+  pw::span<const uint8_t> hci_packet_trimmed =
+      hci_packet.GetHciSpan().first(hci_packet_length_to_include);
   PW_CHECK(TryToCopyToEmbossStruct(/*emboss_dest=*/writer.packet_hci_data(),
                                    /*src=*/hci_packet_trimmed));
 
