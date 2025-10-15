@@ -288,6 +288,17 @@ pw_add_library(pw_containers.inline_var_len_entry_queue STATIC
     pw_varint
 )
 
+pw_add_library(pw_containers.var_len_entry_queue INTERFACE
+  HEADERS
+    public/pw_containers/var_len_entry_queue.h
+  PUBLIC_INCLUDES
+    public
+  PUBLIC_DEPS
+    pw_containers.generic_var_len_entry_queue
+    pw_containers._raw_storage
+    pw_span
+)
+
 pw_add_library(pw_containers.vector INTERFACE
   HEADERS
     public/pw_containers/vector.h
@@ -578,7 +589,8 @@ pw_add_test(pw_containers.var_len_entry_test
     var_len_entry_test.cc
   PRIVATE_DEPS
     pw_containers.generic_var_len_entry_queue
-    pw_containers.inline_var_len_entry_queue
+    pw_containers.var_len_entry_queue
+    pw_bytes
     pw_unit_test.constexpr
   GROUPS
     modules
@@ -590,7 +602,8 @@ pw_add_test(pw_containers.var_len_entry_iterator_test
     var_len_entry_iterator_test.cc
   PRIVATE_DEPS
     pw_containers.generic_var_len_entry_queue
-    pw_containers.inline_var_len_entry_queue
+    pw_containers.var_len_entry_queue
+    pw_bytes
     pw_unit_test.constexpr
   GROUPS
     modules
@@ -602,7 +615,8 @@ pw_add_test(pw_containers.var_len_entry_queue_iterator_test
     var_len_entry_queue_iterator_test.cc
   PRIVATE_DEPS
     pw_containers.generic_var_len_entry_queue
-    pw_containers.inline_var_len_entry_queue
+    pw_containers.var_len_entry_queue
+    pw_bytes
     pw_unit_test.constexpr
   GROUPS
     modules
@@ -618,6 +632,17 @@ pw_add_test(pw_containers.inline_var_len_entry_queue_test
     pw_bytes
     pw_containers.generic_var_len_entry_queue_testing
     pw_containers.inline_var_len_entry_queue
+    pw_span
+)
+
+pw_add_test(pw_containers.var_len_entry_queue_test
+  SOURCES
+    var_len_entry_queue_test.cc
+  PRIVATE_DEPS
+    pw_assert
+    pw_containers.generic_var_len_entry_queue
+    pw_containers.generic_var_len_entry_queue_testing
+    pw_containers.var_len_entry_queue
     pw_span
 )
 

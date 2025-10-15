@@ -101,10 +101,10 @@ class VarLenEntryQueueIterator {
 
   friend class VarLenEntryQueueIteratorC;
 
-  constexpr VarLenEntryQueueIterator(SpanType data, size_type offset)
-      : data_(data), offset_(offset) {}
+  constexpr VarLenEntryQueueIterator(SpanType data, size_t offset)
+      : data_(data), offset_(static_cast<size_type>(offset)) {}
 
-  void LoadEntry() const;
+  constexpr void LoadEntry() const;
 
   SpanType data_;
   size_type offset_ = 0;
@@ -115,7 +115,7 @@ class VarLenEntryQueueIterator {
 // Template method implementations.
 
 template <typename T>
-void VarLenEntryQueueIterator<T>::LoadEntry() const {
+constexpr void VarLenEntryQueueIterator<T>::LoadEntry() const {
   if (!entry_.empty()) {
     return;
   }

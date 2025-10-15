@@ -346,6 +346,17 @@ cc_library(
 )
 
 cc_library(
+    name = "var_len_entry_queue",
+    hdrs = ["public/pw_containers/var_len_entry_queue.h"],
+    strip_include_prefix = "public",
+    deps = [
+        ":generic_var_len_entry_queue",
+        ":raw_storage",
+        "//pw_span",
+    ],
+)
+
+cc_library(
     name = "vector",
     hdrs = [
         "public/pw_containers/vector.h",
@@ -480,6 +491,18 @@ pw_cc_test(
 )
 
 pw_cc_test(
+    name = "var_len_entry_queue_test",
+    srcs = ["var_len_entry_queue_test.cc"],
+    deps = [
+        ":generic_var_len_entry_queue",
+        ":generic_var_len_entry_queue_testing",
+        ":var_len_entry_queue",
+        "//pw_assert:check",
+        "//pw_span",
+    ],
+)
+
+pw_cc_test(
     name = "vector_test",
     srcs = [
         "vector_test.cc",
@@ -600,7 +623,8 @@ pw_cc_test(
     srcs = ["var_len_entry_test.cc"],
     deps = [
         ":generic_var_len_entry_queue",
-        ":inline_var_len_entry_queue",
+        ":var_len_entry_queue",
+        "//pw_bytes",
         "//pw_unit_test:constexpr",
     ],
 )
@@ -610,7 +634,8 @@ pw_cc_test(
     srcs = ["var_len_entry_iterator_test.cc"],
     deps = [
         ":generic_var_len_entry_queue",
-        ":inline_var_len_entry_queue",
+        ":var_len_entry_queue",
+        "//pw_bytes",
         "//pw_unit_test:constexpr",
     ],
 )
@@ -620,7 +645,7 @@ pw_cc_test(
     srcs = ["var_len_entry_queue_iterator_test.cc"],
     deps = [
         ":generic_var_len_entry_queue",
-        ":inline_var_len_entry_queue",
+        ":var_len_entry_queue",
         "//pw_bytes",
         "//pw_unit_test:constexpr",
     ],

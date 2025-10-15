@@ -269,6 +269,16 @@ pw_source_set("inline_var_len_entry_queue") {
   sources = [ "inline_var_len_entry_queue.cc" ]
 }
 
+pw_source_set("var_len_entry_queue") {
+  public_configs = [ ":public_include_path" ]
+  public = [ "public/pw_containers/var_len_entry_queue.h" ]
+  public_deps = [
+    ":generic_var_len_entry_queue",
+    ":raw_storage",
+    dir_pw_span,
+  ]
+}
+
 pw_source_set("vector") {
   public_configs = [ ":public_include_path" ]
   public_deps = [
@@ -403,6 +413,7 @@ pw_test_group("tests") {
     ":inline_async_queue_test",
     ":inline_deque_test",
     ":inline_queue_test",
+    ":inline_var_len_entry_queue_test",
     ":intrusive_forward_list_test",
     ":intrusive_item_test",
     ":intrusive_list_test",
@@ -414,7 +425,8 @@ pw_test_group("tests") {
     ":to_array_test",
     ":var_len_entry_test",
     ":var_len_entry_iterator_test",
-    ":inline_var_len_entry_queue_test",
+    ":var_len_entry_queue_iterator_test",
+    ":var_len_entry_queue_test",
     ":vector_test",
     ":dynamic_vector_test",
     ":wrapped_iterator_test",
@@ -573,8 +585,9 @@ pw_test("var_len_entry_test") {
   sources = [ "var_len_entry_test.cc" ]
   deps = [
     ":generic_var_len_entry_queue",
-    ":inline_var_len_entry_queue",
+    ":var_len_entry_queue",
     "$dir_pw_unit_test:constexpr",
+    dir_pw_bytes,
   ]
 }
 
@@ -582,8 +595,9 @@ pw_test("var_len_entry_iterator_test") {
   sources = [ "var_len_entry_iterator_test.cc" ]
   deps = [
     ":generic_var_len_entry_queue",
-    ":inline_var_len_entry_queue",
+    ":var_len_entry_queue",
     "$dir_pw_unit_test:constexpr",
+    dir_pw_bytes,
   ]
 }
 
@@ -591,8 +605,9 @@ pw_test("var_len_entry_queue_iterator_test") {
   sources = [ "var_len_entry_queue_iterator_test.cc" ]
   deps = [
     ":generic_var_len_entry_queue",
-    ":inline_var_len_entry_queue",
+    ":var_len_entry_queue",
     "$dir_pw_unit_test:constexpr",
+    dir_pw_bytes,
   ]
 }
 
@@ -608,9 +623,17 @@ pw_test("inline_var_len_entry_queue_test") {
     dir_pw_bytes,
     dir_pw_span,
   ]
+}
 
-  # TODO: b/259746255 - Remove this when everything compiles with -Wconversion.
-  configs = [ "$dir_pw_build:conversion_warnings" ]
+pw_test("var_len_entry_queue_test") {
+  sources = [ "var_len_entry_queue_test.cc" ]
+  deps = [
+    ":generic_var_len_entry_queue",
+    ":generic_var_len_entry_queue_testing",
+    ":var_len_entry_queue",
+    "$dir_pw_assert:check",
+    dir_pw_span,
+  ]
 }
 
 pw_test("vector_test") {

@@ -45,6 +45,7 @@
 /// `InlineVarLenEntryQueue` C++ class is structured similarly to
 /// `pw::InlineQueue` and `pw::Vector`.
 
+#include "pw_containers/internal/generic_var_len_entry_queue.h"
 #include "pw_containers/internal/var_len_entry_queue_iterator.h"
 #include "pw_preprocessor/util.h"
 
@@ -60,7 +61,6 @@
 #include <cstdint>
 
 #include "pw_bytes/span.h"
-#include "pw_containers/internal/generic_var_len_entry_queue.h"
 #include "pw_containers/internal/raw_storage.h"
 #include "pw_span/span.h"
 #include "pw_toolchain/constexpr_tag.h"
@@ -78,14 +78,7 @@
 
 #define _PW_VAR_QUEUE_SIZE_UINT32(max_size_bytes)      \
   (PW_VARIABLE_LENGTH_ENTRY_QUEUE_HEADER_SIZE_UINT32 + \
-   _PW_VAR_QUEUE_DATA_SIZE_UINT32(max_size_bytes))
-
-#define _PW_VAR_QUEUE_DATA_SIZE_UINT32(max_size_bytes) \
-  ((_PW_VAR_QUEUE_DATA_SIZE_BYTES(max_size_bytes) + 3 /* round up */) / 4)
-
-#define _PW_VAR_QUEUE_DATA_SIZE_BYTES(max_size_bytes)              \
-  (PW_VARINT_ENCODED_SIZE_BYTES(max_size_bytes) + max_size_bytes + \
-   1 /*end byte*/)
+   ((PW_VAR_QUEUE_DATA_SIZE_BYTES(max_size_bytes) + 3 /* round up */) / 4))
 
 #ifdef __cplusplus
 namespace pw {
@@ -112,14 +105,14 @@ class BasicInlineVarLenEntryQueue
   using reference = typename Base::reference;
   using const_reference = typename Base::const_reference;
 
-  constexpr BasicInlineVarLenEntryQueue()
-      : array_{_PW_VAR_QUEUE_DATA_SIZE_BYTES(kMaxSizeBytes), 0, 0} {}
+  BasicInlineVarLenEntryQueue()
+      : array_{PW_VAR_QUEUE_DATA_SIZE_BYTES(kMaxSizeBytes), 0, 0} {}
 
   // Explicit zero element constexpr constructor. Using this constructor will
   // place the entire object in .data, which will increase ROM size. Use with
   // caution if working with large capacity sizes.
   constexpr BasicInlineVarLenEntryQueue(ConstexprTag)
-      : array_{_PW_VAR_QUEUE_DATA_SIZE_BYTES(kMaxSizeBytes), 0, 0} {}
+      : array_{PW_VAR_QUEUE_DATA_SIZE_BYTES(kMaxSizeBytes), 0, 0} {}
 
   BasicInlineVarLenEntryQueue(const BasicInlineVarLenEntryQueue<T>& other) {
     *this = other;
@@ -192,13 +185,23 @@ class BasicInlineVarLenEntryQueue<T, containers::internal::kGenericSized>
   constexpr BasicInlineVarLenEntryQueue() = default;
   ~BasicInlineVarLenEntryQueue() = default;
 
-  uint32_t buffer_size() const { return array()[kBufferSize]; }
+ private:
+  static constexpr size_t kNumFields = 3;
+  static constexpr size_t kBufferSize = 0;
+  static constexpr size_t kHead = 1;
+  static constexpr size_t kTail = 2;
 
-  uint32_t head() const { return array()[kHead]; }
-  void set_head(uint32_t head) { array()[kHead] = head; }
+  // GenericVarLenEntryQueue uses CRTP to encapsulate
+  template <typename, typename>
+  friend class containers::internal::GenericVarLenEntryQueue;
 
-  uint32_t tail() const { return array()[kTail]; }
-  void set_tail(uint32_t tail) { array()[kTail] = tail; }
+  size_t buffer_size() const { return array()[kBufferSize]; }
+
+  size_t head() const { return array()[kHead]; }
+  void set_head(size_t head) { array()[kHead] = static_cast<uint32_t>(head); }
+
+  size_t tail() const { return array()[kTail]; }
+  void set_tail(size_t tail) { array()[kTail] = static_cast<uint32_t>(tail); }
 
   span<T> buffer() {
     return span<T>(reinterpret_cast<T*>(array().subspan(kNumFields).data()),
@@ -210,15 +213,6 @@ class BasicInlineVarLenEntryQueue<T, containers::internal::kGenericSized>
         reinterpret_cast<const T*>(array().subspan(kNumFields).data()),
         buffer_size());
   }
-
- private:
-  static constexpr size_t kNumFields = 3;
-  static constexpr size_t kBufferSize = 0;
-  static constexpr size_t kHead = 1;
-  static constexpr size_t kTail = 2;
-
-  template <typename, typename>
-  friend class containers::internal::GenericVarLenEntryQueue;
 
   // The underlying data is not part of the generic-length queue class. It is
   // provided in the derived class from which this instance was constructed. To
@@ -324,7 +318,7 @@ PW_EXTERN_C_START
 #define PW_VARIABLE_LENGTH_ENTRY_QUEUE_DECLARE(variable, max_size_bytes) \
   _PW_VAR_QUEUE_CHECK_SIZE(max_size_bytes)                               \
   uint32_t variable[_PW_VAR_QUEUE_SIZE_UINT32(max_size_bytes)] = {       \
-      _PW_VAR_QUEUE_DATA_SIZE_BYTES(max_size_bytes), /*head=*/0u, /*tail=*/0u}
+      PW_VAR_QUEUE_DATA_SIZE_BYTES(max_size_bytes), /*head=*/0u, /*tail=*/0u}
 
 typedef uint32_t* pw_InlineVarLenEntryQueue_Handle;
 typedef const uint32_t* pw_InlineVarLenEntryQueue_ConstHandle;

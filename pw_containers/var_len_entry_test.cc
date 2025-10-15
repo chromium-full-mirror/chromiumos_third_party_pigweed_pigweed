@@ -18,7 +18,8 @@
 #include <cstddef>
 #include <string_view>
 
-#include "pw_containers/inline_var_len_entry_queue.h"
+#include "pw_bytes/array.h"
+#include "pw_containers/var_len_entry_queue.h"
 #include "pw_unit_test/constexpr.h"
 #include "pw_unit_test/framework.h"
 
@@ -39,135 +40,143 @@ PW_CONSTEXPR_TEST(VarLenEntry, DefaultConstructed, {
   PW_TEST_EXPECT_EQ(const_entry.begin(), const_entry.end());
 });
 
-TEST(VarLenEntry, Contiguous) {
-  pw::InlineVarLenEntryQueue<10> queue;
-  const auto data = "ABCDE"sv;
-  queue.push(as_bytes(pw::span(data)));
+PW_CONSTEXPR_TEST_IF_CLANG(VarLenEntry, Contiguous, {
+  std::byte buffer[10] = {};
+  pw::VarLenEntryQueue queue(buffer);
+  auto data = pw::bytes::String("ABCDE");
+  queue.push(data);
 
   VarLenEntry<const std::byte> entry = queue.front();
 
-  EXPECT_FALSE(entry.empty());
-  EXPECT_EQ(entry.size(), 5u);
+  PW_TEST_EXPECT_FALSE(entry.empty());
+  PW_TEST_EXPECT_EQ(entry.size(), sizeof(data));
 
-  EXPECT_EQ(entry.front(), std::byte{'A'});
-  EXPECT_EQ(entry.back(), std::byte{'E'});
-
-  EXPECT_EQ(entry[0], std::byte{'A'});
-  EXPECT_EQ(entry[1], std::byte{'B'});
-  EXPECT_EQ(entry[2], std::byte{'C'});
-  EXPECT_EQ(entry[3], std::byte{'D'});
-  EXPECT_EQ(entry[4], std::byte{'E'});
-
-  EXPECT_EQ(entry.at(2), std::byte{'C'});
+  PW_TEST_EXPECT_EQ(entry.front(), data[0]);
+  PW_TEST_EXPECT_EQ(entry.back(), data[sizeof(data) - 1]);
+  for (size_t i = 0; i < sizeof(data); ++i) {
+    PW_TEST_EXPECT_EQ(entry[i], data[i]);
+    PW_TEST_EXPECT_EQ(entry.at(i), data[i]);
+  }
 
   auto [span1, span2] = entry.contiguous_data();
-  EXPECT_EQ(span1.size(), 5u);
-  EXPECT_TRUE(span2.empty());
-  EXPECT_EQ(std::memcmp(span1.data(), data.data(), data.size()), 0);
-
-  std::array<std::byte, 5> copy_buffer;
-  EXPECT_EQ(entry.copy(copy_buffer.data(), copy_buffer.size()), 5u);
-  EXPECT_EQ(std::memcmp(copy_buffer.data(), data.data(), data.size()), 0);
-
-  std::array<std::byte, 3> small_copy_buffer;
-  EXPECT_EQ(entry.copy(small_copy_buffer.data(), small_copy_buffer.size()), 5u);
-  EXPECT_EQ(small_copy_buffer[0], std::byte{'A'});
-  EXPECT_EQ(small_copy_buffer[1], std::byte{'B'});
-  EXPECT_EQ(small_copy_buffer[2], std::byte{'C'});
-
-  size_t i = 0;
-  for (const auto& byte : entry) {
-    EXPECT_EQ(byte, static_cast<std::byte>(data[i++]));
+  PW_TEST_EXPECT_EQ(span1.size(), sizeof(data));
+  PW_TEST_EXPECT_TRUE(span2.empty());
+  for (size_t i = 0; i < sizeof(data); ++i) {
+    PW_TEST_EXPECT_EQ(span1[i], data[i]);
   }
-  EXPECT_EQ(i, 5u);
-}
 
-TEST(VarLenEntry, Discontiguous) {
-  pw::InlineVarLenEntryQueue<5> queue;
-  queue.push(as_bytes(pw::span("12"sv)));
-  queue.push_overwrite(as_bytes(pw::span("ABCDE"sv)));
+  std::byte copy_buffer[sizeof(data)] = {};
+  PW_TEST_EXPECT_EQ(entry.copy(copy_buffer, sizeof(copy_buffer)), sizeof(data));
+  for (size_t i = 0; i < sizeof(copy_buffer); ++i) {
+    PW_TEST_EXPECT_EQ(copy_buffer[i], data[i]);
+  }
+
+  std::byte small_copy_buffer[sizeof(data) - 2] = {};
+  PW_TEST_EXPECT_EQ(entry.copy(small_copy_buffer, sizeof(small_copy_buffer)),
+                    sizeof(data));
+  for (size_t i = 0; i < sizeof(small_copy_buffer); ++i) {
+    PW_TEST_EXPECT_EQ(small_copy_buffer[i], data[i]);
+  }
+});
+
+PW_CONSTEXPR_TEST_IF_CLANG(VarLenEntry, Discontiguous, {
+  std::byte buffer[8] = {};
+  pw::VarLenEntryQueue queue(buffer);
+
+  auto overwritten = pw::bytes::String("12");
+  queue.push(overwritten);
+
+  auto data = pw::bytes::String("ABCDE");
+  queue.push_overwrite(data);
 
   VarLenEntry<const std::byte> entry = queue.front();
 
-  EXPECT_FALSE(entry.empty());
-  EXPECT_EQ(entry.size(), 5u);
+  PW_TEST_EXPECT_FALSE(entry.empty());
+  PW_TEST_EXPECT_EQ(entry.size(), sizeof(data));
 
-  EXPECT_EQ(entry.front(), std::byte{'A'});
-  EXPECT_EQ(entry.back(), std::byte{'E'});
-
-  EXPECT_EQ(entry[0], std::byte{'A'});
-  EXPECT_EQ(entry[1], std::byte{'B'});
-  EXPECT_EQ(entry[2], std::byte{'C'});
-  EXPECT_EQ(entry[3], std::byte{'D'});
-  EXPECT_EQ(entry[4], std::byte{'E'});
-
-  EXPECT_EQ(entry.at(3), std::byte{'D'});
+  PW_TEST_EXPECT_EQ(entry.front(), data[0]);
+  PW_TEST_EXPECT_EQ(entry.back(), data[sizeof(data) - 1]);
+  for (size_t i = 0; i < sizeof(data); ++i) {
+    PW_TEST_EXPECT_EQ(entry[i], data[i]);
+    PW_TEST_EXPECT_EQ(entry.at(i), data[i]);
+  }
 
   auto [span1, span2] = entry.contiguous_data();
-  EXPECT_FALSE(span1.empty());
-  EXPECT_FALSE(span2.empty());
-  EXPECT_EQ(span1.size() + span2.size(), 5u);
+  PW_TEST_EXPECT_FALSE(span1.empty());
+  PW_TEST_EXPECT_FALSE(span2.empty());
+  PW_TEST_EXPECT_EQ(span1.size() + span2.size(), sizeof(data));
 
-  std::array<std::byte, 5> copy_buffer;
-  EXPECT_EQ(entry.copy(copy_buffer.data(), copy_buffer.size()), 5u);
-  EXPECT_EQ(std::memcmp(copy_buffer.data(), "ABCDE", 5), 0);
-
-  std::array<std::byte, 3> small_copy_buffer;
-  EXPECT_EQ(entry.copy(small_copy_buffer.data(), small_copy_buffer.size()), 5u);
-  EXPECT_EQ(std::memcmp(small_copy_buffer.data(), "ABC", 3), 0);
-
-  size_t i = 0;
-  const auto data = "ABCDE"sv;
-  for (const auto& byte : entry) {
-    EXPECT_EQ(byte, static_cast<std::byte>(data[i++]));
+  std::byte copy_buffer[sizeof(data)] = {};
+  PW_TEST_EXPECT_EQ(entry.copy(copy_buffer, sizeof(copy_buffer)), sizeof(data));
+  for (size_t i = 0; i < sizeof(copy_buffer); ++i) {
+    PW_TEST_EXPECT_EQ(copy_buffer[i], data[i]);
   }
-  EXPECT_EQ(i, 5u);
-}
 
-TEST(VarLenEntry, ConstConversion) {
-  pw::InlineVarLenEntryQueue<5> queue;
-  queue.push(as_bytes(pw::span("12"sv)));
-  queue.push_overwrite(as_bytes(pw::span("ABC"sv)));
+  std::byte small_copy_buffer[sizeof(data) - 2] = {};
+  PW_TEST_EXPECT_EQ(entry.copy(small_copy_buffer, sizeof(small_copy_buffer)),
+                    sizeof(data));
+  for (size_t i = 0; i < sizeof(small_copy_buffer); ++i) {
+    PW_TEST_EXPECT_EQ(small_copy_buffer[i], data[i]);
+  }
+});
+
+PW_CONSTEXPR_TEST_IF_CLANG(VarLenEntry, ConstConversion, {
+  std::byte buffer[10] = {};
+  pw::VarLenEntryQueue queue(buffer);
+
+  auto data = pw::bytes::String("ABC");
+  queue.push(data);
 
   VarLenEntry<std::byte> entry = queue.front();
   VarLenEntry<const std::byte> const_entry = entry;
 
-  EXPECT_EQ(const_entry.size(), 3u);
-  EXPECT_EQ(const_entry[0], std::byte{'A'});
-  EXPECT_EQ(const_entry[1], std::byte{'B'});
-  EXPECT_EQ(const_entry[2], std::byte{'C'});
-}
+  PW_TEST_EXPECT_EQ(const_entry.size(), sizeof(data));
+  for (size_t i = 0; i < sizeof(data); ++i) {
+    PW_TEST_EXPECT_EQ(const_entry[i], data[i]);
+    PW_TEST_EXPECT_EQ(const_entry.at(i), data[i]);
+  }
+});
 
-TEST(VarLenEntry, Equality) {
-  pw::InlineVarLenEntryQueue<10> queue;
-  queue.push(as_bytes(pw::span("ABC"sv)));
-  queue.push(as_bytes(pw::span("ABC"sv)));
+PW_CONSTEXPR_TEST_IF_CLANG(VarLenEntry, Equality, {
+  std::byte buffer[10] = {};
+  pw::VarLenEntryQueue queue(buffer);
+
+  auto data = pw::bytes::String("ABC");
+  queue.push(data);
+  queue.push(data);
 
   VarLenEntry<const std::byte> entry1 = queue.front();
   queue.pop();
   VarLenEntry<const std::byte> entry2 = queue.front();
 
   // These entries have the same content but are at different locations.
-  EXPECT_NE(entry1, entry2);
+  PW_TEST_EXPECT_NE(entry1, entry2);
 
   // Create a copy of the iterator to get an equal entry.
   auto it = queue.begin();
   VarLenEntry<const std::byte> entry3 = *it;
-  EXPECT_EQ(entry2, entry3);
-}
+  PW_TEST_EXPECT_EQ(entry2, entry3);
+});
 
-TEST(VarLenEntry, Mutable) {
-  pw::InlineVarLenEntryQueue<5> queue;
-  queue.push(as_bytes(pw::span("ABCDE"sv)));
+PW_CONSTEXPR_TEST_IF_CLANG(VarLenEntry, Mutable, {
+  std::byte buffer[8] = {};
+  pw::VarLenEntryQueue queue(buffer);
+
+  auto data = pw::bytes::String("ABCDE");
+  queue.push(data);
 
   VarLenEntry<std::byte> entry = queue.front();
   entry[0] = std::byte{'Z'};
   entry.at(1) = std::byte{'Y'};
   entry.back() = std::byte{'X'};
 
-  std::array<std::byte, 5> copy_buffer;
-  entry.copy(copy_buffer.data(), copy_buffer.size());
-  EXPECT_EQ(std::memcmp(copy_buffer.data(), "ZYCDX", 5), 0);
-}
+  std::byte copy_buffer[sizeof(data)] = {};
+  entry.copy(copy_buffer, sizeof(copy_buffer));
+  PW_TEST_EXPECT_EQ(copy_buffer[0], std::byte('Z'));
+  PW_TEST_EXPECT_EQ(copy_buffer[1], std::byte('Y'));
+  PW_TEST_EXPECT_EQ(copy_buffer[2], std::byte('C'));
+  PW_TEST_EXPECT_EQ(copy_buffer[3], std::byte('D'));
+  PW_TEST_EXPECT_EQ(copy_buffer[4], std::byte('X'));
+});
 
 }  // namespace

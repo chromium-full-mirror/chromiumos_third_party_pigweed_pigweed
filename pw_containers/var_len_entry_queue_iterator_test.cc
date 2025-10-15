@@ -15,10 +15,10 @@
 #include "pw_containers/internal/var_len_entry_queue_iterator.h"
 
 #include <algorithm>
-#include <array>
 #include <cstring>
 
-#include "pw_containers/inline_var_len_entry_queue.h"
+#include "pw_bytes/array.h"
+#include "pw_containers/var_len_entry_queue.h"
 #include "pw_unit_test/constexpr.h"
 #include "pw_unit_test/framework.h"
 
@@ -28,115 +28,157 @@ using pw::containers::internal::VarLenEntry;
 using pw::containers::internal::VarLenEntryQueueIterator;
 using namespace std::literals::string_view_literals;
 
-TEST(VarLenEntryQueueIterator, DefaultConstructed) {
+constexpr pw::VarLenEntryQueue MakeTestQueue(pw::ByteSpan buffer) {
+  pw::VarLenEntryQueue queue(buffer);
+  queue.push(pw::bytes::String("hello"));
+  queue.push(pw::bytes::String("world"));
+  queue.push(pw::bytes::String("test"));
+  return queue;
+}
+
+PW_CONSTEXPR_TEST(VarLenEntryQueueIterator, DefaultConstructed, {
   VarLenEntryQueueIterator<std::byte> it;
   VarLenEntryQueueIterator<std::byte> other;
-  EXPECT_EQ(it, other);
-  EXPECT_FALSE(it != other);
-}
+  PW_TEST_EXPECT_EQ(it, other);
+  PW_TEST_EXPECT_FALSE(it != other);
+});
 
-class VarLenEntryQueueIteratorTest : public ::testing::Test {
- protected:
-  VarLenEntryQueueIteratorTest() {
-    queue_.push(pw::as_bytes(pw::span("hello"sv)));
-    queue_.push(pw::as_bytes(pw::span("world"sv)));
-    queue_.push(pw::as_bytes(pw::span("test"sv)));
-  }
+PW_CONSTEXPR_TEST(VarLenEntryQueueIteratorTest, Equality, {
+  std::byte buffer[20] = {};
+  pw::VarLenEntryQueue queue = MakeTestQueue(buffer);
+  VarLenEntryQueueIterator<std::byte> it1 = queue.begin();
+  VarLenEntryQueueIterator<std::byte> it2 = queue.begin();
+  VarLenEntryQueueIterator<std::byte> it3 = ++(queue.begin());
 
-  pw::InlineVarLenEntryQueue<20> queue_;
-};
+  PW_TEST_EXPECT_EQ(it1, it2);
+  PW_TEST_EXPECT_NE(it1, it3);
+  PW_TEST_EXPECT_TRUE(it1 == it2);
+  PW_TEST_EXPECT_TRUE(it1 != it3);
+});
 
-TEST_F(VarLenEntryQueueIteratorTest, Equality) {
-  VarLenEntryQueueIterator<std::byte> it1 = queue_.begin();
-  VarLenEntryQueueIterator<std::byte> it2 = queue_.begin();
-  VarLenEntryQueueIterator<std::byte> it3 = ++(queue_.begin());
-
-  EXPECT_EQ(it1, it2);
-  EXPECT_NE(it1, it3);
-  EXPECT_TRUE(it1 == it2);
-  EXPECT_TRUE(it1 != it3);
-}
-
-TEST_F(VarLenEntryQueueIteratorTest, Copy) {
-  VarLenEntryQueueIterator<std::byte> it1 = queue_.begin();
+PW_CONSTEXPR_TEST(VarLenEntryQueueIteratorTest, Copy, {
+  std::byte buffer[20] = {};
+  pw::VarLenEntryQueue queue = MakeTestQueue(buffer);
+  VarLenEntryQueueIterator<std::byte> it1 = queue.begin();
   VarLenEntryQueueIterator<std::byte> it2(it1);
-  EXPECT_EQ(it1, it2);
+  PW_TEST_EXPECT_EQ(it1, it2);
 
   VarLenEntryQueueIterator<std::byte> it3;
   it3 = it1;
-  EXPECT_EQ(it1, it3);
-}
+  PW_TEST_EXPECT_EQ(it1, it3);
+});
 
-TEST_F(VarLenEntryQueueIteratorTest, Dereference) {
-  VarLenEntryQueueIterator<std::byte> it = queue_.begin();
+PW_CONSTEXPR_TEST_IF_CLANG(VarLenEntryQueueIteratorTest, Dereference, {
+  std::byte buffer[20] = {};
+  pw::VarLenEntryQueue queue = MakeTestQueue(buffer);
+  VarLenEntryQueueIterator<std::byte> it = queue.begin();
 
   const VarLenEntry<std::byte>& entry = *it;
-  std::array<std::byte, 5> expected;
-  memcpy(expected.data(), "hello", expected.size());
-  EXPECT_EQ(entry.size(), 5u);
-  EXPECT_TRUE(std::equal(entry.begin(), entry.end(), expected.begin()));
-}
+  auto expected = pw::bytes::String("hello");
+  PW_TEST_EXPECT_EQ(entry.size(), 5u);
 
-TEST_F(VarLenEntryQueueIteratorTest, Arrow) {
-  VarLenEntryQueueIterator<std::byte> it = queue_.begin();
+  auto it_it = it->begin();
+  for (const std::byte b : expected) {
+    PW_TEST_EXPECT_EQ(*it_it++, b);
+  }
+  PW_TEST_EXPECT_EQ(it_it, it->end());
+});
 
-  std::array<std::byte, 5> expected;
-  memcpy(expected.data(), "hello", expected.size());
-  EXPECT_EQ(it->size(), 5u);
-  EXPECT_TRUE(std::equal(it->begin(), it->end(), expected.begin()));
-}
+PW_CONSTEXPR_TEST_IF_CLANG(VarLenEntryQueueIteratorTest, Arrow, {
+  std::byte buffer[20] = {};
+  pw::VarLenEntryQueue queue = MakeTestQueue(buffer);
+  VarLenEntryQueueIterator<std::byte> it = queue.begin();
 
-TEST_F(VarLenEntryQueueIteratorTest, PreIncrement) {
-  VarLenEntryQueueIterator<std::byte> it = queue_.begin();
+  auto expected = pw::bytes::String("hello");
+  PW_TEST_EXPECT_EQ(it->size(), sizeof(expected));
+
+  auto it_it = it->begin();
+  for (const std::byte b : expected) {
+    PW_TEST_EXPECT_EQ(*it_it++, b);
+  }
+  PW_TEST_EXPECT_EQ(it_it, it->end());
+});
+
+PW_CONSTEXPR_TEST_IF_CLANG(VarLenEntryQueueIteratorTest, PreIncrement, {
+  std::byte buffer[20] = {};
+  pw::VarLenEntryQueue queue = MakeTestQueue(buffer);
+  VarLenEntryQueueIterator<std::byte> it = queue.begin();
   ++it;
 
   const VarLenEntry<std::byte>& entry = *it;
-  std::array<std::byte, 5> expected;
-  memcpy(expected.data(), "world", expected.size());
-  EXPECT_EQ(entry.size(), 5u);
-  EXPECT_TRUE(std::equal(entry.begin(), entry.end(), expected.begin()));
-}
+  auto expected = pw::bytes::String("world");
+  PW_TEST_EXPECT_EQ(entry.size(), sizeof(expected));
 
-TEST_F(VarLenEntryQueueIteratorTest, PostIncrement) {
-  VarLenEntryQueueIterator<std::byte> it = queue_.begin();
+  auto it_it = it->begin();
+  for (const std::byte b : expected) {
+    PW_TEST_EXPECT_EQ(*it_it++, b);
+  }
+  PW_TEST_EXPECT_EQ(it_it, it->end());
+});
+
+PW_CONSTEXPR_TEST_IF_CLANG(VarLenEntryQueueIteratorTest, PostIncrement, {
+  std::byte buffer[20] = {};
+  pw::VarLenEntryQueue queue = MakeTestQueue(buffer);
+  VarLenEntryQueueIterator<std::byte> it = queue.begin();
   VarLenEntryQueueIterator<std::byte> prev_it = it++;
 
-  std::array<std::byte, 5> prev_expected;
-  memcpy(prev_expected.data(), "hello", prev_expected.size());
-  EXPECT_EQ(prev_it->size(), 5u);
-  EXPECT_TRUE(
-      std::equal(prev_it->begin(), prev_it->end(), prev_expected.begin()));
+  auto prev_expected = pw::bytes::String("hello");
+  PW_TEST_EXPECT_EQ(prev_it->size(), sizeof(prev_expected));
 
-  std::array<std::byte, 5> expected;
-  memcpy(expected.data(), "world", expected.size());
-  EXPECT_EQ(it->size(), 5u);
-  EXPECT_TRUE(std::equal(it->begin(), it->end(), expected.begin()));
-}
+  auto it_it = prev_it->begin();
+  for (const std::byte b : prev_expected) {
+    PW_TEST_EXPECT_EQ(*it_it++, b);
+  }
+  PW_TEST_EXPECT_EQ(it_it, prev_it->end());
 
-TEST_F(VarLenEntryQueueIteratorTest, Iteration) {
-  VarLenEntryQueueIterator<std::byte> it = queue_.begin();
+  auto expected = pw::bytes::String("world");
+  PW_TEST_EXPECT_EQ(it->size(), sizeof(expected));
+
+  it_it = it->begin();
+  for (const std::byte b : expected) {
+    PW_TEST_EXPECT_EQ(*it_it++, b);
+  }
+  PW_TEST_EXPECT_EQ(it_it, it->end());
+});
+
+PW_CONSTEXPR_TEST_IF_CLANG(VarLenEntryQueueIteratorTest, Iteration, {
+  std::byte buffer[20] = {};
+  pw::VarLenEntryQueue queue = MakeTestQueue(buffer);
+  VarLenEntryQueueIterator<std::byte> it = queue.begin();
 
   // First item
-  std::array<std::byte, 5> expected1;
-  memcpy(expected1.data(), "hello", expected1.size());
-  EXPECT_EQ(it->size(), 5u);
-  EXPECT_TRUE(std::equal(it->begin(), it->end(), expected1.begin()));
+  auto expected1 = pw::bytes::String("hello");
+  PW_TEST_EXPECT_EQ(it->size(), sizeof(expected1));
+
+  auto it_it = it->begin();
+  for (const std::byte b : expected1) {
+    PW_TEST_EXPECT_EQ(*it_it++, b);
+  }
+  PW_TEST_EXPECT_EQ(it_it, it->end());
 
   ++it;
 
   // Second item
-  std::array<std::byte, 5> expected2;
-  memcpy(expected2.data(), "world", expected2.size());
-  EXPECT_EQ(it->size(), 5u);
-  EXPECT_TRUE(std::equal(it->begin(), it->end(), expected2.begin()));
+  auto expected2 = pw::bytes::String("world");
+  PW_TEST_EXPECT_EQ(it->size(), sizeof(expected2));
+
+  it_it = it->begin();
+  for (const std::byte b : expected2) {
+    PW_TEST_EXPECT_EQ(*it_it++, b);
+  }
+  PW_TEST_EXPECT_EQ(it_it, it->end());
 
   ++it;
 
   // Third item
-  std::array<std::byte, 4> expected3;
-  memcpy(expected3.data(), "test", expected3.size());
-  EXPECT_EQ(it->size(), 4u);
-  EXPECT_TRUE(std::equal(it->begin(), it->end(), expected3.begin()));
-}
+  auto expected3 = pw::bytes::String("test");
+  PW_TEST_EXPECT_EQ(it->size(), sizeof(expected3));
+
+  it_it = it->begin();
+  for (const std::byte b : expected3) {
+    PW_TEST_EXPECT_EQ(*it_it++, b);
+  }
+  PW_TEST_EXPECT_EQ(it_it, it->end());
+});
 
 }  // namespace

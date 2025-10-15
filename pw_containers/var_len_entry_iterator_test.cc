@@ -16,7 +16,8 @@
 
 #include <string_view>
 
-#include "pw_containers/inline_var_len_entry_queue.h"
+#include "pw_bytes/array.h"
+#include "pw_containers/var_len_entry_queue.h"
 #include "pw_unit_test/constexpr.h"
 #include "pw_unit_test/framework.h"
 
@@ -26,88 +27,93 @@ using pw::containers::internal::VarLenEntry;
 using pw::containers::internal::VarLenEntryIterator;
 using namespace std::literals::string_view_literals;
 
-TEST(VarLenEntryIterator, DefaultConstructed) {
+PW_CONSTEXPR_TEST(VarLenEntryIterator, DefaultConstructed, {
   VarLenEntryIterator<std::byte> it1;
   VarLenEntryIterator<std::byte> it2;
-  EXPECT_EQ(it1, it2);
-}
+  PW_TEST_EXPECT_EQ(it1, it2);
+});
 
-TEST(VarLenEntryIterator, IterationContiguous) {
-  pw::InlineVarLenEntryQueue<10> queue;
-  const auto data = "ABCDE"sv;
-  queue.push(pw::as_bytes(pw::span(data)));
+PW_CONSTEXPR_TEST_IF_CLANG(VarLenEntryIterator, IterationContiguous, {
+  std::byte buffer[10] = {};
+  pw::VarLenEntryQueue queue(buffer);
+
+  auto data = pw::bytes::String("ABCDE");
+  queue.push(data);
   VarLenEntry<const std::byte> entry = queue.front();
 
   auto it = entry.begin();
-  EXPECT_EQ(*it, std::byte{'A'});
-  ++it;
-  EXPECT_EQ(*it, std::byte{'B'});
-  it++;
-  EXPECT_EQ(*it, std::byte{'C'});
-  ++it;
-  EXPECT_EQ(*it, std::byte{'D'});
-  ++it;
-  EXPECT_EQ(*it, std::byte{'E'});
-  ++it;
-  EXPECT_EQ(it, entry.end());
-}
+  for (std::byte b : data) {
+    PW_TEST_EXPECT_EQ(*it++, b);
+  }
+  PW_TEST_EXPECT_EQ(it, entry.end());
+});
 
-TEST(VarLenEntryIterator, IterationDiscontiguous) {
-  pw::InlineVarLenEntryQueue<5> queue;
-  queue.push(pw::as_bytes(pw::span("12"sv)));
-  queue.push_overwrite(pw::as_bytes(pw::span("ABCDE"sv)));
+PW_CONSTEXPR_TEST_IF_CLANG(VarLenEntryIterator, IterationDiscontiguous, {
+  std::byte buffer[8] = {};
+  pw::VarLenEntryQueue queue(buffer);
+
+  auto overwritten = pw::bytes::String("12");
+  queue.push(overwritten);
+
+  auto data = pw::bytes::String("ABCDE");
+  queue.push_overwrite(data);
+
   VarLenEntry<const std::byte> entry = queue.front();
 
   auto it = entry.begin();
-  EXPECT_EQ(*it, std::byte{'A'});
-  ++it;
-  EXPECT_EQ(*it, std::byte{'B'});
-  it++;
-  EXPECT_EQ(*it, std::byte{'C'});
-  ++it;
-  EXPECT_EQ(*it, std::byte{'D'});
-  ++it;
-  EXPECT_EQ(*it, std::byte{'E'});
-  ++it;
-  EXPECT_EQ(it, entry.end());
-}
+  for (std::byte b : data) {
+    PW_TEST_EXPECT_EQ(*it++, b);
+  }
+  PW_TEST_EXPECT_EQ(it, entry.end());
+});
 
-TEST(VarLenEntryIterator, Addition) {
-  pw::InlineVarLenEntryQueue<10> queue;
-  const auto data = "0123456789"sv;
-  queue.push(pw::as_bytes(pw::span(data)));
+PW_CONSTEXPR_TEST_IF_CLANG(VarLenEntryIterator, Addition, {
+  std::byte buffer[10] = {};
+  pw::VarLenEntryQueue queue(buffer);
+
+  auto data = pw::bytes::String("01234567");
+  queue.push(data);
+
   VarLenEntry<const std::byte> entry = queue.front();
 
   auto it = entry.begin();
-  EXPECT_EQ(*(it + 3), std::byte{'3'});
-  EXPECT_EQ(*(5 + it), std::byte{'5'});
+  PW_TEST_EXPECT_EQ(*(it + 3), std::byte{'3'});
+  PW_TEST_EXPECT_EQ(*(5 + it), std::byte{'5'});
 
   it += 7;
-  EXPECT_EQ(*it, std::byte{'7'});
-}
+  PW_TEST_EXPECT_EQ(*it, std::byte{'7'});
+});
 
-TEST(VarLenEntryIterator, Equality) {
-  pw::InlineVarLenEntryQueue<10> queue;
-  queue.push(pw::as_bytes(pw::span("0123456789"sv)));
+PW_CONSTEXPR_TEST_IF_CLANG(VarLenEntryIterator, Equality, {
+  std::byte buffer[10] = {};
+  pw::VarLenEntryQueue queue(buffer);
+
+  auto data = pw::bytes::String("012");
+  queue.push(data);
+
   VarLenEntry<const std::byte> entry = queue.front();
 
   auto it1 = entry.begin();
   auto it2 = entry.begin();
-  EXPECT_EQ(it1, it2);
+  PW_TEST_EXPECT_EQ(it1, it2);
 
   ++it2;
-  EXPECT_NE(it1, it2);
+  PW_TEST_EXPECT_NE(it1, it2);
 
   it1 += 1;
-  EXPECT_EQ(it1, it2);
+  PW_TEST_EXPECT_EQ(it1, it2);
 
-  EXPECT_NE(it1, entry.end());
-  EXPECT_NE(entry.end(), it2);
-}
+  PW_TEST_EXPECT_NE(it1, entry.end());
+  PW_TEST_EXPECT_NE(entry.end(), it2);
+});
 
-TEST(VarLenEntryIterator, Mutable) {
-  pw::InlineVarLenEntryQueue<5> queue;
-  queue.push(pw::as_bytes(pw::span("ABCDE"sv)));
+PW_CONSTEXPR_TEST_IF_CLANG(VarLenEntryIterator, Mutable, {
+  std::byte buffer[10] = {};
+  pw::VarLenEntryQueue queue(buffer);
+
+  auto data = pw::bytes::String("ABCDE");
+  queue.push(data);
+
   VarLenEntry<std::byte> entry = queue.front();
 
   auto it = entry.begin();
@@ -115,9 +121,13 @@ TEST(VarLenEntryIterator, Mutable) {
   *(it + 1) = std::byte{'Y'};
   *(it + 4) = std::byte{'X'};
 
-  std::array<std::byte, 5> copy_buffer;
-  entry.copy(copy_buffer.data(), copy_buffer.size());
-  EXPECT_EQ(std::memcmp(copy_buffer.data(), "ZYCDX", 5), 0);
-}
+  std::byte copy_buffer[5] = {};
+  entry.copy(copy_buffer, sizeof(copy_buffer));
+  PW_TEST_EXPECT_EQ(copy_buffer[0], std::byte('Z'));
+  PW_TEST_EXPECT_EQ(copy_buffer[1], std::byte('Y'));
+  PW_TEST_EXPECT_EQ(copy_buffer[2], std::byte('C'));
+  PW_TEST_EXPECT_EQ(copy_buffer[3], std::byte('D'));
+  PW_TEST_EXPECT_EQ(copy_buffer[4], std::byte('X'));
+});
 
 }  // namespace
