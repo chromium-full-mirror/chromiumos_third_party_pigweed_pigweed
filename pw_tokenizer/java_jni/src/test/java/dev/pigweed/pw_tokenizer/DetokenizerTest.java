@@ -81,6 +81,7 @@ public final class DetokenizerTest {
         "00000100,          ,\"other\",\"This is fine\"\n");
     // clang-format on
     assertThat(detokenizer.lookup(0x100, "")).containsExactly("Uh oh!", "Oh NO!");
+    assertThat(detokenizer.lookup(0x100, "other")).containsExactly("This is fine");
   }
 
   @Test
@@ -111,6 +112,7 @@ public final class DetokenizerTest {
     // clang-format on
     byte[] message = new byte[] {0x0D, 0x0C, 0x0B, 0x0A};
     assertThat(detokenizer.lookup(message, "")).containsExactly("Uh oh!", "Oh NO!");
+    assertThat(detokenizer.lookup(message, "other")).containsExactly("This is fine");
   }
 
   @Test

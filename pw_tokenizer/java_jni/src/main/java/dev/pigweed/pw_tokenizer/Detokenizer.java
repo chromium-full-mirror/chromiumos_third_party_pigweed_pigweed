@@ -99,7 +99,7 @@ public final class Detokenizer implements AutoCloseable {
     for (int i = 1; i < tokenizedMessage.length; ++i) {
       token |= (tokenizedMessage[i] & 0xFF) << (i * 8);
     }
-    return lookup(token, DEFAULT_DOMAIN);
+    return lookup(token, domain);
   }
 
   /**
