@@ -98,3 +98,33 @@ cc_library_headers {
         "pw_trace_pwpb_rpc_header",
     ],
 }
+
+cc_library {
+    name: "pw_trace_decoder",
+    defaults: [
+        "pw_android_common_backends",
+        "pw_android_common_target_support",
+    ],
+    export_include_dirs: [
+        "public",
+    ],
+    srcs: [
+        "decoder.cc",
+    ],
+    header_libs: [
+        "fuchsia_sdk_lib_stdcompat",
+        "pw_log",
+    ],
+    static_libs: [
+        "pw_bytes",
+        "pw_detokenizer",
+        "pw_elf_reader",
+        "pw_result",
+        "pw_status",
+        "pw_stream",
+        "pw_string",
+        "pw_tokenizer",
+        "pw_varint",
+        "pw_base64",
+    ],
+}
