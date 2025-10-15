@@ -259,6 +259,7 @@ pw_add_library(pw_containers.generic_var_len_entry_queue STATIC
     pw_containers.algorithm
     pw_preprocessor
     pw_span
+    pw_span.cast
     pw_varint
 )
 

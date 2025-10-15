@@ -31,6 +31,15 @@ py_library(
         "pw_containers/inline_var_len_entry_queue.py",
     ],
     imports = ["."],
+    deps = [":var_len_entry_queue"],
+)
+
+py_library(
+    name = "var_len_entry_queue",
+    srcs = [
+        "pw_containers/var_len_entry_queue.py",
+    ],
+    imports = ["."],
     deps = [],
 )
 
@@ -38,4 +47,10 @@ pw_py_test(
     name = "inline_var_len_entry_queue_test",
     srcs = ["inline_var_len_entry_queue_test.py"],
     deps = [":inline_var_len_entry_queue"],
+)
+
+pw_py_test(
+    name = "var_len_entry_queue_test",
+    srcs = ["var_len_entry_queue_test.py"],
+    deps = [":var_len_entry_queue"],
 )

@@ -24,6 +24,7 @@
 #include "pw_containers/internal/var_len_entry.h"
 #include "pw_containers/internal/var_len_entry_queue_iterator.h"
 #include "pw_containers/internal/wrap.h"
+#include "pw_span/cast.h"
 #include "pw_span/span.h"
 #include "pw_varint/varint.h"
 
@@ -101,6 +102,13 @@ class GenericVarLenEntryQueueBase {
                                     ByteSpan bytes,
                                     size_t& tail);
 
+  /// Returns views of the contiguous raw storage backing this queue. If empty,
+  /// both returned spans will be empty. If the data does not wrap, only the
+  /// first returned span will be non-empty. If the data wraps around, both
+  /// contiguous regions will be returned, from the head to the tail.
+  static constexpr std::pair<ConstByteSpan, ConstByteSpan> ContiguousRawStorage(
+      ConstByteSpan bytes, size_t head, size_t tail);
+
  private:
   template <typename D1, typename T1, typename D2, typename T2>
   friend constexpr void CopyVarLenEntriesImpl(
@@ -168,6 +176,12 @@ class GenericVarLenEntryQueue : public GenericVarLenEntryQueueBase {
     return Base::GetInfo(GetBytes(), GetHead(), GetTail()).total_data_size;
   }
 
+  /// Returns the combined size in bytes of all entries in the queue, including
+  /// metadata. This is at most O(n) in the number of entries in the queue.
+  constexpr size_t encoded_size_bytes() const {
+    return Base::GetInfo(GetBytes(), GetHead(), GetTail()).total_encoded_size;
+  }
+
   /// Returns the maximum number of bytes that can be stored in the queue.
   /// This is largest possible value of `size_bytes()`, and the size of the
   /// largest single entry that can be stored in this queue. Attempting to store
@@ -212,6 +226,15 @@ class GenericVarLenEntryQueue : public GenericVarLenEntryQueueBase {
 
   /// Empties the queue.
   constexpr void clear();
+
+  /// @copydoc GenericVarLenEntryQueueBase::ContiguousRawStorage
+  constexpr std::pair<span<const T>, span<const T>> contiguous_raw_storage()
+      const {
+    auto [first, second] =
+        Base::ContiguousRawStorage(GetBytes(), GetHead(), GetTail());
+    return std::make_pair(span_cast<const T>(first),
+                          span_cast<const T>(second));
+  }
 
  protected:
   constexpr GenericVarLenEntryQueue() = default;
@@ -442,6 +465,19 @@ constexpr void GenericVarLenEntryQueueBase::CopyAndWrap(ConstByteSpan data,
   }
   pw::copy(data.begin(), data.begin() + first_chunk, bytes.begin() + tail);
   IncrementWithWrap(tail, data.size(), bytes.size());
+}
+
+constexpr std::pair<ConstByteSpan, ConstByteSpan>
+GenericVarLenEntryQueueBase::ContiguousRawStorage(ConstByteSpan bytes,
+                                                  size_t head,
+                                                  size_t tail) {
+  if (head == tail) {
+    return std::make_pair(ConstByteSpan(), ConstByteSpan());
+  }
+  if (head < tail) {
+    return std::make_pair(bytes.subspan(head, tail - head), ConstByteSpan());
+  }
+  return std::make_pair(bytes.subspan(head), bytes.subspan(0, tail));
 }
 
 ////////////////////////////////////////////////////////////////////////////////

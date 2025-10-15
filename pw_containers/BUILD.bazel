@@ -315,6 +315,7 @@ cc_library(
         "//pw_bytes",
         "//pw_preprocessor",
         "//pw_span",
+        "//pw_span:cast",
         "//pw_varint",
     ],
 )

@@ -62,6 +62,8 @@
                                               MoveEntries_DestinationTooSmall) \
   _PW_GENERIC_VAR_LEN_ENTRY_QUEUE_INVOKE_TEST(TestFixture,                     \
                                               MoveEntriesOverwrite)            \
+  _PW_GENERIC_VAR_LEN_ENTRY_QUEUE_INVOKE_TEST(TestFixture,                     \
+                                              ContiguousRawStorage)            \
   static_assert(true, "use a semicolon")
 
 #define _PW_GENERIC_VAR_LEN_ENTRY_QUEUE_INVOKE_TEST(TestFixture, TestCase) \
@@ -464,6 +466,32 @@ class GenericVarLenEntryQueueTest : public ::testing::Test {
 
     // Verify source is empty
     ASSERT_TRUE(src_queue.empty());
+  }
+
+  void ContiguousRawStorage() {
+    auto queue = derived().template MakeQueue<char, 32>();
+
+    auto [first1, second1] = queue.contiguous_raw_storage();
+    EXPECT_TRUE(first1.empty());
+    EXPECT_TRUE(second1.empty());
+
+    // Each string is 6 chars long (with a null terminartor), and has a one byte
+    // prefix.
+    queue.push("item1");
+    queue.push("item2");
+    queue.push("item3");
+    queue.push("item4");
+    auto [first2, second2] = queue.contiguous_raw_storage();
+    EXPECT_EQ(queue.size(), 4u);
+    EXPECT_EQ(first2.size(), 4u * (1u + 6u));
+    EXPECT_TRUE(second2.empty());
+
+    // 3 of the original entries remain, while 1 entry is wrapped.
+    queue.push_overwrite("item5");
+    auto [first3, second3] = queue.contiguous_raw_storage();
+    EXPECT_EQ(queue.size(), 4u);
+    EXPECT_GE(first3.size(), 3u * (1u + 6u));
+    EXPECT_LE(second3.size(), 1u * (1u + 6u));
   }
 };
 

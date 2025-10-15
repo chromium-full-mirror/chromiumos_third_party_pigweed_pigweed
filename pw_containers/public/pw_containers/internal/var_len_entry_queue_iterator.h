@@ -47,10 +47,12 @@ class VarLenEntryQueueIterator {
  public:
   using difference_type = std::ptrdiff_t;
   using value_type = VarLenEntry<T>;
-  using size_type = typename VarLenEntry<T>::size_type;
+  using size_type = uint32_t;
   using pointer = const value_type*;
   using reference = const value_type&;
   using iterator_category = std::forward_iterator_tag;
+
+  static_assert(std::is_same_v<size_type, typename VarLenEntry<T>::size_type>);
 
   constexpr VarLenEntryQueueIterator() {}
 

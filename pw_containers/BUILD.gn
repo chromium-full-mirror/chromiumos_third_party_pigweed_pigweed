@@ -236,6 +236,7 @@ pw_source_set("generic_var_len_entry_queue") {
     ":algorithm",
     ":common",
     "$dir_pw_assert:assert",
+    "$dir_pw_span:cast",
     dir_pw_bytes,
     dir_pw_preprocessor,
     dir_pw_span,
