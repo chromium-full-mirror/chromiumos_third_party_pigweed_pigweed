@@ -22,12 +22,6 @@ Enviro+ sensors.
 ----------------------------------
 Flash the factory app to your Pico
 ----------------------------------
-.. warning::
-
-   The factory workflow currently does not work with the Pico 2.
-   See :bug:`382073705`. If you're using a Pico 2, skip ahead to
-   :ref:`showcase-sense-tutorial-bazel_cloud`.
-
 #. Flash the ``factory`` binary to your Pico.
 
    .. tab-set::
