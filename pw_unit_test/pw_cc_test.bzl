@@ -15,6 +15,7 @@
 
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_cc//cc:cc_test.bzl", "cc_test")
+load("//pw_build:compatibility.bzl", "incompatible_with_mcu")
 load(
     "//pw_compilation_testing:pw_cc_nc_test.bzl",
     _check_and_update_nc_test_deps = "check_and_update_nc_test_deps",
@@ -81,6 +82,10 @@ def pw_cc_test(name, has_nc_test = False, deps = None, **kwargs):
             base = cc_test_name,
             srcs = kwargs["srcs"],
             tags = kwargs.get("tags"),
+            # TODO: https://pwbug.dev/452721904 - These produce shell scripts
+            # that emit the results, which are incompatible with device/MCU
+            # builds.
+            target_compatible_with = incompatible_with_mcu() + kwargs.get("target_compatible_with", []),
             # TODO: https://pwbug.dev/446943440 - Handle more common attributes.
         )
 
