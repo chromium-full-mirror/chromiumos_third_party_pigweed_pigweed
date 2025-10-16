@@ -22,46 +22,57 @@
 namespace {
 
 using ::pw::containers::Storage;
+using ::pw::containers::StorageFor;
 
 PW_CONSTEXPR_TEST(Storage, DefaultConstructor, {
-  Storage<int> storage;
+  StorageFor<int> storage;
+  PW_TEST_EXPECT_EQ(alignof(decltype(storage)), alignof(int));
   PW_TEST_EXPECT_EQ(storage.size(), sizeof(int));
   PW_TEST_EXPECT_FALSE(storage.empty());
 });
 
 PW_CONSTEXPR_TEST(Storage, ZeroSize, {
-  Storage<int, 0> storage;
+  StorageFor<int, 0> storage;
+  PW_TEST_EXPECT_EQ(alignof(decltype(storage)), alignof(int));
   PW_TEST_EXPECT_EQ(storage.size(), 0u);
   PW_TEST_EXPECT_TRUE(storage.empty());
 });
 
+PW_CONSTEXPR_TEST(Storage, OddSize, {
+  Storage<8, 5> storage;
+  PW_TEST_EXPECT_EQ(alignof(decltype(storage)), 8u);
+  PW_TEST_EXPECT_EQ(storage.size(), 5u);
+});
+
 PW_CONSTEXPR_TEST(Storage, MultipleItems, {
-  Storage<int, 5> storage;
+  StorageFor<int, 5> storage;
   PW_TEST_EXPECT_EQ(storage.size(), sizeof(int) * 5);
   PW_TEST_EXPECT_FALSE(storage.empty());
 });
 
 TEST(Storage, Data) {
-  Storage<int, 5> storage;
+  StorageFor<int, 5> storage;
   EXPECT_NE(storage.data(), nullptr);
   EXPECT_EQ(reinterpret_cast<uintptr_t>(storage.data()) % alignof(int), 0u);
 }
 
-struct alignas(16) LargeAlignment {
+struct alignas(128) LargeAlignment {
   char data[32];
 };
 
-TEST(Storage, Alignment) {
-  Storage<LargeAlignment, 2> storage;
-  PW_TEST_EXPECT_EQ(storage.size(), sizeof(LargeAlignment) * 2);
-  PW_TEST_EXPECT_NE(storage.data(), nullptr);
-  PW_TEST_EXPECT_EQ(
+TEST(Storage, LargeAlignment) {
+  StorageFor<LargeAlignment, 2> storage;
+  static_assert(alignof(decltype(storage)) == alignof(LargeAlignment));
+
+  EXPECT_EQ(storage.size(), sizeof(LargeAlignment) * 2);
+  EXPECT_NE(storage.data(), nullptr);
+  EXPECT_EQ(
       reinterpret_cast<uintptr_t>(storage.data()) % alignof(LargeAlignment),
       0u);
 }
 
 PW_CONSTEXPR_TEST(Storage, Fill, {
-  Storage<uint32_t, 4> storage;
+  Storage<alignof(uint32_t), 1> storage;
   storage.fill(std::byte{0xAB});
   for (size_t i = 0; i < storage.size(); ++i) {
     PW_TEST_EXPECT_EQ(storage.data()[i], std::byte{0xAB});

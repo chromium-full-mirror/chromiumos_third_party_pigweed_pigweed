@@ -22,15 +22,18 @@ namespace pw::containers {
 
 /// @submodule{pw_containers,utilities}
 
-/// Declares aligned storage for `kCount` items of type `T` in a `std::byte`
-/// array.
+/// Declares aligned storage as a `std::byte` array.
 ///
 /// `Storage` provides aligned external storage for containers such as
 /// `pw::Deque`, avoiding the need for alignment checks.
 ///
-/// @tparam T The type of items to store.
-/// @tparam kCount The number of items for which to reserve space.
-template <typename T, size_t kCount = 1>
+/// Note that `sizeof(Storage)` may be larger than `kSizeBytes` due to padding
+/// for alignment.
+///
+/// @tparam kAlignment How to align the storage; must be valid for use as
+///     `alignas(kAlignment)`.
+/// @tparam kSizeBytes Storage size.
+template <size_t kAlignment, size_t kSizeBytes>
 class Storage {
  public:
   using value_type = std::byte;
@@ -59,12 +62,22 @@ class Storage {
   }
 
  private:
-  alignas(T) std::array<std::byte, sizeof(T) * kCount> buffer_;
+  alignas(kAlignment) std::array<std::byte, kSizeBytes> buffer_;
 };
+
+/// Declares `Storage` for `kCount` items of type `T` in a `std::byte`
+/// array.
+///
+/// @tparam T The type of items to store.
+/// @tparam kCount The number of items for which to reserve space.
+template <typename T, size_t kCount = 1>
+using StorageFor = Storage<alignof(T), sizeof(T) * kCount>;
 
 /// Special reserved capacity for containers that own a storage buffer to
 /// indicate that the buffer is dynamically allocated.
 inline constexpr size_t kAllocatedStorage = static_cast<size_t>(-1);
+
+/// @}
 
 namespace internal {
 
@@ -73,7 +86,7 @@ namespace internal {
 // first base so the storage outlives the container using it.
 template <typename T, size_t kCapacity>
 struct ArrayStorage {
-  Storage<T, kCapacity> storage_array;
+  StorageFor<T, kCapacity> storage_array;
 };
 
 struct DynamicStorage {
