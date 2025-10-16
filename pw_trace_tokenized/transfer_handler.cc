@@ -29,8 +29,7 @@ TraceBufferReader trace_buffer_reader;
 TraceBufferReader& GetTraceBufferReader() { return trace_buffer_reader; }
 
 StatusWithSize TraceBufferReader::DoRead(ByteSpan dest) {
-  pw::ring_buffer::PrefixedEntryRingBuffer* trace_buffer =
-      pw::trace::GetBuffer();
+  pw::trace::TraceBuffer* trace_buffer = pw::trace::GetBuffer();
   size_t size = 0;
   size_t start = 0;
   Status sts;

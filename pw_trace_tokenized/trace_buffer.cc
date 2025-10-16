@@ -23,9 +23,9 @@ namespace pw {
 namespace trace {
 namespace {
 
-class TraceBuffer {
+class TraceBufferImpl {
  public:
-  TraceBuffer(Callbacks& callbacks) : callbacks_(callbacks) {
+  TraceBufferImpl(Callbacks& callbacks) : callbacks_(callbacks) {
     ring_buffer_.SetBuffer(raw_buffer_)
         .IgnoreError();  // TODO: b/242598609 - Handle Status properly
     callbacks_
@@ -35,7 +35,7 @@ class TraceBuffer {
   }
 
   static void TraceSinkStartBlock(void* user_data, size_t size) {
-    TraceBuffer* buffer = reinterpret_cast<TraceBuffer*>(user_data);
+    auto* buffer = reinterpret_cast<TraceBufferImpl*>(user_data);
     if (size > PW_TRACE_BUFFER_MAX_BLOCK_SIZE_BYTES) {
       buffer->block_size_ = 0;  // Skip this block
       return;
@@ -47,7 +47,7 @@ class TraceBuffer {
   static void TraceSinkAddBytes(void* user_data,
                                 const void* bytes,
                                 size_t size) {
-    TraceBuffer* buffer = reinterpret_cast<TraceBuffer*>(user_data);
+    auto* buffer = reinterpret_cast<TraceBufferImpl*>(user_data);
     if (buffer->block_size_ == 0 ||
         buffer->block_idx_ + size > buffer->block_size_) {
       return;  // Block is too large, skipping.
@@ -57,7 +57,7 @@ class TraceBuffer {
   }
 
   static void TraceSinkEndBlock(void* user_data) {
-    TraceBuffer* buffer = reinterpret_cast<TraceBuffer*>(user_data);
+    auto* buffer = reinterpret_cast<TraceBufferImpl*>(user_data);
     if (buffer->block_idx_ != buffer->block_size_) {
       return;  // Block is too large, skipping.
     }
@@ -67,9 +67,7 @@ class TraceBuffer {
         .IgnoreError();  // TODO: b/242598609 - Handle Status properly
   }
 
-  pw::ring_buffer::PrefixedEntryRingBuffer& RingBuffer() {
-    return ring_buffer_;
-  }
+  pw::trace::TraceBuffer& GetBuffer() { return ring_buffer_; }
 
   ConstByteSpan DeringAndViewRawBuffer() {
     ring_buffer_.Dering()
@@ -83,19 +81,19 @@ class TraceBuffer {
   uint16_t block_idx_ = 0;
   std::byte current_block_[PW_TRACE_BUFFER_MAX_BLOCK_SIZE_BYTES];
   std::byte raw_buffer_[PW_TRACE_BUFFER_SIZE_BYTES];
-  pw::ring_buffer::PrefixedEntryRingBuffer ring_buffer_{false};
+  pw::trace::TraceBuffer ring_buffer_{false};
 };
 
 #if PW_TRACE_BUFFER_SIZE_BYTES > 0
-TraceBuffer trace_buffer_instance(GetCallbacks());
+TraceBufferImpl trace_buffer_instance(GetCallbacks());
 #endif  // PW_TRACE_BUFFER_SIZE_BYTES > 0
 
 }  // namespace
 
-void ClearBuffer() { trace_buffer_instance.RingBuffer().Clear(); }
+void ClearBuffer() { GetBuffer()->Clear(); }
 
-pw::ring_buffer::PrefixedEntryRingBuffer* GetBuffer() {
-  return &trace_buffer_instance.RingBuffer();
+pw::trace::TraceBuffer* GetBuffer() {
+  return &trace_buffer_instance.GetBuffer();
 }
 
 ConstByteSpan DeringAndViewRawBuffer() {

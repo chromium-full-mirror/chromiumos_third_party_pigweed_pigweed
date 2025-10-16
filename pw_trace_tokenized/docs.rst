@@ -174,7 +174,7 @@ retrieving the data still need to be added. Currently there is an accessor for
 the underlying ring buffer object, but this is a short term solution.
 
 .. cpp:function:: void ClearBuffer()
-.. cpp:function:: pw::ring_buffer::PrefixedEntryRingBuffer* GetBuffer()
+.. cpp:function:: pw::trace::TraceBuffer* GetBuffer()
 
 The buffer has two configurable options:
 

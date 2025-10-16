@@ -48,8 +48,7 @@ pw::Status DumpTraceBufferToLog() {
   char entry_base64_buffer[kMaxEntrySizeBase64] = {};
   pw::StringBuilder line_builder(line_buffer);
   ScopedTracePause pause_trace;
-  pw::ring_buffer::PrefixedEntryRingBuffer* trace_buffer =
-      pw::trace::GetBuffer();
+  pw::trace::TraceBuffer* trace_buffer = pw::trace::GetBuffer();
   size_t bytes_read = 0;
   PW_LOG_INFO("[TRACE] begin");
   while (trace_buffer->PeekFront(span(entry_buffer).subspan(1), &bytes_read) !=

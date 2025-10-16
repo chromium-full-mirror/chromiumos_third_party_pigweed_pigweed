@@ -28,11 +28,13 @@ namespace pw {
 
 namespace trace {
 
+using TraceBuffer = ring_buffer::PrefixedEntryRingBuffer;
+
 /// Resets the trace buffer. All data currently stored in the buffer is lost.
 void ClearBuffer();
 
 /// Gets the ring buffer which contains the data.
-pw::ring_buffer::PrefixedEntryRingBuffer* GetBuffer();
+TraceBuffer* GetBuffer();
 
 /// Makes all entries contiguous (i.e. "dering") and then provides a raw view
 /// of the data. This allows for bulk access to the trace events buffer. Since
