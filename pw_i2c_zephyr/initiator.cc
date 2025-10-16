@@ -37,13 +37,29 @@ Status ZephyrInitiator::DoWriteReadFor(Address device_address,
   const uint8_t address = device_address.GetSevenBit();
   std::lock_guard lock(mutex_);
 
-  int rc = i2c_write_read(
-      dev_,
-      address,
-      /*write_buf=*/reinterpret_cast<const uint8_t*>(tx_buffer.data()),
-      /*num_write=*/tx_buffer.size(),
-      /*read_buf=*/reinterpret_cast<uint8_t*>(rx_buffer.data()),
-      /*num_read=*/rx_buffer.size());
+  int rc = 0;
+  if (!tx_buffer.empty() && !rx_buffer.empty()) {
+    // Cannot use i2c_write_read if either tx or rx is empty.
+    rc = i2c_write_read(
+        dev_,
+        address,
+        /*write_buf=*/reinterpret_cast<const uint8_t*>(tx_buffer.data()),
+        /*num_write=*/tx_buffer.size(),
+        /*read_buf=*/reinterpret_cast<uint8_t*>(rx_buffer.data()),
+        /*num_read=*/rx_buffer.size());
+  } else if (tx_buffer.empty()) {
+    rc = i2c_read(dev_,
+                  /*buf=*/reinterpret_cast<uint8_t*>(rx_buffer.data()),
+                  /*num_bytes=*/rx_buffer.size(),
+                  address);
+  } else if (rx_buffer.empty()) {
+    rc = i2c_write(dev_,
+                   /*buf=*/reinterpret_cast<const uint8_t*>(tx_buffer.data()),
+                   /*num_bytes=*/tx_buffer.size(),
+                   address);
+  } else {
+    return pw::Status::InvalidArgument();
+  }
 
   return rc == 0 ? pw::OkStatus() : pw::Status::Unavailable();
 };

@@ -110,5 +110,46 @@ TEST_F(InitiatorTest, WriteRead) {
   ASSERT_EQ(1, rx_buffer[0]);
   ASSERT_EQ(2, rx_buffer[1]);
 }
+
+TEST_F(InitiatorTest, Write) {
+  uint8_t tx_buffer[] = {0x01, 0x02, 0x00, 0x00};
+
+  TargetWriteReceived_fake.custom_fake = [&tx_buffer](struct i2c_target_config*,
+                                                      uint8_t value) {
+    // Copy the value to the tail end of the tx buffer (for later asserts)
+    tx_buffer[TargetWriteReceived_fake.call_count + 1] = value;
+    return 0;
+  };
+  ASSERT_EQ(kI2cDev.WriteFor(tx_buffer,
+                             sizeof(tx_buffer),
+                             pw::chrono::SystemClock::duration::max()),
+            pw::OkStatus());
+  ASSERT_EQ(tx_buffer[0], tx_buffer[2]);
+  ASSERT_EQ(tx_buffer[1], tx_buffer[3]);
+}
+
+TEST_F(InitiatorTest, Read) {
+  uint8_t rx_buffer[] = {0x00, 0x00};
+
+  // The first read byte calls the read requested function, read a 1
+  TargetReadRequested_fake.custom_fake = [](struct i2c_target_config*,
+                                            uint8_t* value) {
+    *value = UINT8_C(1);
+    return 0;
+  };
+  // All following bytes call read processed function, read a 2
+  TargetReadProcessed_fake.custom_fake = [](struct i2c_target_config*,
+                                            uint8_t* value) {
+    *value = UINT8_C(2);
+    return 0;
+  };
+  ASSERT_EQ(kI2cDev.ReadFor(rx_buffer,
+                            sizeof(rx_buffer),
+                            pw::chrono::SystemClock::duration::max()),
+            pw::OkStatus());
+  ASSERT_EQ(1, rx_buffer[0]);
+  ASSERT_EQ(2, rx_buffer[1]);
+}
+
 }  // namespace
 }  // namespace pw::i2c
