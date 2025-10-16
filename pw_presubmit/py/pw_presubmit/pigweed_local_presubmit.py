@@ -60,6 +60,7 @@ QUICK = (
     # TODO: b/432484923 - Fix this check in Bazel.
     # build.bazel_lint,
     upstream_checks.owners_lint_checks,
+    upstream_checks.source_in_bazel_build(),
     upstream_checks.source_in_gn_build(),
     # TODO: b/432484923 - Implement this check in Bazel.
     # javascript_checks.eslint,

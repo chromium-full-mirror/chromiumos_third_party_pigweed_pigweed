@@ -1189,11 +1189,6 @@ _LINTFORMAT = pigweed_local_presubmit.QUICK + (
 
 LINTFORMAT = (
     _LINTFORMAT,
-    # This check is excluded from _LINTFORMAT because it's not quick: it issues
-    # a bazel query that pulls in all of Pigweed's external dependencies
-    # (https://stackoverflow.com/q/71024130/1224002). These are cached, but
-    # after a roll it can be quite slow.
-    upstream_checks.source_in_bazel_build(),
     python_checks.check_python_versions,
     python_checks.gn_python_lint,
 )
