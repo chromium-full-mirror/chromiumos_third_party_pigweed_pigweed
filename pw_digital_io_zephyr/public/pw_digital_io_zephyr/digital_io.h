@@ -19,6 +19,7 @@
 
 #include <cstdint>
 
+#include "pw_assert/assert.h"
 #include "pw_digital_io/digital_io.h"
 
 /// @brief Callback handler used by all pw::digital_io::ZephyrDigital*Interrupt
@@ -63,17 +64,20 @@ struct gpio_callback_and_handler {
 /// This is a catch all class that will be used to implement the various Pigweed
 /// Digital* classes.
 ///
-/// @tparam kFlags Extra Zephyr flags used to initialize the GPIO
-/// @tparam kUseInterrupts True to enable interrupt support
-template <gpio_flags_t kFlags, bool kUseInterrupts>
 class GenericZephyrDigitalInOut {
  public:
+  enum class InterruptSupport : bool { kNotAllowed = false, kAllowed = true };
+
   /// @brief Construct a generic Digital I/O around a Zephyr devicetree spec
   ///
   /// @param dt_spec The spec to use, usually from DPIO_DT_SPEC_GET()
-  constexpr GenericZephyrDigitalInOut(const struct gpio_dt_spec dt_spec)
-      : gpio_spec_(dt_spec) {
-    if (kUseInterrupts) {
+  /// @param flags Flags used to configure the GPIO
+  /// @param supported Allow pin to be configured as an interrupt
+  GenericZephyrDigitalInOut(const struct gpio_dt_spec dt_spec,
+                            gpio_flags_t flags,
+                            InterruptSupport supported)
+      : gpio_spec_(dt_spec), flags_(flags), interrupt_supported_(supported) {
+    if (interrupt_supported_ == InterruptSupport::kAllowed) {
       // We're using interrupts, init the callback object
       gpio_init_callback(&callback_.data,
                          pw_digital_io_ZephyrCallbackHandler,
@@ -84,7 +88,10 @@ class GenericZephyrDigitalInOut {
  protected:
   Status DoEnable(bool enable) {
     // Select the right flags based on 'enable'
-    gpio_flags_t flags = enable ? kFlags : GPIO_DISCONNECTED;
+    // Make sure GPIO interrupt configuration flags aren't set since that is
+    // handled by gpio_pin_interrupt_configure_dt()
+    PW_DASSERT((flags_ & GPIO_INT_MASK) == 0);
+    gpio_flags_t flags = enable ? flags_ : GPIO_DISCONNECTED;
 
     // Configure the pin
     return gpio_pin_configure_dt(&gpio_spec_, flags) == 0
@@ -92,9 +99,10 @@ class GenericZephyrDigitalInOut {
                : pw::Status::Internal();
   }
 
-  // Only enable if kFlags include GPIO_INPUT
-  template <typename = std::enable_if<(kFlags & GPIO_INPUT) == GPIO_INPUT>>
   Result<State> DoGetState() {
+    // Check pin has been configured to support GPIO_INPUT
+    PW_DASSERT(flags_ & GPIO_INPUT);
+
     // Verify the device is ready
     int rc = gpio_is_ready_dt(&gpio_spec_);
     if (rc == 0) {
@@ -105,9 +113,11 @@ class GenericZephyrDigitalInOut {
     return Result<State>(rc == 0 ? State::kInactive : State::kActive);
   }
 
-  // Only enable if kFlags include GPIO_OUTPUT
-  template <typename = std::enable_if<(kFlags & GPIO_OUTPUT) == GPIO_OUTPUT>>
+  // Only enable if flags_ include GPIO_OUTPUT
   Status DoSetState(State state) {
+    // Check pin has been configured to support GPIO_OUTPUT
+    PW_DASSERT(flags_ & GPIO_OUTPUT);
+
     // Verify the device is ready
     int rc = gpio_is_ready_dt(&gpio_spec_);
     if (rc == 0) {
@@ -119,10 +129,12 @@ class GenericZephyrDigitalInOut {
     return rc == 0 ? pw::OkStatus() : pw::Status::Internal();
   }
 
-  // Only enable if kUseInterrupts is true
-  template <typename = std::enable_if<kUseInterrupts>>
+  // Only enable if InterruptSupport::kAllowed is set
   Status DoSetInterruptHandler(InterruptTrigger trigger,
                                InterruptHandler&& handler) {
+    // Check if pin supports interrupts
+    PW_DASSERT(interrupt_supported_ == InterruptSupport::kAllowed);
+
     // Verify the device is ready
     int rc = gpio_is_ready_dt(&gpio_spec_);
     if (rc == 0) {
@@ -141,9 +153,11 @@ class GenericZephyrDigitalInOut {
     return pw::OkStatus();
   }
 
-  // Only enable if kUseInterrupts is true
-  template <typename = std::enable_if<kUseInterrupts>>
+  // Only enable if InterruptSupport::kAllowed is set
   Status DoEnableInterruptHandler(bool enable) {
+    // Check if pin supports interrupts
+    PW_DASSERT(interrupt_supported_ == InterruptSupport::kAllowed);
+
     if (!enable) {
       // Remove the callbacks to disable
       return gpio_remove_callback_dt(&gpio_spec_, &callback_.data) == 0
@@ -162,163 +176,215 @@ class GenericZephyrDigitalInOut {
 
  private:
   const struct gpio_dt_spec gpio_spec_;
+  gpio_flags_t flags_;
+  InterruptSupport interrupt_supported_;
   struct gpio_callback_and_handler callback_;
 };
 
 /// @brief Zephyr wrapper for pw::digital_io::DigitalIn
-class ZephyrDigitalIn : public DigitalIn,
-                        public GenericZephyrDigitalInOut<GPIO_INPUT, false> {
+class ZephyrDigitalIn : public DigitalIn, public GenericZephyrDigitalInOut {
  public:
-  using parent_type = GenericZephyrDigitalInOut<GPIO_INPUT, false>;
-  using parent_type::GenericZephyrDigitalInOut;
+  /// @brief Construct a ZephyrDigitalIn
+  ///
+  /// @param dt_spec The spec to use, usually from DPIO_DT_SPEC_GET()
+  /// @param extra_flags Additional flags used to configure the GPIO
+  ZephyrDigitalIn(const struct gpio_dt_spec dt_spec,
+                  gpio_flags_t extra_flags = 0)
+      : GenericZephyrDigitalInOut(
+            dt_spec, GPIO_INPUT | extra_flags, InterruptSupport::kNotAllowed) {}
 
  private:
-  Result<State> DoGetState() override { return parent_type::DoGetState(); }
+  Result<State> DoGetState() override {
+    return GenericZephyrDigitalInOut::DoGetState();
+  }
 
   Status DoEnable(bool enable) override {
-    return parent_type::DoEnable(enable);
+    return GenericZephyrDigitalInOut::DoEnable(enable);
   }
 };
 
 /// @brief Zephyr wrapper for pw::digital_io::DigitalInInterrupt
-class ZephyrDigitalInInterrupt
-    : public DigitalInInterrupt,
-      public GenericZephyrDigitalInOut<GPIO_INPUT, true> {
+class ZephyrDigitalInInterrupt : public DigitalInInterrupt,
+                                 public GenericZephyrDigitalInOut {
  public:
-  using parent_type = GenericZephyrDigitalInOut<GPIO_INPUT, true>;
-  using parent_type::GenericZephyrDigitalInOut;
+  /// @brief Construct a ZephyrDigitalInInterrupt
+  ///
+  /// @param dt_spec The spec to use, usually from DPIO_DT_SPEC_GET()
+  /// @param extra_flags Additional flags used to configure the GPIO
+  ZephyrDigitalInInterrupt(const struct gpio_dt_spec dt_spec,
+                           gpio_flags_t extra_flags = 0)
+      : GenericZephyrDigitalInOut(
+            dt_spec, GPIO_INPUT | extra_flags, InterruptSupport::kAllowed) {}
 
  private:
-  Result<State> DoGetState() override { return parent_type::DoGetState(); }
+  Result<State> DoGetState() override {
+    return GenericZephyrDigitalInOut::DoGetState();
+  }
 
   Status DoSetInterruptHandler(InterruptTrigger trigger,
                                InterruptHandler&& handler) override {
-    return parent_type::DoSetInterruptHandler(trigger, std::move(handler));
+    return GenericZephyrDigitalInOut::DoSetInterruptHandler(trigger,
+                                                            std::move(handler));
   }
 
   Status DoEnableInterruptHandler(bool enable) override {
-    return parent_type::DoEnableInterruptHandler(enable);
+    return GenericZephyrDigitalInOut::DoEnableInterruptHandler(enable);
   }
 
   Status DoEnable(bool enable) override {
-    return parent_type::DoEnable(enable);
+    return GenericZephyrDigitalInOut::DoEnable(enable);
   }
 };
 
 /// @brief Zephyr wrapper for pw::digital_io::DigitalInOut
-class ZephyrDigitalInOut
-    : public DigitalInOut,
-      public GenericZephyrDigitalInOut<GPIO_INPUT | GPIO_OUTPUT, false> {
+class ZephyrDigitalInOut : public DigitalInOut,
+                           public GenericZephyrDigitalInOut {
  public:
-  using parent_type =
-      GenericZephyrDigitalInOut<GPIO_INPUT | GPIO_OUTPUT, false>;
-  using parent_type::GenericZephyrDigitalInOut;
+  /// @brief Construct a ZephyrDigitalInOut
+  ///
+  /// @param dt_spec The spec to use, usually from DPIO_DT_SPEC_GET()
+  /// @param extra_flags Additional flags used to configure the GPIO
+  ZephyrDigitalInOut(const struct gpio_dt_spec dt_spec,
+                     gpio_flags_t extra_flags = 0)
+      : GenericZephyrDigitalInOut(dt_spec,
+                                  GPIO_INPUT | GPIO_OUTPUT | extra_flags,
+                                  InterruptSupport::kNotAllowed) {}
 
  private:
-  Result<State> DoGetState() override { return parent_type::DoGetState(); }
+  Result<State> DoGetState() override {
+    return GenericZephyrDigitalInOut::DoGetState();
+  }
 
   Status DoSetState(State state) override {
-    return parent_type::DoSetState(state);
+    return GenericZephyrDigitalInOut::DoSetState(state);
   }
 
   Status DoEnable(bool enable) override {
-    return parent_type::DoEnable(enable);
+    return GenericZephyrDigitalInOut::DoEnable(enable);
   }
 };
 
 /// @brief Zephyr wrapper for pw::digital_io::DigitalOutInterrupt
-class ZephyrDigitalInOutInterrupt
-    : public DigitalInOutInterrupt,
-      public GenericZephyrDigitalInOut<GPIO_INPUT | GPIO_OUTPUT, true> {
+class ZephyrDigitalInOutInterrupt : public DigitalInOutInterrupt,
+                                    public GenericZephyrDigitalInOut {
  public:
-  using parent_type = GenericZephyrDigitalInOut<GPIO_INPUT | GPIO_OUTPUT, true>;
-  using parent_type::GenericZephyrDigitalInOut;
+  /// @brief Construct a ZephyrDigitalInOutInterrupt
+  ///
+  /// @param dt_spec The spec to use, usually from DPIO_DT_SPEC_GET()
+  /// @param extra_flags Additional flags used to configure the GPIO
+  ZephyrDigitalInOutInterrupt(const struct gpio_dt_spec dt_spec,
+                              gpio_flags_t extra_flags = 0)
+      : GenericZephyrDigitalInOut(dt_spec,
+                                  GPIO_INPUT | GPIO_OUTPUT | extra_flags,
+                                  InterruptSupport::kAllowed) {}
 
  private:
-  Result<State> DoGetState() override { return parent_type::DoGetState(); }
+  Result<State> DoGetState() override {
+    return GenericZephyrDigitalInOut::DoGetState();
+  }
 
   Status DoSetState(State state) override {
-    return parent_type::DoSetState(state);
+    return GenericZephyrDigitalInOut::DoSetState(state);
   }
 
   Status DoSetInterruptHandler(InterruptTrigger trigger,
                                InterruptHandler&& handler) override {
-    return parent_type::DoSetInterruptHandler(trigger, std::move(handler));
+    return GenericZephyrDigitalInOut::DoSetInterruptHandler(trigger,
+                                                            std::move(handler));
   }
 
   Status DoEnableInterruptHandler(bool enable) override {
-    return parent_type::DoEnableInterruptHandler(enable);
+    return GenericZephyrDigitalInOut::DoEnableInterruptHandler(enable);
   }
 
   Status DoEnable(bool enable) override {
-    return parent_type::DoEnable(enable);
+    return GenericZephyrDigitalInOut::DoEnable(enable);
   }
 };
 
 /// @brief Zephyr wrapper for pw::digital_io::DigitalInterrupt
-class ZephyrDigitalInterrupt
-    : public DigitalInterrupt,
-      public GenericZephyrDigitalInOut<GPIO_INPUT, true> {
+class ZephyrDigitalInterrupt : public DigitalInterrupt,
+                               public GenericZephyrDigitalInOut {
  public:
-  using parent_type = GenericZephyrDigitalInOut<GPIO_INPUT, true>;
-  using parent_type::GenericZephyrDigitalInOut;
+  /// @brief Construct a ZephyrDigitalInterrupt
+  ///
+  /// @param dt_spec The spec to use, usually from DPIO_DT_SPEC_GET()
+  /// @param extra_flags Additional flags used to configure the GPIO
+  ZephyrDigitalInterrupt(const struct gpio_dt_spec dt_spec,
+                         gpio_flags_t extra_flags = 0)
+      : GenericZephyrDigitalInOut(
+            dt_spec, GPIO_INPUT | extra_flags, InterruptSupport::kAllowed) {}
 
  private:
   Status DoSetInterruptHandler(InterruptTrigger trigger,
                                InterruptHandler&& handler) override {
-    return parent_type::DoSetInterruptHandler(trigger, std::move(handler));
+    return GenericZephyrDigitalInOut::DoSetInterruptHandler(trigger,
+                                                            std::move(handler));
   }
 
   Status DoEnableInterruptHandler(bool enable) override {
-    return parent_type::DoEnableInterruptHandler(enable);
+    return GenericZephyrDigitalInOut::DoEnableInterruptHandler(enable);
   }
 
   Status DoEnable(bool enable) override {
-    return parent_type::DoEnable(enable);
+    return GenericZephyrDigitalInOut::DoEnable(enable);
   }
 };
 
 /// @brief Zephyr wrapper for pw::digital_io::DigitalOut
-class ZephyrDigitalOut : public DigitalOut,
-                         public GenericZephyrDigitalInOut<GPIO_OUTPUT, false> {
+class ZephyrDigitalOut : public DigitalOut, public GenericZephyrDigitalInOut {
  public:
-  using parent_type = GenericZephyrDigitalInOut<GPIO_OUTPUT, false>;
-  using parent_type::GenericZephyrDigitalInOut;
+  /// @brief Construct a ZephyrDigitalOut
+  ///
+  /// @param dt_spec The spec to use, usually from DPIO_DT_SPEC_GET()
+  /// @param extra_flags Additional flags used to configure the GPIO
+  ZephyrDigitalOut(const struct gpio_dt_spec dt_spec,
+                   gpio_flags_t extra_flags = 0)
+      : GenericZephyrDigitalInOut(
+            dt_spec, GPIO_OUTPUT | extra_flags, InterruptSupport::kNotAllowed) {
+  }
 
  private:
   Status DoSetState(State state) override {
-    return parent_type::DoSetState(state);
+    return GenericZephyrDigitalInOut::DoSetState(state);
   }
 
   Status DoEnable(bool enable) override {
-    return parent_type::DoEnable(enable);
+    return GenericZephyrDigitalInOut::DoEnable(enable);
   }
 };
 
 /// @brief Zephyr wrapper for pw::digital_io::DigitalOutInterrupt
-class ZephyrDigitalOutInterrupt
-    : public DigitalOutInterrupt,
-      public GenericZephyrDigitalInOut<GPIO_INPUT | GPIO_OUTPUT, true> {
+class ZephyrDigitalOutInterrupt : public DigitalOutInterrupt,
+                                  public GenericZephyrDigitalInOut {
  public:
-  using parent_type = GenericZephyrDigitalInOut<GPIO_INPUT | GPIO_OUTPUT, true>;
-  using parent_type::GenericZephyrDigitalInOut;
+  /// @brief Construct a ZephyrDigitalOutInterrupt
+  ///
+  /// @param dt_spec The spec to use, usually from DPIO_DT_SPEC_GET()
+  /// @param extra_flags Additional flags used to configure the GPIO
+  ZephyrDigitalOutInterrupt(const struct gpio_dt_spec dt_spec,
+                            gpio_flags_t extra_flags = 0)
+      : GenericZephyrDigitalInOut(dt_spec,
+                                  GPIO_INPUT | GPIO_OUTPUT | extra_flags,
+                                  InterruptSupport::kAllowed) {}
 
  private:
   Status DoSetState(State state) override {
-    return parent_type::DoSetState(state);
+    return GenericZephyrDigitalInOut::DoSetState(state);
   }
 
   Status DoSetInterruptHandler(InterruptTrigger trigger,
                                InterruptHandler&& handler) override {
-    return parent_type::DoSetInterruptHandler(trigger, std::move(handler));
+    return GenericZephyrDigitalInOut::DoSetInterruptHandler(trigger,
+                                                            std::move(handler));
   }
 
   Status DoEnableInterruptHandler(bool enable) override {
-    return parent_type::DoEnableInterruptHandler(enable);
+    return GenericZephyrDigitalInOut::DoEnableInterruptHandler(enable);
   }
 
   Status DoEnable(bool enable) override {
-    return parent_type::DoEnable(enable);
+    return GenericZephyrDigitalInOut::DoEnable(enable);
   }
 };
 
