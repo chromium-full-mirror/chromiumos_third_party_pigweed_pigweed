@@ -29,10 +29,12 @@ use crate::scheduler::timer::Timer;
 use crate::sync::spinlock::SpinLockGuard;
 use crate::{Arch, Kernel};
 
+mod algorithm;
 mod locks;
 pub mod thread;
 pub mod timer;
 
+use algorithm::{RescheduleReason, SchedulerAlgorithm};
 pub use locks::{SchedLockGuard, WaitQueueLock};
 use thread::*;
 
@@ -70,19 +72,23 @@ pub fn start_thread<K: Kernel>(kernel: K, mut thread: ForeignBox<Thread<K>>) {
 
     let mut sched_state = kernel.get_scheduler().lock(kernel);
 
-    // If there is a current thread, put it back on the top of the run queue.
+    // If there is a current thread, insert it into the scheduler.
     let id = if let Some(mut current_thread) = sched_state.current_thread.take() {
         let id = current_thread.id();
         current_thread.state = State::Ready;
-        sched_state.insert_in_run_queue_head(current_thread);
+        sched_state
+            .algorithm
+            .schedule_thread(current_thread, RescheduleReason::Preempted);
         id
     } else {
         Thread::<K>::null_id()
     };
 
-    sched_state.insert_in_run_queue_tail(thread);
+    sched_state
+        .algorithm
+        .schedule_thread(thread, RescheduleReason::Started);
 
-    // Add this thread to the scheduler and trigger a reschedule event
+    // Now that we've added the new thread, trigger a reschedule event.
     reschedule(kernel, sched_state, id);
 }
 
@@ -109,7 +115,9 @@ pub fn bootstrap_scheduler<K: Kernel>(
     pw_assert::assert!(thread.state == State::Initial);
     thread.state = State::Ready;
 
-    sched_state.run_queue.push_back(thread);
+    sched_state
+        .algorithm
+        .schedule_thread(thread, RescheduleReason::Started);
 
     info!("context switching to first thread");
 
@@ -165,8 +173,9 @@ pub struct SchedulerState<K: Kernel> {
     current_thread: Option<ForeignBox<Thread<K>>>,
     current_arch_thread_state: *mut K::ThreadState,
     process_list: UnsafeList<Process<K>, ProcessListAdapter<K>>,
-    // For now just have a single round robin list, expand to multiple queues.
-    run_queue: ForeignList<Thread<K>, ThreadListAdapter<K>>,
+
+    /// The algorithm used for choosing the next thread to run.
+    algorithm: SchedulerAlgorithm<K>,
 }
 
 unsafe impl<K: Kernel> Sync for SchedulerState<K> {}
@@ -188,7 +197,7 @@ impl<K: Kernel> SchedulerState<K> {
             current_thread: None,
             current_arch_thread_state: core::ptr::null_mut(),
             process_list: UnsafeList::new(),
-            run_queue: ForeignList::new(),
+            algorithm: SchedulerAlgorithm::new(),
         }
     }
 
@@ -207,20 +216,11 @@ impl<K: Kernel> SchedulerState<K> {
         self.current_arch_thread_state
     }
 
-    fn move_current_thread_to_back(&mut self) -> usize {
+    fn reschedule_current_thread(&mut self, reason: RescheduleReason) -> usize {
         let mut current_thread = self.take_current_thread();
         let current_thread_id = current_thread.id();
         current_thread.state = State::Ready;
-        self.insert_in_run_queue_tail(current_thread);
-        current_thread_id
-    }
-
-    #[allow(dead_code)]
-    fn move_current_thread_to_front(&mut self) -> usize {
-        let mut current_thread = self.take_current_thread();
-        let current_thread_id = current_thread.id();
-        current_thread.state = State::Ready;
-        self.insert_in_run_queue_head(current_thread);
+        self.algorithm.schedule_thread(current_thread, reason);
         current_thread_id
     }
 
@@ -289,34 +289,18 @@ impl<K: Kernel> SchedulerState<K> {
                 });
         }
     }
-
-    #[allow(dead_code)]
-    fn insert_in_run_queue_head(&mut self, thread: ForeignBox<Thread<K>>) {
-        pw_assert::assert!(thread.state == State::Ready);
-        // info!("pushing thread {:#x} on run queue head", thread.id());
-
-        self.run_queue.push_front(thread);
-    }
-
-    #[allow(dead_code)]
-    fn insert_in_run_queue_tail(&mut self, thread: ForeignBox<Thread<K>>) {
-        pw_assert::assert!(thread.state == State::Ready);
-        // info!("pushing thread {:#x} on run queue tail", thread.id());
-
-        self.run_queue.push_back(thread);
-    }
 }
 
 impl<K: Kernel> SpinLockGuard<'_, K, SchedulerState<K>> {
     /// Reschedule if preemption is enabled
-    fn try_reschedule(mut self, kernel: K) -> Self {
+    fn try_reschedule(mut self, kernel: K, reason: RescheduleReason) -> Self {
         if kernel
             .thread_local_state()
             .preempt_disable_count
             .load(Ordering::SeqCst)
             == 1
         {
-            let current_thread_id = self.move_current_thread_to_back();
+            let current_thread_id = self.reschedule_current_thread(reason);
             reschedule(kernel, self, current_thread_id)
         } else {
             self
@@ -348,7 +332,7 @@ fn reschedule<K: Kernel>(
     // Pop a new thread off the head of the run queue.
     // At the moment cannot handle an empty queue, so will panic in that case.
     // TODO: Implement either an idle thread or a special idle routine for that case.
-    let Some(mut new_thread) = sched_state.run_queue.pop_head() else {
+    let Some(mut new_thread) = sched_state.algorithm.get_next_thread() else {
         pw_assert::panic!("run_queue empty");
     };
 
@@ -375,7 +359,7 @@ fn reschedule<K: Kernel>(
 pub fn yield_timeslice<K: Kernel>(kernel: K) {
     // info!("yielding thread {:#x}", current_thread.id());
     let sched_state = kernel.get_scheduler().lock(kernel);
-    sched_state.try_reschedule(kernel);
+    sched_state.try_reschedule(kernel, RescheduleReason::Ticked);
 }
 
 #[allow(dead_code)]
@@ -383,10 +367,7 @@ fn preempt<K: Kernel>(kernel: K) {
     // info!("preempt thread {:#x}", current_thread.id());
     let mut sched_state = kernel.get_scheduler().lock(kernel);
 
-    // For now, always move the current thread to the back of the run queue.
-    // When the scheduler gets more complex, it should evaluate if it has used
-    // up it's time allocation.
-    let current_thread_id = sched_state.move_current_thread_to_back();
+    let current_thread_id = sched_state.reschedule_current_thread(RescheduleReason::Preempted);
 
     reschedule(kernel, sched_state, current_thread_id);
 }
@@ -416,7 +397,10 @@ pub fn tick<K: Kernel>(kernel: K, now: Instant<K::Clock>) {
     timer::process_queue(kernel, now);
     drop(guard);
 
-    kernel.get_scheduler().lock(kernel).try_reschedule(kernel);
+    kernel
+        .get_scheduler()
+        .lock(kernel)
+        .try_reschedule(kernel, RescheduleReason::Ticked);
 }
 
 // Exit the current thread.
@@ -495,7 +479,9 @@ impl<K: Kernel> SchedLockGuard<'_, K, WaitQueue<K>> {
 
         wait_queue_debug!("<{}> timeout", thread.name as &str);
         thread.state = State::Ready;
-        self.sched_mut().run_queue.push_back(thread);
+        self.sched_mut()
+            .algorithm
+            .schedule_thread(thread, RescheduleReason::Woken);
         Some(Error::DeadlineExceeded)
     }
 
@@ -506,8 +492,14 @@ impl<K: Kernel> SchedLockGuard<'_, K, WaitQueue<K>> {
         };
         wait_queue_debug!("waking <{}>", thread.name as &str);
         thread.state = State::Ready;
-        self.sched_mut().run_queue.push_back(thread);
-        (self.try_reschedule(), WakeResult::Woken)
+        self.sched_mut()
+            .algorithm
+            .schedule_thread(thread, RescheduleReason::Woken);
+
+        (
+            self.try_reschedule(RescheduleReason::Preempted),
+            WakeResult::Woken,
+        )
     }
 
     #[allow(clippy::return_self_not_must_use, clippy::must_use_candidate)]

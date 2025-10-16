@@ -20,6 +20,7 @@ use pw_status::Result;
 use time::Instant;
 
 use crate::Kernel;
+use crate::scheduler::algorithm::RescheduleReason;
 use crate::scheduler::{SchedulerState, WaitQueue};
 use crate::sync::spinlock::SpinLockGuard;
 
@@ -72,10 +73,10 @@ impl<'lock, K: Kernel, T> SchedLockGuard<'lock, K, T> {
     }
 
     #[allow(clippy::return_self_not_must_use, clippy::must_use_candidate)]
-    pub fn try_reschedule(self) -> Self {
+    pub fn try_reschedule(self, reason: RescheduleReason) -> Self {
         let inner = self.inner;
         let kernel = self.kernel;
-        let guard = self.guard.try_reschedule(kernel);
+        let guard = self.guard.try_reschedule(kernel, reason);
         Self {
             guard,
             inner,

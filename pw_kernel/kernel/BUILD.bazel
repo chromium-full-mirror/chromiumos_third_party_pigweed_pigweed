@@ -37,6 +37,7 @@ rust_library(
         "object/ticker.rs",
         "panic.rs",
         "scheduler.rs",
+        "scheduler/algorithm.rs",
         "scheduler/locks.rs",
         "scheduler/thread.rs",
         "scheduler/timer.rs",
