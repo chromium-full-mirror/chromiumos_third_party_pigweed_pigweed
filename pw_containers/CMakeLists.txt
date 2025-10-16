@@ -220,6 +220,16 @@ pw_add_library(pw_containers._raw_storage INTERFACE
     public
 )
 
+pw_add_library(pw_containers.storage INTERFACE
+  HEADERS
+    public/pw_containers/storage.h
+  PUBLIC_INCLUDES
+    public
+  PUBLIC_DEPS
+    pw_allocator
+    pw_containers.algorithm
+)
+
 pw_add_library(pw_containers._test_helpers STATIC
   HEADERS
     public/pw_containers/internal/container_tests.h
@@ -571,6 +581,17 @@ pw_add_test(pw_containers.raw_storage_test
   PRIVATE_DEPS
     pw_containers._raw_storage
     pw_containers._test_helpers
+  GROUPS
+    modules
+    pw_containers
+)
+
+pw_add_test(pw_containers.storage_test
+  SOURCES
+    storage_test.cc
+  PRIVATE_DEPS
+    pw_containers.storage
+    pw_unit_test.constexpr
   GROUPS
     modules
     pw_containers

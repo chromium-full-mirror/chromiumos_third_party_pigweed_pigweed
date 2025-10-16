@@ -401,11 +401,19 @@ cc_library(
 
 cc_library(
     name = "raw_storage",
-    hdrs = [
-        "public/pw_containers/internal/raw_storage.h",
-    ],
+    hdrs = ["public/pw_containers/internal/raw_storage.h"],
     strip_include_prefix = "public",
     visibility = [":__subpackages__"],
+)
+
+cc_library(
+    name = "storage",
+    hdrs = ["public/pw_containers/storage.h"],
+    strip_include_prefix = "public",
+    deps = [
+        ":algorithm",
+        "//pw_allocator",
+    ],
 )
 
 cc_library(
@@ -615,6 +623,15 @@ pw_cc_test(
 )
 
 pw_cc_test(
+    name = "storage_test",
+    srcs = ["storage_test.cc"],
+    deps = [
+        ":storage",
+        "//pw_unit_test:constexpr",
+    ],
+)
+
+pw_cc_test(
     name = "to_array_test",
     srcs = ["to_array_test.cc"],
     deps = [":to_array"],
@@ -801,6 +818,7 @@ filegroup(
         "public/pw_containers/intrusive_set.h",
         "public/pw_containers/optional_tuple.h",
         "public/pw_containers/ptr_iterator.h",
+        "public/pw_containers/storage.h",
         "public/pw_containers/to_array.h",
         "public/pw_containers/vector.h",
         "public/pw_containers/wrapped_iterator.h",
