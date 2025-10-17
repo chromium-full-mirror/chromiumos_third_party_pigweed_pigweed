@@ -90,7 +90,6 @@ template <typename T>
 class ValueFuture : public ListableFutureWithWaker<ValueFuture<T>, T> {
  public:
   using Base = ListableFutureWithWaker<ValueFuture<T>, T>;
-  using typename Base::Provider;
 
   ValueFuture(ValueFuture&& other) noexcept
       : Base(Base::kMovedFrom), value_(std::move(other.value_)) {
@@ -105,6 +104,18 @@ class ValueFuture : public ListableFutureWithWaker<ValueFuture<T>, T> {
     return *this;
   }
 
+  /// Creates a `ValueFuture` that is already resolved with the given value.
+  static ValueFuture Resolved(T value) {
+    return ValueFuture(std::in_place, std::move(value));
+  }
+
+  /// Creates a `ValueFuture` that is already resolved by constructing its
+  /// value in-place.
+  template <typename... Args>
+  static ValueFuture Resolved(Args&&... args) {
+    return ValueFuture(std::in_place, std::forward<Args>(args)...);
+  }
+
  private:
   friend Base;
   friend class ValueProvider<T>;
@@ -112,9 +123,15 @@ class ValueFuture : public ListableFutureWithWaker<ValueFuture<T>, T> {
 
   static constexpr const char kWaitReason[] = "ValueFuture";
 
-  explicit ValueFuture(Provider& provider) : Base(provider) {}
+  explicit ValueFuture(ListFutureProvider<ValueFuture<T>>& provider)
+      : Base(provider) {}
   explicit ValueFuture(SingleFutureProvider<ValueFuture<T>>& provider)
       : Base(provider) {}
+
+  template <typename... Args>
+  explicit ValueFuture(std::in_place_t, Args&&... args)
+      : Base(Base::kReadyForCompletion),
+        value_(std::in_place, std::forward<Args>(args)...) {}
 
   template <typename Setter>
   void ResolveFunc(Setter setter) {

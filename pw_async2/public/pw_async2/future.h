@@ -283,25 +283,78 @@ class ListableFutureWithWaker
   ListableFutureWithWaker& operator=(const ListableFutureWithWaker&) = delete;
 
  protected:
-  using Provider = ListFutureProvider<Derived>;
+  /// Wrapper around a future provider pointer which also serves as a
+  /// conditional lock, allowing for nullptr.
+  class PW_LOCKABLE("pw::async2::experimental::ListableFutureWithWaker::Lock")
+      Provider {
+   public:
+    void lock() PW_EXCLUSIVE_LOCK_FUNCTION() {
+      if (provider_ != nullptr) {
+        provider_->lock().lock();
+      }
+    }
+
+    void unlock() PW_UNLOCK_FUNCTION() {
+      if (provider_ != nullptr) {
+        provider_->lock().unlock();
+      }
+    }
+
+    Provider& operator=(ListFutureProvider<Derived>* provider) {
+      provider_ = provider;
+      return *this;
+    }
+
+    ListFutureProvider<Derived>* get() const { return provider_; }
+    ListFutureProvider<Derived>& operator*() const {
+      PW_ASSERT(provider_ != nullptr);
+      return *provider_;
+    }
+    ListFutureProvider<Derived>* operator->() const {
+      PW_ASSERT(provider_ != nullptr);
+      return provider_;
+    }
+
+    explicit operator bool() const { return provider_ != nullptr; }
+
+   private:
+    friend class ListableFutureWithWaker<Derived, T>;
+
+    explicit Provider(ListFutureProvider<Derived>* provider)
+        : provider_(provider) {}
+
+    ListFutureProvider<Derived>* provider_;
+  };
+
+  using Lock = Provider;
 
   /// Tag to prevent accidental default construction.
-  enum MovedFromState { kMovedFrom };
+  enum ConstructedState { kMovedFrom, kReadyForCompletion };
 
-  /// Initializes a future in an "empty", moved-from state. This should be used
-  /// from derived futures' move constructors, followed by a call to
-  /// `MoveFrom` to set the appropriate base state.
-  explicit ListableFutureWithWaker(MovedFromState)
-      : provider_(nullptr), complete_(true) {}
+  /// Initializes a future in an "empty" state.
+  /// `state` determines the behavior as follows:
+  ///
+  /// - `kMovedFrom`: The constructed future appears as one which has been moved
+  ///   and is marked completed. This should be used from from derived futures'
+  ///   move constructors, followed by a call to `MoveFrom` to set the
+  ///   appropriate base state.
+  ///
+  /// - `kReadyForCompletion`: The constructed future lacks a provider but is
+  ///   incomplete and can still be called. This can help to construct futures
+  ///   which are initially `Ready`. If a future is constructed in this state,
+  ///   its `DoPend` must return `Ready`.
+  explicit ListableFutureWithWaker(ConstructedState state)
+      : provider_(nullptr), complete_(state == kMovedFrom) {}
 
-  explicit ListableFutureWithWaker(Provider& provider) : provider_(&provider) {
+  explicit ListableFutureWithWaker(ListFutureProvider<Derived>& provider)
+      : provider_(&provider) {
     provider.Push(derived());
   }
   explicit ListableFutureWithWaker(SingleFutureProvider<Derived>& single)
       : ListableFutureWithWaker(single.inner_) {}
 
   ~ListableFutureWithWaker() {
-    if (provider_ == nullptr) {
+    if (!provider_) {
       return;
     }
     std::lock_guard guard(lock());
@@ -323,12 +376,9 @@ class ListableFutureWithWaker
     }
   }
 
-  Provider& provider() {
-    PW_ASSERT(provider_ != nullptr);
-    return *provider_;
-  }
+  ListFutureProvider<Derived>& provider() { return *provider_; }
 
-  typename Provider::LockType& lock() { return provider().lock(); }
+  Lock& lock() { return provider_; }
 
   /// Wakes the task waiting on the future.
   void Wake() { std::move(waker_).Wake(); }
@@ -337,7 +387,7 @@ class ListableFutureWithWaker
   using Base = Future<ListableFutureWithWaker<Derived, T>, T>;
 
   friend Base;
-  friend Provider;
+  friend ListFutureProvider<Derived>;
 
   Poll<T> DoPend(Context& cx) {
     static_assert(
@@ -357,7 +407,7 @@ class ListableFutureWithWaker
 
   Derived& derived() { return static_cast<Derived&>(*this); }
 
-  Provider* provider_;
+  Provider provider_;
   Waker waker_;
   bool complete_ = false;
 };

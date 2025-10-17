@@ -47,6 +47,42 @@ TEST(ValueFuture, Pend) {
   EXPECT_EQ(result, 27);
 }
 
+TEST(ValueFuture, Resolved) {
+  pw::async2::Dispatcher dispatcher;
+  auto future = ValueFuture<int>::Resolved(42);
+  int result = -1;
+
+  pw::async2::PendFuncTask task(
+      [&](pw::async2::Context& cx) -> pw::async2::Poll<> {
+        PW_TRY_READY_ASSIGN(int value, future.Pend(cx));
+        result = value;
+        return pw::async2::Ready();
+      });
+
+  dispatcher.Post(task);
+  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Ready());
+  EXPECT_EQ(result, 42);
+}
+
+TEST(ValueFuture, ResolvedInPlace) {
+  pw::async2::Dispatcher dispatcher;
+  auto future = ValueFuture<std::pair<int, int>>::Resolved(9, 3);
+
+  std::optional<std::pair<int, int>> result;
+  pw::async2::PendFuncTask task(
+      [&](pw::async2::Context& cx) -> pw::async2::Poll<> {
+        PW_TRY_READY_ASSIGN(auto value, future.Pend(cx));
+        result = value;
+        return pw::async2::Ready();
+      });
+
+  dispatcher.Post(task);
+  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Ready());
+  ASSERT_TRUE(result.has_value());
+  EXPECT_EQ(result->first, 9);
+  EXPECT_EQ(result->second, 3);
+}
+
 TEST(ValueProvider, VendsAndResolvesFuture) {
   pw::async2::Dispatcher dispatcher;
   ValueProvider<int> provider;
