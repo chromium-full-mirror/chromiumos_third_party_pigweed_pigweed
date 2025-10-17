@@ -10,15 +10,15 @@ pw_kvs
 integrated wear leveling and redundancy, targeting NOR flash devices where a
 full filesystem is not needed. Key properties include:
 
-- **Wear Leveling**: Spreads writes across flash sectors to extend the life of
+- **Wear leveling**: Spreads writes across flash sectors to extend the life of
   the storage medium.
-- **Corruption Resilience**: Optionally stores multiple copies of each key-value
-  entry, spread over flash sectors. Corrupted entries are detected on read, and
-  the KVS can fall back to a previous version of the data.
+- **Corruption resilience**: Optionally stores multiple copies of each key-value
+  entry, spread over flash sectors. ``pw_kvs`` detects corrupted entries on
+  read, and can fall back to a previous version of the data.
 - **Flexibility**: Supports configuration changes after a product has shipped.
-  or example, the total size of the KVS and the level of redundancy can be
-  increased in a firmware update.
-- **Simple On-Disk Format**: Log-structured database where entries are appended
+  For example, a firmware update can increase the total size of the KVS or
+  increase or decrease the level of redundancy.
+- **Simple on-disk format**: Log-structured database where entries are appended
   sequentially. This design has a minimal set of invariants, which simplifies
   implementation and improves robustness against unexpected power loss.
 
@@ -32,14 +32,14 @@ full filesystem is not needed. Key properties include:
 
 .. grid:: 2
 
-   .. grid-item-card:: :octicon:`rocket` Get Started & Guides
+   .. grid-item-card:: :octicon:`rocket` Get started & guides
       :link: module-pw_kvs-guides
       :link-type: ref
       :class-item: sales-pitch-cta-primary
 
       Integrate and use ``pw_kvs`` in your project.
 
-   .. grid-item-card:: :octicon:`code-square` API Reference
+   .. grid-item-card:: :octicon:`code-square` API reference
       :link: ../api/cc/group__pw__kvs.html
       :link-type: url
       :class-item: sales-pitch-cta-secondary
@@ -48,14 +48,14 @@ full filesystem is not needed. Key properties include:
 
 .. grid:: 2
 
-   .. grid-item-card:: :octicon:`server` On-Disk Format & Design
+   .. grid-item-card:: :octicon:`server` On-disk format & design
       :link: module-pw_kvs-disk-format
       :link-type: ref
       :class-item: sales-pitch-cta-secondary
 
       Understand how ``pw_kvs`` stores data on flash.
 
-   .. grid-item-card:: :octicon:`graph` Code Size Analysis
+   .. grid-item-card:: :octicon:`graph` Code size analysis
       :link: module-pw_kvs-code-size
       :link-type: ref
       :class-item: sales-pitch-cta-secondary

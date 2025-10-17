@@ -11,9 +11,9 @@ Quickstart
 ----------
 This guide provides a walkthrough of how to set up and use ``pw_kvs``.
 
-Build System Integration
+Build system integration
 ========================
-The first step is to add ``pw_kvs`` as a dependency in your build system.
+Add ``pw_kvs`` as a dependency in your build system.
 
 .. tab-set::
 
@@ -57,60 +57,63 @@ The first step is to add ``pw_kvs`` as a dependency in your build system.
          add_library(my_lib ...)
          target_link_libraries(my_lib PUBLIC pw_kvs)
 
-KVS Setup Walkthrough
-=====================
-Setting up a ``pw_kvs::KeyValueStore`` involves three main stages:
+Set up the KVS
+==============
+To set up a ``pw_kvs::KeyValueStore``, follow these three stages:
 
-1. :ref:`Implement the Hardware Interface <module-pw_kvs-guides-implement-hardware-interface>`:
-   First, you must implement a C++ class that allows the KVS to communicate
-   with your target's flash hardware.
+1. :ref:`Implement the hardware interface <module-pw_kvs-guides-implement-hardware-interface>`:
+   Implement a C++ class that allows the KVS to communicate with your target's
+   flash hardware.
 
-2. :ref:`Configure and Instantiate the KVS <module-pw_kvs-guides-configure-and-instantiate-kvs>`:
-   With the hardware interface in place, you can then create a
-   ``KeyValueStore`` instance, defining the on-disk data format and memory
-   buffers.
+2. :ref:`Configure and instantiate the KVS <module-pw_kvs-guides-configure-and-instantiate-kvs>`:
+   With the hardware interface in place, create a ``KeyValueStore`` instance,
+   defining the on-disk data format and memory buffers.
 
-3. :ref:`Configure Garbage Collection <module-pw_kvs-guides-garbage-collection>`:
-   Finally, you must decide how the KVS will perform garbage collection to
-   reclaim space.
+3. :ref:`Configure garbage collection <module-pw_kvs-guides-garbage-collection>`:
+   Decide how the KVS will perform garbage collection to reclaim space.
 
 The following sections provide a detailed walkthrough of these stages.
 
 .. _module-pw_kvs-guides-implement-hardware-interface:
 
-Step 1: Implement the Hardware Interface
+Step 1: Implement the hardware interface
 ----------------------------------------
-To use ``pw_kvs`` on a specific hardware platform, you must provide an
-implementation of the ``pw::kvs::FlashMemory`` interface. This class provides a
-hardware abstraction layer that the KVS uses to interact with the flash
-storage.
+To use ``pw_kvs`` on a specific hardware platform, implement the
+``pw::kvs::FlashMemory`` interface. This class provides a hardware abstraction
+layer that the KVS uses to interact with flash storage.
 
 The ``FlashMemory`` class defines the fundamental operations for interacting
-with a flash device. You'll need to create a concrete class that inherits from
+with a flash device. Create a concrete class that inherits from
 ``pw::kvs::FlashMemory`` and implements its pure virtual functions (like
 ``Read``, ``Write``, and ``Erase``).
 
-When creating your implementation, you must pass key hardware attributes to the
-``FlashMemory`` base class constructor. You will need to read the datasheet for
-your MCU or flash chip to determine these values. The most critical are:
+When creating your implementation, pass key hardware attributes to the
+``FlashMemory`` base class constructor. Consult the datasheet for your MCU or
+flash chip to determine these values. The most critical are:
 
-- **Sector Size**: The smallest erasable unit of the flash memory, in bytes.
+- **Sector size**: The smallest erasable unit of the flash memory, in bytes.
   All erases happen in multiples of this size.
 
-- **Sector Count**: The total number of sectors in the flash device.
+- **Sector count**: The total number of sectors in the flash device.
 
 - **Alignment**: The minimum write size and address alignment for the flash
   hardware, in bytes. This dictates how the KVS packs data.
 
+  Note that ``pw::kvs::FlashMemory`` requires a read alignment of 1. If your
+  physical flash has a read alignment greater than 1, your ``FlashMemory``
+  implementation must handle this (e.g., by buffering inside
+  ``FlashMemory::Read()``) to present an alignment of 1 to the KVS.
+
   - If your flash supports writing single bytes at any address, set alignment
     to ``1``.
   - If your flash has restrictions, such as only allowing a 4-byte word to be
-    written once per erase cycle, your alignment must be ``4``. The KVS will
-    then respect these boundaries, preventing invalid partial-word writes.
+    written once per erase cycle, set alignment to ``4``. The KVS respects
+    these boundaries, preventing invalid partial-word writes.
 
-Once you have a ``FlashMemory`` implementation, you can create a
-``FlashPartition``. A partition is a contiguous block of sectors within a
-``FlashMemory`` that you dedicate to a specific purpose, such as a KVS.
+Once you have a ``FlashMemory`` implementation, create a ``FlashPartition``. A
+partition is a separate logical address space representing a contiguous block
+of sectors within a ``FlashMemory`` dedicated to a specific purpose, such as a
+KVS.
 
 .. code-block:: cpp
 
@@ -145,20 +148,20 @@ Once you have a ``FlashMemory`` implementation, you can create a
 
 .. _module-pw_kvs-guides-configure-and-instantiate-kvs:
 
-Step 2: Configure and Instantiate the KVS
+Step 2: Configure and instantiate the KVS
 -----------------------------------------
-After implementing the ``FlashMemory`` and creating a ``FlashPartition``, you
-can create your ``KeyValueStore`` instance. This requires two final pieces of
+After implementing ``FlashMemory`` and creating a ``FlashPartition``, create
+your ``KeyValueStore`` instance. This requires two final pieces of
 configuration:
 
-- **Entry Format**: The ``pw::kvs::EntryFormat`` struct specifies the magic
-  value and checksum algorithm for KVS entries. For a detailed breakdown of the
-  on-disk format, see :ref:`module-pw_kvs-disk-format-entry-structure`. The
-  magic value is a unique identifier for your KVS, and the checksum is used to
-  verify data integrity.
+- **Entry format**: The ``pw::kvs::EntryFormat`` struct specifies the magic
+  value and checksum algorithm for KVS entries. For a detailed breakdown of
+  the on-disk format, see :ref:`module-pw_kvs-disk-format-entry-structure`.
+  The magic value is a unique identifier for your KVS, and the checksum
+  verifies data integrity.
 
-- **KVS Buffers**: The ``pw::kvs::KeyValueStoreBuffer`` template class requires
-  you to specify the maximum number of entries and sectors the KVS can manage.
+- **KVS buffers**: The ``pw::kvs::KeyValueStoreBuffer`` template class requires
+  specifying the maximum number of entries and sectors the KVS can manage.
   This allocates the necessary memory for the KVS to operate.
 
 Here is an example of how to create a ``KeyValueStore`` instance:
@@ -185,17 +188,17 @@ Here is an example of how to create a ``KeyValueStore`` instance:
 
 .. _module-pw_kvs-guides-garbage-collection:
 
-Step 3: Configure Garbage Collection
+Step 3: Configure garbage collection
 ------------------------------------
-The KVS requires periodic garbage collection (GC) to reclaim space from stale
-or deleted entries. You must decide whether this will be triggered
-automatically by the KVS or manually by your application.
+``pw_kvs`` requires periodic garbage collection (GC) to reclaim space from
+stale or deleted entries. Decide whether to trigger this automatically by the
+KVS or manually by your application.
 
-Automatic Garbage Collection
+Automatic garbage collection
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-For most use cases, automatic GC is recommended. The KVS will automatically
-run a GC cycle during a ``Put()`` operation if it cannot find enough space for
-the new data. This is configured via the ``gc_on_write`` option passed to the
+Automatic GC is recommended for most use cases. ``pw_kvs`` automatically runs
+a GC cycle during a ``Put()`` operation if it cannot find enough space for new
+data. Configure this via the ``gc_on_write`` option passed to the
 ``KeyValueStore`` constructor.
 
 .. code-block:: cpp
@@ -209,17 +212,19 @@ the new data. This is configured via the ``gc_on_write`` option passed to the
 
 Available automatic GC options:
 
-- ``kAsManySectorsNeeded`` (Default): The KVS will garbage collect as many
+- ``kAsManySectorsNeeded`` (Default): ``pw_kvs`` garbage collects as many
   sectors as needed to make space for the write.
-- ``kOneSector``: The KVS will garbage collect at most one sector. If that is
-  not enough to create space, the write will fail.
+- ``kOneSector``: ``pw_kvs`` garbage collects at most one sector. If that is
+  not enough to create space, the write fails.
 - ``kDisabled``: Disables automatic GC. See the manual section below.
 
-Manual Garbage Collection
+Manual garbage collection
 ^^^^^^^^^^^^^^^^^^^^^^^^^
-If your application requires fine-grained control over potentially long-running
-flash operations, you can trigger GC manually. To do this, you must first
-disable automatic GC:
+If your application requires fine-grained control over potentially
+long-running flash operations, trigger GC manually. Manual GC can be performed
+independently of the automatic GC configuration.
+
+To disable automatic GC and rely solely on manual triggers:
 
 .. code-block:: cpp
 
@@ -230,77 +235,78 @@ disable automatic GC:
                                                               kvs_format,
                                                               options);
 
-Then, at appropriate times in your application's logic, you can call one of the
-maintenance functions:
+Call one of the maintenance functions at appropriate times in your
+application's logic:
 
-- ``kvs.PartialMaintenance()``: Performs GC on a single sector. This is useful
-  for incrementally cleaning up the KVS over time.
-- ``kvs.FullMaintenance()``: Performs a comprehensive GC of all sectors.
-
+- ``kvs.PartialMaintenance()``: Performs GC on a single sector. Use this for
+  incrementally cleaning up the KVS over time.
+- ``kvs.FullMaintenance()``: Performs a GC of all sectors if the KVS is over
+  70% full. This operation also updates all entries to the primary format and
+  ensures all entries have the configured redundancy.
+- ``kvs.HeavyMaintenance()``: Performs a ``FullMaintenance()`` and does a
+  maximal cleanup removing all deleted and all stale entries.
 
 .. _module-pw_kvs-guides-advanced-topics:
 
 ---------------
-Advanced Topics
+Advanced topics
 ---------------
 
 .. _module-pw_kvs-guides-updating-kvs-configuration:
 
-Updating KVS Configuration Over Time
+Updating KVS configuration over time
 ====================================
-A key consideration for long-lived products is how to handle firmware updates
-that might need to change the KVS configuration. ``pw_kvs`` is designed to be
-flexible, allowing for several types of changes to its size and layout.
+A key consideration for long-lived products is handling firmware updates that
+might need to change the KVS configuration. ``pw_kvs`` is flexible, allowing
+for several types of changes to its size and layout.
 
-Here are the general guidelines for what can be safely modified in a firmware
+Here are general guidelines for what you can safely modify in a firmware
 update.
 
-Flash Partition and Sector Count
+Flash partition and sector count
 --------------------------------
-The flash partition used by the KVS can be resized or even moved to a different
-location in flash.
+You can resize or move the flash partition used by the KVS.
 
-- **Increasing Sectors**: The number of sectors can be safely increased. The
+- **Increasing sectors**: You can safely increase the number of sectors. The
   new flash partition can grow forwards, backwards, or be in a completely
   different location, as long as it includes all non-erased sectors from the
   old KVS instance.
-- **Decreasing Sectors**: The number of sectors can be decreased, provided the
+- **Decreasing sectors**: You can decrease the number of sectors, provided the
   new, smaller partition still contains all sectors that have valid KVS data.
-- **Sector Size**: The logical sector size **must remain the same** across
-  firmware updates. Changing the sector size will prevent the KVS from correctly
-  interpreting the existing data.
+- **Sector size**: The logical sector size **must remain the same** across
+  firmware updates. Changing the sector size prevents the KVS from correctly
+  interpreting existing data.
 
-Maximum Entry Count
+Maximum entry count
 -------------------
-The maximum number of key-value entries the KVS can hold can be adjusted.
+You can adjust the maximum number of key-value entries the KVS can hold.
 
-- **Increasing Entries**: The maximum entry count can be safely increased at any
-  time. This simply allocates more RAM for tracking entries and doesn't affect
-  the on-disk format.
-- **Decreasing Entries**: The maximum entry count can be decreased, but the new
-  limit must be greater than or equal to the number of entries currently stored
-  in the KVS.
+- **Increasing entries**: You can safely increase the maximum entry count at
+  any time. This simply allocates more RAM for tracking entries and doesn't
+  affect the on-disk format.
+- **Decreasing entries**: You can decrease the maximum entry count, but the
+  new limit must be greater than or equal to the number of entries currently
+  stored in the KVS.
 
 Redundancy
 ----------
-The number of redundant copies for each entry can be changed.
+You can change the number of redundant copies for each entry.
 
-- **Changing Redundancy Level**: The redundancy level can be safely increased or
-  decreased between firmware updates. When the KVS is next initialized with the
-  new redundancy level, it will detect the mismatch. During the next
-  maintenance cycle (e.g., a call to ``PartialMaintenance()`` or
-  ``FullMaintenance()``), the KVS will automatically write new redundant copies
-  or ignore extra ones to match the new configuration.
+- **Changing redundancy level**: You can safely increase or decrease the
+  redundancy level between firmware updates. When initialized with the new
+  redundancy level, the KVS detects the mismatch. During the next maintenance
+  cycle (e.g., a call to ``PartialMaintenance()`` or ``FullMaintenance()``),
+  the KVS automatically writes new redundant copies or ignores extra ones to
+  match the new configuration.
 
-Entry Format
+Entry format
 ------------
 The ``EntryFormat`` defines the magic value and checksum algorithm for entries.
 
-- **Adding New Formats**: To support backward compatibility, you can provide a
-  list of ``EntryFormat`` structs to the ``KeyValueStore`` constructor. The KVS
-  will be able to read entries matching any of the provided formats. The first
-  format in the list is considered the "primary" format and will be used for all
-  new entries written to the KVS.
-- **Changing Existing Formats**: An existing ``EntryFormat`` (magic or checksum)
-  **must not be changed**. Doing so would cause the KVS to fail to read existing
+- **Adding new formats**: To support backward compatibility, provide a list of
+  ``EntryFormat`` structs to the ``KeyValueStore`` constructor. The KVS can
+  read entries matching any of the provided formats. The first format in the
+  list is the "primary" format, used for all new entries written to the KVS.
+- **Changing existing formats**: **Do not change** an existing ``EntryFormat``
+  (magic or checksum). Doing so causes the KVS to fail to read existing
   entries, treating them as corrupt data.
