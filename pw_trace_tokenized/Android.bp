@@ -51,6 +51,7 @@ cc_library {
     ],
     local_include_dirs: [
         "public_overrides",
+        "interrupt_spin_lock_public_overrides",
     ],
     srcs: [
         "trace.cc",
