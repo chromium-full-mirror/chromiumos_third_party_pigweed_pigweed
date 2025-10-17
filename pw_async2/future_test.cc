@@ -42,10 +42,10 @@ class SimpleAsyncInt {
     ResolveAllFutures();
   }
 
+  void ResolveAllFutures();
+
  private:
   friend class SimpleIntFuture;
-
-  void ResolveAllFutures();
 
   // This object stores both a list provider and a single provider for testing
   // purposes. In actual usage, only one of these would be needed, depending on
@@ -294,6 +294,38 @@ TEST(SingleFutureProvider, OnlyAllowsOneFutureToExist) {
   // The operation has resolved, so a new future should be obtainable.
   std::optional<SimpleIntFuture> new_future = provider.GetSingle();
   ASSERT_TRUE(new_future.has_value());
+}
+
+TEST(ListableFutureWithWaker, RelistsItselfOnPending) {
+  pw::async2::Dispatcher dispatcher;
+  SimpleAsyncInt provider;
+
+  std::optional<SimpleIntFuture> future = provider.GetSingle();
+  ASSERT_TRUE(future.has_value());
+
+  int result = -1;
+  pw::async2::PendFuncTask task(
+      [&](pw::async2::Context& cx) -> pw::async2::Poll<> {
+        PW_TRY_READY_ASSIGN(int value, future->Pend(cx));
+        result = value;
+        return pw::async2::Ready();
+      });
+
+  dispatcher.Post(task);
+  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Pending());
+  EXPECT_EQ(dispatcher.tasks_polled(), 1u);
+
+  // ResolveAllFutures pops the future off the list. Since no value is set,
+  // the task will still be pending. The future should re-add itself to the list
+  // to prevent the task from being permanently stalled.
+  provider.ResolveAllFutures();
+  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Pending());
+  EXPECT_EQ(dispatcher.tasks_polled(), 2u);  // Task ran again.
+
+  provider.Set(99);
+  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Ready());
+  EXPECT_EQ(dispatcher.tasks_polled(), 3u);
+  EXPECT_EQ(result, 99);
 }
 
 #if PW_NC_TEST(FutureWaitReasonMustBeCharArray)

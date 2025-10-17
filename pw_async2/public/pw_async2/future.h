@@ -398,8 +398,16 @@ class ListableFutureWithWaker
     Poll<T> poll = derived().DoPend(cx);
     if (poll.IsPending()) {
       PW_ASYNC_STORE_WAKER(cx, waker_, Derived::kWaitReason);
+      Relist();
     }
     return poll;
+  }
+
+  /// Adds the future back into its provider's list if unlisted.
+  void Relist() {
+    if (provider_ && this->unlisted()) {
+      provider_->Push(derived());
+    }
   }
 
   void DoMarkComplete() { complete_ = true; }
