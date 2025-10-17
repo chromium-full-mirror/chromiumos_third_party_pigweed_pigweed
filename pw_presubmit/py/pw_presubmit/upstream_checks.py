@@ -57,14 +57,14 @@ SOURCE_FILES_FILTER = FileFilter(
         r'zephyr.*',
         r'android.*',
         r'\.black.toml',
-        r'pyproject.toml',
+        r'\bpyproject.toml',
     ),
 )
 
 SOURCE_FILES_FILTER_BAZEL_EXCLUDE = FileFilter(
     exclude=(
         # keep-sorted: start
-        r'\bpw_docgen/py/tests',
+        r'\bpw_docgen/py/tests/',
         # keep-sorted: end
     ),
 )
@@ -73,14 +73,14 @@ SOURCE_FILES_FILTER_GN_EXCLUDE = FileFilter(
     exclude=(
         # keep-sorted: start
         r'.*\.rst$',
-        r'\bcodelab',
-        r'\bdocs',
-        r'\bexamples',
+        r'\bcodelab/',
+        r'\bdocs/',
+        r'\bexamples/',
         r'\bjava/',
         r'\bjava_jni/',
-        r'\bpw_bluetooth_sapphire/fuchsia',
-        r'\bpw_ide/bazel',
-        r'\bpw_kernel',
+        r'\bpw_bluetooth_sapphire/fuchsia/',
+        r'\bpw_ide/bazel/',
+        r'\bpw_kernel/',
         r'\bsize_report/',
         # keep-sorted: end
     ),

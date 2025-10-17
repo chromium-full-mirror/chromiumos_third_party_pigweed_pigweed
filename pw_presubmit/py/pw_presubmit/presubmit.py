@@ -906,13 +906,7 @@ class Check:
         Returns a new check.
         """
         clone = copy.copy(self)
-        if clone.filter:
-            clone.filter.exclude = clone.filter.exclude + file_filter.exclude
-            clone.filter.endswith = clone.filter.endswith + file_filter.endswith
-            clone.filter.name = file_filter.name or clone.filter.name
-            clone.filter.suffix = clone.filter.suffix + file_filter.suffix
-        else:
-            clone.filter = file_filter
+        clone.filter = self.filter.concat(file_filter)
         return clone
 
     def run(
@@ -1073,7 +1067,7 @@ def filter_paths(
             endswith=_make_str_tuple(endswith), exclude=exclude
         )
 
-    def filter_paths_for_function(function: Callable):
+    def filter_paths_for_function(function: Callable) -> Check:
         return Check(function, real_file_filter, always_run=always_run)
 
     return filter_paths_for_function

@@ -638,8 +638,7 @@ def presubmit_check(
     """
 
     # Make a copy of the FileFilter and add in any additional excludes.
-    file_filter = FileFilter(**vars(code_format.filter))
-    file_filter.exclude += tuple(re.compile(e) for e in exclude)
+    file_filter = code_format.filter.concat(exclude=exclude)
 
     @filter_paths(file_filter=file_filter)
     def check_code_format(ctx: PresubmitContext):
