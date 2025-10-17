@@ -16,6 +16,7 @@ use foreign_box::ForeignBox;
 use list::ForeignList;
 
 use crate::Kernel;
+use crate::scheduler::Priority;
 use crate::thread::{Thread, ThreadListAdapter};
 
 /// The reason a thread is being rescheduled. This can be used as a hint to the
@@ -30,6 +31,20 @@ pub enum RescheduleReason {
     Woken,
     /// A thread has been started and is being added to the scheduler for the first time.
     Started,
+}
+
+/// Per-thread state used by the scheduling algorithm.
+pub struct SchedulerAlgorithmThreadState {
+    /// The current priority of the thread.
+    #[allow(dead_code)]
+    current_priority: Priority,
+}
+
+impl SchedulerAlgorithmThreadState {
+    #[allow(clippy::new_without_default)]
+    pub const fn new(current_priority: Priority) -> Self {
+        Self { current_priority }
+    }
 }
 
 /// The algorithm used for determining which thread to run next.

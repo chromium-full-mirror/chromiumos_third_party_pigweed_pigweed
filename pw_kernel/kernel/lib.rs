@@ -35,7 +35,7 @@ pub use object::NullObjectTable;
 pub use scheduler::thread::{Process, Stack, StackStorage, StackStorageExt, Thread, ThreadState};
 use scheduler::timer::TimerQueue;
 use scheduler::{PreemptDisableGuard, SchedulerState, ThreadLocalState, thread};
-pub use scheduler::{sleep_until, start_thread, yield_timeslice};
+pub use scheduler::{Priority, sleep_until, start_thread, yield_timeslice};
 use sync::spinlock::{BareSpinLock, SpinLock, SpinLockGuard};
 pub use syscall::SyscallArgs;
 
@@ -157,6 +157,7 @@ macro_rules! static_init_state {
             use $crate::__private::kernel_config;
             use kernel_config::KernelConfigInterface as _;
             use kernel::StackStorageExt as _;
+            use $crate::Priority;
 
             type Stack = $crate::StackStorage<{ kernel_config::KernelConfig::KERNEL_STACK_SIZE_BYTES }>;
             static mut BOOTSTRAP_STACK: Stack = Stack::ZEROED;
@@ -164,13 +165,13 @@ macro_rules! static_init_state {
 
             $crate::InitKernelState {
                 bootstrap_thread: $crate::ThreadStorage {
-                    thread: $crate::Thread::new("bootstrap"),
+                    thread: $crate::Thread::new("bootstrap", Priority::DEFAULT_PRIORITY),
                     // SAFETY: We're in a block used to initialize a `static`,
                     // which is only executed once.
                     stack: unsafe { &mut BOOTSTRAP_STACK },
                 },
                 idle_thread: $crate::ThreadStorage {
-                    thread: $crate::Thread::new("idle"),
+                    thread: $crate::Thread::new("idle", Priority::IDLE_PRIORITY),
                     // SAFETY: We're in a block used to initialize a `static`,
                     // which is only executed once.
                     stack: unsafe { &mut IDLE_STACK },
@@ -228,6 +229,7 @@ pub fn main<K: Kernel>(kernel: K, init_state: &'static mut InitKernelState<K>) -
         &mut init_state.bootstrap_thread.thread,
         init_state.bootstrap_thread.stack,
         "bootstrap",
+        Priority::DEFAULT_PRIORITY,
         bootstrap_thread_entry,
         &mut init_state.idle_thread,
     );
@@ -256,6 +258,7 @@ fn bootstrap_thread_entry<K: Kernel>(
         &mut idle_thread_storage.thread,
         idle_thread_storage.stack,
         "idle",
+        Priority::IDLE_PRIORITY,
         idle_thread_entry,
         0,
     );

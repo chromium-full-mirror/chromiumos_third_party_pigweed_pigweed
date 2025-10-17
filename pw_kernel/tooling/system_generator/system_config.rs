@@ -124,6 +124,7 @@ pub struct ChannelHandlerConfig;
 pub struct ThreadConfig {
     name: String,
     stack_size_bytes: usize,
+    priority: Option<String>,
 }
 
 impl<A: ArchConfigInterface> SystemConfig<A> {

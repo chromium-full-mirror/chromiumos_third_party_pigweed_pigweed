@@ -39,6 +39,7 @@ rust_library(
         "scheduler.rs",
         "scheduler/algorithm.rs",
         "scheduler/locks.rs",
+        "scheduler/priority.rs",
         "scheduler/thread.rs",
         "scheduler/timer.rs",
         "sync.rs",

@@ -31,11 +31,13 @@ use crate::{Arch, Kernel};
 
 mod algorithm;
 mod locks;
+mod priority;
 pub mod thread;
 pub mod timer;
 
 use algorithm::{RescheduleReason, SchedulerAlgorithm};
 pub use locks::{SchedLockGuard, WaitQueueLock};
+pub use priority::Priority;
 use thread::*;
 
 const WAIT_QUEUE_DEBUG: bool = false;

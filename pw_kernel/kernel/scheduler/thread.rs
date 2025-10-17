@@ -24,6 +24,8 @@ use pw_status::Result;
 
 use crate::memory::MemoryConfig;
 use crate::object::{KernelObject, ObjectTable};
+use crate::scheduler::Priority;
+use crate::scheduler::algorithm::SchedulerAlgorithmThreadState;
 use crate::{Kernel, MemoryRegionType};
 
 /// The memory backing a thread's stack before it has been started.
@@ -288,6 +290,9 @@ pub struct Thread<K: Kernel> {
 
     // TODO - konkers: allow this to be tokenized.
     pub name: &'static str,
+
+    /// The state for the scheduler algorithm.
+    pub algorithm_state: SchedulerAlgorithmThreadState,
 }
 
 list::define_adapter!(pub ThreadListAdapter<K: Kernel> => Thread<K>::active_link);
@@ -296,7 +301,7 @@ list::define_adapter!(pub ProcessThreadListAdapter<K: Kernel> => Thread<K>::proc
 impl<K: Kernel> Thread<K> {
     // Create an empty, uninitialzed thread
     #[must_use]
-    pub const fn new(name: &'static str) -> Self {
+    pub const fn new(name: &'static str, priority: Priority) -> Self {
         Thread {
             process_link: Link::new(),
             active_link: Link::new(),
@@ -305,6 +310,7 @@ impl<K: Kernel> Thread<K> {
             arch_thread_state: UnsafeCell::new(K::ThreadState::NEW),
             stack: Stack::new(),
             name,
+            algorithm_state: SchedulerAlgorithmThreadState::new(priority),
         }
     }
 
@@ -574,7 +580,7 @@ mod arg {
 // minimum is.
 #[macro_export]
 macro_rules! init_thread {
-    ($name:literal, $entry:expr, $stack_size:expr $(,)?) => {{
+    ($name:literal, $priority:expr, $entry:expr, $stack_size:expr $(,)?) => {{
         use $crate::__private::foreign_box::ForeignBox;
         use $crate::scheduler::thread::{Stack, StackStorage, StackStorageExt, Thread};
         use $crate::static_mut_ref;
@@ -584,7 +590,7 @@ macro_rules! init_thread {
             info!("allocating thread: {}", $name as &'static str);
             // SAFETY: The caller promises that this function will be executed
             // at most once.
-            let thread = unsafe { static_mut_ref!(Thread<arch::Arch> = Thread::new($name)) };
+            let thread = unsafe { static_mut_ref!(Thread<arch::Arch> = Thread::new($name, $priority)) };
             let mut thread = ForeignBox::from(thread);
 
             info!("initializing thread: {}", $name as &'static str);
@@ -650,7 +656,7 @@ macro_rules! init_non_priv_process {
 #[cfg(feature = "user_space")]
 #[macro_export]
 macro_rules! init_non_priv_thread {
-    ($name:literal, $process:expr, $entry:expr, $initial_sp:expr, $kernel_stack_size:expr  $(,)?) => {{
+    ($name:literal, $priority:expr, $process:expr, $entry:expr, $initial_sp:expr, $kernel_stack_size:expr  $(,)?) => {{
         use $crate::static_mut_ref;
         use $crate::__private::foreign_box::ForeignBox;
         use $crate::scheduler::thread::{Process, Stack, StackStorage, StackStorageExt, Thread};
@@ -668,7 +674,7 @@ macro_rules! init_non_priv_thread {
             );
             // SAFETY: The caller promises that this function will be executed
             // at most once.
-            let thread = unsafe { static_mut_ref!(Thread<arch::Arch> = Thread::new($name)) };
+            let thread = unsafe { static_mut_ref!(Thread<arch::Arch> = Thread::new($name, $priority)) };
             let mut thread = ForeignBox::from(thread);
 
             info!(
@@ -707,10 +713,11 @@ pub fn init_thread_in<K: Kernel, T: ThreadArg, const STACK_SIZE: usize>(
     thread: &'static mut Thread<K>,
     stack: &'static mut StackStorage<STACK_SIZE>,
     name: &'static str,
+    priority: Priority,
     entry: fn(K, T),
     arg: T,
 ) -> ForeignBox<Thread<K>> {
-    *thread = Thread::new(name);
+    *thread = Thread::new(name, priority);
     let mut thread = ForeignBox::from(thread);
     thread.initialize_kernel_thread(kernel, Stack::from_slice(&*stack), entry, arg);
     thread

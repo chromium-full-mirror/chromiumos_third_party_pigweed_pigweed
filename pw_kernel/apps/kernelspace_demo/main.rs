@@ -13,6 +13,7 @@
 // the License.
 #![no_std]
 
+use kernel::scheduler::Priority;
 use kernel::scheduler::thread::{self, StackStorage, StackStorageExt as _, Thread};
 use kernel::sync::event::{Event, EventConfig, EventSignaler};
 use kernel::sync::mutex::Mutex;
@@ -31,7 +32,7 @@ pub struct DemoState<K: Kernel> {
 impl<K: Kernel> DemoState<K> {
     pub const fn new(kernel: K) -> DemoState<K> {
         DemoState {
-            thread: Thread::new(""),
+            thread: Thread::new("", Priority::DEFAULT_PRIORITY),
             stack: StackStorage::ZEROED,
             test_counter: Mutex::new(kernel, 0),
             thread_a_done_event: Event::new(kernel, EventConfig::ManualReset),
@@ -55,6 +56,7 @@ pub fn main<K: Kernel>(kernel: K, state: &'static mut DemoState<K>) -> Result<()
         &mut state.thread,
         &mut state.stack,
         "B",
+        Priority::DEFAULT_PRIORITY,
         test_thread_entry_b,
         &thread_b_args,
     );

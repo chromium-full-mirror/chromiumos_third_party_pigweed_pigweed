@@ -99,6 +99,11 @@ pub fn start() {
     let thread_{{app_name}}_{{thread_index}} = unsafe {
         kernel::init_non_priv_thread!(
             "{{thread.name}}",
+            {% if thread.priority -%}
+            kernel::Priority::{{ thread.priority }},
+            {%- else -%}
+            kernel::Priority::DEFAULT_PRIORITY,
+            {%- endif %}
             process_{{app_name}},
             start_fn_{{app_name}},
             {{app.initial_sp | hex}},
