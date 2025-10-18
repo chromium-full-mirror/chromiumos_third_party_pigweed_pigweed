@@ -12,6 +12,9 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 
+#define PW_LOG_MODULE_NAME PW_ASYNC2_CONFIG_LOG_MODULE_NAME
+#define PW_LOG_LEVEL PW_ASYNC2_CONFIG_LOG_LEVEL
+
 #include "pw_async2/dispatcher_base.h"
 
 #include <iterator>
@@ -20,12 +23,8 @@
 #include "pw_assert/check.h"
 #include "pw_async2/internal/config.h"
 #include "pw_async2/waker.h"
-#include "pw_log/tokenized_args.h"
-
-#define PW_LOG_MODULE_NAME PW_ASYNC2_CONFIG_LOG_MODULE_NAME
-#define PW_LOG_LEVEL PW_ASYNC2_CONFIG_LOG_LEVEL
-
 #include "pw_log/log.h"
+#include "pw_log/tokenized_args.h"
 
 namespace pw::async2 {
 
