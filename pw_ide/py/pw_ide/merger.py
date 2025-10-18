@@ -145,6 +145,16 @@ def _parse_args() -> argparse.Namespace:
         help='Enable verbose output.',
     )
     parser.add_argument(
+        '--overwrite-threshold',
+        type=int,
+        help=(
+            'Skips regeneration if any existing compile commands databases are '
+            'newer than the specified unix timestamp. This is primarily '
+            'intended for internal use to prevent manually generated compile '
+            'commands from being clobbered by automatic generation.'
+        ),
+    )
+    parser.add_argument(
         'bazel_args',
         nargs=argparse.REMAINDER,
         help=(
@@ -402,9 +412,24 @@ def main() -> int:
     output_dir = args.out_dir
     if not output_dir:
         output_dir = Path(workspace_root) / ".compile_commands"
+
     if output_dir.exists():
-        for f in output_dir.rglob('*/compile_commands.json'):
-            Path(f).unlink()
+        # Make the generator a list so it can be reused.
+        existing_databases = list(output_dir.rglob('*/compile_commands.json'))
+
+        if args.overwrite_threshold and any(
+            db.stat().st_mtime > args.overwrite_threshold
+            for db in existing_databases
+        ):
+            _LOG.debug(
+                'Skipping regeneration; fresh compile commands database '
+                'already exists'
+            )
+            return 0
+
+        for f in existing_databases:
+            f.unlink()
+
     output_dir.mkdir(exist_ok=True)
 
     for platform, fragments in fragments_by_platform.items():

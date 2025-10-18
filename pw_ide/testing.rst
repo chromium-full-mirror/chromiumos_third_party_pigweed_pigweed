@@ -79,7 +79,7 @@ First Start Experience
      - |checkbox|
 
 Bazel Build and C/C++ Intellisense Verification
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 These steps assume you have completed the "First Start Experience" steps.
 
@@ -119,11 +119,126 @@ These steps assume you have completed the "First Start Experience" steps.
        | - "Go to Definition" (e.g., right-click a symbol) navigates correctly.
      - |checkbox|
 
+Manual Bazel compile command database generation
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+These checks ensure manually-initiated compile commands database generation
+works as intended.
+
+.. admonition:: Note
+
+   These steps assume you have completed the "First Start Experience" steps.
+
+.. list-table::
+   :widths: 5 45 45 5
+   :header-rows: 1
+
+   * - #
+     - Test Action
+     - Expected Result
+     - ✅
+
+   * - 1
+     - | In the Extension Development Host VSCode instance, open the Command Palette:
+       | macOS: :kbd:`Cmd-Shift-P`
+       | Linux/Windows: :kbd:`Ctrl-Shift-P`
+       | Type ``Pigweed: Activate Bazelisk Terminal`` and select it.
+     - | A new terminal opens with the Pigweed environment activated.
+       | The terminal prompt may indicate the Pigweed environment (e.g., shows ``(pigweed)`` or similar decorators).
+     - |checkbox|
+
+   * - 2
+     - | In the newly activated Bazelisk terminal, run:
+       | ``bazelisk run @pigweed//pw_ide/bazel:update_compile_commands -- -- build //pw_json/...``
+     - | The ``bazelisk run`` command completes successfully and a compile
+       | commands directory (``.compile_commands``) is generated or updated in
+       | the workspace root.
+     - |checkbox|
+
+   * - 3
+     - | In the VSCode file explorer, navigate to the ``pw_json`` directory.
+       | Observe the appearance of ``.cc`` files within the ``pw_json``
+       | directory (e.g. ``pw_json/builder_test.cc``).
+     - | ``.cc`` files within ``pw_json`` should now appear active
+       | (NOT grayed out, and NO "ℹ️" indicator).
+       | Code intelligence features should be functional:
+       | - Includes are recognized (no unexpected squiggles under Pigweed or standard library headers).
+       | - Hovering over symbols provides tooltips with type information.
+       | - "Go to Definition" (e.g., right-click a symbol) navigates correctly.
+     - |checkbox|
+
+Multi-platform compile command database generation
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+These checks ensure multi-platform handling of compile commands databases works
+as expected.
+
+This check should be run when making changes to the Bazel interceptor script
+generation logic in ``pw_ide/ts/pigweed_vscode/src/clangd/compileCommandsUtils.ts``.
+
+.. admonition:: Note
+
+   These steps assume you have completed the "First Start Experience" steps.
+
+.. list-table::
+   :widths: 5 45 45 5
+   :header-rows: 1
+
+   * - #
+     - Test Action
+     - Expected Result
+     - ✅
+
+   * - 1
+     - | In the Extension Development Host VSCode instance, open the Command Palette:
+       | macOS: :kbd:`Cmd-Shift-P`
+       | Linux/Windows: :kbd:`Ctrl-Shift-P`
+       | Type ``Pigweed: Activate Bazelisk Terminal`` and select it.
+     - | A new terminal opens with the Pigweed environment activated.
+       | The terminal prompt may indicate the Pigweed environment (e.g., shows ``(pigweed)`` or similar decorators).
+     - |checkbox|
+
+   * - 2
+     - | In the newly activated Bazelisk terminal, run:
+       | ``bazelisk build //pw_system:rp2040_system_example``
+     - | The ``bazelisk build`` command completes successfully and a compile
+       | commands directory (``.compile_commands``) is generated or updated in
+       | the workspace root.
+     - |checkbox|
+
+   * - 3
+     - | Click the platform selection button in the VSCode
+       | `status bar <https://code.visualstudio.com/api/ux-guidelines/status-bar>`__
+       | at the bottom of the window.
+     - | ``rp2040_pw_system_demo-fastbuild`` should appear in the list.
+     - |checkbox|
+
+   * - 4
+     - | Select ``rp2040_pw_system_demo-fastbuild`` from the popup list.
+     - | Some files should become inactive as the new compile commands load.
+     - |checkbox|
+
+   * - 5
+     - | In the VSCode file explorer, navigate to the ``targets/rp2040`` directory.
+       | Observe the appearance of ``targets/rp2040/boot.cc`` files within the
+       | directory.
+     - | ``targets/rp2040/boot.cc`` should now appear active
+       | (NOT grayed out, and NO "ℹ️" indicator).
+       | Code intelligence features should be functional:
+       | - Includes are recognized (no unexpected squiggles under Pigweed or standard library headers).
+       | - Hovering over symbols provides tooltips with type information.
+       | - "Go to Definition" (e.g., right-click a symbol) navigates correctly.
+     - |checkbox|
+
 Fish Shell Verification
 ^^^^^^^^^^^^^^^^^^^^^^^
+Ensures IntelliSense works when users have defaulted to fish as their terminal
+profile of choice.
 
-This test should be run when making changes to the Bazel interceptor script
+This check should be run when making changes to the Bazel interceptor script
 generation logic in ``pw_ide/ts/pigweed_vscode/src/clangd/compileCommandsUtils.ts``.
+
+.. admonition:: Note
+
+   These steps assume you have completed the "First Start Experience" steps.
 
 .. list-table::
    :widths: 5 45 45 5

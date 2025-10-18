@@ -212,6 +212,8 @@ export async function createBazelInterceptorFile() {
       bazelInterceptorScript = `#!/usr/bin/env fish
 set -u
 
+set OVERWRITE_THRESHOLD (date +%s)
+
 $BAZEL_REAL $argv
 set BAZEL_EXIT_CODE $status
 
@@ -226,7 +228,7 @@ end
 if contains -- $argv[1] build run test
   if [ $BAZEL_EXIT_CODE -eq 0 ];
     echo "🔄 Refreshing compile commands..." >&2
-    $BAZEL_REAL $QUIET_BUILD run --show_result=0 --experimental_convenience_symlinks=ignore @pigweed//pw_ide/bazel:update_compile_commands -- $VERBOSE_FLAG -- $argv
+    $BAZEL_REAL $QUIET_BUILD run --show_result=0 --experimental_convenience_symlinks=ignore @pigweed//pw_ide/bazel:update_compile_commands -- $VERBOSE_FLAG --overwrite-threshold=$OVERWRITE_THRESHOLD -- $argv
     if [ $status -eq 0 ];
       mkdir -p ${CDB_FILE_DIR}
       echo $argv > ${CDB_FILE_DIR}/${LAST_BAZEL_COMMAND_FILE_NAME}
@@ -242,6 +244,8 @@ exit $BAZEL_EXIT_CODE
       bazelInterceptorScript = `#!${SHELL}
 set -uo pipefail
 
+OVERWRITE_THRESHOLD=$(date +%s)
+
 $BAZEL_REAL "$@"
 BAZEL_EXIT_CODE=$?
 
@@ -256,7 +260,7 @@ fi
 if [[ $# -gt 0 && ( "$1" == "build" || "$1" == "run" || "$1" == "test" ) ]]; then
   if [ $BAZEL_EXIT_CODE -eq 0 ]; then
     echo "🔄 Refreshing compile commands..." >&2
-    $BAZEL_REAL \${QUIET_BUILD} run --show_result=0 --experimental_convenience_symlinks=ignore @pigweed//pw_ide/bazel:update_compile_commands -- \${VERBOSE_FLAG} -- "$@"
+    $BAZEL_REAL \${QUIET_BUILD} run --show_result=0 --experimental_convenience_symlinks=ignore @pigweed//pw_ide/bazel:update_compile_commands -- \${VERBOSE_FLAG} --overwrite-threshold=\${OVERWRITE_THRESHOLD} -- "$@"
     if [ $? -eq 0 ]; then
       mkdir -p ${CDB_FILE_DIR}
       echo "$*" > ${CDB_FILE_DIR}/${LAST_BAZEL_COMMAND_FILE_NAME}

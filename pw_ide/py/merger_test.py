@@ -26,6 +26,7 @@ from contextlib import redirect_stderr
 # Mocked imports.
 import subprocess
 import sys
+import time
 
 # pylint: enable=unused-import
 
@@ -485,6 +486,61 @@ class MergerTest(fake_filesystem_unittest.TestCase):
         with open(merged_path, 'r') as f:
             data = json.load(f)
         self.assertEqual(len(data), 3)
+
+    def test_overwrite_threshold(self):
+        """Tests the --overwrite-threshold flag."""
+        merged_path = (
+            self.workspace_root
+            / '.compile_commands'
+            / 'k8-fastbuild'
+            / 'compile_commands.json'
+        )
+        self.fs.create_file(merged_path, contents='[{"test": "entry"}]')
+
+        _create_fragment(
+            self.fs,
+            self.output_path,
+            'target1',
+            'k8-fastbuild',
+            [
+                {
+                    'file': 'a.cc',
+                    'directory': '__WORKSPACE_ROOT__',
+                    'arguments': ['c', 'd'],
+                }
+            ],
+        )
+
+        # Set modification time to a known point in the past.
+        past_time = int(time.time()) - 100
+        os.utime(merged_path, (past_time, past_time))
+
+        # Run with a threshold OLDER than the file. This should skip generation.
+        threshold = past_time - 1
+        with mock.patch.object(
+            sys, 'argv', ['merger.py', f'--overwrite-threshold={threshold}']
+        ):
+            self.assertEqual(merger.main(), 0)
+
+        # Assert the file was NOT overwritten.
+        with open(merged_path, 'r') as f:
+            data = json.load(f)
+        self.assertEqual(data, [{"test": "entry"}])
+
+        # Run with a threshold NEWER than the file. This should NOT skip
+        # generation.
+        threshold = int(past_time + 1)
+        with mock.patch.object(
+            sys, 'argv', ['merger.py', f'--overwrite-threshold={threshold}']
+        ):
+            self.assertEqual(merger.main(), 0)
+
+        # Ensure the file WAS overwritten.
+        with open(merged_path, 'r') as f:
+            data = json.load(f)
+        self.assertNotEqual(data, [{"test": "entry"}])
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]['file'], 'a.cc')
 
 
 if __name__ == '__main__':
