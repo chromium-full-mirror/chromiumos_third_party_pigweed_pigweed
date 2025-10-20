@@ -185,6 +185,11 @@ def _get_one_compile_command(ctx, src, action):
     if not src.extension in _ALL_COMPILE_EXTS:
         return None
 
+    # Don't generate compile commands for arbitrary inputs that aren't
+    # compiled. E.g. sources placed in `extra_compiler_inputs`.
+    if src.path not in action.argv:
+        return None
+
     cc_toolchain = find_cc_toolchain(ctx)
     feature_configuration = cc_common.configure_features(
         ctx = ctx,
@@ -221,12 +226,15 @@ def _get_cpp_compile_commands(ctx, target):
 
     commands = []
     for action in target.actions:
-        for src in action.inputs.to_list():
-            # Don't generate compile commands for arbitrary inputs that aren't
-            # compiled. E.g. sources placed in `extra_compiler_inputs`.
-            if action.argv and src.path not in action.argv:
-                continue
+        # Don't try to evaluate anything without arguments. This saves a
+        # considerable amount of CPU cycles.
+        if not action.argv:
+            continue
 
+        for src in action.inputs.to_list():
+            # BE CAREFUL when putting logic here, as it's multiplied by
+            # ALL inputs to the sandbox, which is on the order of thousands
+            # of files *per compile action*.
             result = _get_one_compile_command(ctx, src, action)
             if result != None:
                 commands.append(result)
