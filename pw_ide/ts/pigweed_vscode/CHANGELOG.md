@@ -1,5 +1,18 @@
 # Change Log
 
+## [1.9.12] - 2025-10-20
+
+### 🐛 Bug Fixes
+
+ * Compile Commands: Fixed two issues related to the manual compile commands
+   generation option, ensuring it works correctly with the wrapper.
+
+ * Clangd Path: The IDE will now show a "Repair" button when the clangd
+   path is empty, allowing for easier recovery from a misconfiguration.
+
+ * Symlinked Files: Corrected an issue where active files were not being
+   detected properly if the file path was a symbolic link.
+
 ## [1.9.11] - 2025-10-03
 
 ### ✨ Features & Improvements
