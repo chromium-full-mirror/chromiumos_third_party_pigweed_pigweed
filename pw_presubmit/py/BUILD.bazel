@@ -406,17 +406,15 @@ write_file(
     visibility = ["//visibility:private"],
 )
 
-pw_py_binary(
-    name = "format",
-    srcs = ["pigweed_format/__main__.py"],
+py_library(
+    name = "formatters",
+    srcs = ["pw_presubmit/format/formatters.py"],
     data = [
         ":disabled_formatters",
     ],
-    main = "pigweed_format/__main__.py",
     deps = [
         ":format_core",
         "//pw_build/py:pw_build",
-        "@rules_python//python/runfiles",
     ] + select({
         ":python_formatter_is_enabled": [":black_runfiles"],
         "//conditions:default": [],
@@ -443,6 +441,17 @@ pw_py_binary(
         ":rust_formatter_is_enabled": [":rustfmt_runfiles"],
         "//conditions:default": [],
     }),
+)
+
+pw_py_binary(
+    name = "format",
+    srcs = ["pigweed_format/__main__.py"],
+    main = "pigweed_format/__main__.py",
+    deps = [
+        ":formatters",
+        "//pw_build/py:pw_build",
+        "@rules_python//python/runfiles",
+    ],
 )
 
 pw_py_binary(
