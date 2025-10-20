@@ -605,6 +605,52 @@ pw_cc_test(
     ],
 )
 
+cc_library(
+    name = "channel",
+    hdrs = [
+        "public/pw_async2/channel.h",
+    ],
+    strip_include_prefix = "public",
+    deps = [
+        ":dispatcher",
+        ":poll",
+        "//pw_allocator",
+        "//pw_containers:dynamic_deque",
+        "//pw_sync:interrupt_spin_lock",
+    ],
+)
+
+pw_cc_test(
+    name = "channel_test",
+    srcs = [
+        "channel_test.cc",
+    ],
+    deps = [
+        ":channel",
+        ":dispatcher",
+        ":pend_func_task",
+        ":poll",
+        "//pw_allocator:testing",
+        "//pw_containers:vector",
+    ],
+)
+
+pw_cc_test(
+    name = "channel_coro_test",
+    srcs = [
+        "channel_coro_test.cc",
+    ],
+    deps = [
+        ":channel",
+        ":coro",
+        ":coro_or_else_task",
+        ":dispatcher",
+        ":poll",
+        "//pw_allocator:testing",
+        "//pw_containers:vector",
+    ],
+)
+
 sphinx_docs_library(
     name = "docs",
     srcs = [
@@ -632,6 +678,7 @@ filegroup(
         "public/pw_async2/allocate_task.h",
         "public/pw_async2/callback_task.h",
         "public/pw_async2/cancellable_task.h",
+        "public/pw_async2/channel.h",
         "public/pw_async2/context.h",
         "public/pw_async2/coro.h",
         "public/pw_async2/coro_or_else_task.h",

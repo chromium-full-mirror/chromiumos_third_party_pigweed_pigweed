@@ -70,7 +70,7 @@ class ValueProvider {
   /// Returns `true` if the provider stores a pending future.
   bool has_future() { return provider_.has_future(); }
 
-  /// Resolves the pending `ValueFuture` with a the provided value.
+  /// Resolves the pending `ValueFuture` with the provided value.
   void Resolve(T value);
 
   /// Resolves the pending `ValueFuture` by constructing its value in-place.
