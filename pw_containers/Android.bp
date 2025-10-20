@@ -16,6 +16,14 @@ package {
     default_applicable_licenses: ["external_pigweed_license"],
 }
 
+cc_library_headers {
+    name: "pw_containers_headers",
+    export_include_dirs: [
+        "public"
+    ],
+    host_supported: true,
+}
+
 cc_library_static {
     name: "pw_containers",
     defaults: [
@@ -28,12 +36,19 @@ cc_library_static {
         "pw_log",
     ],
     static_libs: [
+        "pw_bytes",
         "pw_numeric",
         "pw_polyfill",
         "pw_preprocessor",
         "pw_span",
+        "pw_varint",
     ],
     srcs: [
+        "aa_tree_item.cc",
+        "aa_tree.cc",
+        "inline_var_len_entry_queue.cc",
         "intrusive_item.cc",
+        "var_len_entry.cc",
+        "var_len_entry_queue_iterator.cc",
     ],
 }
