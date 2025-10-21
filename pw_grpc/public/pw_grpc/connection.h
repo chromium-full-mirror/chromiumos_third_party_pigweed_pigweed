@@ -114,13 +114,6 @@ class Connection {
     virtual void OnCancel(StreamId id) = 0;
   };
 
-  // TODO(b/453996049): Remove after migration.
-  Connection(stream::ReaderWriter& socket,
-             SendQueue& send_queue,
-             RequestCallbacks& callbacks,
-             allocator::Allocator* message_assembly_allocator,
-             multibuf::MultiBufAllocator& multibuf_allocator);
-
   Connection(stream::ReaderWriter& socket,
              RequestCallbacks& callbacks,
              allocator::Allocator* message_assembly_allocator,
