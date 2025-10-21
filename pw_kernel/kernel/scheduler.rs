@@ -32,6 +32,7 @@ use crate::{Arch, Kernel};
 mod algorithm;
 mod locks;
 mod priority;
+pub mod priority_bitmask;
 pub mod thread;
 pub mod timer;
 

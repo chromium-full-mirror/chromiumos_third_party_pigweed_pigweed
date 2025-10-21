@@ -12,12 +12,17 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 
+use core::mem::MaybeUninit;
+
 use foreign_box::ForeignBox;
 use list::ForeignList;
 
 use crate::Kernel;
 use crate::scheduler::Priority;
+use crate::scheduler::priority_bitmask::PriorityBitmask;
 use crate::thread::{Thread, ThreadListAdapter};
+
+type RunQueue<K> = ForeignList<Thread<K>, ThreadListAdapter<K>>;
 
 /// The reason a thread is being rescheduled. This can be used as a hint to the
 /// scheduling algorithm to determine where the thread should end up in the
@@ -36,7 +41,6 @@ pub enum RescheduleReason {
 /// Per-thread state used by the scheduling algorithm.
 pub struct SchedulerAlgorithmThreadState {
     /// The current priority of the thread.
-    #[allow(dead_code)]
     current_priority: Priority,
 }
 
@@ -49,7 +53,11 @@ impl SchedulerAlgorithmThreadState {
 
 /// The algorithm used for determining which thread to run next.
 pub struct SchedulerAlgorithm<K: Kernel> {
-    run_queue: ForeignList<Thread<K>, ThreadListAdapter<K>>,
+    // Array of run queues, one for each priority level.
+    // Index 0 is the lowest priority, NUM_PRIORITIES - 1 is the highest.
+    run_queues: [RunQueue<K>; Priority::NUM_PRIORITIES],
+    // Bitmask to track non-empty run queues.
+    ready_bitmask: PriorityBitmask,
 }
 
 unsafe impl<K: Kernel> Sync for SchedulerAlgorithm<K> {}
@@ -58,16 +66,47 @@ unsafe impl<K: Kernel> Send for SchedulerAlgorithm<K> {}
 impl<K: Kernel> SchedulerAlgorithm<K> {
     #[allow(clippy::new_without_default)]
     pub const fn new() -> Self {
+        // Initialize the array of ForeignLists. There are a few limitations
+        // from running in a `const` context that make this more complicated
+        // than usual.
+        // - ForeignList does not implement `Copy`
+        // - `Default::default` and `core::array::from_fn` don't support `const`
+        // - `const` `for` loops are an unstable feature
+        //
+        // Instead a combination of `MaybeUninit`, `while`, and `transmute` are
+        // used.
+        let run_queues = {
+            let mut queues =
+                [const { MaybeUninit::<RunQueue<K>>::uninit() }; Priority::NUM_PRIORITIES];
+
+            let mut i = 0;
+            while i < Priority::NUM_PRIORITIES {
+                queues[i].write(ForeignList::new());
+                i += 1;
+            }
+
+            // SAFETY: All elements have been initiailzed in the loop above.
+            unsafe {
+                core::mem::transmute::<
+                    [MaybeUninit<RunQueue<K>>; Priority::NUM_PRIORITIES],
+                    [RunQueue<K>; Priority::NUM_PRIORITIES],
+                >(queues)
+            }
+        };
+
         Self {
-            run_queue: ForeignList::new(),
+            run_queues,
+            ready_bitmask: PriorityBitmask::new(),
         }
     }
 
     pub fn schedule_thread(&mut self, thread: ForeignBox<Thread<K>>, reason: RescheduleReason) {
-        let run_queue = &mut self.run_queue;
+        let priority = thread.algorithm_state.current_priority;
+        self.ready_bitmask.set_priority(priority);
+        let run_queue = &mut self.run_queues[priority as usize];
         match reason {
             RescheduleReason::Preempted => {
-                self.run_queue.push_front(thread);
+                run_queue.push_front(thread);
             }
             RescheduleReason::Started | RescheduleReason::Ticked | RescheduleReason::Woken => {
                 run_queue.push_back(thread);
@@ -76,6 +115,13 @@ impl<K: Kernel> SchedulerAlgorithm<K> {
     }
 
     pub fn get_next_thread(&mut self) -> Option<ForeignBox<Thread<K>>> {
-        self.run_queue.pop_head()
+        let priority = self.ready_bitmask.get_highest_priority()?;
+
+        let run_queue = &mut self.run_queues[priority as usize];
+        let thread = run_queue.pop_head();
+        if run_queue.is_empty() {
+            self.ready_bitmask.clear_priority(priority);
+        }
+        thread
     }
 }

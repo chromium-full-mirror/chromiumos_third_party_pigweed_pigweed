@@ -40,6 +40,7 @@ rust_library(
         "scheduler/algorithm.rs",
         "scheduler/locks.rs",
         "scheduler/priority.rs",
+        "scheduler/priority_bitmask.rs",
         "scheduler/thread.rs",
         "scheduler/timer.rs",
         "sync.rs",
