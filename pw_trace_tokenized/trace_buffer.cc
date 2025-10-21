@@ -11,23 +11,19 @@
 // WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 // License for the specific language governing permissions and limitations under
 // the License.
-//==============================================================================
-//
 #include "pw_trace_tokenized/trace_buffer.h"
 
-#include "pw_ring_buffer/prefixed_entry_ring_buffer.h"
 #include "pw_span/span.h"
+#include "pw_trace_tokenized/config.h"
 #include "pw_trace_tokenized/trace_callback.h"
 
-namespace pw {
-namespace trace {
-namespace {
+namespace pw::trace {
+namespace internal {
 
 class TraceBufferImpl {
  public:
-  TraceBufferImpl(Callbacks& callbacks) : callbacks_(callbacks) {
-    ring_buffer_.SetBuffer(raw_buffer_)
-        .IgnoreError();  // TODO: b/242598609 - Handle Status properly
+  TraceBufferImpl(Callbacks& callbacks)
+      : callbacks_(callbacks), trace_buffer_(queue_) {
     callbacks_
         .RegisterSink(
             TraceSinkStartBlock, TraceSinkAddBytes, TraceSinkEndBlock, this)
@@ -61,44 +57,35 @@ class TraceBufferImpl {
     if (buffer->block_idx_ != buffer->block_size_) {
       return;  // Block is too large, skipping.
     }
-    buffer->ring_buffer_
-        .PushBack(span<const std::byte>(&buffer->current_block_[0],
-                                        buffer->block_size_))
-        .IgnoreError();  // TODO: b/242598609 - Handle Status properly
+    buffer->queue_.push_overwrite(
+        ConstByteSpan(buffer->current_block_, buffer->block_size_));
   }
 
-  pw::trace::TraceBuffer& GetBuffer() { return ring_buffer_; }
-
-  ConstByteSpan DeringAndViewRawBuffer() {
-    ring_buffer_.Dering()
-        .IgnoreError();  // TODO: b/242598609 - Handle Status properly
-    return ByteSpan(raw_buffer_, ring_buffer_.TotalUsedBytes());
-  }
+  constexpr TraceBuffer& GetBuffer() { return trace_buffer_; }
 
  private:
+  friend ConstByteSpan pw::trace::DeringAndViewRawBuffer();
+
   Callbacks& callbacks_;
   uint16_t block_size_ = 0;
   uint16_t block_idx_ = 0;
   std::byte current_block_[PW_TRACE_BUFFER_MAX_BLOCK_SIZE_BYTES];
-  std::byte raw_buffer_[PW_TRACE_BUFFER_SIZE_BYTES];
-  pw::trace::TraceBuffer ring_buffer_{false};
+  InlineVarLenEntryQueue<PW_TRACE_BUFFER_SIZE_BYTES> queue_;
+  TraceBuffer trace_buffer_;
 };
 
 #if PW_TRACE_BUFFER_SIZE_BYTES > 0
 TraceBufferImpl trace_buffer_instance(GetCallbacks());
 #endif  // PW_TRACE_BUFFER_SIZE_BYTES > 0
 
-}  // namespace
+}  // namespace internal
 
 void ClearBuffer() { GetBuffer()->Clear(); }
 
-pw::trace::TraceBuffer* GetBuffer() {
-  return &trace_buffer_instance.GetBuffer();
+TraceBuffer* GetBuffer() {
+  return &internal::trace_buffer_instance.GetBuffer();
 }
 
-ConstByteSpan DeringAndViewRawBuffer() {
-  return trace_buffer_instance.DeringAndViewRawBuffer();
-}
+ConstByteSpan DeringAndViewRawBuffer() { return GetBuffer()->queue().dering(); }
 
-}  // namespace trace
-}  // namespace pw
+}  // namespace pw::trace

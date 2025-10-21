@@ -49,7 +49,10 @@ cc_library(
     ],
     strip_include_prefix = "public",
     tags = ["noclangtidy"],
-    deps = [":config_backend"],
+    deps = [
+        ":config_backend",
+        "//pw_varint",
+    ],
 )
 
 label_flag(
@@ -157,7 +160,6 @@ cc_library(
     deps = [
         ":buffer",
         ":pw_trace_tokenized",
-        "//pw_ring_buffer",
         "//pw_stream",
     ],
 )
@@ -187,6 +189,9 @@ cc_library(
         "public/pw_trace_tokenized/trace_rpc_service_nanopb.h",
     ],
     features = ["-conversion_warnings"],
+    implementation_deps = [
+        ":pw_trace_tokenized",
+    ],
     strip_include_prefix = "public",
     deps = [
         ":buffer",
@@ -198,20 +203,15 @@ cc_library(
 
 cc_library(
     name = "buffer",
-    srcs = [
-        "trace_buffer.cc",
-    ],
-    hdrs = [
-        "public/pw_trace_tokenized/trace_buffer.h",
-    ],
-    features = ["-conversion_warnings"],
-    strip_include_prefix = "public",
-    deps = [
+    srcs = ["trace_buffer.cc"],
+    hdrs = ["public/pw_trace_tokenized/trace_buffer.h"],
+    implementation_deps = [
+        ":config",
         ":pw_trace_tokenized",
-        "//pw_bytes",
-        "//pw_ring_buffer",
-        "//pw_status",
+        "//pw_span",
     ],
+    strip_include_prefix = "public",
+    deps = ["//pw_containers:inline_var_len_entry_queue"],
 )
 
 cc_library(
@@ -223,6 +223,10 @@ cc_library(
         "public/pw_trace_tokenized/trace_buffer_log.h",
     ],
     features = ["-conversion_warnings"],
+    implementation_deps = [
+        ":config",
+        ":pw_trace_tokenized",
+    ],
     strip_include_prefix = "public",
     deps = [
         ":buffer",
@@ -333,16 +337,17 @@ py_proto_library(
 
 cc_library(
     name = "transfer_handler",
-    srcs = [
-        "transfer_handler.cc",
-    ],
-    hdrs = [
-        "public/pw_trace_tokenized/transfer_handler.h",
+    srcs = ["transfer_handler.cc"],
+    hdrs = ["public/pw_trace_tokenized/transfer_handler.h"],
+    implementation_deps = [
+        ":buffer",
+        ":pw_trace_tokenized",
+        "//pw_containers:var_len_entry_queue",
+        "//pw_log",
     ],
     strip_include_prefix = "public",
     deps = [
-        ":buffer",
-        ":pw_trace_tokenized",
+        ":config",
         "//pw_transfer",
     ],
 )
@@ -493,7 +498,10 @@ cc_library(
     name = "trace_tokenized_example_rpc",
     srcs = ["example/rpc.cc"],
     features = ["-conversion_warnings"],
-    implementation_deps = ["//pw_assert:check"],
+    implementation_deps = [
+        ":pw_trace_tokenized",
+        "//pw_assert:check",
+    ],
     deps = [
         ":trace_rpc_service",
         "//pw_hdlc",

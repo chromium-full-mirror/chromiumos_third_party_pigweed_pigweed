@@ -15,6 +15,14 @@
 // Configurable options for the tokenized trace module.
 #pragma once
 
+#ifdef __cplusplus
+#include <cstddef>
+#include <cstdint>
+#else
+#include <stddef.h>
+#include <stdint.h>
+#endif  // __cplusplus
+
 /// @module{pw_trace_tokenized}
 
 /// Since not all strings are tokenizeable, labels can be passed as arguments.
@@ -57,6 +65,8 @@ extern size_t pw_trace_GetTraceTimeTicksPerSecond(void);
 #ifdef __cplusplus
 
 #include <type_traits>
+
+#include "pw_varint/varint.h"
 
 static_assert(
     std::is_unsigned<PW_TRACE_TIME_TYPE>::value,
