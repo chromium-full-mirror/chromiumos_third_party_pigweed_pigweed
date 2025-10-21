@@ -17,6 +17,10 @@
 import %workspace%/pw_build/pigweed.bazelrc
 import %workspace%/pw_build/pigweed_recommended.bazelrc
 
+# Require updating MODULE.bazel to reflect changes in transitive dependency
+# requirements.
+common --check_direct_dependencies=error
+
 # TODO: https://pwbug.dev/258836641 - Only until bzlmod migration is done.
 common --enable_workspace
 
