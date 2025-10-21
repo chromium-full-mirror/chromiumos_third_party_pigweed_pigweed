@@ -472,6 +472,13 @@
       "type": "ANALYZER"
     },
     {
+      "name": "compile_commands_performance_test",
+      "description": "Runs performance tests for pw_ide's compile commands generator",
+      "use_config": "bazel_default",
+      "target": "//pw_ide/py:performance_test",
+      "type": "ANALYZER"
+    },
+    {
       "name": "push",
       "description": "Upload the current git branch to Gerrit for review.",
       "use_config": "bazel_default",
@@ -506,7 +513,8 @@
       "name": "default",
       "description": "Most common builds/configurations",
       "analyzers": [
-        "compile_commands_integration_test"
+        "compile_commands_integration_test",
+        "compile_commands_performance_test"
       ],
       "builds": [
         "all_host",

@@ -62,6 +62,7 @@ pw_python_package("py") {
 group("bazel_only") {
   data = [
     "integration_test.py",
+    "performance_test.py",
     "merger_test.py",
     "pw_ide/cleaner.py",
     "pw_ide/merger.py",

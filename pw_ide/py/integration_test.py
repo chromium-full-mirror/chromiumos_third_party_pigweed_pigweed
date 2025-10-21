@@ -46,6 +46,12 @@ _INCLUDE_PREFIXES = (
     '-iquote',
 )
 
+# pylint: disable=line-too-long
+_TEST_CPP_TARGET = (
+    '//pw_ide/bazel/compile_commands/test:test_compile_commands_outputs'
+)
+# pylint: enable=line-too-long
+
 
 def _get_host_platform() -> str:
     """Searches the CWD to determine the current execution platform name.
@@ -502,15 +508,13 @@ class CompileCommandsViaBuildTest(CompileCommandsTestBase):
 
         # Run the compile commands updater.
         update_result = subprocess.run(
-            # pylint: disable=line-too-long
             [
                 cls.updater_path,
                 f'--out-dir={cls.temp_dir.name}',
                 '--',
                 'build',
-                '//pw_ide/bazel/compile_commands/test:test_compile_commands_outputs',
+                _TEST_CPP_TARGET,
             ],
-            # pylint: enable=line-too-long
             capture_output=True,
             text=True,
             check=False,

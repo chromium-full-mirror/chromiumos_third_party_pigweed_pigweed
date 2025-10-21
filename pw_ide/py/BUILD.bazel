@@ -215,3 +215,21 @@ pw_py_binary(
         ":update_compile_commands_binary",
     ],
 )
+
+pw_py_binary(
+    name = "performance_test",
+    testonly = True,
+    srcs = ["performance_test.py"],
+    data = [
+        # Ensure compile commands are always available.
+        "//pw_ide/bazel/compile_commands/test:test_compile_commands",
+        # Ensure generated files exist.
+        "//pw_ide/bazel/compile_commands/test:test_compile_commands_outputs",
+        # This is used because we need something with a LOT of dependencies for
+        # performance regression testing.
+        "//pw_system:rp2040_system_example",
+    ],
+    deps = [
+        ":update_compile_commands_binary",
+    ],
+)
