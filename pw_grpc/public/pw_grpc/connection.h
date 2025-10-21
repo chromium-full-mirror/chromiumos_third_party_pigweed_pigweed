@@ -17,6 +17,8 @@
 #include <cstdint>
 
 #include "pw_allocator/allocator.h"
+#include "pw_allocator/libc_allocator.h"
+#include "pw_allocator/synchronized_allocator.h"
 #include "pw_bytes/byte_builder.h"
 #include "pw_bytes/span.h"
 #include "pw_function/function.h"
@@ -114,10 +116,17 @@ class Connection {
     virtual void OnCancel(StreamId id) = 0;
   };
 
+  // TODO(b/453996049): Remove after migration.
   Connection(stream::ReaderWriter& socket,
              RequestCallbacks& callbacks,
-             allocator::Allocator* message_assembly_allocator,
+             Allocator* message_assembly_allocator,
              multibuf::MultiBufAllocator& multibuf_allocator);
+
+  Connection(stream::ReaderWriter& socket,
+             RequestCallbacks& callbacks,
+             Allocator* message_assembly_allocator,
+             multibuf::MultiBufAllocator& multibuf_allocator,
+             Allocator& send_allocator);
 
   // Reads from stream and processes required connection preface frames. Should
   // be called before ProcessFrame(). Return OK if connection preface was found.
@@ -369,6 +378,7 @@ class Connection {
 
   // Shared state that is thread-safe.
   stream::ReaderWriter& socket_;
+  allocator::SynchronizedAllocator<sync::Mutex> send_allocator_;
   SendQueue send_queue_;
   sync::InlineBorrowable<SharedState> shared_state_;
   Reader reader_;
