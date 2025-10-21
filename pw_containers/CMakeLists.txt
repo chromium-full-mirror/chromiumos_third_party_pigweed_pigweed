@@ -243,6 +243,16 @@ pw_add_library(pw_containers.deque INTERFACE
     pw_containers.storage
 )
 
+pw_add_library(pw_containers.queue INTERFACE
+  HEADERS
+    public/pw_containers/queue.h
+  PUBLIC_INCLUDES
+    public
+  PUBLIC_DEPS
+    pw_containers.deque
+    pw_containers._queue_common
+)
+
 pw_add_library(pw_containers._test_helpers STATIC
   HEADERS
     public/pw_containers/internal/container_tests.h
@@ -596,6 +606,18 @@ pw_add_test(pw_containers.fixed_deque_static_common_test
   PRIVATE_DEPS
     pw_containers.deque
     pw_containers._test_helpers
+  GROUPS
+    modules
+    pw_containers
+)
+
+pw_add_test(pw_containers.queue_test
+  SOURCES
+    queue_test.cc
+  PRIVATE_DEPS
+    pw_containers.queue
+    pw_containers._test_helpers
+    pw_allocator.testing
   GROUPS
     modules
     pw_containers

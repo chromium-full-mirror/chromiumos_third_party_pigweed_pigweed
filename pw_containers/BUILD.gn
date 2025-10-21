@@ -225,6 +225,15 @@ pw_source_set("deque") {
   ]
 }
 
+pw_source_set("queue") {
+  public_configs = [ ":public_include_path" ]
+  public = [ "public/pw_containers/queue.h" ]
+  public_deps = [
+    ":deque",
+    ":queue_common",
+  ]
+}
+
 pw_source_set("test_helpers") {
   public_configs = [ ":public_include_path" ]
   public = [
@@ -447,6 +456,7 @@ pw_test_group("tests") {
     ":intrusive_multimap_test",
     ":intrusive_set_test",
     ":intrusive_multiset_test",
+    ":queue_test",
     ":raw_storage_test",
     ":storage_test",
     ":to_array_test",
@@ -589,6 +599,15 @@ pw_test("fixed_deque_static_common_test") {
   deps = [
     ":deque",
     ":test_helpers",
+  ]
+}
+
+pw_test("queue_test") {
+  sources = [ "queue_test.cc" ]
+  deps = [
+    ":queue",
+    ":test_helpers",
+    "$dir_pw_allocator:testing",
   ]
 }
 

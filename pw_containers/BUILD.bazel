@@ -308,6 +308,16 @@ cc_library(
 )
 
 cc_library(
+    name = "queue",
+    hdrs = ["public/pw_containers/queue.h"],
+    strip_include_prefix = "public",
+    deps = [
+        ":deque",
+        ":queue_common",
+    ],
+)
+
+cc_library(
     name = "generic_var_len_entry_queue",
     srcs = [
         "var_len_entry.cc",
@@ -658,6 +668,16 @@ pw_cc_test(
 )
 
 pw_cc_test(
+    name = "queue_test",
+    srcs = ["queue_test.cc"],
+    deps = [
+        ":queue",
+        ":test_helpers",
+        "//pw_allocator:testing",
+    ],
+)
+
+pw_cc_test(
     name = "raw_storage_test",
     srcs = [
         "raw_storage_test.cc",
@@ -856,6 +876,7 @@ filegroup(
         "public/pw_containers/internal/aa_tree.h",
         "public/pw_containers/internal/async_count_and_capacity.h",
         "public/pw_containers/internal/generic_deque.h",
+        "public/pw_containers/internal/generic_queue.h",
         "public/pw_containers/internal/intrusive_list.h",
         "public/pw_containers/intrusive_forward_list.h",
         "public/pw_containers/intrusive_list.h",
@@ -865,6 +886,7 @@ filegroup(
         "public/pw_containers/intrusive_set.h",
         "public/pw_containers/optional_tuple.h",
         "public/pw_containers/ptr_iterator.h",
+        "public/pw_containers/queue.h",
         "public/pw_containers/storage.h",
         "public/pw_containers/to_array.h",
         "public/pw_containers/vector.h",
