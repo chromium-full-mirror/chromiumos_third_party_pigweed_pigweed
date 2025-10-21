@@ -29,6 +29,7 @@ pw_add_library(pw_containers.config INTERFACE
 
 # Libraries
 
+# The pw_containers group is DEPRECATED. Do not add new containers to it.
 pw_add_library(pw_containers INTERFACE
   PUBLIC_DEPS
     pw_containers.algorithm
@@ -228,6 +229,18 @@ pw_add_library(pw_containers.storage INTERFACE
   PUBLIC_DEPS
     pw_allocator
     pw_containers.algorithm
+)
+
+pw_add_library(pw_containers.deque INTERFACE
+  HEADERS
+    public/pw_containers/deque.h
+  PUBLIC_INCLUDES
+    public
+  PUBLIC_DEPS
+    pw_assert
+    pw_allocator.allocator
+    pw_containers._deque_common
+    pw_containers.storage
 )
 
 pw_add_library(pw_containers._test_helpers STATIC
@@ -542,6 +555,46 @@ pw_add_test(pw_containers.dynamic_queue_test
   PRIVATE_DEPS
     pw_allocator.testing
     pw_containers.dynamic_queue
+    pw_containers._test_helpers
+  GROUPS
+    modules
+    pw_containers
+)
+
+pw_add_test(pw_containers.deque_test
+  SOURCES
+    deque_test.cc
+  PRIVATE_DEPS
+    pw_compilation_testing._pigweed_only_negative_compilation
+    pw_containers.deque
+    pw_containers._test_helpers
+    pw_allocator.null_allocator
+    pw_allocator.testing
+    pw_assert
+    pw_polyfill
+    pw_span
+  GROUPS
+    modules
+    pw_containers
+)
+
+pw_add_test(pw_containers.fixed_deque_allocated_common_test
+  SOURCES
+    fixed_deque_allocated_common_test.cc
+  PRIVATE_DEPS
+    pw_containers.deque
+    pw_containers._test_helpers
+    pw_allocator.testing
+  GROUPS
+    modules
+    pw_containers
+)
+
+pw_add_test(pw_containers.fixed_deque_static_common_test
+  SOURCES
+    fixed_deque_static_common_test.cc
+  PRIVATE_DEPS
+    pw_containers.deque
     pw_containers._test_helpers
   GROUPS
     modules

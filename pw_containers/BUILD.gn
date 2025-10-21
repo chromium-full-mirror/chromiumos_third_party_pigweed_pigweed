@@ -45,6 +45,7 @@ pw_source_set("config") {
 
 # Libraries
 
+# The pw_containers group is DEPRECATED. Do not add new containers to it.
 group("pw_containers") {
   public_deps = [
     ":algorithm",
@@ -210,6 +211,17 @@ pw_source_set("storage") {
   public_deps = [
     ":algorithm",
     dir_pw_allocator,
+  ]
+}
+
+pw_source_set("deque") {
+  public_configs = [ ":public_include_path" ]
+  public = [ "public/pw_containers/deque.h" ]
+  public_deps = [
+    ":deque_common",
+    ":storage",
+    "$dir_pw_allocator:allocator",
+    dir_pw_assert,
   ]
 }
 
@@ -416,6 +428,9 @@ pw_test_group("tests") {
   tests = [
     ":algorithm_test",
     ":bitset_test",
+    ":deque_test",
+    ":fixed_deque_allocated_common_test",
+    ":fixed_deque_static_common_test",
     ":filtered_view_test",
     ":flat_map_test",
     ":dynamic_deque_test",
@@ -543,6 +558,37 @@ pw_test("dynamic_queue_test") {
     ":dynamic_queue",
     ":test_helpers",
     "$dir_pw_allocator:testing",
+  ]
+}
+
+pw_test("deque_test") {
+  sources = [ "deque_test.cc" ]
+  deps = [
+    ":deque",
+    ":test_helpers",
+    "$dir_pw_allocator:null_allocator",
+    "$dir_pw_allocator:testing",
+    dir_pw_assert,
+    dir_pw_polyfill,
+    dir_pw_span,
+  ]
+  negative_compilation_tests = true
+}
+
+pw_test("fixed_deque_allocated_common_test") {
+  sources = [ "fixed_deque_allocated_common_test.cc" ]
+  deps = [
+    ":deque",
+    ":test_helpers",
+    "$dir_pw_allocator:testing",
+  ]
+}
+
+pw_test("fixed_deque_static_common_test") {
+  sources = [ "fixed_deque_static_common_test.cc" ]
+  deps = [
+    ":deque",
+    ":test_helpers",
   ]
 }
 
