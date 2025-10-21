@@ -16,6 +16,7 @@
 from __future__ import annotations
 from collections import defaultdict
 from collections.abc import Sequence
+import glob
 import os
 from pathlib import Path
 import re
@@ -72,6 +73,14 @@ def expand_action(
         else:
             expanded_args.append(string.Template(arg).safe_substitute(env))
     return expanded_args
+
+
+class StripPrefixError(ValueError):
+    pass
+
+
+class NoMatchingOutputsError(ValueError):
+    pass
 
 
 class WorkflowsManager:
@@ -141,6 +150,9 @@ class WorkflowsManager:
         if fragment.WhichOneof('config') == 'use_config':
             return self._shared_configs[fragment.use_config]
         return fragment.build_config
+
+    def _build_dir(self, config: workflows_pb2.BuildConfig) -> Path:
+        return self._base_out_dir / config.name
 
     def _action_working_dir(
         self,
@@ -232,7 +244,7 @@ class WorkflowsManager:
                 self._prepare_driver_request(request, sanitize=True)
             )
             for job_request, job_response in zip(request.jobs, response.jobs):
-                build_dir = self._base_out_dir / config.name
+                build_dir = self._build_dir(config)
                 fragment = (
                     job_request.tool
                     if job_request.WhichOneof('type') == 'tool'
@@ -490,3 +502,52 @@ class WorkflowsManager:
                     f'Internal error: `{fragment.name}` is an unexpected type'
                 )
         return self._prepare_driver_request(request, sanitize=sanitize)
+
+    def collect_artifacts(
+        self,
+        fragment_name: str,
+    ) -> workflows_pb2.BuildArtifacts:
+        """Collect matching artifacts."""
+        result = workflows_pb2.BuildArtifacts()
+
+        fragment = self._fragments_by_name[fragment_name]
+
+        if not hasattr(fragment, 'output_spec'):
+            raise TypeError(f'{fragment} does not have an output_spec member.')
+
+        config = self._get_build_config(fragment)
+
+        output_root = self._build_dir(config)
+        result.output_root = str(output_root)
+
+        for spec in fragment.output_spec:
+            outputs: list[str] = []
+            for pattern in spec.glob_patterns:
+                for match in glob.iglob(
+                    pattern,
+                    root_dir=output_root,
+                    recursive=True,
+                ):
+                    match = match.replace(os.sep, '/')
+                    outputs.append(match)
+
+                    if spec.strip_prefix:
+                        strip_prefix = spec.strip_prefix.replace(os.sep, '/')
+                        if not match.startswith(strip_prefix):
+                            raise StripPrefixError(
+                                f'{match} does not match strip_prefix '
+                                f'({strip_prefix})'
+                            )
+
+            if not outputs and not spec.allow_empty:
+                raise NoMatchingOutputsError(
+                    f'no matching outputs for output group spec {spec.name}',
+                )
+
+            if outputs:
+                group = workflows_pb2.OutputGroup()
+                group.matching_files.extend(outputs)
+                group.strip_prefix = spec.strip_prefix
+                result.output_groups.append(group)
+
+        return result

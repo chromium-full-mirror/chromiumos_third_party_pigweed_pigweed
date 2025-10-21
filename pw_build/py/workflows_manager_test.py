@@ -13,6 +13,7 @@
 # the License.
 """Tests for the WorkflowsManager."""
 
+import tempfile
 import unittest
 from unittest.mock import patch
 
@@ -20,7 +21,12 @@ from pathlib import Path
 
 from pw_build.build_recipe import BuildRecipe
 from pw_build.proto import build_driver_pb2, workflows_pb2
-from pw_build.workflows.manager import WorkflowsManager, expand_action
+from pw_build.workflows.manager import (
+    WorkflowsManager,
+    expand_action,
+    NoMatchingOutputsError,
+    StripPrefixError,
+)
 from pw_build.workflows.build_driver import BuildDriver
 
 
@@ -49,7 +55,8 @@ class WorkflowsManagerTest(unittest.TestCase):
         """Set up a test environment."""
         self.project_root = Path('/test/project/root')
         self.working_dir = Path('/test/working/dir')
-        self.base_out_dir = Path('/test/working/dir/out')
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.base_out_dir = Path(self.temp_dir.name)
         self.workflow_suite = workflows_pb2.WorkflowSuite(
             configs=[
                 workflows_pb2.BuildConfig(
@@ -127,6 +134,56 @@ class WorkflowsManagerTest(unittest.TestCase):
                         args=['--existing-arg'],
                     ),
                 ),
+                workflows_pb2.Build(
+                    name='build_for_artifact_success',
+                    targets=['//:placeholder'],
+                    build_config=workflows_pb2.BuildConfig(
+                        name='cfg_success', build_type='fake_build_type'
+                    ),
+                    output_spec=[
+                        workflows_pb2.OutputGroupSpec(
+                            name='files', glob_patterns=['*.txt']
+                        ),
+                        workflows_pb2.OutputGroupSpec(
+                            name='stripped',
+                            glob_patterns=['prefix/f.elf'],
+                            strip_prefix='prefix/',
+                        ),
+                        workflows_pb2.OutputGroupSpec(
+                            name='empty_ok',
+                            glob_patterns=['nonexistent/*'],
+                            allow_empty=True,
+                        ),
+                    ],
+                ),
+                workflows_pb2.Build(
+                    name='build_for_artifact_no_match',
+                    targets=['//:placeholder'],
+                    build_config=workflows_pb2.BuildConfig(
+                        name='cfg_no_match', build_type='fake_build_type'
+                    ),
+                    output_spec=[
+                        workflows_pb2.OutputGroupSpec(
+                            name='empty_not_ok',
+                            glob_patterns=['nonexistent/*'],
+                            allow_empty=False,
+                        )
+                    ],
+                ),
+                workflows_pb2.Build(
+                    name='build_for_artifact_bad_prefix',
+                    targets=['//:placeholder'],
+                    build_config=workflows_pb2.BuildConfig(
+                        name='cfg_bad_prefix', build_type='fake_build_type'
+                    ),
+                    output_spec=[
+                        workflows_pb2.OutputGroupSpec(
+                            name='bad_prefix',
+                            glob_patterns=['f.txt'],
+                            strip_prefix='wrong/',
+                        )
+                    ],
+                ),
             ],
             groups=[
                 workflows_pb2.TaskGroup(
@@ -137,6 +194,10 @@ class WorkflowsManagerTest(unittest.TestCase):
             ],
         )
         self.build_drivers = {'fake_build_type': FakeBuildDriver()}
+
+    def tearDown(self):
+        """Clean up the test environment."""
+        self.temp_dir.cleanup()
 
     def test_init_success(self):
         """Test successful initialization of WorkflowsManager."""
@@ -562,6 +623,85 @@ class WorkflowsManagerTest(unittest.TestCase):
                 list(request.jobs[0].tool.build_config.args),
                 ['--extra', '--args'],
             )
+
+    def test_collect_artifacts_success(self):
+        """Test successful artifact collection."""
+        manager = WorkflowsManager(
+            self.workflow_suite,
+            self.build_drivers,
+            self.working_dir,
+            self.base_out_dir,
+            self.project_root,
+        )
+        output_root = self.base_out_dir / 'cfg_success'
+        output_root.mkdir()
+        (output_root / 'a.txt').touch()
+        (output_root / 'b.txt').touch()
+        (output_root / 'prefix').mkdir()
+        (output_root / 'prefix' / 'f.elf').touch()
+
+        artifacts = manager.collect_artifacts('build_for_artifact_success')
+        self.assertEqual(str(output_root), artifacts.output_root)
+        self.assertEqual(len(artifacts.output_groups), 2)
+
+        unstripped_group = next(
+            g for g in artifacts.output_groups if not g.strip_prefix
+        )
+        stripped_group = next(
+            g for g in artifacts.output_groups if g.strip_prefix
+        )
+
+        self.assertCountEqual(
+            unstripped_group.matching_files,
+            ['a.txt', 'b.txt'],
+        )
+        self.assertEqual(stripped_group.matching_files, ['prefix/f.elf'])
+
+    def test_collect_artifacts_no_matching_outputs_error(self):
+        """Test that NoMatchingOutputsError is raised when required."""
+        manager = WorkflowsManager(
+            self.workflow_suite,
+            self.build_drivers,
+            self.working_dir,
+            self.base_out_dir,
+            self.project_root,
+        )
+        output_root = self.base_out_dir / 'cfg_no_match'
+        output_root.mkdir()
+
+        with self.assertRaises(NoMatchingOutputsError):
+            manager.collect_artifacts('build_for_artifact_no_match')
+
+    def test_collect_artifacts_strip_prefix_error(self):
+        """Test that StripPrefixError is raised for mismatched prefixes."""
+        manager = WorkflowsManager(
+            self.workflow_suite,
+            self.build_drivers,
+            self.working_dir,
+            self.base_out_dir,
+            self.project_root,
+        )
+        output_root = self.base_out_dir / 'cfg_bad_prefix'
+        output_root.mkdir()
+        (output_root / 'f.txt').touch()
+
+        with self.assertRaises(StripPrefixError):
+            manager.collect_artifacts('build_for_artifact_bad_prefix')
+
+    def test_collect_artifacts_no_output_spec(self):
+        """Test that an empty result is returned for fragments with no spec."""
+        manager = WorkflowsManager(
+            self.workflow_suite,
+            self.build_drivers,
+            self.working_dir,
+            self.base_out_dir,
+            self.project_root,
+        )
+        artifacts = manager.collect_artifacts('my_build')
+        self.assertEqual(len(artifacts.output_groups), 0)
+        self.assertEqual(
+            artifacts.output_root, str(self.base_out_dir / 'build_config')
+        )
 
 
 if __name__ == '__main__':

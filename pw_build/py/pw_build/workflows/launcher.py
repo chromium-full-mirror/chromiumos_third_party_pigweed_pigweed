@@ -22,7 +22,7 @@ from pathlib import Path
 import sys
 from typing import NoReturn
 
-from google.protobuf import json_format
+from google.protobuf import json_format, text_format
 from pw_build import project_builder
 from pw_build.proto import workflows_pb2
 from pw_build.workflows.bazel_driver import BazelBuildDriver
@@ -66,6 +66,7 @@ class _WorkflowToolPlugin(multitool.MultitoolPlugin):
     ):
         self._fragment = fragment
         self._manager = manager
+        self._artifacts_manifest: Path | None = None
 
     def name(self) -> str:
         return self._fragment.name
@@ -82,13 +83,21 @@ class _WorkflowToolPlugin(multitool.MultitoolPlugin):
         # Don't forward project builder output to stdout when launching a
         # tool, it pollutes tool output.
         _PROJECT_BUILDER_LOGGER.propagate = False
-        return project_builder.run_builds(
+        result = project_builder.run_builds(
             project_builder.ProjectBuilder(
                 build_recipes=recipes,
                 execute_command=project_builder.execute_command_pure,
                 root_logger=_PROJECT_BUILDER_LOGGER,
             ),
         )
+
+        if self._artifacts_manifest:
+            artifacts = self._manager.collect_artifacts(self._fragment.name)
+            self._artifacts_manifest.write_text(
+                text_format.MessageToString(artifacts),
+            )
+
+        return result
 
 
 class _WorkflowGroupPlugin(multitool.MultitoolPlugin):
@@ -168,6 +177,7 @@ class WorkflowsCli(multitool.MultitoolCli):
         super().__init__()
         self.config: workflows_pb2.WorkflowSuite | None = config
         self._workflows: WorkflowsManager | None = None
+        self._artifacts_manifest: Path | None = None
 
     @staticmethod
     def _load_proto_json(config: Path) -> workflows_pb2.WorkflowSuite:
@@ -218,6 +228,17 @@ class WorkflowsCli(multitool.MultitoolCli):
             ),
         )
 
+        parser.add_argument(
+            '--artifacts-manifest',
+            default=None,
+            type=Path,
+            help=(
+                'If exactly one step is being executed, any output artifacts '
+                'configured for that step will be written to this path as a '
+                'textproto with message BuildArtifacts.'
+            ),
+        )
+
     def _launch_analyzer(self, args: Sequence[str]) -> int:
         if self._workflows is None:
             raise AssertionError(
@@ -242,12 +263,21 @@ class WorkflowsCli(multitool.MultitoolCli):
                 'Internal error: failed to initialize workflows manager'
             )
         _PROJECT_BUILDER_LOGGER.propagate = True
-        return project_builder.run_builds(
+        recipes = self._workflows.program_build(args[0])
+        result = project_builder.run_builds(
             project_builder.ProjectBuilder(
-                build_recipes=self._workflows.program_build(args[0]),
+                build_recipes=recipes,
                 root_logger=_PROJECT_BUILDER_LOGGER,
             )
         )
+
+        if self._artifacts_manifest:
+            artifacts = self._workflows.collect_artifacts(args[0])
+            self._artifacts_manifest.write_text(
+                text_format.MessageToString(artifacts),
+            )
+
+        return result
 
     def describe(self) -> Describe:
         return Describe(config=self.config, workflows=self._workflows)
@@ -276,6 +306,8 @@ class WorkflowsCli(multitool.MultitoolCli):
     ) -> Sequence[multitool.MultitoolPlugin]:
         if not self.config:
             self.config = self._load_config_from()
+
+        self._artifacts_manifest = args.artifacts_manifest
 
         self._workflows = WorkflowsManager(
             self.config,

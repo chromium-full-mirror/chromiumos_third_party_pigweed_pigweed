@@ -32,6 +32,21 @@ _EXAMPLE_CONFIG = """
       "env": {}
     }
   ],
+  "output_specs": [
+    {
+      "name": "output_one_strip",
+      "glob_patterns": [
+        "bazel-bin/1*"
+      ],
+      "strip_prefix": "bazel-bin/"
+    },
+    {
+      "name": "output_two_nostrip",
+      "glob_patterns": [
+        "bazel-bin/2*"
+      ]
+    }
+  ],
   "builds": [
     {
       "name": "all_host",
