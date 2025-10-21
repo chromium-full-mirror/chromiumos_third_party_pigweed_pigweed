@@ -114,8 +114,14 @@ class Connection {
     virtual void OnCancel(StreamId id) = 0;
   };
 
+  // TODO(b/453996049): Remove after migration.
   Connection(stream::ReaderWriter& socket,
              SendQueue& send_queue,
+             RequestCallbacks& callbacks,
+             allocator::Allocator* message_assembly_allocator,
+             multibuf::MultiBufAllocator& multibuf_allocator);
+
+  Connection(stream::ReaderWriter& socket,
              RequestCallbacks& callbacks,
              allocator::Allocator* message_assembly_allocator,
              multibuf::MultiBufAllocator& multibuf_allocator);
@@ -159,6 +165,10 @@ class Connection {
   Status SendResponseComplete(StreamId stream_id, pw::Status response_code) {
     return writer_.SendResponseComplete(stream_id, response_code);
   }
+
+  // Access SendQueue for this connection. Should be used to start and stop the
+  // thread.
+  SendQueue& send_queue() { return send_queue_; }
 
  private:
   // RFC 9113 §6.9.2. Flow control windows are unsigned 31-bit numbers, but
@@ -366,7 +376,7 @@ class Connection {
 
   // Shared state that is thread-safe.
   stream::ReaderWriter& socket_;
-
+  SendQueue send_queue_;
   sync::InlineBorrowable<SharedState> shared_state_;
   Reader reader_;
   Writer writer_;
@@ -385,23 +395,19 @@ class ConnectionThread : public Connection, public thread::ThreadCore {
                    ConnectionCloseCallback&& connection_close_callback,
                    allocator::Allocator* message_assembly_allocator,
                    multibuf::MultiBufAllocator& multibuf_allocator)
-      : Connection(stream,
-                   send_queue_,
-                   callbacks,
-                   message_assembly_allocator,
-                   multibuf_allocator),
-        send_queue_(stream),
+      : Connection(
+            stream, callbacks, message_assembly_allocator, multibuf_allocator),
         send_queue_thread_options_(send_thread_options),
         connection_close_callback_(std::move(connection_close_callback)) {}
 
   // Process the connection. Does not return until the connection is closed.
   void Run() override {
-    Thread send_thread(send_queue_thread_options_, send_queue_);
+    Thread send_thread(send_queue_thread_options_, send_queue());
     Status status = ProcessConnectionPreface();
     while (status.ok()) {
       status = ProcessFrame();
     }
-    send_queue_.RequestStop();
+    send_queue().RequestStop();
     send_thread.join();
     if (connection_close_callback_) {
       connection_close_callback_();
@@ -409,7 +415,6 @@ class ConnectionThread : public Connection, public thread::ThreadCore {
   }
 
  private:
-  SendQueue send_queue_;
   const thread::Options& send_queue_thread_options_;
   ConnectionCloseCallback connection_close_callback_;
 };
