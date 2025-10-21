@@ -16,7 +16,6 @@
 import argparse
 from collections.abc import Sequence
 import logging
-import sys
 
 from google.protobuf import message, text_format
 from pw_build.proto import workflows_pb2
@@ -62,15 +61,6 @@ class Describe:
         )
 
         parser.add_argument(
-            '--dump-build-requests',
-            nargs='?',
-            metavar='FILE_PATH',
-            const=sys.stdout,
-            type=argparse.FileType('w'),
-            help=argparse.SUPPRESS,
-        )
-
-        parser.add_argument(
             '--infra-metadata',
             action='store_true',
             help=(
@@ -86,13 +76,6 @@ class Describe:
 
         if not args.name:
             return self.dump_config() + '\n'
-
-        if args.dump_build_requests:
-            print(
-                self.dump_build_request(args.name),
-                file=args.dump_build_requests,
-            )
-            return ''
 
         if args.infra_metadata:
             return self.dump_build_request(args.name)
