@@ -224,7 +224,12 @@ class TransferThread : public thread::ThreadCore {
   }
 
   bool AddTransferHandler(Handler& handler) {
-    return TransferHandlerEvent(EventType::kAddTransferHandler, handler);
+    if (!TransferHandlerEvent(EventType::kAddTransferHandler, handler)) {
+      return false;
+    }
+    // Wait for handler to be fully registered before returning.
+    WaitUntilEventIsProcessed();
+    return true;
   }
 
   bool RemoveTransferHandler(Handler& handler) {
