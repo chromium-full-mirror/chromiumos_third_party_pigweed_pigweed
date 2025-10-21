@@ -39,8 +39,8 @@ pub struct Armv8MConfig {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Armv8MNvicConfig {
-    pub vector_table_start_address: usize,
-    pub vector_table_size_bytes: usize,
+    pub vector_table_start_address: u64,
+    pub vector_table_size_bytes: u64,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -50,29 +50,29 @@ pub struct RiscVConfig;
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct KernelConfig {
-    pub flash_start_address: usize,
-    pub flash_size_bytes: usize,
-    pub ram_start_address: usize,
-    pub ram_size_bytes: usize,
+    pub flash_start_address: u64,
+    pub flash_size_bytes: u64,
+    pub ram_start_address: u64,
+    pub ram_size_bytes: u64,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct AppConfig {
-    pub flash_size_bytes: usize,
-    pub ram_size_bytes: usize,
+    pub flash_size_bytes: u64,
+    pub ram_size_bytes: u64,
     pub process: ProcessConfig,
     // The following fields are calculated, not defined by a user.
     // TODO: davidroth - if this becomes too un-wieldy, we should
     // split the config schema from the template structs.
     #[serde(skip_deserializing)]
-    pub flash_start_address: usize,
+    pub flash_start_address: u64,
     #[serde(skip_deserializing)]
-    pub ram_start_address: usize,
+    pub ram_start_address: u64,
     #[serde(skip_deserializing)]
-    pub start_fn_address: usize,
+    pub start_fn_address: u64,
     #[serde(skip_deserializing)]
-    pub initial_sp: usize,
+    pub initial_sp: u64,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -123,7 +123,7 @@ pub struct ChannelHandlerConfig;
 #[serde(deny_unknown_fields)]
 pub struct ThreadConfig {
     name: String,
-    stack_size_bytes: usize,
+    stack_size_bytes: u64,
     priority: Option<String>,
 }
 

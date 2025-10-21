@@ -70,7 +70,7 @@ pub struct AppLinkerScriptArgs {
 
 pub trait ArchConfigInterface {
     fn get_arch_crate_name(&self) -> &'static str;
-    fn get_start_fn_address(&self, flash_start_address: usize) -> usize;
+    fn get_start_fn_address(&self, flash_start_address: u64) -> u64;
 }
 
 pub fn parse_config<A: ArchConfigInterface + DeserializeOwned>(
@@ -84,15 +84,15 @@ pub fn parse_config<A: ArchConfigInterface + DeserializeOwned>(
     Ok(config)
 }
 
-const FLASH_ALIGNMENT: usize = 4;
-const RAM_ALIGNMENT: usize = 8;
+const FLASH_ALIGNMENT: u64 = 4;
+const RAM_ALIGNMENT: u64 = 8;
 
 impl ArchConfigInterface for system_config::Armv8MConfig {
     fn get_arch_crate_name(&self) -> &'static str {
         "arch_arm_cortex_m"
     }
 
-    fn get_start_fn_address(&self, flash_start_address: usize) -> usize {
+    fn get_start_fn_address(&self, flash_start_address: u64) -> u64 {
         // On Armv8M, the +1 is to denote thumb mode.
         flash_start_address + 1
     }
@@ -103,7 +103,7 @@ impl ArchConfigInterface for system_config::RiscVConfig {
         "arch_riscv"
     }
 
-    fn get_start_fn_address(&self, flash_start_address: usize) -> usize {
+    fn get_start_fn_address(&self, flash_start_address: u64) -> u64 {
         flash_start_address
     }
 }
@@ -161,7 +161,7 @@ impl<'a, A: ArchConfigInterface + Serialize> SystemGenerator<'a, A> {
     }
 
     #[must_use]
-    fn align(value: usize, alignment: usize) -> usize {
+    fn align(value: u64, alignment: u64) -> u64 {
         debug_assert!(alignment.is_power_of_two());
         (value + alignment - 1) & !(alignment - 1)
     }

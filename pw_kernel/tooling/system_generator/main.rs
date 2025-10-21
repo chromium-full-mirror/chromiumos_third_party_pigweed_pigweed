@@ -36,7 +36,7 @@ impl ArchConfigInterface for ArchConfig {
         }
     }
 
-    fn get_start_fn_address(&self, flash_start_address: usize) -> usize {
+    fn get_start_fn_address(&self, flash_start_address: u64) -> u64 {
         match self {
             ArchConfig::Armv8M(config) => config.get_start_fn_address(flash_start_address),
             ArchConfig::RiscV(config) => config.get_start_fn_address(flash_start_address),
