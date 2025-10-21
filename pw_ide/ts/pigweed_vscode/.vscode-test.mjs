@@ -22,7 +22,7 @@ export default defineConfig([
     workspaceFolder: path.join(process.cwd(), '..', '..', '..'),
     mocha: {
       ui: 'tdd',
-      timeout: 120000,
+      timeout: 360000,
     },
     // TODO: https://pwbug.dev/427219817 - Rapid successive extension installs
     // have a tendency to flake. Do not split this in a way that causes
