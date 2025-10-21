@@ -119,8 +119,82 @@ void SimpleAsyncInt::ResolveAllFutures() {
   }
 }
 
+class NotificationFuture;
+
+class AsyncNotification {
+ public:
+  NotificationFuture Wait();
+
+  void Notify() {
+    {
+      std::lock_guard lock(list_provider_.lock());
+      completed_ = true;
+    }
+    ResolveAllFutures();
+  }
+
+  void ResolveAllFutures();
+
+ private:
+  friend class NotificationFuture;
+
+  ListFutureProvider<NotificationFuture> list_provider_;
+  bool completed_ = false;
+};
+
+class NotificationFuture
+    : public ListableFutureWithWaker<NotificationFuture, void> {
+ public:
+  static constexpr const char kWaitReason[] = "NotificationFuture";
+
+  NotificationFuture(NotificationFuture&& other) noexcept
+      : ListableFutureWithWaker(kMovedFrom),
+        async_void_(std::exchange(other.async_void_, nullptr)) {
+    ListableFutureWithWaker::MoveFrom(other);
+  }
+
+  NotificationFuture& operator=(NotificationFuture&& other) noexcept {
+    async_void_ = std::exchange(other.async_void_, nullptr);
+    ListableFutureWithWaker::MoveFrom(other);
+    return *this;
+  }
+
+  pw::async2::Poll<> DoPend(pw::async2::Context&) {
+    PW_ASSERT(async_void_ != nullptr);
+    std::lock_guard guard(lock());
+
+    if (!async_void_->completed_) {
+      return pw::async2::Pending();
+    }
+
+    return pw::async2::Ready();
+  }
+
+ private:
+  friend class AsyncNotification;
+  friend class ListableFutureWithWaker<NotificationFuture, void>;
+
+  NotificationFuture(AsyncNotification& async_void,
+                     ListFutureProvider<NotificationFuture>& provider)
+      : ListableFutureWithWaker(provider), async_void_(&async_void) {}
+
+  AsyncNotification* async_void_;
+};
+
+NotificationFuture AsyncNotification::Wait() {
+  return NotificationFuture(*this, list_provider_);
+}
+
+void AsyncNotification::ResolveAllFutures() {
+  while (!list_provider_.empty()) {
+    NotificationFuture& future = list_provider_.Pop();
+    future.Wake();
+  }
+}
+
 static_assert(!pw::async2::experimental::is_future_v<int>);
 static_assert(pw::async2::experimental::is_future_v<SimpleIntFuture>);
+static_assert(pw::async2::experimental::is_future_v<NotificationFuture>);
 
 TEST(Future, Pend) {
   pw::async2::Dispatcher dispatcher;
@@ -142,6 +216,29 @@ TEST(Future, Pend) {
   provider.Set(27);
   EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Ready());
   EXPECT_EQ(result, 27);
+}
+
+TEST(Future, VoidFuture) {
+  pw::async2::Dispatcher dispatcher;
+  AsyncNotification notification;
+
+  NotificationFuture future = notification.Wait();
+  bool completed = false;
+
+  pw::async2::PendFuncTask task(
+      [&](pw::async2::Context& cx) -> pw::async2::Poll<> {
+        PW_TRY_READY(future.Pend(cx));
+        completed = true;
+        return pw::async2::Ready();
+      });
+
+  dispatcher.Post(task);
+  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Pending());
+  EXPECT_FALSE(completed);
+
+  notification.Notify();
+  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Ready());
+  EXPECT_TRUE(completed);
 }
 
 TEST(Future, MoveAssign) {

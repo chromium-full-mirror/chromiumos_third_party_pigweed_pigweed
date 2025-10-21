@@ -24,6 +24,7 @@ namespace {
 using pw::async2::experimental::BroadcastValueProvider;
 using pw::async2::experimental::ValueFuture;
 using pw::async2::experimental::ValueProvider;
+using pw::async2::experimental::VoidFuture;
 
 TEST(ValueFuture, Pend) {
   pw::async2::Dispatcher dispatcher;
@@ -159,7 +160,7 @@ TEST(ValueProvider, ResolveInPlace) {
   dispatcher.Post(task);
   EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Pending());
 
-  provider.Resolve(std::in_place, 9, 3);
+  provider.Resolve(9, 3);
   EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Ready());
   ASSERT_TRUE(result.has_value());
   EXPECT_EQ(result->first, 9);
@@ -167,3 +168,67 @@ TEST(ValueProvider, ResolveInPlace) {
 }
 
 }  // namespace
+
+TEST(VoidFuture, Pend) {
+  pw::async2::Dispatcher dispatcher;
+  BroadcastValueProvider<void> provider;
+
+  VoidFuture future = provider.Get();
+  bool completed = false;
+
+  pw::async2::PendFuncTask task(
+      [&](pw::async2::Context& cx) -> pw::async2::Poll<> {
+        PW_TRY_READY(future.Pend(cx));
+        completed = true;
+        return pw::async2::Ready();
+      });
+
+  dispatcher.Post(task);
+  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Pending());
+  EXPECT_FALSE(completed);
+
+  provider.Resolve();
+  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Ready());
+  EXPECT_TRUE(completed);
+}
+
+TEST(VoidFuture, Resolved) {
+  pw::async2::Dispatcher dispatcher;
+  auto future = VoidFuture::Resolved();
+  bool completed = false;
+
+  pw::async2::PendFuncTask task(
+      [&](pw::async2::Context& cx) -> pw::async2::Poll<> {
+        PW_TRY_READY(future.Pend(cx));
+        completed = true;
+        return pw::async2::Ready();
+      });
+
+  dispatcher.Post(task);
+  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Ready());
+  EXPECT_TRUE(completed);
+}
+
+TEST(ValueProviderVoid, VendsAndResolvesFuture) {
+  pw::async2::Dispatcher dispatcher;
+  ValueProvider<void> provider;
+
+  std::optional<VoidFuture> future = provider.Get();
+  ASSERT_TRUE(future.has_value());
+
+  bool completed = false;
+  pw::async2::PendFuncTask task(
+      [&](pw::async2::Context& cx) -> pw::async2::Poll<> {
+        PW_TRY_READY(future->Pend(cx));
+        completed = true;
+        return pw::async2::Ready();
+      });
+
+  dispatcher.Post(task);
+  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Pending());
+  EXPECT_FALSE(completed);
+
+  provider.Resolve();
+  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Ready());
+  EXPECT_TRUE(completed);
+}

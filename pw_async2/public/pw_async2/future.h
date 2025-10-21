@@ -56,10 +56,11 @@ namespace pw::async2::experimental {
 ///
 /// @tparam Derived The concrete class that implements this `Future`.
 /// @tparam T       The type of the value returned by `Pend` upon completion.
+///                 Use `void` for futures that do not return a value.
 template <typename Derived, typename T>
 class Future {
  public:
-  using value_type = T;
+  using value_type = std::conditional_t<std::is_void_v<T>, ReadyType, T>;
 
   /// Polls the future to advance its state.
   ///
@@ -389,13 +390,13 @@ class ListableFutureWithWaker
   friend Base;
   friend ListFutureProvider<Derived>;
 
-  Poll<T> DoPend(Context& cx) {
+  Poll<typename Base::value_type> DoPend(Context& cx) {
     static_assert(
         std::is_same_v<std::remove_extent_t<decltype(Derived::kWaitReason)>,
                        const char>,
         "kWaitReason must be a character array");
 
-    Poll<T> poll = derived().DoPend(cx);
+    Poll<typename Base::value_type> poll = derived().DoPend(cx);
     if (poll.IsPending()) {
       PW_ASYNC_STORE_WAKER(cx, waker_, Derived::kWaitReason);
       Relist();
