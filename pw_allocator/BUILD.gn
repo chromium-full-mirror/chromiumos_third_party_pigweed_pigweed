@@ -877,6 +877,5 @@ pw_test_group("tests") {
     "benchmarks:tests",
     "block:tests",
     "bucket:tests",
-    "examples",
   ]
 }

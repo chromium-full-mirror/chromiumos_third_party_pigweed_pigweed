@@ -12,26 +12,33 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 
-#include "pw_containers/inline_deque.h"
-
 #include "pw_bloat/bloat_this_binary.h"
+#include "pw_containers/deque.h"
 #include "pw_containers/size_report/deque.h"
 
 namespace pw::containers::size_report {
+namespace {
+
+template <typename T, int&... kExplicitGuard, typename Iterator>
+int MeasureStatic(Iterator first, Iterator last, uint32_t mask) {
+  auto& fixed_deque = GetContainer<FixedDeque<T, kNumItems>>();
+  return MeasureDeque<Deque<T>>(fixed_deque, first, last, mask);
+}
+
+template <typename T, int&... kExplicitGuard, typename Iterator>
+int MeasureDynamic(Iterator first, Iterator last, uint32_t mask) {
+  static FixedDeque<T> fixed_deque =
+      FixedDeque<T>::Allocate(pw::allocator::GetLibCAllocator(), kNumItems);
+  return MeasureDeque<Deque<T>>(fixed_deque, first, last, mask);
+}
+
+}  // namespace
 
 int Measure() {
   volatile uint32_t mask = bloat::kDefaultMask;
-  auto& items1 = GetItems<V1>();
-  auto& inline_deque1 = GetContainer<InlineDeque<V1, kNumItems>>();
-  int rc = MeasureDeque(inline_deque1, items1.begin(), items1.end(), mask);
-
-#ifdef PW_CONTAINERS_SIZE_REPORT_ALTERNATE_VALUE
-  auto& items2 = GetItems<V2>();
-  auto& inline_deque2 = GetContainer<InlineDeque<V2, kNumItems>>();
-  rc += MeasureDeque(inline_deque2, items2.begin(), items2.end(), mask);
-#endif
-
-  return rc;
+  auto& items = GetItems<V1>();
+  return MeasureStatic<V1>(items.begin(), items.end(), mask) +
+         MeasureDynamic<V1>(items.begin(), items.end(), mask);
 }
 
 }  // namespace pw::containers::size_report

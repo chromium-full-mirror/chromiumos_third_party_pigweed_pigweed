@@ -67,9 +67,9 @@ Container& GetContainer() {
 
 /// Returns a statically allocated container of the given type, constructed with
 /// the provided arguments.
-template <typename Container, typename Args>
-Container& GetContainer(const Args& args) {
-  static Container container(args);
+template <typename Container, typename... Args>
+Container& GetContainer(Args&&... args) {
+  static Container container(std::forward<Args>(args)...);
   return container;
 }
 

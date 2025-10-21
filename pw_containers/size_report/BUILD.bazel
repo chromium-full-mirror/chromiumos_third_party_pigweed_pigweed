@@ -43,8 +43,8 @@ cc_library(
 )
 
 cc_library(
-    name = "inline_deque",
-    hdrs = ["public/pw_containers/size_report/inline_deque.h"],
+    name = "deque",
+    hdrs = ["public/pw_containers/size_report/deque.h"],
     features = ["-conversion_warnings"],
     strip_include_prefix = "public",
     deps = [
@@ -184,6 +184,63 @@ pw_cc_size_binary(
 )
 
 pw_cc_size_binary(
+    name = "fixed_deque_dynamic_base",
+    srcs = ["fixed_deque_dynamic.cc"],
+    deps = [
+        ":deque",
+        ":size_report",
+        "//pw_bloat:bloat_this_binary",
+        "//pw_containers:deque",
+    ],
+)
+
+pw_cc_size_binary(
+    name = "fixed_deque_dynamic_alternate_type",
+    srcs = ["fixed_deque_dynamic.cc"],
+    defines = ["PW_CONTAINERS_SIZE_REPORT_ALTERNATE_VALUE"],
+    deps = [
+        ":deque",
+        ":size_report",
+        "//pw_bloat:bloat_this_binary",
+        "//pw_containers:deque",
+    ],
+)
+
+pw_cc_size_binary(
+    name = "fixed_deque_static_base",
+    srcs = ["fixed_deque.cc"],
+    deps = [
+        ":deque",
+        ":size_report",
+        "//pw_bloat:bloat_this_binary",
+        "//pw_containers:deque",
+    ],
+)
+
+pw_cc_size_binary(
+    name = "fixed_deque_static_alternate_type",
+    srcs = ["fixed_deque.cc"],
+    defines = ["PW_CONTAINERS_SIZE_REPORT_ALTERNATE_VALUE"],
+    deps = [
+        ":deque",
+        ":size_report",
+        "//pw_bloat:bloat_this_binary",
+        "//pw_containers:deque",
+    ],
+)
+
+pw_cc_size_binary(
+    name = "fixed_deque_static_and_dynamic",
+    srcs = ["fixed_deque_static_and_dynamic.cc"],
+    deps = [
+        ":deque",
+        ":size_report",
+        "//pw_bloat:bloat_this_binary",
+        "//pw_containers:deque",
+    ],
+)
+
+pw_cc_size_binary(
     name = "dynamic_deque_base",
     srcs = ["dynamic_deque.cc"],
     deps = [
@@ -228,8 +285,9 @@ pw_cc_size_binary(
     srcs = ["inline_deque.cc"],
     features = ["-conversion_warnings"],
     deps = [
-        ":inline_deque",
+        ":deque",
         "//pw_bloat:bloat_this_binary",
+        "//pw_containers:inline_deque",
     ],
 )
 
@@ -239,8 +297,9 @@ pw_cc_size_binary(
     defines = ["PW_CONTAINERS_SIZE_REPORT_ALTERNATE_VALUE"],
     features = ["-conversion_warnings"],
     deps = [
-        ":inline_deque",
+        ":deque",
         "//pw_bloat:bloat_this_binary",
+        "//pw_containers:inline_deque",
     ],
 )
 
@@ -270,9 +329,10 @@ pw_cc_size_binary(
     srcs = ["inline_deque_and_queue.cc"],
     features = ["-conversion_warnings"],
     deps = [
-        ":inline_deque",
+        ":deque",
         ":inline_queue",
         "//pw_bloat:bloat_this_binary",
+        "//pw_containers:inline_deque",
     ],
 )
 

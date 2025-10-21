@@ -1069,6 +1069,41 @@ pw_size_diff(
 )
 
 pw_size_diff(
+    name = "fixed_deque_static_base_size_diff",
+    base = "//pw_containers/size_report:base",
+    label = "FixedDeque (static)",
+    target = "//pw_containers/size_report:fixed_deque_static_base",
+)
+
+pw_size_diff(
+    name = "fixed_deque_static_alternate_type_size_diff",
+    base = "//pw_containers/size_report:fixed_deque_static_base",
+    label = "Additional FixedDeque (static) with different item type",
+    target = "//pw_containers/size_report:fixed_deque_static_alternate_type",
+)
+
+pw_size_diff(
+    name = "fixed_deque_dynamic_base_size_diff",
+    base = "//pw_containers/size_report:base",
+    label = "FixedDeque (dynamic)",
+    target = "//pw_containers/size_report:fixed_deque_dynamic_base",
+)
+
+pw_size_diff(
+    name = "fixed_deque_dynamic_alternate_type_size_diff",
+    base = "//pw_containers/size_report:fixed_deque_dynamic_base",
+    label = "Additional FixedDeque (dynamic) with different item type",
+    target = "//pw_containers/size_report:fixed_deque_dynamic_alternate_type",
+)
+
+pw_size_diff(
+    name = "fixed_deque_static_and_dynamic_size_diff",
+    base = "//pw_containers/size_report:base",
+    label = "FixedDeque (static and dynamic)",
+    target = "//pw_containers/size_report:fixed_deque_static_and_dynamic",
+)
+
+pw_size_diff(
     name = "std_deque_base_size_diff",
     base = "//pw_containers/size_report:base",
     label = "std::deque",
@@ -1089,6 +1124,11 @@ pw_size_table(
         ":std_deque_alternate_type_size_diff",
         ":dynamic_deque_base_size_diff",
         ":dynamic_deque_alternate_type_size_diff",
+        ":fixed_deque_static_base_size_diff",
+        ":fixed_deque_static_alternate_type_size_diff",
+        ":fixed_deque_dynamic_base_size_diff",
+        ":fixed_deque_dynamic_alternate_type_size_diff",
+        ":fixed_deque_static_and_dynamic_size_diff",
         ":inline_deque_base_size_diff",
         ":inline_deque_alternate_type_size_diff",
         ":inline_queue_base_size_diff",
