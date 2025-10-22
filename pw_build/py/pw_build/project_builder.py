@@ -43,11 +43,13 @@ from __future__ import annotations
 
 import argparse
 import concurrent.futures
+import glob
 import os
 import logging
 from pathlib import Path
 import re
 import shlex
+import shutil
 import sys
 import subprocess
 import time
@@ -1127,6 +1129,20 @@ class ProjectBuilder:  # pylint: disable=too-many-instance-attributes
 
         self.flush_log_handlers()
         return BUILDER_CONTEXT.exit_code()
+
+    def clean_builds(self):
+        for recipe in self.build_recipes:
+            for glob_pattern in recipe.clean_globs:
+                for match in glob.iglob(
+                    glob_pattern,
+                    recursive=True,
+                    root_dir=recipe.build_dir,
+                ):
+                    path = Path(match)
+                    if path.is_dir():
+                        shutil.rmtree(path)
+                    else:
+                        os.unlink(path)
 
 
 def run_recipe(

@@ -248,14 +248,25 @@ class WorkflowsCli(multitool.MultitoolCli):
         # Don't forward project builder output to stdout when launching a
         # tool, it pollutes tool output.
         _PROJECT_BUILDER_LOGGER.propagate = False
-        return project_builder.run_builds(
-            project_builder.ProjectBuilder(
-                build_recipes=self._workflows.program_tool(
-                    args[0], args[1:], as_analyzer=True
-                ),
-                execute_command=project_builder.execute_command_pure,
+        builder = project_builder.ProjectBuilder(
+            build_recipes=self._workflows.program_tool(
+                args[0], args[1:], as_analyzer=True
             ),
+            execute_command=project_builder.execute_command_pure,
         )
+
+        if self._artifacts_manifest:
+            builder.clean_builds()
+
+        result = project_builder.run_builds(builder)
+
+        if self._artifacts_manifest:
+            artifacts = self._workflows.collect_artifacts(args[0])
+            self._artifacts_manifest.write_text(
+                text_format.MessageToString(artifacts),
+            )
+
+        return result
 
     def _launch_build(self, args: Sequence[str]) -> int:
         if self._workflows is None:
@@ -264,12 +275,15 @@ class WorkflowsCli(multitool.MultitoolCli):
             )
         _PROJECT_BUILDER_LOGGER.propagate = True
         recipes = self._workflows.program_build(args[0])
-        result = project_builder.run_builds(
-            project_builder.ProjectBuilder(
-                build_recipes=recipes,
-                root_logger=_PROJECT_BUILDER_LOGGER,
-            )
+        builder = project_builder.ProjectBuilder(
+            build_recipes=recipes,
+            root_logger=_PROJECT_BUILDER_LOGGER,
         )
+
+        if self._artifacts_manifest:
+            builder.clean_builds()
+
+        result = project_builder.run_builds(builder)
 
         if self._artifacts_manifest:
             artifacts = self._workflows.collect_artifacts(args[0])

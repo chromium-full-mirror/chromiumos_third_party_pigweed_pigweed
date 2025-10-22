@@ -454,6 +454,7 @@ class BuildRecipe:
     title: str | None = None
     enabled: bool = True
     auto_create_build_dir: bool = True
+    clean_globs: list[str] = field(default_factory=list)
 
     def __hash__(self):
         return hash((self.build_dir, self.title, len(self.steps)))

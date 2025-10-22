@@ -279,11 +279,17 @@ class WorkflowsManager:
                             targets=targets,
                         )
                     )
+
+                clean_globs: list[str] = []
+                for output_spec in fragment.output_spec:
+                    clean_globs.extend(output_spec.glob_patterns)
+
                 build_recipes.append(
                     BuildRecipe(
                         build_dir=build_dir,
                         title=fragment.rerun_shortcut,
                         steps=steps,
+                        clean_globs=clean_globs,
                     )
                 )
         return build_recipes
