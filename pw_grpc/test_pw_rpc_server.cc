@@ -18,6 +18,7 @@
 #include <string_view>
 #include <type_traits>
 
+#include "pw_allocator/best_fit.h"
 #include "pw_allocator/libc_allocator.h"
 #include "pw_bytes/byte_builder.h"
 #include "pw_bytes/span.h"
@@ -224,6 +225,9 @@ int main(int argc, char* argv[]) {
     std::array<std::byte, kMaxSendQueueSize> data_area;
     pw::multibuf::SimpleAllocator simple_allocator(data_area,
                                                    message_assembly_allocator);
+
+    std::array<std::byte, kMaxSendQueueSize> send_allocator_data;
+    pw::allocator::BestFitAllocator<> send_allocator(send_allocator_data);
     pw::thread::test::TestThreadContext connection_thread_context;
     pw::thread::test::TestThreadContext send_thread_context;
     pw::grpc::ConnectionThread conn(
@@ -232,7 +236,8 @@ int main(int argc, char* argv[]) {
         handler,
         [&socket]() { socket->Close(); },
         &message_assembly_allocator,
-        simple_allocator);
+        simple_allocator,
+        send_allocator);
     rpc_egress.set_connection(conn);
 
     pw::Thread conn_thread(connection_thread_context.options(), conn);

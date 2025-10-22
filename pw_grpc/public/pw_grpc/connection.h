@@ -17,7 +17,6 @@
 #include <cstdint>
 
 #include "pw_allocator/allocator.h"
-#include "pw_allocator/libc_allocator.h"
 #include "pw_allocator/synchronized_allocator.h"
 #include "pw_bytes/byte_builder.h"
 #include "pw_bytes/span.h"
@@ -115,12 +114,6 @@ class Connection {
     // Called when an RPC has been canceled.
     virtual void OnCancel(StreamId id) = 0;
   };
-
-  // TODO(b/453996049): Remove after migration.
-  Connection(stream::ReaderWriter& socket,
-             RequestCallbacks& callbacks,
-             Allocator* message_assembly_allocator,
-             multibuf::MultiBufAllocator& multibuf_allocator);
 
   Connection(stream::ReaderWriter& socket,
              RequestCallbacks& callbacks,
@@ -397,9 +390,13 @@ class ConnectionThread : public Connection, public thread::ThreadCore {
                    RequestCallbacks& callbacks,
                    ConnectionCloseCallback&& connection_close_callback,
                    allocator::Allocator* message_assembly_allocator,
-                   multibuf::MultiBufAllocator& multibuf_allocator)
-      : Connection(
-            stream, callbacks, message_assembly_allocator, multibuf_allocator),
+                   multibuf::MultiBufAllocator& multibuf_allocator,
+                   Allocator& send_allocator)
+      : Connection(stream,
+                   callbacks,
+                   message_assembly_allocator,
+                   multibuf_allocator,
+                   send_allocator),
         send_queue_thread_options_(send_thread_options),
         connection_close_callback_(std::move(connection_close_callback)) {}
 

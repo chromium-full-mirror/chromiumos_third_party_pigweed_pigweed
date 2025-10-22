@@ -163,20 +163,6 @@ PW_PACKED(struct) WireFrameHeader {
 
 Connection::Connection(stream::ReaderWriter& socket,
                        RequestCallbacks& callbacks,
-                       allocator::Allocator* message_assembly_allocator,
-                       multibuf::MultiBufAllocator& multibuf_allocator)
-    : socket_(socket),
-      send_allocator_(allocator::GetLibCAllocator()),
-      send_queue_(socket, send_allocator_),
-      shared_state_(std::in_place,
-                    message_assembly_allocator,
-                    multibuf_allocator,
-                    send_queue_),
-      reader_(*this, callbacks),
-      writer_(*this) {}
-
-Connection::Connection(stream::ReaderWriter& socket,
-                       RequestCallbacks& callbacks,
                        Allocator* message_assembly_allocator,
                        multibuf::MultiBufAllocator& multibuf_allocator,
                        Allocator& send_allocator)
