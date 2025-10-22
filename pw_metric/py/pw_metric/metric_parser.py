@@ -17,7 +17,7 @@ from collections import defaultdict
 from collections.abc import Mapping
 import dataclasses
 import logging
-from typing import Any, List, Union
+from typing import Any, Iterable, List, Union
 
 from pw_tokenizer import detokenize
 from pw_metric_proto import metric_service_pb2
@@ -90,6 +90,25 @@ def _to_dict_recursive(d: Mapping) -> dict:
     }
 
 
+def metrics_to_dict(
+    metric_messages: Iterable[metric_service_pb2.Metric],
+    detokenizer: detokenize.Detokenizer | None,
+) -> dict:
+    """Interprets Metric messages into a hierarchical dict, by name."""
+    metrics: defaultdict = _tree()
+    if not detokenizer:
+        _LOG.warning(
+            'No metrics token database set. Metric names will be shown as '
+            'tokens'
+        )
+
+    for metric_message in metric_messages:
+        parsed = parse_metric(metric_message, detokenizer)
+        _insert(metrics, parsed.path_names, parsed.value)
+
+    return _to_dict_recursive(metrics)
+
+
 def parse_metrics(
     rpcs: Any,
     detokenizer: detokenize.Detokenizer | None,
@@ -106,27 +125,19 @@ def parse_metrics(
     generally preferred method for large metric sets that may exceed the
     transport MTU.
     """
-    # Creates a defaultdict that can infinitely have other defaultdicts
-    # without a specified type.
-    metrics: defaultdict = _tree()
-
-    if not detokenizer:
-        _LOG.warning(
-            'No metrics token database set; metric names will be tokens'
-        )
     stream_response = rpcs.pw.metric.proto.MetricService.Get(
         metric_service_pb2.MetricRequest(), pw_rpc_timeout_s=timeout_s
     )
     if not stream_response.status.ok():
         _LOG.error('RPC failed: %s', stream_response.status)
         return {}
-    # Iterate over each payload received in the stream
-    for metric_response in stream_response.responses:
-        for metric in metric_response.metrics:
-            parsed = parse_metric(metric, detokenizer)
-            # inserting path_names into metrics.
-            _insert(metrics, parsed.path_names, parsed.value)
-    return _to_dict_recursive(metrics)
+
+    metric_messages = (
+        metric
+        for metric_response in stream_response.responses
+        for metric in metric_response.metrics
+    )
+    return metrics_to_dict(metric_messages, detokenizer)
 
 
 def get_all_metrics(
@@ -141,16 +152,10 @@ def get_all_metrics(
     guarantee transport readiness. Its paginated nature also makes it ideal for
     large metric sets that may exceed the transport MTU.
     """
-    metrics: defaultdict = _tree()
-    if not detokenizer:
-        _LOG.warning(
-            'No metrics token database set. Metric names will be shown as '
-            'tokens'
-        )
-
-    cursor = 0
     # Repeatedly call the Walk RPC, passing the cursor from the previous
     # response until the server indicates the walk is complete.
+    cursor = 0
+    metric_messages = []
     while True:
         # The python generated proto uses WalkRequest instead of Message
         request = metric_service_pb2.WalkRequest(cursor=cursor)
@@ -163,9 +168,7 @@ def get_all_metrics(
             break
 
         if response:
-            for metric in response.metrics:
-                parsed = parse_metric(metric, detokenizer)
-                _insert(metrics, parsed.path_names, parsed.value)
+            metric_messages += response.metrics
 
             if response.done:
                 break
@@ -183,4 +186,4 @@ def get_all_metrics(
             _LOG.error('RPC call failed and returned no response payload')
             break
 
-    return _to_dict_recursive(metrics)
+    return metrics_to_dict(metric_messages, detokenizer)
