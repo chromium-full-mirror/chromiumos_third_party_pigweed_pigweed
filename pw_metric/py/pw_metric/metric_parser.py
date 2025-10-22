@@ -14,8 +14,8 @@
 # the License.
 """Tools to retrieve and parse metrics."""
 from collections import defaultdict
+from collections.abc import Mapping
 import dataclasses
-import json
 import logging
 from typing import Any, List, Union
 
@@ -78,6 +78,14 @@ def _insert(metrics, path_names, value):
             metrics[path_name] = value
 
 
+def _to_dict_recursive(d: Mapping) -> dict:
+    """Recursively convert a nested mapping-like to a regular dict."""
+    return {
+        k: _to_dict_recursive(v) if isinstance(v, Mapping) else v
+        for k, v in d.items()
+    }
+
+
 def parse_metrics(
     rpcs: Any,
     detokenizer: detokenize.Detokenizer | None,
@@ -114,8 +122,7 @@ def parse_metrics(
             parsed = parse_metric(metric, detokenizer)
             # inserting path_names into metrics.
             _insert(metrics, parsed.path_names, parsed.value)
-    # Converts default dict objects into standard dictionaries.
-    return json.loads(json.dumps(metrics))
+    return _to_dict_recursive(metrics)
 
 
 def get_all_metrics(
@@ -172,4 +179,4 @@ def get_all_metrics(
             _LOG.error('RPC call failed and returned no response payload')
             break
 
-    return json.loads(json.dumps(metrics))
+    return _to_dict_recursive(metrics)

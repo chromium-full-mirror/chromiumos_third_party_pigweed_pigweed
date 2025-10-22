@@ -13,6 +13,8 @@
 # License for the specific language governing permissions and limitations under
 # the License.
 """Tests for retrieving and parsing metrics."""
+from collections.abc import Mapping
+from typing import Iterable
 from unittest import TestCase, mock, main
 from pw_metric import metric_parser
 
@@ -30,6 +32,13 @@ DATABASE = tokens.Database(
         tokens.TokenizedStringEntry(0xA7C43965, "log"),
     ]
 )
+
+
+def _dict_traverse(d) -> Iterable[tuple[object, object]]:
+    for k, v in d.items():
+        yield k, v
+        if isinstance(v, Mapping):
+            yield from _dict_traverse(v)
 
 
 class TestParseMetrics(TestCase):
@@ -419,6 +428,14 @@ class GetAllMetricsTest(TestCase):
         )
 
         self.assertEqual({'total_created': 100}, metrics)
+
+        # Ensure the returned type is exactly dict and not a subclass, all
+        # sub-dicts are too.
+        self.assertEqual(type(metrics), dict)
+        for _, v in _dict_traverse(metrics):
+            if isinstance(v, Mapping):
+                self.assertEqual(type(v), dict)
+
         self.rpcs.pw.metric.proto.MetricService.Walk.assert_called_once()
 
     def test_rpc_failure(self) -> None:
