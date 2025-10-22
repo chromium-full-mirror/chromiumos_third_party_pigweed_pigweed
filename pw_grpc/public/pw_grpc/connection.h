@@ -23,8 +23,6 @@
 #include "pw_containers/dynamic_queue.h"
 #include "pw_function/function.h"
 #include "pw_grpc/send_queue.h"
-#include "pw_multibuf/allocator.h"
-#include "pw_multibuf/multibuf.h"
 #include "pw_result/result.h"
 #include "pw_status/status.h"
 #include "pw_stream/stream.h"
@@ -115,13 +113,6 @@ class Connection {
     // Called when an RPC has been canceled.
     virtual void OnCancel(StreamId id) = 0;
   };
-
-  // TODO(b/453996049): Remove after migration.
-  Connection(stream::ReaderWriter& socket,
-             RequestCallbacks& callbacks,
-             Allocator* message_assembly_allocator,
-             multibuf::MultiBufAllocator& multibuf_allocator,
-             Allocator& send_allocator);
 
   Connection(stream::ReaderWriter& socket,
              RequestCallbacks& callbacks,

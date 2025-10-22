@@ -176,22 +176,6 @@ constexpr std::array<T, N> MakeArrayWithValue(Args&&... args) {
 
 }  // namespace
 
-Connection::Connection(
-    stream::ReaderWriter& socket,
-    RequestCallbacks& callbacks,
-    Allocator* message_assembly_allocator,
-    [[maybe_unused]] multibuf::MultiBufAllocator& multibuf_allocator,
-    Allocator& send_allocator)
-    : socket_(socket),
-      send_allocator_(send_allocator),
-      send_queue_(socket, send_allocator_),
-      shared_state_(std::in_place,
-                    message_assembly_allocator,
-                    send_allocator_,
-                    send_queue_),
-      reader_(*this, callbacks),
-      writer_(*this) {}
-
 Connection::Connection(stream::ReaderWriter& socket,
                        RequestCallbacks& callbacks,
                        Allocator* message_assembly_allocator,
