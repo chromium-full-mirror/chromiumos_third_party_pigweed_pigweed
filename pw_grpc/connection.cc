@@ -200,6 +200,40 @@ Connection::SharedState::SharedState(
       send_allocator_(send_allocator),
       send_queue_(send_queue) {}
 
+Result<Connection::DataFrame> Connection::DataFrame::Create(
+    Allocator& allocator, size_t message_payload_size) {
+  DataFrame data_frame(allocator, message_payload_size);
+  if (data_frame.bytes_ == nullptr) {
+    return Status::ResourceExhausted();
+  }
+  return data_frame;
+}
+
+Connection::DataFrame::DataFrame(Allocator& allocator,
+                                 size_t message_payload_size)
+    : bytes_(allocator.MakeUnique<std::byte[]>(message_payload_size +
+                                               kLengthPrefixedMessageHdrSize +
+                                               sizeof(WireFrameHeader))) {}
+
+size_t Connection::DataFrame::frame_payload_size() const {
+  return bytes_.size() - sizeof(WireFrameHeader);
+}
+
+ByteSpan Connection::DataFrame::writable_frame_header() {
+  return {bytes_.get(), sizeof(WireFrameHeader)};
+}
+
+ByteSpan Connection::DataFrame::writable_message_prefix() {
+  return {bytes_.get() + sizeof(WireFrameHeader),
+          kLengthPrefixedMessageHdrSize};
+}
+
+ByteSpan Connection::DataFrame::writable_message_payload() {
+  return {
+      bytes_.get() + sizeof(WireFrameHeader) + kLengthPrefixedMessageHdrSize,
+      bytes_.size() - sizeof(WireFrameHeader) - kLengthPrefixedMessageHdrSize};
+}
+
 Status Connection::Reader::ProcessFrame() {
   if (!received_connection_preface_) {
     return Status::FailedPrecondition();
@@ -288,15 +322,14 @@ Connection::Stream* Connection::SharedState::LookupStream(StreamId id) {
 
 Status Connection::SharedState::DrainResponseQueue(Stream& stream) {
   while (stream.response_queue.size() > 0) {
-    size_t message_size =
-        stream.response_queue.front().size() - sizeof(WireFrameHeader);
+    size_t message_size = stream.response_queue.front().frame_payload_size();
 
     if (static_cast<int32_t>(message_size) > stream.send_window ||
         static_cast<int32_t>(message_size) > connection_send_window_) {
       break;
     }
 
-    UniquePtr<std::byte[]> front = std::move(stream.response_queue.front());
+    DataFrame front = std::move(stream.response_queue.front());
     stream.response_queue.pop();
 
     PW_TRY(SendQueuedDataFrame(stream, std::move(front)));
@@ -325,13 +358,13 @@ Status Connection::SharedState::SendBytes(ConstByteSpan message) {
 
 // RFC 9113 §6.1
 Status Connection::SharedState::SendData(StreamId stream_id,
-                                         UniquePtr<std::byte[]>&& data_frame) {
-  size_t message_size = data_frame.size();
+                                         DataFrame&& data_frame) {
+  const size_t message_size = data_frame.frame_payload_size();
   PW_LOG_DEBUG("Conn.Send DATA with id=%" PRIu32 " len=%" PRIu32,
                stream_id,
                static_cast<uint32_t>(message_size));
 
-  send_queue_.QueueSend(std::move(data_frame));
+  send_queue_.QueueSend(data_frame.release());
   return OkStatus();
 }
 
@@ -484,39 +517,34 @@ Status Connection::Writer::SendResponseMessage(StreamId stream_id,
     return Status::InvalidArgument();
   }
 
-  // Create contiguous buffer big enough to hold the response message plus
-  // headers.
-  auto buffer = state->send_allocator().MakeUnique<std::byte[]>(
-      message.size() + kLengthPrefixedMessageHdrSize + sizeof(WireFrameHeader));
-  if (buffer == nullptr) {
-    return Status::ResourceExhausted();
-  }
+  PW_TRY_ASSIGN(DataFrame data_frame,
+                DataFrame::Create(state->send_allocator(), message.size()));
 
   WireFrameHeader frame(FrameHeader{
-      .payload_length =
-          static_cast<uint32_t>(message.size() + kLengthPrefixedMessageHdrSize),
+      .payload_length = static_cast<uint32_t>(data_frame.frame_payload_size()),
       .type = FrameType::DATA,
       .flags = 0,
       .stream_id = stream_id,
   });
 
   ConstByteSpan frame_span = ObjectAsBytes(frame);
-  std::memcpy(buffer.get(), frame_span.data(), frame_span.size());
+  std::copy_n(frame_span.begin(),
+              frame_span.size(),
+              data_frame.writable_frame_header().begin());
 
-  size_t offset = sizeof(WireFrameHeader);
-  ByteBuilder prefix(
-      ByteSpan(buffer.get() + offset, kLengthPrefixedMessageHdrSize));
+  ByteBuilder prefix(data_frame.writable_message_prefix());
   prefix.PutUint8(0);
   prefix.PutUint32(static_cast<uint32_t>(message.size()), endian::big);
 
-  offset += kLengthPrefixedMessageHdrSize;
-  std::memcpy(buffer.get() + offset, message.data(), message.size());
+  std::copy_n(message.begin(),
+              message.size(),
+              data_frame.writable_message_payload().begin());
 
-  return state->QueueStreamResponse(stream_id, std::move(buffer));
+  return state->QueueStreamResponse(stream_id, std::move(data_frame));
 }
 
-Status Connection::SharedState::QueueStreamResponse(
-    StreamId id, UniquePtr<std::byte[]>&& data_frame) {
+Status Connection::SharedState::QueueStreamResponse(StreamId id,
+                                                    DataFrame&& data_frame) {
   auto stream = LookupStream(id);
   if (!stream) {
     return Status::NotFound();
@@ -528,9 +556,9 @@ Status Connection::SharedState::QueueStreamResponse(
   return DrainResponseQueues();
 }
 
-Status Connection::SharedState::SendQueuedDataFrame(
-    Connection::Stream& stream, UniquePtr<std::byte[]>&& data_frame) {
-  size_t message_size = data_frame.size() - sizeof(WireFrameHeader);
+Status Connection::SharedState::SendQueuedDataFrame(Connection::Stream& stream,
+                                                    DataFrame&& data_frame) {
+  const size_t message_size = data_frame.frame_payload_size();
 
   auto status = OkStatus();
   if (!stream.started_response) {

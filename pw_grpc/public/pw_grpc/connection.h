@@ -174,6 +174,23 @@ class Connection {
       kDefaultInitialWindowSize;
   static constexpr int32_t kTargetStreamWindowSize = kDefaultInitialWindowSize;
 
+  class DataFrame {
+   public:
+    static Result<DataFrame> Create(Allocator& allocator,
+                                    size_t message_payload_size);
+
+    size_t frame_payload_size() const;
+    ByteSpan writable_frame_header();
+    ByteSpan writable_message_prefix();
+    ByteSpan writable_message_payload();
+
+    UniquePtr<std::byte[]> release() { return std::move(bytes_); }
+
+   private:
+    DataFrame(Allocator& allocator, size_t message_payload_size);
+    UniquePtr<std::byte[]> bytes_;
+  };
+
   // From RFC 9113 §5.1, we use only the following states:
   // * idle, which have `id > last_stream_id_`
   // * open, which are in `streams_` with `half_closed = false`
@@ -192,7 +209,7 @@ class Connection {
     int32_t recv_window = kTargetStreamWindowSize;
 
     // Response DATA frames that are waiting for window to send.
-    DynamicQueue<UniquePtr<std::byte[]>> response_queue;
+    DynamicQueue<DataFrame> response_queue;
 
     // Fragmented gRPC message assembly, nullptr if not assembling a message.
     UniquePtr<std::byte[]> assembly_buffer;
@@ -256,7 +273,7 @@ class Connection {
 
     // Queue response buffer for sending on `id` stream. Will send right away if
     // window is available.
-    Status QueueStreamResponse(StreamId id, UniquePtr<std::byte[]>&& buffer);
+    Status QueueStreamResponse(StreamId id, DataFrame&& data_frame);
 
     // Write raw bytes directly to send queue.
     Status SendBytes(ConstByteSpan message);
@@ -286,11 +303,10 @@ class Connection {
     // all active streams.
     Status DrainResponseQueues();
     Status DrainResponseQueue(Stream& stream);
-    Status SendQueuedDataFrame(Stream& stream,
-                               UniquePtr<std::byte[]>&& data_frame);
+    Status SendQueuedDataFrame(Stream& stream, DataFrame&& data_frame);
 
     // Write DATA frame to connection send queue.
-    Status SendData(StreamId stream_id, UniquePtr<std::byte[]>&& data_frame);
+    Status SendData(StreamId stream_id, DataFrame&& data_frame);
 
     // Stream state
     std::array<Stream, internal::kMaxConcurrentStreams> streams_;
