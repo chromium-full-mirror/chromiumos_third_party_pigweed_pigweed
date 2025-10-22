@@ -5936,6 +5936,275 @@ void FakeController::OnAndroidLEApcfCommand(
   }
 }
 
+void FakeController::OnAndroidLEBatchScanEnableCommand(
+    const android_emb::LEBatchScanEnableCommandView& params) {
+  if (params.enabled().Read() == pwemb::GenericEnableParam::ENABLE) {
+    le_scan_state_.batch_scan_enabled = true;
+  } else {
+    le_scan_state_.batch_scan_enabled = false;
+  }
+
+  le_scan_state_.batch_scan_num_peers_read = 0;
+
+  auto packet =
+      hci::EventPacket::New<android_emb::LEBatchScanCommandCompleteEventWriter>(
+          hci_spec::kCommandCompleteEventCode);
+  auto view = packet.view_t();
+  view.sub_opcode().Write(android_emb::BatchScanSubOpcode::ENABLE);
+  RespondWithCommandComplete(pwemb::OpCode::ANDROID_LE_BATCH_SCAN, &packet);
+}
+
+void FakeController::OnAndroidLEBatchScanSetStorageParametersCommand(
+    [[maybe_unused]] const android_emb::
+        LEBatchScanSetStorageParametersCommandView& params) {
+  // For testing purposes, we don't store storage threshold configurations for
+  // truncated and full format batched scan results or the storage threshold to
+  // send the results back to the Host. Rather, the tests themselves can
+  // simulate these conditions by calling trigger functions on the
+  // FakeController itself.
+  pwemb::StatusCode status = pwemb::StatusCode::SUCCESS;
+  if (!le_scan_state_.batch_scan_enabled) {
+    bt_log(WARN, "fake-hci", "Cannot set storage parameters without enabling");
+    status = pw::bluetooth::emboss::StatusCode::COMMAND_DISALLOWED;
+  }
+
+  le_scan_state_.batch_scan_num_peers_read = 0;
+
+  auto packet =
+      hci::EventPacket::New<android_emb::LEBatchScanCommandCompleteEventWriter>(
+          hci_spec::kCommandCompleteEventCode);
+  auto view = packet.view_t();
+  view.status().Write(status);
+  view.sub_opcode().Write(
+      android_emb::BatchScanSubOpcode::SET_STORAGE_PARAMETERS);
+  RespondWithCommandComplete(pwemb::OpCode::ANDROID_LE_BATCH_SCAN, &packet);
+}
+
+void FakeController::OnAndroidLEBatchScanSetScanParametersCommand(
+    const android_emb::LEBatchScanSetScanParametersCommandView& params) {
+  auto packet =
+      hci::EventPacket::New<android_emb::LEBatchScanCommandCompleteEventWriter>(
+          hci_spec::kCommandCompleteEventCode);
+  auto view = packet.view_t();
+  view.status().Write(pwemb::StatusCode::SUCCESS);
+  view.sub_opcode().Write(android_emb::BatchScanSubOpcode::SET_SCAN_PARAMETERS);
+
+  if (!le_scan_state_.batch_scan_enabled) {
+    bt_log(WARN, "fake-hci", "Cannot set scan parameters without enabling");
+    view.status().Write(pwemb::StatusCode::COMMAND_DISALLOWED);
+    RespondWithCommandComplete(pwemb::OpCode::ANDROID_LE_BATCH_SCAN, &packet);
+    return;
+  }
+
+  // Sapphire doesn't support truncated scan mode because it doesn't contain the
+  // advertising data or scan response data. Disallow our code to try and enable
+  // only truncated mode.
+  if (params.full_mode_enabled().Read()) {
+    le_scan_state_.enabled = true;
+  } else {
+    if (params.truncated_mode_enabled().Read()) {
+      bt_log(WARN, "fake-hci", "Cannot enable only batch scan truncated mode");
+      view.status().Write(pwemb::StatusCode::INVALID_HCI_COMMAND_PARAMETERS);
+      RespondWithCommandComplete(pwemb::OpCode::ANDROID_LE_BATCH_SCAN, &packet);
+      return;
+    } else {
+      le_scan_state_.enabled = false;
+    }
+  }
+
+  le_scan_state_.scan_window = params.window().Read();
+  le_scan_state_.scan_interval = params.interval().Read();
+  le_scan_state_.batch_scan_num_peers_read = 0;
+
+  if (params.own_address_type().Read() ==
+      android_emb::BatchScanOwnAddressType::PUBLIC) {
+    le_scan_state_.own_address_type = pwemb::LEOwnAddressType::PUBLIC;
+  } else if (params.own_address_type().Read() ==
+             android_emb::BatchScanOwnAddressType::RANDOM) {
+    le_scan_state_.own_address_type = pwemb::LEOwnAddressType::RANDOM;
+  }
+
+  // For testing purposes, we don't store the discard rule. The tests themselves
+  // can simulate these conditions by calling trigger functions on the
+  // FakeController itself.
+  RespondWithCommandComplete(pwemb::OpCode::ANDROID_LE_BATCH_SCAN, &packet);
+}
+
+auto FakeController::LEBatchScanReadResultNextPacketSize() const {
+  struct result {
+    int num_records;
+    size_t packet_size;
+  };
+
+  uint8_t num_records = 0;
+  size_t max_hci_packet_size = std::numeric_limits<uint8_t>::max();
+  size_t packet_size =
+      android_emb::LEBatchScanReadResultsCommandCompleteEvent::MinSizeInBytes();
+
+  auto itr = peers_.cbegin();
+  std::advance(itr, le_scan_state_.batch_scan_num_peers_read);
+  for (; itr != peers_.cend(); ++itr) {
+    const std::unique_ptr<FakePeer>& peer = itr->second;
+    size_t full_result_size =
+        android_emb::LEBatchScanFullResult::MinSizeInBytes() +
+        peer->advertising_data().size() + peer->scan_response().size();
+
+    if (packet_size + full_result_size > max_hci_packet_size) {
+      break;
+    }
+
+    num_records++;
+    packet_size += full_result_size;
+  }
+
+  return result{num_records, packet_size};
+}
+
+void FakeController::LEBatchScanFillFullResult(
+    android_emb::LEBatchScanFullResultWriter& full_result,
+    const std::unique_ptr<FakePeer>& peer) const {
+  full_result.peer_address().bd_addr().CopyFrom(
+      peer->address().value().view().bd_addr());
+
+  if (peer->address().type() == DeviceAddress::Type::kLERandom) {
+    full_result.peer_address_type().Write(pwemb::LEAddressType::RANDOM);
+  } else {
+    full_result.peer_address_type().Write(pwemb::LEAddressType::PUBLIC);
+  }
+
+  full_result.tx_power().Write(peer->tx_power());
+  full_result.rssi().Write(peer->rssi());
+
+  full_result.advertising_data_length().Write(peer->advertising_data().size());
+  if (!peer->advertising_data().empty()) {
+    std::memcpy(full_result.advertising_data().BackingStorage().begin(),
+                peer->advertising_data().data(),
+                peer->advertising_data().size());
+  }
+
+  full_result.scan_response_length().Write(peer->scan_response().size());
+  if (!peer->scan_response().empty()) {
+    std::memcpy(full_result.scan_response_data().BackingStorage().begin(),
+                peer->scan_response().data(),
+                peer->scan_response().size());
+  }
+}
+
+void FakeController::OnAndroidLEBatchScanReadResultsCommand(
+    const android_emb::LEBatchScanReadResultsCommandView& params) {
+  auto regular_packet =
+      hci::EventPacket::New<android_emb::LEBatchScanCommandCompleteEventWriter>(
+          hci_spec::kCommandCompleteEventCode);
+  auto regular_view = regular_packet.view_t();
+  regular_view.sub_opcode().Write(
+      android_emb::BatchScanSubOpcode::READ_RESULT_PARAMETERS);
+
+  if (!le_scan_state_.batch_scan_enabled) {
+    bt_log(WARN, "fake-hci", "Cannot read batch scan results without enabling");
+    regular_view.status().Write(pwemb::StatusCode::COMMAND_DISALLOWED);
+    RespondWithCommandComplete(pwemb::OpCode::ANDROID_LE_BATCH_SCAN,
+                               &regular_packet);
+    return;
+  }
+
+  // Sapphire doesn't support truncated scan mode because it doesn't contain
+  // the advertising data or scan response data. Disallow our code to try and
+  // enable only truncated mode.
+  if (params.read_mode().Read() == android_emb::BatchScanReadMode::TRUNCATED) {
+    bt_log(WARN, "fake-hci", "Cannot read truncated batch scan results");
+    regular_view.sub_opcode().Write(
+        android_emb::BatchScanSubOpcode::READ_RESULT_PARAMETERS);
+    RespondWithCommandComplete(pwemb::OpCode::ANDROID_LE_BATCH_SCAN,
+                               &regular_packet);
+    return;
+  }
+
+  auto [num_records, packet_size] = LEBatchScanReadResultNextPacketSize();
+
+  auto packet = hci::EventPacket::New<
+      android_emb::LEBatchScanReadResultsCommandCompleteEventWriter>(
+      hci_spec::kCommandCompleteEventCode, packet_size);
+  auto view = packet.view_t();
+  view.status().Write(pwemb::StatusCode::SUCCESS);
+  view.sub_opcode().Write(
+      android_emb::BatchScanSubOpcode::READ_RESULT_PARAMETERS);
+  view.read_mode().Write(android_emb::BatchScanReadMode::FULL);
+  view.num_records().Write(num_records);
+
+  if (num_records == 0) {
+    RespondWithCommandComplete(pwemb::OpCode::ANDROID_LE_BATCH_SCAN, &packet);
+    return;
+  }
+
+  size_t write_offset = 0;
+  int start_num_peers_read = le_scan_state_.batch_scan_num_peers_read;
+  auto itr = peers_.cbegin();
+  for (; itr != peers_.cend(); ++itr) {
+    if (start_num_peers_read + num_records <=
+        le_scan_state_.batch_scan_num_peers_read) {
+      break;
+    }
+
+    le_scan_state_.batch_scan_num_peers_read++;
+
+    const std::unique_ptr<FakePeer>& peer = itr->second;
+    size_t full_result_size =
+        android_emb::LEBatchScanFullResult::MinSizeInBytes() +
+        peer->advertising_data().size() + peer->scan_response().size();
+
+    android_emb::LEBatchScanFullResultWriter full_result(
+        view.full_results().BackingStorage().begin() + write_offset,
+        full_result_size);
+
+    LEBatchScanFillFullResult(full_result, peer);
+    write_offset += full_result_size;
+  }
+
+  RespondWithCommandComplete(pwemb::OpCode::ANDROID_LE_BATCH_SCAN, &packet);
+}
+
+void FakeController::OnAndroidLEBatchScanCommand(
+    const PacketView<hci_spec::CommandHeader>& command_packet) {
+  const auto& payload = command_packet.payload_data();
+
+  uint8_t subopcode = payload.To<uint8_t>();
+  switch (subopcode) {
+    case android_hci::kLEBatchScanEnableSubopcode: {
+      auto params = android_emb::MakeLEBatchScanEnableCommandView(
+          command_packet.data().data(), command_packet.size());
+      OnAndroidLEBatchScanEnableCommand(params);
+      break;
+    }
+    case android_hci::kLEBatchScanSetStorageParametersSubopcode: {
+      auto params = android_emb::MakeLEBatchScanSetStorageParametersCommandView(
+          command_packet.data().data(), command_packet.size());
+      OnAndroidLEBatchScanSetStorageParametersCommand(params);
+      break;
+    }
+    case android_hci::kLEBatchScanSetScanParametersSubopcode: {
+      auto params = android_emb::MakeLEBatchScanSetScanParametersCommandView(
+          command_packet.data().data(), command_packet.size());
+      OnAndroidLEBatchScanSetScanParametersCommand(params);
+      break;
+    }
+    case android_hci::kLEBatchScanReadResultParametersSubopcode: {
+      auto params = android_emb::MakeLEBatchScanReadResultsCommandView(
+          command_packet.data().data(), command_packet.size());
+      OnAndroidLEBatchScanReadResultsCommand(params);
+      break;
+    }
+    default: {
+      bt_log(WARN,
+             "fake-hci",
+             "unhandled android batch scan command, subopcode: %#.4x",
+             subopcode);
+      RespondWithCommandComplete(pwemb::OpCode::ANDROID_LE_BATCH_SCAN,
+                                 pwemb::StatusCode::UNKNOWN_COMMAND);
+      break;
+    }
+  }
+}
+
 void FakeController::OnVendorCommand(
     const PacketView<hci_spec::CommandHeader>& command_packet) {
   auto opcode = pw::bytes::ConvertOrderFrom(cpp20::endian::little,
@@ -5953,6 +6222,9 @@ void FakeController::OnVendorCommand(
       break;
     case android_hci::kLEApcf:
       OnAndroidLEApcfCommand(command_packet);
+      break;
+    case android_hci::kLEBatchScan:
+      OnAndroidLEBatchScanCommand(command_packet);
       break;
     default:
       bt_log(WARN,
@@ -6061,8 +6333,9 @@ void FakeController::SetDataCallback(DataCallback callback,
 }
 
 void FakeController::ClearDataCallback() {
-  // Leave dispatcher set (if already set) to preserve its write-once-ness (this
-  // catches bugs with setting multiple data callbacks in class hierarchies).
+  // Leave dispatcher set (if already set) to preserve its write-once-ness
+  // (this catches bugs with setting multiple data callbacks in class
+  // hierarchies).
   acl_data_callback_ = nullptr;
 }
 
@@ -6107,8 +6380,8 @@ void FakeController::HandleReceivedCommandPacket(
     return;
   }
 
-  // TODO(fxbug.dev/42175513): Validate size of payload to be the correct length
-  // below.
+  // TODO(fxbug.dev/42175513): Validate size of payload to be the correct
+  // length below.
   switch (opcode) {
     case hci_spec::kReadLocalVersionInfo: {
       OnReadLocalVersionInfo();
@@ -6256,10 +6529,10 @@ void FakeController::HandleReceivedCommandPacket(
     case hci_spec::kWriteSecureConnectionsHostSupport:
     case hci_spec::kWriteSimplePairingMode:
     case hci_spec::kWriteSynchronousFlowControlEnable: {
-      // This case is for packet types that have been migrated to the new Emboss
-      // architecture. Their old version can be still be assembled from the
-      // HciEmulator channel, so here we repackage and forward them as Emboss
-      // packets.
+      // This case is for packet types that have been migrated to the new
+      // Emboss architecture. Their old version can be still be assembled from
+      // the HciEmulator channel, so here we repackage and forward them as
+      // Emboss packets.
       auto emboss_packet =
           bt::hci::CommandPacket::New<pwemb::CommandHeaderView>(
               opcode, command_packet.size());

@@ -67,7 +67,6 @@ bool ExtendedLowEnergyScanner::StartScan(const ScanOptions& options,
   PW_CHECK(options.interval <= hci_spec::kLEExtendedScanIntervalMax);
   PW_CHECK(options.window >= hci_spec::kLEExtendedScanIntervalMin);
   PW_CHECK(options.window <= hci_spec::kLEExtendedScanIntervalMax);
-
   return LowEnergyScanner::StartScan(options, std::move(callback));
 }
 
