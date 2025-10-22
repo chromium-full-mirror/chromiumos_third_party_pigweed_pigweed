@@ -15,30 +15,8 @@
 #include "pw_grpc/send_queue.h"
 
 #include "pw_log/log.h"
-#include "pw_status/try.h"
 
 namespace pw::grpc {
-
-void SendQueue::ProcessMultibufQueue(async::Context&, Status task_status) {
-  if (!task_status.ok()) {
-    return;
-  }
-
-  multibuf::MultiBuf buffer;
-  {
-    std::lock_guard lock(send_mutex_);
-    if (buffer_to_write_.empty()) {
-      return;
-    }
-    buffer = std::move(buffer_to_write_);
-  }
-  for (const auto& chunk : buffer.Chunks()) {
-    if (Status status = socket_.Write(chunk); !status.ok()) {
-      PW_LOG_ERROR("Failed to write to socket in SendQueue: %s", status.str());
-      return;
-    }
-  }
-}
 
 UniquePtr<std::byte[]> SendQueue::PopNext() {
   std::lock_guard lock(send_mutex_);
@@ -64,13 +42,6 @@ void SendQueue::ProcessSendQueue(async::Context&, Status task_status) {
     }
     buffer = PopNext();
   }
-}
-
-void SendQueue::QueueSend(multibuf::MultiBuf&& buffer) {
-  std::lock_guard lock(send_mutex_);
-  buffer_to_write_.PushSuffix(std::move(buffer));
-  send_dispatcher_.Cancel(multibuf_send_task_);
-  send_dispatcher_.Post(multibuf_send_task_);
 }
 
 bool SendQueue::QueueSend(UniquePtr<std::byte[]>&& buffer) {
