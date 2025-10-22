@@ -14,11 +14,15 @@
 
 load("@rules_rust//rust:defs.bzl", "rust_binary")
 load("//pw_kernel/target/qemu_virt_riscv32:defs.bzl", "TARGET_COMPATIBLE_WITH")
-load("//pw_kernel/tooling:system_image.bzl", "system_image", "system_image_test")
+load("//pw_kernel/tooling:system_image.bzl", "system_image")
+load("//pw_kernel/tooling:target_codegen.bzl", "target_codegen")
 load("//pw_kernel/tooling/panic_detector:rust_binary_no_panics_test.bzl", "rust_binary_no_panics_test")
 
 system_image(
-    name = "interrupts",
+    name = "userspace_interrupts",
+    apps = [
+        "//pw_kernel/apps/tests/interrupts/user:interrupts_test",
+    ],
     kernel = ":target",
     platform = "//pw_kernel/target/qemu_virt_riscv32",
     system_config = ":system_config",
@@ -28,14 +32,8 @@ system_image(
 
 rust_binary_no_panics_test(
     name = "no_panics_test",
-    binary = ":interrupts",
+    binary = ":userspace_interrupts",
     tags = ["kernel"],
-)
-
-system_image_test(
-    name = "interrupts_test",
-    image = ":interrupts",
-    target_compatible_with = TARGET_COMPATIBLE_WITH,
 )
 
 filegroup(
@@ -43,24 +41,29 @@ filegroup(
     srcs = ["system.json5"],
 )
 
+target_codegen(
+    name = "codegen",
+    system_config = ":system_config",
+)
+
 rust_binary(
     name = "target",
     srcs = [
         "target.rs",
+        ":codegen",
     ],
     edition = "2024",
     tags = ["kernel"],
     target_compatible_with = TARGET_COMPATIBLE_WITH,
     deps = [
-        "//pw_kernel/apps/tests/interrupts",
         "//pw_kernel/arch/riscv:arch_riscv",
         "//pw_kernel/kernel",
         "//pw_kernel/subsys/console:console_backend",
         "//pw_kernel/target:target_common",
         "//pw_kernel/target/qemu_virt_riscv32:entry",
         "//pw_kernel/target/qemu_virt_riscv32:linker_script",
+        "//pw_kernel/userspace",
         "//pw_log/rust:pw_log",
-        "//pw_status/rust:pw_status",
         "@rust_crates//:riscv-semihosting",
     ],
 )

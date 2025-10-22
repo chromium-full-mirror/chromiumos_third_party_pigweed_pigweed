@@ -22,9 +22,9 @@ TARGET_COMPATIBLE_WITH = select({
 })
 
 rust_library(
-    name = "uart_16550",
+    name = "uart_16550_kernel",
     srcs = [
-        "uart_16550.rs",
+        "uart_16550_kernel.rs",
     ],
     edition = "2024",
     proc_macro_deps = [
@@ -40,6 +40,25 @@ rust_library(
         "//pw_kernel/lib/regs",
         "//pw_log/rust:pw_log",
         "//pw_status/rust:pw_status",
+    ],
+)
+
+rust_library(
+    name = "uart_16550_user",
+    srcs = [
+        "uart_16550_user.rs",
+    ],
+    edition = "2024",
+    proc_macro_deps = [
+        "@rust_crates//:paste",
+    ],
+    tags = ["kernel"],
+    target_compatible_with = TARGET_COMPATIBLE_WITH,
+    deps = [
+        ":uart_16550_regs",
+        "//pw_kernel/lib/log_if",
+        "//pw_kernel/lib/regs",
+        "//pw_log/rust:pw_log",
     ],
 )
 

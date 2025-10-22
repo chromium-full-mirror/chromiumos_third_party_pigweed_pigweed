@@ -26,7 +26,7 @@ pub extern "C" fn pw_assert_HandleFailure() -> ! {
     Arch::panic()
 }
 
-uart_16550::declare_uarts!(Arch, UARTS, [
+uart_16550_kernel::declare_uarts!(Arch, UARTS, [
     UART0: Uart0Config,
 ]);
 
@@ -34,7 +34,9 @@ uart_16550::declare_uarts!(Arch, UARTS, [
 pub static INTERRUPT_TABLE: [InterruptTableEntry; PlicConfig::INTERRUPT_TABLE_SIZE] = {
     let mut interrupt_table: [InterruptTableEntry; PlicConfig::INTERRUPT_TABLE_SIZE] =
         [None; PlicConfig::INTERRUPT_TABLE_SIZE];
-    interrupt_table[Uart0Config::IRQ] = Some(interrupt_handler_uart0);
+    if cfg!(feature = "kernel_drivers") {
+        interrupt_table[Uart0Config::IRQ] = Some(interrupt_handler_uart0);
+    }
     interrupt_table
 };
 
@@ -42,7 +44,9 @@ pub static INTERRUPT_TABLE: [InterruptTableEntry; PlicConfig::INTERRUPT_TABLE_SI
 fn main() -> ! {
     kernel::static_init_state!(static mut INIT_STATE: InitKernelState<Arch>);
 
-    uart_16550::init(&UARTS);
+    if cfg!(feature = "kernel_drivers") {
+        uart_16550_kernel::init(&UARTS);
+    }
 
     // SAFETY: `main` is only executed once, so we never generate more than one
     // `&mut` reference to `INIT_STATE`.
