@@ -26,6 +26,7 @@ load(
     "pw_proto_filegroup",
     "pwpb_proto_library",
     "pwpb_rpc_proto_library",
+    "raw_rpc_proto_library",
 )
 load("//pw_unit_test:pw_cc_test.bzl", "pw_cc_test")
 
@@ -310,6 +311,11 @@ filegroup(
 
 pwpb_proto_library(
     name = "protos_pwpb",
+    deps = [":protos"],
+)
+
+raw_rpc_proto_library(
+    name = "protos_raw_rpc",
     deps = [":protos"],
 )
 
