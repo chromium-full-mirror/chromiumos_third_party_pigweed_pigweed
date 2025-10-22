@@ -19,7 +19,7 @@
 
     use kernel::Arch as _;
     use kernel::object::{KernelObject, TickerCallback, TickerObject};
-    use kernel::scheduler::timer::Timer;
+    use kernel::scheduler::timer::{Timer, TimerCallback};
 
     type AtomicUsize = <K as kernel::Arch>::AtomicUsize;
 

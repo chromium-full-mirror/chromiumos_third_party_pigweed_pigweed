@@ -20,10 +20,10 @@ pub fn start() {
     use kernel::__private::foreign_box::{ForeignRc, static_foreign_box};
     use kernel::macro_exports::foreign_box::ForeignBox;
     use kernel::object::{KernelObject, ObjectTable};
-    use kernel::scheduler::timer::TimerCallback;
 
     type MemoryConfig = arch::MemoryConfig;
     type K = arch::Arch;
+    #[allow(unused_variables)]
     let kernel = K {};
 
 // Channel handlers are declared first so that initiators can reference them.
@@ -61,7 +61,7 @@ pub fn start() {
             {{(app.ram_start_address + app.ram_size_bytes) | hex}},
         ),
         {%- for mapping_name in app.process.ordered_memory_mapping_names %}
-        {%- set mapping = app.process.memory_mappings[mapping_name] %}
+        {%- set mapping = app.process.memory_mappings[mapping_name] -%}
         kernel::MemoryRegion::new(
             {% if mapping.type == "device" -%}
             kernel::MemoryRegionType::Device,
