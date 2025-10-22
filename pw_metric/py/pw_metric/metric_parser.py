@@ -25,12 +25,12 @@ from pw_metric_proto import metric_service_pb2
 _LOG = logging.getLogger(__name__)
 
 
-@dataclasses.dataclass
+@dataclasses.dataclass(frozen=True)
 class ParsedMetric:
     """Dataclass to hold a metric's detokenized path and value."""
 
-    path_names: List[str] = dataclasses.field(default_factory=list)
-    value: Union[float, int] = 0
+    path_names: List[str]
+    value: Union[float, int]
 
 
 def parse_metric(
@@ -38,7 +38,7 @@ def parse_metric(
     detokenizer: detokenize.Detokenizer | None,
 ) -> ParsedMetric:
     """Parses a single Metric proto, detokenizing its path."""
-    parsed_metric = ParsedMetric()
+    path_names = []
     for path_token in metric.token_path:
         path_name = f'${path_token:08x}'  # Default to token if not found
         if detokenizer:
@@ -50,14 +50,18 @@ def parse_metric(
                         path_token, lookup_result, b'', False
                     )
                 ).strip('"')
-        parsed_metric.path_names.append(path_name)
+        path_names.append(path_name)
 
     value_type = metric.WhichOneof('value')
+    value: Union[float, int]
     if value_type == 'as_float':
-        parsed_metric.value = metric.as_float
+        value = metric.as_float
     elif value_type == 'as_int':
-        parsed_metric.value = metric.as_int
-    return parsed_metric
+        value = metric.as_int
+    return ParsedMetric(
+        path_names=path_names,
+        value=value,
+    )
 
 
 def _tree():
