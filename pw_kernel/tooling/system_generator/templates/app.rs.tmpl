@@ -19,3 +19,13 @@ pub mod handle {
     pub const {{object_name | upper}}: u32 = {{loop.index0}};
 {%- endfor %}
 }
+
+pub mod mapping {
+{%- for mapping_name in process.ordered_memory_mapping_names %}
+{%- set mapping = process.memory_mappings[mapping_name] -%}
+    #[allow(unused)]
+    pub const {{mapping_name | upper}}_START_ADDRESS: usize = {{mapping.start_address | hex}};
+{%- endfor %}
+
+
+}

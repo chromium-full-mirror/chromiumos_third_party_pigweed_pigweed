@@ -60,6 +60,16 @@ pub fn start() {
             {{app.ram_start_address | hex}},
             {{(app.ram_start_address + app.ram_size_bytes) | hex}},
         ),
+        {%- for mapping_name in app.process.ordered_memory_mapping_names %}
+        {%- set mapping = app.process.memory_mappings[mapping_name] %}
+        kernel::MemoryRegion::new(
+            {% if mapping.type == "device" -%}
+            kernel::MemoryRegionType::Device,
+            {% endif -%}
+            {{mapping.start_address | hex}},
+            {{(mapping.start_address + mapping.size_bytes) | hex}},
+        ),
+        {%- endfor -%}
     ]);
 
     {%- for object_name in app.process.ordered_object_names %}

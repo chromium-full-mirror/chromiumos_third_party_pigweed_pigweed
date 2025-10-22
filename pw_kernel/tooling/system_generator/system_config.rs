@@ -79,6 +79,10 @@ pub struct AppConfig {
 #[serde(deny_unknown_fields)]
 pub struct ProcessConfig {
     name: String,
+
+    #[serde(default)]
+    memory_mappings: LinkedHashMap<String, MemoryMapping>,
+
     #[serde(default)]
     objects: LinkedHashMap<String, ObjectConfig>,
     threads: Vec<ThreadConfig>,
@@ -86,13 +90,28 @@ pub struct ProcessConfig {
     // Internally the template engine (`minijinja`) does not preserve the order of
     // associative containers.  Since ordering of objects in a processes object
     // table is directly related to its handle, this Vec is used to allow templates
-    // to iterate over objects in order.
+    // to iterate over objects in order.  The same is true for memory mappings.
     //
     // `minijina` does have a `preserve-order` feature.  However, depending on
     // this can be fragile when downstream users are using non-cargo build systems
     // and managing their own third party deps.
     #[serde(skip_deserializing)]
+    ordered_memory_mapping_names: Vec<String>,
+    #[serde(skip_deserializing)]
     ordered_object_names: Vec<String>,
+}
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MemoryMappingType {
+    Device,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct MemoryMapping {
+    #[serde(rename = "type")]
+    ty: MemoryMappingType,
+    start_address: u64,
+    size_bytes: u64,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -146,6 +165,13 @@ impl<A: ArchConfigInterface> SystemConfig<A> {
             app_config.process.ordered_object_names = app_config
                 .process
                 .objects
+                .iter()
+                .map(|(name, _)| name.clone())
+                .collect();
+
+            app_config.process.ordered_memory_mapping_names = app_config
+                .process
+                .memory_mappings
                 .iter()
                 .map(|(name, _)| name.clone())
                 .collect();
