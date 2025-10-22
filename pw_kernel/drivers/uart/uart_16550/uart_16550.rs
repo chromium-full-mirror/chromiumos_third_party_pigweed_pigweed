@@ -13,8 +13,6 @@
 // the License.
 #![no_std]
 
-mod regs;
-
 use circular_buffer::CircularBuffer;
 use kernel::Kernel;
 use kernel::sync::spinlock::SpinLock;
@@ -28,12 +26,13 @@ pub struct Uart<K: Kernel> {
     read_buffer: SpinLock<K, CircularBuffer<u8, BUFFER_SIZE>>,
 }
 
-impl<K: Kernel> ::regs::BaseAddress for Uart<K> {
+impl<K: Kernel> regs::BaseAddress for Uart<K> {
     fn base_address(&self) -> usize {
         self.base_address
     }
 }
-impl<K: Kernel> regs::Uart16550BaseAddress for Uart<K> {}
+
+impl<K: Kernel> uart_16550_regs::Uart16550BaseAddress for Uart<K> {}
 
 impl<K: Kernel> Uart<K> {
     pub const fn new(base_address: usize) -> Uart<K> {
@@ -44,7 +43,7 @@ impl<K: Kernel> Uart<K> {
     }
 
     pub fn enable_loopback(&self) {
-        let mut mcr = regs::Mcr;
+        let mut mcr = uart_16550_regs::Mcr;
         mcr.write(self, mcr.read(self).with_lo(true));
     }
 
@@ -55,10 +54,10 @@ impl<K: Kernel> Uart<K> {
 
     pub fn write(&self, value: u8) -> Result<()> {
         log_if::debug_if!(LOG_UART, "uart write: {}", value as u8);
-        let lsr = regs::Lsr;
+        let lsr = uart_16550_regs::Lsr;
         while !lsr.read(self).thre() {}
 
-        regs::Thr.write(self, regs::ThrValue(value));
+        uart_16550_regs::Thr.write(self, uart_16550_regs::ThrValue(value));
         log_if::debug_if!(LOG_UART, "done");
         Ok(())
     }
@@ -66,7 +65,7 @@ impl<K: Kernel> Uart<K> {
 
 pub fn init<K: Kernel>(uarts: &[&Uart<K>]) {
     for uart in uarts {
-        let mut ier = regs::Ier;
+        let mut ier = uart_16550_regs::Ier;
         ier.write(*uart, ier.read(*uart).with_erbfi(true));
     }
 }
@@ -78,9 +77,9 @@ pub fn interrupt_handler<K: Kernel>(kernel: K, uart: &Uart<K>) {
         uart.base_address as u32
     );
 
-    let lsr = regs::Lsr;
+    let lsr = uart_16550_regs::Lsr;
     while lsr.read(uart).dr() {
-        let value = regs::Rbr.read(uart);
+        let value = uart_16550_regs::Rbr.read(uart);
         log_if::debug_if!(LOG_UART, "data ready: {}", value.data() as u8);
         let _ = uart.read_buffer.lock(kernel).push_back(value.data());
     }

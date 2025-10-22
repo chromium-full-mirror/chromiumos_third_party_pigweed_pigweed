@@ -11,6 +11,7 @@
 // WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 // License for the specific language governing permissions and limitations under
 // the License.
+#![no_std]
 
 use regs::{ro_block_reg, ro_int_field, rw_block_reg, rw_bool_field, rw_int_field};
 
@@ -25,7 +26,7 @@ ro_block_reg!(
     0,
     "Receiver Buffer Register"
 );
-pub struct RbrValue(u8);
+pub struct RbrValue(pub u8);
 impl RbrValue {
     ro_int_field!(u8, data, 0, 7, u8, "Data");
 }
@@ -52,7 +53,7 @@ rw_block_reg!(
     "Interrupt Enable Register"
 );
 #[repr(transparent)]
-pub struct IerVal(u8);
+pub struct IerVal(pub u8);
 impl IerVal {
     rw_bool_field!(u8, erbfi, 0, "Received Data Available Interrupt");
     rw_bool_field!(u8, etbei, 1, "Transmitter Holding Register Empty Interrupt");
@@ -68,8 +69,9 @@ rw_block_reg!(
     4,
     "Modem Control Register"
 );
+#[derive(Copy, Clone)]
 #[repr(transparent)]
-pub struct McrVal(u8);
+pub struct McrVal(pub u8);
 impl McrVal {
     rw_bool_field!(u8, dtr, 0, "Data Terminal Ready");
     rw_bool_field!(u8, rts, 1, "Request to Send");
@@ -87,7 +89,7 @@ rw_block_reg!(
     "Line Status Register"
 );
 #[repr(transparent)]
-pub struct LsrVal(u8);
+pub struct LsrVal(pub u8);
 impl LsrVal {
     rw_bool_field!(u8, dr, 0, "Data Ready");
     rw_bool_field!(u8, oe, 1, "Overrun Error");
