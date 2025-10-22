@@ -36,6 +36,18 @@ cc_library(
     ],
 )
 
+platform(
+    name = "host_device_simulator",
+    flags = [
+        "--//pw_log:backend=//pw_log_string",
+        "--//pw_log:backend_impl=//pw_log_string:impl",
+        "--//pw_log_string:handler_backend=//pw_system:log_backend",
+        "--//pw_sys_io:backend=//pw_sys_io_stdio",
+        "--//pw_system:io_backend=//pw_system:socket_target_io",
+    ],
+    parents = ["@bazel_tools//tools:host_platform"],
+)
+
 sphinx_docs_library(
     name = "docs",
     srcs = [

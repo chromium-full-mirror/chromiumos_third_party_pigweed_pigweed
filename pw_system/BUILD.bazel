@@ -28,7 +28,6 @@ load(
 )
 load("//pw_system/py:console.bzl", "device_console", "device_simulator_console")
 load("//pw_unit_test:pw_cc_test.bzl", "pw_cc_test")
-load("//targets/host_device_simulator:transition.bzl", "host_device_simulator_binary")
 load("//targets/rp2040:flash.bzl", "flash_rp2040", "flash_rp2350")
 
 package(
@@ -729,18 +728,18 @@ pw_cc_binary(
     ],
 )
 
-host_device_simulator_binary(
+platform_data(
     name = "system_async_host_simulator_example",
     testonly = True,
-    binary = ":system_async_host_example",
-    features = ["-conversion_warnings"],
+    platform = "//targets/host_device_simulator",
+    target = ":system_async_host_example",
 )
 
-host_device_simulator_binary(
+platform_data(
     name = "simulator_system_example",
     testonly = True,
-    binary = ":system_example",
-    features = ["-conversion_warnings"],
+    platform = "//targets/host_device_simulator",
+    target = ":system_example",
 )
 
 platform_data(
