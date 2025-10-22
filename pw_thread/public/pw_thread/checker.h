@@ -13,6 +13,7 @@
 // the License.
 #pragma once
 
+#include <atomic>
 #include <optional>
 
 #include "pw_sync/lock_annotations.h"
@@ -40,7 +41,10 @@ namespace pw {
 /// ```
 /// class MyClass {
 ///  public:
-///    MyClass() : thread_checker_(pw::this_thread::get_id()) {}
+///    // Provide thread id that Foo will be called on. If you don't know the
+///    // id, consider the `LazyInitThreadChecker` variant.
+///    MyClass(pw::Thread::id thread_to_check)
+///      : thread_checker_(thread_to_check) {}
 ///    void Foo() {
 ///      std::lock_guard checker(thread_checker_);
 ///      resource_ = 0;
@@ -74,22 +78,66 @@ class PW_LOCKABLE("pw::ThreadChecker") ThreadChecker {
 /// This is useful for cases where you may not have access to right thread id at
 /// construction time, but still want to assert fields are always accessed on
 /// the same thread.
+///
+/// Note, this class shouldn't be locked outside of a normal thread context.
+/// It's not valid to use it interrupt context or before the scheduler is
+/// started.
+///
+/// ```
+/// class MyClass {
+///  public:
+///    void Foo() {
+///      std::lock_guard checker(thread_checker_);
+///      resource_ = 0;
+///    }
+///  private:
+///    pw::LazyInitThreadChecker thread_checker_;
+///    int resource_ PW_GUARDED_BY(thread_checker_);
+/// };
+/// ```
 class PW_LOCKABLE("pw::LazyInitThreadChecker") LazyInitThreadChecker {
  public:
+  constexpr LazyInitThreadChecker()
+#if PW_THREAD_CHECKER_RUNTIME_ASSERT_ENABLED
+      : thread_id_()
+#endif
+  {
+  }
+
   // Implementation of the BaseLockable requirement
   void lock() PW_EXCLUSIVE_LOCK_FUNCTION() {
 #if PW_THREAD_CHECKER_RUNTIME_ASSERT_ENABLED
-    if (!checker_.has_value()) {
-      checker_.emplace(pw::this_thread::get_id());
+    Thread::id stored_id = thread_id_.load(std::memory_order_acquire);
+    if (stored_id == Thread::id()) {
+      // The checker has not been initialized yet. Attempt to claim it for the
+      // current thread.
+      const Thread::id current_id = pw::this_thread::get_id();
+      // A default constructed id which is used as the expected value.
+      Thread::id uninitialized_id;
+      // Attempt to swap the uninitialized ID with the current thread's ID.
+      // This is done with release semantics to ensure that all prior writes
+      // on this thread are visible on other threads.
+      if (thread_id_.compare_exchange_strong(
+              uninitialized_id, current_id, std::memory_order_acq_rel)) {
+        // This thread successfully claimed the checker.
+        stored_id = current_id;
+      } else {
+        // Another thread claimed the checker. `uninitialized_id` is now updated
+        // with the stored value.
+        stored_id = uninitialized_id;
+      }
     }
-    checker_->lock();
+
+    // Hitting this assert means that access to this checker from multiple
+    // threads was detected.
+    PW_ASSERT(pw::this_thread::get_id() == stored_id);
 #endif  // PW_THREAD_CHECKER_RUNTIME_ASSERT_ENABLED
   }
   void unlock() PW_UNLOCK_FUNCTION() {}
 
  private:
 #if PW_THREAD_CHECKER_RUNTIME_ASSERT_ENABLED
-  std::optional<ThreadChecker> checker_;
+  std::atomic<Thread::id> thread_id_;
 #endif  // PW_THREAD_CHECKER_RUNTIME_ASSERT_ENABLED
 };
 
