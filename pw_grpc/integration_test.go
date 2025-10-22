@@ -352,7 +352,9 @@ func testRPC(t *testing.T, call func(t *testing.T, ctx context.Context, msg stri
 			defer cancel()
 
 			msg := fmt.Sprintf("message%d", i)
-			if i == num_calls-1 {
+			if i == num_calls-2 {
+				msg = "" // Test with an empty message
+			} else if i == num_calls-1 {
 				msg = "quiet"
 			}
 
