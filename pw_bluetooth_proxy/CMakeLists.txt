@@ -48,7 +48,6 @@ pw_add_library(pw_bluetooth_proxy STATIC
     public/pw_bluetooth_proxy/l2cap_coc.h
     public/pw_bluetooth_proxy/l2cap_status_delegate.h
     public/pw_bluetooth_proxy/proxy_host.h
-    public/pw_bluetooth_proxy/single_channel_proxy.h
 # LINT.ThenChange(bt-proxy.bzl, BUILD.gn)
 
   PUBLIC_INCLUDES
@@ -85,7 +84,6 @@ pw_add_library(pw_bluetooth_proxy STATIC
     l2cap_logical_link.cc
     proxy_host.cc
     recombiner.cc
-    single_channel_proxy.cc
   PRIVATE_DEPS
     pw_containers.intrusive_map
     pw_allocator.best_fit

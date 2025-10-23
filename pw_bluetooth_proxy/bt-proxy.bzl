@@ -49,7 +49,6 @@ def pw_bluetooth_proxy_library(name, **kwargs):
             "multibuf_v2.cc",
             "proxy_host.cc",
             "recombiner.cc",
-            "single_channel_proxy.cc",
         ],
         # LINT.ThenChange(Android.bp, BUILD.gn, CMakeLists.txt)
 
@@ -78,7 +77,6 @@ def pw_bluetooth_proxy_library(name, **kwargs):
             "public/pw_bluetooth_proxy/l2cap_coc.h",
             "public/pw_bluetooth_proxy/l2cap_status_delegate.h",
             "public/pw_bluetooth_proxy/proxy_host.h",
-            "public/pw_bluetooth_proxy/single_channel_proxy.h",
         ],
         features = ["-conversion_warnings"],
         # LINT.ThenChange(BUILD.gn, CMakeLists.txt)

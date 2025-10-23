@@ -39,7 +39,6 @@ cc_library_static {
         "multibuf_v1.cc",
         "multibuf_v2.cc",
         "recombiner.cc",
-        "single_channel_proxy.cc",
     ],
     export_include_dirs: [
         "public",

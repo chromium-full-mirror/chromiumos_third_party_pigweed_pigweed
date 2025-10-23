@@ -131,7 +131,7 @@ GattNotifyChannel::GattNotifyChannel(L2capChannelManager& l2cap_channel_manager,
                                      uint16_t connection_handle,
                                      uint16_t attribute_handle,
                                      ChannelEventCallback&& event_fn)
-    : SingleChannelProxy(
+    : ChannelProxy(
           /*l2cap_channel_manager=*/l2cap_channel_manager,
           /*rx_multibuf_allocator*/ nullptr,
           /*connection_handle=*/connection_handle,

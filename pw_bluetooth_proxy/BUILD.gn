@@ -59,7 +59,6 @@ _pw_bluetooth_proxy_public = [
   "public/pw_bluetooth_proxy/l2cap_coc.h",
   "public/pw_bluetooth_proxy/l2cap_status_delegate.h",
   "public/pw_bluetooth_proxy/proxy_host.h",
-  "public/pw_bluetooth_proxy/single_channel_proxy.h",
 ]
 
 # LINT.ThenChange(bt-proxy.bzl, CMakeLists.txt)
@@ -118,7 +117,6 @@ _pw_bluetooth_proxy_sources = [
   "multibuf_v2.cc",
   "proxy_host.cc",
   "recombiner.cc",
-  "single_channel_proxy.cc",
 ]
 
 # LINT.ThenChange(Android.bp, bt-proxy.bzl, CMakeLists.txt)

@@ -22,13 +22,13 @@
 #include "pw_bluetooth/emboss_util.h"
 #include "pw_bluetooth/hci_data.emb.h"
 #include "pw_bluetooth/l2cap_frames.emb.h"
+#include "pw_bluetooth_proxy/channel_proxy.h"
 #include "pw_bluetooth_proxy/h4_packet.h"
 #include "pw_bluetooth_proxy/internal/l2cap_channel.h"
 #include "pw_bluetooth_proxy/internal/l2cap_channel_manager.h"
 #include "pw_bluetooth_proxy/internal/l2cap_signaling_channel.h"
 #include "pw_bluetooth_proxy/internal/multibuf.h"
 #include "pw_bluetooth_proxy/l2cap_channel_common.h"
-#include "pw_bluetooth_proxy/single_channel_proxy.h"
 #include "pw_log/log.h"
 #include "pw_status/status.h"
 
@@ -42,7 +42,7 @@ const float kRxCreditReplenishThreshold = 0.30;
 }  // namespace
 
 L2capCoc::L2capCoc(L2capCoc&& other)
-    : SingleChannelProxy(std::move(static_cast<SingleChannelProxy&>(other))),
+    : ChannelProxy(std::move(static_cast<ChannelProxy&>(other))),
       rx_mtu_(other.rx_mtu_),
       rx_mps_(other.rx_mps_),
       tx_mtu_(other.tx_mtu_),
@@ -311,15 +311,15 @@ L2capCoc::L2capCoc(MultiBufAllocator& rx_multibuf_allocator,
                    CocConfig tx_config,
                    ChannelEventCallback&& event_fn,
                    Function<void(FlatConstMultiBuf&& payload)>&& receive_fn)
-    : SingleChannelProxy(l2cap_channel_manager,
-                         &rx_multibuf_allocator,
-                         /*connection_handle=*/connection_handle,
-                         /*transport=*/AclTransportType::kLe,
-                         /*local_cid=*/rx_config.cid,
-                         /*remote_cid=*/tx_config.cid,
-                         /*payload_from_controller_fn=*/nullptr,
-                         /*payload_from_host_fn=*/nullptr,
-                         /*event_fn=*/std::move(event_fn)),
+    : ChannelProxy(l2cap_channel_manager,
+                   &rx_multibuf_allocator,
+                   /*connection_handle=*/connection_handle,
+                   /*transport=*/AclTransportType::kLe,
+                   /*local_cid=*/rx_config.cid,
+                   /*remote_cid=*/tx_config.cid,
+                   /*payload_from_controller_fn=*/nullptr,
+                   /*payload_from_host_fn=*/nullptr,
+                   /*event_fn=*/std::move(event_fn)),
       rx_mtu_(rx_config.mtu),
       rx_mps_(rx_config.mps),
       tx_mtu_(tx_config.mtu),

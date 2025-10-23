@@ -105,7 +105,7 @@ BasicL2capChannel::BasicL2capChannel(
     OptionalPayloadReceiveCallback&& payload_from_controller_fn,
     OptionalPayloadReceiveCallback&& payload_from_host_fn,
     ChannelEventCallback&& event_fn)
-    : SingleChannelProxy(
+    : ChannelProxy(
           l2cap_channel_manager,
           rx_multibuf_allocator,
           /*connection_handle=*/connection_handle,
