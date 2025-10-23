@@ -102,7 +102,8 @@ macro_rules! declare_uarts {
             use $crate::interrupt_handler;
             $(
                 pub static $uart_name: $crate::Uart<$arch> = $crate::Uart::new($config::BASE_ADDRESS);
-                fn [<interrupt_handler_ $uart_name:lower>]() {
+                #[unsafe(no_mangle)]
+                pub extern "C" fn [<interrupt_handler_ $uart_name:lower>]() {
                     $crate::interrupt_handler($arch, &$uart_name);
                 }
             )*

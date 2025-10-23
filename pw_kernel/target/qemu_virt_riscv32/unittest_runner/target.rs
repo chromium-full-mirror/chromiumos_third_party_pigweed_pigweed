@@ -19,6 +19,8 @@ use target_common::{TargetInterface, declare_target};
 use unittest_core::TestsResult;
 use {console_backend as _, entry as _, integration_tests as _, kernel as _};
 
+mod codegen;
+
 pub struct Target {}
 
 impl TargetInterface for Target {

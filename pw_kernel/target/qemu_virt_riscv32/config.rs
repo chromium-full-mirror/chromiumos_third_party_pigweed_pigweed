@@ -45,7 +45,7 @@ impl RiscVKernelConfigInterface for KernelConfig {
 pub struct PlicConfig;
 
 unsafe extern "Rust" {
-    static INTERRUPT_TABLE: [InterruptTableEntry; PlicConfig::INTERRUPT_TABLE_SIZE];
+    static PW_KERNEL_INTERRUPT_TABLE: [InterruptTableEntry; PlicConfig::INTERRUPT_TABLE_SIZE];
 }
 
 impl PlicConfigInterface for PlicConfig {
@@ -57,7 +57,7 @@ impl PlicConfigInterface for PlicConfig {
     const INTERRUPT_TABLE_SIZE: usize = Uart0Config::IRQ + 1;
 
     fn interrupt_table() -> &'static InterruptTable {
-        unsafe { &INTERRUPT_TABLE }
+        unsafe { &PW_KERNEL_INTERRUPT_TABLE }
     }
 }
 
@@ -74,5 +74,7 @@ pub struct Uart0Config;
 
 impl uart_16550_config::UartConfigInterface for Uart0Config {
     const BASE_ADDRESS: usize = 0x1000_0000;
+    // TODO: this IRQ is duplicated in the interrupt_table config.
+    // We should find a way to remove the duplication.
     const IRQ: usize = 10;
 }

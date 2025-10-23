@@ -20,5 +20,10 @@
     flash_size_bytes: 261120,        // 255Kb
     ram_start_address: 0x81000000,
     ram_size_bytes: 65536,           // 64Kb
+    interrupt_table: {
+      table: {
+        "10": "interrupt_handler_uart0",
+      }
+    },
   },
 }

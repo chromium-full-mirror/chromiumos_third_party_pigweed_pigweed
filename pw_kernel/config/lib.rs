@@ -84,6 +84,9 @@ pub trait PlicConfigInterface {
     /// The number of IRQs the interrupt controller handles.
     const NUM_IRQS: u32;
 
+    // TODO: investigate removing the need for these now
+    // that the interrupt table in codegend.
+
     /// The size of the table which store the interrupt handlers.
     /// To save space, the table doesn't need to be the size of
     /// NUM_IRQS, but can instead be the size of the highest

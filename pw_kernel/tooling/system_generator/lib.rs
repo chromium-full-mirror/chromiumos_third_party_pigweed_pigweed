@@ -129,6 +129,7 @@ impl<'a, A: ArchConfigInterface + Serialize> SystemGenerator<'a, A> {
         }
 
         instance.populate_addresses();
+        instance.populate_interrupt_table()?;
 
         Ok(instance)
     }
@@ -202,6 +203,24 @@ impl<'a, A: ArchConfigInterface + Serialize> SystemGenerator<'a, A> {
 
             app.initial_sp = app.ram_start_address + app.ram_size_bytes;
         }
+    }
+
+    fn populate_interrupt_table(&mut self) -> Result<()> {
+        if self.config.kernel.interrupt_table.is_none() {
+            return Ok(());
+        }
+
+        let interrupt_table = self.config.kernel.interrupt_table.as_mut().unwrap();
+
+        // Calculate the size of the interrupt table, which is the highest handled IRQ + 1
+        interrupt_table.table_size = interrupt_table
+            .table
+            .keys()
+            .max()
+            .map(|max_irq| (max_irq.parse::<usize>().unwrap()) + 1)
+            .unwrap_or(0);
+
+        Ok(())
     }
 }
 

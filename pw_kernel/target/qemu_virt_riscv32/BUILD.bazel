@@ -63,18 +63,6 @@ rust_library(
     deps = ENTRY_DEPS,
 )
 
-# A version of `entry` that registers kernel drivers.
-rust_library(
-    name = "entry_kernel_drivers",
-    srcs = ["entry.rs"],
-    crate_features = ["kernel_drivers"],
-    crate_name = "entry",
-    edition = "2024",
-    tags = ["kernel"],
-    target_compatible_with = TARGET_COMPATIBLE_WITH,
-    deps = ENTRY_DEPS,
-)
-
 rust_library(
     name = "config",
     srcs = ["config.rs"],

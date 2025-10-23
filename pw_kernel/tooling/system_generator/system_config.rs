@@ -12,6 +12,8 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 
+use std::collections::BTreeMap;
+
 use anyhow::{Result, anyhow};
 use hashlink::LinkedHashMap;
 use serde::{Deserialize, Serialize};
@@ -54,6 +56,15 @@ pub struct KernelConfig {
     pub flash_size_bytes: u64,
     pub ram_start_address: u64,
     pub ram_size_bytes: u64,
+    pub interrupt_table: Option<InterruptTableConfig>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct InterruptTableConfig {
+    pub table: BTreeMap<String, String>,
+    #[serde(skip_deserializing)]
+    pub table_size: usize,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

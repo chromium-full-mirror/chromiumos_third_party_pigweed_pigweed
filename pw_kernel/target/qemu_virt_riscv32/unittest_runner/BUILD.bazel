@@ -14,21 +14,33 @@
 
 load("@rules_rust//rust:defs.bzl", "rust_test")
 load("//pw_kernel/target/qemu_virt_riscv32:defs.bzl", "TARGET_COMPATIBLE_WITH")
+load("//pw_kernel/tooling:target_codegen.bzl", "target_codegen")
 load("//pw_kernel/tooling:target_linker_script.bzl", "target_linker_script")
 
 target_linker_script(
     name = "linker_script",
-    system_config = "system.json5",
+    system_config = ":system_config",
     tags = ["kernel"],
     target_compatible_with = TARGET_COMPATIBLE_WITH,
     template = "//pw_kernel/target/qemu_virt_riscv32:linker_script_template",
 )
 
+filegroup(
+    name = "system_config",
+    srcs = ["system.json5"],
+)
+
+target_codegen(
+    name = "codegen",
+    system_config = ":system_config",
+)
+
 rust_test(
     name = "unittest_runner",
     srcs = [
-        "target.rs",
+        ":codegen",
     ],
+    crate_root = "target.rs",
     edition = "2024",
     tags = ["kernel"],
     target_compatible_with = TARGET_COMPATIBLE_WITH,
