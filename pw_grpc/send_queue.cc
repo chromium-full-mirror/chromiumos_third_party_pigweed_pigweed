@@ -28,6 +28,18 @@ UniquePtr<std::byte[]> SendQueue::PopNext() {
   return buffer;
 }
 
+void SendQueue::NotifyOnError(Status status) {
+  std::lock_guard lock(send_mutex_);
+  if (on_error_) {
+    on_error_(status);
+  }
+}
+
+void SendQueue::set_on_error(ErrorHandler&& error_handler) {
+  std::lock_guard lock(send_mutex_);
+  on_error_ = std::move(error_handler);
+}
+
 void SendQueue::ProcessSendQueue(async::Context&, Status task_status) {
   if (!task_status.ok()) {
     return;
@@ -38,6 +50,7 @@ void SendQueue::ProcessSendQueue(async::Context&, Status task_status) {
     if (Status status = socket_.Write(pw::span(buffer.get(), buffer.size()));
         !status.ok()) {
       PW_LOG_ERROR("Failed to write to socket in SendQueue: %s", status.str());
+      NotifyOnError(status);
       return;
     }
     buffer = PopNext();

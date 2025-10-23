@@ -17,6 +17,7 @@
 #include "pw_async/dispatcher.h"
 #include "pw_async_basic/dispatcher.h"
 #include "pw_containers/dynamic_deque.h"
+#include "pw_function/function.h"
 #include "pw_status/status.h"
 #include "pw_stream/stream.h"
 #include "pw_sync/lock_annotations.h"
@@ -30,6 +31,8 @@ namespace pw::grpc {
 // that is creating the buffers to send.
 class SendQueue : public thread::ThreadCore {
  public:
+  using ErrorHandler = pw::Function<void(pw::Status)>;
+
   SendQueue(stream::ReaderWriter& socket, Allocator& allocator)
       : socket_(socket),
         send_task_(pw::bind_member<&SendQueue::ProcessSendQueue>(this)),
@@ -44,15 +47,22 @@ class SendQueue : public thread::ThreadCore {
   // Call before attempting to join thread.
   void RequestStop() { send_dispatcher_.RequestStop(); }
 
+  // Set callback to be called when write to socket fails. QueueSend should not
+  // be called from this callback.
+  void set_on_error(ErrorHandler&& error_handler)
+      PW_LOCKS_EXCLUDED(send_mutex_);
+
  private:
   void ProcessSendQueue(async::Context& context, Status status)
       PW_LOCKS_EXCLUDED(send_mutex_);
 
-  UniquePtr<std::byte[]> PopNext();
+  UniquePtr<std::byte[]> PopNext() PW_LOCKS_EXCLUDED(send_mutex_);
+  void NotifyOnError(Status status) PW_LOCKS_EXCLUDED(send_mutex_);
 
   stream::ReaderWriter& socket_;
   async::BasicDispatcher send_dispatcher_;
   async::Task send_task_;
+  ErrorHandler on_error_;
   sync::Mutex send_mutex_;
   DynamicDeque<UniquePtr<std::byte[]>> queue_ PW_GUARDED_BY(send_mutex_);
 };
