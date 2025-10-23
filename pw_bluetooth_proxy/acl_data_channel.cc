@@ -192,6 +192,8 @@ void AclDataChannel::ProcessReadBufferSizeCommandCompleteEvent(
         read_buffer_event.total_num_acl_data_packets().Read();
     const uint16_t host_max = br_edr_credits_.Reserve(controller_max);
     read_buffer_event.total_num_acl_data_packets().Write(host_max);
+    max_acl_data_packet_length_ =
+        read_buffer_event.acl_data_packet_length().Read();
   }
 
   l2cap_channel_manager_.ForceDrainChannelQueues();
@@ -207,10 +209,15 @@ void AclDataChannel::ProcessSpecificLEReadBufferSizeCommandCompleteEvent(
     // TODO: https://pwbug.dev/380316252 - Support shared buffers.
     const uint16_t host_max = le_credits_.Reserve(controller_max);
     read_buffer_event.total_num_le_acl_data_packets().Write(host_max);
+    max_le_acl_data_packet_length_ =
+        read_buffer_event.le_acl_data_packet_length().Read();
   }
 
   const uint16_t le_acl_data_packet_length =
       read_buffer_event.le_acl_data_packet_length().Read();
+
+  // Core Spec v6.0 Vol 4, Part E, Section 7.8.2:  A value of 0 means "No
+  // dedicated LE Buffer exists".
   // TODO: https://pwbug.dev/380316252 - Support shared buffers.
   if (le_acl_data_packet_length == 0) {
     PW_LOG_ERROR(
@@ -218,8 +225,7 @@ void AclDataChannel::ProcessSpecificLEReadBufferSizeCommandCompleteEvent(
         "is not yet supported. So channels on LE transport will not be "
         "functional.");
   }
-  l2cap_channel_manager_.set_le_acl_data_packet_length(
-      le_acl_data_packet_length);
+
   // Send packets that may have queued before we acquired any LE ACL credits.
   l2cap_channel_manager_.ForceDrainChannelQueues();
 }
@@ -477,6 +483,19 @@ bool AclDataChannel::HandleAclData(Direction direction,
   l2cap_channel_manager_.DeliverPendingEvents();
 
   return result.handled;
+}
+
+std::optional<uint16_t> AclDataChannel::MaxDataPacketLengthForTransport(
+    AclTransportType transport) const {
+  std::lock_guard lock(credit_mutex_);
+  switch (transport) {
+    case AclTransportType::kBrEdr:
+      return max_acl_data_packet_length_;
+    case AclTransportType::kLe:
+      return max_le_acl_data_packet_length_;
+    default:
+      return std::nullopt;
+  }
 }
 
 }  // namespace pw::bluetooth::proxy

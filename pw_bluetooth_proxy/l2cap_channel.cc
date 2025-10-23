@@ -316,17 +316,6 @@ constexpr size_t H4SizeForL2capData(uint16_t data_length) {
 
 }  // namespace
 
-bool L2capChannel::IsOkL2capDataLength(uint16_t data_length) {
-  // Support big enough HCI packets to handle 3-DH5 baseband packets. Note this
-  // doesn't guarantee packets will fit since the controller can combine
-  // multiple baseband packets, but in practice that hasn't been observed.
-  // Max 3-DH5 payload (1021 bytes) + ACL header (4 bytes) + H4 type (1 byte)
-  // TODO: https://pwbug.dev/438315637 - Use the controller's
-  // acl_data_packet_length.
-  constexpr uint16_t kLegacyH4BuffSize = 1026;
-  return H4SizeForL2capData(data_length) <= kLegacyH4BuffSize;
-}
-
 pw::Result<H4PacketWithH4> L2capChannel::PopulateL2capPacket(
     uint16_t data_length) {
   const size_t l2cap_packet_size =
@@ -364,13 +353,15 @@ pw::Result<H4PacketWithH4> L2capChannel::PopulateL2capPacket(
 }
 
 std::optional<uint16_t> L2capChannel::MaxL2capPayloadSize() const {
-  std::optional<uint16_t> le_acl_data_packet_length =
-      l2cap_channel_manager_.le_acl_data_packet_length();
-  if (!le_acl_data_packet_length) {
+  std::optional<uint16_t> max_acl_length =
+      channel_manager().MaxDataPacketLengthForTransport(transport());
+  if (!max_acl_length.has_value()) {
     return std::nullopt;
   }
-  return *le_acl_data_packet_length -
-         emboss::BasicL2capHeader::IntrinsicSizeInBytes();
+  if (*max_acl_length <= emboss::BasicL2capHeader::IntrinsicSizeInBytes()) {
+    return std::nullopt;
+  }
+  return *max_acl_length - emboss::BasicL2capHeader::IntrinsicSizeInBytes();
 }
 
 void L2capChannel::ReportNewTxPacketsOrCredits() {

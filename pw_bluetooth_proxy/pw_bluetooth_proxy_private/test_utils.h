@@ -152,8 +152,10 @@ Status SendLeReadBufferResponseFromController(
     uint8_t num_credits_to_reserve,
     uint16_t le_acl_data_packet_length = 251);
 
-Status SendReadBufferResponseFromController(ProxyHost& proxy,
-                                            uint8_t num_credits_to_reserve);
+Status SendReadBufferResponseFromController(
+    ProxyHost& proxy,
+    uint8_t num_credits_to_reserve,
+    uint16_t acl_data_packet_length = 0xFFFF);
 
 // Send a Number_of_Completed_Packets event to `proxy` that reports each
 // {connection handle, number of completed packets} entry provided.

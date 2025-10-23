@@ -542,6 +542,7 @@ TEST_F(ReserveLeAclCreditsTest, ProxyCreditsReserveCreditsWithReadBufferSize) {
   view.command_complete().command_opcode().Write(
       emboss::OpCode::READ_BUFFER_SIZE);
   view.total_num_acl_data_packets().Write(10);
+  view.acl_data_packet_length().Write(20);
 
   uint8_t sends_called = 0;
   pw::Function<void(H4PacketWithHci && packet)> send_to_host_fn(
@@ -554,6 +555,7 @@ TEST_F(ReserveLeAclCreditsTest, ProxyCreditsReserveCreditsWithReadBufferSize) {
         // Should reserve 2 credits from original total of 10 (so 8 left for
         // host).
         EXPECT_EQ(event_view.total_num_acl_data_packets().Read(), 8);
+        EXPECT_EQ(event_view.acl_data_packet_length().Read(), 20);
       });
 
   pw::Function<void(H4PacketWithH4 && packet)> send_to_controller_fn(
@@ -2121,25 +2123,24 @@ TEST_F(BasicL2capChannelTest, ErrorOnWriteTooLarge) {
                               /*le_acl_credits_to_reserve=*/1,
                               /*br_edr_acl_credits_to_reserve=*/0);
   // Allow proxy to reserve 1 credit.
-  // TODO: https://pwbug.dev/438315637 - Set the controller's
-  // acl_data_packet_length once ProxyHost reads it.
-  PW_TEST_EXPECT_OK(SendReadBufferResponseFromController(proxy, 1));
+  const uint16_t kAclDataPacketLength = 100;
+  PW_TEST_EXPECT_OK(SendReadBufferResponseFromController(
+      proxy, /*num_credits_to_reserve=*/1, kAclDataPacketLength));
 
-  constexpr uint16_t kLegacyH4BuffSize = 1026;
   std::array<uint8_t,
-             kLegacyH4BuffSize -
-                 emboss::AclDataFrameHeader::IntrinsicSizeInBytes() -
+             kAclDataPacketLength -
                  emboss::BasicL2capHeader::IntrinsicSizeInBytes() + 1>
-      hci_arr;
+      one_byte_too_big_sdu;
 
   BasicL2capChannel channel =
       BuildBasicL2capChannel(proxy,
                              {.handle = 0x123,
                               .local_cid = 0x123,
                               .remote_cid = 0x123,
-                              .transport = AclTransportType::kLe});
+                              .transport = AclTransportType::kBrEdr});
 
-  FlatMultiBufInstance mbuf_inst = MultiBufFromSpan(pw::span(hci_arr));
+  FlatMultiBufInstance mbuf_inst =
+      MultiBufFromSpan(pw::span(one_byte_too_big_sdu));
   FlatMultiBuf& mbuf = MultiBufAdapter::Unwrap(mbuf_inst);
   EXPECT_EQ(channel.Write(std::move(mbuf)).status, Status::InvalidArgument());
 }

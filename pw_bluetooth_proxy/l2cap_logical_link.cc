@@ -381,29 +381,25 @@ L2capLogicalLink::HandleAclData(Direction direction,
     MultiBufAdapter::Claim(mbuf, kH4AclHeaderSize);
     pw::span<uint8_t> h4_span = MultiBufAdapter::AsSpan(mbuf);
 
-    // TODO: https://pwbug.dev/438315637 - Also do this check for the BR/EDR
-    // transport type once we know its max acl length.
-    if (transport_ == AclTransportType::kLe) {
-      std::optional<uint16_t> le_packet_length =
-          channel_manager_.le_acl_data_packet_length();
-      if (le_packet_length.has_value()) {
-        const size_t kMaxH4Length = kH4PacketIndicatorSize + kH4AclHeaderSize +
-                                    le_packet_length.value();
-        if (h4_span.size() > kMaxH4Length) {
-          //  TODO: https://pwbug.dev/438543613 - Re-frag in this case.
-          PW_LOG_WARN(
-              "Recombined H4 length %zu is greater than allowed with "
-              "le_acl_data_packet_length "
-              "of %u for transport %u. Will still pass on single ACL packet.",
-              h4_span.size(),
-              *le_packet_length,
-              cpp23::to_underlying(transport_));
-        }
-      } else {
-        PW_LOG_WARN(
-            "le_acl_data_packet_length not known, so unable to check H4 "
-            "length.");
+    std::optional<uint16_t> max_acl_packet_length =
+        channel_manager_.MaxDataPacketLengthForTransport(transport_);
+    if (max_acl_packet_length.has_value()) {
+      const size_t kMaxH4Length = kH4PacketIndicatorSize + kH4AclHeaderSize +
+                                  max_acl_packet_length.value();
+      if (h4_span.size() > kMaxH4Length) {
+        //  TODO: https://pwbug.dev/438543613 - Re-frag in this case.
+        PW_LOG_ERROR(
+            "Recombined H4 length %zu is greater than allowed with "
+            "max acl length of "
+            "of %u for transport %u. Will still pass on single ACL packet.",
+            h4_span.size(),
+            *max_acl_packet_length,
+            cpp23::to_underlying(transport_));
       }
+    } else {
+      PW_LOG_WARN(
+          "max acl packet length not known, so unable to check H4 "
+          "length.");
     }
 
     // Populate the H4 and ACL headers ahead of the recombined PDU.

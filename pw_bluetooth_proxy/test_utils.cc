@@ -181,7 +181,8 @@ Status SendLeReadBufferResponseFromController(
 }
 
 Status SendReadBufferResponseFromController(ProxyHost& proxy,
-                                            uint8_t num_credits_to_reserve) {
+                                            uint8_t num_credits_to_reserve,
+                                            uint16_t acl_data_packet_length) {
   std::array<uint8_t,
              emboss::ReadBufferSizeCommandCompleteEventWriter::SizeInBytes()>
       hci_arr{};
@@ -193,7 +194,7 @@ Status SendReadBufferResponseFromController(ProxyHost& proxy,
   view.command_complete().command_opcode().Write(
       emboss::OpCode::READ_BUFFER_SIZE);
   view.total_num_acl_data_packets().Write(num_credits_to_reserve);
-  view.acl_data_packet_length().Write(0xFFFF);
+  view.acl_data_packet_length().Write(acl_data_packet_length);
   view.synchronous_data_packet_length().Write(0xFF);
   EXPECT_TRUE(view.Ok());
 

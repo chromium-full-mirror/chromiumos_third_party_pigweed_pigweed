@@ -350,22 +350,24 @@ L2capCoc::~L2capCoc() {
   }
 }
 
-std::optional<uint16_t> L2capCoc::MaxL2capPayloadSize() const {
-  std::optional<uint16_t> max_l2cap_payload_size =
+std::optional<uint16_t> L2capCoc::MaxBasicL2capPayloadSize() const {
+  std::optional<uint16_t> max_basic_l2cap_payload_size =
       L2capChannel::MaxL2capPayloadSize();
-  if (!max_l2cap_payload_size) {
+  if (!max_basic_l2cap_payload_size) {
     return std::nullopt;
   }
-  return std::min(*max_l2cap_payload_size, tx_mps_);
+  return std::min(*max_basic_l2cap_payload_size, tx_mps_);
 }
 
 std::optional<H4PacketWithH4> L2capCoc::GenerateNextTxPacket() {
   std::lock_guard lock(tx_mutex_);
-  constexpr uint8_t kSduLengthFieldSize = 2;
-  std::optional<uint16_t> max_l2cap_payload_size = MaxL2capPayloadSize();
+  constexpr uint8_t kSduLengthFieldSize =
+      emboss::FirstKFrame::MinSizeInBytes() -
+      emboss::BasicL2capHeader::IntrinsicSizeInBytes();
+  std::optional<uint16_t> max_basic_payload_size = MaxBasicL2capPayloadSize();
   if (state() != State::kRunning || PayloadQueueEmpty() || tx_credits_ == 0 ||
-      !max_l2cap_payload_size ||
-      *max_l2cap_payload_size <= kSduLengthFieldSize) {
+      !max_basic_payload_size ||
+      *max_basic_payload_size <= kSduLengthFieldSize) {
     return std::nullopt;
   }
 
@@ -377,12 +379,12 @@ std::optional<H4PacketWithH4> L2capCoc::GenerateNextTxPacket() {
   if (!is_continuing_segment_) {
     // Generating the first (or only) PDU of an SDU.
     size_t sdu_bytes_max_allowable =
-        *max_l2cap_payload_size - kSduLengthFieldSize;
+        *max_basic_payload_size - kSduLengthFieldSize;
     sdu_bytes_in_segment = std::min(sdu.size(), sdu_bytes_max_allowable);
     pdu_data_size = sdu_bytes_in_segment + kSduLengthFieldSize;
   } else {
     // Generating a continuing PDU in an SDU.
-    size_t sdu_bytes_max_allowable = *max_l2cap_payload_size;
+    size_t sdu_bytes_max_allowable = *max_basic_payload_size;
     sdu_bytes_in_segment =
         std::min(sdu.size() - tx_sdu_offset_, sdu_bytes_max_allowable);
     pdu_data_size = sdu_bytes_in_segment;

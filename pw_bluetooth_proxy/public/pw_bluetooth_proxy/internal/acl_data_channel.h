@@ -192,6 +192,11 @@ class AclDataChannel {
   // Returns false if the frame should be passed on to the other side.
   bool HandleAclData(Direction direction, emboss::AclDataFrameWriter& acl);
 
+  // Returns the max ACL payload size if the Read Buffer Size command complete
+  // event was received.
+  std::optional<uint16_t> MaxDataPacketLengthForTransport(
+      AclTransportType transport) const;
+
  private:
   // An active logical link on ACL logical transport.
   class AclConnection {
@@ -294,6 +299,11 @@ class AclDataChannel {
 
   Credits le_credits_ PW_GUARDED_BY(credit_mutex_);
   Credits br_edr_credits_ PW_GUARDED_BY(credit_mutex_);
+
+  std::optional<uint16_t> max_acl_data_packet_length_
+      PW_GUARDED_BY(credit_mutex_);
+  std::optional<uint16_t> max_le_acl_data_packet_length_
+      PW_GUARDED_BY(credit_mutex_);
 
   // List of credit-allocated ACL connections.
   pw::Vector<AclConnection, kMaxConnections> acl_connections_

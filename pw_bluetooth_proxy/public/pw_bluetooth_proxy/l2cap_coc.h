@@ -123,7 +123,7 @@ class L2capCoc : public ChannelProxy {
   // Returns max size of L2CAP PDU payload supported by this channel.
   //
   // Returns std::nullopt if ACL data channel is not yet initialized.
-  std::optional<uint16_t> MaxL2capPayloadSize() const;
+  std::optional<uint16_t> MaxBasicL2capPayloadSize() const;
 
   std::optional<H4PacketWithH4> GenerateNextTxPacket()
       PW_LOCKS_EXCLUDED(tx_mutex_)

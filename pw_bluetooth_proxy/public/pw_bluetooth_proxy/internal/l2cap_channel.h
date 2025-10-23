@@ -295,7 +295,9 @@ class L2capChannel : public IntrusiveForwardList<L2capChannel>::Item {
     return tx_mutex_;
   }
 
-  L2capChannelManager& channel_manager() { return l2cap_channel_manager_; }
+  L2capChannelManager& channel_manager() const {
+    return l2cap_channel_manager_;
+  }
 
   //----------------
   //  Tx (protected)
@@ -332,15 +334,10 @@ class L2capChannel : public IntrusiveForwardList<L2capChannel>::Item {
   // Returns PW_STATUS_UNAVAILABLE if all buffers are currently occupied.
   pw::Result<H4PacketWithH4> PopulateTxL2capPacket(uint16_t data_length);
 
-  // Return if we can generally handle the provided data length.
-  // Note PopulateTxL2capPacket can still fail if buffers or memory are not
-  // available at that time.
-  bool IsOkL2capDataLength(uint16_t data_length);
-
-  // Returns the maximum size supported for Tx L2CAP PDU payloads.
+  // Returns the maximum size supported for Tx L2CAP PDU payloads with a Basic
+  // header.
   //
-  // Returns std::nullopt if LE_ACL_Data_Packet_Length was not yet provided in
-  // an LE_Read_Buffer_Size command complete event.
+  // Returns std::nullopt if the ACL data packet length is not yet known.
   std::optional<uint16_t> MaxL2capPayloadSize() const;
 
   // Alert `L2capChannelManager` that queued packets may be ready to send.
