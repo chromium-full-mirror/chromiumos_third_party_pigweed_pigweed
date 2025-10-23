@@ -1211,5 +1211,13 @@ TEST(OptionalElement, PassesThroughStatus) {
   EXPECT_EQ(op.Release(), Status::Unavailable());
 }
 
+TEST(ClockTreeDeathTest, ReleaseWithoutAcquireCrashes) {
+  ClockSourceTest<ElementBlocking> clock_a;
+  EXPECT_DEATH_IF_SUPPORTED(clock_a.Release().IgnoreError(), ".*");
+
+  ClockSourceTest<ElementNonBlockingMightFail> clock_b;
+  EXPECT_DEATH_IF_SUPPORTED(clock_b.Release().IgnoreError(), ".*");
+}
+
 }  // namespace
 }  // namespace pw::clock_tree

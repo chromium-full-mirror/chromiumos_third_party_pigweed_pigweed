@@ -130,7 +130,10 @@ class Element {
   uint32_t IncRef() { return ++ref_count_; }
 
   /// Decrement reference count and return decremented value.
-  uint32_t DecRef() { return --ref_count_; }
+  uint32_t DecRef() {
+    PW_ASSERT(ref_count_ > 0);
+    return --ref_count_;
+  }
 
   /// Function called when the clock tree element needs to get enabled.
   virtual Status DoEnable() = 0;
