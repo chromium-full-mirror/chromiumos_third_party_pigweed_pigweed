@@ -34,12 +34,15 @@ CcBlobInfo = provider(
 )
 
 def _pw_cc_blob_info_impl(ctx):
-    return [CcBlobInfo(
-        symbol_name = ctx.attr.symbol_name,
-        file_path = ctx.file.file_path,
-        linker_section = ctx.attr.linker_section,
-        alignas = ctx.attr.alignas,
-    )]
+    return [
+        DefaultInfo(files = depset([ctx.file.file_path])),
+        CcBlobInfo(
+            symbol_name = ctx.attr.symbol_name,
+            file_path = ctx.file.file_path,
+            linker_section = ctx.attr.linker_section,
+            alignas = ctx.attr.alignas,
+        ),
+    ]
 
 pw_cc_blob_info = rule(
     implementation = _pw_cc_blob_info_impl,
@@ -49,7 +52,7 @@ pw_cc_blob_info = rule(
         "linker_section": attr.string(default = ""),
         "symbol_name": attr.string(),
     },
-    provides = [CcBlobInfo],
+    provides = [DefaultInfo, CcBlobInfo],
 )
 
 def _pw_cc_blob_library_impl(ctx):
