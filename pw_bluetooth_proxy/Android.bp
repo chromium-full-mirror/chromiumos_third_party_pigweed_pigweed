@@ -34,6 +34,7 @@ cc_library_static {
         "l2cap_coc.cc",
         "l2cap_signaling_channel.cc",
         "l2cap_status_tracker.cc",
+        "l2cap_logical_link.cc",
         "proxy_host.cc",
         "multibuf_v1.cc",
         "multibuf_v2.cc",

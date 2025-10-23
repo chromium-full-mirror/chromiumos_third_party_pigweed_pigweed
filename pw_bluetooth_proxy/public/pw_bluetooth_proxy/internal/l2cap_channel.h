@@ -295,6 +295,8 @@ class L2capChannel : public IntrusiveForwardList<L2capChannel>::Item {
     return tx_mutex_;
   }
 
+  L2capChannelManager& channel_manager() { return l2cap_channel_manager_; }
+
   //----------------
   //  Tx (protected)
   //----------------

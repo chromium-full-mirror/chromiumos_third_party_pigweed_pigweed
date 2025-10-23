@@ -26,7 +26,6 @@ class L2capCocInternal final : public L2capCoc {
   static pw::Result<L2capCoc> Create(
       MultiBufAllocator& rx_multibuf_allocator,
       L2capChannelManager& l2cap_channel_manager,
-      L2capSignalingChannel* signaling_channel,
       uint16_t connection_handle,
       CocConfig rx_config,
       CocConfig tx_config,
@@ -34,7 +33,6 @@ class L2capCocInternal final : public L2capCoc {
       Function<void(FlatConstMultiBuf&& payload)>&& receive_fn) {
     return L2capCoc::Create(rx_multibuf_allocator,
                             l2cap_channel_manager,
-                            signaling_channel,
                             connection_handle,
                             rx_config,
                             tx_config,

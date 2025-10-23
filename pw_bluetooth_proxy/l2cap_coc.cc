@@ -24,6 +24,7 @@
 #include "pw_bluetooth/l2cap_frames.emb.h"
 #include "pw_bluetooth_proxy/h4_packet.h"
 #include "pw_bluetooth_proxy/internal/l2cap_channel.h"
+#include "pw_bluetooth_proxy/internal/l2cap_channel_manager.h"
 #include "pw_bluetooth_proxy/internal/l2cap_signaling_channel.h"
 #include "pw_bluetooth_proxy/internal/multibuf.h"
 #include "pw_bluetooth_proxy/l2cap_channel_common.h"
@@ -42,7 +43,6 @@ const float kRxCreditReplenishThreshold = 0.30;
 
 L2capCoc::L2capCoc(L2capCoc&& other)
     : SingleChannelProxy(std::move(static_cast<SingleChannelProxy&>(other))),
-      signaling_channel_(other.signaling_channel_),
       rx_mtu_(other.rx_mtu_),
       rx_mps_(other.rx_mps_),
       tx_mtu_(other.tx_mtu_),
@@ -90,7 +90,6 @@ Status L2capCoc::DoCheckWriteParameter(const FlatConstMultiBuf& payload) {
 pw::Result<L2capCoc> L2capCoc::Create(
     MultiBufAllocator& rx_multibuf_allocator,
     L2capChannelManager& l2cap_channel_manager,
-    L2capSignalingChannel* signaling_channel,
     uint16_t connection_handle,
     CocConfig rx_config,
     CocConfig tx_config,
@@ -113,7 +112,6 @@ pw::Result<L2capCoc> L2capCoc::Create(
 
   L2capCoc channel(/*rx_multibuf_allocator=*/rx_multibuf_allocator,
                    /*l2cap_channel_manager=*/l2cap_channel_manager,
-                   /*signaling_channel=*/signaling_channel,
                    /*connection_handle=*/connection_handle,
                    /*rx_config=*/rx_config,
                    /*tx_config=*/tx_config,
@@ -125,13 +123,12 @@ pw::Result<L2capCoc> L2capCoc::Create(
 }
 
 pw::Status L2capCoc::ReplenishRxCredits(uint16_t additional_rx_credits) {
-  if (!signaling_channel_) {
-    return Status::FailedPrecondition();
-  }
   PW_CHECK(rx_multibuf_allocator());
   // SendFlowControlCreditInd logs if status is not ok, so no need to log here.
-  return signaling_channel_->SendFlowControlCreditInd(
-      local_cid(), additional_rx_credits, *rx_multibuf_allocator());
+  return channel_manager().SendFlowControlCreditInd(connection_handle(),
+                                                    local_cid(),
+                                                    additional_rx_credits,
+                                                    *rx_multibuf_allocator());
 }
 
 pw::Status L2capCoc::SendAdditionalRxCredits(uint16_t additional_rx_credits) {
@@ -307,14 +304,8 @@ bool L2capCoc::HandlePduFromHost(pw::span<uint8_t>) {
   return false;
 }
 
-void L2capCoc::DoClose() {
-  std::lock_guard lock(rx_mutex_);
-  signaling_channel_ = nullptr;
-}
-
 L2capCoc::L2capCoc(MultiBufAllocator& rx_multibuf_allocator,
                    L2capChannelManager& l2cap_channel_manager,
-                   L2capSignalingChannel* signaling_channel,
                    uint16_t connection_handle,
                    CocConfig rx_config,
                    CocConfig tx_config,
@@ -329,8 +320,6 @@ L2capCoc::L2capCoc(MultiBufAllocator& rx_multibuf_allocator,
                          /*payload_from_controller_fn=*/nullptr,
                          /*payload_from_host_fn=*/nullptr,
                          /*event_fn=*/std::move(event_fn)),
-
-      signaling_channel_(signaling_channel),
       rx_mtu_(rx_config.mtu),
       rx_mps_(rx_config.mps),
       tx_mtu_(tx_config.mtu),

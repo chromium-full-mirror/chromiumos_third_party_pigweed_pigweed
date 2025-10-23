@@ -34,6 +34,11 @@ L2capChannelManager::L2capChannelManager(AclDataChannel& acl_data_channel,
       lrd_channel_(channels_.end()),
       round_robin_terminus_(channels_.end()) {}
 
+L2capChannelManager::~L2capChannelManager() {
+  std::lock_guard lock(links_mutex_);
+  ResetLogicalLinksLocked();
+}
+
 void L2capChannelManager::RegisterChannel(L2capChannel& channel) {
   std::lock_guard lock(channels_mutex_);
   RegisterChannelLocked(channel);
@@ -86,7 +91,10 @@ void L2capChannelManager::MoveChannelRegistration(L2capChannel& from,
 }
 
 void L2capChannelManager::DeregisterAndCloseChannels(L2capChannelEvent event) {
-  std::lock_guard lock(channels_mutex_);
+  std::lock_guard links_lock(links_mutex_);
+  ResetLogicalLinksLocked();
+
+  std::lock_guard channels_lock(channels_mutex_);
   while (!channels_.empty()) {
     L2capChannel& front = channels_.front();
     channels_.pop_front();
@@ -331,21 +339,31 @@ void L2capChannelManager::HandleAclDisconnectionComplete(
       "btproxy: L2capChannelManager::HandleAclDisconnectionComplete - "
       "connection_handle: %u",
       connection_handle);
-  for (;;) {
-    IntrusiveForwardList<L2capChannel>::iterator channel_it;
-
-    std::lock_guard lock(channels_mutex_);
-    channel_it = containers::FindIf(
-        channels_, [connection_handle](L2capChannel& channel) {
-          return channel.connection_handle() == connection_handle &&
-                 channel.state() == L2capChannel::State::kRunning;
-        });
-    if (channel_it == channels_.end()) {
-      break;
+  {
+    std::lock_guard links_lock(links_mutex_);
+    auto it = logical_links_.find(connection_handle);
+    if (it != logical_links_.end()) {
+      internal::L2capLogicalLink* link = &(*it);
+      logical_links_.erase(it);
+      allocator_.Delete(link);
     }
 
-    DeregisterChannelLocked(*channel_it);
-    channel_it->InternalClose();
+    for (;;) {
+      IntrusiveForwardList<L2capChannel>::iterator channel_it;
+
+      std::lock_guard lock(channels_mutex_);
+      channel_it = containers::FindIf(
+          channels_, [connection_handle](L2capChannel& channel) {
+            return channel.connection_handle() == connection_handle &&
+                   channel.state() == L2capChannel::State::kRunning;
+          });
+      if (channel_it == channels_.end()) {
+        break;
+      }
+
+      DeregisterChannelLocked(*channel_it);
+      channel_it->InternalClose();
+    }
   }
 
   status_tracker_.HandleAclDisconnectionComplete(connection_handle);
@@ -370,6 +388,45 @@ void L2capChannelManager::HandleDisconnectionCompleteLocked(
 
 void L2capChannelManager::DeliverPendingEvents() {
   status_tracker_.DeliverPendingEvents();
+}
+
+Status L2capChannelManager::AddConnection(uint16_t connection_handle,
+                                          AclTransportType transport) {
+  std::lock_guard lock(links_mutex_);
+  auto iter = logical_links_.find(connection_handle);
+  if (iter != logical_links_.end()) {
+    return Status::AlreadyExists();
+  }
+
+  internal::L2capLogicalLink* link = allocator_.New<internal::L2capLogicalLink>(
+      connection_handle, transport, *this);
+  if (!link) {
+    return Status::ResourceExhausted();
+  }
+  logical_links_.insert(*link);
+  return OkStatus();
+}
+
+Status L2capChannelManager::SendFlowControlCreditInd(
+    uint16_t connection_handle,
+    uint16_t channel_id,
+    uint16_t credits,
+    MultiBufAllocator& multibuf_allocator) {
+  std::lock_guard lock(links_mutex_);
+  auto iter = logical_links_.find(connection_handle);
+  if (iter == logical_links_.end()) {
+    return Status::NotFound();
+  }
+  return iter->SendFlowControlCreditInd(
+      channel_id, credits, multibuf_allocator);
+}
+
+void L2capChannelManager::ResetLogicalLinksLocked() {
+  for (auto iter = logical_links_.begin(); iter != logical_links_.end();) {
+    internal::L2capLogicalLink* link = &(*iter);
+    iter = logical_links_.erase(iter);
+    allocator_.Delete(link);
+  }
 }
 
 }  // namespace pw::bluetooth::proxy

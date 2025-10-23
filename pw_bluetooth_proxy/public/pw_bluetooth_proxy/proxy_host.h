@@ -280,6 +280,10 @@ class ProxyHost {
   // Handle HCI ACL data packet from the host.
   void HandleAclFromHost(H4PacketWithH4&& h4_packet);
 
+  // Called when any type of connection complete event is received.
+  void OnConnectionCompleteSuccess(uint16_t connection_handle,
+                                   AclTransportType transport);
+
   // For sending non-ACL data to the host and controller. ACL traffic shall be
   // sent through the `acl_data_channel_`.
   HciTransport hci_transport_;

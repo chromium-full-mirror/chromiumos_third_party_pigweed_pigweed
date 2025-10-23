@@ -32,16 +32,12 @@
 
 namespace pw::bluetooth::proxy {
 
-AclDataChannel::AclConnection::AclConnection(
-    AclTransportType transport,
-    uint16_t connection_handle,
-    uint16_t num_pending_packets,
-    L2capChannelManager& l2cap_channel_manager)
+AclDataChannel::AclConnection::AclConnection(AclTransportType transport,
+                                             uint16_t connection_handle,
+                                             uint16_t num_pending_packets)
     : transport_(transport),
       connection_handle_(connection_handle),
-      num_pending_packets_(num_pending_packets),
-      signaling_channel_(L2capSignalingChannel::Create(
-          l2cap_channel_manager, connection_handle, transport)) {
+      num_pending_packets_(num_pending_packets) {
   PW_LOG_INFO(
       "btproxy: AclConnection ctor. transport_: %u, connection_handle_: %#x",
       cpp23::to_underlying(transport_),
@@ -284,153 +280,44 @@ void AclDataChannel::HandleNumberOfCompletedPacketsEvent(
   }
 }
 
-void AclDataChannel::HandleConnectionCompleteEvent(
-    H4PacketWithHci&& h4_packet) {
-  pw::span<uint8_t> hci_buffer = h4_packet.GetHciSpan();
-  Result<emboss::ConnectionCompleteEventView> connection_complete_event =
-      MakeEmbossView<emboss::ConnectionCompleteEventView>(hci_buffer);
-  if (!connection_complete_event.ok()) {
-    hci_transport_.SendToHost(std::move(h4_packet));
-    return;
-  }
-
-  if (connection_complete_event->status().Read() !=
-      emboss::StatusCode::SUCCESS) {
-    hci_transport_.SendToHost(std::move(h4_packet));
-    return;
-  }
-
-  const uint16_t conn_handle =
-      connection_complete_event->connection_handle().Read();
-
-  if (CreateAclConnection(conn_handle, AclTransportType::kBrEdr) ==
+void AclDataChannel::HandleConnectionCompleteEvent(uint16_t connection_handle,
+                                                   AclTransportType transport) {
+  if (CreateAclConnection(connection_handle, transport) ==
       Status::ResourceExhausted()) {
     PW_LOG_ERROR(
         "Could not track connection like requested. Max connections "
         "reached.");
   }
-
-  hci_transport_.SendToHost(std::move(h4_packet));
-}
-
-void AclDataChannel::HandleLeConnectionCompleteEvent(
-    uint16_t connection_handle, emboss::StatusCode status) {
-  if (status != emboss::StatusCode::SUCCESS) {
-    return;
-  }
-
-  if (CreateAclConnection(connection_handle, AclTransportType::kLe) ==
-      Status::ResourceExhausted()) {
-    PW_LOG_ERROR(
-        "Could not track connection like requested. Max connections "
-        "reached.");
-  }
-}
-
-void AclDataChannel::HandleLeConnectionCompleteEvent(
-    H4PacketWithHci&& h4_packet) {
-  pw::span<uint8_t> hci_buffer = h4_packet.GetHciSpan();
-  Result<emboss::LEConnectionCompleteSubeventView> event =
-      MakeEmbossView<emboss::LEConnectionCompleteSubeventView>(hci_buffer);
-  if (!event.ok()) {
-    hci_transport_.SendToHost(std::move(h4_packet));
-    return;
-  }
-
-  HandleLeConnectionCompleteEvent(event->connection_handle().Read(),
-                                  event->status().Read());
-
-  hci_transport_.SendToHost(std::move(h4_packet));
-}
-
-void AclDataChannel::HandleLeEnhancedConnectionCompleteV1Event(
-    H4PacketWithHci&& h4_packet) {
-  pw::span<uint8_t> hci_buffer = h4_packet.GetHciSpan();
-  Result<emboss::LEEnhancedConnectionCompleteSubeventV1View> event =
-      MakeEmbossView<emboss::LEEnhancedConnectionCompleteSubeventV1View>(
-          hci_buffer);
-  if (!event.ok()) {
-    hci_transport_.SendToHost(std::move(h4_packet));
-    return;
-  }
-
-  HandleLeConnectionCompleteEvent(event->connection_handle().Read(),
-                                  event->status().Read());
-
-  hci_transport_.SendToHost(std::move(h4_packet));
-}
-
-void AclDataChannel::HandleLeEnhancedConnectionCompleteV2Event(
-    H4PacketWithHci&& h4_packet) {
-  pw::span<uint8_t> hci_buffer = h4_packet.GetHciSpan();
-  Result<emboss::LEEnhancedConnectionCompleteSubeventV2View> event =
-      MakeEmbossView<emboss::LEEnhancedConnectionCompleteSubeventV2View>(
-          hci_buffer);
-  if (!event.ok()) {
-    hci_transport_.SendToHost(std::move(h4_packet));
-    return;
-  }
-
-  HandleLeConnectionCompleteEvent(event->connection_handle().Read(),
-                                  event->status().Read());
-
-  hci_transport_.SendToHost(std::move(h4_packet));
 }
 
 void AclDataChannel::ProcessDisconnectionCompleteEvent(
-    pw::span<uint8_t> hci_span) {
-  Result<emboss::DisconnectionCompleteEventView> dc_event =
-      MakeEmbossView<emboss::DisconnectionCompleteEventView>(hci_span);
-  if (!dc_event.ok()) {
-    PW_LOG_ERROR(
-        "Buffer is too small for DISCONNECTION_COMPLETE event. So will not "
-        "process.");
+    uint16_t connection_handle, emboss::StatusCode reason) {
+  std::lock_guard lock(connection_mutex_);
+
+  AclConnection* connection_ptr = FindAclConnection(connection_handle);
+  if (!connection_ptr) {
+    PW_LOG_INFO(
+        "btproxy: Viewed disconnect (reason: %#.2hhx) for unacquired "
+        "connection %#x.",
+        cpp23::to_underlying(reason),
+        connection_handle);
     return;
   }
+  PW_LOG_INFO("Proxy viewed disconnect (reason: %#.2hhx) for connection %#x.",
+              cpp23::to_underlying(reason),
+              connection_handle);
 
-  {
-    std::lock_guard lock(connection_mutex_);
-    uint16_t conn_handle = dc_event->connection_handle().Read();
-
-    AclConnection* connection_ptr = FindAclConnection(conn_handle);
-
-    if (!connection_ptr) {
-      PW_LOG_INFO(
-          "btproxy: Viewed disconnect (reason: %#.2hhx) for unacquired "
-          "connection %#x.",
-          cpp23::to_underlying(dc_event->reason().Read()),
-          conn_handle);
-      return;
-    }
-
-    emboss::StatusCode status = dc_event->status().Read();
-    if (status == emboss::StatusCode::SUCCESS) {
-      PW_LOG_INFO(
-          "Proxy viewed disconnect (reason: %#.2hhx) for connection %#x.",
-          cpp23::to_underlying(dc_event->reason().Read()),
-          conn_handle);
-      if (connection_ptr->num_pending_packets() > 0) {
-        PW_LOG_WARN(
-            "Connection %#x is disconnecting with packets in flight. Releasing "
-            "associated credits.",
-            conn_handle);
-        std::lock_guard credit_lock(credit_mutex_);
-        LookupCredits(connection_ptr->transport())
-            .MarkCompleted(connection_ptr->num_pending_packets());
-      }
-
-      l2cap_channel_manager_.HandleAclDisconnectionComplete(conn_handle);
-      acl_connections_.erase(connection_ptr);
-    } else {  // Failed disconnect status
-      if (connection_ptr->num_pending_packets() > 0) {
-        PW_LOG_WARN(
-            "Proxy viewed failed disconnect (status: %#.2hhx) for connection "
-            "%#x with packets in flight. Not releasing associated credits.",
-            cpp23::to_underlying(status),
-            conn_handle);
-      }
-    }
+  if (connection_ptr->num_pending_packets() > 0) {
+    PW_LOG_WARN(
+        "Connection %#x is disconnecting with packets in flight. Releasing "
+        "associated credits.",
+        connection_handle);
+    std::lock_guard credit_lock(credit_mutex_);
+    LookupCredits(connection_ptr->transport())
+        .MarkCompleted(connection_ptr->num_pending_packets());
   }
+
+  acl_connections_.erase(connection_ptr);
 }
 
 bool AclDataChannel::HasSendAclCapability(AclTransportType transport) const {
@@ -503,24 +390,8 @@ Status AclDataChannel::CreateAclConnection(uint16_t connection_handle,
   }
   acl_connections_.emplace_back(transport,
                                 /*connection_handle=*/connection_handle,
-                                /*num_pending_packets=*/0,
-                                l2cap_channel_manager_);
+                                /*num_pending_packets=*/0);
   return OkStatus();
-}
-
-L2capSignalingChannel* AclDataChannel::FindSignalingChannel(
-    uint16_t connection_handle, uint16_t local_cid) {
-  std::lock_guard lock(connection_mutex_);
-
-  AclConnection* connection_ptr = FindAclConnection(connection_handle);
-  if (!connection_ptr) {
-    return nullptr;
-  }
-
-  if (local_cid == connection_ptr->signaling_channel()->local_cid()) {
-    return connection_ptr->signaling_channel();
-  }
-  return nullptr;
 }
 
 AclDataChannel::AclConnection* AclDataChannel::FindAclConnection(

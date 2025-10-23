@@ -4526,7 +4526,7 @@ TEST_F(AclFragTest,
 
 TEST_F(ProxyHostTest, ClientProvidedAllocatorUsedForH4) {
   std::array<uint8_t, 100> payload = {};
-  pw::allocator::test::AllocatorForTest<150> allocator;
+  pw::allocator::test::AllocatorForTest<1800> allocator;
 
   struct {
     int sends_called = 0;
@@ -4553,6 +4553,7 @@ TEST_F(ProxyHostTest, ClientProvidedAllocatorUsedForH4) {
   constexpr uint16_t remote_channel_id = 0x1234;
   constexpr uint16_t local_channel_id = 0x4321;
 
+  EXPECT_EQ(allocator.GetAllocated(), 0u);
   BasicL2capChannel channel =
       BuildBasicL2capChannel(proxy,
                              {.handle = handle,
@@ -4560,7 +4561,6 @@ TEST_F(ProxyHostTest, ClientProvidedAllocatorUsedForH4) {
                               .remote_cid = remote_channel_id,
                               .transport = AclTransportType::kLe});
 
-  EXPECT_EQ(allocator.GetAllocated(), 0u);
   {
     FlatMultiBufInstance mbuf_inst = MultiBufFromSpan(pw::span(payload));
     FlatMultiBuf& mbuf = MultiBufAdapter::Unwrap(mbuf_inst);
@@ -4569,22 +4569,42 @@ TEST_F(ProxyHostTest, ClientProvidedAllocatorUsedForH4) {
   }
   EXPECT_GT(allocator.GetAllocated(), payload.size());
 
-  // The second packet should be queued and not sent because the allocator is
-  // full.
-  {
-    FlatMultiBufInstance mbuf_inst = MultiBufFromSpan(pw::span(payload));
-    FlatMultiBuf& mbuf = MultiBufAdapter::Unwrap(mbuf_inst);
-    PW_TEST_EXPECT_OK(channel.Write(std::move(mbuf)).status);
-    EXPECT_EQ(capture.sends_called, 1);
-  }
-
-  {
-    H4PacketWithH4 packet = std::move(capture.sent_packets.back());
-    capture.sent_packets.clear();
-  }
-  EXPECT_EQ(capture.sends_called, 2);
   capture.sent_packets.clear();
+  proxy.Reset();
   EXPECT_EQ(allocator.GetAllocated(), 0u);
+}
+
+TEST_F(ProxyHostTest, NotEnoughMemoryToAllocateConnection) {
+  // Allocator is too small to hold connection state.
+  pw::allocator::test::AllocatorForTest<30> allocator;
+
+  size_t host_called = 0;
+  pw::Function<void(H4PacketWithH4 && packet)> send_to_controller_fn(
+      []([[maybe_unused]] H4PacketWithH4&& packet) {});
+
+  pw::Function<void(H4PacketWithHci && packet)> send_to_host_fn(
+      [&host_called]([[maybe_unused]] H4PacketWithHci&& packet) {
+        ++host_called;
+      });
+
+  ProxyHost proxy = ProxyHost(std::move(send_to_host_fn),
+                              std::move(send_to_controller_fn),
+                              /*le_acl_credits_to_reserve=*/0,
+                              /*br_edr_acl_credits_to_reserve=*/0,
+                              &allocator);
+
+  // Connection should silently fail for connection complete events.
+  PW_TEST_EXPECT_OK(
+      SendLeConnectionCompleteEvent(proxy, 1, emboss::StatusCode::SUCCESS));
+  EXPECT_EQ(host_called, 1U);
+
+  Result<BasicL2capChannel> channel =
+      BuildBasicL2capChannelWithResult(proxy,
+                                       {.handle = 0xABC,
+                                        .local_cid = 0x123,
+                                        .remote_cid = 0x456,
+                                        .transport = AclTransportType::kLe});
+  EXPECT_EQ(channel.status(), Status::Unavailable());
 }
 
 }  // namespace

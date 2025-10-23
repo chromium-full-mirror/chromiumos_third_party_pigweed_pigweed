@@ -104,22 +104,13 @@ class AclDataChannel {
   // credits that are associated with our credit-allocated connections.
   void HandleNumberOfCompletedPacketsEvent(H4PacketWithHci&& h4_packet);
 
-  // Reclaim any credits we have associated with the removed connection and
-  // notify `L2capChannelManager` of disconnection. This function just processes
-  // the event; it does not handle forwarding it on.
-  void ProcessDisconnectionCompleteEvent(pw::span<uint8_t> hci_span);
+  // Reclaim any credits we have associated with the removed connection.
+  void ProcessDisconnectionCompleteEvent(uint16_t connection_handle,
+                                         emboss::StatusCode reason);
 
-  // Create new tracked connection and pass on to host.
-  void HandleConnectionCompleteEvent(H4PacketWithHci&& h4_packet);
-
-  // Create new tracked connection and pass on to host.
-  void HandleLeConnectionCompleteEvent(H4PacketWithHci&& h4_packet);
-
-  // Create new tracked connection and pass on to host.
-  void HandleLeEnhancedConnectionCompleteV1Event(H4PacketWithHci&& h4_packet);
-
-  // Create new tracked connection and pass on to host.
-  void HandleLeEnhancedConnectionCompleteV2Event(H4PacketWithHci&& h4_packet);
+  // Create new tracked connection.
+  void HandleConnectionCompleteEvent(uint16_t connection_handle,
+                                     AclTransportType transport);
 
   /// Indicates whether the proxy has the capability of sending ACL packets.
   /// Note that this indicates intention, so it can be true even if the proxy
@@ -159,11 +150,6 @@ class AclDataChannel {
   pw::Status CreateAclConnection(uint16_t connection_handle,
                                  AclTransportType transport);
 
-  // Returns the signaling channel for this link if `connection_handle`
-  // references a tracked connection and `local_cid` matches its id.
-  L2capSignalingChannel* FindSignalingChannel(uint16_t connection_handle,
-                                              uint16_t local_cid);
-
   // Handles an ACL Data frame.
   // Returns true if the frame was handled and is consumed by the proxy.
   // Returns false if the frame should be passed on to the other side.
@@ -171,14 +157,11 @@ class AclDataChannel {
 
  private:
   // An active logical link on ACL logical transport.
-  // TODO: https://pwbug.dev/360929142 - Encapsulate all logic related to this
-  // within a new LogicalLinkManager class?
   class AclConnection {
    public:
     AclConnection(AclTransportType transport,
                   uint16_t connection_handle,
-                  uint16_t num_pending_packets,
-                  L2capChannelManager& l2cap_channel_manager);
+                  uint16_t num_pending_packets);
 
     AclConnection(const AclConnection&) = delete;
     AclConnection& operator=(const AclConnection&) = delete;
@@ -195,8 +178,6 @@ class AclDataChannel {
       num_pending_packets_ = new_val;
     }
 
-    L2capSignalingChannel* signaling_channel() { return &signaling_channel_; }
-
     Recombiner& GetRecombiner(Direction direction) {
       return get_recombination_buffer(direction);
     }
@@ -205,8 +186,8 @@ class AclDataChannel {
     AclTransportType transport_;
     uint16_t connection_handle_;
     uint16_t num_pending_packets_;
-    L2capSignalingChannel signaling_channel_;
 
+    // TODO: https://pwbug.dev/360929142 - Move Recombiner to L2capLogicalLink.
     std::array<Recombiner, kNumDirections> recombination_buffers_{
         Recombiner{Direction{0}}, Recombiner{Direction{1}}};
 
@@ -269,9 +250,6 @@ class AclDataChannel {
 
   const Credits& LookupCredits(AclTransportType transport) const
       PW_EXCLUSIVE_LOCKS_REQUIRED(credit_mutex_);
-
-  void HandleLeConnectionCompleteEvent(uint16_t connection_handle,
-                                       emboss::StatusCode status);
 
   // Data members
 

@@ -21,9 +21,11 @@
 #include "pw_allocator/synchronized_allocator.h"
 #include "pw_bluetooth_proxy/internal/acl_data_channel.h"
 #include "pw_bluetooth_proxy/internal/l2cap_channel.h"
+#include "pw_bluetooth_proxy/internal/l2cap_logical_link.h"
 #include "pw_bluetooth_proxy/internal/l2cap_status_tracker.h"
 #include "pw_bluetooth_proxy/internal/locked_l2cap_channel.h"
 #include "pw_bluetooth_proxy/l2cap_channel_common.h"
+#include "pw_containers/intrusive_map.h"
 #include "pw_sync/lock_annotations.h"
 
 // This include is not used but a downstream project transitively depends on it.
@@ -47,6 +49,8 @@ class L2capChannelManager {
   /// will be used.
   L2capChannelManager(AclDataChannel& acl_data_channel,
                       pw::Allocator* allocator);
+
+  ~L2capChannelManager();
 
   // Start proxying L2CAP packets addressed to `channel` arriving from
   // the controller and allow `channel` to send & queue Tx L2CAP packets.
@@ -131,10 +135,32 @@ class L2capChannelManager {
   // channels_mutex_.
   void DeliverPendingEvents();
 
-  // Core Spec v6.0 Vol 4, Part E, Section 7.8.2: "The LE_ACL_Data_Packet_Length
-  // parameter shall be used to determine the maximum size of the L2CAP PDU
-  // fragments that are contained in ACL data packets". A value of 0 means "No
-  // dedicated LE Buffer exists".
+  // Register a logical link with the L2CAP layer.
+  //
+  // @returns
+  // * @OK: The link was successfully added.
+  // * @ALREADY_EXISTS: The link is already registered.
+  // * @RESOURCE_EXHAUSTED: There is no memory left to allocate state for the
+  // link.
+  Status AddConnection(uint16_t connection_handle, AclTransportType transport);
+
+  // Send L2CAP_FLOW_CONTROL_CREDIT_IND to indicate local endpoint `cid` is
+  // capable of receiving a number of additional K-frames (`credits`).
+  //
+  // @returns
+  // * @OK: `L2CAP_FLOW_CONTROL_CREDIT_IND` was sent.
+  // * @UNAVAILABLE: Send could not be queued due to lack of memory in the
+  //   client-provided `multibuf_allocator` (transient error).
+  // * @FAILED_PRECONDITION: Channel is not `State::kRunning`.
+  Status SendFlowControlCreditInd(uint16_t connection_handle,
+                                  uint16_t channel_id,
+                                  uint16_t credits,
+                                  MultiBufAllocator& multibuf_allocator);
+
+  // Core Spec v6.0 Vol 4, Part E, Section 7.8.2: "The
+  // LE_ACL_Data_Packet_Length parameter shall be used to determine the
+  // maximum size of the L2CAP PDU fragments that are contained in ACL data
+  // packets". A value of 0 means "No dedicated LE Buffer exists".
   //
   // Return std::nullopt if HCI_LE_Read_Buffer_Size command complete event has
   // not yet been received.
@@ -150,7 +176,8 @@ class L2capChannelManager {
   }
 
  private:
-  // Circularly advance `it`, wrapping around to front if `it` reaches the end.
+  // Circularly advance `it`, wrapping around to front if `it` reaches the
+  // end.
   void Advance(IntrusiveForwardList<L2capChannel>::iterator& it)
       PW_EXCLUSIVE_LOCKS_REQUIRED(channels_mutex_);
 
@@ -163,12 +190,14 @@ class L2capChannelManager {
   void DeregisterChannelLocked(L2capChannel& channel)
       PW_EXCLUSIVE_LOCKS_REQUIRED(channels_mutex_);
 
+  void ResetLogicalLinksLocked() PW_EXCLUSIVE_LOCKS_REQUIRED(links_mutex_);
+
   // Reference to the ACL data channel owned by the proxy.
   AclDataChannel& acl_data_channel_;
 
   // TODO: https://pwbug.dev/369849508 - Fully migrate to client-provided
   // allocator and remove internal allocator.
-  static constexpr uint16_t kH4PoolSize = 10260;
+  static constexpr uint16_t kH4PoolSize = 13000;
   std::array<std::byte, kH4PoolSize> storage_region_;
   pw::allocator::BestFitAllocator<> internal_allocator_{storage_region_};
   pw::allocator::SynchronizedAllocator<sync::Mutex>
@@ -180,8 +209,8 @@ class L2capChannelManager {
   std::atomic<std::optional<uint16_t>> le_acl_data_packet_length_{std::nullopt};
 
   // Enforce mutual exclusion of all operations on channels.
-  // This is ACQUIRED_BEFORE AclDataChannel::credit_mutex_ which is annotated on
-  // that member variable.
+  // This is ACQUIRED_BEFORE AclDataChannel::credit_mutex_ which is annotated
+  // on that member variable.
   sync::Mutex channels_mutex_;
 
   // List of registered L2CAP channels.
@@ -207,6 +236,12 @@ class L2capChannelManager {
 
   // Channel connection status tracker and delegate holder.
   L2capStatusTracker status_tracker_;
+
+  // A separate links mutex is required so that the channels owned by the links
+  // can be destroyed without deadlock.
+  sync::Mutex links_mutex_ PW_ACQUIRED_BEFORE(channels_mutex_);
+  IntrusiveMap<uint16_t, internal::L2capLogicalLink> logical_links_
+      PW_GUARDED_BY(links_mutex_);
 };
 
 }  // namespace pw::bluetooth::proxy
