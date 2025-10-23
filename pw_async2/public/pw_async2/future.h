@@ -52,7 +52,8 @@ namespace pw::async2::experimental {
 /// - `Poll<T> DoPend(Context& cx)`: Implements the asynchronous operation.
 /// - `void DoMarkComplete()`: Marks the future as complete.
 /// - `bool DoIsComplete() const`: Returns `true` if `DoMarkCompleted` has
-///    previously been called.
+///    previously been called. This must always return a value, even if the
+///    future's provider has been destroyed.
 ///
 /// @tparam Derived The concrete class that implements this `Future`.
 /// @tparam T       The type of the value returned by `Pend` upon completion.

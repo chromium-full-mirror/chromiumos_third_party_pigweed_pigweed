@@ -151,6 +151,19 @@ pw_cc_test(
     ],
 )
 
+pw_cc_test(
+    name = "custom_future",
+    srcs = ["custom_future.cc"],
+    deps = [
+        "//pw_assert:check",
+        "//pw_async2:dispatcher",
+        "//pw_async2:pend_func_task",
+        "//pw_digital_io",
+        "//pw_sync:interrupt_spin_lock",
+        "//pw_unit_test",
+    ],
+)
+
 sphinx_docs_library(
     name = "docs",
     srcs = [
@@ -159,6 +172,7 @@ sphinx_docs_library(
         "basic.cc",
         "coro_blinky_loop.cc",
         "count.cc",
+        "custom_future.cc",
         "inline_async_queue_with_coro_test.cc",
         "inline_async_queue_with_tasks_test.cc",
         "interrupt.cc",
@@ -167,3 +181,5 @@ sphinx_docs_library(
     ],
     target_compatible_with = incompatible_with_mcu(),
 )
+
+exports_files(["custom_future.cc"])

@@ -96,3 +96,14 @@ pw_add_test(pw_async2.examples.unit_test
     pw_async2.dispatcher
     pw_async2.pend_func_task
 )
+
+pw_add_test(pw_async2.examples.custom_future
+  SOURCES
+    custom_future.cc
+  PRIVATE_DEPS
+    pw_assert.check
+    pw_async2.dispatcher
+    pw_async2.pend_func_task
+    pw_digital_io
+    pw_sync.interrupt_spin_lock
+)
