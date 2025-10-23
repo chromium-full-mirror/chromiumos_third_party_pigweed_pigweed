@@ -96,9 +96,12 @@ Run on-device tests
 
             The ``rp2040`` part of the previous command is not a typo.
             In :ref:`docs-glossary-upstream` there is a single hardware
-            target named ``rp2040`` that can control both RP2040 and RP2350
-            chips. Admittedly, the confusion would be avoided if this target
-            had a more general name, e.g. ``rp2xxx``.
+            target named ``//targets/rp2040`` that can control both RP2040 and
+            RP2350 chips. Admittedly, the confusion would be avoided if this
+            target had a more general name.
+
+            Bug :bug:`449742221` tracks the effort to clean this up, so that
+            the target path would become the more generic ``//targets/rp2``.
 
    You should see output like this:
 

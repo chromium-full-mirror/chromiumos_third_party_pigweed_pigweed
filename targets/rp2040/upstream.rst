@@ -215,14 +215,25 @@ Whereas to build upstream Pigweed for a Pico 2 you run:
 
 .. important::
 
-   The target path should always be ``//targets/rp2040``, even if you're
-   working with an RP2350. When we originally created this target, the
-   RP2350 didn't exist yet, so we called the target ``rp2040`` and placed
-   its code in the ``//targets/rp2040`` directory. The target now supports
-   both RP2040 and RP2350. We just haven't got around to making the target
-   name more general. If you try to reference ``//targets/rp2350`` you will
-   see an error like this ``ERROR: no such package 'targets/rp2350'``
-   because no directory exists at that location.
+   If the build command uses  target path that begins ``//targets/rp2040``,
+   then you should use for both the RP2040 and the RP2350.
+
+   Bug :bug:`449742221` tracks the effort to clean this up, so that the target
+   path would become the more generic ``//targets/rp2``.
+
+   When we originally created ``//targets/rp2040``, the RP2350 did not yet
+   exist, and we didn't know there would be a future product that was mostly
+   compatible, which is why the RP2350 uses the RP2040 target configuration,
+   but is then modified by the ``--config`` and ``--chip`` flags where needed.
+
+   If you forget, you will get a error that the target package dos not exist,
+   which may look like:
+
+   .. code-block:: console
+
+      ERROR: no such package 'targets/rp2350/py': BUILD file not found in any
+      of the following directories. Add a BUILD file to a directory to mark it
+      as a package.
 
 .. _target-rp2-upstream-build:
 
@@ -307,21 +318,33 @@ Run on-device tests
 
          .. code-block:: console
 
-            $ bazelisk run //targets/rp2040/py:unit_test_server -- --chip <mcu>
+            # For the RP2040 use this:
+            $ bazelisk run //targets/rp2040/py:unit_test_server -- --chip RP2040
+
+            # For the RP2350 use the same target, but specify "--chip RP2350"
+            $ bazelisk run //targets/rp2040/py:unit_test_server -- --chip RP2350
 
       .. tab-item:: Debug Probe
          :sync: probe
 
          .. code-block:: console
 
-            $ bazelisk run //targets/rp2040/py:unit_test_server -- --chip <mcu> --debug-probe-only
+            # For the RP2040 use this:
+            $ bazelisk run //targets/rp2040/py:unit_test_server -- --chip RP2040 --debug-probe-only
+
+            # For the RP2350 use the same target, but specify "--chip RP2350"
+            $ bazelisk run //targets/rp2040/py:unit_test_server -- --chip RP2350 --debug-probe-only
 
       .. tab-item:: Standalone
          :sync: standalone
 
          .. code-block:: console
 
-            $ bazelisk run //targets/rp2040/py:unit_test_server -- --chip <mcu>
+            # For the RP2040 use this:
+            $ bazelisk run //targets/rp2040/py:unit_test_server -- --chip RP2040
+
+            # For the RP2350 use the same target, but specify "--chip RP2350"
+            $ bazelisk run //targets/rp2040/py:unit_test_server -- --chip RP2350
 
 
 #. Open another terminal and run the tests:
