@@ -12,6 +12,7 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 
+#include "pw_assert/check.h"
 #include "pw_system/config.h"
 #include "pw_thread/thread.h"
 
@@ -30,9 +31,24 @@
 
 namespace pw::system {
 
-[[noreturn]] void StartScheduler() {
+[[noreturn]] void StartSchedulerAndClobberTheStack() {
+  // !!!IMPORTANT!!!
+  //
+  // In at least some ports of FreeRTOS, this call reset the stack pointer to
+  // reuses the entirety of the call stack. Any C++ types that were constructed
+  // on the stack will not have their destructors called, and the contents will
+  // be corrupted as threads and ISRs stomp over whatever was stored there.
+  //
+  // https://www.freertos.org/Why-FreeRTOS/FAQs/Troubleshooting#main-stack
+  //
+  // An example of a port that does this is the GCC ARM_CM55_NTZ port, which
+  // resets the ARM MSP register in vStartFirstTask(). See
+  // portable/GCC/ARM_CM55_NTZ/non_secure/portasm.c
   vTaskStartScheduler();
-  PW_UNREACHABLE;
+
+  // The call may return if here isn't enough heap to actually start the
+  // scheduler. Crash since this is a [[noreturn]] function.
+  PW_CRASH("vTaskStartScheduler() failed.");
 }
 
 }  // namespace pw::system
@@ -46,7 +62,8 @@ namespace pw::system {
 
 namespace pw::system {
 
-[[noreturn]] void StartScheduler() {
+[[noreturn]] void StartSchedulerAndClobberTheStack() {
+  // This generic implementation does NOT actually clobber the stack.
   while (true) {
     std::this_thread::sleep_for(std::chrono::system_clock::duration::max());
   }

@@ -84,17 +84,22 @@ int WaitForTcpConnection(uint16_t port) {
 
 constexpr uint16_t kPort = 33000;  // This should be configurable.
 
-int main() {
+pw::channel::ByteReaderWriter& Init() {
   pw::multibuf::test::SimpleAllocatorForTest<4096, 4096> mb_alloc;
   PW_LOG_INFO("Waiting for TCP connection on port %hu", kPort);
   int socket_fd = pw::WaitForTcpConnection(kPort);
   PW_CHECK_INT_NE(socket_fd, pw::kInvalidFd);
   PW_LOG_INFO("Connected; socket descriptor %d", socket_fd);
 
-  pw::channel::EpollChannel channel(
+  static pw::channel::EpollChannel channel(
       socket_fd, pw::System().dispatcher(), mb_alloc);
   PW_CHECK(channel.is_read_or_write_open());
 
-  pw::SystemStart(channel.channel());
+  return channel.channel();
+}
+
+int main() {
+  pw::channel::ByteReaderWriter& io_channel = Init();
+  pw::system::StartAndClobberTheStack(io_channel);
   return 0;
 }

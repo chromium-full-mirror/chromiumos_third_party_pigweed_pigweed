@@ -45,9 +45,7 @@
 namespace pw {
 
 void SystemStart(channel::ByteReaderWriter& io_channel) {
-  System().Init(io_channel);
-
-  system::StartScheduler();
+  system::StartAndClobberTheStack(io_channel);
 }
 
 namespace system {
@@ -178,6 +176,12 @@ async2::Poll<> AsyncCore::InitTask(async2::Context&) {
 
   PW_LOG_INFO("pw_system initialization complete");
   return async2::Ready();
+}
+
+void StartAndClobberTheStack(channel::ByteReaderWriter& io_channel) {
+  System().Init(io_channel);
+
+  StartSchedulerAndClobberTheStack();
 }
 
 }  // namespace system

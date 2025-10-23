@@ -263,8 +263,22 @@ dispatcher, which may be used to run async tasks, including with C++20
 coroutines.
 
 To use ``pw_system:async``, add a dependency on ``@pigweed//pw_system:async`` in
-Bazel. Then, from your main function, invoke :cc:`pw::SystemStart` with a
-:cc:`pw::channel::ByteReaderWriter` to use for IO.
+Bazel. After performing any initialization, call
+:cc:`pw::system::StartAndClobberTheStack` with a
+:cc:`pw::channel::ByteReaderWriter` to use for IO to start the RTOS scheduler.
+
+.. important::
+
+  Some RTOSes (and with FreeRTOS, with some but not all architecture ports) the
+  call to start the scheduler takes over the callers stack, and will trash any
+  values stored on it. As this could lead to hard to diagnose runtime behavior,
+  we recommend guarding against accidentally storing any registration structures
+  on the stack by performing any initialization in a function called from main
+  that then returns back to main for the
+  :cc:`pw::system::StartAndClobberTheStack` call.
+
+  This is shown in the example below, or you can open up
+  :cs:`pw_system/system_async_test.cc`.
 
 .. literalinclude:: system_async_test.cc
    :language: cpp

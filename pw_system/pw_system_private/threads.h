@@ -56,6 +56,6 @@ inline constexpr pw::ThreadAttrs kWorkQueueThread =
         .set_name("WorkQueueThread")
         .set_priority(kThreadPriorityWorkQueue);
 
-[[noreturn]] void StartScheduler();
+[[noreturn]] void StartSchedulerAndClobberTheStack();
 
 }  // namespace pw::system
