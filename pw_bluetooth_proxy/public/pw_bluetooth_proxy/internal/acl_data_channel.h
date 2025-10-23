@@ -20,14 +20,16 @@
 #include "pw_bluetooth/hci_events.emb.h"
 #include "pw_bluetooth_proxy/direction.h"
 #include "pw_bluetooth_proxy/internal/hci_transport.h"
-#include "pw_bluetooth_proxy/internal/l2cap_signaling_channel.h"
 #include "pw_bluetooth_proxy/internal/logical_transport.h"
-#include "pw_bluetooth_proxy/internal/recombiner.h"
+#include "pw_bluetooth_proxy/internal/multibuf.h"
+#include "pw_containers/intrusive_map.h"
 #include "pw_containers/vector.h"
 #include "pw_sync/lock_annotations.h"
 #include "pw_sync/mutex.h"
 
 namespace pw::bluetooth::proxy {
+
+class L2capChannelManager;
 
 // Represents the Bluetooth ACL Data channel and tracks the Host<->Controller
 // ACL data flow control.
@@ -37,6 +39,31 @@ namespace pw::bluetooth::proxy {
 // buffers.
 class AclDataChannel {
  public:
+  /// The delegate interface for an ACL connection. This is implemented by
+  /// L2capLogicalLink.
+  class ConnectionDelegate
+      : public IntrusiveMap<uint16_t, ConnectionDelegate>::Item {
+   public:
+    struct HandleAclDataReturn {
+      /// True if the packet was consumed and should not be forwarded.
+      bool handled;
+      /// If this ACL packet was the last fragment of a fragmented PDU, an ACL
+      /// packet containing the recombined PDU should be returned if it was not
+      /// consumed and needs to be forwarded.
+      std::optional<MultiBufInstance> recombined_buffer;
+    };
+
+    virtual ~ConnectionDelegate() = default;
+
+    /// Called by AclDataChannel when an ACL packet for this connection is sent
+    /// from the host or received from the controller.
+    virtual HandleAclDataReturn HandleAclData(
+        Direction direction, emboss::AclDataFrameWriter& acl) = 0;
+
+    // The connection handle.
+    virtual uint16_t key() const = 0;
+  };
+
   // Used to `SendAcl` packets.
   class SendCredit {
    public:
@@ -84,6 +111,16 @@ class AclDataChannel {
   // Revert to uninitialized state, clearing credit reservation and connections,
   // but not the number of credits to reserve nor HCI transport.
   void Reset();
+
+  /// Registers a connection delegate.
+  /// @returns `OkStatus()` on success. On failure returns:
+  /// * @ALREADY_EXISTS: A delegate is already registered for the connection.
+  Status RegisterConnection(ConnectionDelegate& delegate);
+
+  /// Unregisters a connection delegate.
+  /// @returns `OkStatus()` on success. On failure returns:
+  /// * @NOT_FOUND: The delegate was not found.
+  Status UnregisterConnection(ConnectionDelegate& delegate);
 
   void ProcessReadBufferSizeCommandCompleteEvent(
       emboss::ReadBufferSizeCommandCompleteEventWriter read_buffer_event);
@@ -178,22 +215,10 @@ class AclDataChannel {
       num_pending_packets_ = new_val;
     }
 
-    Recombiner& GetRecombiner(Direction direction) {
-      return get_recombination_buffer(direction);
-    }
-
    private:
     AclTransportType transport_;
     uint16_t connection_handle_;
     uint16_t num_pending_packets_;
-
-    // TODO: https://pwbug.dev/360929142 - Move Recombiner to L2capLogicalLink.
-    std::array<Recombiner, kNumDirections> recombination_buffers_{
-        Recombiner{Direction{0}}, Recombiner{Direction{1}}};
-
-    Recombiner& get_recombination_buffer(Direction direction) {
-      return recombination_buffers_[cpp23::to_underlying(direction)];
-    }
   };
 
   class Credits {
@@ -273,6 +298,12 @@ class AclDataChannel {
   // List of credit-allocated ACL connections.
   pw::Vector<AclConnection, kMaxConnections> acl_connections_
       PW_GUARDED_BY(connection_mutex_);
+
+  // This separate mutex is required because the delegate may call SendAcl() and
+  // acquire the connection_mutex_ inside of delegate callbacks.
+  sync::Mutex delegates_mutex_ PW_ACQUIRED_BEFORE(connection_mutex_);
+  IntrusiveMap<uint16_t, ConnectionDelegate> connection_delegates_
+      PW_GUARDED_BY(delegates_mutex_);
 
   // Instantiated in acl_data_channel.cc for
   // `emboss::LEReadBufferSizeV1CommandCompleteEventWriter` and

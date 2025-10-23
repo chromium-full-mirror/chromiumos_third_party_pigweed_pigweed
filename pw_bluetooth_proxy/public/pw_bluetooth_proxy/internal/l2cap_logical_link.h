@@ -14,27 +14,22 @@
 
 #pragma once
 
+#include "pw_bluetooth_proxy/internal/acl_data_channel.h"
 #include "pw_bluetooth_proxy/internal/l2cap_signaling_channel.h"
 #include "pw_bluetooth_proxy/internal/logical_transport.h"
+#include "pw_bluetooth_proxy/internal/recombiner.h"
 #include "pw_containers/intrusive_map.h"
 
 namespace pw::bluetooth::proxy {
 class L2capChannelManager;
-}
+}  // namespace pw::bluetooth::proxy
 
 namespace pw::bluetooth::proxy::internal {
 
-// This class represents a logical link (ACL connection) in the L2CAP protocol.
-// This class is not thread-safe and requires external locking.
-class L2capLogicalLink final
-    : public IntrusiveMap<uint16_t, L2capLogicalLink>::Pair {
+class L2capLogicalLinkInterface
+    : public IntrusiveMap<uint16_t, L2capLogicalLinkInterface>::Item {
  public:
-  L2capLogicalLink(uint16_t connection_handle,
-                   AclTransportType transport,
-                   L2capChannelManager& l2cap_channel_manager);
-
-  L2capLogicalLink(L2capLogicalLink&&) = delete;
-  L2capLogicalLink& operator=(L2capLogicalLink&&) = delete;
+  virtual ~L2capLogicalLinkInterface() = default;
 
   // Send L2CAP_FLOW_CONTROL_CREDIT_IND to indicate local endpoint `cid` is
   // capable of receiving a number of additional K-frames (`credits`).
@@ -44,21 +39,54 @@ class L2capLogicalLink final
   // * @UNAVAILABLE: Send could not be queued due to lack of memory in the
   //   client-provided `multibuf_allocator` (transient error).
   // * @FAILED_PRECONDITION: Channel is not `State::kRunning`.
-  Status SendFlowControlCreditInd(uint16_t channel_id,
-                                  uint16_t credits,
-                                  MultiBufAllocator& multibuf_allocator) {
+  virtual Status SendFlowControlCreditInd(
+      uint16_t channel_id,
+      uint16_t credits,
+      MultiBufAllocator& multibuf_allocator) = 0;
+
+  // The connection handle.
+  virtual uint16_t key() const = 0;
+};
+
+// This class represents a logical link (ACL connection) in the L2CAP protocol.
+// This class is not thread-safe and requires external locking.
+class L2capLogicalLink final : public L2capLogicalLinkInterface,
+                               public AclDataChannel::ConnectionDelegate {
+ public:
+  L2capLogicalLink(uint16_t connection_handle,
+                   AclTransportType transport,
+                   L2capChannelManager& l2cap_channel_manager,
+                   AclDataChannel& acl_data_channel);
+
+  ~L2capLogicalLink() override;
+
+  L2capLogicalLink(L2capLogicalLink&&) = delete;
+  L2capLogicalLink& operator=(L2capLogicalLink&&) = delete;
+
+  // L2capLogicalLinkInterface overrides:
+  Status SendFlowControlCreditInd(
+      uint16_t channel_id,
+      uint16_t credits,
+      MultiBufAllocator& multibuf_allocator) override {
     return signaling_channel_.SendFlowControlCreditInd(
         channel_id, credits, multibuf_allocator);
   }
 
-  uint16_t connection_handle() const { return connection_handle_; }
+  // ConnectionDelegate overrides:
+  AclDataChannel::ConnectionDelegate::HandleAclDataReturn HandleAclData(
+      Direction direction, emboss::AclDataFrameWriter& acl) override;
 
-  AclTransportType transport() const { return transport_; }
+  // Used by IntrusiveMap
+  uint16_t key() const override { return connection_handle_; }
 
  private:
   const uint16_t connection_handle_;
   const AclTransportType transport_;
+  AclDataChannel& acl_data_channel_;
+  L2capChannelManager& channel_manager_;
   L2capSignalingChannel signaling_channel_;
+  Recombiner tx_recombiner_{Direction::kFromHost};
+  Recombiner rx_recombiner_{Direction::kFromController};
 };
 
 }  // namespace pw::bluetooth::proxy::internal

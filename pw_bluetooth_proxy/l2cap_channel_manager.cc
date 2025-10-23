@@ -343,7 +343,7 @@ void L2capChannelManager::HandleAclDisconnectionComplete(
     std::lock_guard links_lock(links_mutex_);
     auto it = logical_links_.find(connection_handle);
     if (it != logical_links_.end()) {
-      internal::L2capLogicalLink* link = &(*it);
+      internal::L2capLogicalLinkInterface* link = &(*it);
       logical_links_.erase(it);
       allocator_.Delete(link);
     }
@@ -399,7 +399,7 @@ Status L2capChannelManager::AddConnection(uint16_t connection_handle,
   }
 
   internal::L2capLogicalLink* link = allocator_.New<internal::L2capLogicalLink>(
-      connection_handle, transport, *this);
+      connection_handle, transport, *this, acl_data_channel_);
   if (!link) {
     return Status::ResourceExhausted();
   }
@@ -423,7 +423,7 @@ Status L2capChannelManager::SendFlowControlCreditInd(
 
 void L2capChannelManager::ResetLogicalLinksLocked() {
   for (auto iter = logical_links_.begin(); iter != logical_links_.end();) {
-    internal::L2capLogicalLink* link = &(*iter);
+    internal::L2capLogicalLinkInterface* link = &(*iter);
     iter = logical_links_.erase(iter);
     allocator_.Delete(link);
   }

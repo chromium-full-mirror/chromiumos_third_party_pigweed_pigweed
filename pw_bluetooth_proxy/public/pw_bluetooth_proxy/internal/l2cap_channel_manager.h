@@ -240,7 +240,7 @@ class L2capChannelManager {
   // A separate links mutex is required so that the channels owned by the links
   // can be destroyed without deadlock.
   sync::Mutex links_mutex_ PW_ACQUIRED_BEFORE(channels_mutex_);
-  IntrusiveMap<uint16_t, internal::L2capLogicalLink> logical_links_
+  IntrusiveMap<uint16_t, internal::L2capLogicalLinkInterface> logical_links_
       PW_GUARDED_BY(links_mutex_);
 };
 
