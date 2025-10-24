@@ -29,8 +29,6 @@
 
 namespace pw::bluetooth::proxy {
 
-class L2capChannelManager;
-
 // Represents the Bluetooth ACL Data channel and tracks the Host<->Controller
 // ACL data flow control.
 //
@@ -92,18 +90,24 @@ class AclDataChannel {
   };
 
   AclDataChannel(HciTransport& hci_transport,
-                 L2capChannelManager& l2cap_channel_manager,
                  uint16_t le_acl_credits_to_reserve,
-                 uint16_t br_edr_acl_credits_to_reserve)
+                 uint16_t br_edr_acl_credits_to_reserve,
+                 Closure on_tx_credits_fn)
       : hci_transport_(hci_transport),
-        l2cap_channel_manager_(l2cap_channel_manager),
         le_credits_(le_acl_credits_to_reserve),
-        br_edr_credits_(br_edr_acl_credits_to_reserve) {}
+        br_edr_credits_(br_edr_acl_credits_to_reserve),
+        on_tx_credits_fn_(std::move(on_tx_credits_fn)) {}
 
   AclDataChannel(const AclDataChannel&) = delete;
   AclDataChannel& operator=(const AclDataChannel&) = delete;
   AclDataChannel(AclDataChannel&&) = delete;
   AclDataChannel& operator=(AclDataChannel&&) = delete;
+
+  // Handle HCI ACL data packet from the controller.
+  void HandleAclFromController(H4PacketWithHci&& h4_packet);
+
+  // Handle HCI ACL data packet from the host.
+  void HandleAclFromHost(H4PacketWithH4&& h4_packet);
 
   // Returns the max number of active ACL connections supported.
   static constexpr size_t GetMaxNumAclConnections() { return kMaxConnections; }
@@ -187,11 +191,6 @@ class AclDataChannel {
   pw::Status CreateAclConnection(uint16_t connection_handle,
                                  AclTransportType transport);
 
-  // Handles an ACL Data frame.
-  // Returns true if the frame was handled and is consumed by the proxy.
-  // Returns false if the frame should be passed on to the other side.
-  bool HandleAclData(Direction direction, emboss::AclDataFrameWriter& acl);
-
   // Returns the max ACL payload size if the Read Buffer Size command complete
   // event was received.
   std::optional<uint16_t> MaxDataPacketLengthForTransport(
@@ -265,6 +264,11 @@ class AclDataChannel {
     uint16_t proxy_pending_ = 0;
   };
 
+  // Handles an ACL Data frame.
+  // Returns true if the frame was handled and is consumed by the proxy.
+  // Returns false if the frame should be passed on to the other side.
+  bool HandleAclData(Direction direction, pw::span<uint8_t> buffer);
+
   // Guards interactions with ACL connection objects.
   mutable pw::sync::Mutex connection_mutex_ PW_ACQUIRED_BEFORE(credit_mutex_);
 
@@ -290,9 +294,6 @@ class AclDataChannel {
   // Reference to the transport owned by the host.
   HciTransport& hci_transport_;
 
-  // TODO: https://pwbug.dev/360929142 - Remove this circular dependency.
-  L2capChannelManager& l2cap_channel_manager_;
-
   // Credit allocation will happen inside a mutex since it crosses thread
   // boundaries.
   mutable pw::sync::Mutex credit_mutex_ PW_ACQUIRED_AFTER(connection_mutex_);
@@ -314,6 +315,9 @@ class AclDataChannel {
   sync::Mutex delegates_mutex_ PW_ACQUIRED_BEFORE(connection_mutex_);
   IntrusiveMap<uint16_t, ConnectionDelegate> connection_delegates_
       PW_GUARDED_BY(delegates_mutex_);
+
+  // Called after ACL TX credits are received.
+  const Closure on_tx_credits_fn_;
 
   // Instantiated in acl_data_channel.cc for
   // `emboss::LEReadBufferSizeV1CommandCompleteEventWriter` and

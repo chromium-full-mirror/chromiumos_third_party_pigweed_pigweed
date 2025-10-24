@@ -22,15 +22,24 @@
 #include "pw_assert/check.h"
 #include "pw_bluetooth/emboss_util.h"
 #include "pw_bluetooth/hci_data.emb.h"
-#include "pw_bluetooth_proxy/internal/l2cap_channel_manager.h"
 #include "pw_bluetooth_proxy/internal/multibuf.h"
-#include "pw_bluetooth_proxy/internal/recombiner.h"
 #include "pw_containers/algorithm.h"  // IWYU pragma: keep
 #include "pw_log/log.h"
-#include "pw_span/cast.h"
 #include "pw_status/status.h"
 
 namespace pw::bluetooth::proxy {
+
+void AclDataChannel::HandleAclFromController(H4PacketWithHci&& h4_packet) {
+  if (!HandleAclData(Direction::kFromController, h4_packet.GetHciSpan())) {
+    hci_transport_.SendToHost(std::move(h4_packet));
+  }
+}
+
+void AclDataChannel::HandleAclFromHost(H4PacketWithH4&& h4_packet) {
+  if (!HandleAclData(Direction::kFromHost, h4_packet.GetHciSpan())) {
+    hci_transport_.SendToController(std::move(h4_packet));
+  }
+}
 
 AclDataChannel::AclConnection::AclConnection(AclTransportType transport,
                                              uint16_t connection_handle,
@@ -196,7 +205,7 @@ void AclDataChannel::ProcessReadBufferSizeCommandCompleteEvent(
         read_buffer_event.acl_data_packet_length().Read();
   }
 
-  l2cap_channel_manager_.ForceDrainChannelQueues();
+  on_tx_credits_fn_();
 }
 
 template <class EventT>
@@ -227,7 +236,7 @@ void AclDataChannel::ProcessSpecificLEReadBufferSizeCommandCompleteEvent(
   }
 
   // Send packets that may have queued before we acquired any LE ACL credits.
-  l2cap_channel_manager_.ForceDrainChannelQueues();
+  on_tx_credits_fn_();
 }
 
 template void
@@ -302,7 +311,7 @@ void AclDataChannel::HandleNumberOfCompletedPacketsEvent(
   }
 
   if (did_reclaim_credits) {
-    l2cap_channel_manager_.ForceDrainChannelQueues();
+    on_tx_credits_fn_();
   }
   if (should_send_to_host) {
     hci_transport_.SendToHost(std::move(h4_packet));
@@ -433,7 +442,7 @@ AclDataChannel::AclConnection* AclDataChannel::FindAclConnection(
 }
 
 bool AclDataChannel::HandleAclData(Direction direction,
-                                   emboss::AclDataFrameWriter& acl) {
+                                   pw::span<uint8_t> buffer) {
   // This function returns whether or not the frame was handled here.
   // * Return true if the frame was handled by the proxy and should _not_ be
   //   passed on to the other side (Host/Controller).
@@ -442,7 +451,14 @@ bool AclDataChannel::HandleAclData(Direction direction,
   static constexpr bool kHandled = true;
   static constexpr bool kUnhandled = false;
 
-  const uint16_t handle = acl.header().handle().Read();
+  Result<emboss::AclDataFrameWriter> acl =
+      MakeEmbossWriter<emboss::AclDataFrameWriter>(buffer);
+  if (!acl.ok()) {
+    PW_LOG_ERROR("Buffer is too small for ACL header");
+    return kUnhandled;
+  }
+
+  const uint16_t handle = acl->header().handle().Read();
 
   ConnectionDelegate::HandleAclDataReturn result;
   {
@@ -451,7 +467,7 @@ bool AclDataChannel::HandleAclData(Direction direction,
     if (iter == connection_delegates_.end()) {
       return kUnhandled;
     }
-    result = iter->HandleAclData(direction, acl);
+    result = iter->HandleAclData(direction, *acl);
   }
 
   if (result.recombined_buffer.has_value()) {
@@ -475,12 +491,6 @@ bool AclDataChannel::HandleAclData(Direction direction,
     // passed on to the host as part of the recombined H4 packet.
     return kHandled;
   }
-
-  //  It's possible for a channel handling rx traffic to have queued tx traffic
-  //  or events. So call `DrainChannelQueuesIfNewTx` and `DeliverPendingEvents`
-  // (outside of channels_mutex_ lock).
-  l2cap_channel_manager_.DrainChannelQueuesIfNewTx();
-  l2cap_channel_manager_.DeliverPendingEvents();
 
   return result.handled;
 }

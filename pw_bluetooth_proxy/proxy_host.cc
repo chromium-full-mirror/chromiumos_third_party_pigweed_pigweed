@@ -40,9 +40,9 @@ ProxyHost::ProxyHost(
     : hci_transport_(std::move(send_to_host_fn),
                      std::move(send_to_controller_fn)),
       acl_data_channel_(hci_transport_,
-                        l2cap_channel_manager_,
                         le_acl_credits_to_reserve,
-                        br_edr_acl_credits_to_reserve),
+                        br_edr_acl_credits_to_reserve,
+                        /*on_tx_credits_fn=*/[this]() { OnAclTxCredits(); }),
       l2cap_channel_manager_(acl_data_channel_, allocator) {
   PW_LOG_INFO(
       "btproxy: ProxyHost ctor - le_acl_credits_to_reserve: %u, "
@@ -169,21 +169,11 @@ void ProxyHost::HandleEventFromController(H4PacketWithHci&& h4_packet) {
 }
 
 void ProxyHost::HandleAclFromController(H4PacketWithHci&& h4_packet) {
-  pw::span<uint8_t> hci_buffer = h4_packet.GetHciSpan();
-
-  Result<emboss::AclDataFrameWriter> acl =
-      MakeEmbossWriter<emboss::AclDataFrameWriter>(hci_buffer);
-  if (!acl.ok()) {
-    PW_LOG_ERROR(
-        "Buffer is too small for ACL header. So will pass on to host.");
-    hci_transport_.SendToHost(std::move(h4_packet));
-    return;
-  }
-
-  if (!acl_data_channel_.HandleAclData(Direction::kFromController, *acl)) {
-    hci_transport_.SendToHost(std::move(h4_packet));
-    return;
-  }
+  acl_data_channel_.HandleAclFromController(std::move(h4_packet));
+  //  It's possible for a channel handling rx traffic to have queued tx traffic
+  //  or events.
+  l2cap_channel_manager_.DrainChannelQueuesIfNewTx();
+  l2cap_channel_manager_.DeliverPendingEvents();
 }
 
 void ProxyHost::HandleLeMetaEvent(H4PacketWithHci&& h4_packet) {
@@ -319,21 +309,11 @@ void ProxyHost::HandleCommandFromHost(H4PacketWithH4&& h4_packet) {
 }
 
 void ProxyHost::HandleAclFromHost(H4PacketWithH4&& h4_packet) {
-  pw::span<uint8_t> hci_buffer = h4_packet.GetHciSpan();
-
-  Result<emboss::AclDataFrameWriter> acl =
-      MakeEmbossWriter<emboss::AclDataFrameWriter>(hci_buffer);
-  if (!acl.ok()) {
-    PW_LOG_ERROR(
-        "Buffer is too small for ACL header. So will pass on to controller.");
-    hci_transport_.SendToController(std::move(h4_packet));
-    return;
-  }
-
-  if (!acl_data_channel_.HandleAclData(Direction::kFromHost, *acl)) {
-    hci_transport_.SendToController(std::move(h4_packet));
-    return;
-  }
+  acl_data_channel_.HandleAclFromHost(std::move(h4_packet));
+  //  It's possible for a channel handling tx traffic to have queued tx traffic
+  //  or events.
+  l2cap_channel_manager_.DrainChannelQueuesIfNewTx();
+  l2cap_channel_manager_.DeliverPendingEvents();
 }
 
 pw::Result<L2capCoc> ProxyHost::AcquireL2capCoc(
@@ -458,6 +438,10 @@ void ProxyHost::OnConnectionCompleteSuccess(uint16_t connection_handle,
                 connection_handle,
                 l2cap_status.str());
   }
+}
+
+void ProxyHost::OnAclTxCredits() {
+  l2cap_channel_manager_.ForceDrainChannelQueues();
 }
 
 }  // namespace pw::bluetooth::proxy

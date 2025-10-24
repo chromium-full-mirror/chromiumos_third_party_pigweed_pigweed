@@ -284,6 +284,10 @@ class ProxyHost {
   void OnConnectionCompleteSuccess(uint16_t connection_handle,
                                    AclTransportType transport);
 
+  // AclDataChannel callback for when new ACL TX credits are received and more
+  // L2CAP packets can be sent.
+  void OnAclTxCredits();
+
   // For sending non-ACL data to the host and controller. ACL traffic shall be
   // sent through the `acl_data_channel_`.
   HciTransport hci_transport_;
