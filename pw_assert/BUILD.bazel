@@ -35,6 +35,7 @@ label_flag(
     name = "backend",
     build_setting_default = ":unspecified_backend",
     deprecation = "This label flag is no longer depended on by anything and will be removed soon.",
+    tags = ["manual"],
 )
 
 host_backend_alias(

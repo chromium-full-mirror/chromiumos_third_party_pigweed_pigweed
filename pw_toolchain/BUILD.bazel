@@ -116,6 +116,7 @@ alias(
     name = "infinite_loop",
     actual = ":busy_wait_forever",
     deprecation = ":infinite_loop has been renamed to :busy_wait_forever",
+    tags = ["manual"],
 )
 
 pw_cc_test(

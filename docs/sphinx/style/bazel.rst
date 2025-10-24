@@ -140,6 +140,28 @@ In particular, a downstream project cannot reference *any target* in an upstream
 To make this restriction clear to anyone working in upstream Pigweed, explicitly
 express it through the ``visibility`` attribute.
 
+Always tag deprecated targets ``manual``
+========================================
+Build targets with a ``deprecation`` message will emit warnings whenever they
+are built. This means two things:
+
+1. Targets should only have a ``deprecation`` message when *nobody* should be
+   using them anymore. **NOT** as an introduction to a migration.
+2. Tagging the target with ``manual`` makes it clear when the deprecated target
+   is no longer being explicitly referenced.
+
+This means that nothing in Pigweed should directly reference any targets with
+a ``deprecation`` message, and clean builds in Pigweed should not emit
+deprecation warnings.
+
+Reasoning: Warnings are a double-edged sword. When used sparingly, they can
+allow soft transitions that signal to users when action needs to be taken. If
+used too often, though, they can pollute build output and users will become
+blind to the warnings. For this reason, if you aren't willing to mark a target
+with ``tags = ["manual"]`` for fear of it needing build coverage, you likely
+aren't fully finished with a migration. Typically, a completed migration means
+the deprecated target is merely is an ``alias`` that points to the new target.
+
 ---------------------
 Starlark files (.bzl)
 ---------------------
