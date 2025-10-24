@@ -305,10 +305,7 @@ def main():
     _LOG.info("Test suite roots: [%s]", ", ".join(str(d) for d in test_cases))
 
     # Prepare the command for twister
-    if os.environ["ZEPHYR_BASE"] is None:
-        twister = _PW_PACKAGE_ROOT / "zephyr"
-    else:
-        twister = Path(os.environ["ZEPHYR_BASE"])
+    twister = Path(os.environ.get("ZEPHYR_BASE", _PW_PACKAGE_ROOT / "zephyr"))
     twister = twister / "scripts" / "twister"
     twister_command = [sys.executable, str(twister)]
     twister_command.extend(
