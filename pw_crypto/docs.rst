@@ -186,9 +186,9 @@ Configuration
 The crypto services offered by pw_crypto can be backed by different backend
 crypto libraries.
 
-Mbed TLS
-========
-The `Mbed TLS project <https://www.trustedfirmware.org/projects/mbed-tls/>`_
+MbedTLS
+=======
+The `MbedTLS project <https://www.trustedfirmware.org/projects/mbed-tls/>`_
 is a mature and full-featured crypto library that implements cryptographic
 primitives, X.509 certificate manipulation and the SSL/TLS and DTLS protocols.
 
@@ -197,8 +197,14 @@ The project also has good support for interfacing to cryptographic accelerators.
 The small code footprint makes the project suitable and popular for embedded
 systems.
 
-To select the Mbed TLS backend, the MbedTLS library needs to be installed and
-configured. If using GN, do,
+Enabling the MbedTLS Backend
+----------------------------
+
+To select the MbedTLS backend, the MbedTLS library needs to be installed and
+configured.
+
+GN
+^^
 
 .. code-block:: sh
 
@@ -214,7 +220,10 @@ configured. If using GN, do,
 
    ninja -C out
 
-If using Bazel, add a ``bazel_dep`` on Mbed TLS to your ``MODULE.bazel`` file
+Bazel
+^^^^^
+
+If using Bazel, add a ``bazel_dep`` on MbedTLS to your ``MODULE.bazel`` file
 and select appropriate backends by adding them to your project's `platform
 <https://bazel.build/extending/platforms>`_:
 
@@ -223,16 +232,114 @@ and select appropriate backends by adding them to your project's `platform
    platform(
      name = "my_platform",
      flags = [
-        "@pigweed//pw_crypto:sha256_backend=@pigweed//pw_crypto:sha256_mbedtls_backend",
-        "@pigweed//pw_crypto:ecdsa_backend=@pigweed//pw_crypto:ecdsa_mbedtls_backend",
-        "@pigweed//pw_crypto:aes_backend=@pigweed//pw_crypto:aes_mbedtls_backend",
-        "@pigweed//pw_crypto:ecdh_backend=@pigweed//pw_crypto:ecdh_mbedtls_backend",
+        "@pigweed//pw_crypto:sha256_backend=@pigweed//pw_crypto:sha256_mbedtls",
+        "@pigweed//pw_crypto:ecdsa_backend=@pigweed//pw_crypto:ecdsa_mbedtls",
+        "@pigweed//pw_crypto:aes_backend=@pigweed//pw_crypto:aes_mbedtls",
+        "@pigweed//pw_crypto:ecdh_backend=@pigweed//pw_crypto:ecdh_mbedtls",
         # ... other flags
       ],
    )
 
-For optimal code size and/or performance, the Mbed TLS library can be configured
-per product. Mbed TLS configuration is achieved by turning on and off MBEDTLS_*
+Configuring MbedTLS
+-------------------
+
+MbedTLS is configured via setting compile-time flags in a `config.h` header.
+These flags are enumerated in the `MbedTLS docs <https://mbed-tls.readthedocs.io/projects/api/en/v3.6.0/api/file/mbedtls__config_8h/>`_.
+
+By default, Pigweed provides a default MbedTLS configuration for both MCU and
+host targets. However, projects making use of MbedTLS should strongly consider
+providing their own config.
+
+Bazel
+^^^^^
+
+The config file is set via the ``mbedtls//:mbedtls_config`` label flag.
+
+1. Create your ``config.h`` based on Pigweed's default config in ``third_party/mbedtls/config_pigweed.h``, or MbedTLS's `example configs <https://github.com/Mbed-TLS/mbedtls/tree/development/configs>`_.
+
+2. In your BUILD.bazel, define a library for your header:
+
+.. code-block:: python
+
+   cc_library(
+       name = "mbedtls_config",
+       hdrs = [
+           "my_config/my_mbedtls_config.h",
+       ],
+       strip_include_prefix = "my_config",
+       tags = ["noclangtidy"],
+       defines = [
+           "MBEDTLS_CONFIG_FILE='\"my_mbedtls_config.h\"'",
+       ]
+   )
+
+3. Set the label flag in your project's platform or `.bazelrc`:
+
+.. code-block:: python
+
+   ...
+   "@@mbedtls+//:mbedtls_config": "@mymodule//crypto:mbedtls_config",
+   ...
+
+Hardware Acceleration
+---------------------
+
+MbedTLS supports linking against `alternative implementations
+<https://mbed-tls.readthedocs.io/en/latest/kb/development/hw_acc_guidelines/>`_
+for many modules, such as entropy, AES, and SHA-2. These ``ALT`` functions are
+typically used to provide hardware-accelerated cryptography engines.
+
+Bazel
+^^^^^
+
+1.  Build your implementation against MbedTLS headers:
+
+.. code-block:: python
+
+   cc_library(
+       name = "sha256_alt",
+       hdrs = [ "sha256_alt.h" ],
+       deps = [
+           "@pigweed//targets:mcuxpresso_sdk",
+       ]
+   )
+
+   cc_library(
+       name = "mbedtls_sha256_hashcrypt",
+       srcs = [
+           "mbedtls_sha256_hashcrypt.cc",
+       ],
+       deps = [
+           ":sha256_alt",
+           "@mbedtls",
+           "@pigweed//targets:mcuxpresso_sdk",
+       ]
+   )
+
+2. Modify your MbedTLS config.h:
+
+.. code-block:: cpp
+
+   ...
+   #define MBEDTLS_SHA256_C
+   #define MBEDTLS_SHA256_ALT
+       ...
+
+3. Set platform label flags:
+
+.. code-block:: python
+
+   ...
+   "@@mbedtls+//:mbedtls_config": "@mymodule//crypto:mbedtls_config",
+   "@pigweed//pw_crypto:sha256_backend": "@pigweed//pw_crypto:sha256_mbedtls",
+   "@pigweed//pw_crypto:mbedtls_sha256_engine": "@mymodule//crypto:mbedtls_sha256_hashcrypt",
+   ...
+
+Configuration Tips
+------------------
+
+For optimal code size and/or performance, the MbedTLS library can be configured
+per product. MbedTLS configuration is achieved by turning on and off MBEDTLS_*
 options in a config.h file. See //third_party/mbedtls for how this is done.
 
 ``pw::crypto::sha256`` does not need any special configuration as it uses the
@@ -262,7 +369,7 @@ a code size of ~12KiB.
 If using ``pw::crypto::ecdh``, a CSPRNG must be set to provide
 cryptographically-secure randomness when generating keypairs. To do this,
 provide an instance of ``pw::crypto::ecdh::backend::Csprng`` to
-``pw::crypto::ecdh::backend::SetCsprng()``. Mbed-TLS MUST have been configured
+``pw::crypto::ecdh::backend::SetCsprng()``. MbedTLS MUST have been configured
 with an entropy pool that has collected sufficient (>128 bits estimated) entropy
 with one or more calls to
 

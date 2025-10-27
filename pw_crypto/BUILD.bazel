@@ -57,16 +57,30 @@ cc_library(
     srcs = ["sha256_mbedtls.cc"],
     hdrs = [
         "public/pw_crypto/sha256_mbedtls.h",
-        "public_overrides/mbedtls/pw_crypto/sha256_backend.h",
     ],
-    includes = [
-        "public",
-        "public_overrides/mbedtls",
-    ],
+    strip_include_prefix = "public",
     deps = [
+        ":mbedtls_sha256_engine",
+        ":mbedtls_sha256_public_overrides",
         ":sha256.facade",
         "@mbedtls",
     ],
+)
+
+label_flag(
+    name = "mbedtls_sha256_engine",
+    build_setting_default = "//pw_build:empty_cc_library",
+)
+
+# TODO: https://pwbug.dev/452106129 - This target will be renamed/moved
+# after backend headers are reorganized. This header is always overlaid onto
+# the build. We only put it in its own cc_library for strip_include_prefix.
+cc_library(
+    name = "mbedtls_sha256_public_overrides",
+    hdrs = ["public_overrides/mbedtls/pw_crypto/sha256_backend.h"],
+    strip_include_prefix = "public_overrides/mbedtls",
+    tags = ["noclangtidy"],
+    visibility = ["//visibility:private"],
 )
 
 pw_cc_test(
@@ -156,6 +170,7 @@ cc_library(
     name = "aes_cmac",
     hdrs = ["public/pw_crypto/aes_cmac.h"],
     features = ["-conversion_warnings"],
+    strip_include_prefix = "public",
     deps = [":aes"],
 )
 
@@ -195,15 +210,33 @@ cc_library(
     srcs = ["aes_mbedtls.cc"],
     hdrs = [
         "public/pw_crypto/aes_mbedtls.h",
-        "public_overrides/mbedtls/pw_crypto/aes_backend.h",
     ],
     features = ["-conversion_warnings"],
     implementation_deps = ["//pw_assert:check"],
-    includes = ["public_overrides/mbedtls"],
+    strip_include_prefix = "public",
     deps = [
         ":aes.facade",
+        ":mbedtls_aes_engine",
+        ":mbedtls_aes_public_overrides",
         "@mbedtls",
     ],
+)
+
+# Label flag to provide an alt AES implementation to mbedTLS.
+label_flag(
+    name = "mbedtls_aes_engine",
+    build_setting_default = "//pw_build:empty_cc_library",
+)
+
+# TODO: https://pwbug.dev/452106129 - This target will be renamed/moved
+# after backend headers are reorganized. This header is always overlaid onto
+# the build. We only put it in its own cc_library for strip_include_prefix.
+cc_library(
+    name = "mbedtls_aes_public_overrides",
+    hdrs = ["public_overrides/mbedtls/pw_crypto/aes_backend.h"],
+    strip_include_prefix = "public_overrides/mbedtls",
+    tags = ["noclangtidy"],
+    visibility = ["//visibility:private"],
 )
 
 pw_cc_test(

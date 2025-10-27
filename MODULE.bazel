@@ -28,6 +28,7 @@ bazel_dep(name = "gazelle", version = "0.40.0", repo_name = "bazel_gazelle")
 # When this version is bumped, remove the patch referenced below if included
 bazel_dep(name = "googletest", version = "1.16.0", repo_name = "com_google_googletest")
 bazel_dep(name = "nanopb", version = "0.4.9.1.bcr.2")
+bazel_dep(name = "mbedtls", version = "3.6.0")
 bazel_dep(name = "pico-sdk", version = "2.2.1-develop.bcr.20250915-8fcd44a1")
 bazel_dep(name = "picotool", version = "2.2.0")
 bazel_dep(name = "platforms", version = "1.0.0")
@@ -384,15 +385,6 @@ cipd_repository(
 # TODO: https://pwbug.dev/378531541 - These are one-off external libraries that
 # are NOT in the BCR that downstream users may need to override/unify to their
 # expected version.
-
-# TODO: https://pwbug.dev/354749299 - Use the BCR version of mbedtls.
-http_archive(
-    name = "mbedtls",
-    build_file = "//:third_party/mbedtls/mbedtls.BUILD.bazel",
-    sha256 = "241c68402cef653e586be3ce28d57da24598eb0df13fcdea9d99bfce58717132",
-    strip_prefix = "mbedtls-2.28.8",
-    url = "https://github.com/Mbed-TLS/mbedtls/releases/download/v2.28.8/mbedtls-2.28.8.tar.bz2",
-)
 
 # TODO: https://github.com/bazelbuild/bazel/issues/23077 - Make these
 # bazel_deps dev_dependencies once archive_override has a build_file argument.
