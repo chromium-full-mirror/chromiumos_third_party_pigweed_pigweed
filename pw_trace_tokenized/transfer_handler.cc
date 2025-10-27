@@ -16,7 +16,6 @@
 
 #include <climits>
 
-#include "pw_containers/var_len_entry_queue.h"
 #include "pw_log/log.h"
 #include "pw_trace_tokenized/trace_buffer.h"
 
@@ -30,38 +29,32 @@ TraceBufferReader trace_buffer_reader;
 TraceBufferReader& GetTraceBufferReader() { return trace_buffer_reader; }
 
 StatusWithSize TraceBufferReader::DoRead(ByteSpan dest) {
-  InlineVarLenEntryQueue<>& trace_buffer_queue = trace::GetBuffer()->queue();
-  if (trace_buffer_queue.empty() && partial_transfer_.empty()) {
-    return StatusWithSize::ResourceExhausted();
-  }
-  PW_LOG_DEBUG("Entry count is: %zu", trace_buffer_queue.size());
-  size_t transferred = 0;
-  while (true) {
-    if (!partial_transfer_.empty()) {
-      size_t partial_size = std::min(dest.size(), partial_transfer_.size());
-      pw::copy(partial_transfer_.begin(),
-               partial_transfer_.begin() + partial_size,
-               dest.begin());
-      partial_transfer_ = partial_transfer_.subspan(partial_size);
-      transferred += partial_size;
-    }
+  pw::trace::TraceBuffer* trace_buffer = pw::trace::GetBuffer();
+  size_t size = 0;
+  size_t start = 0;
+  Status sts;
 
-    // No more data or no room in destination.
-    if (trace_buffer_queue.empty() || !partial_transfer_.empty()) {
+  PW_LOG_DEBUG("Entry count is: %zu", trace_buffer->EntryCount());
+  while (start + 1 < dest.size()) {
+    sts = trace_buffer->PeekFront(dest.subspan(start + 1), &size);
+    if (!sts.ok()) {
       break;
     }
-    VarLenEntryQueue dest_queue(dest);
-    MoveVarLenEntries(trace_buffer_queue, dest_queue);
-    transferred += dest_queue.encoded_size_bytes();
-
-    if (!trace_buffer_queue.empty()) {
-      VarLenEntryQueue partial_queue(transfer_buffer_);
-      MoveVarLenEntries(trace_buffer_queue, partial_queue);
-      size_t partial_size = partial_queue.encoded_size_bytes();
-      partial_transfer_ = ConstByteSpan(transfer_buffer_, partial_size);
+    // Max size of a trace entry is not expected to be bigger than
+    // 256 bytes. The value of size should always fit into 1 byte.
+    if (size > UCHAR_MAX) {
+      PW_LOG_ERROR("Unexpected entry size: %zu", size);
+      sts = pw::Status::OutOfRange();
+      break;
     }
+    dest[start] = static_cast<std::byte>(size);
+    start += size + 1;
+    trace_buffer->PopFront().IgnoreError();
   }
-  return StatusWithSize(transferred);
-}
 
+  if (start > 0) {
+    return StatusWithSize(start);
+  }
+  return StatusWithSize(sts, 0);
+}
 }  // namespace pw::trace

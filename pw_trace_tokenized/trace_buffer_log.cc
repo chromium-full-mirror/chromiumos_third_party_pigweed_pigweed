@@ -19,10 +19,7 @@
 #include "pw_log/log.h"
 #include "pw_span/span.h"
 #include "pw_string/string_builder.h"
-#include "pw_trace_tokenized/config.h"
-#include "pw_trace_tokenized/internal/trace_tokenized_internal.h"
 #include "pw_trace_tokenized/trace_buffer.h"
-#include "pw_trace_tokenized/trace_tokenized.h"
 
 namespace pw {
 namespace trace {

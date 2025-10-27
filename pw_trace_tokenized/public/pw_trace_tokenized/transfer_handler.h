@@ -13,7 +13,6 @@
 // the License.
 #pragma once
 
-#include "pw_trace_tokenized/config.h"
 #include "pw_transfer/handler.h"
 
 namespace pw::trace {
@@ -42,10 +41,6 @@ class TraceBufferReader : public stream::NonSeekableReader {
  public:
   constexpr TraceBufferReader() = default;
   StatusWithSize DoRead(ByteSpan dest) final;
-
- private:
-  std::byte transfer_buffer_[PW_TRACE_BUFFER_MAX_BLOCK_SIZE_BYTES] = {};
-  ConstByteSpan partial_transfer_{};
 };
 
 TraceBufferReader& GetTraceBufferReader();

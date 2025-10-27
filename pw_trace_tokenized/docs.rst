@@ -21,7 +21,7 @@ significant changes.
 
 Future work will:
 
-1. Add a more complete API for how to retrieve data from trace_buffer.
+1. Add a more complete API for how to retrieve data from ring_buffer.
 2. Add examples with sample output (especially for filtering and triggering).
 3. Add tools to retrieve trace data.
 4. Add more sinks, such as RTT.
@@ -190,13 +190,14 @@ a ``cc_library`` target that has a "defines" field for PW_TRACE_BUFFER_SIZE_BYTE
 .. cpp:function:: ConstByteSpan DeringAndViewRawBuffer()
 
 The DeringAndViewRawBuffer function can be used to get bulk access of the full
-deringed trace_buffer data. This might be necessary for large zero-copy bulk
-transfers. It is the caller's responsibility to disable tracing during access to
-the buffer. The data in the block is defined by the trace_buffer format.
+deringed prefixed-ring-buffer data. This might be neccessary for large zero-copy
+bulk transfers. It is the caller's responsibility to disable tracing during
+access to the buffer. The data in the block is defined by the
+prefixed-ring-buffer format without any user-preamble.
 
 Added dependencies
 ==================
-``pw_containers``
+``pw_ring_buffer``
 ``pw_varint``
 
 -------
@@ -238,6 +239,7 @@ Added dependencies
 ==================
 ``pw_base64``
 ``pw_log``
+``pw_ring_buffer``
 ``pw_string``
 ``pw_tokenizer``
 ``pw_varint``

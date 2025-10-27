@@ -26,7 +26,6 @@ pw_add_library(pw_trace_tokenized.config INTERFACE
     public
   PUBLIC_DEPS
     ${pw_trace_CONFIG}
-    pw_varint
 )
 
 pw_add_library(pw_trace_tokenized.fake_trace_time STATIC
@@ -110,6 +109,7 @@ pw_add_library(pw_trace_tokenized.core STATIC
     pw_trace_tokenized.config
     pw_trace_tokenized.lock
     pw_assert
+    pw_ring_buffer
     pw_trace.facade
     pw_varint
     ${pw_trace_tokenizer_time}
@@ -150,11 +150,14 @@ pw_add_library(pw_trace_tokenized.trace_buffer STATIC
   SOURCES
     trace_buffer.cc
   PRIVATE_DEPS
-    pw_span
-    pw_trace_tokenized.config
     pw_trace_tokenized.core
   PUBLIC_DEPS
-    pw_containers.inline_var_len_entry_queue
+    pw_bytes
+    pw_ring_buffer
+    pw_tokenizer
+    pw_trace_tokenized.config
+    pw_varint
+    pw_span
   PUBLIC_DEFINES
     PW_TRACE_BUFFER_SIZE_BYTES=${pw_trace_tokenized_BUFFER_SIZE}
 )
@@ -176,7 +179,7 @@ pw_add_library(pw_trace_tokenized.rpc_service STATIC
   PRIVATE_DEPS
     pw_assert
     pw_log
-    pw_trace_tokenized.core
+    pw_ring_buffer
     pw_trace_tokenized.trace_buffer
     pw_trace_tokenized.protos.nanopb_rpc
     pw_varint
@@ -195,6 +198,7 @@ pw_add_library(pw_trace_tokenized.base_trace_service STATIC
   PRIVATE_DEPS
     pw_log
     pw_stream
+    pw_ring_buffer
   PUBLIC_DEPS
     pw_trace_tokenized
     pw_trace_tokenized.trace_buffer
@@ -214,12 +218,11 @@ pw_add_library(pw_trace_tokenized.transfer_handler STATIC
   SOURCES
     transfer_handler.cc
   PRIVATE_DEPS
-    pw_containers.var_len_entry_queue
     pw_log
+    pw_ring_buffer
     pw_tokenizer
     pw_trace_tokenized.trace_buffer
   PUBLIC_DEPS
-    pw_trace_tokenized.config
     pw_transfer
 )
 
