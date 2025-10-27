@@ -16,7 +16,6 @@
 #include "pw_assert/assert.h"
 #include "pw_thread/attrs.h"
 #include "pw_thread/options.h"
-#include "pw_thread/thread.h"
 #include "pw_thread_zephyr/context.h"
 #include "pw_thread_zephyr/priority.h"
 
@@ -110,8 +109,6 @@ class Options : public thread::Options {
   Context* CreateThread(Function<void()>&& thread_fn);
 
  private:
-  friend Thread;
-
   // Note that the default name may end up truncated due to
   // PW_THREAD_ZEPHYR_CONFIG_MAX_THREAD_NAME_LEN.
   static constexpr char kDefaultName[] = "pw::Thread";

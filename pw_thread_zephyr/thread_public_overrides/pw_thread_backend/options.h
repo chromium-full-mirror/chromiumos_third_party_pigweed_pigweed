@@ -13,6 +13,7 @@
 // the License.
 #pragma once
 
+#include "pw_thread_backend/context.h"
 #include "pw_thread_zephyr/options.h"
 
 namespace pw::thread::backend {
