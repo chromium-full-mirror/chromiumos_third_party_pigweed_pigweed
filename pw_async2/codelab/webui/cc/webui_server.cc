@@ -29,6 +29,7 @@
 #include "pw_status/status.h"
 #include "pw_stream/socket_stream.h"
 #include "pw_string/string_builder.h"
+#include "websocket_http_upgrade.h"
 #include "webui/resources.h"
 
 namespace codelab::webui {
@@ -123,6 +124,15 @@ pw::Result<pw::span<const std::byte>> ProcessHttpRequest(
         response_buffer,
         "text/html"sv,
         pw::span{resources::index_html.data(), resources::index_html.size()});
+  }
+
+  constexpr std::string_view get_websocket_path =
+      "GET /codelab/webui HTTP/1.1\r\n"sv;
+  if (request.substr(0, get_websocket_path.size()) == get_websocket_path) {
+    return pw::experimental::websocket::http_upgrade::
+        ProcessHttpWebsocketUpgradeRequest(pw::as_bytes(pw::span(request)),
+                                           response_buffer,
+                                           out_upgraded_to_websocket_protocol);
   }
 
   return Generate404ContentResponse(response_buffer);
