@@ -54,6 +54,7 @@ cc_library(
     implementation_deps = [
         "//pw_assert:check",
         "//pw_async2:dispatcher",
+        "//pw_async2/codelab/webui:webui_server",
         "//pw_log",
         "//pw_status",
         "//pw_stream:socket_stream",

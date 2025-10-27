@@ -27,6 +27,7 @@
 #include "pw_stream/sys_io_stream.h"
 #include "pw_string/string.h"
 #include "pw_string/util.h"
+#include "webui/webui_server.h"
 
 namespace codelab {
 namespace {
@@ -97,20 +98,6 @@ Status CommandLineHardwareLoop() {
 
 pw::stream::SocketStream webui_socket;
 
-Status WebUiHardwareLoop() {
-  static constexpr const char* kWebUiHost = "localhost";
-  static constexpr uint16_t kWebUiPort = 23320;
-
-  PW_LOG_INFO("Connecting to %s:%d", kWebUiHost, static_cast<int>(kWebUiPort));
-  if (Status status = webui_socket.Connect(kWebUiHost, kWebUiPort);
-      !status.ok()) {
-    PW_LOG_CRITICAL("Connection failed with status %s", status.str());
-    return status;
-  }
-
-  return StreamHardwareLoop(webui_socket);
-}
-
 constexpr bool kUseWebUi = PW_ASYNC2_CODELAB_WEBUI;
 
 void HardwareLoop() {
@@ -125,7 +112,7 @@ void HardwareLoop() {
   // `std::quick_exit` would have been nice, but isn't available everywhere.
   std::atexit([]() { std::_Exit(0); });
 
-  Status status = kUseWebUi ? WebUiHardwareLoop() : CommandLineHardwareLoop();
+  Status status = CommandLineHardwareLoop();
   std::_Exit(status.ok() ? 0 : 1);
 }
 
@@ -133,11 +120,7 @@ void HardwareLoop() {
 
 void SetDisplay(std::string_view text) {
   if (kUseWebUi) {
-    // Format the text as a command to send to the server: "msg:{text}\n".
-    pw::InlineString<4 + kDisplayCharacters + 1> command("msg:");
-    pw::string::Append(command, text).IgnoreError();
-    command.back() = '\n';
-    PW_CHECK_OK(webui_socket.Write(pw::as_bytes(pw::span(command))));
+    webui::SetDisplay(text);
   } else {
     pw::InlineString<kDisplayCharacters> contents;
     pw::string::Append(contents, text).IgnoreError();
@@ -167,6 +150,10 @@ void HardwareInit(pw::async2::Dispatcher* dispatcher) {
 
   std::thread hardware_thread(HardwareLoop);
   hardware_thread.detach();
+
+  if (kUseWebUi) {
+    webui::StartWebUIServer();
+  }
 }
 
 }  // namespace codelab
