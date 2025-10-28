@@ -265,6 +265,7 @@ go_test(
         "@org_golang_google_grpc//credentials/insecure",
         "@org_golang_google_grpc//status",
         "@org_golang_google_grpc_examples//features/proto/echo",
+        "@org_golang_google_grpc_examples//helloworld/helloworld",
     ],
 )
 

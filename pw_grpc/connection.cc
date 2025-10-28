@@ -1025,6 +1025,10 @@ Status Connection::Reader::ProcessHeadersFrame(const FrameHeader& frame) {
 
   if (const auto status = callbacks_.OnNew(frame.stream_id, method_name);
       !status.ok()) {
+    if (status.IsNotFound()) {
+      return connection_.writer_.SendResponseComplete(
+          frame.stream_id, pw::Status::Unimplemented());
+    }
     auto state = connection_.LockState();
     if (Stream* stream = state->LookupStream(frame.stream_id);
         stream != nullptr) {

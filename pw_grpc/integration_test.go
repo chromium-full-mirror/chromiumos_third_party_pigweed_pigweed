@@ -33,6 +33,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
 	pb "google.golang.org/grpc/examples/features/proto/echo"
+	hellopb "google.golang.org/grpc/examples/helloworld/helloworld"
 	"google.golang.org/grpc/status"
 )
 
@@ -54,6 +55,30 @@ func setupTest(t *testing.T, num_connections int) {
 		cmd.Process.Signal(os.Interrupt)
 		cmd.Wait()
 	})
+}
+
+func TestUnknownService(t *testing.T) {
+	setupTest(t, 1)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	conn, err := dialServer()
+	if err != nil {
+		t.Errorf("Failed to connect %v", err)
+	}
+	defer conn.Close()
+
+	// This service is not implemented by the test pw_grpc server.
+	hello_client := hellopb.NewGreeterClient(conn)
+	resp, err := hello_client.SayHello(ctx, &hellopb.HelloRequest{Name: "unused"})
+	if err == nil {
+		t.Errorf("Unexpected response %v", resp)
+		return
+	}
+	if gotCode := status.Convert(err).Code(); gotCode != codes.Unimplemented {
+		t.Errorf("Greeter.SayHello()=Error(%v), want=Error(Unimplemented)", gotCode)
+	}
 }
 
 func TestUnaryEcho(t *testing.T) {
@@ -316,10 +341,13 @@ func launchServer(t *testing.T, num_connections int) (*exec.Cmd, *bufio.Reader, 
 	return cmd, reader, nil
 }
 
-func connectServer() (*grpc.ClientConn, pb.EchoClient, error) {
+func dialServer() (*grpc.ClientConn, error) {
 	addr := "localhost:" + strconv.Itoa(*port)
+	return grpc.Dial(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+}
 
-	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+func connectServer() (*grpc.ClientConn, pb.EchoClient, error) {
+	conn, err := dialServer()
 	if err != nil {
 		return nil, nil, err
 	}
