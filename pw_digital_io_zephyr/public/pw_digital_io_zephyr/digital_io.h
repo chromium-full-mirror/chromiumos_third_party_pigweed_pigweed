@@ -76,7 +76,10 @@ class GenericZephyrDigitalInOut {
   GenericZephyrDigitalInOut(const struct gpio_dt_spec dt_spec,
                             gpio_flags_t flags,
                             InterruptSupport supported)
-      : gpio_spec_(dt_spec), flags_(flags), interrupt_supported_(supported) {
+      : gpio_spec_(dt_spec),
+        flags_(flags),
+        interrupt_supported_(supported),
+        trigger_(InterruptTrigger::kActivatingEdge) {
     if (interrupt_supported_ == InterruptSupport::kAllowed) {
       // We're using interrupts, init the callback object
       gpio_init_callback(&callback_.data,
@@ -141,16 +144,23 @@ class GenericZephyrDigitalInOut {
       return pw::Status::Unavailable();
     }
 
-    // Configure the interrupt trigger
-    rc = gpio_pin_interrupt_configure_dt(
-        &gpio_spec_, InterruptTriggerToZephyrFlags(trigger));
-    if (rc != 0) {
-      return pw::Status::Internal();
-    }
-
     // Save the handler
     callback_.handler = std::move(handler);
-    return pw::OkStatus();
+
+    if (callback_.handler == nullptr) {
+      // Remove the callbacks to disable
+      return gpio_remove_callback_dt(&gpio_spec_, &callback_.data) == 0
+                 ? pw::OkStatus()
+                 : pw::Status::Internal();
+    }
+
+    // Store the trigger setting to be used by DoEnableInterruptHandler
+    trigger_ = trigger;
+
+    // Add the callbacks to enable
+    return gpio_add_callback_dt(&gpio_spec_, &callback_.data) == 0
+               ? pw::OkStatus()
+               : pw::Status::Internal();
   }
 
   // Only enable if InterruptSupport::kAllowed is set
@@ -158,18 +168,16 @@ class GenericZephyrDigitalInOut {
     // Check if pin supports interrupts
     PW_DASSERT(interrupt_supported_ == InterruptSupport::kAllowed);
 
-    if (!enable) {
-      // Remove the callbacks to disable
-      return gpio_remove_callback_dt(&gpio_spec_, &callback_.data) == 0
-                 ? pw::OkStatus()
-                 : pw::Status::Internal();
-    }
     // If we don't have a handler, we can't enable
-    if (callback_.handler == nullptr) {
+    if (enable && callback_.handler == nullptr) {
       return pw::Status::FailedPrecondition();
     }
-    // Add the callbacks to enable
-    return gpio_add_callback_dt(&gpio_spec_, &callback_.data) == 0
+
+    gpio_flags_t interrupt_flags =
+        enable ? InterruptTriggerToZephyrFlags(trigger_) : GPIO_INT_DISABLE;
+
+    // Configure the interrupt trigger
+    return gpio_pin_interrupt_configure_dt(&gpio_spec_, interrupt_flags) == 0
                ? pw::OkStatus()
                : pw::Status::Internal();
   }
@@ -178,6 +186,7 @@ class GenericZephyrDigitalInOut {
   const struct gpio_dt_spec gpio_spec_;
   gpio_flags_t flags_;
   InterruptSupport interrupt_supported_;
+  InterruptTrigger trigger_;
   struct gpio_callback_and_handler callback_;
 };
 

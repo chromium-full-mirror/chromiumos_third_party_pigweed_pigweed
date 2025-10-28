@@ -42,6 +42,8 @@ TEST(DigitalIoTest, ReadDigitalIn) {
   state = gpio.GetState();
   ASSERT_EQ(state.status(), pw::OkStatus());
   ASSERT_EQ(state.value(), State::kInactive);
+
+  ASSERT_EQ(gpio.Disable(), pw::OkStatus());
 }
 
 TEST(DigitalIoTest, ReadDigitalInInterrupt) {
@@ -57,6 +59,8 @@ TEST(DigitalIoTest, ReadDigitalInInterrupt) {
   state = gpio.GetState();
   ASSERT_EQ(state.status(), pw::OkStatus());
   ASSERT_EQ(state.value(), State::kInactive);
+
+  ASSERT_EQ(gpio.Disable(), pw::OkStatus());
 }
 
 TEST(DigitalIoTest, TriggerDigitalInInterrupt) {
@@ -86,6 +90,9 @@ TEST(DigitalIoTest, TriggerDigitalInInterrupt) {
   gpio_emul_input_set(kZephyrGpio.port, kZephyrGpio.pin, 1);
   gpio_emul_input_set(kZephyrGpio.port, kZephyrGpio.pin, 0);
   ASSERT_EQ(trigger_count, 0);
+
+  ASSERT_EQ(gpio.ClearInterruptHandler(), pw::OkStatus());
+  ASSERT_EQ(gpio.Disable(), pw::OkStatus());
 }
 
 TEST(DigitalIoTest, ReadDigitalInOut) {
@@ -101,6 +108,8 @@ TEST(DigitalIoTest, ReadDigitalInOut) {
   state = gpio.GetState();
   ASSERT_EQ(state.status(), pw::OkStatus());
   ASSERT_EQ(state.value(), State::kInactive);
+
+  ASSERT_EQ(gpio.Disable(), pw::OkStatus());
 }
 
 TEST(DigitalIoTest, WriteDigitalInOut) {
@@ -112,6 +121,8 @@ TEST(DigitalIoTest, WriteDigitalInOut) {
 
   ASSERT_EQ(gpio.SetStateInactive(), pw::OkStatus());
   ASSERT_EQ(gpio_emul_output_get(kZephyrGpio.port, kZephyrGpio.pin), 0);
+
+  ASSERT_EQ(gpio.Disable(), pw::OkStatus());
 }
 
 TEST(DigitalIoTest, ReadDigitalInOutInterrupt) {
@@ -127,6 +138,8 @@ TEST(DigitalIoTest, ReadDigitalInOutInterrupt) {
   state = gpio.GetState();
   ASSERT_EQ(state.status(), pw::OkStatus());
   ASSERT_EQ(state.value(), State::kInactive);
+
+  ASSERT_EQ(gpio.Disable(), pw::OkStatus());
 }
 
 TEST(DigitalIoTest, WriteDigitalInOutInterrupt) {
@@ -138,6 +151,8 @@ TEST(DigitalIoTest, WriteDigitalInOutInterrupt) {
 
   ASSERT_EQ(gpio.SetStateInactive(), pw::OkStatus());
   ASSERT_EQ(gpio_emul_output_get(kZephyrGpio.port, kZephyrGpio.pin), 0);
+
+  ASSERT_EQ(gpio.Disable(), pw::OkStatus());
 }
 
 TEST(DigitalIoTest, TriggerDigitalInOutInterrupt) {
@@ -167,6 +182,9 @@ TEST(DigitalIoTest, TriggerDigitalInOutInterrupt) {
   gpio_emul_input_set(kZephyrGpio.port, kZephyrGpio.pin, 1);
   gpio_emul_input_set(kZephyrGpio.port, kZephyrGpio.pin, 0);
   ASSERT_EQ(trigger_count, 0);
+
+  ASSERT_EQ(gpio.ClearInterruptHandler(), pw::OkStatus());
+  ASSERT_EQ(gpio.Disable(), pw::OkStatus());
 }
 
 TEST(DigitalIoTest, TriggerDigitalInterrupt) {
@@ -196,6 +214,9 @@ TEST(DigitalIoTest, TriggerDigitalInterrupt) {
   gpio_emul_input_set(kZephyrGpio.port, kZephyrGpio.pin, 1);
   gpio_emul_input_set(kZephyrGpio.port, kZephyrGpio.pin, 0);
   ASSERT_EQ(trigger_count, 0);
+
+  ASSERT_EQ(gpio.ClearInterruptHandler(), pw::OkStatus());
+  ASSERT_EQ(gpio.Disable(), pw::OkStatus());
 }
 
 TEST(DigitalIoTest, WriteDigitalOut) {
@@ -207,6 +228,8 @@ TEST(DigitalIoTest, WriteDigitalOut) {
 
   ASSERT_EQ(gpio.SetStateInactive(), pw::OkStatus());
   ASSERT_EQ(gpio_emul_output_get(kZephyrGpio.port, kZephyrGpio.pin), 0);
+
+  ASSERT_EQ(gpio.Disable(), pw::OkStatus());
 }
 
 TEST(DigitalIoTest, WriteDigitalOutInterrupt) {
@@ -247,6 +270,9 @@ TEST(DigitalIoTest, TriggerDigitalOutInterrupt) {
   gpio_emul_input_set(kZephyrGpio.port, kZephyrGpio.pin, 1);
   gpio_emul_input_set(kZephyrGpio.port, kZephyrGpio.pin, 0);
   ASSERT_EQ(trigger_count, 0);
+
+  ASSERT_EQ(gpio.ClearInterruptHandler(), pw::OkStatus());
+  ASSERT_EQ(gpio.Disable(), pw::OkStatus());
 }
 }  // namespace
 }  // namespace pw::digital_io

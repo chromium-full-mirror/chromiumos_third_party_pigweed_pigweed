@@ -26,6 +26,7 @@ pw_add_library(pw_digital_io_zephyr STATIC
   SOURCES
     digital_io.cc
   PUBLIC_DEPS
+    pw_assert
     pw_digital_io
     zephyr_interface
     pw_third_party.fuchsia.stdcompat
