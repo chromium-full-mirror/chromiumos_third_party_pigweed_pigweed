@@ -29,6 +29,7 @@ namespace {
 // Test fixtures
 
 using ::pw::IntrusiveForwardList;
+using ::pw::IntrusiveForwardListItem;
 
 class Item : public IntrusiveForwardList<Item>::Item {
  public:
@@ -1417,6 +1418,14 @@ TEST(IntrusiveForwardListTest, MoveItemsToVector) {
   // TODO(b/313899658): Vector has an MSAN bug in its destructor when clearing
   // items that reference themselves. Workaround it by manually clearing.
   vec.clear();
+}
+
+TEST(IntrusiveForwardListItem, Compiles) {
+  IntrusiveForwardListItem<bool> item(true);
+  IntrusiveForwardList<IntrusiveForwardListItem<bool>> list;
+  list.push_front(item);
+  EXPECT_TRUE(list.begin()->item());
+  list.clear();
 }
 
 }  // namespace

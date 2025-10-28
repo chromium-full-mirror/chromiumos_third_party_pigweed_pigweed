@@ -350,4 +350,27 @@ class IntrusiveForwardList {
   ::pw::containers::internal::GenericIntrusiveList<ItemBase> list_;
 };
 
+/// `IntrusiveForwardListItem` is a thin wrapper around a templated item which
+/// is itself a intrusive forward list item, permitting registration where the
+/// client holds the storage for the item.
+template <typename T>
+class IntrusiveForwardListItem final
+    : public IntrusiveForwardList<IntrusiveForwardListItem<T>>::Item {
+ public:
+  using element_type = T;
+  using value_type = std::remove_cv_t<element_type>;
+  using reference = value_type&;
+  using const_reference = const value_type&;
+
+  template <typename... Args>
+  IntrusiveForwardListItem(Args&&... args)
+      : item_(std::forward<Args>(args)...) {}
+
+  reference item() { return item_; }
+  const_reference item() const { return item_; }
+
+ private:
+  element_type item_;
+};
+
 }  // namespace pw
