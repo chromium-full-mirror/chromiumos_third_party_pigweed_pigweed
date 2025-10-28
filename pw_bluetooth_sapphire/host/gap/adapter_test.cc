@@ -1343,7 +1343,6 @@ TEST_F(AdapterTest,
 
   FakeController::Settings settings;
   settings.ApplyExtendedLEConfig();
-  settings.ApplyAndroidVendorExtensionDefaults();
   test_device()->set_settings(settings);
   InitializeAdapter([](bool) {});
 

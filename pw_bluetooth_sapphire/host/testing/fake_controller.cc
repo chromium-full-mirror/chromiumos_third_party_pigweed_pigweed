@@ -918,7 +918,7 @@ void FakeController::SendAdvertisingReport(const FakePeer& peer) {
   }
 
   DynamicByteBuffer buffer;
-  if (advertising_procedure() == ExtendedOperationType::kExtended) {
+  if (scan_procedure() == ExtendedOperationType::kExtended) {
     buffer = peer.BuildExtendedAdvertisingReportEvent();
   } else {
     buffer = peer.BuildLegacyAdvertisingReportEvent();
@@ -965,7 +965,7 @@ void FakeController::SendScanResponseReport(const FakePeer& peer) {
   }
 
   DynamicByteBuffer buffer;
-  if (advertising_procedure() == ExtendedOperationType::kExtended) {
+  if (scan_procedure() == ExtendedOperationType::kExtended) {
     buffer = peer.BuildExtendedScanResponseEvent();
   } else {
     buffer = peer.BuildLegacyScanResponseReportEvent();
@@ -1830,7 +1830,7 @@ void FakeController::OnInquiry(const pwemb::InquiryCommandView& params) {
 
 void FakeController::OnLESetScanEnable(
     const pwemb::LESetScanEnableCommandView& params) {
-  if (!EnableLegacyAdvertising()) {
+  if (!EnableLegacyScanning()) {
     bt_log(INFO,
            "fake-hci",
            "legacy advertising command rejected, another type already in use");
@@ -1866,7 +1866,7 @@ void FakeController::OnLESetScanEnable(
 
 void FakeController::OnLESetExtendedScanEnable(
     const pwemb::LESetExtendedScanEnableCommandView& params) {
-  if (!EnableExtendedAdvertising()) {
+  if (!EnableExtendedScanning()) {
     bt_log(
         INFO,
         "fake-hci",
@@ -1908,7 +1908,7 @@ void FakeController::OnLESetExtendedScanEnable(
 
 void FakeController::OnLESetScanParameters(
     const pwemb::LESetScanParametersCommandView& params) {
-  if (!EnableLegacyAdvertising()) {
+  if (!EnableLegacyScanning()) {
     bt_log(INFO,
            "fake-hci",
            "legacy advertising command rejected, another type already in use");
@@ -1935,7 +1935,7 @@ void FakeController::OnLESetScanParameters(
 
 void FakeController::OnLESetExtendedScanParameters(
     const pwemb::LESetExtendedScanParametersCommandView& params) {
-  if (!EnableExtendedAdvertising()) {
+  if (!EnableExtendedScanning()) {
     bt_log(
         INFO,
         "fake-hci",
@@ -2407,7 +2407,7 @@ void FakeController::OnLESetAdvertisingEnable(
 
 void FakeController::OnLESetScanResponseData(
     const pwemb::LESetScanResponseDataCommandView& params) {
-  if (!EnableLegacyAdvertising()) {
+  if (!EnableLegacyScanning()) {
     bt_log(INFO,
            "fake-hci",
            "legacy advertising command rejected, another type already in use");
@@ -3470,7 +3470,7 @@ void FakeController::OnLESetExtendedAdvertisingData(
 
 void FakeController::OnLESetExtendedScanResponseData(
     const pwemb::LESetExtendedScanResponseDataCommandView& params) {
-  if (!EnableExtendedAdvertising()) {
+  if (!EnableExtendedScanning()) {
     bt_log(
         INFO,
         "fake-hci",
@@ -5975,6 +5975,21 @@ void FakeController::OnAndroidLEApcfCommand(
 
 void FakeController::OnAndroidLEBatchScanEnableCommand(
     const android_emb::LEBatchScanEnableCommandView& params) {
+  auto packet =
+      hci::EventPacket::New<android_emb::LEBatchScanCommandCompleteEventWriter>(
+          hci_spec::kCommandCompleteEventCode);
+  auto view = packet.view_t();
+  view.sub_opcode().Write(android_emb::BatchScanSubOpcode::ENABLE);
+
+  if (!EnableVendorBatchScanning()) {
+    bt_log(INFO,
+           "fake-hci",
+           "vendor batch scanning command rejected, another scan type in use");
+    view.status().Write(pwemb::StatusCode::COMMAND_DISALLOWED);
+    RespondWithCommandComplete(pwemb::OpCode::ANDROID_LE_BATCH_SCAN, &packet);
+    return;
+  }
+
   if (params.enabled().Read() == pwemb::GenericEnableParam::ENABLE) {
     le_scan_state_.batch_scan_enabled = true;
   } else {
@@ -5982,38 +5997,39 @@ void FakeController::OnAndroidLEBatchScanEnableCommand(
   }
 
   le_scan_state_.batch_scan_num_peers_read = 0;
-
-  auto packet =
-      hci::EventPacket::New<android_emb::LEBatchScanCommandCompleteEventWriter>(
-          hci_spec::kCommandCompleteEventCode);
-  auto view = packet.view_t();
-  view.sub_opcode().Write(android_emb::BatchScanSubOpcode::ENABLE);
   RespondWithCommandComplete(pwemb::OpCode::ANDROID_LE_BATCH_SCAN, &packet);
 }
 
 void FakeController::OnAndroidLEBatchScanSetStorageParametersCommand(
     [[maybe_unused]] const android_emb::
         LEBatchScanSetStorageParametersCommandView& params) {
+  auto packet =
+      hci::EventPacket::New<android_emb::LEBatchScanCommandCompleteEventWriter>(
+          hci_spec::kCommandCompleteEventCode);
+  auto view = packet.view_t();
+  view.sub_opcode().Write(
+      android_emb::BatchScanSubOpcode::SET_STORAGE_PARAMETERS);
+
+  if (!EnableVendorBatchScanning()) {
+    bt_log(INFO,
+           "fake-hci",
+           "vendor batch scanning command rejected, another scan type in use");
+    view.status().Write(pwemb::StatusCode::COMMAND_DISALLOWED);
+    RespondWithCommandComplete(pwemb::OpCode::ANDROID_LE_BATCH_SCAN, &packet);
+    return;
+  }
+
   // For testing purposes, we don't store storage threshold configurations for
   // truncated and full format batched scan results or the storage threshold to
   // send the results back to the Host. Rather, the tests themselves can
   // simulate these conditions by calling trigger functions on the
   // FakeController itself.
-  pwemb::StatusCode status = pwemb::StatusCode::SUCCESS;
   if (!le_scan_state_.batch_scan_enabled) {
     bt_log(WARN, "fake-hci", "Cannot set storage parameters without enabling");
-    status = pw::bluetooth::emboss::StatusCode::COMMAND_DISALLOWED;
+    view.status().Write(pwemb::StatusCode::COMMAND_DISALLOWED);
   }
 
   le_scan_state_.batch_scan_num_peers_read = 0;
-
-  auto packet =
-      hci::EventPacket::New<android_emb::LEBatchScanCommandCompleteEventWriter>(
-          hci_spec::kCommandCompleteEventCode);
-  auto view = packet.view_t();
-  view.status().Write(status);
-  view.sub_opcode().Write(
-      android_emb::BatchScanSubOpcode::SET_STORAGE_PARAMETERS);
   RespondWithCommandComplete(pwemb::OpCode::ANDROID_LE_BATCH_SCAN, &packet);
 }
 
@@ -6023,8 +6039,16 @@ void FakeController::OnAndroidLEBatchScanSetScanParametersCommand(
       hci::EventPacket::New<android_emb::LEBatchScanCommandCompleteEventWriter>(
           hci_spec::kCommandCompleteEventCode);
   auto view = packet.view_t();
-  view.status().Write(pwemb::StatusCode::SUCCESS);
   view.sub_opcode().Write(android_emb::BatchScanSubOpcode::SET_SCAN_PARAMETERS);
+
+  if (!EnableVendorBatchScanning()) {
+    bt_log(INFO,
+           "fake-hci",
+           "vendor batch scanning command rejected, another scan type in use");
+    view.status().Write(pwemb::StatusCode::COMMAND_DISALLOWED);
+    RespondWithCommandComplete(pwemb::OpCode::ANDROID_LE_BATCH_SCAN, &packet);
+    return;
+  }
 
   if (!le_scan_state_.batch_scan_enabled) {
     bt_log(WARN, "fake-hci", "Cannot set scan parameters without enabling");
@@ -6136,6 +6160,16 @@ void FakeController::OnAndroidLEBatchScanReadResultsCommand(
   regular_view.sub_opcode().Write(
       android_emb::BatchScanSubOpcode::READ_RESULT_PARAMETERS);
 
+  if (!EnableVendorBatchScanning()) {
+    bt_log(INFO,
+           "fake-hci",
+           "vendor batch scanning command rejected, another scan type in use");
+    regular_view.status().Write(pwemb::StatusCode::COMMAND_DISALLOWED);
+    RespondWithCommandComplete(pwemb::OpCode::ANDROID_LE_BATCH_SCAN,
+                               &regular_packet);
+    return;
+  }
+
   if (!le_scan_state_.batch_scan_enabled) {
     bt_log(WARN, "fake-hci", "Cannot read batch scan results without enabling");
     regular_view.status().Write(pwemb::StatusCode::COMMAND_DISALLOWED);
@@ -6149,8 +6183,7 @@ void FakeController::OnAndroidLEBatchScanReadResultsCommand(
   // enable only truncated mode.
   if (params.read_mode().Read() == android_emb::BatchScanReadMode::TRUNCATED) {
     bt_log(WARN, "fake-hci", "Cannot read truncated batch scan results");
-    regular_view.sub_opcode().Write(
-        android_emb::BatchScanSubOpcode::READ_RESULT_PARAMETERS);
+    regular_view.status().Write(pwemb::StatusCode::COMMAND_DISALLOWED);
     RespondWithCommandComplete(pwemb::OpCode::ANDROID_LE_BATCH_SCAN,
                                &regular_packet);
     return;
@@ -6407,6 +6440,36 @@ bool FakeController::EnableVendorAdvertising() {
   }
 
   advertising_procedure_ = ExtendedOperationType::kVendor;
+  return true;
+}
+
+bool FakeController::EnableLegacyScanning() {
+  if (scan_procedure() != ExtendedOperationType::kLegacy &&
+      scan_procedure() != ExtendedOperationType::kUnknown) {
+    return false;
+  }
+
+  scan_procedure_ = ExtendedOperationType::kLegacy;
+  return true;
+}
+
+bool FakeController::EnableExtendedScanning() {
+  if (scan_procedure() != ExtendedOperationType::kExtended &&
+      scan_procedure() != ExtendedOperationType::kUnknown) {
+    return false;
+  }
+
+  scan_procedure_ = ExtendedOperationType::kExtended;
+  return true;
+}
+
+bool FakeController::EnableVendorBatchScanning() {
+  if (scan_procedure() != ExtendedOperationType::kVendor &&
+      scan_procedure() != ExtendedOperationType::kUnknown) {
+    return false;
+  }
+
+  scan_procedure_ = ExtendedOperationType::kVendor;
   return true;
 }
 

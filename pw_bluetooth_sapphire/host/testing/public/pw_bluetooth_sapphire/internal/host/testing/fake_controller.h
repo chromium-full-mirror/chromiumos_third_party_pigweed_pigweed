@@ -653,6 +653,10 @@ class FakeController final : public ControllerTestDoubleBase,
     return advertising_procedure_;
   }
 
+  const ExtendedOperationType& scan_procedure() const {
+    return scan_procedure_;
+  }
+
  private:
   struct PeriodicAdvertiserListEntry {
     DeviceAddress address;
@@ -1321,6 +1325,10 @@ class FakeController final : public ControllerTestDoubleBase,
   bool EnableExtendedAdvertising();
   bool EnableVendorAdvertising();
 
+  bool EnableLegacyScanning();
+  bool EnableExtendedScanning();
+  bool EnableVendorBatchScanning();
+
   Settings settings_;
 
   // Value is non-null when A2DP offload is started, and null when it is
@@ -1440,6 +1448,7 @@ class FakeController final : public ControllerTestDoubleBase,
 
   ExtendedOperationType advertising_procedure_ =
       ExtendedOperationType::kUnknown;
+  ExtendedOperationType scan_procedure_ = ExtendedOperationType::kUnknown;
   uint16_t max_advertising_data_length_ = hci_spec::kMaxLEAdvertisingDataLength;
 
   std::unordered_set<PeriodicAdvertiserListEntry,
