@@ -23,29 +23,56 @@ use userspace::time::Instant;
 fn test_uppercase_ipcs() -> Result<()> {
     pw_log::info!("Ipc test starting");
     for c in 'a'..='z' {
-        let mut send_buf = [0u8; size_of::<char>()];
-        let mut recv_buf = [0u8; size_of::<char>()];
+        const SEND_BUF_LEN: usize = size_of::<char>();
+        const RECV_BUF_LEN: usize = size_of::<char>() * 2;
+
+        let mut send_buf = [0u8; SEND_BUF_LEN];
+        let mut recv_buf = [0u8; RECV_BUF_LEN];
 
         // Encode the character into `send_buf` and send it over to the handler.
         c.encode_utf8(&mut send_buf);
         let len: usize =
             syscall::channel_transact(handle::IPC, &send_buf, &mut recv_buf, Instant::MAX)?;
 
-        // The handler side always sends 4 bytes to make up a full Rust `char`
-        if len != size_of::<char>() {
+        // The handler side always sends 8 bytes to make up two full Rust `char`s
+        if len != RECV_BUF_LEN {
+            pw_log::error!(
+                "Received {} bytes, {} expected",
+                len as usize,
+                RECV_BUF_LEN as usize
+            );
             return Err(Error::OutOfRange);
         }
 
-        // Log the response character
-        let Ok(upper_c) = u32::from_ne_bytes(recv_buf).try_into() else {
+        let (char0_bytes, char1_bytes) = recv_buf.split_at(size_of::<char>());
+
+        // Decode first char.
+        let Ok(char0) = u32::from_ne_bytes(char0_bytes.try_into().unwrap()).try_into() else {
             return Err(Error::InvalidArgument);
         };
-        let upper_c: char = upper_c;
+        let char0: char = char0;
 
-        pw_log::info!("sent {}, received {}", c as char, upper_c as char);
+        // Decode second char.
+        let Ok(char1) = u32::from_ne_bytes(char1_bytes.try_into().unwrap()).try_into() else {
+            return Err(Error::InvalidArgument);
+        };
+        let char1: char = char1;
 
-        // Verify that the remote side made the character uppercase.
-        if upper_c != c.to_ascii_uppercase() {
+        // Log the response character
+        pw_log::info!(
+            "sent {}, received ({},{})",
+            c as char,
+            char0 as char,
+            char1 as char
+        );
+
+        // Verify that the remote side made the first character uppercase.
+        if char0 != c.to_ascii_uppercase() {
+            return Err(Error::Unknown);
+        }
+
+        // Verify that the remote side left the second character lowercase.
+        if char1 != c {
             return Err(Error::Unknown);
         }
     }

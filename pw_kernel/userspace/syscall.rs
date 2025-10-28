@@ -37,7 +37,7 @@ pub fn channel_transact(
         send_data.as_ptr(),
         send_data.len(),
         recv_data.as_mut_ptr(),
-        send_data.len(),
+        recv_data.len(),
         deadline.ticks(),
     )
     .map(|ret| ret.cast_into())

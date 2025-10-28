@@ -37,11 +37,12 @@ fn handle_uppercase_ipcs() -> Result<()> {
         let Some(c) = char::from_u32(u32::from_ne_bytes(buffer)) else {
             return Err(Error::InvalidArgument);
         };
-        let c = c.to_ascii_uppercase();
+        let upper_c = c.to_ascii_uppercase();
 
         // Respond to the IPC with the uppercase character.
-        let mut response_buffer = [0u8; size_of::<char>()];
-        c.encode_utf8(&mut response_buffer);
+        let mut response_buffer = [0u8; size_of::<char>() * 2];
+        upper_c.encode_utf8(&mut response_buffer[0..size_of::<char>()]);
+        c.encode_utf8(&mut response_buffer[size_of::<char>()..]);
         syscall::channel_respond(handle::IPC, &response_buffer)?;
     }
 }
