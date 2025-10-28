@@ -43,6 +43,12 @@ def check_file(ctx: presubmit_context.PresubmitContext, path: Path) -> None:
         # File is not text, like a gif.
         return
 
+    if any(part.startswith('pw_') for part in path.relative_to(ctx.root).parts):
+        # This is in a directory that looks like a Pigweed module. Even if we're
+        # not in Pigweed itself, this is allowed, because this code looks like
+        # it's planned to be upstreamed to Pigweed.
+        return
+
     match = _PW_INTERNAL.search(contents)
     if not match:
         return
