@@ -19,6 +19,8 @@ import textwrap
 import unittest
 
 from pw_log.proto import log_pb2
+from pw_tokenizer import detokenize, tokens
+
 from pw_snapshot.processor import process_snapshot
 from pw_snapshot_protos import snapshot_pb2
 
@@ -76,8 +78,26 @@ psr        0x20000003
 """
 )
 
+_TOKEN_DB = tokens.Database()
+
+
+def _make_token(string: str) -> int:
+    """Tokenizes the given string and adds it to the database.
+
+    Returns: The token value.
+    """
+    token = tokens.pw_tokenizer_65599_hash(string)
+    _TOKEN_DB.add([tokens.TokenizedStringEntry(token, string)])
+    return token
+
+
+_LOG_MESSAGE_TOKEN = _make_token("A tokenized log message!")
+
 _TEST_LOGS = [
     log_pb2.LogEntry(message=b"Basic"),
+    log_pb2.LogEntry(
+        message=_LOG_MESSAGE_TOKEN.to_bytes(length=4, byteorder="little"),
+    ),
     log_pb2.LogEntry(
         message=b"Hello, world!",
         line_level=(1234 << 3) | 4,
@@ -127,11 +147,15 @@ class ProcessorTest(unittest.TestCase):
             """
             Logs:
               Basic
+              A tokenized log message!
               ERR MYMOD 00:45:45.587123 Hello, world! dispatcher.c:1234
             """
         )
 
-        output = process_snapshot(snapshot.SerializeToString())
+        detokenizer = detokenize.Detokenizer(_TOKEN_DB)
+        output = process_snapshot(
+            snapshot.SerializeToString(), detokenizer=detokenizer
+        )
         self.assertEqual(output, expected_output)
 
     def test_process_snapshot_with_no_log_processor(self):
