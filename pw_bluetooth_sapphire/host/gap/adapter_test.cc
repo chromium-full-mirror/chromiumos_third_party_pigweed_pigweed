@@ -1314,6 +1314,104 @@ TEST_F(AdapterTest,
   conn_result.reset();
 }
 
+TEST_F(AdapterTest, CreateAdvertiserExtendedAdvertisingSupported) {
+  FakeController::Settings settings;
+  settings.ApplyExtendedLEConfig();
+  test_device()->set_settings(settings);
+  InitializeAdapter([](bool) {});
+
+  adapter()->le()->StartAdvertising(AdvertisingData(),
+                                    AdvertisingData(),
+                                    AdvertisingInterval::FAST1,
+                                    /*extended_pdu=*/false,
+                                    /*anonymous=*/false,
+                                    /*include_tx_power_level=*/false,
+                                    /*connectable=*/std::nullopt,
+                                    /*address_type=*/std::nullopt,
+                                    [&](AdvertisementInstance, auto status) {
+                                      ASSERT_EQ(fit::ok(), status);
+                                    });
+  RunUntilIdle();
+  EXPECT_EQ(bt::testing::FakeController::ExtendedOperationType::kExtended,
+            test_device()->advertising_procedure());
+}
+
+TEST_F(AdapterTest,
+       CreateAdvertiserVendorAdvertisingSupportedExtendedSupported) {
+  TearDown();
+  SetUp(FeaturesBits::kAndroidVendorExtensions);
+
+  FakeController::Settings settings;
+  settings.ApplyExtendedLEConfig();
+  settings.ApplyAndroidVendorExtensionDefaults();
+  test_device()->set_settings(settings);
+  InitializeAdapter([](bool) {});
+
+  adapter()->le()->StartAdvertising(AdvertisingData(),
+                                    AdvertisingData(),
+                                    AdvertisingInterval::FAST1,
+                                    /*extended_pdu=*/false,
+                                    /*anonymous=*/false,
+                                    /*include_tx_power_level=*/false,
+                                    /*connectable=*/std::nullopt,
+                                    /*address_type=*/std::nullopt,
+                                    [&](AdvertisementInstance, auto status) {
+                                      ASSERT_EQ(fit::ok(), status);
+                                    });
+  RunUntilIdle();
+  EXPECT_EQ(bt::testing::FakeController::ExtendedOperationType::kExtended,
+            test_device()->advertising_procedure());
+}
+
+TEST_F(AdapterTest,
+       CreateAdvertiserVendorAdvertisingSupportedExtendedUnsupported) {
+  TearDown();
+  SetUp(FeaturesBits::kAndroidVendorExtensions);
+
+  FakeController::Settings settings;
+  settings.ApplyLegacyLEConfig();
+  settings.ApplyAndroidVendorExtensionDefaults();
+  test_device()->set_settings(settings);
+  InitializeAdapter([](bool) {});
+
+  adapter()->le()->StartAdvertising(AdvertisingData(),
+                                    AdvertisingData(),
+                                    AdvertisingInterval::FAST1,
+                                    /*extended_pdu=*/false,
+                                    /*anonymous=*/false,
+                                    /*include_tx_power_level=*/false,
+                                    /*connectable=*/std::nullopt,
+                                    /*address_type=*/std::nullopt,
+                                    [&](AdvertisementInstance, auto status) {
+                                      ASSERT_EQ(fit::ok(), status);
+                                    });
+  RunUntilIdle();
+  EXPECT_EQ(bt::testing::FakeController::ExtendedOperationType::kVendor,
+            test_device()->advertising_procedure());
+}
+
+TEST_F(AdapterTest, CreateAdvertiserLegacyAdvertisingSupported) {
+  FakeController::Settings settings;
+  settings.ApplyLegacyLEConfig();
+  test_device()->set_settings(settings);
+  InitializeAdapter([](bool) {});
+
+  adapter()->le()->StartAdvertising(AdvertisingData(),
+                                    AdvertisingData(),
+                                    AdvertisingInterval::FAST1,
+                                    /*extended_pdu=*/false,
+                                    /*anonymous=*/false,
+                                    /*include_tx_power_level=*/false,
+                                    /*connectable=*/std::nullopt,
+                                    /*address_type=*/std::nullopt,
+                                    [&](AdvertisementInstance, auto status) {
+                                      ASSERT_EQ(fit::ok(), status);
+                                    });
+  RunUntilIdle();
+  EXPECT_EQ(bt::testing::FakeController::ExtendedOperationType::kLegacy,
+            test_device()->advertising_procedure());
+}
+
 // Tests where the constructor must run in the test, rather than Setup.
 
 class AdapterConstructorTest : public TestingBase {

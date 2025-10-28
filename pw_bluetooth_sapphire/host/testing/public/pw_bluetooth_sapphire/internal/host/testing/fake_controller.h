@@ -642,6 +642,17 @@ class FakeController final : public ControllerTestDoubleBase,
   // Send a Periodic Advertising Sync Lost event and delete the sync state.
   void LosePeriodicSync(DeviceAddress address, uint8_t advertising_sid);
 
+  enum class ExtendedOperationType : uint8_t {
+    kUnknown,
+    kLegacy,
+    kExtended,
+    kVendor,
+  };
+
+  const ExtendedOperationType& advertising_procedure() const {
+    return advertising_procedure_;
+  }
+
  private:
   struct PeriodicAdvertiserListEntry {
     DeviceAddress address;
@@ -1306,18 +1317,9 @@ class FakeController final : public ControllerTestDoubleBase,
     return (bredr_scan_state_ >> BIT_1) & BIT_1;
   }
 
-  enum class AdvertisingProcedure : uint8_t {
-    kUnknown,
-    kLegacy,
-    kExtended,
-  };
-
-  const AdvertisingProcedure& advertising_procedure() const {
-    return advertising_procedure_;
-  }
-
   bool EnableLegacyAdvertising();
   bool EnableExtendedAdvertising();
+  bool EnableVendorAdvertising();
 
   Settings settings_;
 
@@ -1436,7 +1438,8 @@ class FakeController final : public ControllerTestDoubleBase,
   bool auto_completed_packets_event_enabled_ = true;
   bool auto_disconnection_complete_event_enabled_ = true;
 
-  AdvertisingProcedure advertising_procedure_ = AdvertisingProcedure::kUnknown;
+  ExtendedOperationType advertising_procedure_ =
+      ExtendedOperationType::kUnknown;
   uint16_t max_advertising_data_length_ = hci_spec::kMaxLEAdvertisingDataLength;
 
   std::unordered_set<PeriodicAdvertiserListEntry,
