@@ -952,7 +952,7 @@ def _add_to_module_metadata(
     languages: Iterable[str] | None = None,
 ) -> None:
     """Update sphinx module metadata."""
-    module_metadata_file = project_root / 'docs/module_metadata.json'
+    module_metadata_file = project_root / 'docs/sphinx/module_metadata.json'
     metadata_dict = json.loads(module_metadata_file.read_text())
 
     language_tags = []
