@@ -12,6 +12,4 @@
 # License for the specific language governing permissions and limitations under
 # the License.
 
-load(":aliases.bzl", "make_crate_aliases")
-
-make_crate_aliases(name = "aliases")
+# This empty build file makes this directory a Bazel package.

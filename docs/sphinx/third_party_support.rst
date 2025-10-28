@@ -12,6 +12,7 @@ to make it easier to work with these third-party dependencies.
 
    third_party/abseil-cpp/docs
    third_party/boringssl/docs
+   third_party/crates_io/docs
    docker/docs
    third_party/emboss/docs
    third_party/freertos/docs

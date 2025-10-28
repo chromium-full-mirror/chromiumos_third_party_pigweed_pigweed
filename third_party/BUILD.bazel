@@ -22,6 +22,7 @@ sphinx_docs_library(
     srcs = [
         "//third_party/abseil-cpp:docs",
         "//third_party/boringssl:docs",
+        "//third_party/crates_io:docs",
         "//third_party/emboss:docs",
         "//third_party/freertos:docs",
         "//third_party/fuchsia:docs",
