@@ -13,10 +13,28 @@ or dynamic storage.
 
 Pigweed provides many queue and deque implementations to meet different needs.
 
--------------
-API reference
--------------
-Moved: :cc:`pw_containers_queues`
+-------------------------------------------
+``std::deque`` & ``std::queue`` equivalents
+-------------------------------------------
+``pw_containers`` provides a family of deques and queues that implement the
+``std:deque`` or ``std::queue`` API, but offer much more control with
+significantly smaller code size.
+
+The ``std::deque``-like containers are:
+
+- :cc:`pw::Deque` -- uses a fixed-capacity external storage buffer
+- :cc:`pw::FixedDeque` -- uses a fixed-capacity storage buffer, which is
+  optionally owned and may be statically or dynamically allocated
+- :cc:`pw::DynamicDeque` -- dynamically allocates a storage buffer using a
+  :cc:`pw::Allocator`
+- :cc:`pw::InlineDeque` -- uses an inline, statically allocated storage buffer
+
+Equivalent ``std::queue``-like classes are also provided:
+
+- :cc:`pw::Queue`
+- :cc:`pw::FixedQueue`
+- :cc:`pw::DynamicQueue`
+- :cc:`pw::InlineQueue`
 
 .. _module-pw_containers-inlinevarlenentryqueue:
 
@@ -170,3 +188,8 @@ reports generally cover:
 .. TODO: b/394341806 - Add size report for InlineVarLenEntryQueue.
 
 .. include:: queues_size_report
+
+-------------
+API reference
+-------------
+Moved: :cc:`pw_containers_queues`

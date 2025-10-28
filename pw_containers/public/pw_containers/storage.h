@@ -15,7 +15,6 @@
 
 #include <array>
 
-#include "pw_allocator/unique_ptr.h"
 #include "pw_containers/algorithm.h"
 
 namespace pw::containers {
@@ -73,9 +72,8 @@ class Storage {
 template <typename T, size_t kCount = 1>
 using StorageFor = Storage<alignof(T), sizeof(T) * kCount>;
 
-/// Special reserved capacity for containers that own a storage buffer to
-/// indicate that the buffer is dynamically allocated.
-inline constexpr size_t kAllocatedStorage = static_cast<size_t>(-1);
+/// Reserved capacity value for container specializations with external storage.
+inline constexpr size_t kExternalStorage = static_cast<size_t>(-1);
 
 /// @}
 
@@ -87,10 +85,6 @@ namespace internal {
 template <typename T, size_t kCapacity>
 struct ArrayStorage {
   StorageFor<T, kCapacity> storage_array;
-};
-
-struct DynamicStorage {
-  UniquePtr<std::byte[]> storage_unique_ptr;
 };
 
 }  // namespace internal

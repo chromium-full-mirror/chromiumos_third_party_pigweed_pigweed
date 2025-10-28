@@ -227,7 +227,6 @@ pw_add_library(pw_containers.storage INTERFACE
   PUBLIC_INCLUDES
     public
   PUBLIC_DEPS
-    pw_allocator
     pw_containers.algorithm
 )
 

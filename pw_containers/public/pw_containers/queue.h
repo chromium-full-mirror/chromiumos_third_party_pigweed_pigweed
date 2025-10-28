@@ -39,15 +39,15 @@ class Queue : public containers::internal::GenericQueue<Queue<T, SizeType>,
  public:
   /// Constructs an empty `Queue` using the provided buffer for storage.
   ///
-  /// @param buffer Storage for the queue. If the buffer is not aligned as
-  ///     as `value_type`, an aligned subset of the buffer will be used. If the
-  ///     buffer is too small to hold at least one `value_type`, the queue's
-  ///     capacity will be 0.
-  explicit constexpr Queue(span<std::byte> buffer) noexcept : deque_(buffer) {}
+  /// @param unaligned_buffer Storage for the queue. If the buffer is not
+  ///     aligned as as `value_type`, an aligned subset of the buffer will be
+  ///     used. If the buffer is too small to hold at least one `value_type`,
+  ///     the queue's capacity will be 0.
+  explicit constexpr Queue(span<std::byte> unaligned_buffer) noexcept
+      : Queue(Aligned::Align(unaligned_buffer)) {}
 
   /// Constructs an empty `Queue` using a `pw::containers::Storage` buffer.
-  /// This constructor avoids checking alignment since `containers::Storage`
-  /// objects are always aligned.
+  /// This constructor avoids run time alignment checks.
   template <size_t kAlignment, size_t kSizeBytes>
   explicit constexpr Queue(
       containers::Storage<kAlignment, kSizeBytes>& storage) noexcept
@@ -67,14 +67,17 @@ class Queue : public containers::internal::GenericQueue<Queue<T, SizeType>,
   template <typename, size_t, typename>
   friend class FixedQueue;
 
+  using Aligned = typename Deque<T, SizeType>::Aligned;
+
   // Constructor for a buffer that is known to be aligned.
-  constexpr Queue(std::byte* aligned_buffer, size_t size) noexcept
-      : deque_(typename Deque<T, SizeType>::Aligned(aligned_buffer, size)) {}
+  explicit constexpr Queue(Aligned buffer) noexcept : deque_(buffer) {}
 
   void MoveItemsFrom(Queue& other) { deque_.MoveItemsFrom(other.deque_); }
   void MoveBufferFrom(Queue& other) { deque_.MoveBufferFrom(other.deque_); }
   void SwapValuesWith(Queue& other) { deque_.SwapValuesWith(other.deque_); }
   void SwapBufferWith(Queue& other) { deque_.SwapBufferWith(other.deque_); }
+
+  T* data() { return deque_.data(); }
 
   Deque<T, SizeType>& deque() { return deque_; }
   const Deque<T, SizeType>& deque() const { return deque_; }
@@ -86,69 +89,75 @@ class Queue : public containers::internal::GenericQueue<Queue<T, SizeType>,
 ///
 /// @tparam T The type of elements stored in the queue.
 /// @tparam kCapacity The maximum number of elements the queue can hold. If set
-///     to `containers::kAllocatedStorage`, the queue will be dynamically
-///     allocated.
+///     to `containers::kExternalStorage`, the queue storage will be outside the
+///     object.
 /// @tparam SizeType The type used to store the size of the queue.
 template <typename T,
-          size_t kCapacity = containers::kAllocatedStorage,
-          typename SizeType = uint16_t>
+          size_t kInlineCapacity = containers::kExternalStorage,
+          typename SizeType = typename Queue<T>::size_type>
 class FixedQueue final
-    : private containers::internal::ArrayStorage<T, kCapacity>,
+    : private containers::internal::ArrayStorage<T, kInlineCapacity>,
       public Queue<T, SizeType> {
  public:
   /// Constructs an empty `FixedQueue` with internal, statically allocated
   /// storage.
   constexpr FixedQueue()
-      : containers::internal::ArrayStorage<T, kCapacity>(),
+      : containers::internal::ArrayStorage<T, kInlineCapacity>{},
         Queue<T, SizeType>(this->storage_array) {}
 
   FixedQueue(const FixedQueue&) = delete;
   FixedQueue& operator=(const FixedQueue&) = delete;
 
-  FixedQueue(FixedQueue&& other) noexcept : FixedQueue() {
+  constexpr FixedQueue(FixedQueue&& other) noexcept : FixedQueue() {
     this->MoveItemsFrom(other);
   }
 
-  FixedQueue& operator=(FixedQueue&& other) noexcept {
+  constexpr FixedQueue& operator=(FixedQueue&& other) noexcept {
     this->clear();
     this->MoveItemsFrom(other);
     return *this;
   }
 
+  /// `FixedQueue` supports moves that are guaranteed to succeed (moving into
+  /// equal or greater capacity or between queues with external storage).
   template <size_t kOtherCapacity,
-            typename = std::enable_if_t<kOtherCapacity <= kCapacity>>
-  FixedQueue(FixedQueue<T, kOtherCapacity, SizeType>&& other) noexcept
-      : FixedQueue() {
+            typename = std::enable_if_t<kOtherCapacity <= kInlineCapacity>>
+  FixedQueue(FixedQueue<T, kOtherCapacity>&& other) noexcept : FixedQueue() {
     this->MoveItemsFrom(other);
   }
 
   template <size_t kOtherCapacity,
-            typename = std::enable_if_t<kOtherCapacity <= kCapacity>>
-  FixedQueue& operator=(
-      FixedQueue<T, kOtherCapacity, SizeType>&& other) noexcept {
+            typename = std::enable_if_t<kOtherCapacity <= kInlineCapacity>>
+  FixedQueue& operator=(FixedQueue<T, kOtherCapacity>&& other) noexcept {
     this->clear();
     this->MoveItemsFrom(other);
     return *this;
   }
 
-  /// Swaps the contents with another queue.
+  /// Swaps the contents of this `FixedQueue` with another, in O(n) time.
+  /// Crashes if one queue's size is greater than the other's capacity.
   template <size_t kOtherCapacity>
   void swap(FixedQueue<T, kOtherCapacity, SizeType>& other) {
     this->SwapValuesWith(other);
   }
+
+  /// Returns `nullptr`; a `FixedQueue` with static storage never allocates.
+  constexpr Deallocator* deallocator() const { return nullptr; }
 };
 
-/// Specialization of `FixedQueue` using a dynamically allocated, but fixed,
-/// storage buffer.
-template <typename T, typename SizeType>
-class FixedQueue<T, containers::kAllocatedStorage, SizeType> final
-    : private containers::internal::DynamicStorage,
-      public Queue<T, SizeType> {
+/// Specialization of `FixedQueue` using an external static or dynamically
+/// allocated, but fixed, storage buffer. Equivalent to
+/// @ref FixedDeque<T, containers::kExternalStorage, SizeType> "FixedDeque<T>".
+template <typename T, typename S>
+class FixedQueue<T, containers::kExternalStorage, S> final
+    : public Queue<T, S> {
  public:
   /// Allocates a buffer large enough to hold `capacity` items and uses it for a
   /// `FixedQueue`'s buffer. Crashes if unable to allocate space for `capacity`
   /// items.
-  static FixedQueue Allocate(Allocator& allocator, const SizeType capacity) {
+  ///
+  /// The `FixedQueue` owns the buffer and frees it upon destruction.
+  static FixedQueue Allocate(Allocator& allocator, const S capacity) {
     FixedQueue queue = TryAllocate(allocator, capacity);
     PW_ASSERT(queue.capacity() == capacity);
     return queue;
@@ -157,50 +166,111 @@ class FixedQueue<T, containers::kAllocatedStorage, SizeType> final
   /// Attempts to allocate a `T`-aligned buffer large enough to hold `capacity`
   /// items and use it for a `FixedQueue`'s buffer. If unable to allocate space
   /// for `capacity` items, returns a `FixedQueue` with a capacity of 0.
-  static FixedQueue TryAllocate(Allocator& allocator, SizeType capacity) {
+  ///
+  /// If allocation succeeds, the `FixedQueue` owns the buffer and frees it upon
+  /// destruction.
+  static FixedQueue TryAllocate(Allocator& allocator, S capacity) {
     const allocator::Layout layout = allocator::Layout::Of<T[]>(capacity);
     std::byte* array = static_cast<std::byte*>(allocator.Allocate(layout));
-    return FixedQueue(allocator, array, array != nullptr ? layout.size() : 0u);
+    if (array == nullptr) {
+      return FixedQueue(Aligned(array, 0u), nullptr);
+    }
+    return FixedQueue(Aligned(array, layout.size()), &allocator);
   }
 
-  /// Constructs an empty queue that uses the provided `pw::UniquePtr` for its
-  /// storage. If the `pw::UniquePtr` is not aligned as a `T`, an aligned subset
-  /// of the buffer is used.
-  explicit FixedQueue(pw::UniquePtr<std::byte[]>&& storage)
-      : containers::internal::DynamicStorage{std::move(storage)},
-        Queue<T, SizeType>(span(this->storage_unique_ptr.get(),
-                                this->storage_unique_ptr.size())) {}
+  /// Constructs an empty `FixedQueue` that uses the provided `pw::UniquePtr`
+  /// for its storage. Takes ownership of the `pw::UniquePtr`.
+  ///
+  /// @pre `storage` MUST be aligned at least as `value_type`.
+  static FixedQueue WithStorage(UniquePtr<std::byte[]>&& storage) {
+    const size_t size = storage.size();
+    Deallocator* deallocator = storage.deallocator();
+    return FixedQueue(Aligned::Assert(storage.Release(), size), deallocator);
+  }
 
-  FixedQueue(FixedQueue&& other) noexcept
-      : containers::internal::DynamicStorage{std::move(
-            other.storage_unique_ptr)},
-        Queue<T, SizeType>({}) {
+  /// Constructs an `FixedQueue` from a buffer. The buffer is unowned and is not
+  /// freed when the `FixedQueue` is destroyed.
+  ///
+  /// @param unaligned_buffer Storage for the queue. If the buffer is not
+  ///     aligned as as `value_type`, an aligned subset of the buffer will be
+  ///     used. If the buffer is too small to hold at least one `value_type`,
+  ///     the queue's capacity will be 0.
+  explicit constexpr FixedQueue(span<std::byte> unaligned_buffer) noexcept
+      : Queue<T, S>(unaligned_buffer), deallocator_(nullptr) {}
+
+  /// Constructs an empty `FixedQueue` using a `pw::containers::Storage` buffer.
+  /// This constructor avoids run time alignment checks.
+  ///
+  /// The buffer is unowned and is not freed when the `FixedQueue` is destroyed.
+  template <size_t kAlignment, size_t kSizeBytes>
+  explicit constexpr FixedQueue(
+      containers::Storage<kAlignment, kSizeBytes>& buffer) noexcept
+      : Queue<T, S>(buffer), deallocator_(nullptr) {}
+
+  /// Copying is not supported since it can fail.
+  FixedQueue(const FixedQueue&) = delete;
+  FixedQueue& operator=(const FixedQueue&) = delete;
+
+  /// Move construction/assignment from other `FixedQueue`s with external
+  /// buffers is supported and infallible. To move items from a statically
+  /// allocated `FixedQueue`, use `assign()` with `std::make_move_iterator`, or
+  /// move items individually.
+  constexpr FixedQueue(FixedQueue&& other) noexcept
+      : Queue<T, S>({}),
+        deallocator_(cpp20::exchange(other.deallocator_, nullptr)) {
     this->MoveBufferFrom(other);
   }
 
-  FixedQueue& operator=(FixedQueue&& other) noexcept {
+  constexpr FixedQueue& operator=(FixedQueue&& other) noexcept {
+    if (this == &other) {
+      return *this;
+    }
+    T* const data = this->data();
     this->MoveBufferFrom(other);
-    this->storage_unique_ptr = std::move(other.storage_unique_ptr);
+
+    if (deallocator_ != nullptr) {
+      deallocator_->Deallocate(data);
+    }
+    deallocator_ = cpp20::exchange(other.deallocator_, nullptr);
     return *this;
   }
 
-  /// Swaps the contents with another dynamically allocated queue.
+  ~FixedQueue() {
+    // Clear the queue so that the base `Queue` destructor will not need to
+    // access its buffer, which will be freed.
+    this->clear();
+    if (deallocator_ != nullptr) {
+      deallocator_->Deallocate(this->data());
+    }
+  }
+
+  /// Swaps this `FixedQueue` with another externally allocated `FixedQueue` in
+  /// O(1) time. No allocations occur, and individual items are not moved.
   void swap(FixedQueue& other) noexcept {
     this->SwapBufferWith(other);
-    std::swap(this->storage_unique_ptr, other.storage_unique_ptr);
+    std::swap(deallocator_, other.deallocator_);
   }
 
-  /// Swaps the contents with a statically-allocated queue.
-  template <size_t kCapacity>
-  void swap(FixedQueue<T, kCapacity, SizeType>& other) {
-    other.swap(*this);
+  /// Swaps the contents of this `FixedQueue` with an internal-storage
+  /// `FixedQueue` in O(n) time. No allocations occur, but items are moved
+  /// individually. Crashes if the size of one queue exceeds the capacity of the
+  /// other.
+  template <size_t kInlineCapacity>
+  void swap(FixedQueue<T, kInlineCapacity, S>& other) {
+    other.swap(*this);  // Use the swap impl for statically allocated queues.
   }
+
+  /// Returns the deallocator that will be used to free this `FixedQueue`'s
+  /// storage. Returns `nullptr` if the storage is unowned.
+  constexpr Deallocator* deallocator() const { return deallocator_; }
 
  private:
-  FixedQueue(Allocator& allocator, std::byte* aligned_buffer, size_t size_bytes)
-      : containers::internal::DynamicStorage{UniquePtr<std::byte[]>(
-            aligned_buffer, size_bytes, allocator)},
-        Queue<T, SizeType>(storage_unique_ptr.get(), size_bytes) {}
+  using Aligned = typename Queue<T, S>::Aligned;
+
+  constexpr FixedQueue(Aligned buffer, Deallocator* deallocator)
+      : Queue<T, S>(buffer), deallocator_(deallocator) {}
+
+  Deallocator* deallocator_;
 };
 
 }  // namespace pw

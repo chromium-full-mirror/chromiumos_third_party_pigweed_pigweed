@@ -31,14 +31,14 @@ class DynamicCommonTest : public ::pw::containers::test::CommonTestFixture<
    public:
     Container(DynamicCommonTest& fixture)
         : container_(
-              pw::FixedDeque<T, pw::containers::kAllocatedStorage, SizeType>::
+              pw::FixedDeque<T, pw::containers::kExternalStorage, SizeType>::
                   Allocate(fixture.allocator_, kCapacity)) {}
 
     auto& get() { return container_; }
     const auto& get() const { return container_; }
 
    private:
-    pw::FixedDeque<T, pw::containers::kAllocatedStorage, SizeType> container_;
+    pw::FixedDeque<T, pw::containers::kExternalStorage, SizeType> container_;
   };
 
  private:

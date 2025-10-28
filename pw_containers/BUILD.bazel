@@ -432,10 +432,7 @@ cc_library(
     name = "storage",
     hdrs = ["public/pw_containers/storage.h"],
     strip_include_prefix = "public",
-    deps = [
-        ":algorithm",
-        "//pw_allocator",
-    ],
+    deps = [":algorithm"],
 )
 
 cc_library(

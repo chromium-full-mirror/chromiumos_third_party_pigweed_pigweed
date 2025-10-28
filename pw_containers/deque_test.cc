@@ -87,7 +87,7 @@ TEST(Deque, UnalignedBuffer) {
     deque.push_back(600613u);
 
     void* first_item = &deque.front();
-    EXPECT_EQ(reinterpret_cast<uintptr_t>(first_item) % sizeof(uint64_t), 0u)
+    EXPECT_EQ(reinterpret_cast<uintptr_t>(first_item) % alignof(uint64_t), 0u)
         << "Deque items should be correctly aligned";
     EXPECT_EQ(deque.front(), 600613u);
   }
@@ -99,33 +99,6 @@ TEST(Deque, UnalignedBuffer_EmptyDueToAlignment) {
   ASSERT_EQ(unaligned.size(), sizeof(uint64_t));
 
   pw::Deque<uint64_t> deque(unaligned);
-  EXPECT_EQ(deque.capacity(), 0u);
-}
-
-TEST(FixedDeque, UnalignedUniquePtr) {
-  alignas(uint64_t) std::array<std::byte, sizeof(uint64_t) * 8> buffer = {};
-
-  for (size_t i = 0; i <= sizeof(uint64_t); ++i) {
-    pw::FixedDeque<uint64_t> deque(
-        pw::UniquePtr<std::byte[]>(buffer.data() + i,
-                                   sizeof(buffer) - i,
-                                   pw::allocator::GetNullAllocator()));
-    EXPECT_EQ(deque.capacity(), (i == 0) ? 8u : 7u);
-
-    deque.push_back(600613u);
-
-    void* first_item = &deque.front();
-    EXPECT_EQ(reinterpret_cast<uintptr_t>(first_item) % sizeof(uint64_t), 0u)
-        << "Deque items should be correctly aligned";
-    EXPECT_EQ(deque.front(), 600613u);
-  }
-}
-
-TEST(FixedDeque, UnalignedUniquePtr_EmptyDueToAlignment) {
-  alignas(uint64_t) std::array<std::byte, sizeof(uint64_t) + 1> buffer = {};
-
-  pw::FixedDeque<uint64_t> deque(pw::UniquePtr<std::byte[]>(
-      buffer.data() + 1, sizeof(uint64_t), pw::allocator::GetNullAllocator()));
   EXPECT_EQ(deque.capacity(), 0u);
 }
 
@@ -142,16 +115,83 @@ TEST(Deque, MoveNotSupported) {
 #endif  // PW_NC_TEST
 }
 
-TEST(FixedDeque, TryAllocate_ZeroCapacityIfAllocationFails) {
-  auto deque_1 = pw::FixedDeque<MoveOnly>::TryAllocate(
-      pw::allocator::GetNullAllocator(), 4);
-  EXPECT_EQ(deque_1.capacity(), 0u);
+TEST(FixedDeque, Construct_Span) {
+  pw::containers::StorageFor<MoveOnly, 4> storage;
+  auto deque =
+      pw::FixedDeque<MoveOnly>(pw::span(storage.data(), storage.size()));
+
+  EXPECT_EQ(deque.capacity(), 4u);
+  EXPECT_EQ(deque.deallocator(), nullptr);
+}
+
+TEST(FixedDeque, Construct_Storage) {
+  pw::containers::StorageFor<MoveOnly, 4> storage;
+  auto deque = pw::FixedDeque<MoveOnly>(storage);
+
+  EXPECT_EQ(deque.capacity(), 4u);
+  EXPECT_EQ(deque.deallocator(), nullptr);
 }
 
 TEST(FixedDeque, Allocate_ZeroCapacity) {
   auto deque_1 =
       pw::FixedDeque<MoveOnly>::Allocate(pw::allocator::GetNullAllocator(), 0);
   EXPECT_EQ(deque_1.capacity(), 0u);
+}
+
+TEST(FixedDeque, Allocate) {
+  pw::allocator::test::AllocatorForTest<256> allocator;
+  auto deque = pw::FixedDeque<MoveOnly>::Allocate(allocator, 4);
+
+  EXPECT_EQ(deque.capacity(), 4u);
+  EXPECT_EQ(deque.deallocator(), &allocator);
+
+  deque.emplace_back(MoveOnly(1));
+  deque.emplace_back(MoveOnly(2));
+  deque.emplace_back(MoveOnly(3));
+  deque.emplace_back(MoveOnly(4));
+
+  EXPECT_EQ(deque.size(), 4u);
+  EXPECT_EQ(deque[0].value, 1);
+  EXPECT_EQ(deque[3].value, 4);
+}
+
+TEST(FixedDeque, TryAllocate_ZeroCapacityIfAllocationFails) {
+  auto deque_1 = pw::FixedDeque<MoveOnly>::TryAllocate(
+      pw::allocator::GetNullAllocator(), 4);
+  EXPECT_EQ(deque_1.capacity(), 0u);
+}
+
+TEST(FixedDeque, TryAllocate_Success) {
+  pw::allocator::test::AllocatorForTest<256> allocator;
+  auto deque = pw::FixedDeque<MoveOnly>::TryAllocate(allocator, 4);
+
+  EXPECT_EQ(deque.capacity(), 4u);
+  EXPECT_EQ(deque.deallocator(), &allocator);
+}
+
+TEST(FixedDeque, TryAllocate_Failure) {
+  pw::allocator::test::AllocatorForTest<256> allocator;
+  allocator.Exhaust();
+  auto deque = pw::FixedDeque<MoveOnly>::TryAllocate(allocator, 4);
+
+  EXPECT_EQ(deque.capacity(), 0u);
+  EXPECT_EQ(deque.deallocator(), nullptr);
+}
+
+TEST(FixedDeque, UniquePtr) {
+  pw::allocator::test::AllocatorForTest<256> allocator;
+  constexpr size_t kCapacity = 4;
+  constexpr auto kLayout = pw::allocator::Layout::Of<MoveOnly[kCapacity]>();
+  auto ptr = allocator.Allocate(kLayout);
+  ASSERT_NE(ptr, nullptr);
+
+  auto unique_ptr = pw::UniquePtr<std::byte[]>(
+      static_cast<std::byte*>(ptr), kLayout.size(), allocator);
+
+  auto deque = pw::FixedDeque<MoveOnly>::WithStorage(std::move(unique_ptr));
+
+  EXPECT_EQ(deque.capacity(), kCapacity);
+  EXPECT_EQ(deque.deallocator(), &allocator);
 }
 
 TEST(FixedDeque, MoveConstruct_FixedToSameSize) {
@@ -200,7 +240,7 @@ TEST(FixedDeque, MoveConstruct_FixedToSmaller) {
 }
 
 TEST(FixedDeque, MoveConstruct_Dynamic) {
-  ::pw::allocator::test::AllocatorForTest<256> allocator;
+  pw::allocator::test::AllocatorForTest<256> allocator;
   auto deque_1 = pw::FixedDeque<MoveOnly>::Allocate(allocator, 4);
   deque_1.emplace_back(MoveOnly(1));
   deque_1.emplace_back(MoveOnly(2));
@@ -221,7 +261,7 @@ TEST(FixedDeque, MoveConstruct_Dynamic) {
 }
 
 TEST(FixedDeque, SwapDynamic) {
-  ::pw::allocator::test::AllocatorForTest<256> allocator;
+  pw::allocator::test::AllocatorForTest<256> allocator;
 
   auto deque_1 = pw::FixedDeque<MoveOnly>::Allocate(allocator, 4);
   auto deque_2 = pw::FixedDeque<MoveOnly>::Allocate(allocator, 10);
@@ -337,7 +377,7 @@ TEST(FixedDeque, Swap_StaticAndDynamic) {
   deque_1.emplace_back(MoveOnly(1));
   deque_1.emplace_back(MoveOnly(2));
 
-  ::pw::allocator::test::AllocatorForTest<256> allocator;
+  pw::allocator::test::AllocatorForTest<256> allocator;
   auto deque_2 = pw::FixedDeque<MoveOnly>::Allocate(allocator, 5);
   deque_2.emplace_back(MoveOnly(3));
   deque_2.emplace_back(MoveOnly(4));
@@ -366,10 +406,112 @@ TEST(FixedDeque, Swap_StaticAndDynamic) {
   EXPECT_EQ(2, deque_1[1].value);
 }
 
+TEST(FixedDeque, Move_OwnedToOwned) {
+  pw::allocator::test::AllocatorForTest<256> allocator;
+  auto deque1 = pw::FixedDeque<MoveOnly>::Allocate(allocator, 4);
+  deque1.emplace_back(MoveOnly(1));
+
+  auto deque2 = std::move(deque1);
+
+  EXPECT_EQ(deque1.capacity(), 0u);  // NOLINT(bugprone-use-after-move)
+  EXPECT_EQ(deque1.deallocator(), nullptr);
+
+  EXPECT_EQ(deque2.capacity(), 4u);
+  EXPECT_EQ(deque2.deallocator(), &allocator);
+  EXPECT_EQ(deque2.size(), 1u);
+  EXPECT_EQ(deque2[0].value, 1);
+}
+
+TEST(FixedDeque, Move_UnownedToOwned) {
+  pw::allocator::test::AllocatorForTest<256> allocator;
+  pw::containers::StorageFor<MoveOnly, 4> storage;
+
+  auto deque1 = pw::FixedDeque<MoveOnly>::Allocate(allocator, 4);
+  deque1.emplace_back(MoveOnly(1));
+
+  auto deque2 = pw::FixedDeque<MoveOnly>(storage);
+  deque2.emplace_back(MoveOnly(2));
+
+  deque1 = std::move(deque2);
+
+  // deque1 should have freed its old buffer and taken over deque2's unowned
+  // buffer.
+  EXPECT_EQ(deque1.capacity(), 4u);
+  EXPECT_EQ(deque1.deallocator(), nullptr);
+  EXPECT_EQ(deque1.size(), 1u);
+  EXPECT_EQ(deque1[0].value, 2);
+
+  EXPECT_EQ(deque2.capacity(), 0u);  // NOLINT(bugprone-use-after-move)
+}
+
+TEST(FixedDeque, Move_OwnedToUnowned) {
+  pw::allocator::test::AllocatorForTest<256> allocator;
+  auto deque1 = pw::FixedDeque<MoveOnly>::Allocate(allocator, 4);
+  deque1.emplace_back(MoveOnly(1));
+
+  pw::containers::StorageFor<MoveOnly, 4> storage;
+  auto deque2 = pw::FixedDeque<MoveOnly>(storage);
+  deque2.emplace_back(MoveOnly(2));
+
+  deque2 = std::move(deque1);
+
+  // deque2 should have taken over deque1's owned buffer.
+  EXPECT_EQ(deque2.capacity(), 4u);
+  EXPECT_EQ(deque2.deallocator(), &allocator);
+  EXPECT_EQ(deque2.size(), 1u);
+  EXPECT_EQ(deque2[0].value, 1);
+
+  EXPECT_EQ(deque1.capacity(), 0u);  // NOLINT(bugprone-use-after-move)
+}
+
+TEST(FixedDeque, Swap_OwnedOwned) {
+  pw::allocator::test::AllocatorForTest<128> allocator1;
+  pw::allocator::test::AllocatorForTest<128> allocator2;
+
+  auto deque1 = pw::FixedDeque<MoveOnly>::Allocate(allocator1, 1);
+  deque1.emplace_back(MoveOnly(1));
+
+  auto deque2 = pw::FixedDeque<MoveOnly>::Allocate(allocator2, 4);
+  deque2.emplace_back(MoveOnly(2));
+
+  deque1.swap(deque2);
+
+  EXPECT_EQ(deque1.deallocator(), &allocator2);
+  EXPECT_EQ(deque1.size(), 1u);
+  EXPECT_EQ(deque1.capacity(), 4u);
+  EXPECT_EQ(deque1[0].value, 2);
+
+  EXPECT_EQ(deque2.deallocator(), &allocator1);
+  EXPECT_EQ(deque2.size(), 1u);
+  EXPECT_EQ(deque2.capacity(), 1u);
+  EXPECT_EQ(deque2[0].value, 1);
+}
+
+TEST(FixedDeque, Swap_OwnedUnowned) {
+  pw::allocator::test::AllocatorForTest<256> allocator;
+  pw::containers::StorageFor<MoveOnly, 4> storage;
+
+  auto deque1 = pw::FixedDeque<MoveOnly>::Allocate(allocator, 4);
+  deque1.emplace_back(MoveOnly(1));
+
+  auto deque2 = pw::FixedDeque<MoveOnly>(storage);
+  deque2.emplace_back(MoveOnly(2));
+
+  deque1.swap(deque2);
+
+  EXPECT_EQ(deque1.deallocator(), nullptr);
+  EXPECT_EQ(deque1.size(), 1u);
+  EXPECT_EQ(deque1[0].value, 2);
+
+  EXPECT_EQ(deque2.deallocator(), &allocator);
+  EXPECT_EQ(deque2.size(), 1u);
+  EXPECT_EQ(deque2[0].value, 1);
+}
+
 TEST(FixedDeque, UseStaticOrDynamicFixedDequeAsDeque) {
   pw::FixedDeque<Counter, 4> deque_1;
 
-  ::pw::allocator::test::AllocatorForTest<256> allocator;
+  pw::allocator::test::AllocatorForTest<256> allocator;
   auto deque_2 = pw::FixedDeque<Counter>::Allocate(allocator, 5);
 
   pw::Deque<Counter>& deque_a = deque_1;
@@ -390,6 +532,24 @@ TEST(FixedDeque, UseStaticOrDynamicFixedDequeAsDeque) {
 
   EXPECT_TRUE(deque_b.empty());
   EXPECT_EQ(deque, &deque_b);
+}
+
+void Move(pw::FixedDeque<MoveOnly>& d1, pw::FixedDeque<MoveOnly>& d2) {
+  d1 = std::move(d2);
+}
+
+TEST(FixedDeque, SelfMoveAssignIsIdempotent) {
+  pw::allocator::test::AllocatorForTest<128> allocator;
+  auto deque = pw::FixedDeque<MoveOnly>::Allocate(allocator, 2);
+  EXPECT_EQ(deque.capacity(), 2u);
+  deque.emplace_back(MoveOnly(1));
+  deque.emplace_back(MoveOnly(2));
+
+  Move(deque, deque);
+
+  EXPECT_EQ(deque.size(), 2u);
+  EXPECT_EQ(deque[0].value, 1);
+  EXPECT_EQ(deque[1].value, 2);
 }
 
 TEST(FixedDeque, CapacityTooLarge) {

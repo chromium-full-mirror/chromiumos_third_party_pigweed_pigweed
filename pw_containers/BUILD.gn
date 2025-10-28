@@ -208,10 +208,7 @@ pw_source_set("raw_storage") {
 pw_source_set("storage") {
   public_configs = [ ":public_include_path" ]
   public = [ "public/pw_containers/storage.h" ]
-  public_deps = [
-    ":algorithm",
-    dir_pw_allocator,
-  ]
+  public_deps = [ ":algorithm" ]
 }
 
 pw_source_set("deque") {
