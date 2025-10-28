@@ -19,6 +19,7 @@ import textwrap
 import unittest
 
 from pw_log.proto import log_pb2
+from pw_metric_proto import metric_service_pb2
 from pw_tokenizer import detokenize, tokens
 
 from pw_snapshot.processor import process_snapshot
@@ -93,6 +94,14 @@ def _make_token(string: str) -> int:
 
 _LOG_MESSAGE_TOKEN = _make_token("A tokenized log message!")
 
+_BATTERY_TOKEN = _make_token("battery")
+_INTERRUPTS_TOKEN = _make_token("interrupts")
+_SPI0_TOKEN = _make_token("spi0")
+_TEMPERATURE_TOKEN = _make_token("temperature")
+_UART0_TOKEN = _make_token("uart0")
+_VOLTAGE_TOKEN = _make_token("voltage")
+
+
 _TEST_LOGS = [
     log_pb2.LogEntry(message=b"Basic"),
     log_pb2.LogEntry(
@@ -105,6 +114,25 @@ _TEST_LOGS = [
         module=b"MYMOD",
         file=b"dispatcher.c",
         thread=b"Dispatcher",
+    ),
+]
+
+_TEST_METRICS = [
+    metric_service_pb2.Metric(
+        token_path=[_BATTERY_TOKEN, _TEMPERATURE_TOKEN],
+        as_float=38.0,
+    ),
+    metric_service_pb2.Metric(
+        token_path=[_BATTERY_TOKEN, _VOLTAGE_TOKEN],
+        as_float=2.5,
+    ),
+    metric_service_pb2.Metric(
+        token_path=[_INTERRUPTS_TOKEN, _SPI0_TOKEN],
+        as_int=11234,
+    ),
+    metric_service_pb2.Metric(
+        token_path=[_INTERRUPTS_TOKEN, _UART0_TOKEN],
+        as_int=22345,
     ),
 ]
 
@@ -166,6 +194,30 @@ class ProcessorTest(unittest.TestCase):
         output = process_snapshot(
             snapshot.SerializeToString(),
             process_logs=None,
+        )
+        self.assertEqual(output, expected_output)
+
+    def test_process_snapshot_with_metrics(self):
+        snapshot = snapshot_pb2.Snapshot(metrics=_TEST_METRICS)
+        expected_output = _SNAPSHOT_HEADER + textwrap.dedent(
+            """
+            Metrics:
+            {
+              "battery": {
+                "temperature": 38.0,
+                "voltage": 2.5
+              },
+              "interrupts": {
+                "spi0": 11234,
+                "uart0": 22345
+              }
+            }
+            """
+        )
+
+        detokenizer = detokenize.Detokenizer(_TOKEN_DB)
+        output = process_snapshot(
+            snapshot.SerializeToString(), detokenizer=detokenizer
         )
         self.assertEqual(output, expected_output)
 
