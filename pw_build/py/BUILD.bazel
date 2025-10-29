@@ -12,10 +12,12 @@
 # License for the specific language governing permissions and limitations under
 # the License.
 
+load("@bazel_skylib//rules:run_binary.bzl", "run_binary")
 load("@rules_python//python:defs.bzl", "py_library")
 load("@rules_python//sphinxdocs:sphinx_docs_library.bzl", "sphinx_docs_library")
 load("//pw_build:compatibility.bzl", "incompatible_with_mcu")
 load("//pw_build:python.bzl", "pw_py_binary", "pw_py_test")
+load("//pw_unit_test:pw_cc_test.bzl", "pw_cc_test")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -288,6 +290,49 @@ pw_py_test(
 )
 
 pw_py_test(
+    name = "generated_tests_test",
+    size = "small",
+    srcs = ["generated_tests_test.py"],
+    deps = [":pw_build"],
+)
+
+# DOCSTAG: [pw_build-generated-test-example-py]
+pw_py_test(
+    name = "generated_tests_example_test",
+    size = "small",
+    srcs = ["generated_tests_example_test.py"],
+    deps = [":pw_build"],
+)
+# DOCSTAG: [pw_build-generated-test-example-py]
+
+# DOCSTAG: [pw_build-generated-test-example-py-binary]
+pw_py_binary(
+    name = "generate_example_generated_test",
+    srcs = ["generated_tests_example_test.py"],
+    main = "generated_tests_example_test.py",
+    deps = [":pw_build"],
+)
+# DOCSTAG: [pw_build-generated-test-example-py-binary]
+
+# DOCSTAG: [pw_build-generated-test-example-cc]
+run_binary(
+    name = "generate_example_generated_cc_test",
+    outs = ["example_generated_cc_test.cc"],
+    args = [
+        "--generate-cc-test",
+        "$(execpath :example_generated_cc_test.cc)",
+    ],
+    tool = ":generate_example_generated_test",
+    visibility = ["//visibility:private"],
+)
+
+pw_cc_test(
+    name = "example_generated_cc_test",
+    srcs = [":generate_example_generated_cc_test"],
+)
+# DOCSTAG: [pw_build-generated-test-example-cc]
+
+pw_py_test(
     name = "gn_target_test",
     size = "small",
     srcs = [
@@ -447,6 +492,8 @@ pw_py_test(
 sphinx_docs_library(
     name = "docs",
     srcs = [
+        "BUILD.bazel",
+        "generated_tests_example_test.py",
         "gn_tests/BUILD.gn",
         "pw_build/generate_python_wheel_cache.py",
         "workflows_launcher_test.py",
