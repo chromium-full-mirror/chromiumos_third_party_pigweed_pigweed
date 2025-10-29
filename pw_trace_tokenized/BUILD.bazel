@@ -50,7 +50,10 @@ cc_library(
     ],
     strip_include_prefix = "public",
     tags = ["noclangtidy"],
-    deps = [":config_backend"],
+    deps = [
+        ":config_backend",
+        "//pw_varint",
+    ],
 )
 
 label_flag(
@@ -70,19 +73,22 @@ cc_library(
         "public_overrides/pw_trace_backend/trace_backend.h",
     ],
     features = ["-conversion_warnings"],
+    implementation_deps = [
+        ":lock",
+        ":trace_time",
+        "//pw_trace:facade",
+        "//pw_varint",
+    ],
     includes = [
         "public",
         "public_overrides",
     ],
     deps = [
         ":config",
-        ":lock",
-        ":trace_time",
-        "//pw_log",
+        "//pw_preprocessor",
+        "//pw_span",
         "//pw_status",
         "//pw_tokenizer",
-        "//pw_trace:facade",
-        "//pw_varint",
     ],
 )
 
@@ -154,11 +160,14 @@ cc_library(
         "public/pw_trace_tokenized/base_trace_service.h",
     ],
     features = ["-conversion_warnings"],
+    implementation_deps = [
+        ":buffer",
+        "//pw_log",
+    ],
     strip_include_prefix = "public",
     deps = [
-        ":buffer",
         ":pw_trace_tokenized",
-        "//pw_ring_buffer",
+        "//pw_status",
         "//pw_stream",
     ],
 )
@@ -188,12 +197,14 @@ cc_library(
         "public/pw_trace_tokenized/trace_rpc_service_nanopb.h",
     ],
     features = ["-conversion_warnings"],
+    implementation_deps = [
+        ":buffer",
+        ":pw_trace_tokenized",
+        "//pw_log",
+    ],
     strip_include_prefix = "public",
     deps = [
-        ":buffer",
         ":protos_nanopb_rpc",
-        "//pw_log",
-        "//pw_trace",
     ],
 )
 
@@ -206,12 +217,15 @@ cc_library(
         "public/pw_trace_tokenized/trace_buffer.h",
     ],
     features = ["-conversion_warnings"],
+    implementation_deps = [
+        ":config",
+        ":pw_trace_tokenized",
+        "//pw_span",
+    ],
     strip_include_prefix = "public",
     deps = [
-        ":pw_trace_tokenized",
         "//pw_bytes",
         "//pw_ring_buffer",
-        "//pw_status",
     ],
 )
 
@@ -224,13 +238,17 @@ cc_library(
         "public/pw_trace_tokenized/trace_buffer_log.h",
     ],
     features = ["-conversion_warnings"],
-    strip_include_prefix = "public",
-    deps = [
+    implementation_deps = [
         ":buffer",
+        ":config",
+        ":pw_trace_tokenized",
         "//pw_base64",
         "//pw_log",
         "//pw_string",
+        "//pw_trace",
     ],
+    strip_include_prefix = "public",
+    deps = ["//pw_status"],
 )
 
 cc_library(
@@ -347,10 +365,16 @@ cc_library(
     ],
     implementation_deps = [
         ":buffer",
+        "//pw_assert:check",
+        "//pw_containers:inline_var_len_entry_queue",
+        "//pw_containers:var_len_entry_queue",
         "//pw_log",
     ],
     strip_include_prefix = "public",
-    deps = ["//pw_transfer"],
+    deps = [
+        ":config",
+        "//pw_transfer",
+    ],
 )
 
 pw_cc_test(
@@ -406,19 +430,18 @@ pw_cc_test(
         ":buffer",
         ":pw_trace_tokenized",
         "//pw_preprocessor",
+        "//pw_trace",
     ],
 )
 
 pw_cc_test(
     name = "buffer_log_test",
-    srcs = [
-        "trace_buffer_log_test.cc",
-    ],
+    srcs = ["trace_buffer_log_test.cc"],
     features = ["-conversion_warnings"],
     deps = [
         ":buffer_log",
         ":pw_trace_tokenized",
-        "//pw_preprocessor",
+        "//pw_trace",
     ],
 )
 
@@ -513,9 +536,10 @@ cc_library(
     name = "trace_tokenized_example_rpc",
     srcs = ["example/rpc.cc"],
     features = ["-conversion_warnings"],
-    implementation_deps = ["//pw_assert:check"],
-    deps = [
+    implementation_deps = [
+        ":pw_trace_tokenized",
         ":trace_rpc_service",
+        "//pw_assert:check",
         "//pw_hdlc",
         "//pw_log",
         "//pw_rpc",

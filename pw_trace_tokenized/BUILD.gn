@@ -75,7 +75,10 @@ _pw_trace_tokenized_is_selected =
     pw_trace_tokenizer_time != ""
 
 pw_source_set("config") {
-  public_deps = [ pw_trace_CONFIG ]
+  public_deps = [
+    dir_pw_varint,
+    pw_trace_CONFIG,
+  ]
   public_configs = [ ":public_include_path" ]
   public = [ "public/pw_trace_tokenized/config.h" ]
 }
@@ -147,9 +150,8 @@ pw_source_set("pw_trace_tokenized") {
   ]
   deps = []
   if (pw_trace_tokenizer_time != "") {
-    deps += [ "$pw_trace_tokenizer_time" ]
+    deps += [ pw_trace_tokenizer_time ]
   }
-
   public = [ "public_overrides/pw_trace_backend/trace_backend.h" ]
 }
 
@@ -184,28 +186,26 @@ pw_proto_library("protos") {
 
 pw_source_set("trace_rpc_service") {
   public_configs = [ ":public_include_path" ]
+  public = [ "public/pw_trace_tokenized/trace_rpc_service_nanopb.h" ]
   public_deps = [ ":protos.nanopb_rpc" ]
   deps = [
     ":core",
     ":tokenized_trace_buffer",
     "$dir_pw_log",
-    "$dir_pw_trace",
   ]
-  sources = [
-    "public/pw_trace_tokenized/trace_rpc_service_nanopb.h",
-    "trace_rpc_service_nanopb.cc",
-  ]
+  sources = [ "trace_rpc_service_nanopb.cc" ]
 }
 
 pw_source_set("base_trace_service") {
   public_configs = [ ":public_include_path" ]
   public_deps = [
     ":core",
-    ":tokenized_trace_buffer",
+    dir_pw_status,
+    dir_pw_stream,
   ]
   deps = [
-    "$dir_pw_ring_buffer",
-    "$dir_pw_stream",
+    ":tokenized_trace_buffer",
+    dir_pw_log,
   ]
   sources = [
     "base_trace_service.cc",
@@ -219,13 +219,14 @@ pw_source_set("trace_service_pwpb") {
     ":base_trace_service",
     ":protos.pwpb_rpc",
   ]
-  if (pw_trace_tokenizer_time != "") {
-    deps = [ "$pw_trace_tokenizer_time" ]
-  }
   sources = [
     "public/pw_trace_tokenized/trace_service_pwpb.h",
     "trace_service_pwpb.cc",
   ]
+  deps = []
+  if (pw_trace_tokenizer_time != "") {
+    deps += [ pw_trace_tokenizer_time ]
+  }
 }
 
 pw_test("trace_service_pwpb_test") {
@@ -240,49 +241,53 @@ pw_test("trace_service_pwpb_test") {
 }
 
 pw_source_set("tokenized_trace_buffer") {
-  deps = [ ":core" ]
-  public_deps = [
-    ":config",
-    "$dir_pw_bytes",
-    "$dir_pw_ring_buffer",
-    "$dir_pw_tokenizer",
-    "$dir_pw_varint",
-    dir_pw_span,
-  ]
-  sources = [ "trace_buffer.cc" ]
   public_configs = [
     ":public_include_path",
     ":trace_buffer_size",
   ]
   public = [ "public/pw_trace_tokenized/trace_buffer.h" ]
+  public_deps = [
+    dir_pw_bytes,
+    dir_pw_ring_buffer,
+  ]
+  sources = [ "trace_buffer.cc" ]
+  deps = [
+    ":config",
+    ":core",
+    dir_pw_span,
+  ]
 }
 
 pw_test("tokenized_trace_buffer_test") {
   enable_if = _pw_trace_tokenized_is_selected
+  sources = [ "trace_buffer_test.cc" ]
   deps = [
     ":tokenized_trace_buffer",
-    "$dir_pw_trace",
+    dir_pw_trace,
   ]
-
-  sources = [ "trace_buffer_test.cc" ]
 }
 
 pw_source_set("tokenized_trace_buffer_log") {
-  deps = [
-    "$dir_pw_base64",
-    "$dir_pw_log",
-    "$dir_pw_string",
-  ]
-  public_deps = [ ":tokenized_trace_buffer" ]
-  sources = [ "trace_buffer_log.cc" ]
+  public_configs = [ ":public_include_path" ]
   public = [ "public/pw_trace_tokenized/trace_buffer_log.h" ]
+  public_deps = [ dir_pw_status ]
+  deps = [
+    ":config",
+    ":tokenized_trace_buffer",
+    dir_pw_base64,
+    dir_pw_log,
+    dir_pw_string,
+    dir_pw_trace,
+  ]
+  sources = [ "trace_buffer_log.cc" ]
 }
 
 pw_test("tokenized_trace_buffer_log_test") {
   enable_if = _pw_trace_tokenized_is_selected
   deps = [
+    ":core",
     ":tokenized_trace_buffer_log",
-    "$dir_pw_trace",
+    dir_pw_trace,
   ]
   sources = [ "trace_buffer_log_test.cc" ]
 }
@@ -308,34 +313,40 @@ pw_source_set("core") {
     ":backend_config",
     ":public_include_path",
   ]
-  public_deps = [
-    "$dir_pw_log",
-    "$dir_pw_status",
-    "$dir_pw_tokenizer",
-    dir_pw_span,
-  ]
-  deps = [
-    ":config",
-    ":lock",
-    "$dir_pw_assert",
-    "$dir_pw_ring_buffer",
-    "$dir_pw_trace:facade",
-    "$dir_pw_varint",
-  ]
   public = [
     "public/pw_trace_tokenized/internal/trace_tokenized_internal.h",
     "public/pw_trace_tokenized/trace_callback.h",
     "public/pw_trace_tokenized/trace_tokenized.h",
   ]
+  public_deps = [
+    ":config",
+    dir_pw_preprocessor,
+    dir_pw_span,
+    dir_pw_status,
+    dir_pw_tokenizer,
+  ]
   sources = [ "trace.cc" ]
+  deps = [
+    ":lock",
+    "$dir_pw_trace:facade",
+    dir_pw_varint,
+  ]
+  if (pw_trace_tokenizer_time != "") {
+    deps += [ pw_trace_tokenizer_time ]
+  }
   visibility = [ ":*" ]
 }
 
 pw_source_set("transfer_handler") {
   public_configs = [ ":public_include_path" ]
-  public_deps = [ dir_pw_transfer ]
+  public_deps = [
+    ":config",
+    dir_pw_transfer,
+  ]
   deps = [
     ":tokenized_trace_buffer",
+    "$dir_pw_containers:inline_var_len_entry_queue",
+    "$dir_pw_containers:var_len_entry_queue",
     dir_pw_log,
   ]
   sources = [ "transfer_handler.cc" ]
@@ -407,12 +418,13 @@ if (dir_pw_third_party_nanopb == "") {
     deps = [
       ":pw_trace_tokenized",
       ":trace_rpc_service",
-      "$dir_pw_hdlc",
-      "$dir_pw_log",
+      "$dir_pw_assert:check",
       "$dir_pw_rpc:server",
       "$dir_pw_rpc/system_server",
-      "$dir_pw_trace",
       "$dir_pw_trace:trace_sample_app",
+      dir_pw_hdlc,
+      dir_pw_log,
+      dir_pw_trace,
     ]
   }
 }

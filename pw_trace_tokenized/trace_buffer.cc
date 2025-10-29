@@ -15,8 +15,8 @@
 //
 #include "pw_trace_tokenized/trace_buffer.h"
 
-#include "pw_ring_buffer/prefixed_entry_ring_buffer.h"
 #include "pw_span/span.h"
+#include "pw_trace_tokenized/config.h"
 #include "pw_trace_tokenized/trace_callback.h"
 
 namespace pw {

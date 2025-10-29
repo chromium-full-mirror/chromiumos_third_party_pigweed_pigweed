@@ -18,9 +18,6 @@
 
 #include "pw_bytes/span.h"
 #include "pw_ring_buffer/prefixed_entry_ring_buffer.h"
-#include "pw_trace_tokenized/config.h"
-#include "pw_trace_tokenized/trace_tokenized.h"
-#include "pw_varint/varint.h"
 
 namespace pw {
 
