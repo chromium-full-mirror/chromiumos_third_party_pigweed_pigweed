@@ -100,6 +100,7 @@ pw_test_group("tests") {
     ":tokenized_trace_buffer_log_test",
     ":trace_service_pwpb_test",
     ":decoder_test",
+    ":transfer_handler_test",
   ]
 }
 
@@ -332,12 +333,10 @@ pw_source_set("core") {
 
 pw_source_set("transfer_handler") {
   public_configs = [ ":public_include_path" ]
+  public_deps = [ dir_pw_transfer ]
   deps = [
     ":tokenized_trace_buffer",
-    "$dir_pw_log",
-    "$dir_pw_ring_buffer",
-    "$dir_pw_tokenizer",
-    "$dir_pw_transfer",
+    dir_pw_log,
   ]
   sources = [ "transfer_handler.cc" ]
   public = [ "public/pw_trace_tokenized/transfer_handler.h" ]
@@ -346,6 +345,20 @@ pw_source_set("transfer_handler") {
 
 config("trace_example_config") {
   include_dirs = [ "example/public" ]
+}
+
+pw_test("transfer_handler_test") {
+  enable_if = _pw_trace_tokenized_is_selected
+  deps = [
+    ":decoder",
+    ":pw_trace_tokenized",
+    ":tokenized_trace_buffer",
+    ":transfer_handler",
+    "$dir_pw_string:builder",
+    "$dir_pw_tokenizer:decoder",
+    dir_pw_trace,
+  ]
+  sources = [ "transfer_handler_test.cc" ]
 }
 
 pw_source_set("trace_example_to_file") {

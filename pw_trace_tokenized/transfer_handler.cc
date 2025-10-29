@@ -32,7 +32,7 @@ StatusWithSize TraceBufferReader::DoRead(ByteSpan dest) {
   pw::trace::TraceBuffer* trace_buffer = pw::trace::GetBuffer();
   size_t size = 0;
   size_t start = 0;
-  Status sts;
+  Status sts = pw::Status::ResourceExhausted();
 
   PW_LOG_DEBUG("Entry count is: %zu", trace_buffer->EntryCount());
   while (start + 1 < dest.size()) {

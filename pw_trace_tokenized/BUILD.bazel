@@ -345,11 +345,25 @@ cc_library(
     hdrs = [
         "public/pw_trace_tokenized/transfer_handler.h",
     ],
+    implementation_deps = [
+        ":buffer",
+        "//pw_log",
+    ],
     strip_include_prefix = "public",
+    deps = ["//pw_transfer"],
+)
+
+pw_cc_test(
+    name = "transfer_handler_test",
+    srcs = ["transfer_handler_test.cc"],
     deps = [
         ":buffer",
+        ":decoder",
         ":pw_trace_tokenized",
-        "//pw_transfer",
+        ":transfer_handler",
+        "//pw_string:builder",
+        "//pw_tokenizer:decoder",
+        "//pw_trace",
     ],
 )
 

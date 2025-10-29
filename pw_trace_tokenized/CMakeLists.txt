@@ -219,12 +219,28 @@ pw_add_library(pw_trace_tokenized.transfer_handler STATIC
     transfer_handler.cc
   PRIVATE_DEPS
     pw_log
-    pw_ring_buffer
-    pw_tokenizer
     pw_trace_tokenized.trace_buffer
   PUBLIC_DEPS
     pw_transfer
 )
+
+if("${pw_trace_BACKEND}" STREQUAL "pw_trace_tokenized")
+pw_add_test(pw_trace_tokenized.transfer_handler_test
+  SOURCES
+    transfer_handler_test.cc
+  PRIVATE_DEPS
+    pw_string.builder
+    pw_tokenizer.decoder
+    pw_trace
+    pw_trace_tokenized
+    pw_trace_tokenized.decoder
+    pw_trace_tokenized.trace_buffer
+    pw_trace_tokenized.transfer_handler
+  GROUPS
+    modules
+    pw_trace_tokenized
+)
+endif()
 
 pw_add_library(pw_trace_tokenized.decoder STATIC
   HEADERS
