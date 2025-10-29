@@ -125,6 +125,12 @@ pw_cc_blob_info(
     symbol_name = "kSecondBlob0123",
 )
 
+pw_cc_blob_info(
+    name = "test_blob_checksum",
+    file_path = "test_blob_0123.bin",
+    symbol_name = "kBlobWithChecksum",
+)
+
 pw_cc_blob_library(
     name = "test_blob",
     blobs = [
@@ -135,10 +141,26 @@ pw_cc_blob_library(
     out_header = "pw_build/test_blob.h",
 )
 
+pw_cc_blob_library(
+    name = "test_blob_with_checksum",
+    blobs = [
+        ":test_blob_checksum",
+    ],
+    checksum = "CRC32",
+    namespace = "test::checksum_ns",
+    out_header = "pw_build/test_blob_with_checksum.h",
+)
+
 pw_cc_test(
     name = "cc_blob_library_test",
     srcs = ["cc_blob_library_test.cc"],
     deps = [":test_blob"],
+)
+
+pw_cc_test(
+    name = "cc_blob_library_checksum_test",
+    srcs = ["cc_blob_library_checksum_test.cc"],
+    deps = [":test_blob_with_checksum"],
 )
 
 pw_cc_binary_with_map(

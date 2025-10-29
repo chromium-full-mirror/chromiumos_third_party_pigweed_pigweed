@@ -85,6 +85,8 @@ def _pw_cc_blob_library_impl(ctx):
     args.add("--header-include={}".format(ctx.attr.out_header))
     args.add("--out-header={}".format(hdr.path))
     args.add("--out-source={}".format(src.path))
+    if ctx.attr.checksum:
+        args.add("--checksum={}".format(ctx.attr.checksum))
 
     ctx.actions.run(
         inputs = depset(direct = blob_paths + [blob_json]),
@@ -147,11 +149,14 @@ pw_cc_blob_library = rule(
                     exactly as it is written here to reference the byte arrays.
 
         namespace: The C++ namespace in which to place the generated blobs.
+        checksum: The type of checksum to generate (e.g., "CRC32").
+                  If None, no checksum is generated.
         alwayslink: Whether this library should always be linked.
     """,
     attrs = {
         "alwayslink": attr.bool(default = False),
         "blobs": attr.label_list(providers = [CcBlobInfo]),
+        "checksum": attr.string(default = ""),  # New attribute
         "deps": attr.label_list(default = [Label("//pw_preprocessor")]),
         "namespace": attr.string(),
         "out_header": attr.string(),

@@ -494,6 +494,19 @@ if (current_toolchain != default_toolchain) {
     visibility = [ ":*" ]
   }
 
+  pw_cc_blob_library("test_blob_with_checksum") {
+    out_header = "pw_build/test_blob_with_checksum.h"
+    namespace = "test::checksum_ns"
+    blobs = [
+      {
+        file_path = "test_blob_0123.bin"
+        symbol_name = "kBlobWithChecksum"
+      },
+    ]
+    checksum = "CRC32"
+    visibility = [ ":*" ]
+  }
+
   # file_prefix_map_test verifies that the -ffile-prefix-map option is applied
   # correctly.
 
@@ -557,8 +570,14 @@ if (current_toolchain != default_toolchain) {
     deps = [ ":sandbox_test_visible_header" ]
   }
 
+  pw_test("cc_blob_library_checksum_test") {
+    sources = [ "cc_blob_library_checksum_test.cc" ]
+    deps = [ ":test_blob_with_checksum" ]
+  }
+
   pw_test_group("tests") {
     tests = [
+      ":cc_blob_library_checksum_test",
       ":cc_blob_library_test",
       ":file_prefix_map_test",
       ":linker_symbol_test",
