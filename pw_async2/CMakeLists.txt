@@ -475,7 +475,7 @@ pw_add_library(pw_async2.channel INTERFACE
     pw_async2.dispatcher
     pw_async2.poll
     pw_allocator
-    pw_containers.dynamic_deque
+    pw_containers.deque
     pw_sync.interrupt_spin_lock
   PUBLIC_INCLUDES
     public

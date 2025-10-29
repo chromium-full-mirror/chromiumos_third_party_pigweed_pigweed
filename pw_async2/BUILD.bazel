@@ -615,7 +615,7 @@ cc_library(
         ":dispatcher",
         ":poll",
         "//pw_allocator",
-        "//pw_containers:dynamic_deque",
+        "//pw_containers:deque",
         "//pw_sync:interrupt_spin_lock",
     ],
 )

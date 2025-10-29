@@ -22,19 +22,15 @@
 
 namespace {
 
-using pw::async2::experimental::CreateMpmcChannel;
-using pw::async2::experimental::CreateMpscChannel;
-using pw::async2::experimental::CreateSpmcChannel;
-using pw::async2::experimental::CreateSpscChannel;
+using pw::async2::experimental::CreateDynamicChannel;
+using pw::async2::experimental::DynamicChannel;
 using pw::async2::experimental::Receiver;
 using pw::async2::experimental::Sender;
-using pw::async2::experimental::SingleReceiver;
-using pw::async2::experimental::SingleSender;
+using pw::async2::experimental::StaticChannel;
 
-template <typename SenderType>
 class SenderTask : public pw::async2::Task {
  public:
-  SenderTask(SenderType sender, int start, int end)
+  SenderTask(Sender<int> sender, int start, int end)
       : pw::async2::Task(PW_ASYNC_TASK_NAME("SenderTask")),
         sender_(std::move(sender)),
         next_(start),
@@ -64,17 +60,16 @@ class SenderTask : public pw::async2::Task {
     return pw::async2::Ready();
   }
 
-  SenderType sender_;
+  Sender<int> sender_;
   std::optional<pw::async2::experimental::SendFuture<int>> future_;
   bool success_ = false;
   int next_;
   int end_;
 };
 
-template <typename ReceiverType>
 class ReceiverTask : public pw::async2::Task {
  public:
-  ReceiverTask(ReceiverType receiver)
+  ReceiverTask(Receiver<int> receiver)
       : pw::async2::Task(PW_ASYNC_TASK_NAME("ReceiverTask")),
         receiver_(std::move(receiver)) {}
 
@@ -97,18 +92,18 @@ class ReceiverTask : public pw::async2::Task {
       future_.reset();
     }
 
+    receiver_.Disconnect();
     return pw::async2::Ready();
   }
 
-  ReceiverType receiver_;
+  Receiver<int> receiver_;
   std::optional<pw::async2::experimental::ReceiveFuture<int>> future_;
   pw::Vector<int, 10> received_;
 };
 
-template <typename ReceiverType>
 class DisconnectingReceiverTask : public pw::async2::Task {
  public:
-  DisconnectingReceiverTask(ReceiverType receiver, size_t disconnect_after)
+  DisconnectingReceiverTask(Receiver<int> receiver, size_t disconnect_after)
       : pw::async2::Task(PW_ASYNC_TASK_NAME("DisconnectingReceiverTask")),
         receiver_(std::move(receiver)),
         disconnect_after_(disconnect_after) {}
@@ -132,7 +127,7 @@ class DisconnectingReceiverTask : public pw::async2::Task {
     return pw::async2::Ready();
   }
 
-  ReceiverType receiver_;
+  Receiver<int> receiver_;
   std::optional<pw::async2::experimental::ReceiveFuture<int>> future_;
   size_t disconnect_after_;
 };
@@ -144,14 +139,15 @@ void ExpectReceived1To6(const pw::Vector<int>& received) {
   }
 }
 
-TEST(SpscChannel, ForwardsData) {
-  pw::allocator::test::AllocatorForTest<1024> alloc;
+TEST(StaticChannel, SingleProducerSingleConsumer) {
   pw::async2::Dispatcher dispatcher;
 
-  auto [sender, receiver] = CreateSpscChannel<int>(alloc, 2);
+  StaticChannel<int, 2> channel;
+  Sender<int> sender = channel.CreateSender();
+  Receiver<int> receiver = channel.CreateReceiver();
 
-  SenderTask<SingleSender<int>> sender_task(std::move(sender), 1, 6);
-  ReceiverTask<SingleReceiver<int>> receiver_task(std::move(receiver));
+  SenderTask sender_task(std::move(sender), 1, 6);
+  ReceiverTask receiver_task(std::move(receiver));
 
   dispatcher.Post(sender_task);
   dispatcher.Post(receiver_task);
@@ -159,69 +155,16 @@ TEST(SpscChannel, ForwardsData) {
   dispatcher.RunToCompletion();
 
   EXPECT_TRUE(sender_task.succeeded());
-
   ExpectReceived1To6(receiver_task.received());
 }
 
-TEST(SpscChannel, NonAsyncTrySend) {
-  pw::allocator::test::AllocatorForTest<1024> alloc;
+TEST(StaticChannel, MultiProducerSingleConsumer) {
   pw::async2::Dispatcher dispatcher;
+  StaticChannel<int, 2> channel;
 
-  auto [sender, receiver] = CreateSpscChannel<int>(alloc, 2);
-
-  ReceiverTask<SingleReceiver<int>> receiver_task(std::move(receiver));
-
-  dispatcher.Post(receiver_task);
-
-  EXPECT_TRUE(sender.TrySend(1));
-  EXPECT_TRUE(sender.TrySend(2));
-  EXPECT_FALSE(sender.TrySend(3));
-  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Pending());
-
-  EXPECT_TRUE(sender.TrySend(3));
-  EXPECT_TRUE(sender.TrySend(4));
-  EXPECT_FALSE(sender.TrySend(5));
-  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Pending());
-
-  EXPECT_TRUE(sender.TrySend(5));
-  EXPECT_TRUE(sender.TrySend(6));
-  sender.Disconnect();
-  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Ready());
-
-  ExpectReceived1To6(receiver_task.received());
-}
-
-TEST(SpscChannel, AllocationFailure) {
-  pw::allocator::test::AllocatorForTest<1024> alloc;
-  pw::async2::Dispatcher dispatcher;
-
-  alloc.Exhaust();
-  auto [sender, receiver] = CreateSpscChannel<int>(alloc, 2);
-
-  SenderTask<SingleSender<int>> sender_task(std::move(sender), 1, 6);
-  ReceiverTask<SingleReceiver<int>> receiver_task(std::move(receiver));
-
-  dispatcher.Post(sender_task);
-  dispatcher.Post(receiver_task);
-
-  dispatcher.RunToCompletion();
-
-  EXPECT_FALSE(sender_task.succeeded());
-  EXPECT_EQ(receiver_task.received().size(), 0u);
-}
-
-TEST(MpscChannel, ForwardsDataFromMultipleSenders) {
-  pw::allocator::test::AllocatorForTest<1024> alloc;
-  pw::async2::Dispatcher dispatcher;
-
-  auto [sender, receiver] = CreateMpscChannel<int>(alloc, 2);
-
-  EXPECT_EQ(sender.remaining_capacity(), 2u);
-  EXPECT_EQ(sender.capacity(), 2u);
-
-  SenderTask<Sender<int>> sender_task_1(sender.clone(), 1, 3);
-  SenderTask<Sender<int>> sender_task_2(std::move(sender), 4, 6);
-  ReceiverTask<SingleReceiver<int>> receiver_task(std::move(receiver));
+  SenderTask sender_task_1(channel.CreateSender(), 1, 3);
+  SenderTask sender_task_2(channel.CreateSender(), 4, 6);
+  ReceiverTask receiver_task(channel.CreateReceiver());
 
   dispatcher.Post(sender_task_1);
   dispatcher.Post(sender_task_2);
@@ -238,15 +181,13 @@ TEST(MpscChannel, ForwardsDataFromMultipleSenders) {
   ExpectReceived1To6(received);
 }
 
-TEST(SpmcChannel, ForwardsDataToMultipleReceivers) {
-  pw::allocator::test::AllocatorForTest<1024> alloc;
+TEST(StaticChannel, SingleProducerMultiConsumer) {
   pw::async2::Dispatcher dispatcher;
+  StaticChannel<int, 2> channel;
 
-  auto [sender, receiver] = CreateSpmcChannel<int>(alloc, 2);
-
-  SenderTask<SingleSender<int>> sender_task(std::move(sender), 1, 6);
-  ReceiverTask<Receiver<int>> receiver_task_1(receiver.clone());
-  ReceiverTask<Receiver<int>> receiver_task_2(std::move(receiver));
+  SenderTask sender_task(channel.CreateSender(), 1, 6);
+  ReceiverTask receiver_task_1(channel.CreateReceiver());
+  ReceiverTask receiver_task_2(channel.CreateReceiver());
 
   dispatcher.Post(sender_task);
   dispatcher.Post(receiver_task_1);
@@ -269,16 +210,14 @@ TEST(SpmcChannel, ForwardsDataToMultipleReceivers) {
   ExpectReceived1To6(all_received);
 }
 
-TEST(MpmcChannel, ForwardsDataFromMultipleSendersToMultipleReceivers) {
-  pw::allocator::test::AllocatorForTest<1024> alloc;
+TEST(StaticChannel, MultiProducerMultiConsumer) {
   pw::async2::Dispatcher dispatcher;
+  StaticChannel<int, 2> channel;
 
-  auto [sender, receiver] = CreateMpmcChannel<int>(alloc, 2);
-
-  SenderTask<Sender<int>> sender_task_1(sender.clone(), 1, 3);
-  SenderTask<Sender<int>> sender_task_2(std::move(sender), 4, 6);
-  ReceiverTask<Receiver<int>> receiver_task_1(receiver.clone());
-  ReceiverTask<Receiver<int>> receiver_task_2(std::move(receiver));
+  SenderTask sender_task_1(channel.CreateSender(), 1, 3);
+  SenderTask sender_task_2(channel.CreateSender(), 4, 6);
+  ReceiverTask receiver_task_1(channel.CreateReceiver());
+  ReceiverTask receiver_task_2(channel.CreateReceiver());
 
   dispatcher.Post(sender_task_1);
   dispatcher.Post(sender_task_2);
@@ -307,16 +246,39 @@ TEST(MpmcChannel, ForwardsDataFromMultipleSendersToMultipleReceivers) {
   ExpectReceived1To6(all_received);
 }
 
-TEST(MpscChannel, ReceiverDisconnects) {
-  pw::allocator::test::AllocatorForTest<1024> alloc;
+TEST(StaticChannel, NonAsyncTrySend) {
   pw::async2::Dispatcher dispatcher;
+  StaticChannel<int, 2> channel;
+  Sender<int> sender = channel.CreateSender();
 
-  auto [sender, receiver] = CreateMpscChannel<int>(alloc, 2);
+  ReceiverTask receiver_task(channel.CreateReceiver());
+  dispatcher.Post(receiver_task);
 
-  SenderTask<Sender<int>> sender_task_1(sender.clone(), 1, 10);
-  SenderTask<Sender<int>> sender_task_2(std::move(sender), 11, 20);
-  DisconnectingReceiverTask<SingleReceiver<int>> receiver_task(
-      std::move(receiver), 3);
+  EXPECT_TRUE(sender.TrySend(1));
+  EXPECT_TRUE(sender.TrySend(2));
+  EXPECT_FALSE(sender.TrySend(3));
+  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Pending());
+
+  EXPECT_TRUE(sender.TrySend(3));
+  EXPECT_TRUE(sender.TrySend(4));
+  EXPECT_FALSE(sender.TrySend(5));
+  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Pending());
+
+  EXPECT_TRUE(sender.TrySend(5));
+  EXPECT_TRUE(sender.TrySend(6));
+  sender.Disconnect();
+  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Ready());
+
+  ExpectReceived1To6(receiver_task.received());
+}
+
+TEST(StaticChannel, ReceiverDisconnects) {
+  pw::async2::Dispatcher dispatcher;
+  StaticChannel<int, 2> channel;
+
+  SenderTask sender_task_1(channel.CreateSender(), 1, 10);
+  SenderTask sender_task_2(channel.CreateSender(), 11, 20);
+  DisconnectingReceiverTask receiver_task(channel.CreateReceiver(), 3);
 
   dispatcher.Post(sender_task_1);
   dispatcher.Post(sender_task_2);
@@ -326,6 +288,75 @@ TEST(MpscChannel, ReceiverDisconnects) {
 
   EXPECT_FALSE(sender_task_1.succeeded());
   EXPECT_FALSE(sender_task_2.succeeded());
+}
+
+TEST(StaticChannel, RemainingCapacity) {
+  StaticChannel<int, 2> channel;
+
+  Sender<int> sender = channel.CreateSender();
+  EXPECT_EQ(sender.remaining_capacity(), 2u);
+  EXPECT_EQ(sender.capacity(), 2u);
+
+  EXPECT_TRUE(sender.TrySend(1));
+  EXPECT_EQ(sender.remaining_capacity(), 1u);
+  EXPECT_EQ(sender.capacity(), 2u);
+}
+
+TEST(DynamicChannel, ForwardsDataAndAutomaticallyDeallocates) {
+  pw::allocator::test::AllocatorForTest<1024> alloc;
+  pw::async2::Dispatcher dispatcher;
+
+  std::optional<DynamicChannel<int>> channel =
+      CreateDynamicChannel<int>(alloc, 2);
+  ASSERT_TRUE(channel.has_value());
+
+  Sender<int> sender = channel->CreateSender();
+  Receiver<int> receiver = channel->CreateReceiver();
+  EXPECT_EQ(alloc.metrics().num_allocations.value(), 2u);
+  EXPECT_EQ(alloc.metrics().num_deallocations.value(), 0u);
+
+  // Drop the handle, which should not do anything.
+  std::destroy_at(&channel);
+  EXPECT_EQ(alloc.metrics().num_allocations.value(), 2u);
+  EXPECT_EQ(alloc.metrics().num_deallocations.value(), 0u);
+
+  SenderTask sender_task(std::move(sender), 1, 6);
+  ReceiverTask receiver_task(std::move(receiver));
+
+  dispatcher.Post(sender_task);
+  dispatcher.Post(receiver_task);
+
+  dispatcher.RunToCompletion();
+
+  EXPECT_TRUE(sender_task.succeeded());
+  ExpectReceived1To6(receiver_task.received());
+
+  EXPECT_EQ(alloc.metrics().allocated_bytes.value(), 0u);
+  EXPECT_EQ(alloc.metrics().num_allocations.value(), 2u);
+  EXPECT_EQ(alloc.metrics().num_deallocations.value(), 2u);
+}
+
+TEST(DynamicChannel, RemainingCapacity) {
+  pw::allocator::test::AllocatorForTest<1024> alloc;
+  std::optional<DynamicChannel<int>> channel =
+      CreateDynamicChannel<int>(alloc, 2);
+  ASSERT_TRUE(channel.has_value());
+
+  Sender<int> sender = channel->CreateSender();
+  EXPECT_EQ(sender.remaining_capacity(), 2u);
+  EXPECT_EQ(sender.capacity(), 2u);
+
+  EXPECT_TRUE(sender.TrySend(1));
+  EXPECT_EQ(sender.remaining_capacity(), 1u);
+  EXPECT_EQ(sender.capacity(), 2u);
+}
+
+TEST(DynamicChannel, AllocationFailure) {
+  pw::allocator::test::AllocatorForTest<1024> alloc;
+  alloc.Exhaust();
+  std::optional<DynamicChannel<int>> channel =
+      CreateDynamicChannel<int>(alloc, 2);
+  ASSERT_FALSE(channel.has_value());
 }
 
 }  // namespace
