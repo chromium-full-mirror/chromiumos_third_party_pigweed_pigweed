@@ -27,6 +27,8 @@ namespace pw::bluetooth::proxy {
 
 namespace {
 
+constexpr uint16_t kConnectionHandle = 123;
+
 // ########## Util
 
 // See BuildOneOfEachChannel
@@ -61,29 +63,35 @@ class ChannelProxyTest : public ProxyHostTest {
   // Note, shared_event_fn is a reference (rather than a rvalue) so it can
   // be shared across each channel.
   OneOfEachChannel BuildOneOfEachChannel(
-      ProxyHost& proxy, ChannelEventCallback& shared_event_fn) {
+      ProxyHost& proxy,
+      ChannelEventCallback& shared_event_fn,
+      uint16_t connection_handle = kConnectionHandle) {
     // Each channel its unique cids and its own rvalue lambda which calls the
     // shared_event_fn.
     return OneOfEachChannel(
         BuildBasicL2capChannel(
             proxy,
-            {.local_cid = 201,
+            {.handle = connection_handle,
+             .local_cid = 201,
              .remote_cid = 301,
              .event_fn =
                  [&shared_event_fn](L2capChannelEvent event) {
                    shared_event_fn(event);
                  }}),
         BuildCoc(proxy,
-                 {.local_cid = 202,
+                 {.handle = connection_handle,
+                  .local_cid = 202,
                   .remote_cid = 302,
                   .event_fn =
                       [&shared_event_fn](L2capChannelEvent event) {
                         shared_event_fn(event);
                       }}),
         BuildGattNotifyChannel(
-            proxy, {.event_fn = [&shared_event_fn](L2capChannelEvent event) {
-              shared_event_fn(event);
-            }}));
+            proxy,
+            {.handle = connection_handle,
+             .event_fn = [&shared_event_fn](L2capChannelEvent event) {
+               shared_event_fn(event);
+             }}));
   }
 };
 
@@ -101,11 +109,14 @@ TEST_F(ChannelProxyTest, ChannelsStopOnProxyDestruction) {
       [](H4PacketWithH4&&) {});
   size_t events_received = 0;
 
-  pw::Vector<ProxyHost, 1> proxy;
-  proxy.emplace_back(std::move(send_to_host_fn),
-                     std::move(send_to_controller_fn),
-                     /*le_acl_credits_to_reserve=*/0,
-                     /*br_edr_acl_credits_to_reserve=*/0);
+  std::optional<ProxyHost> proxy;
+  proxy.emplace(std::move(send_to_host_fn),
+                std::move(send_to_controller_fn),
+                /*le_acl_credits_to_reserve=*/0,
+                /*br_edr_acl_credits_to_reserve=*/0);
+
+  PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
+      proxy.value(), kConnectionHandle, emboss::StatusCode::SUCCESS));
 
   // This event function will be called by each of the channels' event
   // functions.
@@ -116,14 +127,15 @@ TEST_F(ChannelProxyTest, ChannelsStopOnProxyDestruction) {
       };
 
   BasicL2capChannel close_first_channel = BuildBasicL2capChannel(
-      proxy.front(),
+      proxy.value(),
       BasicL2capParameters{
+          .handle = kConnectionHandle,
           .event_fn = [&shared_event_fn](L2capChannelEvent event) {
             shared_event_fn(event);
           }});
 
   OneOfEachChannel channel_struct =
-      BuildOneOfEachChannel(proxy.front(), shared_event_fn);
+      BuildOneOfEachChannel(proxy.value(), shared_event_fn, kConnectionHandle);
 
   // Channel already closed before Proxy destruction should not be affected.
   close_first_channel.Close();
@@ -132,7 +144,7 @@ TEST_F(ChannelProxyTest, ChannelsStopOnProxyDestruction) {
 
   // Proxy dtor should result in close event for each of
   // the previously still open channels (and they should now be closed).
-  proxy.clear();
+  proxy.reset();
   EXPECT_EQ(events_received, 1 + channel_struct.AllChannels().size());
   for (L2capChannel* channel : channel_struct.AllChannels()) {
     EXPECT_EQ(channel->state(), L2capChannel::State::kClosed);
@@ -157,6 +169,9 @@ TEST_F(ChannelProxyTest, ChannelsCloseOnReset) {
                               std::move(send_to_controller_fn),
                               /*le_acl_credits_to_reserve=*/0,
                               /*br_edr_acl_credits_to_reserve=*/0);
+
+  PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
+      proxy, kConnectionHandle, emboss::StatusCode::SUCCESS));
 
   // This event function will be called by each of the channels' event
   // functions.

@@ -19,6 +19,8 @@
 
 #include "pw_assert/check.h"
 #include "pw_bluetooth_proxy/internal/acl_data_channel.h"
+#include "pw_bluetooth_proxy/internal/gatt_notify_channel_internal.h"
+#include "pw_bluetooth_proxy/internal/l2cap_coc_internal.h"
 #include "pw_bluetooth_proxy/internal/logical_transport.h"
 #include "pw_containers/algorithm.h"
 #include "pw_containers/flat_map.h"
@@ -39,6 +41,89 @@ L2capChannelManager::~L2capChannelManager() {
   ResetLogicalLinksLocked();
 }
 
+pw::Result<L2capCoc> L2capChannelManager::AcquireL2capCoc(
+    MultiBufAllocator& rx_multibuf_allocator,
+    uint16_t connection_handle,
+    L2capCoc::CocConfig rx_config,
+    L2capCoc::CocConfig tx_config,
+    Function<void(FlatConstMultiBuf&& payload)>&& receive_fn,
+    ChannelEventCallback&& event_fn) {
+  std::lock_guard links_lock(links_mutex_);
+  auto link_iter = logical_links_.find(connection_handle);
+  if (link_iter == logical_links_.end()) {
+    PW_LOG_WARN("Attempt to create L2capCoc for non-existent connection: %#x",
+                connection_handle);
+    return Status::InvalidArgument();
+  }
+  if (!acl_data_channel_.HasAclConnection(connection_handle)) {
+    return Status::Unavailable();
+  }
+  Result<L2capCoc> channel =
+      L2capCocInternal::Create(rx_multibuf_allocator,
+                               *this,
+                               connection_handle,
+                               rx_config,
+                               tx_config,
+                               std::move(event_fn),
+                               /*receive_fn=*/std::move(receive_fn));
+  return channel;
+}
+
+pw::Result<BasicL2capChannel> L2capChannelManager::AcquireBasicL2capChannel(
+    MultiBufAllocator& rx_multibuf_allocator,
+    uint16_t connection_handle,
+    uint16_t local_cid,
+    uint16_t remote_cid,
+    AclTransportType transport,
+    OptionalPayloadReceiveCallback&& payload_from_controller_fn,
+    OptionalPayloadReceiveCallback&& payload_from_host_fn,
+    ChannelEventCallback&& event_fn) {
+  std::lock_guard links_lock(links_mutex_);
+  auto link_iter = logical_links_.find(connection_handle);
+  if (link_iter == logical_links_.end()) {
+    PW_LOG_WARN(
+        "Attempt to create BasicL2capChannel for non-existent connection: %#x",
+        connection_handle);
+    return Status::InvalidArgument();
+  }
+  if (!acl_data_channel_.HasAclConnection(connection_handle)) {
+    return Status::Unavailable();
+  }
+  Result<BasicL2capChannel> channel =
+      BasicL2capChannel::Create(*this,
+                                &rx_multibuf_allocator,
+                                /*connection_handle=*/connection_handle,
+                                /*transport=*/transport,
+                                /*local_cid=*/local_cid,
+                                /*remote_cid=*/remote_cid,
+                                /*payload_from_controller_fn=*/
+                                std::move(payload_from_controller_fn),
+                                /*payload_from_host_fn=*/
+                                std::move(payload_from_host_fn),
+                                /*event_fn=*/std::move(event_fn));
+  return channel;
+}
+
+pw::Result<GattNotifyChannel> L2capChannelManager::AcquireGattNotifyChannel(
+    uint16_t connection_handle,
+    uint16_t attribute_handle,
+    ChannelEventCallback&& event_fn) {
+  std::lock_guard links_lock(links_mutex_);
+  auto link_iter = logical_links_.find(connection_handle);
+  if (link_iter == logical_links_.end()) {
+    PW_LOG_WARN(
+        "Attempt to create GattNotifyChannel for non-existent connection: %#x",
+        connection_handle);
+    return Status::InvalidArgument();
+  }
+  if (!acl_data_channel_.HasAclConnection(connection_handle)) {
+    return Status::Unavailable();
+  }
+  Result<GattNotifyChannel> channel = GattNotifyChannelInternal::Create(
+      *this, connection_handle, attribute_handle, std::move(event_fn));
+  return channel;
+}
+
 void L2capChannelManager::RegisterChannel(L2capChannel& channel) {
   std::lock_guard lock(channels_mutex_);
   RegisterChannelLocked(channel);
@@ -46,6 +131,8 @@ void L2capChannelManager::RegisterChannel(L2capChannel& channel) {
 
 void L2capChannelManager::RegisterChannelLocked(L2capChannel& channel) {
   // Insert new channels before `lrd_channel_`.
+  // TODO: https://pwbug.dev/383371663 - Ensure channel with local_cid doesn't
+  // already exist.
   IntrusiveForwardList<L2capChannel>::iterator before_it =
       channels_.before_begin();
   for (auto it = channels_.begin(); it != lrd_channel_; ++it) {
@@ -403,6 +490,7 @@ Status L2capChannelManager::AddConnection(uint16_t connection_handle,
   if (!link) {
     return Status::ResourceExhausted();
   }
+  PW_LOG_INFO("Added L2CAP connection %#x", connection_handle);
   logical_links_.insert(*link);
   return OkStatus();
 }
