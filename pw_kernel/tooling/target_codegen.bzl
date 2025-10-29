@@ -66,12 +66,12 @@ def target_codegen(
         system_config,
         arch,
         deps = [],
-        system_generator = "//pw_kernel/tooling/system_generator:system_generator_bin",
+        system_generator = "@pigweed//pw_kernel/tooling/system_generator:system_generator_bin",
         templates = {
-            "object_channel_handler": "//pw_kernel/tooling/system_generator/templates/objects:channel_handler.rs.tmpl",
-            "object_channel_initiator": "//pw_kernel/tooling/system_generator/templates/objects:channel_initiator.rs.tmpl",
-            "object_ticker": "//pw_kernel/tooling/system_generator/templates/objects:ticker.rs.tmpl",
-            "system": "//pw_kernel/tooling/system_generator/templates:system.rs.tmpl",
+            "object_channel_handler": "@pigweed//pw_kernel/tooling/system_generator/templates/objects:channel_handler.rs.tmpl",
+            "object_channel_initiator": "@pigweed//pw_kernel/tooling/system_generator/templates/objects:channel_initiator.rs.tmpl",
+            "object_ticker": "@pigweed//pw_kernel/tooling/system_generator/templates/objects:ticker.rs.tmpl",
+            "system": "@pigweed//pw_kernel/tooling/system_generator/templates:system.rs.tmpl",
         },
         **kwargs):
     """Generated code crate.
