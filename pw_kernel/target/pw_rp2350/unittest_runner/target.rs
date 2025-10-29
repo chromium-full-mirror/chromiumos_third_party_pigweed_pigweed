@@ -15,7 +15,7 @@
 #![no_main]
 
 use target_common::{TargetInterface, declare_target};
-use {console_backend as _, entry as _, integration_tests as _, kernel as _};
+use {console_backend as _, entry as _, integration_tests as _};
 
 pub struct Target {}
 

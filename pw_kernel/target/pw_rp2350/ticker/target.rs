@@ -15,8 +15,7 @@
 #![no_main]
 
 use target_common::{TargetInterface, declare_target};
-use {console_backend as _, entry as _, kernel as _};
-mod codegen;
+use {console_backend as _, entry as _};
 
 pub struct Target {}
 

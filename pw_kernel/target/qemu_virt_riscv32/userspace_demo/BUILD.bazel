@@ -44,6 +44,7 @@ filegroup(
 
 target_codegen(
     name = "codegen",
+    arch = "//pw_kernel/arch/riscv:arch_riscv",
     system_config = ":system_config",
 )
 
@@ -51,15 +52,14 @@ rust_binary(
     name = "target",
     srcs = [
         "target.rs",
-        ":codegen",
     ],
     edition = "2024",
     tags = ["kernel"],
     target_compatible_with = TARGET_COMPATIBLE_WITH,
     deps = [
+        ":codegen",
         "//pw_kernel/arch/riscv:arch_riscv",
         "//pw_kernel/kernel",
-        "//pw_kernel/lib/memory_config",
         "//pw_kernel/subsys/console:console_backend",
         "//pw_kernel/target:target_common",
         "//pw_kernel/target/qemu_virt_riscv32:entry",

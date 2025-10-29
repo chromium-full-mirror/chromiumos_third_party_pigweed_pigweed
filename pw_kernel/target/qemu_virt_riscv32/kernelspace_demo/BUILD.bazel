@@ -46,6 +46,7 @@ filegroup(
 
 target_codegen(
     name = "codegen",
+    arch = "//pw_kernel/arch/riscv:arch_riscv",
     system_config = ":system_config",
 )
 
@@ -53,12 +54,12 @@ rust_binary(
     name = "target",
     srcs = [
         "target.rs",
-        ":codegen",
     ],
     edition = "2024",
     tags = ["kernel"],
     target_compatible_with = TARGET_COMPATIBLE_WITH,
     deps = [
+        ":codegen",
         "//pw_kernel/apps/kernelspace_demo:demo",
         "//pw_kernel/arch/riscv:arch_riscv",
         "//pw_kernel/kernel",

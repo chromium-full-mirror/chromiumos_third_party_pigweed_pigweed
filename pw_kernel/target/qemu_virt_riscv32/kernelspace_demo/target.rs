@@ -17,9 +17,7 @@
 use arch_riscv::Arch;
 use riscv_semihosting::debug::{EXIT_FAILURE, EXIT_SUCCESS, exit};
 use target_common::{TargetInterface, declare_target};
-use {console_backend as _, entry as _, kernel as _};
-
-mod codegen;
+use {codegen as _, console_backend as _, entry as _};
 
 pub struct Target {}
 

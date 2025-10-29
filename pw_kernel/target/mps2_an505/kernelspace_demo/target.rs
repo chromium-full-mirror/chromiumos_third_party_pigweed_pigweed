@@ -17,7 +17,7 @@
 use arch_arm_cortex_m::Arch;
 use cortex_m_semihosting::debug::{EXIT_FAILURE, EXIT_SUCCESS, exit};
 use target_common::{TargetInterface, declare_target};
-use {console_backend as _, entry as _, kernel as _};
+use {console_backend as _, entry as _};
 
 pub struct Target {}
 

@@ -11,9 +11,11 @@
 # WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 # License for the specific language governing permissions and limitations under
 # the License.
-"""A rule for generated the rust code to initializing the processes and threads
+"""A rule for generating rust code to initialize the processes and threads etc
 for a system.
 """
+
+load("@rules_rust//rust:defs.bzl", "rust_library")
 
 def _target_codegen_impl(ctx):
     output = ctx.actions.declare_file(ctx.attr.name + ".rs")
@@ -40,7 +42,7 @@ def _target_codegen_impl(ctx):
 
     return [DefaultInfo(files = depset([output]))]
 
-target_codegen = rule(
+_target_codegen_rule = rule(
     implementation = _target_codegen_impl,
     attrs = {
         "system_config": attr.label(
@@ -51,17 +53,58 @@ target_codegen = rule(
         "system_generator": attr.label(
             executable = True,
             cfg = "exec",
-            default = "//pw_kernel/tooling/system_generator:system_generator_bin",
         ),
         "templates": attr.string_keyed_label_dict(
             allow_files = True,
-            default = {
-                "object_channel_handler": "//pw_kernel/tooling/system_generator/templates/objects:channel_handler.rs.tmpl",
-                "object_channel_initiator": "//pw_kernel/tooling/system_generator/templates/objects:channel_initiator.rs.tmpl",
-                "object_ticker": "//pw_kernel/tooling/system_generator/templates/objects:ticker.rs.tmpl",
-                "system": "//pw_kernel/tooling/system_generator/templates:system.rs.tmpl",
-            },
         ),
     },
     doc = "Codegen system sources from system config",
 )
+
+def target_codegen(
+        name,
+        system_config,
+        arch,
+        deps = [],
+        system_generator = "//pw_kernel/tooling/system_generator:system_generator_bin",
+        templates = {
+            "object_channel_handler": "//pw_kernel/tooling/system_generator/templates/objects:channel_handler.rs.tmpl",
+            "object_channel_initiator": "//pw_kernel/tooling/system_generator/templates/objects:channel_initiator.rs.tmpl",
+            "object_ticker": "//pw_kernel/tooling/system_generator/templates/objects:ticker.rs.tmpl",
+            "system": "//pw_kernel/tooling/system_generator/templates:system.rs.tmpl",
+        },
+        **kwargs):
+    """Generated code crate.
+
+    Args:
+        name: The name of the target.
+        system_config: System config file which defines the system.
+        arch: The target architecture crate,
+        deps: A list of Rust dependencies.
+        system_generator: The code generator executable.
+        templates: A dictionary of templates for the code generator.
+        **kwargs: Other attributes (like `visibility`) passed to both the
+            `rust_library` and the internal codegen rule.
+    """
+
+    codegen_target_name = name + "_codegen"
+
+    _target_codegen_rule(
+        name = codegen_target_name,
+        system_config = system_config,
+        system_generator = system_generator,
+        templates = templates,
+        **kwargs
+    )
+
+    rust_library(
+        name = name,
+        srcs = [":" + codegen_target_name],
+        edition = "2024",
+        deps = deps + [arch] + [
+            "@pigweed//pw_kernel/kernel:kernel",
+            "@pigweed//pw_kernel/lib/memory_config",
+            "@pigweed//pw_log/rust:pw_log",
+        ],
+        **kwargs
+    )
