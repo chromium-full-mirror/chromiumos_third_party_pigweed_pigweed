@@ -145,9 +145,16 @@ class Channel {
   }
 
   bool full() { return remaining_capacity() == 0; }
+  bool full_locked() const PW_EXCLUSIVE_LOCKS_REQUIRED(lock_) {
+    return remaining_capacity_locked() == 0;
+  }
 
   uint16_t remaining_capacity() {
     std::lock_guard lock(lock_);
+    return remaining_capacity_locked();
+  }
+  uint16_t remaining_capacity_locked() const
+      PW_EXCLUSIVE_LOCKS_REQUIRED(lock_) {
     return deque_.capacity() - deque_.size();
   }
 
@@ -161,14 +168,12 @@ class Channel {
     return deque_.empty();
   }
 
-  void Push(const T& value) {
-    std::lock_guard lock(lock_);
+  void Push(const T& value) PW_EXCLUSIVE_LOCKS_REQUIRED(lock_) {
     PW_ASSERT(!closed_);
     PushAndWake(value);
   }
 
-  void Push(T&& value) {
-    std::lock_guard lock(lock_);
+  void Push(T&& value) PW_EXCLUSIVE_LOCKS_REQUIRED(lock_) {
     PW_ASSERT(!closed_);
     PushAndWake(std::move(value));
   }
@@ -189,11 +194,6 @@ class Channel {
     }
     PushAndWake(std::move(value));
     return true;
-  }
-
-  T Pop() {
-    std::lock_guard lock(lock_);
-    return PopAndWake();
   }
 
   std::optional<T> TryPop() {
@@ -442,7 +442,8 @@ class [[nodiscard]] ReceiveFuture
       return Ready<std::optional<T>>(std::nullopt);
     }
 
-    if (channel_->empty()) {
+    std::optional<T> value = channel_->TryPop();
+    if (!value.has_value()) {
       if (channel_->closed()) {
         reset();
         return Ready<std::optional<T>>(std::nullopt);
@@ -450,7 +451,6 @@ class [[nodiscard]] ReceiveFuture
       return Pending();
     }
 
-    T value = channel_->Pop();
     reset();
     return Ready(std::move(value));
   }
@@ -594,11 +594,15 @@ class [[nodiscard]] SendFuture
       return Ready(false);
     }
 
-    if (channel_->full()) {
-      return Pending();
+    {
+      std::lock_guard lock(channel_->lock_);
+      if (channel_->full_locked()) {
+        return Pending();
+      }
+
+      channel_->Push(std::move(value_));
     }
 
-    channel_->Push(std::move(value_));
     reset();
     return Ready(true);
   }
