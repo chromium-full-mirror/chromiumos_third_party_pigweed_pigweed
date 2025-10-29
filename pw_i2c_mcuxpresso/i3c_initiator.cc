@@ -458,8 +458,6 @@ Status I3cMcuxpressoInitiator::DoTransferFor(
     return pw::Status::FailedPrecondition();
   }
 
-  pw::Status status = pw::OkStatus();
-
   // Acquire the clock_tree element here so we don't acquire/release it for
   // each message. Make sure it's released on any function exits through a
   // scoped guard.
@@ -504,22 +502,13 @@ Status I3cMcuxpressoInitiator::DoTransferFor(
       // The i2c mode is not working with NonBlocking transfers.
       // TODO(b/406239331): investigate NonBlocking issue further.
       status_t sdk_status = I3C_MasterTransferBlocking(base_, &transfer);
-      status = HalStatusToPwStatus(sdk_status);
+      PW_TRY(HalStatusToPwStatus(sdk_status));
     } else {
-      status = InitiateNonBlockingTransferUntil(deadline, &transfer);
-    }
-
-    if (!status.ok()) {
-      PW_LOG_WARN("error on submessage %d of %d: status=%d %s",
-                  i,
-                  messages.size(),
-                  status.code(),
-                  status.str());
-      break;
+      PW_TRY(InitiateNonBlockingTransferUntil(deadline, &transfer));
     }
   }
 
-  return status;
+  return pw::OkStatus();
 }
 
 pw::Result<i3c_bus_type_t> I3cMcuxpressoInitiator::ValidateAndDetermineProtocol(

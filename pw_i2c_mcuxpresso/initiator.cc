@@ -136,7 +136,6 @@ Status McuxpressoInitiator::DoTransferFor(
     return Status::FailedPrecondition();
   }
 
-  pw::Status status = pw::OkStatus();
   for (unsigned int i = 0; i < messages.size(); ++i) {
     const Message& msg = messages[i];
 
@@ -163,17 +162,10 @@ Status McuxpressoInitiator::DoTransferFor(
         // Cast GetData() here because GetMutableData() is for Writes only.
         .data = const_cast<std::byte*>(msg.GetData().data()),
         .dataSize = msg.GetData().size()};
-    status = InitiateNonBlockingTransferUntil(deadline, &transfer);
-    if (!status.ok()) {
-      PW_LOG_WARN("error on submessage %d of %d: status=%d",
-                  i,
-                  messages.size(),
-                  status.code());
-      break;
-    }
+    PW_TRY(InitiateNonBlockingTransferUntil(deadline, &transfer));
   }
 
-  return status;
+  return pw::OkStatus();
 }
 // inclusive-language: enable
 
