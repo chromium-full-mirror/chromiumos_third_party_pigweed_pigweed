@@ -13,9 +13,13 @@
 // the License.
 
 use kernel::Arch;
+#[cfg(feature = "exceptions_reload_pmp")]
+use kernel::Kernel;
 use kernel::syscall::{SyscallArgs, raw_handle_syscall};
 use kernel_config::{ExceptionMode, KernelConfig, RiscVKernelConfigInterface};
 use log_if::debug_if;
+#[cfg(feature = "exceptions_reload_pmp")]
+use memory_config::MemoryConfig as _;
 use pw_cast::CastInto as _;
 use pw_log::info;
 use pw_status::{Error, Result};
@@ -24,6 +28,8 @@ pub(crate) use riscv_macro::kernel_only_exception as exception;
 #[cfg(feature = "user_space")]
 pub(crate) use riscv_macro::user_space_exception as exception;
 
+#[cfg(feature = "exceptions_reload_pmp")]
+use crate::MemoryConfig;
 use crate::regs::{
     Cause, Exception, Interrupt, MCause, MCauseVal, MStatus, MtVal, MtVec, MtVecMode,
 };
@@ -189,9 +195,28 @@ unsafe fn interrupt_handler(interrupt: Interrupt, mepc: usize, frame: &TrapFrame
 #[exception(exception = "_start_trap")]
 #[unsafe(no_mangle)]
 unsafe extern "C" fn trap_handler(mcause: MCauseVal, mepc: usize, frame: &mut TrapFrame) {
+    #[cfg(feature = "exceptions_reload_pmp")]
+    unsafe {
+        // Before we do anything, configure ePMP for kernel access.
+        MemoryConfig::KERNEL_THREAD_MEMORY_CONFIG.write();
+    }
+
     match mcause.cause() {
         Cause::Interrupt(interrupt) => unsafe { interrupt_handler(interrupt, mepc, frame) },
         Cause::Exception(exception) => exception_handler(exception, mepc, frame),
+    }
+
+    #[cfg(feature = "exceptions_reload_pmp")]
+    {
+        // When we exit the trap, get the current thread and load its memory
+        // config into ePMP.
+        let mut scheduler = crate::Arch.get_scheduler().lock(crate::Arch);
+        unsafe {
+            let tstate = scheduler.get_current_arch_thread_state();
+            if tstate != core::ptr::null_mut() {
+                (*(*tstate).memory_config).write();
+            }
+        }
     }
 }
 

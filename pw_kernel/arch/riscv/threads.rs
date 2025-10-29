@@ -55,7 +55,7 @@ struct ContextSwitchFrame {
 pub struct ArchThreadState {
     frame: *mut ContextSwitchFrame,
     #[cfg(feature = "user_space")]
-    memory_config: *const MemoryConfig,
+    pub(crate) memory_config: *const MemoryConfig,
     local: ThreadLocalState<crate::Arch>,
 }
 
@@ -87,6 +87,17 @@ impl ArchThreadState {
             (*frame).s3 = s3;
             (*frame).s5 = initial_sp;
             (*frame).s6 = initial_mstatus.0;
+            if cfg!(feature = "exceptions_reload_pmp") {
+                // If we need to reload the PMP to for exceptions, this also means we
+                // do not perform the PMP load in the context switch function.  We
+                // defer it instead to the trampoline function.  Stash the pointers
+                // we'll need to make the call in the trampoline.
+                (*frame).s7 = self.memory_config as usize;
+                (*frame).s8 = memory_config_write as *const () as usize;
+            } else {
+                (*frame).s7 = 0;
+                (*frame).s8 = 0;
+            }
         }
 
         self.frame = frame
@@ -124,7 +135,14 @@ impl Arch for super::Arch {
         //
         // Memory context switch overhead is avoided for threads in the same
         // memory config space.
-        #[cfg(feature = "user_space")]
+        //
+        // In the case where the target needs to reload the PMP upon exception
+        // handler entry and exit, we skip loading the PMP here and perform the
+        // load in the exception handler and the assembly trampoline, deferring
+        // the PMP load to very close to the return to userspace.  This keeps
+        // kernel memory mappings active until nearly the last moment before
+        // returning into userspace.
+        #[cfg(all(feature = "user_space", not(feature = "exceptions_reload_pmp")))]
         if unsafe { (*new_thread_state).memory_config }
             != unsafe { (*old_thread_state).memory_config }
         {
@@ -282,6 +300,12 @@ extern "C" fn riscv_context_switch(
     )
 }
 
+unsafe extern "C" fn memory_config_write(memory_config: *const MemoryConfig) {
+    unsafe {
+        (*memory_config).write();
+    }
+}
+
 // Since the context switch frame does not contain the function arg registers,
 // pass the initial function and arguments via two of the saved s registers.
 #[unsafe(no_mangle)]
@@ -289,7 +313,15 @@ extern "C" fn riscv_context_switch(
 extern "C" fn asm_user_trampoline() {
     naked_asm!(
         "
+                // If we have a stashed memory config pointer in s7,
+                // then perorm the call memory_config_write(memory_config)
+                // via the stashed function address in s8.
+                beqz    s7, 1f
+                mv      a0, s7
+                jalr    ra, s8, 0
+
                 // Store the kernel stack pointer in mscratch.
+            1:
                 csrw    mscratch, sp
 
                 // Set initial SP as passed in by `initialize_frame()`.
