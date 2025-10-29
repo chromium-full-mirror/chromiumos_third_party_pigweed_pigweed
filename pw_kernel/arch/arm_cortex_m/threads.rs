@@ -18,12 +18,12 @@ use core::ptr::NonNull;
 
 use cortex_m::peripheral::{SCB, *};
 use kernel::interrupt::InterruptController;
-use kernel::memory::{MemoryConfig as _, MemoryRegionType};
 use kernel::scheduler::thread::Stack;
 use kernel::scheduler::{self, SchedulerState, ThreadLocalState};
 use kernel::sync::spinlock::SpinLockGuard;
 use kernel::{Arch, Kernel};
 use log_if::debug_if;
+use memory_config::{MemoryConfig as _, MemoryRegionType};
 use pw_cast::CastInto as _;
 use pw_log::info;
 use pw_status::{Error, Result};

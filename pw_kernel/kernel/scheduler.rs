@@ -18,12 +18,12 @@ use core::sync::atomic::Ordering;
 
 use foreign_box::ForeignBox;
 use list::*;
+use memory_config::MemoryConfig as _;
 use pw_atomic::{AtomicAdd, AtomicLoad, AtomicSub, AtomicZero};
 use pw_log::info;
 use pw_status::{Error, Result};
 use time::Instant;
 
-use crate::memory::MemoryConfig as _;
 use crate::object::NullObjectTable;
 use crate::scheduler::timer::Timer;
 use crate::sync::spinlock::SpinLockGuard;

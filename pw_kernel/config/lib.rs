@@ -12,6 +12,7 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 #![no_std]
+use memory_config::MemoryRegion;
 
 /// Kernel configuration common to all architectures.
 pub trait KernelConfigInterface {
@@ -55,6 +56,9 @@ pub trait RiscVKernelConfigInterface {
     /// RISC-V PMP Granularity.  This defines the minimum size of PMP protection
     /// regions, which is 2**(G+2) bytes (That is, when G=0, the minimum size is 4 bytes).
     const PMP_GRANULARITY: usize;
+
+    /// Non-locked memory regions to configure during kernel execution.
+    const KERNEL_MEMORY_REGIONS: &'static [MemoryRegion];
 
     /// mtvec exception mode. When in direct mode, base address will be set
     /// to the `_start_trap` address.

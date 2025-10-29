@@ -18,7 +18,8 @@ use kernel::interrupt::InterruptController;
 use kernel::scheduler::SchedulerState;
 use kernel::scheduler::thread::{Stack, ThreadState};
 use kernel::sync::spinlock::SpinLockGuard;
-use kernel::{Arch, Kernel, KernelState, MemoryRegionType};
+use kernel::{Arch, Kernel, KernelState};
+use memory_config::MemoryRegionType;
 use pw_log::info;
 use pw_status::{Error, Result};
 
@@ -112,7 +113,7 @@ impl time::Clock for Clock {
 
 pub struct MemoryConfig;
 
-impl kernel::memory::MemoryConfig for MemoryConfig {
+impl memory_config::MemoryConfig for MemoryConfig {
     const KERNEL_THREAD_MEMORY_CONFIG: Self = Self;
 
     fn range_has_access(

@@ -18,7 +18,6 @@ use pw_log::info;
 pub use time::{Duration, Instant};
 
 pub mod interrupt;
-pub mod memory;
 pub mod object;
 #[cfg(not(feature = "std_panic_handler"))]
 mod panic;
@@ -29,7 +28,6 @@ mod target;
 
 use interrupt::InterruptController;
 use kernel_config::{KernelConfig, KernelConfigInterface};
-pub use memory::{MemoryRegion, MemoryRegionType};
 pub use object::NullObjectTable;
 #[doc(hidden)]
 pub use scheduler::thread::{Process, Stack, StackStorage, StackStorageExt, Thread, ThreadState};

@@ -50,21 +50,21 @@ pub fn start() {
     let start_fn_{{app_name}} = {{app.start_fn_address | hex}}_usize;
 
     const MEMORY_CONFIG_{{app_name | upper }}: MemoryConfig = MemoryConfig::const_new(&[
-        kernel::MemoryRegion::new(
-            kernel::MemoryRegionType::ReadOnlyExecutable,
+        memory_config::MemoryRegion::new(
+            memory_config::MemoryRegionType::ReadOnlyExecutable,
             {{app.flash_start_address | hex}},
             {{(app.flash_start_address + app.flash_size_bytes) | hex}},
         ),
-        kernel::MemoryRegion::new(
-            kernel::MemoryRegionType::ReadWriteData,
+        memory_config::MemoryRegion::new(
+            memory_config::MemoryRegionType::ReadWriteData,
             {{app.ram_start_address | hex}},
             {{(app.ram_start_address + app.ram_size_bytes) | hex}},
         ),
         {%- for mapping_name in app.process.ordered_memory_mapping_names %}
         {%- set mapping = app.process.memory_mappings[mapping_name] -%}
-        kernel::MemoryRegion::new(
+        memory_config::MemoryRegion::new(
             {% if mapping.type == "device" -%}
-            kernel::MemoryRegionType::Device,
+            memory_config::MemoryRegionType::Device,
             {% endif -%}
             {{mapping.start_address | hex}},
             {{(mapping.start_address + mapping.size_bytes) | hex}},

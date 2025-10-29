@@ -13,5 +13,4 @@
 // the License.
 #![no_std]
 
-mod memory;
 mod sync;

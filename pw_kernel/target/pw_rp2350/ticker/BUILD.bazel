@@ -56,6 +56,7 @@ rust_binary(
     deps = [
         "//pw_kernel/arch/arm_cortex_m:arch_arm_cortex_m",
         "//pw_kernel/kernel",
+        "//pw_kernel/lib/memory_config",
         "//pw_kernel/subsys/console:console_backend",
         "//pw_kernel/target:target_common",
         "//pw_kernel/target/pw_rp2350:entry",

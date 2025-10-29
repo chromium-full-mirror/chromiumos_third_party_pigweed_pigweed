@@ -73,6 +73,7 @@ rust_library(
     deps = [
         "//pw_kernel/config:kernel_config_interface",
         "//pw_kernel/drivers/uart/uart_16550:uart_16550_config",
+        "//pw_kernel/lib/memory_config",
     ],
 )
 

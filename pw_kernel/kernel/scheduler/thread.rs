@@ -19,14 +19,14 @@ use core::ptr::NonNull;
 
 use foreign_box::{ForeignBox, ForeignRc};
 use list::*;
+use memory_config::{MemoryConfig as _, MemoryRegionType};
 use pw_log::info;
 use pw_status::Result;
 
-use crate::memory::MemoryConfig;
+use crate::Kernel;
 use crate::object::{KernelObject, ObjectTable};
 use crate::scheduler::Priority;
 use crate::scheduler::algorithm::SchedulerAlgorithmThreadState;
-use crate::{Kernel, MemoryRegionType};
 
 /// The memory backing a thread's stack before it has been started.
 ///
@@ -153,7 +153,7 @@ pub trait ThreadState: 'static + Sized {
     const NEW: Self;
 
     // TODO: Maybe have a `MemoryConfigContext` super-trait of `ThreadState`?
-    type MemoryConfig: crate::memory::MemoryConfig;
+    type MemoryConfig: memory_config::MemoryConfig;
 
     /// Initialize the default frame of a kernel thread
     ///

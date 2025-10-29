@@ -12,8 +12,8 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 
-use kernel::memory::{MemoryRegion, MemoryRegionType};
 use kernel_config::{KernelConfig, RiscVKernelConfigInterface as _};
+use memory_config::{MemoryRegion, MemoryRegionType};
 
 use crate::regs::pmp::*;
 
@@ -68,15 +68,8 @@ impl MemoryConfig {
     }
 }
 
-impl kernel::memory::MemoryConfig for MemoryConfig {
-    #[cfg(not(feature = "epmp"))]
-    const KERNEL_THREAD_MEMORY_CONFIG: Self = Self::const_new(&[MemoryRegion::new(
-        MemoryRegionType::ReadWriteExecutable,
-        0x0000_0000,
-        0xffff_fffc,
-    )]);
-    #[cfg(feature = "epmp")]
-    const KERNEL_THREAD_MEMORY_CONFIG: Self = Self::const_new(&[]);
+impl memory_config::MemoryConfig for MemoryConfig {
+    const KERNEL_THREAD_MEMORY_CONFIG: Self = Self::const_new(KernelConfig::KERNEL_MEMORY_REGIONS);
 
     fn range_has_access(
         &self,

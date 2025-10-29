@@ -15,10 +15,10 @@
 
 use core::arch::asm;
 
-#[cfg(not(feature = "epmp"))]
-use kernel::MemoryRegionType;
-use kernel::memory::MemoryRegion;
 use kernel_config::{KernelConfig, RiscVKernelConfigInterface as _};
+use memory_config::MemoryRegion;
+#[cfg(not(feature = "epmp"))]
+use memory_config::MemoryRegionType;
 use pw_status::{Error, Result};
 use regs::*;
 
@@ -298,8 +298,7 @@ impl<const NUM_ENTRIES: usize> PmpConfig<NUM_ENTRIES> {
 
 #[cfg(test)]
 mod tests {
-    use kernel::MemoryRegionType;
-    use kernel::memory::MemoryRegion;
+    use memory_config::{MemoryRegion, MemoryRegionType};
     use pw_status::Error;
     use unittest::test;
 

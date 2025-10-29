@@ -15,9 +15,10 @@ use core::cmp::min;
 use core::ops::Range;
 use core::ptr::NonNull;
 
+use memory_config::MemoryRegionType;
 use pw_status::{Error, Result};
 
-use crate::{Kernel, MemoryRegionType};
+use crate::Kernel;
 
 // A buffer that resides in a process
 //

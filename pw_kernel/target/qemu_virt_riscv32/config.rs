@@ -19,6 +19,7 @@ pub use kernel_config::{
     ClintTimerConfigInterface, ExceptionMode, InterruptHandler, InterruptTable,
     InterruptTableEntry, KernelConfigInterface, PlicConfigInterface, RiscVKernelConfigInterface,
 };
+use memory_config::{MemoryRegion, MemoryRegionType};
 use uart_16550_config::UartConfigInterface;
 
 pub struct KernelConfig;
@@ -36,6 +37,12 @@ impl RiscVKernelConfigInterface for KernelConfig {
         end: Self::PMP_ENTRIES,
     };
     const PMP_GRANULARITY: usize = 0;
+
+    const KERNEL_MEMORY_REGIONS: &'static [MemoryRegion] = &[MemoryRegion::new(
+        MemoryRegionType::ReadWriteExecutable,
+        0x0000_0000,
+        0xffff_fffc,
+    )];
 
     fn get_exception_mode() -> ExceptionMode {
         ExceptionMode::Direct

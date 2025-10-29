@@ -12,8 +12,8 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 
-use kernel::memory::{MemoryRegion, MemoryRegionType};
 use kernel_config::{CortexMKernelConfigInterface as _, KernelConfig};
+use memory_config::{MemoryRegion, MemoryRegionType};
 
 use crate::regs::Regs;
 use crate::regs::mpu::*;
@@ -181,7 +181,7 @@ pub fn init() {
     mpu.mair0.write(val);
 }
 
-impl kernel::memory::MemoryConfig for MemoryConfig {
+impl memory_config::MemoryConfig for MemoryConfig {
     const KERNEL_THREAD_MEMORY_CONFIG: Self = Self::const_new(&[MemoryRegion::new(
         MemoryRegionType::ReadWriteExecutable,
         0x0000_0000,
