@@ -660,7 +660,7 @@ std::string Detokenizer::DetokenizeTextRecursive(std::string_view text,
 }
 
 std::string Detokenizer::DecodeOptionallyTokenizedData(
-    const ConstByteSpan& optionally_tokenized_data) {
+    span<const std::byte> optionally_tokenized_data) const {
   // Try detokenizing as binary using the best result if available, else use
   // the input data as a string.
   const auto result = Detokenize(optionally_tokenized_data);

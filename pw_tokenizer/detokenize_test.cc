@@ -211,70 +211,6 @@ TEST_F(Detokenize, BestStringWithErrors_UnknownToken_ErrorMessage) {
             ERR("unknown token fedcba98"));
 }
 
-// Base64 versions of the tokens
-#define ONE "$AQAAAA=="
-#define TWO "$BQAAAA=="
-#define THREE "$/wAAAA=="
-#define FOUR "$/+7u3Q=="
-#define NEST_ONE "$7u7u7g=="
-
-TEST_F(Detokenize, Base64_NoArguments) {
-  for (auto [data, expected] : TestCases(
-           Case{ONE, "One"},
-           Case{TWO, "TWO"},
-           Case{THREE, "333"},
-           Case{FOUR, "FOUR"},
-           Case{FOUR ONE ONE, "FOUROneOne"},
-           Case{ONE TWO THREE FOUR, "OneTWO333FOUR"},
-           Case{ONE "\r\n" TWO "\r\n" THREE "\r\n" FOUR "\r\n",
-                "One\r\nTWO\r\n333\r\nFOUR\r\n"},
-           Case{"123" FOUR, "123FOUR"},
-           Case{"123" FOUR ", 56", "123FOUR, 56"},
-           Case{"12" THREE FOUR ", 56", "12333FOUR, 56"},
-           Case{"$0" ONE, "$0One"},
-           Case{"$/+7u3Q=", "$/+7u3Q="},  // incomplete message (missing "=")
-           Case{"$123456==" FOUR, "$123456==FOUR"},
-           Case{NEST_ONE, "One"},
-           Case{NEST_ONE NEST_ONE NEST_ONE, "OneOneOne"},
-           Case{FOUR "$" ONE NEST_ONE "?", "FOUR$OneOne?"},
-           Case{"$16==", "d7 encodes as 16=="},
-           Case{"${unknown domain}16==", "${unknown domain}16=="},
-           Case{"${}16==", "d7 encodes as 16=="},
-           Case{"${ }16==", "d7 encodes as 16=="},
-           Case{"${\r\t\n }16==", "d7 encodes as 16=="},
-           Case{"$64==", "$64==++++"})) {
-    EXPECT_EQ(detok_.DetokenizeText(data), expected);
-  }
-}
-
-TEST_F(Detokenize, OptionallyTokenizedData) {
-  for (auto [data, expected] : TestCases(
-           Case{ONE, "One"},
-           Case{"\1\0\0\0", "One"},
-           Case{"$====AQAAAA==", "$====AQAAAA=="},
-           Case{TWO, "TWO"},
-           Case{THREE, "333"},
-           Case{FOUR, "FOUR"},
-           Case{FOUR ONE ONE, "FOUROneOne"},
-           Case{ONE TWO THREE FOUR, "OneTWO333FOUR"},
-           Case{ONE "\r\n" TWO "\r\n" THREE "\r\n" FOUR "\r\n",
-                "One\r\nTWO\r\n333\r\nFOUR\r\n"},
-           Case{"123" FOUR, "123FOUR"},
-           Case{"123" FOUR ", 56", "123FOUR, 56"},
-           Case{"12" THREE FOUR ", 56", "12333FOUR, 56"},
-           Case{"$0" ONE, "$0One"},
-           Case{"$/+7u3Q=", "$/+7u3Q="},  // incomplete message (missing "=")
-           Case{"$123456==" FOUR, "$123456==FOUR"},
-           Case{NEST_ONE, "One"},
-           Case{NEST_ONE NEST_ONE NEST_ONE, "OneOneOne"},
-           Case{FOUR "$" ONE NEST_ONE "?", "FOUR$OneOne?"},
-           Case{"$naeX+A==",
-                "■msg♦This is One message■module♦■file♦file.txt"})) {
-    EXPECT_EQ(detok_.DecodeOptionallyTokenizedData(as_bytes(span(data))),
-              std::string(expected));
-  }
-}
-
 constexpr char kDataWithArguments[] =
     "TOKENS\0\0"
     "\x09\x00\x00\x00"
@@ -316,34 +252,6 @@ TEST_F(DetokenizeWithArgs, SingleMatch) {
 
 TEST_F(DetokenizeWithArgs, Empty) {
   EXPECT_EQ(detok_.Detokenize("\x00\x00\x00\x00"sv).BestString(), "");
-}
-
-TEST_F(DetokenizeWithArgs, Successful) {
-  // Run through test cases, but don't include cases that use %hhu or %llu since
-  // these are not currently supported in arm-none-eabi-gcc.
-  for (const auto& [data, expected] : TestCases(
-           Case{"\x0A\x0B\x0C\x0D\5force\4Luke"sv, "Use the force, Luke."},
-           Case{"\x0E\x0F\x00\x01\4\4them"sv, "Now there are 2 of them!"},
-           Case{"\x0E\x0F\x00\x01\x80\x01\4them"sv,
-                "Now there are 64 of them!"},
-           Case{"\xAA\xAA\xAA\xAA\xfc\x01"sv, "~!"},
-           Case{"\xCC\xCC\xCC\xCC\xfe\xff\x07"sv, "65535!"},
-           Case{"\xDD\xDD\xDD\xDD\xfe\xff\x07"sv, "65535!"},
-           Case{"\xDD\xDD\xDD\xDD\xfe\xff\xff\xff\x1f"sv, "4294967295!"},
-           Case{"\xEE\xEE\xEE\xEE\xfe\xff\x07"sv, "65535!"},
-           Case{"\xEE\xEE\xEE\xEE\xfe\xff\xff\xff\x1f"sv, "4294967295!"})) {
-    EXPECT_EQ(detok_.Detokenize(data).BestString(), expected);
-
-    // Encode the test cases to Base64, then decode them with DetokenizeText.
-    std::string text(pw::tokenizer::Base64EncodedBufferSize(data.size()), '\0');
-    ASSERT_EQ(text.size() - 1,  // subtract 1 for unnecessary \0
-              pw::tokenizer::PrefixedBase64Encode(pw::as_bytes(pw::span(data)),
-                                                  text));
-    ASSERT_EQ(text.back(), '\0');
-    text.pop_back();
-
-    EXPECT_EQ(detok_.DetokenizeText(text), expected);
-  }
 }
 
 constexpr const char kCsvCollisons[] =
@@ -591,16 +499,6 @@ class DetokenizeWithCollisions : public ::testing::Test {
   Detokenizer detok_;
 };
 
-TEST_F(DetokenizeWithCollisions, Collision_AlwaysPreferSuccessfulDecode) {
-  for (auto [data, expected] :
-       TestCases(Case{"\0\0\0\0"sv, "This string is present"},
-                 Case{"\0\0\0\0\x01"sv, "One arg -1"},
-                 Case{"\0\0\0\0\x80"sv, "One arg [...]"},
-                 Case{"\0\0\0\0\4Hey!\x04"sv, "Two args Hey! 2"})) {
-    EXPECT_EQ(detok_.Detokenize(data).BestString(), expected);
-  }
-}
-
 TEST_F(DetokenizeWithCollisions, Collision_OkIfExactlyOneSuccess) {
   auto result = detok_.Detokenize(
       "\0\0\0\0\x07"
@@ -627,42 +525,10 @@ TEST_F(DetokenizeWithCollisions, Collision_NotOkIfMultipleSuccessfulDecodes) {
   EXPECT_EQ(result.BestString(), "This string is present");
 }
 
-TEST_F(DetokenizeWithCollisions, Collision_PreferDecodingAllBytes) {
-  for (auto [data, expected] :
-       TestCases(Case{"\0\0\0\0\x80\x80\x80\x80\x00"sv, "Two args [...] 0"},
-                 Case{"\0\0\0\0\x08?"sv, "One arg %s"},
-                 Case{"\0\0\0\0\x01!\x01\x80"sv, "Two args ! \x80 % % %"})) {
-    EXPECT_EQ(detok_.Detokenize(data).BestString(), expected);
-  }
-}
-
-TEST_F(DetokenizeWithCollisions, Collision_PreferFewestDecodingErrors) {
-  for (auto [data, expected] :
-       TestCases(Case{"\xBB\xBB\xBB\xBB\x00"sv, "Two ints 0 %d"},
-                 Case{"\xCC\xCC\xCC\xCC\2Yo\5?"sv, "Two strings Yo %s"})) {
-    EXPECT_EQ(detok_.Detokenize(data).BestString(), expected);
-  }
-}
-
 TEST_F(DetokenizeWithCollisions, Collision_PreferMostDecodedArgs) {
   auto result = detok_.Detokenize("\xDD\xDD\xDD\xDD\x01\x02\x01\x04\x05"sv);
   EXPECT_EQ((std::string_view)result.matches()[0].value(), "Five -1 1 -1 2 %s");
   EXPECT_EQ((std::string_view)result.matches()[1].value(), "Three \2 \4 %s"sv);
-}
-
-TEST_F(DetokenizeWithCollisions, Collision_PreferMostDecodedArgs_NoPercent) {
-  // The "Two args %s %s ..." string successfully decodes this, and has more
-  // "arguments", because of %%, but %% doesn't count as as a decoded argument.
-  EXPECT_EQ(detok_.Detokenize("\0\0\0\0\x01\x00\x01\x02"sv).BestString(),
-            "Four args -1 0 -1 1");
-}
-
-TEST_F(DetokenizeWithCollisions, Collision_PreferStillPresentString) {
-  for (auto [data, expected] :
-       TestCases(Case{"\x00\x00\x00\x00"sv, "This string is present"},
-                 Case{"\xAA\xAA\xAA\xAA"sv, "This one is present"})) {
-    EXPECT_EQ(detok_.Detokenize(data).BestString(), expected);
-  }
 }
 
 TEST_F(DetokenizeWithCollisions, Collision_TracksAllMatches) {

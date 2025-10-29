@@ -12,6 +12,7 @@
 # License for the specific language governing permissions and limitations under
 # the License.
 
+load("@bazel_skylib//rules:run_binary.bzl", "run_binary")
 load("@com_google_protobuf//bazel:proto_library.bzl", "proto_library")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_python//python:proto.bzl", "py_proto_library")
@@ -270,15 +271,29 @@ pw_cc_blob_library(
     out_header = "pw_tokenizer/example_binary_with_tokenized_strings.h",
 )
 
+run_binary(
+    name = "generate_data_driven_detokenize_test",
+    outs = ["data_driven_detokenize_test.cc"],
+    args = [
+        "--generate-cc-test",
+        "$(execpath :data_driven_detokenize_test.cc)",
+    ],
+    tool = "//pw_tokenizer/py:generate_data_driven_detokenize_test",
+    visibility = ["//visibility:private"],
+)
+
 pw_cc_test(
     name = "detokenize_test",
     srcs = [
         "detokenize_test.cc",
+        ":generate_data_driven_detokenize_test",
     ],
     deps = [
         ":base64",
         ":decoder",
         ":detokenizer_elf_test_blob",
+        "//pw_bytes",
+        "//pw_span",
         "//pw_stream",
     ],
 )

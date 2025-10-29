@@ -1102,7 +1102,13 @@ class DetokenizeNestedDomains(unittest.TestCase):
         )
         self.assertEqual(
             str(detok.detokenize(b'\x02\0\0\0\x09$AQAAAA==')),  # token for 1
+            'This is a $AQAAAA==',
+            'Nested decoding fails no domain was specified, but token is in D1',
+        )
+        self.assertEqual(
+            str(detok.detokenize(b'\x02\0\0\0\x0D${D1}AQAAAA==')),
             'This is a nested base64 argument',
+            'Succeeds when domain is specified',
         )
 
     def test_nested_hashed_arg_with_domain_whitespace(self) -> None:

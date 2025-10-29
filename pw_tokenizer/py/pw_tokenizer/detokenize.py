@@ -69,7 +69,7 @@ _LOG = logging.getLogger('pw_tokenizer')
 
 ENCODED_TOKEN = struct.Struct('<I')
 _BASE64_CHARS = string.ascii_letters + string.digits + '+/-_='
-DEFAULT_RECURSION = 9
+DEFAULT_RECURSION = 5
 NESTED_TOKEN_BASE_PREFIX = encode.NESTED_TOKEN_BASE_PREFIX.encode()
 NESTED_DOMAIN_START_PREFIX = encode.NESTED_DOMAIN_START_PREFIX.encode()
 NESTED_DOMAIN_END_PREFIX = encode.NESTED_DOMAIN_END_PREFIX.encode()
@@ -275,6 +275,7 @@ class Detokenizer:
     def detokenize(
         self,
         encoded_message: bytes,
+        domain: str | None = None,
         recursion: int = DEFAULT_RECURSION,
     ) -> DetokenizedString:
         """Decodes and detokenizes a message as a DetokenizedString."""
@@ -296,9 +297,17 @@ class Detokenizer:
         if recursion > 0:
             recursive_detokenize = self._detokenize_nested_callback(recursion)
 
+        if domain is None:
+            entries = self.lookup(token)
+        else:
+            entries = [
+                _TokenizedFormatString(entry, decode.FormatString(str(entry)))
+                for entry in self.database.domains[domain][token]
+            ]
+
         return DetokenizedString(
             token,
-            self.lookup(token),
+            entries,
             encoded_message,
             self.show_errors,
             recursive_detokenize,
@@ -396,25 +405,28 @@ class Detokenizer:
             domain = tokens.DEFAULT_DOMAIN
         else:
             domain = domain.decode()
+
+        domain = ''.join(domain.split())
+
         if not basespec or (base == b'64'):
-            return self._detokenize_once_base64(match)
+            return self._detokenize_once_base64(
+                match.group(0), domain, match.group('base64')
+            )
 
         if not base:
             base = b'16'
 
-        domain = ''.join(domain.split())
-        return self._detokenize_once(match, base, domain)
-
-    def _detokenize_once(
-        self, match: Match[bytes], base: bytes, domain: str
-    ) -> bytes:
-        """Performs lookup on a plain token"""
-        original = match.group(0)
         token = match.group('base' + base.decode())
         if not token:
-            return original
+            return match.group(0)
 
-        token = int(token, int(base))
+        return self._detokenize_once_token(match.group(0), domain, token, base)
+
+    def _detokenize_once_token(
+        self, original: bytes, domain: str, token_str: bytes, base: bytes
+    ) -> bytes:
+        """Performs lookup on a plain token"""
+        token = int(token_str, int(base))
         entries = self.database.domains[domain][token]
 
         if len(entries) == 1:
@@ -426,18 +438,19 @@ class Detokenizer:
 
     def _detokenize_once_base64(
         self,
-        match: Match[bytes],
+        original: bytes,
+        domain: str,
+        base64_message: bytes,
     ) -> bytes:
         """Performs lookup on a Base64 token"""
-        original = match.group(0)
+        if not base64_message:
+            return original
 
         try:
-            encoded_token = match.group('base64')
-            if not encoded_token:
-                return original
-
             detokenized_string = self.detokenize(
-                base64.b64decode(encoded_token, validate=True), recursion=0
+                base64.b64decode(base64_message, validate=True),
+                domain=domain,
+                recursion=0,
             )
 
             if detokenized_string.matches():

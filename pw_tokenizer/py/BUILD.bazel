@@ -116,6 +116,29 @@ pw_py_binary(
     ],
 )
 
+py_library(
+    name = "data_driven_detokenize_test_lib",
+    srcs = ["data_driven_detokenize_test.py"],
+    deps = [
+        ":pw_tokenizer",
+        "//pw_build/py:pw_build",
+    ],
+)
+
+pw_py_binary(
+    name = "generate_data_driven_detokenize_test",
+    srcs = ["data_driven_detokenize_test.py"],
+    main = "data_driven_detokenize_test.py",
+    deps = [":data_driven_detokenize_test_lib"],
+)
+
+pw_py_test(
+    name = "data_driven_detokenize_test",
+    srcs = ["data_driven_detokenize_test.py"],
+    main = "data_driven_detokenize_test.py",
+    deps = [":data_driven_detokenize_test_lib"],
+)
+
 # This test attempts to directly access files in the source tree, which is
 # incompatible with sandboxing.
 # TODO: b/241307309 - Fix this test.

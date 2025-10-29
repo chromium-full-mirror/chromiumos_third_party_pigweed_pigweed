@@ -290,6 +290,20 @@ pw_test("decode_test") {
   enable_if = pw_build_EXECUTABLE_TARGET_TYPE != "arduino_executable"
 }
 
+pw_python_action("generate_data_driven_detokenize_test") {
+  script = "$dir_pw_tokenizer/py/data_driven_detokenize_test.py"
+  outputs = [ "$target_gen_dir/data_driven_detokenize_test.cc" ]
+  args = [
+    "--generate-cc-test",
+    rebase_path(outputs[0], root_build_dir),
+  ]
+  python_deps = [
+    "$dir_pw_build/py",
+    "py",
+  ]
+  visibility = [ ":*" ]
+}
+
 pw_test("detokenize_test") {
   sources = [ "detokenize_test.cc" ]
   deps = [
@@ -298,6 +312,7 @@ pw_test("detokenize_test") {
     ":detokenizer_elf_test_blob",
     dir_pw_stream,
   ]
+  source_gen_deps = [ ":generate_data_driven_detokenize_test" ]
 
   # TODO(tonymd): This fails on Teensyduino 1.54 beta core. It may be related to
   # linking in stl functions. Will debug when 1.54 is released.
