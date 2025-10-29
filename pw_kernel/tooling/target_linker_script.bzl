@@ -52,7 +52,7 @@ def _target_linker_script_impl(ctx):
         CcInfo(linking_context = linking_context),
     ]
 
-_target_linker_script = rule(
+target_linker_script = rule(
     implementation = _target_linker_script_impl,
     attrs = {
         "system_config": attr.label(
@@ -73,21 +73,3 @@ _target_linker_script = rule(
     },
     doc = "Generate the system linker script based on the system config.",
 )
-
-def target_linker_script(name, system_config, template, **kwargs):
-    # buildifier: disable=function-docstring-args
-    """
-    Wrapper function to set default platform specific arguments.
-    """
-    if kwargs.get("target_compatible_with") == None:
-        kwargs["target_compatible_with"] = select({
-            "//pw_kernel/target:system_config_not_set": ["@platforms//:incompatible"],
-            "//conditions:default": [],
-        })
-
-    _target_linker_script(
-        name = name,
-        system_config = system_config,
-        template = template,
-        **kwargs
-    )
