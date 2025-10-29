@@ -11,7 +11,7 @@ pw_string
    - **Safe**: Never worry about buffer overruns or undefined behavior.
 
    *Pick three!* If you know how to use ``std::string``, just use
-   :cpp:type:`pw::InlineString` in the same way:
+   :cc:`pw::InlineString` in the same way:
 
    .. Note for docs maintainers: the next code example could be built
    .. but is difficult to test because it generates a runtime crash.
@@ -28,9 +28,9 @@ pw_string
       my_string.append('!', 8);
       // Foiled by a crash! No mysterious bugs or undefined behavior.
 
-   Need to build up a string? :cpp:type:`pw::StringBuilder` works like
+   Need to build up a string? :cc:`pw::StringBuilder` works like
    ``std::ostringstream``, but with most of the efficiency and memory benefits
-   of :cpp:type:`pw::InlineString`:
+   of :cc:`pw::InlineString`:
 
    .. DOCSTAG: [contributing-docs-examples]
 

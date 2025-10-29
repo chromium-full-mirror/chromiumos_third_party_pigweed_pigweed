@@ -12,11 +12,6 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 #pragma once
-/// @file pw_string/string_builder.h
-///
-/// @brief `pw::StringBuilder` facilitates creating formatted strings in a
-/// fixed-sized buffer or in a `pw::InlineString`. It is designed to give the
-/// flexibility of std::ostringstream, but with a small footprint.
 
 #include <algorithm>
 #include <cstdarg>
@@ -37,7 +32,9 @@ namespace pw {
 
 /// @submodule{pw_string,builder}
 
-/// @class StringBuilder
+/// `pw::StringBuilder` facilitates creating formatted strings in a fixed-sized
+/// buffer or in a `pw::InlineString`. It is designed to give the flexibility of
+/// std::ostringstream, but with a small footprint.
 ///
 /// `pw::StringBuilder` instances are always null-terminated (unless they are
 /// constructed with an empty buffer) and never overflow. Status is tracked for
@@ -109,11 +106,10 @@ class StringBuilder {
 
   StringBuilder& operator=(const StringBuilder&) = delete;
 
-  /// @fn data
-  /// @fn c_str
-  ///
   /// Returns the contents of the string buffer. Always null-terminated.
   const char* data() const { return buffer_.data(); }
+
+  /// @copydoc data
   const char* c_str() const { return data(); }
 
   /// Returns a `std::string_view` of the contents of this `pw::StringBuilder`.
@@ -244,7 +240,6 @@ class StringBuilder {
 
   StringBuilder& operator<<(Status status) { return *this << status.str(); }
 
-  /// @fn pw::StringBuilder::Format
   /// Appends a `printf`-style string to the end of the `StringBuilder`. If the
   /// formatted string does not fit, the results are truncated and the status is
   /// set to `RESOURCE_EXHAUSTED`.
