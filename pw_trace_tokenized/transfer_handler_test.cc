@@ -102,15 +102,9 @@ TEST(TraceBufferReader, ReadData) {
 
   PW_TRACE_INSTANT("Test");
 
-  TraceBufferReader reader;
-  std::byte buffer[128];
-  pw::Result<pw::ByteSpan> encoded = reader.Read(buffer);
-  EXPECT_EQ(encoded.status(), pw::OkStatus());
-  EXPECT_GT(encoded->size(), 0u);
-  EXPECT_LE(encoded->size(), sizeof(buffer));
-
   // Check that contents match.
-  pw::Result<DecodedEvent> event = decoder.Decode(encoded->subspan(1));
+  TraceBufferReader reader;
+  pw::Result<DecodedEvent> event = decoder.ReadSizePrefixed(reader);
   ASSERT_EQ(event.status(), pw::OkStatus());
 
   EXPECT_EQ(event->type, EventType::PW_TRACE_EVENT_TYPE_INSTANT);
@@ -119,8 +113,9 @@ TEST(TraceBufferReader, ReadData) {
   EXPECT_STREQ(event->group.c_str(), "");
   EXPECT_STREQ(event->label.c_str(), "Test");
 
-  // Second read should be OutOfRange as the buffer is now deringed and empty.
-  encoded = reader.Read(buffer);
+  // Second read should be OutOfRange as the buffer is now empty.
+  std::byte buffer[128];
+  pw::Result<pw::ByteSpan> encoded = reader.Read(buffer);
   EXPECT_EQ(encoded.status(), pw::Status::OutOfRange());
 }
 
@@ -135,34 +130,39 @@ TEST(TraceBufferReader, ReadPartial) {
   PW_TRACE_INSTANT("Test");
   PW_TRACE_INSTANT("Test2");
 
-  // Read a small chunk first. Increase the span size incrementally to find the
-  // smallest span for which the read succeeds.
+  // Read a single byte first. Reading should succeed if any data is available.
   TraceBufferReader reader;
-  std::byte buffer[32];
+  std::byte buffer[128];
   pw::ByteSpan bytes(buffer);
-  pw::Result<pw::ByteSpan> result;
-  for (size_t i = 0; i < bytes.size(); ++i) {
-    if (result = reader.Read(bytes.subspan(0, i)); result.ok()) {
+  pw::Result<pw::ByteSpan> result = reader.Read(bytes.subspan(0, 1));
+  ASSERT_EQ(result.status(), pw::OkStatus());
+  size_t total_size = result->size();
+
+  // Read the rest.
+  result = reader.Read(bytes.subspan(1));
+  ASSERT_EQ(result.status(), pw::OkStatus());
+  total_size += result->size();
+  bytes = bytes.subspan(0, total_size);
+
+  // Third read should be OutOfRange.
+  result = reader.Read(bytes);
+  EXPECT_EQ(result.status(), pw::Status::OutOfRange());
+
+  // Check that contents match. We don't have an easy way to know how many bytes
+  // correspond to each object, so try incrementally. In practice, callers will
+  // use `ReadSizePrefixed` as in the previous unit test.
+  pw::Result<DecodedEvent> event = pw::Status::OutOfRange();
+  for (size_t i = 1; i < bytes.size(); ++i) {
+    size_t offset = pw::varint::EncodedSize(i);
+    if (i <= offset) {
+      continue;
+    }
+    event = decoder.Decode(bytes.subspan(offset, i - offset));
+    if (event.ok()) {
+      bytes = bytes.subspan(i);
       break;
     }
   }
-  EXPECT_EQ(result.status(), pw::OkStatus());
-  const size_t size1 = result->size();
-  const size_t offset1 = pw::varint::EncodedSize(size1);
-
-  // Read the rest.
-  result = reader.Read(bytes.subspan(size1));
-  EXPECT_EQ(result.status(), pw::OkStatus());
-  const size_t size2 = result->size();
-  const size_t offset2 = pw::varint::EncodedSize(size2);
-
-  // Third read should be OutOfRange.
-  result = reader.Read(bytes.subspan(size1 + size2));
-  EXPECT_EQ(result.status(), pw::Status::OutOfRange());
-
-  // Check that contents match.
-  pw::ByteSpan entry1 = bytes.subspan(offset1, size1 - offset1);
-  pw::Result<DecodedEvent> event = decoder.Decode(entry1);
   ASSERT_EQ(event.status(), pw::OkStatus());
 
   EXPECT_EQ(event->type, EventType::PW_TRACE_EVENT_TYPE_INSTANT);
@@ -171,8 +171,8 @@ TEST(TraceBufferReader, ReadPartial) {
   EXPECT_STREQ(event->group.c_str(), "");
   EXPECT_STREQ(event->label.c_str(), "Test");
 
-  pw::ByteSpan entry2 = bytes.subspan(size1 + offset2, size2 - offset2);
-  event = decoder.Decode(entry2);
+  size_t offset = pw::varint::EncodedSize(bytes.size());
+  event = decoder.Decode(bytes.subspan(offset));
   ASSERT_EQ(event.status(), pw::OkStatus());
 
   EXPECT_EQ(event->type, EventType::PW_TRACE_EVENT_TYPE_INSTANT);
