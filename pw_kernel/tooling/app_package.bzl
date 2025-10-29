@@ -70,7 +70,7 @@ _app_linker_script_rule = rule(
         "system_generator": attr.label(
             executable = True,
             cfg = "exec",
-            default = "//pw_kernel/tooling/system_generator:system_generator_bin",
+            default = "@pigweed//pw_kernel/tooling/system_generator:system_generator_bin",
         ),
         "template": attr.label(
             doc = "Application linker script template file.",
@@ -88,14 +88,14 @@ def _app_linker_script(name, system_config, app_name, **kwargs):
     """
     if kwargs.get("target_compatible_with") == None:
         kwargs["target_compatible_with"] = select({
-            "//pw_kernel/target:system_config_not_set": ["@platforms//:incompatible"],
+            "@pigweed//pw_kernel/target:system_config_not_set": ["@platforms//:incompatible"],
             "//conditions:default": [],
         })
 
     if kwargs.get("template") == None:
         template = select({
-            "@platforms//cpu:armv8-m": "//pw_kernel/tooling/system_generator/templates:armv8m_app.ld.tmpl",
-            "@platforms//cpu:riscv32": "//pw_kernel/tooling/system_generator/templates:riscv_app.ld.tmpl",
+            "@platforms//cpu:armv8-m": "@pigweed//pw_kernel/tooling/system_generator/templates:armv8m_app.ld.tmpl",
+            "@platforms//cpu:riscv32": "@pigweed//pw_kernel/tooling/system_generator/templates:riscv_app.ld.tmpl",
             "//conditions:default": None,
         })
         kwargs["template"] = template
@@ -149,12 +149,12 @@ _app_package_src = rule(
         "system_generator": attr.label(
             executable = True,
             cfg = "exec",
-            default = "//pw_kernel/tooling/system_generator:system_generator_bin",
+            default = "@pigweed//pw_kernel/tooling/system_generator:system_generator_bin",
         ),
         "template": attr.label(
             doc = "Application code generation template file.",
             allow_single_file = True,
-            default = "//pw_kernel/tooling/system_generator/templates:app.rs.tmpl",
+            default = "@pigweed//pw_kernel/tooling/system_generator/templates:app.rs.tmpl",
         ),
     },
     doc = "Generate the linker script for an app based on the system config.",
