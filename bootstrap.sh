@@ -121,4 +121,7 @@ fi
 
 pw_cleanup
 
-git -C "$PW_ROOT" config blame.ignoreRevsFile .git-blame-ignore-revs
+git -C "$PW_ROOT" rev-parse --is-inside-work-tree > /dev/null 2>&1
+if [ $? -eq 0 ]; then
+  git -C "$PW_ROOT" config blame.ignoreRevsFile .git-blame-ignore-revs
+fi
