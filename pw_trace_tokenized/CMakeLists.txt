@@ -143,11 +143,13 @@ pw_add_library(pw_trace_tokenized.trace_buffer STATIC
     trace_buffer.cc
   PRIVATE_DEPS
     pw_span
-    pw_trace_tokenized.config
     pw_trace_tokenized.core
   PUBLIC_DEPS
     pw_bytes
-    pw_ring_buffer
+    pw_containers.algorithm
+    pw_containers.inline_var_len_entry_queue
+    pw_status
+    pw_trace_tokenized.config
   PUBLIC_DEFINES
     PW_TRACE_BUFFER_SIZE_BYTES=${pw_trace_tokenized_BUFFER_SIZE}
 )

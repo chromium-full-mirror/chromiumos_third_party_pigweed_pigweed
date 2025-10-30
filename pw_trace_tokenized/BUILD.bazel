@@ -218,14 +218,16 @@ cc_library(
     ],
     features = ["-conversion_warnings"],
     implementation_deps = [
-        ":config",
         ":pw_trace_tokenized",
         "//pw_span",
     ],
     strip_include_prefix = "public",
     deps = [
+        ":config",
         "//pw_bytes",
-        "//pw_ring_buffer",
+        "//pw_containers:algorithm",
+        "//pw_containers:inline_var_len_entry_queue",
+        "//pw_status",
     ],
 )
 

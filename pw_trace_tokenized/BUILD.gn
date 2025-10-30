@@ -247,12 +247,14 @@ pw_source_set("tokenized_trace_buffer") {
   ]
   public = [ "public/pw_trace_tokenized/trace_buffer.h" ]
   public_deps = [
+    ":config",
+    "$dir_pw_containers:algorithm",
+    "$dir_pw_containers:inline_var_len_entry_queue",
     dir_pw_bytes,
-    dir_pw_ring_buffer,
+    dir_pw_status,
   ]
   sources = [ "trace_buffer.cc" ]
   deps = [
-    ":config",
     ":core",
     dir_pw_span,
   ]
