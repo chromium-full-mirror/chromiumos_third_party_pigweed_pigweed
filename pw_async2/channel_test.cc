@@ -16,6 +16,7 @@
 
 #include "pw_allocator/testing.h"
 #include "pw_async2/dispatcher.h"
+#include "pw_async2/pend_func_task.h"
 #include "pw_async2/try.h"
 #include "pw_containers/vector.h"
 #include "pw_unit_test/framework.h"
@@ -26,6 +27,7 @@ using pw::async2::experimental::CreateDynamicChannel;
 using pw::async2::experimental::DynamicChannel;
 using pw::async2::experimental::Receiver;
 using pw::async2::experimental::Sender;
+using pw::async2::experimental::SendReservation;
 using pw::async2::experimental::StaticChannel;
 
 class SenderTask : public pw::async2::Task {
@@ -290,6 +292,203 @@ TEST(StaticChannel, ReceiverDisconnects) {
   EXPECT_FALSE(sender_task_2.succeeded());
 }
 
+class ReservedSenderTask : public pw::async2::Task {
+ public:
+  ReservedSenderTask(Sender<int> sender, int start, int end)
+      : pw::async2::Task(PW_ASYNC_TASK_NAME("ReservedSenderTask")),
+        sender_(std::move(sender)),
+        next_(start),
+        end_(end) {}
+
+  bool succeeded() const { return success_; }
+
+ private:
+  pw::async2::Poll<> DoPend(pw::async2::Context& cx) override {
+    while (next_ <= end_) {
+      if (!future_.has_value()) {
+        future_.emplace(sender_.ReserveSend());
+      }
+
+      PW_TRY_READY_ASSIGN(auto reservation, future_->Pend(cx));
+      if (!reservation.has_value()) {
+        success_ = false;
+        return pw::async2::Ready();
+      }
+
+      reservation->Commit(next_);
+      next_++;
+      future_.reset();
+    }
+
+    success_ = true;
+    sender_.Disconnect();
+    return pw::async2::Ready();
+  }
+
+  Sender<int> sender_;
+  std::optional<pw::async2::experimental::ReserveSendFuture<int>> future_;
+  bool success_ = false;
+  int next_;
+  int end_;
+};
+
+TEST(StaticChannel, ReserveSend) {
+  pw::async2::Dispatcher dispatcher;
+  StaticChannel<int, 2> channel;
+
+  ReservedSenderTask sender_task(channel.CreateSender(), 1, 6);
+  ReceiverTask receiver_task(channel.CreateReceiver());
+
+  dispatcher.Post(sender_task);
+  dispatcher.Post(receiver_task);
+
+  dispatcher.RunToCompletion();
+
+  EXPECT_TRUE(sender_task.succeeded());
+  ExpectReceived1To6(receiver_task.received());
+}
+
+TEST(StaticChannel, ReserveSendReservesSpace) {
+  pw::async2::Dispatcher dispatcher;
+  StaticChannel<int, 2> channel;
+
+  ReceiverTask receiver_task(channel.CreateReceiver());
+
+  static constexpr int kReservedSendValue = 37;
+  static constexpr int kFirstSendValue = 40;
+  static constexpr int kSecondSendValue = 43;
+
+  pw::async2::PendFuncTask reserved_sender_task(
+      [&channel](pw::async2::Context& cx) -> pw::async2::Poll<> {
+        // This task runs once without sleeping.
+        // The channel has two slots. First, we reserve a slot through
+        // `ReserveSend`, but don't commit a value. Then, we attempt to write
+        // two values through the regular `Send` API. The first should succeed
+        // as there is a second available slot, whereas the second should block.
+        // Finally, commit the reserved slot.
+        Sender<int> sender = channel.CreateSender();
+        auto reserve_send_future = sender.ReserveSend();
+        auto send_future_1 = sender.Send(kFirstSendValue);
+        auto send_future_2 = sender.Send(kSecondSendValue);
+        PW_TRY_READY_ASSIGN(auto reservation, reserve_send_future.Pend(cx));
+        EXPECT_EQ(sender.remaining_capacity(), 1u);
+
+        EXPECT_EQ(send_future_1.Pend(cx), pw::async2::Ready(true));
+        EXPECT_EQ(sender.remaining_capacity(), 0u);
+        EXPECT_EQ(send_future_2.Pend(cx), pw::async2::Pending());
+
+        reservation->Commit(kReservedSendValue);
+        EXPECT_EQ(sender.remaining_capacity(), 0u);
+
+        return pw::async2::Ready();
+      });
+
+  dispatcher.Post(reserved_sender_task);
+  dispatcher.Post(receiver_task);
+
+  dispatcher.RunToCompletion();
+
+  ASSERT_EQ(receiver_task.received().size(), 2u);
+  EXPECT_EQ(receiver_task.received()[0], kFirstSendValue);
+  EXPECT_EQ(receiver_task.received()[1], kReservedSendValue);
+}
+
+TEST(StaticChannel, ReserveSendReleasesSpaceWhenDropped) {
+  pw::async2::Dispatcher dispatcher;
+  StaticChannel<int, 2> channel;
+
+  ReceiverTask receiver_task(channel.CreateReceiver());
+
+  static constexpr int kFirstSendValue = 40;
+  static constexpr int kSecondSendValue = 43;
+
+  pw::async2::PendFuncTask reserved_sender_task(
+      [&channel](pw::async2::Context& cx) -> pw::async2::Poll<> {
+        // This task runs once without sleeping.
+        // The channel has two slots. First, we reserve a slot through
+        // `ReserveSend`, but don't commit a value. Then, we attempt to write
+        // two values through the regular `Send` API. The first should succeed
+        // and the second should block. Afterwards, we drop the reservation,
+        // which should release the slot, allowing the second send to succeed.
+        Sender<int> sender = channel.CreateSender();
+        auto reserve_send_future = sender.ReserveSend();
+        auto send_future_1 = sender.Send(kFirstSendValue);
+        auto send_future_2 = sender.Send(kSecondSendValue);
+
+        {
+          PW_TRY_READY_ASSIGN(auto reservation, reserve_send_future.Pend(cx));
+          EXPECT_EQ(sender.remaining_capacity(), 1u);
+          EXPECT_EQ(send_future_1.Pend(cx), pw::async2::Ready(true));
+          EXPECT_EQ(sender.remaining_capacity(), 0u);
+          EXPECT_EQ(send_future_2.Pend(cx), pw::async2::Pending());
+          EXPECT_EQ(sender.remaining_capacity(), 0u);
+        }
+
+        EXPECT_EQ(sender.remaining_capacity(), 1u);
+        EXPECT_EQ(send_future_2.Pend(cx), pw::async2::Ready(true));
+        EXPECT_EQ(sender.remaining_capacity(), 0u);
+
+        return pw::async2::Ready();
+      });
+
+  dispatcher.Post(reserved_sender_task);
+  dispatcher.Post(receiver_task);
+
+  dispatcher.RunToCompletion();
+
+  ASSERT_EQ(receiver_task.received().size(), 2u);
+  EXPECT_EQ(receiver_task.received()[0], kFirstSendValue);
+  EXPECT_EQ(receiver_task.received()[1], kSecondSendValue);
+}
+
+TEST(StaticChannel, ReserveSendManualCancel) {
+  pw::async2::Dispatcher dispatcher;
+  StaticChannel<int, 2> channel;
+
+  ReceiverTask receiver_task(channel.CreateReceiver());
+
+  static constexpr int kFirstSendValue = 40;
+  static constexpr int kSecondSendValue = 43;
+
+  pw::async2::PendFuncTask reserved_sender_task(
+      [&channel](pw::async2::Context& cx) -> pw::async2::Poll<> {
+        // This task runs once without sleeping.
+        // The channel has two slots. First, we reserve a slot through
+        // `ReserveSend`, but don't commit a value. Then, we attempt to write
+        // two values through the regular `Send` API. The first should succeed
+        // and the second should block. Afterwards, we cancel the reservation,
+        // which should release the slot, allowing the second send to succeed.
+        Sender<int> sender = channel.CreateSender();
+        auto reserve_send_future = sender.ReserveSend();
+        auto send_future_1 = sender.Send(kFirstSendValue);
+        auto send_future_2 = sender.Send(kSecondSendValue);
+
+        PW_TRY_READY_ASSIGN(auto reservation, reserve_send_future.Pend(cx));
+        EXPECT_EQ(sender.remaining_capacity(), 1u);
+        EXPECT_EQ(send_future_1.Pend(cx), pw::async2::Ready(true));
+        EXPECT_EQ(sender.remaining_capacity(), 0u);
+        EXPECT_EQ(send_future_2.Pend(cx), pw::async2::Pending());
+        EXPECT_EQ(sender.remaining_capacity(), 0u);
+
+        reservation->Cancel();
+
+        EXPECT_EQ(sender.remaining_capacity(), 1u);
+        EXPECT_EQ(send_future_2.Pend(cx), pw::async2::Ready(true));
+        EXPECT_EQ(sender.remaining_capacity(), 0u);
+
+        return pw::async2::Ready();
+      });
+
+  dispatcher.Post(reserved_sender_task);
+  dispatcher.Post(receiver_task);
+
+  dispatcher.RunToCompletion();
+
+  ASSERT_EQ(receiver_task.received().size(), 2u);
+  EXPECT_EQ(receiver_task.received()[0], kFirstSendValue);
+  EXPECT_EQ(receiver_task.received()[1], kSecondSendValue);
+}
+
 TEST(StaticChannel, RemainingCapacity) {
   StaticChannel<int, 2> channel;
 
@@ -300,6 +499,80 @@ TEST(StaticChannel, RemainingCapacity) {
   EXPECT_TRUE(sender.TrySend(1));
   EXPECT_EQ(sender.remaining_capacity(), 1u);
   EXPECT_EQ(sender.capacity(), 2u);
+}
+
+class MoveOnly {
+ public:
+  explicit MoveOnly(int val) : value(val) {}
+
+  MoveOnly(const MoveOnly&) = delete;
+  MoveOnly& operator=(const MoveOnly&) = delete;
+
+  MoveOnly(MoveOnly&& other) : value(other.value), moved(other.moved + 1) {}
+  MoveOnly& operator=(MoveOnly&& other) {
+    value = other.value;
+    moved = other.moved + 1;
+    return *this;
+  }
+
+  operator int() const { return value; }
+
+  int value;
+  int moved = 0;
+};
+
+TEST(StaticChannel, MoveOnly) {
+  pw::async2::Dispatcher dispatcher;
+  StaticChannel<MoveOnly, 3> channel;
+
+  Sender<MoveOnly> sender = channel.CreateSender();
+  Receiver<MoveOnly> receiver = channel.CreateReceiver();
+
+  pw::async2::PendFuncTask sender_task(
+      [sender = std::move(sender)](
+          pw::async2::Context& cx) mutable -> pw::async2::Poll<> {
+        MoveOnly move_only_1(1);
+        auto send_future = sender.Send(std::move(move_only_1));
+        EXPECT_EQ(send_future.Pend(cx), pw::async2::Ready(true));
+
+        MoveOnly move_only_2(2);
+        auto reserve_send_future = sender.ReserveSend();
+        pw::async2::Poll<std::optional<SendReservation<MoveOnly>>> poll =
+            reserve_send_future.Pend(cx);
+        auto& reservation_1 = poll.value();
+        reservation_1->Commit(std::move(move_only_2));
+
+        reserve_send_future = sender.ReserveSend();
+        poll = reserve_send_future.Pend(cx);
+        auto& reservation_2 = poll.value();
+        reservation_2->Commit(3);
+
+        return pw::async2::Ready();
+      });
+
+  pw::async2::PendFuncTask receiver_task(
+      [receiver = std::move(receiver)](
+          pw::async2::Context& cx) mutable -> pw::async2::Poll<> {
+        auto receive_future = receiver.Receive();
+        auto poll1 = receive_future.Pend(cx);
+        EXPECT_EQ(poll1.value(), MoveOnly(1));
+
+        receive_future = receiver.Receive();
+        auto poll2 = receive_future.Pend(cx);
+        EXPECT_EQ(poll2.value(), MoveOnly(2));
+
+        receive_future = receiver.Receive();
+        auto poll3 = receive_future.Pend(cx);
+        EXPECT_EQ(poll3.value(), MoveOnly(3));
+
+        return pw::async2::Ready();
+      });
+
+  dispatcher.Post(sender_task);
+  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Ready());
+
+  dispatcher.Post(receiver_task);
+  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Ready());
 }
 
 TEST(DynamicChannel, ForwardsDataAndAutomaticallyDeallocates) {

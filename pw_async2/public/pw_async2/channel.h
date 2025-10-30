@@ -39,6 +39,12 @@ template <typename T>
 class SendFuture;
 
 template <typename T>
+class ReserveSendFuture;
+
+template <typename T>
+class SendReservation;
+
+template <typename T>
 class DynamicChannel;
 
 template <typename T>
@@ -80,9 +86,11 @@ class Channel {
   friend Allocator;
   friend DynamicChannel<T>;
   friend SendFuture<T>;
+  friend ReserveSendFuture<T>;
   friend ReceiveFuture<T>;
   friend Sender<T>;
   friend Receiver<T>;
+  friend SendReservation<T>;
 
   template <typename U>
   friend std::optional<DynamicChannel<U>> CreateDynamicChannel(Allocator&,
@@ -119,6 +127,9 @@ class Channel {
     while (!send_futures_.empty()) {
       send_futures_.Pop().Wake();
     }
+    while (!reserve_send_futures_.empty()) {
+      reserve_send_futures_.Pop().Wake();
+    }
     while (!receive_futures_.empty()) {
       receive_futures_.Pop().Wake();
     }
@@ -131,17 +142,48 @@ class Channel {
     }
   }
 
+  void PushAndWake(const T& value) PW_EXCLUSIVE_LOCKS_REQUIRED(lock_) {
+    deque_.push_back(value);
+    if (!receive_futures_.empty()) {
+      receive_futures_.Pop().Wake();
+    }
+  }
+
+  template <typename... Args>
+  void EmplaceAndWake(Args&&... args) PW_EXCLUSIVE_LOCKS_REQUIRED(lock_) {
+    deque_.emplace_back(std::forward<Args>(args)...);
+    if (!receive_futures_.empty()) {
+      receive_futures_.Pop().Wake();
+    }
+  }
+
   T PopAndWake() PW_EXCLUSIVE_LOCKS_REQUIRED(lock_) {
     PW_ASSERT(!deque_.empty());
 
     T value = std::move(deque_.front());
     deque_.pop_front();
 
-    if (!send_futures_.empty()) {
-      send_futures_.Pop().Wake();
+    WakeOneSender();
+    return value;
+  }
+
+  void WakeOneSender() PW_EXCLUSIVE_LOCKS_REQUIRED(lock_) {
+    // TODO: b/456507134 - Store both future types in the same list.
+    if (prioritize_reserve_) {
+      if (!reserve_send_futures_.empty()) {
+        reserve_send_futures_.Pop().Wake();
+      } else if (!send_futures_.empty()) {
+        send_futures_.Pop().Wake();
+      }
+    } else {
+      if (!send_futures_.empty()) {
+        send_futures_.Pop().Wake();
+      } else if (!reserve_send_futures_.empty()) {
+        reserve_send_futures_.Pop().Wake();
+      }
     }
 
-    return value;
+    prioritize_reserve_ = !prioritize_reserve_;
   }
 
   bool full() { return remaining_capacity() == 0; }
@@ -155,7 +197,7 @@ class Channel {
   }
   uint16_t remaining_capacity_locked() const
       PW_EXCLUSIVE_LOCKS_REQUIRED(lock_) {
-    return deque_.capacity() - deque_.size();
+    return deque_.capacity() - deque_.size() - reservations_;
   }
 
   uint16_t capacity() const PW_NO_LOCK_SAFETY_ANALYSIS {
@@ -180,7 +222,7 @@ class Channel {
 
   bool TryPush(const T& value) {
     std::lock_guard lock(lock_);
-    if (closed_ || deque_.size() == deque_.capacity()) {
+    if (closed_ || remaining_capacity_locked() == 0) {
       return false;
     }
     PushAndWake(value);
@@ -189,7 +231,7 @@ class Channel {
 
   bool TryPush(T&& value) {
     std::lock_guard lock(lock_);
-    if (closed_ || deque_.size() == deque_.capacity()) {
+    if (closed_ || remaining_capacity_locked() == 0) {
       return false;
     }
     PushAndWake(std::move(value));
@@ -202,6 +244,30 @@ class Channel {
       return std::nullopt;
     }
     return PopAndWake();
+  }
+
+  bool Reserve() {
+    std::lock_guard lock(lock_);
+    if (closed_ || remaining_capacity_locked() == 0) {
+      return false;
+    }
+    reservations_++;
+    return true;
+  }
+
+  void DropReservation() {
+    std::lock_guard lock(lock_);
+    PW_ASSERT(!closed_ && reservations_ > 0);
+    reservations_--;
+    WakeOneSender();
+  }
+
+  template <typename... Args>
+  void CommitReservation(Args&&... args) {
+    std::lock_guard lock(lock_);
+    PW_ASSERT(!closed_ && reservations_ > 0);
+    reservations_--;
+    EmplaceAndWake(std::forward<Args>(args)...);
   }
 
   void add_receiver() {
@@ -281,11 +347,14 @@ class Channel {
 
   // ListFutureProvider is internally synchronized.
   ListFutureProvider<SendFuture<T>> send_futures_;
+  ListFutureProvider<ReserveSendFuture<T>> reserve_send_futures_;
   ListFutureProvider<ReceiveFuture<T>> receive_futures_;
 
   mutable sync::InterruptSpinLock lock_;
   FixedDeque<T> deque_ PW_GUARDED_BY(lock_);
+  uint16_t reservations_ PW_GUARDED_BY(lock_) = 0;
   bool closed_ PW_GUARDED_BY(lock_) = false;
+  bool prioritize_reserve_ PW_GUARDED_BY(lock_) = true;
 
   // Channels are reference counted in two ways:
   //
@@ -620,6 +689,128 @@ class [[nodiscard]] SendFuture
   T value_;
 };
 
+/// A reservation for sending values to a channel, returned from a
+/// `ReserveSendFuture` once space is available in the channel.
+///
+/// The `SendReservation` must be used immediately once its future resolves.
+/// If the reservation object is dropped, its reservation is released and the
+/// space is made available for other senders.
+template <typename T>
+class SendReservation {
+ public:
+  SendReservation(const SendReservation& other) = delete;
+  SendReservation& operator=(const SendReservation& other) = delete;
+
+  SendReservation(SendReservation&& other)
+      : channel_(std::exchange(other.channel_, nullptr)) {}
+
+  SendReservation& operator=(SendReservation&& other) {
+    if (this == &other) {
+      return *this;
+    }
+    Cancel();
+    channel_ = std::exchange(other.channel_, nullptr);
+    return *this;
+  }
+
+  ~SendReservation() { Cancel(); }
+
+  /// Commits a value to a reserved slot.
+  template <typename... Args>
+  void Commit(Args&&... args) {
+    PW_ASSERT(channel_ != nullptr);
+    channel_->CommitReservation(std::forward<Args>(args)...);
+    channel_->remove_ref();
+    channel_ = nullptr;
+  }
+
+  /// Releases the reservation, making the space available for other senders.
+  void Cancel() {
+    if (channel_ != nullptr) {
+      channel_->DropReservation();
+      channel_->remove_ref();
+      channel_ = nullptr;
+    }
+  }
+
+ private:
+  friend class ReserveSendFuture<T>;
+
+  explicit SendReservation(Channel<T>& channel) : channel_(&channel) {
+    channel_->add_ref();
+  }
+
+  Channel<T>* channel_;
+};
+
+template <typename T>
+class [[nodiscard]] ReserveSendFuture
+    : public ListableFutureWithWaker<ReserveSendFuture<T>,
+                                     std::optional<SendReservation<T>>> {
+ public:
+  ReserveSendFuture(ReserveSendFuture&& other)
+      : Base(Base::kMovedFrom),
+        channel_(std::exchange(other.channel_, nullptr)) {
+    Base::MoveFrom(other);
+  }
+
+  ReserveSendFuture& operator=(ReserveSendFuture&& other) {
+    if (channel_ != nullptr) {
+      channel_->remove_ref();
+    }
+    channel_ = std::exchange(other.channel_, nullptr);
+    Base::MoveFrom(other);
+    return *this;
+  }
+
+  ~ReserveSendFuture() { reset(); }
+
+ private:
+  using Base = ListableFutureWithWaker<ReserveSendFuture<T>,
+                                       std::optional<SendReservation<T>>>;
+  friend Base;
+  friend Channel<T>;
+  friend Sender<T>;
+
+  static constexpr const char kWaitReason[] = "Sender::ReserveSend";
+
+  explicit ReserveSendFuture(Channel<T>* channel)
+      : Base(channel->reserve_send_futures_), channel_(channel) {
+    channel_->add_ref();
+  }
+
+  enum ClosedState { kClosed };
+
+  explicit ReserveSendFuture(ClosedState)
+      : Base(Base::kReadyForCompletion), channel_(nullptr) {}
+
+  Poll<std::optional<SendReservation<T>>> DoPend(async2::Context&) {
+    if (channel_ == nullptr || channel_->closed()) {
+      reset();
+      return Ready<std::optional<SendReservation<T>>>(std::nullopt);
+    }
+
+    if (!channel_->Reserve()) {
+      return Pending();
+    }
+
+    SendReservation<T> reservation(*channel_);
+    reset();
+    return reservation;
+  }
+
+  void reset() {
+    if (channel_ != nullptr) {
+      channel_->remove_ref();
+      channel_ = nullptr;
+    }
+  }
+
+  using Base::Wake;
+
+  Channel<T>* channel_;
+};
+
 /// A sender which writes values to an asynchronous channel.
 template <typename T>
 class Sender {
@@ -675,6 +866,18 @@ class Sender {
       return SendFuture<T>(SendFuture<T>::kClosed, std::move(value));
     }
     return SendFuture<T>(*channel_, std::move(value));
+  }
+
+  /// Returns a `Future<std::optional<SendReservation>>` which resolves to a
+  /// `SendReservation` which can be used to write `count` values directly into
+  /// the channel when space is available.
+  ///
+  /// If the channel is closed, the future resolves to `nullopt`.
+  ReserveSendFuture<T> ReserveSend() {
+    if (channel_ == nullptr) {
+      return ReserveSendFuture<T>(ReserveSendFuture<T>::kClosed);
+    }
+    return ReserveSendFuture<T>(channel_);
   }
 
   /// Synchronously attempts to send `value` if there is space in the channel.
