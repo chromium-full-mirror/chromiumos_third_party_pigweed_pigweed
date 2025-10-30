@@ -101,12 +101,7 @@ class Channel {
     if (deque.capacity() == 0) {
       return nullptr;
     }
-    Channel* channel = alloc.New<Channel<T>>(std::move(deque));
-    if (channel == nullptr) {
-      alloc.Deallocate(channel);
-      return nullptr;
-    }
-    return channel;
+    return alloc.New<Channel<T>>(std::move(deque));
   }
 
   void Destroy() {

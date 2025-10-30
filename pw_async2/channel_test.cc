@@ -625,11 +625,23 @@ TEST(DynamicChannel, RemainingCapacity) {
 }
 
 TEST(DynamicChannel, AllocationFailure) {
-  pw::allocator::test::AllocatorForTest<1024> alloc;
-  alloc.Exhaust();
+  pw::allocator::test::AllocatorForTest<64> exhausted_alloc;
+  exhausted_alloc.Exhaust();
   std::optional<DynamicChannel<int>> channel =
-      CreateDynamicChannel<int>(alloc, 2);
+      CreateDynamicChannel<int>(exhausted_alloc, 2);
   ASSERT_FALSE(channel.has_value());
+  EXPECT_EQ(exhausted_alloc.metrics().allocated_bytes.value(), 0u);
+  EXPECT_EQ(exhausted_alloc.metrics().num_allocations.value(), 0u);
+  EXPECT_EQ(exhausted_alloc.metrics().num_deallocations.value(), 0u);
+
+  // Enough space to allocate the deque, but not enough for the channel.
+  // Deque should be allocated then deallocated.
+  pw::allocator::test::AllocatorForTest<32> deque_only_alloc;
+  channel = CreateDynamicChannel<int>(deque_only_alloc, 2);
+  ASSERT_FALSE(channel.has_value());
+  EXPECT_EQ(deque_only_alloc.metrics().allocated_bytes.value(), 0u);
+  EXPECT_EQ(deque_only_alloc.metrics().num_allocations.value(), 1u);
+  EXPECT_EQ(deque_only_alloc.metrics().num_deallocations.value(), 1u);
 }
 
 }  // namespace
