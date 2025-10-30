@@ -246,8 +246,6 @@ macro_rules! ne {
 mod tests {
     use unittest::test;
 
-    use super::*;
-
     // Because infrastructure to verify panics does not exist, these tests only
     // check for the valid condition and the syntax of the macros being correct.
 
