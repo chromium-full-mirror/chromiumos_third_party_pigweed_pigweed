@@ -318,7 +318,7 @@
     "//pw_toolchain/rust:extensions.bzl%pw_rust": {
       "general": {
         "bzlTransitiveDigest": "LfvjOPyyqhcuI1t56f952NU2ROiXZ7AWgs0tIvPE790=",
-        "usagesDigest": "qiewob+qY1JYSV+267l9czxbojq2wpobHeM59oHfyKs=",
+        "usagesDigest": "AiOKVoyywpk2PeM+ohQ0smDSa052CQMTQdB/eHKFjcs=",
         "recordedFileInputs": {},
         "recordedDirentsInputs": {},
         "envVariables": {},
@@ -328,7 +328,7 @@
             "attributes": {
               "build_file": "@@//pw_toolchain/rust:rust_toolchain.BUILD",
               "path": "fuchsia/third_party/rust/host/linux-arm64",
-              "tag": "git_revisions:fe5c95d4ae33ec9d7831921e448e2daf8264ea42,7b074fc9362a4a6a5f172dd8936a22fb25eff96b"
+              "tag": "git_revisions:a41214f9bd7ce869d21898f31107f92c90a9112f,62adc83c918b1b55f70e4ee33c727b040da2a9ed"
             }
           },
           "rust_toolchain_target_aarch64-unknown-linux-gnu_aarch64": {
@@ -336,7 +336,7 @@
             "attributes": {
               "build_file": "@@//pw_toolchain/rust:rust_stdlib.BUILD",
               "path": "fuchsia/third_party/rust/target/aarch64-unknown-linux-gnu",
-              "tag": "git_revisions:fe5c95d4ae33ec9d7831921e448e2daf8264ea42,7b074fc9362a4a6a5f172dd8936a22fb25eff96b"
+              "tag": "git_revisions:a41214f9bd7ce869d21898f31107f92c90a9112f,62adc83c918b1b55f70e4ee33c727b040da2a9ed"
             }
           },
           "rust_toolchain_host_linux_x86_64": {
@@ -344,7 +344,7 @@
             "attributes": {
               "build_file": "@@//pw_toolchain/rust:rust_toolchain.BUILD",
               "path": "fuchsia/third_party/rust/host/linux-amd64",
-              "tag": "git_revisions:fe5c95d4ae33ec9d7831921e448e2daf8264ea42,7b074fc9362a4a6a5f172dd8936a22fb25eff96b"
+              "tag": "git_revisions:a41214f9bd7ce869d21898f31107f92c90a9112f,62adc83c918b1b55f70e4ee33c727b040da2a9ed"
             }
           },
           "rust_toolchain_target_x86_64-unknown-linux-gnu_x86_64": {
@@ -352,7 +352,7 @@
             "attributes": {
               "build_file": "@@//pw_toolchain/rust:rust_stdlib.BUILD",
               "path": "fuchsia/third_party/rust/target/x86_64-unknown-linux-gnu",
-              "tag": "git_revisions:fe5c95d4ae33ec9d7831921e448e2daf8264ea42,7b074fc9362a4a6a5f172dd8936a22fb25eff96b"
+              "tag": "git_revisions:a41214f9bd7ce869d21898f31107f92c90a9112f,62adc83c918b1b55f70e4ee33c727b040da2a9ed"
             }
           },
           "rust_toolchain_host_macos_aarch64": {
@@ -360,7 +360,7 @@
             "attributes": {
               "build_file": "@@//pw_toolchain/rust:rust_toolchain.BUILD",
               "path": "fuchsia/third_party/rust/host/mac-arm64",
-              "tag": "git_revisions:fe5c95d4ae33ec9d7831921e448e2daf8264ea42,7b074fc9362a4a6a5f172dd8936a22fb25eff96b"
+              "tag": "git_revisions:a41214f9bd7ce869d21898f31107f92c90a9112f,62adc83c918b1b55f70e4ee33c727b040da2a9ed"
             }
           },
           "rust_toolchain_target_aarch64-apple-darwin_aarch64": {
@@ -368,7 +368,7 @@
             "attributes": {
               "build_file": "@@//pw_toolchain/rust:rust_stdlib.BUILD",
               "path": "fuchsia/third_party/rust/target/aarch64-apple-darwin",
-              "tag": "git_revisions:fe5c95d4ae33ec9d7831921e448e2daf8264ea42,7b074fc9362a4a6a5f172dd8936a22fb25eff96b"
+              "tag": "git_revisions:a41214f9bd7ce869d21898f31107f92c90a9112f,62adc83c918b1b55f70e4ee33c727b040da2a9ed"
             }
           },
           "rust_toolchain_host_macos_x86_64": {
@@ -376,7 +376,7 @@
             "attributes": {
               "build_file": "@@//pw_toolchain/rust:rust_toolchain.BUILD",
               "path": "fuchsia/third_party/rust/host/mac-amd64",
-              "tag": "git_revisions:fe5c95d4ae33ec9d7831921e448e2daf8264ea42,7b074fc9362a4a6a5f172dd8936a22fb25eff96b"
+              "tag": "git_revisions:a41214f9bd7ce869d21898f31107f92c90a9112f,62adc83c918b1b55f70e4ee33c727b040da2a9ed"
             }
           },
           "rust_toolchain_target_x86_64-apple-darwin_x86_64": {
@@ -384,7 +384,7 @@
             "attributes": {
               "build_file": "@@//pw_toolchain/rust:rust_stdlib.BUILD",
               "path": "fuchsia/third_party/rust/target/x86_64-apple-darwin",
-              "tag": "git_revisions:fe5c95d4ae33ec9d7831921e448e2daf8264ea42,7b074fc9362a4a6a5f172dd8936a22fb25eff96b"
+              "tag": "git_revisions:a41214f9bd7ce869d21898f31107f92c90a9112f,62adc83c918b1b55f70e4ee33c727b040da2a9ed"
             }
           },
           "rust_toolchain_target_thumbv6m-none-eabi_armv6-m": {
@@ -392,7 +392,7 @@
             "attributes": {
               "build_file": "@@//pw_toolchain/rust:rust_stdlib.BUILD",
               "path": "fuchsia/third_party/rust/target/thumbv6m-none-eabi",
-              "tag": "git_revisions:fe5c95d4ae33ec9d7831921e448e2daf8264ea42,7b074fc9362a4a6a5f172dd8936a22fb25eff96b"
+              "tag": "git_revisions:a41214f9bd7ce869d21898f31107f92c90a9112f,62adc83c918b1b55f70e4ee33c727b040da2a9ed"
             }
           },
           "rust_toolchain_target_thumbv7m-none-eabi_armv7-m": {
@@ -400,7 +400,7 @@
             "attributes": {
               "build_file": "@@//pw_toolchain/rust:rust_stdlib.BUILD",
               "path": "fuchsia/third_party/rust/target/thumbv7m-none-eabi",
-              "tag": "git_revisions:fe5c95d4ae33ec9d7831921e448e2daf8264ea42,7b074fc9362a4a6a5f172dd8936a22fb25eff96b"
+              "tag": "git_revisions:a41214f9bd7ce869d21898f31107f92c90a9112f,62adc83c918b1b55f70e4ee33c727b040da2a9ed"
             }
           },
           "rust_toolchain_target_thumbv7m-none-eabi_armv7e-m": {
@@ -408,7 +408,7 @@
             "attributes": {
               "build_file": "@@//pw_toolchain/rust:rust_stdlib.BUILD",
               "path": "fuchsia/third_party/rust/target/thumbv7m-none-eabi",
-              "tag": "git_revisions:fe5c95d4ae33ec9d7831921e448e2daf8264ea42,7b074fc9362a4a6a5f172dd8936a22fb25eff96b"
+              "tag": "git_revisions:a41214f9bd7ce869d21898f31107f92c90a9112f,62adc83c918b1b55f70e4ee33c727b040da2a9ed"
             }
           },
           "pw_rust_toolchains": {
