@@ -20,6 +20,7 @@ filegroup {
     name: "pw_multibuf_src_files",
 }
 
+// LINT.IfChange
 cc_library_static {
     name: "pw_multibuf",
     defaults: [
@@ -126,6 +127,7 @@ cc_library_static {
         "pw_span",
     ],
 }
+// LINT.ThenChange(BUILD.bazel, BUILD.gn, CMakeLists.txt)
 
 cc_library_headers {
     name: "pw_multibuf_headers",

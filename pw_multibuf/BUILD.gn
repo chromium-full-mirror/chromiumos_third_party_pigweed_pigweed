@@ -19,6 +19,25 @@ import("$dir_pw_build/module_config.gni")
 import("$dir_pw_build/target_types.gni")
 import("$dir_pw_unit_test/test.gni")
 
+config("public_include_path") {
+  include_dirs = [ "public" ]
+  visibility = [ ":*" ]
+}
+
+# LINT.IfChange
+pw_source_set("pw_multibuf") {
+  public_configs = [ ":public_include_path" ]
+  public = [ "public/pw_multibuf/multibuf.h" ]
+  public_deps = [
+    ":config",
+    ":multibuf_v1",
+  ]
+}
+
+# LINT.ThenChange(Android.bp, BUILD.bazel, CMakeLists.txt)
+
+### Module configuration
+
 declare_args() {
   # The build target that overrides the default configuration options for this
   # module. This should point to a source set that provides defines through a
@@ -26,11 +45,7 @@ declare_args() {
   pw_multibuf_CONFIG = pw_build_DEFAULT_MODULE_CONFIG
 }
 
-config("public_include_path") {
-  include_dirs = [ "public" ]
-  visibility = [ ":*" ]
-}
-
+# LINT.IfChange
 pw_source_set("config") {
   public = [ "public/pw_multibuf/config.h" ]
   public_configs = [ ":public_include_path" ]
@@ -41,15 +56,11 @@ config("v1_config") {
   defines = [ "PW_MULTIBUF_VERSION=1" ]
 }
 
-pw_source_set("pw_multibuf") {
-  public_configs = [ ":public_include_path" ]
-  public = [ "public/pw_multibuf/multibuf.h" ]
-  public_deps = [
-    ":config",
-    ":multibuf_v1",
-  ]
-}
+# LINT.ThenChange(BUILD.bazel, CMakeLists.txt)
 
+### Libraries and tests
+
+# LINT.IfChange
 pw_source_set("chunk") {
   public_configs = [ ":public_include_path" ]
   public = [ "public/pw_multibuf/chunk.h" ]
@@ -65,6 +76,9 @@ pw_source_set("chunk") {
   deps = [ "$dir_pw_assert:check" ]
 }
 
+# LINT.ThenChange(Android.bp, BUILD.bazel, CMakeLists.txt)
+
+# LINT.IfChange
 pw_source_set("header_chunk_region_tracker") {
   public_configs = [ ":public_include_path" ]
   public = [ "public/pw_multibuf/header_chunk_region_tracker.h" ]
@@ -120,6 +134,9 @@ pw_test("chunk_test") {
   configs = [ ":v1_config" ]
 }
 
+# LINT.ThenChange(BUILD.bazel, CMakeLists.txt)
+
+# LINT.IfChange
 pw_source_set("multibuf_v1") {
   public_configs = [ ":public_include_path" ]
   public = [ "public/pw_multibuf/multibuf_v1.h" ]
@@ -132,6 +149,9 @@ pw_source_set("multibuf_v1") {
   ]
 }
 
+# LINT.ThenChange(Android.bp, BUILD.bazel, CMakeLists.txt)
+
+# LINT.IfChange
 pw_test("multibuf_v1_test") {
   deps = [
     ":internal_test_utils",
@@ -142,6 +162,9 @@ pw_test("multibuf_v1_test") {
   configs = [ ":v1_config" ]
 }
 
+# LINT.ThenChange(BUILD.bazel, CMakeLists.txt)
+
+# LINT.IfChange
 pw_source_set("allocator") {
   public_configs = [ ":public_include_path" ]
   public = [ "public/pw_multibuf/allocator.h" ]
@@ -155,6 +178,9 @@ pw_source_set("allocator") {
   ]
 }
 
+# LINT.ThenChange(Android.bp, BUILD.bazel, CMakeLists.txt)
+
+# LINT.IfChange
 pw_source_set("allocator_async") {
   public_configs = [ ":public_include_path" ]
   public = [ "public/pw_multibuf/allocator_async.h" ]
@@ -180,6 +206,9 @@ pw_test("allocator_test") {
   configs = [ ":v1_config" ]
 }
 
+# LINT.ThenChange(BUILD.bazel, CMakeLists.txt)
+
+# LINT.IfChange
 pw_source_set("simple_allocator") {
   public_configs = [ ":public_include_path" ]
   public = [ "public/pw_multibuf/simple_allocator.h" ]
@@ -194,6 +223,9 @@ pw_source_set("simple_allocator") {
   deps = [ "$dir_pw_bytes:alignment" ]
 }
 
+# LINT.ThenChange(Android.bp, BUILD.bazel, CMakeLists.txt)
+
+# LINT.IfChange
 pw_test("simple_allocator_test") {
   enable_if = pw_async2_DISPATCHER_BACKEND != ""
   deps = [
@@ -274,21 +306,15 @@ pw_source_set("internal_test_utils") {
 ## Multibuf v2
 
 config("v2_config") {
-  # LINT.IfChange
   defines = [ "PW_MULTIBUF_VERSION=PW_MULTIBUF_V2" ]
-  # LINT.ThenChange(BUILD.bazel, CMakeLists.txt)
 }
 
 pw_source_set("properties") {
-  # LINT.IfChange
   public_configs = [ ":public_include_path" ]
   public = [ "public/pw_multibuf/properties.h" ]
-
-  # LINT.ThenChange(BUILD.bazel, CMakeLists.txt)
 }
 
 pw_source_set("iterators") {
-  # LINT.IfChange
   public_configs = [ ":public_include_path" ]
   public = [
     "public/pw_multibuf/chunks.h",
@@ -304,12 +330,9 @@ pw_source_set("iterators") {
     dir_pw_preprocessor,
   ]
   visibility = [ ":*" ]
-
-  # LINT.ThenChange(BUILD.bazel, CMakeLists.txt)
 }
 
 pw_source_set("iterator_testing") {
-  # LINT.IfChange
   public_configs = [ ":public_include_path" ]
   public = [ "public/pw_multibuf/internal/iterator_testing.h" ]
   public_deps = [
@@ -317,34 +340,28 @@ pw_source_set("iterator_testing") {
     "$dir_pw_allocator:bump_allocator",
     dir_pw_unit_test,
   ]
-
-  # LINT.ThenChange(BUILD.bazel, CMakeLists.txt)
 }
 
 pw_test("chunk_iterator_test") {
-  # LINT.IfChange
   sources = [ "chunk_iterator_test.cc" ]
   deps = [
     ":iterator_testing",
     ":iterators",
   ]
-
-  # LINT.ThenChange(BUILD.bazel, CMakeLists.txt)
 }
 
 pw_test("byte_iterator_test") {
-  # LINT.IfChange
   sources = [ "byte_iterator_test.cc" ]
   deps = [
     ":iterator_testing",
     ":iterators",
   ]
-
-  # LINT.ThenChange(BUILD.bazel, CMakeLists.txt)
 }
 
+# LINT.ThenChange(CMakeLists.txt)
+
+# LINT.IfChange
 pw_source_set("multibuf_v2") {
-  # LINT.IfChange
   public_configs = [ ":public_include_path" ]
   public = [
     "public/pw_multibuf/multibuf_v2.h",
@@ -360,12 +377,12 @@ pw_source_set("multibuf_v2") {
   ]
   sources = [ "generic_multibuf.cc" ]
   deps = [ "$dir_pw_assert:check" ]
-
-  # LINT.ThenChange(BUILD.bazel, CMakeLists.txt)
 }
 
+# LINT.ThenChange(Android.bp, BUILD.bazel, CMakeLists.txt)
+
+# LINT.IfChange
 pw_test("multibuf_v2_test") {
-  # LINT.IfChange
   sources = [ "multibuf_v2_test.cc" ]
   deps = [
     ":chunk",
@@ -379,9 +396,9 @@ pw_test("multibuf_v2_test") {
     dir_pw_status,
   ]
   negative_compilation_tests = true
-
-  # LINT.ThenChange(BUILD.bazel, CMakeLists.txt)
 }
+
+# LINT.ThenChange(BUILD.bazel, CMakeLists.txt)
 
 ## Test group
 

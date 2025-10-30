@@ -27,6 +27,7 @@ package(
 
 licenses(["notice"])
 
+# LINT.IfChange
 cc_library(
     name = "pw_multibuf",
     hdrs = ["public/pw_multibuf/multibuf.h"],
@@ -36,12 +37,16 @@ cc_library(
         ":multibuf_v1",
     ],
 )
+# LINT.ThenChange(Android.bp, BUILD.gn, CMakeLists.txt)
+
+### Module configuration
 
 label_flag(
     name = "config_override",
     build_setting_default = "//pw_build:default_module_config",
 )
 
+# LINT.IfChange
 cc_library(
     name = "config",
     hdrs = ["public/pw_multibuf/config.h"],
@@ -50,14 +55,18 @@ cc_library(
 )
 
 cc_library(
-    name = "v1_test_config",
+    name = "v1_config",
     defines = [
         "PW_MULTIBUF_VERSION=1",
         "PW_MULTIBUF_WARN_DEPRECATED=0",
     ],
     visibility = ["//visibility:private"],
 )
+# LINT.ThenChange(BUILD.gn, CMakeLists.txt)
 
+### Libraries and tests
+
+# LINT.IfChange
 cc_library(
     name = "chunk",
     srcs = ["chunk.cc"],
@@ -73,7 +82,9 @@ cc_library(
         "//pw_sync:mutex",
     ],
 )
+# LINT.ThenChange(Android.bp, BUILD.gn, CMakeLists.txt)
 
+# LINT.IfChange
 cc_library(
     name = "header_chunk_region_tracker",
     hdrs = ["public/pw_multibuf/header_chunk_region_tracker.h"],
@@ -105,7 +116,7 @@ pw_cc_test(
     deps = [
         ":chunk",
         ":header_chunk_region_tracker",
-        ":v1_test_config",
+        ":v1_config",
         "//pw_allocator:testing",
     ],
 )
@@ -117,7 +128,7 @@ pw_cc_test(
     deps = [
         ":chunk",
         ":header_chunk_region_tracker",
-        ":v1_test_config",
+        ":v1_config",
         "//pw_allocator:testing",
         "//pw_status",
     ],
@@ -134,10 +145,12 @@ pw_cc_test(
     deps = [
         ":chunk",
         ":single_chunk_region_tracker",
-        ":v1_test_config",
+        ":v1_config",
     ],
 )
+# LINT.ThenChange(BUILD.gn, CMakeLists.txt)
 
+# LINT.IfChange
 cc_library(
     name = "multibuf_v1",
     srcs = ["multibuf_v1.cc"],
@@ -151,7 +164,9 @@ cc_library(
         "//pw_status",
     ],
 )
+# LINT.ThenChange(Android.bp, BUILD.gn, CMakeLists.txt)
 
+# LINT.IfChange
 pw_cc_test(
     name = "multibuf_v1_test",
     srcs = ["multibuf_v1_test.cc"],
@@ -159,12 +174,14 @@ pw_cc_test(
     deps = [
         ":internal_test_utils",
         ":multibuf_v1",
-        ":v1_test_config",
+        ":v1_config",
         "//pw_assert:check",
         "//pw_bytes",
     ],
 )
+# LINT.ThenChange(BUILD.gn, CMakeLists.txt)
 
+# LINT.IfChange
 cc_library(
     name = "allocator",
     srcs = [
@@ -182,7 +199,9 @@ cc_library(
         "//pw_sync:interrupt_spin_lock",
     ],
 )
+# LINT.ThenChange(Android.bp, BUILD.gn, CMakeLists.txt)
 
+# LINT.IfChange
 cc_library(
     name = "allocator_async",
     srcs = [
@@ -210,12 +229,14 @@ pw_cc_test(
     deps = [
         ":allocator",
         ":allocator_async",
-        ":v1_test_config",
+        ":v1_config",
         "//pw_async2:dispatcher",
         "//pw_async2:poll",
     ],
 )
+# LINT.ThenChange(BUILD.gn, CMakeLists.txt)
 
+# LINT.IfChange
 cc_library(
     name = "simple_allocator",
     srcs = ["simple_allocator.cc"],
@@ -232,14 +253,16 @@ cc_library(
         "//pw_containers:intrusive_list",
     ],
 )
+# LINT.ThenChange(Android.bp, BUILD.gn, CMakeLists.txt)
 
+# LINT.IfChange
 pw_cc_test(
     name = "simple_allocator_test",
     srcs = ["simple_allocator_test.cc"],
     features = ["-conversion_warnings"],
     deps = [
         ":simple_allocator",
-        ":v1_test_config",
+        ":v1_config",
         "//pw_allocator:null_allocator",
         "//pw_allocator:testing",
         "//pw_async2:dispatcher",
@@ -268,7 +291,7 @@ pw_cc_test(
         ":internal_test_utils",
         ":multibuf_v1",
         ":stream",
-        ":v1_test_config",
+        ":v1_config",
     ],
 )
 
@@ -291,7 +314,7 @@ pw_cc_test(
     features = ["-conversion_warnings"],
     deps = [
         ":from_span",
-        ":v1_test_config",
+        ":v1_config",
         "//pw_allocator:testing",
     ],
 )
@@ -333,25 +356,20 @@ cc_library(
 ## MultiBuf v2
 
 cc_library(
-    # LINT.IfChange
     name = "v2_config",
     defines = [
         "PW_MULTIBUF_VERSION=PW_MULTIBUF_V2",
     ],
-    # LINT.ThenChange(BUILD.gn, CMakeLists.txt)
 )
 
 cc_library(
-    # LINT.IfChange
     name = "properties",
     hdrs = ["public/pw_multibuf/properties.h"],
     strip_include_prefix = "public",
     visibility = ["//visibility:public"],
-    # LINT.ThenChange(BUILD.gn, CMakeLists.txt)
 )
 
 cc_library(
-    # LINT.IfChange
     name = "iterators",
     hdrs = [
         "public/pw_multibuf/chunks.h",
@@ -367,11 +385,9 @@ cc_library(
         "//pw_containers:dynamic_deque",
         "//pw_preprocessor",
     ],
-    # LINT.ThenChange(BUILD.gn, CMakeLists.txt)
 )
 
 cc_library(
-    # LINT.IfChange
     name = "iterator_testing",
     testonly = True,
     hdrs = [
@@ -383,11 +399,9 @@ cc_library(
         "//pw_allocator:bump_allocator",
         "//pw_unit_test",
     ],
-    # LINT.ThenChange(BUILD.gn, CMakeLists.txt)
 )
 
 pw_cc_test(
-    # LINT.IfChange
     name = "chunk_iterator_test",
     srcs = [
         "chunk_iterator_test.cc",
@@ -396,11 +410,9 @@ pw_cc_test(
         ":iterator_testing",
         ":iterators",
     ],
-    # LINT.ThenChange(BUILD.gn, CMakeLists.txt)
 )
 
 pw_cc_test(
-    # LINT.IfChange
     name = "byte_iterator_test",
     srcs = [
         "byte_iterator_test.cc",
@@ -409,11 +421,11 @@ pw_cc_test(
         ":iterator_testing",
         ":iterators",
     ],
-    # LINT.ThenChange(BUILD.gn, CMakeLists.txt)
 )
+# LINT.ThenChange(BUILD.gn, CMakeLists.txt)
 
+# LINT.IfChange
 cc_library(
-    # LINT.IfChange
     name = "multibuf_v2",
     srcs = ["generic_multibuf.cc"],
     hdrs = [
@@ -433,11 +445,11 @@ cc_library(
         "//pw_bytes",
         "//pw_containers:dynamic_deque",
     ],
-    # LINT.ThenChange(BUILD.gn, CMakeLists.txt)
 )
+# LINT.ThenChange(Android.bp, BUILD.gn, CMakeLists.txt)
 
+# LINT.IfChange
 pw_cc_test(
-    # LINT.IfChange
     name = "multibuf_v2_test",
     srcs = [
         "multibuf_v2_test.cc",
@@ -454,8 +466,8 @@ pw_cc_test(
         "//pw_result",
         "//pw_status",
     ],
-    # LINT.ThenChange(BUILD.gn, CMakeLists.txt)
 )
+# LINT.ThenChange(BUILD.gn, CMakeLists.txt)
 
 ## Docs
 
