@@ -93,8 +93,9 @@ def create_device_serial_or_socket_connection(
     hdlc_encoding: bool = True,
     device_tracing: bool = True,
     device_class: type[pw_device.Device] | None = pw_device.Device,
-    device_tracing_class: type[pw_device_tracing.DeviceWithTracing]
-    | None = (pw_device_tracing.DeviceWithTracing),
+    device_tracing_class: type[pw_device_tracing.DeviceWithTracing] | None = (
+        pw_device_tracing.DeviceWithTracing
+    ),
     timestamp_decoder: Callable[[int], str] | None = None,
     extra_frame_handlers: dict[int, Callable[[bytes, Any], Any]] | None = None,
 ) -> DeviceConnection:

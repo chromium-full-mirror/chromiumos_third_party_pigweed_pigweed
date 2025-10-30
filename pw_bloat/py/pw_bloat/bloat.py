@@ -154,9 +154,10 @@ def memory_regions_size_report(
         NoMemoryRegions: The ELF does not define memory region symbols.
     """
     with tempfile.NamedTemporaryFile() as bloaty_config:
-        with open(elf.resolve(), "rb") as infile, open(
-            bloaty_config.name, "w"
-        ) as outfile:
+        with (
+            open(elf.resolve(), "rb") as infile,
+            open(bloaty_config.name, "w") as outfile,
+        ):
             result = generate_bloaty_config(
                 infile,
                 enable_memoryregions=True,

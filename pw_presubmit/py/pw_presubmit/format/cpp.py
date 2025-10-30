@@ -66,9 +66,9 @@ class ClangFormatFormatter(FileFormatter):
         return FormattedFileContents(
             ok=proc.returncode == 0,
             formatted_file_contents=proc.stdout,
-            error_message=proc.stderr.decode()
-            if proc.returncode != 0
-            else None,
+            error_message=(
+                proc.stderr.decode() if proc.returncode != 0 else None
+            ),
         )
 
     def format_file(self, file_path: Path) -> FormatFixStatus:

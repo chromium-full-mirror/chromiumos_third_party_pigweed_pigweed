@@ -558,11 +558,14 @@ class AutoUpdatingDetokenizerTest(unittest.TestCase):
         mock_getmtime.side_effect = move_back_time_if_file_exists
 
         with tempfile.TemporaryDirectory() as dbdir:
-            with tempfile.NamedTemporaryFile(
-                'wb', delete=False, suffix='.pw_tokenizer.csv', dir=dbdir
-            ) as matching_suffix_file, tempfile.NamedTemporaryFile(
-                'wb', delete=False, suffix='.not.right', dir=dbdir
-            ) as mismatched_suffix_file:
+            with (
+                tempfile.NamedTemporaryFile(
+                    'wb', delete=False, suffix='.pw_tokenizer.csv', dir=dbdir
+                ) as matching_suffix_file,
+                tempfile.NamedTemporaryFile(
+                    'wb', delete=False, suffix='.not.right', dir=dbdir
+                ) as mismatched_suffix_file,
+            ):
                 try:
                     matching_suffix_file.close()
                     mismatched_suffix_file.close()

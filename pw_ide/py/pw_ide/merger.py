@@ -469,7 +469,9 @@ def main() -> int:
         with open(merged_json_path, "w") as f:
             f.write(content)
 
-    _LOG.info("✅ Successfully created compilation databases in: %s", output_dir)
+    _LOG.info(
+        "✅ Successfully created compilation databases in: %s", output_dir
+    )
     return 0
 
 

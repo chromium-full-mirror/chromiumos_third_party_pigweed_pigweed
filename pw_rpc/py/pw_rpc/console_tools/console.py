@@ -284,9 +284,9 @@ class Context:
 
         # Make the proto package hierarchy directly available in the console.
         for package in self.protos.packages:
-            self._variables[
-                package._package
-            ] = package  # pylint: disable=protected-access
+            self._variables[package._package] = (
+                package  # pylint: disable=protected-access
+            )
 
         # Monkey patch the message types to use an improved repr function.
         for message_type in self.protos.messages():

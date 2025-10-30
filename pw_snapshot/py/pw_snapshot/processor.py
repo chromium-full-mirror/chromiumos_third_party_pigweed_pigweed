@@ -186,8 +186,9 @@ def process_snapshots(
     elf_matcher: ElfMatcher | None = None,
     user_processing_callback: Callable[[bytes], str] | None = None,
     symbolizer_matcher: SymbolizerMatcher | None = None,
-    thread_processing_callback: Callable[[snapshot_pb2.Snapshot, bytes], str]
-    | None = None,
+    thread_processing_callback: (
+        Callable[[snapshot_pb2.Snapshot, bytes], str] | None
+    ) = None,
     process_logs: LogProcessor | None = _default_log_processor,
 ) -> str:
     """Processes a snapshot that may have multiple embedded snapshots."""

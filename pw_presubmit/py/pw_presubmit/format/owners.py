@@ -90,20 +90,22 @@ class OwnersFile:
         # Special type to hold lines that don't get attached to another type
         TRAILING_COMMENTS = "trailing-comments"
 
-    _LINE_TYPERS: OrderedDict[
-        _LineType, Callable[[str], bool]
-    ] = collections.OrderedDict(
-        (
-            (_LineType.COMMENT, lambda x: x.startswith("#")),
-            (_LineType.WILDCARD, lambda x: x == "*"),
-            (_LineType.FILE_LEVEL, lambda x: x.startswith("set ")),
-            (_LineType.FILE_RULE, lambda x: x.startswith("file:")),
-            (_LineType.INCLUDE, lambda x: x.startswith("include ")),
-            (_LineType.PER_FILE, lambda x: x.startswith("per-file ")),
+    _LINE_TYPERS: OrderedDict[_LineType, Callable[[str], bool]] = (
+        collections.OrderedDict(
             (
-                _LineType.USER,
-                lambda x: bool(re.match("^[a-zA-Z1-9.+-]+@[a-zA-Z0-9.-]+", x)),
-            ),
+                (_LineType.COMMENT, lambda x: x.startswith("#")),
+                (_LineType.WILDCARD, lambda x: x == "*"),
+                (_LineType.FILE_LEVEL, lambda x: x.startswith("set ")),
+                (_LineType.FILE_RULE, lambda x: x.startswith("file:")),
+                (_LineType.INCLUDE, lambda x: x.startswith("include ")),
+                (_LineType.PER_FILE, lambda x: x.startswith("per-file ")),
+                (
+                    _LineType.USER,
+                    lambda x: bool(
+                        re.match("^[a-zA-Z1-9.+-]+@[a-zA-Z0-9.-]+", x)
+                    ),
+                ),
+            )
         )
     )
     path: Path
@@ -166,9 +168,9 @@ class OwnersFile:
         cleaned_lines: list[str],
     ) -> DefaultDict[_LineType, list[_Line]]:
         """Converts text lines of OWNERS into structured object."""
-        sections: DefaultDict[
-            OwnersFile._LineType, list[_Line]
-        ] = collections.defaultdict(list)
+        sections: DefaultDict[OwnersFile._LineType, list[_Line]] = (
+            collections.defaultdict(list)
+        )
         comment_buffer: list[str] = []
 
         def add_line_to_sections(

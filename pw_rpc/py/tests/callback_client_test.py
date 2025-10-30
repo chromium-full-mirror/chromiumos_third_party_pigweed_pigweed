@@ -154,9 +154,9 @@ class _CallbackClientImplTestBase(unittest.TestCase):
                 packet_pb2.RpcPacket(
                     type=packet_pb2.PacketType.SERVER_ERROR,
                     channel_id=channel_id,
-                    service_id=service
-                    if isinstance(service, int)
-                    else service.id,
+                    service_id=(
+                        service if isinstance(service, int) else service.id
+                    ),
                     method_id=method if isinstance(method, int) else method.id,
                     call_id=call_id,
                     status=status.value,

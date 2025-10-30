@@ -136,9 +136,10 @@ def bazel(
                     (ctx.output_dir / f'bazel.{cmd}.stdout').open('w')
                 )
 
-            with (ctx.output_dir / 'bazel.output.base').open('w') as outs, (
-                ctx.output_dir / 'bazel.output.base.err'
-            ).open('w') as errs:
+            with (
+                (ctx.output_dir / 'bazel.output.base').open('w') as outs,
+                (ctx.output_dir / 'bazel.output.base.err').open('w') as errs,
+            ):
                 call(
                     BAZEL_EXECUTABLE,
                     'info',

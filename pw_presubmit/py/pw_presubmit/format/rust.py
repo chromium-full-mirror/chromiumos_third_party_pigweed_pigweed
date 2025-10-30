@@ -110,9 +110,9 @@ class RustfmtFormatter(FileFormatter):
             ``True``, any successful format operations with warnings will also
             be returned.
         """
-        paths_by_config: Mapping[
-            Path | None, Iterable[Path]
-        ] = find_config.paths_by_nearest_config(_RUSTFMT_CONFIG_PATTERN, paths)
+        paths_by_config: Mapping[Path | None, Iterable[Path]] = (
+            find_config.paths_by_nearest_config(_RUSTFMT_CONFIG_PATTERN, paths)
+        )
 
         for _, group_paths in paths_by_config.items():
             str_paths = [str(p) for p in group_paths]

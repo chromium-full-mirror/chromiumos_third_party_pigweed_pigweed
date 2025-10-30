@@ -1154,9 +1154,11 @@ ARDUINO_PICO = (
     # Skip gn_teensy_build if running on mac-arm64.
     # There are no arm specific tools packages available upstream:
     # https://www.pjrc.com/teensy/package_teensy_index.json
-    gn_teensy_build
-    if not (sys.platform == 'darwin' and platform.machine() == 'arm64')
-    else (),
+    (
+        gn_teensy_build
+        if not (sys.platform == 'darwin' and platform.machine() == 'arm64')
+        else ()
+    ),
     gn_pico_build,
     gn_pw_system_demo_build,
 )

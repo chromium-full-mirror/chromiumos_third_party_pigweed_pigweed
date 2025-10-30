@@ -713,9 +713,9 @@ def cmd_cpp(  # pylint: disable=too-many-arguments, too-many-locals, too-many-br
         )
 
         try:
-            CppIdeFeaturesState(
-                pw_ide_settings
-            ).current_target = state.targets.get(target_to_set, None)
+            CppIdeFeaturesState(pw_ide_settings).current_target = (
+                state.targets.get(target_to_set, None)
+            )
 
             if str(CppIdeFeaturesState(pw_ide_settings).current_target) != str(
                 target_to_set

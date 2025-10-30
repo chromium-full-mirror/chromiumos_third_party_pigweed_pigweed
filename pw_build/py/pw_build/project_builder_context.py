@@ -220,9 +220,9 @@ class ProjectBuilderContext:  # pylint: disable=too-many-instance-attributes,too
         self.progress_bar.__enter__()  # pylint: disable=unnecessary-dunder-call
 
         self.create_title_bar_container()
-        self.progress_bar.app.layout.container.children[  # type: ignore
-            0
-        ] = DynamicContainer(lambda: self.title_bar_container)
+        self.progress_bar.app.layout.container.children[0] = (  # type: ignore
+            DynamicContainer(lambda: self.title_bar_container)
+        )
         self._progress_bar_started = True
 
     def exit_progress(self) -> None:

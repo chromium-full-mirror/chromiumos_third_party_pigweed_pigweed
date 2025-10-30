@@ -47,9 +47,9 @@ if TYPE_CHECKING:
 _COLOR = pw_cli.color.colors()
 _LOG: logging.Logger = logging.getLogger(__name__)
 
-PRESUBMIT_CHECK_TRACE: ContextVar[
-    dict[str, list[PresubmitCheckTrace]]
-] = ContextVar('pw_presubmit_check_trace', default={})
+PRESUBMIT_CHECK_TRACE: ContextVar[dict[str, list[PresubmitCheckTrace]]] = (
+    ContextVar('pw_presubmit_check_trace', default={})
+)
 
 
 # TODO: b/433258471 - Pass in project root rather than getting it from the env.
@@ -612,9 +612,11 @@ class PresubmitContext:  # pylint: disable=too-many-instance-attributes
     def __hash__(self):
         return hash(
             tuple(
-                tuple(attribute.items())
-                if isinstance(attribute, dict)
-                else attribute
+                (
+                    tuple(attribute.items())
+                    if isinstance(attribute, dict)
+                    else attribute
+                )
                 for attribute in dataclasses.astuple(self)
             )
         )

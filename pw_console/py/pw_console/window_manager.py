@@ -413,9 +413,9 @@ class WindowManager:
 
     def update_root_container_body(self):
         # Replace the root MenuContainer body with the new split.
-        self.application.root_container.container.content.children[
-            1
-        ] = self.create_root_container()
+        self.application.root_container.container.content.children[1] = (
+            self.create_root_container()
+        )
 
     def _get_active_window_list_and_pane(self):
         active_pane = None
@@ -977,9 +977,9 @@ class WindowManager:
             # iterating.
             for pane in copy.copy(window_list.active_panes):
                 if pane.pane_title() in pane_titles:
-                    collected_panes[
-                        pane.pane_title()
-                    ] = window_list.remove_pane_no_checks(pane)
+                    collected_panes[pane.pane_title()] = (
+                        window_list.remove_pane_no_checks(pane)
+                    )
         return collected_panes
 
     def _set_pane_options(  # pylint: disable=no-self-use

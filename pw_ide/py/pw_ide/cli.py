@@ -216,8 +216,7 @@ class _ParserAdder(Protocol):
 
     def __call__(
         self, subcommand_handler: Callable[..., None], *args: Any, **kwargs: Any
-    ) -> argparse.ArgumentParser:
-        ...
+    ) -> argparse.ArgumentParser: ...
 
 
 def _parser_adder(subcommand_parser) -> _ParserAdder:

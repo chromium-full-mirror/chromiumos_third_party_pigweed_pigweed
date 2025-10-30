@@ -394,9 +394,9 @@ class Presubmit:
     def apply_filters(self, program: Sequence[Callable]) -> list[FilteredCheck]:
         """Returns list of FilteredCheck for checks that should run."""
         checks = [c if isinstance(c, Check) else Check(c) for c in program]
-        filter_to_checks: dict[
-            FileFilter, list[Check]
-        ] = collections.defaultdict(list)
+        filter_to_checks: dict[FileFilter, list[Check]] = (
+            collections.defaultdict(list)
+        )
 
         for chk in checks:
             filter_to_checks[chk.filter].append(chk)

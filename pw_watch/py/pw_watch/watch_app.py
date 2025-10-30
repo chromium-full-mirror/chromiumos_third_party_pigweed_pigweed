@@ -589,9 +589,9 @@ class WatchApp(PluginMixin):
         def _next_error(_event):
             self.jump_to_error()
 
-        existing_log_bindings: (
-            KeyBindingsBase | None
-        ) = new_log_pane.log_content_control.key_bindings
+        existing_log_bindings: KeyBindingsBase | None = (
+            new_log_pane.log_content_control.key_bindings
+        )
 
         key_binding_list: list[KeyBindingsBase] = []
         if existing_log_bindings:
