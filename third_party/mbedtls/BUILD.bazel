@@ -31,7 +31,6 @@ alias(
 cc_library(
     name = "mcu_config",
     hdrs = [
-        "configs/config_default.h",
         "configs/config_pigweed.h",
     ],
     defines = [

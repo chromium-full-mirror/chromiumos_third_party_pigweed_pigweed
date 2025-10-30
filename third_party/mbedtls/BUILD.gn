@@ -250,7 +250,6 @@ if (dir_pw_third_party_mbedtls != "") {
     }
 
     public = [
-      "configs/config_default.h",
       "configs/config_pigweed.h",
       "configs/config_pigweed_common.h",
       "configs/config_pigweed_host.h",
