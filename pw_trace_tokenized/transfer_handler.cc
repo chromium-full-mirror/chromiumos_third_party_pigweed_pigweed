@@ -18,6 +18,8 @@
 
 #include "pw_assert/check.h"
 #include "pw_containers/algorithm.h"
+#include "pw_containers/inline_var_len_entry_queue.h"
+#include "pw_containers/var_len_entry_queue.h"
 #include "pw_log/log.h"
 #include "pw_trace_tokenized/trace_buffer.h"
 
@@ -43,21 +45,10 @@ size_t TraceBufferReader::MoveFromTraceBuffer(ByteSpan dest) {
   if (dest.empty()) {
     return 0;
   }
-  TraceBuffer* trace_buffer = trace::GetBuffer();
-  size_t total_read = 0;
-  while (!dest.empty()) {
-    size_t bytes_read = 0;
-    if (!trace_buffer->PeekFront(dest.subspan(1), &bytes_read).ok()) {
-      break;
-    }
-    PW_CHECK_UINT_LE(bytes_read, std::numeric_limits<uint8_t>::max());
-    dest[0] = static_cast<std::byte>(bytes_read);
-    ++bytes_read;
-    trace_buffer->PopFront().IgnoreError();
-    total_read += bytes_read;
-    dest = dest.subspan(bytes_read);
-  }
-  return total_read;
+  InlineVarLenEntryQueue<>& trace_buffer_queue = trace::GetBuffer()->queue();
+  VarLenEntryQueue dest_queue(dest);
+  MoveVarLenEntries(trace_buffer_queue, dest_queue);
+  return dest_queue.encoded_size_bytes();
 }
 
 StatusWithSize TraceBufferReader::DoRead(ByteSpan dest) {
