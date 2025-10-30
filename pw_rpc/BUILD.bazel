@@ -83,9 +83,9 @@ cc_library(
 pw_cc_test(
     name = "benchmark_service_test",
     srcs = ["benchmark_service_test.cc"],
-    features = ["-conversion_warnings"],
     deps = [
         ":benchmark",
+        "//pw_bytes",
         "//pw_rpc:pw_rpc_test_raw_rpc",
         "//pw_rpc/raw:test_method_context",
     ],

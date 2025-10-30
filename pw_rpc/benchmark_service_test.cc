@@ -12,8 +12,7 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 
-#include <ranges>
-
+#include "pw_bytes/span.h"
 #include "pw_rpc/benchmark.h"
 #include "pw_rpc/raw/test_method_context.h"
 #include "pw_rpc_test_protos/test.raw_rpc.pb.h"
@@ -22,6 +21,7 @@
 namespace pw::rpc {
 namespace {
 
+// std::ranges::equal is only supported in C++20 and later.
 bool DataEqual(pw::ConstByteSpan s1, pw::ConstByteSpan s2) {
   return std::equal(s1.begin(), s1.end(), s2.begin(), s2.end());
 }
@@ -32,18 +32,14 @@ TEST(BenchmarkService, Benchmark_UnaryEchoRequestMessage) {
 
   context.call(msg);
   EXPECT_EQ(OkStatus(), context.status());
-  // std::ranges::equal is only supported in C++20 and later.
   ASSERT_TRUE(DataEqual(context.response(), msg));
 }
 
 TEST(BenchmarkService, Benchmark_EmptyRequest) {
   PW_RAW_TEST_METHOD_CONTEXT(BenchmarkService, UnaryEcho) context;
-  std::vector<std::byte> msg = {};
-
-  context.call(msg);
+  context.call({});
   EXPECT_EQ(OkStatus(), context.status());
-  // std::ranges::equal is only supported in C++20 and later.
-  ASSERT_TRUE(DataEqual(context.response(), msg));
+  ASSERT_TRUE(DataEqual(context.response(), {}));
 }
 
 }  // namespace
