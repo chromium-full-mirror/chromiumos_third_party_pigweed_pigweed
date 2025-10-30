@@ -378,3 +378,180 @@ completing the task re-running, the tuple stores all of their results.
 
            co_return pw::OkStatus();
          }
+
+--------
+Channels
+--------
+Channels are the primary mechanism for communicating between asynchronous tasks
+in ``pw_async2``. They provide a synchronized way to pass data between tasks.
+
+A channel is a fixed-capacity queue that supports multiple senders and multiple
+receivers. Channels can be used between async tasks on the same dispatcher,
+between tasks on different dispatchers, or between tasks and non-async code.
+There are two types of channel: :cc:`pw::async2::experimental::StaticChannel`,
+which is managed by the user, and :cc:`pw::async2::experimental::DynamicChannel`,
+which is dynamically allocated and automatically manages its lifetime.
+
+.. code-block:: cpp
+
+   #include "pw_async2/channel.h"
+
+   // Instantiate a user-managed channel with a capacity of 10 integers.
+   // The channel must outlive all of its senders and receivers.
+   pw::async2::experimental::StaticChannel<int, 10> channel;
+
+   // Create one or more senders and receivers to the channel and hand them out
+   // to various parts of the system.
+   pw::async2::experimental::Sender<int> sender = channel.CreateSender();
+   pw::async2::experimental::Receiver<int> receiver = channel.CreateReceiver();
+
+Sending and receiving
+=====================
+Senders and receivers provide asynchronous APIs for interacting with the
+channel.
+
+- ``Sender::Send(T value)``: Returns a ``Future<bool>`` which resolves to
+  ``true`` when the value has been written to the channel. If the channel is
+  full, the future waits until space is available. If the channel closes, the
+  future resolves to ``false``.
+- ``Receiver::Receive()``: Returns a ``Future<std::optional<T>>`` which waits
+  until a value is available, or resolves to ``std::nullopt`` if the channel is
+  closed and empty.
+
+.. tab-set::
+
+   .. tab-item:: Standard polling
+
+      .. literalinclude:: examples/channel.cc
+         :language: cpp
+         :linenos:
+         :start-after: // DOCSTAG: [pw_async2-examples-channel-manual]
+         :end-before: // DOCSTAG: [pw_async2-examples-channel-manual]
+
+   .. tab-item:: C++20 coroutines
+
+      .. literalinclude:: examples/channel.cc
+         :language: cpp
+         :linenos:
+         :start-after: // DOCSTAG: [pw_async2-examples-channel-coro]
+         :end-before: // DOCSTAG: [pw_async2-examples-channel-coro]
+
+ReserveSend
+-----------
+``Sender::ReserveSend()`` is an alternative API for writing data to a channel.
+Unlike the regular ``Send``, which takes a value immediately and stages it in
+its future, ``ReserveSend`` allows writing a value directly into the channel
+once space is available. This can be useful for values which are expensive to
+construct/move or rapidly changing. By waiting for a reservation, you can defer
+capturing the value until you are guaranteed to be able to send it immediately.
+
+``ReserveSend`` returns a ``Future<std::optional<SendReservation<T>>>``. The
+``SendReservation`` object is used to emplace a value directly into the channel.
+If the reservation is dropped, it automatically releases the channel space.
+If the channel closes, the future resolves to ``std::nullopt``.
+
+It is possible to use both ``Send`` and ``ReserveSend`` concurrently on the same
+channel.
+
+.. tab-set::
+
+   .. tab-item:: Standard polling
+
+      .. code-block:: cpp
+
+         class ReservedSenderTask : public pw::async2::Task {
+          public:
+           explicit ReservedSenderTask(pw::async2::experimental::Sender<int>&& sender)
+               : sender(std::move(sender)) {}
+
+          private:
+           Poll<> DoPend(pw::async2::Context& cx) override {
+             // Reserve space for a value in the channel.
+             if (!reservation_future_.has_value()) {
+               reservation_future_ = sender.ReserveSend();
+             }
+
+             PW_TRY_READY_ASSIGN(auto reservation, reservation_future_);
+             if (!reservation.has_value()) {
+               PW_LOG_ERROR("Channel is closed");
+               return;
+             }
+
+             // Emplace a value into the channel.
+             reservation->Commit(42);
+             reservation_future_.reset();
+             return pw::async2::Ready();
+           }
+
+           pw::async2::experimental::Sender<int> sender;
+           std::optional<pw::async2::experimental::ReserveSendFuture<int>>
+               reservation_future_;
+         };
+
+   .. tab-item:: C++20 coroutines
+
+      .. code-block:: cpp
+
+         pw::async2::Coro<Status> ReservedSenderExample(
+             pw::async2::CoroContext&, pw::async2::experimental::Sender<int> sender) {
+           // Wait for space to become available.
+           auto reservation = co_await sender.ReserveSend();
+           if (!reservation.has_value()) {
+             PW_LOG_ERROR("Channel is closed");
+             co_return pw::Status::FailedPrecondition();
+           }
+
+           // Emplace a value into the channel.
+           reservation->Commit(42);
+           co_return pw::OkStatus();
+         }
+
+Channel lifetime
+================
+A channel remains open as long as it has at least one active sender and at least
+one active receiver.
+
+- If all receivers are destroyed, the channel closes. Subsequent ``Send``
+  attempts will fail (the future resolves to ``false``).
+- If all senders are destroyed, the channel closes. Subsequent ``Receive`` calls
+  will drain any remaining items, then resolve to ``std::nullopt``.
+
+Dynamic allocation
+==================
+In systems that have dynamic allocation, you can use ``CreateDynamicChannel``
+to allocate a managed channel from an :cc:`Allocator`.
+
+.. code-block:: cpp
+
+   #include "pw_async2/channel.h"
+
+   constexpr size_t kCapacity = 10;
+   std::optional<pw::async2::experimental::DynamicChannel<int>> channel =
+       pw::async2::experimental::CreateDynamicChannel<int>(GetSystemAllocator(),
+                                                           kCapacity);
+   if (!channel.has_value()) {
+     PW_LOG_ERROR("Out of memory");
+     return;
+   }
+
+   // Create one or more senders and receivers to the channel and hand them out
+   // to various parts of the system.
+   pw::async2::experimental::Sender<int> sender = channel.CreateSender();
+   pw::async2::experimental::Receiver<int> receiver = channel.CreateReceiver();
+
+   // After all senders and receivers are created, you can allow the
+   // `DynamicChannel` handle to go out of scope. The channel will remain open as
+   // long as there are active senders and receivers.
+
+Synchronous access
+==================
+If you need to write to a channel from a non-async context, such as a
+separate thread or an interrupt handler, you can use ``TrySend``.
+
+- ``Sender::TrySend(T value)``: Attempts to send the value immediately. Returns
+  ``true`` if successful, or ``false`` if the channel is full or closed.
+
+.. note::
+
+   Pigweed intends to add a corresponding ``TryReceive`` to the ``Receiver``,
+   as well as synchronous blocking APIs for both senders and receivers.

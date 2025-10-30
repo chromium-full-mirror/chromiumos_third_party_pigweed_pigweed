@@ -13,7 +13,7 @@
 # the License.
 
 load("@rules_python//sphinxdocs:sphinx_docs_library.bzl", "sphinx_docs_library")
-load("//pw_build:compatibility.bzl", "incompatible_with_mcu")
+load("//pw_build:compatibility.bzl", "incompatible_with_mcu", "minimum_cxx_20")
 load("//pw_build:pw_cc_binary.bzl", "pw_cc_binary")
 load("//pw_unit_test:pw_cc_test.bzl", "pw_cc_test")
 load("//pw_unit_test:pw_golden_test.bzl", "pw_golden_test")
@@ -54,6 +54,20 @@ pw_cc_binary(
     ],
 )
 # count-example-end
+
+pw_cc_test(
+    name = "channel",
+    srcs = ["channel.cc"],
+    target_compatible_with = minimum_cxx_20(),
+    deps = [
+        "//pw_allocator:testing",
+        "//pw_async2:channel",
+        "//pw_async2:coro",
+        "//pw_async2:coro_or_else_task",
+        "//pw_async2:dispatcher",
+        "//pw_containers:vector",
+    ],
+)
 
 pw_cc_test(
     name = "coro_blinky_loop",
@@ -170,6 +184,7 @@ sphinx_docs_library(
         "BUILD.bazel",
         "BUILD.gn",
         "basic.cc",
+        "channel.cc",
         "coro_blinky_loop.cc",
         "count.cc",
         "custom_future.cc",
@@ -182,4 +197,7 @@ sphinx_docs_library(
     target_compatible_with = incompatible_with_mcu(),
 )
 
-exports_files(["custom_future.cc"])
+exports_files([
+    "channel.cc",
+    "custom_future.cc",
+])

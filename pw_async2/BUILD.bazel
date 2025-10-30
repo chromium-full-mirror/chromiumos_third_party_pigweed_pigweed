@@ -664,6 +664,7 @@ sphinx_docs_library(
         "public/pw_async2/coro.h",
         "quickstart.rst",
         "//pw_async2/codelab:docs",
+        "//pw_async2/examples:channel.cc",
         "//pw_async2/examples:custom_future.cc",
         "//pw_async2/examples:docs",
         "//pw_async2/size_report:full_size_report",

@@ -23,6 +23,18 @@ if("cxx_std_20" IN_LIST CMAKE_CXX_COMPILE_FEATURES)
       pw_async2.coro
   )
 
+  pw_add_test(pw_async2.examples.channel
+    SOURCES
+      channel.cc
+    PRIVATE_DEPS
+      pw_allocator.testing
+      pw_async2.channel
+      pw_async2.coro
+      pw_async2.coro_or_else_task
+      pw_async2.dispatcher
+      pw_containers.vector
+  )
+
   pw_add_test(pw_async2.examples.coro_blinky_loop
     SOURCES
       coro_blinky_loop.cc

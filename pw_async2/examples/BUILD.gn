@@ -48,6 +48,19 @@ if (pw_toolchain_CXX_STANDARD >= pw_toolchain_STANDARD.CXX20) {
 
   # count-example-end
 
+  pw_test("channel") {
+    enable_if = pw_async2_DISPATCHER_BACKEND != ""
+    deps = [
+      "$dir_pw_allocator:testing",
+      "$dir_pw_async2:channel",
+      "$dir_pw_async2:coro",
+      "$dir_pw_async2:coro_or_else_task",
+      "$dir_pw_async2:dispatcher",
+      "$dir_pw_containers:vector",
+    ]
+    sources = [ "channel.cc" ]
+  }
+
   pw_test("coro_blinky_loop") {
     enable_if = pw_async2_DISPATCHER_BACKEND != ""
     sources = [ "coro_blinky_loop.cc" ]
@@ -148,6 +161,7 @@ pw_test_group("examples") {
   if (pw_toolchain_CXX_STANDARD >= pw_toolchain_STANDARD.CXX20) {
     tests += [
       ":basic",
+      ":channel",
       ":coro_blinky_loop",
       ":inline_async_queue_with_coro_test",
       ":once_send_recv_test",
