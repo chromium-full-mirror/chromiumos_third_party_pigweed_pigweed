@@ -52,6 +52,43 @@ TEST_F(AllocatorTest, NewAndDelete) {
   EXPECT_EQ(Counter::TakeNumDtorCalls(), 1u);
 }
 
+class VirtualCounter : public Counter {
+ public:
+  virtual ~VirtualCounter() { EXPECT_TRUE(must_be_set_by_derived_destructor_); }
+
+ protected:
+  explicit VirtualCounter(size_t value) : Counter(value) {}
+
+  bool must_be_set_by_derived_destructor_ = false;
+};
+
+class DerivedVirtualCounter : public VirtualCounter {
+ public:
+  explicit DerivedVirtualCounter(size_t value) : VirtualCounter(value) {}
+
+  ~DerivedVirtualCounter() override {
+    must_be_set_by_derived_destructor_ = filler_bools[0];
+  }
+
+ private:
+  // Add an array of bools to increase the size of the object. Use the first
+  // value in the destructor so the array is used.
+  bool filler_bools[12] = {true};
+};
+
+static_assert(sizeof(DerivedVirtualCounter) != sizeof(VirtualCounter),
+              "Test should cover deleting an object with a different layout");
+
+TEST_F(AllocatorTest, NewAndDeleteVirtualDestructor) {
+  // Assign the DerivedVirtualCounter* to its base VirtualCounter*.
+  VirtualCounter* counter = allocator_.New<DerivedVirtualCounter>(2u);
+  ASSERT_NE(counter, nullptr);
+  EXPECT_EQ(counter->value(), 2u);
+  EXPECT_EQ(Counter::TakeNumDtorCalls(), 0u);
+  allocator_.Delete(counter);
+  EXPECT_EQ(Counter::TakeNumDtorCalls(), 1u);
+}
+
 TEST_F(AllocatorTest, NewAndDeleteBoundedArray) {
   auto* counters = allocator_.New<Counter[3]>();
   ASSERT_NE(counters, nullptr);
