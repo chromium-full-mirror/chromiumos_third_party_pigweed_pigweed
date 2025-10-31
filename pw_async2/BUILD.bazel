@@ -616,6 +616,7 @@ cc_library(
         ":poll",
         "//pw_allocator",
         "//pw_containers:deque",
+        "//pw_numeric:checked_arithmetic",
         "//pw_sync:interrupt_spin_lock",
     ],
 )

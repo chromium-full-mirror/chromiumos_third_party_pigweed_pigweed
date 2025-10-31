@@ -492,6 +492,7 @@ pw_source_set("channel") {
     ":poll",
     "$dir_pw_allocator",
     "$dir_pw_containers:deque",
+    "$dir_pw_numeric:checked_arithmetic",
     "$dir_pw_sync:interrupt_spin_lock",
   ]
 }

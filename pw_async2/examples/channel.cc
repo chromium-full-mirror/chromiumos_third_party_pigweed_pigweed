@@ -25,9 +25,14 @@
 namespace {
 
 // DOCSTAG: [pw_async2-examples-channel-manual]
+using pw::async2::experimental::ReceiveFuture;
+using pw::async2::experimental::Receiver;
+using pw::async2::experimental::Sender;
+using pw::async2::experimental::SendFuture;
+
 class Producer : public pw::async2::Task {
  public:
-  explicit Producer(pw::async2::experimental::Sender<int>&& sender)
+  explicit Producer(Sender<int>&& sender)
       : pw::async2::Task(PW_ASYNC_TASK_NAME("Producer")),
         sender_(std::move(sender)) {}
 
@@ -46,13 +51,13 @@ class Producer : public pw::async2::Task {
   }
 
   int data_ = 0;
-  pw::async2::experimental::Sender<int> sender_;
-  std::optional<pw::async2::experimental::SendFuture<int>> send_future_;
+  Sender<int> sender_;
+  std::optional<SendFuture<int>> send_future_;
 };
 
 class Consumer : public pw::async2::Task {
  public:
-  explicit Consumer(pw::async2::experimental::Receiver<int>&& receiver)
+  explicit Consumer(Receiver<int>&& receiver)
       : pw::async2::Task(PW_ASYNC_TASK_NAME("Consumer")),
         receiver_(std::move(receiver)) {}
 
@@ -76,17 +81,30 @@ class Consumer : public pw::async2::Task {
     return pw::async2::Ready();
   }
 
-  pw::async2::experimental::Receiver<int> receiver_;
-  std::optional<pw::async2::experimental::ReceiveFuture<int>> receive_future_;
+  Receiver<int> receiver_;
+  std::optional<ReceiveFuture<int>> receive_future_;
   pw::Vector<int, 3> values_;
 };
 // DOCSTAG: [pw_async2-examples-channel-manual]
 
 TEST(Channel, Manual) {
+  pw::async2::experimental::ChannelStorage<int, 1> storage;
+  auto [channel, sender, receiver] = CreateSpscChannel<int>(storage);
+
+  // The returned channel handle is used to create senders and receivers.
+  // Since this is a single producer single consumer channel, that isn't
+  // possible, so its only other use is to manually close the channel.
+  // We don't need that as we rely on automatic closing when the sender
+  // completes.
+  //
+  // It is important to call `Release` once you are done with the handle to
+  // prevent keeping the channel alive longer than needed.
+  channel.Release();
+
+  Producer producer(std::move(sender));
+  Consumer consumer(std::move(receiver));
+
   pw::async2::Dispatcher dispatcher;
-  pw::async2::experimental::StaticChannel<int, 1> channel;
-  Producer producer(channel.CreateSender());
-  Consumer consumer(channel.CreateReceiver());
 
   dispatcher.Post(producer);
   dispatcher.Post(consumer);
@@ -96,19 +114,26 @@ TEST(Channel, Manual) {
   EXPECT_EQ(consumer.values().size(), 3u);
 }
 
+}  // namespace
+
+namespace {
+
 // DOCSTAG: [pw_async2-examples-channel-coro]
-pw::async2::Coro<pw::Status> CoroProducer(
-    pw::async2::CoroContext&, pw::async2::experimental::Sender<int> sender) {
+using pw::async2::Coro;
+using pw::async2::CoroContext;
+using pw::async2::experimental::Receiver;
+using pw::async2::experimental::Sender;
+
+Coro<pw::Status> CoroProducer(CoroContext&, Sender<int> sender) {
   for (int data = 0; data < 3; ++data) {
     co_await sender.Send(data);
   }
   co_return pw::OkStatus();
 }
 
-pw::async2::Coro<pw::Status> CoroConsumer(
-    pw::async2::CoroContext&,
-    pw::async2::experimental::Receiver<int> receiver,
-    pw::Vector<int>& values) {
+Coro<pw::Status> CoroConsumer(CoroContext&,
+                              Receiver<int> receiver,
+                              pw::Vector<int>& values) {
   while (true) {
     std::optional<int> result = co_await receiver.Receive();
     if (!result.has_value()) {
@@ -124,14 +149,25 @@ TEST(Channel, Coro) {
   pw::allocator::test::AllocatorForTest<1024> alloc;
   pw::async2::Dispatcher dispatcher;
   pw::async2::CoroContext coro_cx(alloc);
-  pw::async2::experimental::StaticChannel<int, 1> channel;
+
+  pw::async2::experimental::ChannelStorage<int, 1> storage;
+  auto [channel, sender, receiver] = CreateSpscChannel<int>(storage);
+
+  // The returned channel handle is used to create senders and receivers.
+  // Since this is a single producer single consumer channel, that isn't
+  // possible, so its only other use is to manually close the channel.
+  // We don't need that as we rely on automatic closing when the sender
+  // completes.
+  //
+  // It is important to call `Release` once you are done with the handle to
+  // prevent keeping the channel alive longer than needed.
+  channel.Release();
 
   pw::Vector<int, 3> values;
   auto producer = pw::async2::CoroOrElseTask(
-      CoroProducer(coro_cx, channel.CreateSender()), [](pw::Status) {});
+      CoroProducer(coro_cx, std::move(sender)), [](pw::Status) {});
   auto consumer = pw::async2::CoroOrElseTask(
-      CoroConsumer(coro_cx, channel.CreateReceiver(), values),
-      [](pw::Status) {});
+      CoroConsumer(coro_cx, std::move(receiver), values), [](pw::Status) {});
 
   dispatcher.Post(producer);
   dispatcher.Post(consumer);

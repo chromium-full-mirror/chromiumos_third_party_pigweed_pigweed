@@ -388,22 +388,193 @@ in ``pw_async2``. They provide a synchronized way to pass data between tasks.
 A channel is a fixed-capacity queue that supports multiple senders and multiple
 receivers. Channels can be used between async tasks on the same dispatcher,
 between tasks on different dispatchers, or between tasks and non-async code.
-There are two types of channel: :cc:`pw::async2::experimental::StaticChannel`,
-which is managed by the user, and :cc:`pw::async2::experimental::DynamicChannel`,
-which is dynamically allocated and automatically manages its lifetime.
+There are two types of channel: static channels, which have user-managed storage,
+and dynamic channels which are allocated and automatically manage their
+lifetimes.
 
-.. code-block:: cpp
+Creating a channel
+==================
+Channels can be created in four configurations which control the number of
+senders and receivers supported. The "multi-" configurations support up to 255
+producers or consumers.
 
-   #include "pw_async2/channel.h"
+.. list-table:: Channel Configurations
+   :widths: 30 10 15 15
+   :header-rows: 1
 
-   // Instantiate a user-managed channel with a capacity of 10 integers.
-   // The channel must outlive all of its senders and receivers.
-   pw::async2::experimental::StaticChannel<int, 10> channel;
+   * - Name
+     - Initials
+     - Max Producers
+     - Max Consumers
+   * - Single-producer, single-consumer
+     - SPSC
+     - 1
+     - 1
+   * - Single-producer, multi-consumer
+     - SPMC
+     - 1
+     - 255
+   * - Multi-producer, single-consumer
+     - MPSC
+     - 255
+     - 1
+   * - Multi-producer, multi-consumer
+     - MPMC
+     - 255
+     - 255
 
-   // Create one or more senders and receivers to the channel and hand them out
-   // to various parts of the system.
-   pw::async2::experimental::Sender<int> sender = channel.CreateSender();
-   pw::async2::experimental::Receiver<int> receiver = channel.CreateReceiver();
+Examples of creating each channel type are shown below.
+
+.. tab-set::
+
+   .. tab-item:: SPSC
+
+      .. code-block:: cpp
+
+         // Single-producer, single-consumer
+
+         #include "pw_async2/channel.h"
+
+         // Create storage for a static channel with a capacity of 10 integers.
+         // The storage must outlive the channel for which it is used.
+         pw::async2::experimental::ChannelStorage<int, 10> storage;
+
+         // Create a channel using the storage.
+         //
+         // In this example, we create a single-producer, single-consumer channel and
+         // are given the sole sender and receiver.
+         auto [channel, sender, receiver] =
+             pw::async2::experimental::CreateSpscChannel(storage);
+
+         // Hand the sender and receiver to various parts of the system.
+         MySenderTask sender_task(std::move(sender));
+         MyReceiverTask receiver_task(std::move(receiver));
+
+         // You can hold onto the channel handle if you want to use it to
+         // manually close the channel before all senders and receivers have
+         // completed.
+         //
+         // If you want the channel to close automatically once either end hangs
+         // up, you should `Release` the handle immediately to disassociate its
+         // reference to the channel.
+         channel.Release();
+
+   .. tab-item:: SPMC
+
+      .. code-block:: cpp
+
+         // Single-producer, multi-consumer
+
+         #include "pw_async2/channel.h"
+
+         // Create storage for a static channel with a capacity of 10 integers.
+         // The storage must outlive the channel for which it is used.
+         pw::async2::experimental::ChannelStorage<int, 10> storage;
+
+         // Create a channel using the storage.
+         //
+         // In this example, we create a single-producer, multi-consumer channel and
+         // are given the sole sender. Receivers are created from the channel handle.
+         auto [channel, sender] = pw::async2::experimental::CreateSpmcChannel(storage);
+
+         // Hand the sender and receiver to various parts of the system.
+         MySenderTask sender_task(std::move(sender));
+         MyReceiverTask receiver_task_1(channel.CreateReceiver());
+         MyReceiverTask receiver_task_2(channel.CreateReceiver());
+
+         // You can hold onto the channel handle if you want to use it to
+         // manually close the channel before all senders and receivers have
+         // completed.
+         //
+         // If you want the channel to close automatically once either end hangs
+         // up, you should `Release` the handle after all desired receivers are
+         // created to disassociate its reference to the channel.
+         channel.Release();
+
+   .. tab-item:: MPSC
+
+      .. code-block:: cpp
+
+         // Multi-producer, single-consumer
+
+         #include "pw_async2/channel.h"
+
+         // Create storage for a static channel with a capacity of 10 integers.
+         // The storage must outlive the channel for which it is used.
+         pw::async2::experimental::ChannelStorage<int, 10> storage;
+
+         // Create a channel using the storage.
+         //
+         // In this example, we create a multi-producer, single-consumer channel and
+         // are given the sole receiver. Senders are created from the channel handle.
+         auto [channel, receiver] = pw::async2::experimental::CreateMpscChannel(storage);
+
+         // Hand the sender and receiver to various parts of the system.
+         MySenderTask sender_task_1(channel.CreateSender());
+         MySenderTask sender_task_2(channel.CreateSender());
+         MyReceiverTask receiver_task(std::move(receiver));
+
+         // You can hold onto the channel handle if you want to use it to
+         // manually close the channel before all senders and receivers have
+         // completed.
+         //
+         // If you want the channel to close automatically once either end hangs
+         // up, you should `Release` the handle after all desired senders are
+         // created to disassociate its reference to the channel.
+         channel.Release();
+
+   .. tab-item:: MPMC
+
+      .. code-block:: cpp
+
+         // Multi-producer, multi-consumer
+
+         #include "pw_async2/channel.h"
+
+         // Create storage for a static channel with a capacity of 10 integers.
+         // The storage must outlive the channel for which it is used.
+         pw::async2::experimental::ChannelStorage<int, 10> storage;
+
+         // Create a channel using the storage.
+         //
+         // In this example, we create a multi-producer, multi-consumer channel.
+         // Both senders and receivers are created from the channel handle.
+         pw::async2::experimental::MpmcChannelHandle<int> channel =
+             pw::async2::experimental::CreateMpmcChannel(storage);
+
+         // Hand the sender and receiver to various parts of the system.
+         MySenderTask sender_task_1(channel.CreateSender());
+         MySenderTask sender_task_2(channel.CreateSender());
+         MyReceiverTask receiver_task_1(channel.CreateReceiver());
+         MyReceiverTask receiver_task_2(channel.CreateReceiver());
+
+         // You can hold onto the channel handle if you want to use it to
+         // manually close the channel before all senders and receivers have
+         // completed.
+         //
+         // If you want the channel to close automatically once either end hangs
+         // up, you should `Release` the handle after all desired senders and
+         // receivers are created to disassociate its reference to the channel.
+         channel.Release();
+
+Channel handles
+===============
+Each channel creation function returns a handle to the channel. This handle is
+used for two operations:
+
+1. Creating senders and receivers, if allowed by the channel configuration
+   (``CreateSender``, ``CreateReceiver``).
+
+2. Forcefully closing the channel while senders and receivers are still active
+   (``Close``).
+
+Handles are movable and copyable, so they can be given to any parts of the
+system which need to perform these operations.
+
+As long as any handle to a channel is active, the channel will not automatically
+close. If the system relies on the channel closing (for example, a receiving
+task reading values until a ``std::nullopt``), it is essential to ``Release``
+all handles once you are done creating senders/receivers from them.
 
 Sending and receiving
 =====================
@@ -459,9 +630,12 @@ channel.
 
       .. code-block:: cpp
 
+         using pw::async2::experimental::ReserveSendFuture;
+         using pw::async2::experimental::Sender;
+
          class ReservedSenderTask : public pw::async2::Task {
           public:
-           explicit ReservedSenderTask(pw::async2::experimental::Sender<int>&& sender)
+           explicit ReservedSenderTask(Sender<int>&& sender)
                : sender(std::move(sender)) {}
 
           private:
@@ -483,17 +657,19 @@ channel.
              return pw::async2::Ready();
            }
 
-           pw::async2::experimental::Sender<int> sender;
-           std::optional<pw::async2::experimental::ReserveSendFuture<int>>
-               reservation_future_;
+           Sender<int> sender;
+           std::optional<ReserveSendFuture<int>> reservation_future_;
          };
 
    .. tab-item:: C++20 coroutines
 
       .. code-block:: cpp
 
-         pw::async2::Coro<Status> ReservedSenderExample(
-             pw::async2::CoroContext&, pw::async2::experimental::Sender<int> sender) {
+         using pw::async2::Coro;
+         using pw::async2::CoroContext;
+         using pw::async2::experimental::Sender;
+
+         Coro<Status> ReservedSenderExample(CoroContext&, Sender<int> sender) {
            // Wait for space to become available.
            auto reservation = co_await sender.ReserveSend();
            if (!reservation.has_value()) {
@@ -518,30 +694,36 @@ one active receiver.
 
 Dynamic allocation
 ==================
-In systems that have dynamic allocation, you can use ``CreateDynamicChannel``
-to allocate a managed channel from an :cc:`Allocator`.
+In systems that have dynamic allocation, you can pass an :cc:`Allocator` and
+channel capacity to any of the channel creation functions to allocate a managed
+channel.
+
+The dynamic functions wrap the returned tuple in a ``std::optional``. If the
+allocation fails, the optional will be empty.
 
 .. code-block:: cpp
 
    #include "pw_async2/channel.h"
 
    constexpr size_t kCapacity = 10;
-   std::optional<pw::async2::experimental::DynamicChannel<int>> channel =
-       pw::async2::experimental::CreateDynamicChannel<int>(GetSystemAllocator(),
-                                                           kCapacity);
-   if (!channel.has_value()) {
+   auto result = pw::async2::experimental::CreateSpscChannel<int>(
+       GetSystemAllocator(), kCapacity);
+   if (!result.has_value()) {
      PW_LOG_ERROR("Out of memory");
      return;
    }
 
-   // Create one or more senders and receivers to the channel and hand them out
-   // to various parts of the system.
-   pw::async2::experimental::Sender<int> sender = channel.CreateSender();
-   pw::async2::experimental::Receiver<int> receiver = channel.CreateReceiver();
+   // Hand the sender and receiver to various parts of the system.
+   auto&& [channel, sender, receiver] = *result;
 
-   // After all senders and receivers are created, you can allow the
-   // `DynamicChannel` handle to go out of scope. The channel will remain open as
-   // long as there are active senders and receivers.
+   // As with the static channel, release the handle once all desired senders
+   // and receivers are created unless you intend to use it to manually close
+   // the channel. As we created an SPSC channel here, there are no more senders
+   // or receivers so we release the handle immediately.
+   //
+   // The channel remains allocated and open as long as any senders, receivers,
+   // or futures to it are alive.
+   channel.Release();
 
 Synchronous access
 ==================

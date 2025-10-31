@@ -18,6 +18,7 @@
 #include "pw_allocator/allocator.h"
 #include "pw_async2/future.h"
 #include "pw_containers/deque.h"
+#include "pw_numeric/checked_arithmetic.h"
 #include "pw_sync/interrupt_spin_lock.h"
 #include "pw_sync/lock_annotations.h"
 
@@ -45,15 +46,36 @@ template <typename T>
 class SendReservation;
 
 template <typename T>
-class DynamicChannel;
+class MpmcChannelHandle;
 
 template <typename T>
-std::optional<DynamicChannel<T>> CreateDynamicChannel(Allocator& alloc,
-                                                      uint16_t capacity);
+class MpscChannelHandle;
+
+template <typename T>
+class SpmcChannelHandle;
+
+template <typename T>
+class SpscChannelHandle;
+
+template <typename T, uint16_t kCapacity>
+class ChannelStorage;
+
+namespace internal {
+
+template <typename T>
+class ChannelHandle;
 
 template <typename T>
 class Channel {
  public:
+  static Channel* Allocated(Allocator& alloc, uint16_t capacity) {
+    FixedDeque<T> deque = FixedDeque<T>::TryAllocate(alloc, capacity);
+    if (deque.capacity() == 0) {
+      return nullptr;
+    }
+    return alloc.New<Channel<T>>(std::move(deque));
+  }
+
   ~Channel() { PW_ASSERT(ref_count_ == 0); }
 
   /// Returns true if the channel is closed. A closed channel cannot create new
@@ -63,18 +85,6 @@ class Channel {
     return closed_;
   }
 
-  /// Creates a sender for this channel.
-  Sender<T> CreateSender() {
-    PW_ASSERT(!closed());
-    return Sender<T>(this);
-  }
-
-  /// Creates a receiver for this channel.
-  Receiver<T> CreateReceiver() {
-    PW_ASSERT(!closed());
-    return Receiver<T>(this);
-  }
-
  protected:
   explicit Channel(FixedDeque<T>&& deque) : deque_(std::move(deque)) {}
 
@@ -82,27 +92,20 @@ class Channel {
   explicit Channel(containers::Storage<kAlignment, kCapacity>& storage)
       : deque_(storage) {}
 
+  uint16_t ref_count() const {
+    std::lock_guard lock(lock_);
+    return ref_count_;
+  }
+
  private:
   friend Allocator;
-  friend DynamicChannel<T>;
+  friend ChannelHandle<T>;
   friend SendFuture<T>;
   friend ReserveSendFuture<T>;
   friend ReceiveFuture<T>;
   friend Sender<T>;
-  friend Receiver<T>;
   friend SendReservation<T>;
-
-  template <typename U>
-  friend std::optional<DynamicChannel<U>> CreateDynamicChannel(Allocator&,
-                                                               uint16_t);
-
-  static Channel* Allocated(Allocator& alloc, uint16_t capacity) {
-    FixedDeque<T> deque = FixedDeque<T>::TryAllocate(alloc, capacity);
-    if (deque.capacity() == 0) {
-      return nullptr;
-    }
-    return alloc.New<Channel<T>>(std::move(deque));
-  }
+  friend Receiver<T>;
 
   void Destroy() {
     Deallocator* deallocator = nullptr;
@@ -117,7 +120,12 @@ class Channel {
     }
   }
 
-  void Close() PW_EXCLUSIVE_LOCKS_REQUIRED(lock_) {
+  void Close() {
+    std::lock_guard lock(lock_);
+    CloseLocked();
+  }
+
+  void CloseLocked() PW_EXCLUSIVE_LOCKS_REQUIRED(lock_) {
     closed_ = true;
     while (!send_futures_.empty()) {
       send_futures_.Pop().Wake();
@@ -128,6 +136,22 @@ class Channel {
     while (!receive_futures_.empty()) {
       receive_futures_.Pop().Wake();
     }
+  }
+
+  /// Creates a sender for this channel.
+  Sender<T> CreateSender() {
+    if (closed()) {
+      return Sender<T>(nullptr);
+    }
+    return Sender<T>(this);
+  }
+
+  /// Creates a receiver for this channel.
+  Receiver<T> CreateReceiver() {
+    if (closed()) {
+      return Receiver<T>(nullptr);
+    }
+    return Receiver<T>(this);
   }
 
   void PushAndWake(T&& value) PW_EXCLUSIVE_LOCKS_REQUIRED(lock_) {
@@ -267,52 +291,51 @@ class Channel {
 
   void add_receiver() {
     std::lock_guard lock(lock_);
-    if (!closed_) {
-      receiver_count_++;
-    }
-    ref_count_++;
-  }
-
-  void remove_receiver() {
-    bool destroy;
-
-    {
-      std::lock_guard lock(lock_);
-      if (!closed_) {
-        receiver_count_--;
-        if (receiver_count_ == 0) {
-          Close();
-        }
-      }
-      destroy = decrement_ref_locked();
-    }
-
-    if (destroy) {
-      Destroy();
-    }
+    add_object(receiver_count_);
   }
 
   void add_sender() {
     std::lock_guard lock(lock_);
+    add_object(sender_count_);
+  }
+
+  void add_handle() {
+    std::lock_guard lock(lock_);
+    add_object(handle_count_);
+  }
+
+  void add_object(uint8_t& counter) PW_EXCLUSIVE_LOCKS_REQUIRED(lock_) {
     if (!closed_) {
-      sender_count_++;
+      PW_ASSERT(CheckedAdd(counter, 1, counter));
     }
-    ref_count_++;
+    PW_ASSERT(CheckedAdd(ref_count_, 1, ref_count_));
   }
 
   void remove_sender() {
-    bool destroy;
+    std::lock_guard lock(lock_);
+    remove_object(sender_count_);
+  }
 
-    {
-      std::lock_guard lock(lock_);
-      if (!closed_) {
-        sender_count_--;
-        if (sender_count_ == 0) {
-          Close();
-        }
+  void remove_receiver() {
+    std::lock_guard lock(lock_);
+    remove_object(receiver_count_);
+  }
+
+  void remove_handle() {
+    std::lock_guard lock(lock_);
+    remove_object(handle_count_);
+  }
+
+  void remove_object(uint8_t& counter) PW_UNLOCK_FUNCTION(lock_) {
+    if (!closed_) {
+      PW_ASSERT(counter > 0);
+      counter--;
+      if (should_close()) {
+        CloseLocked();
       }
-      destroy = decrement_ref_locked();
     }
+    bool destroy = decrement_ref_locked();
+    lock_.unlock();
 
     if (destroy) {
       Destroy();
@@ -340,6 +363,19 @@ class Channel {
     return ref_count_ == 0;
   }
 
+  /// Returns true if the channel should be closed following a reference
+  /// decrement.
+  ///
+  /// Handles can create new senders and receivers, so as long as one exists,
+  /// the channel should remain open. Without active handles, the channel
+  /// closes when either end fully hangs up.
+  bool should_close() const PW_EXCLUSIVE_LOCKS_REQUIRED(lock_) {
+    if (handle_count_ > 0) {
+      return false;
+    }
+    return sender_count_ == 0 || receiver_count_ == 0;
+  }
+
   // ListFutureProvider is internally synchronized.
   ListFutureProvider<SendFuture<T>> send_futures_;
   ListFutureProvider<ReserveSendFuture<T>> reserve_send_futures_;
@@ -362,80 +398,59 @@ class Channel {
   //
   uint8_t sender_count_ PW_GUARDED_BY(lock_) = 0;
   uint8_t receiver_count_ PW_GUARDED_BY(lock_) = 0;
+  uint8_t handle_count_ PW_GUARDED_BY(lock_) = 0;
   uint16_t ref_count_ PW_GUARDED_BY(lock_) = 0;
 };
 
-/// An asynchronous channel which supports multiple producers and multiple
-/// consumers with a fixed storage capacity.
+/// A handle to a channel, used to create senders and receivers.
 ///
-/// Senders and receivers to the channel are created from the `StaticChannel`,
-/// and the channel remains open as long as at least one sender and one receiver
-/// are alive. Once the channel is closed, no more senders or receivers may be
-/// created from it.
-///
-/// `StaticChannel` owns its storage, and must outlive all senders and
-/// receivers created from it.
-template <typename T, uint16_t kCapacity>
-class StaticChannel : public Channel<T> {
- public:
-  StaticChannel() : Channel<T>(storage_) {}
-
- private:
-  containers::StorageFor<T, kCapacity> storage_;
-};
-
-/// A handle to a dynamically allocated channel.
-///
-/// This handle is used to create senders and receivers for the channel.
-///
-/// After all desired senders and receivers are created, this handle may be
-/// dropped. The channel will remain allocated and open as long as at least
+/// After all desired senders and receivers are created, the handle should be
+/// released. The channel will remain allocated and open as long as at least
 /// one sender and one receiver are alive.
 template <typename T>
-class DynamicChannel {
+class ChannelHandle {
  public:
-  DynamicChannel() : channel_(nullptr) {}
+  ChannelHandle() : channel_(nullptr) {}
 
-  DynamicChannel(const DynamicChannel& other) : channel_(other.channel_) {
+  ChannelHandle(const ChannelHandle& other) : channel_(other.channel_) {
     if (channel_ != nullptr) {
-      channel_->add_ref();
+      channel_->add_handle();
     }
   }
 
-  DynamicChannel& operator=(const DynamicChannel& other) {
+  ChannelHandle& operator=(const ChannelHandle& other) {
     if (channel_ != nullptr) {
-      channel_->remove_ref();
+      channel_->remove_handle();
     }
     channel_ = other.channel_;
     if (channel_ != nullptr) {
-      channel_->add_ref();
+      channel_->add_handle();
     }
     return *this;
   }
 
-  DynamicChannel(DynamicChannel&& other) noexcept
+  ChannelHandle(ChannelHandle&& other) noexcept
       : channel_(std::exchange(other.channel_, nullptr)) {}
 
-  DynamicChannel& operator=(DynamicChannel&& other) noexcept {
+  ChannelHandle& operator=(ChannelHandle&& other) noexcept {
     if (this == &other) {
       return *this;
     }
     if (channel_ != nullptr) {
-      channel_->remove_ref();
+      channel_->remove_handle();
     }
     channel_ = std::exchange(other.channel_, nullptr);
     return *this;
   }
 
-  ~DynamicChannel() {
-    if (channel_ != nullptr) {
-      channel_->remove_ref();
-    }
+  ~ChannelHandle() { Release(); }
+
+  [[nodiscard]] bool is_open() const {
+    return channel_ != nullptr && !channel_->closed();
   }
 
-  bool closed() const { return channel_ == nullptr || channel_->closed(); }
-
   /// Creates a new sender for the channel, increasing the active sender count.
+  /// Cannot be called following `Release`.
   Sender<T> CreateSender() {
     PW_ASSERT(channel_ != nullptr);
     return channel_->CreateSender();
@@ -443,23 +458,152 @@ class DynamicChannel {
 
   /// Creates a new receiver for the channel, increasing the active receiver
   /// count.
+  /// Cannot be called following `Release`.
   Receiver<T> CreateReceiver() {
     PW_ASSERT(channel_ != nullptr);
     return channel_->CreateReceiver();
   }
 
- private:
-  template <typename U>
-  friend std::optional<DynamicChannel<U>> CreateDynamicChannel(Allocator&,
-                                                               uint16_t);
-
-  explicit DynamicChannel(Channel<T>* channel) : channel_(channel) {
+  /// Forces the channel to close, even if there are still active senders or
+  /// receivers.
+  void Close() {
     if (channel_ != nullptr) {
-      channel_->add_ref();
+      channel_->Close();
     }
   }
 
-  Channel<T>* channel_;
+  /// Drops the handle to the channel, preventing creation of new senders and
+  /// receivers.
+  ///
+  /// This function should always be called when the handle is no longer
+  /// needed. Holding onto an unreleased handle can prevent the channel from
+  /// being closed (and deallocated if the channel is dynamic).
+  void Release() {
+    if (channel_ != nullptr) {
+      channel_->remove_handle();
+      channel_ = nullptr;
+    }
+  }
+
+ protected:
+  explicit ChannelHandle(internal::Channel<T>* channel) : channel_(channel) {
+    if (channel_ != nullptr) {
+      channel_->add_handle();
+    }
+  }
+
+ private:
+  internal::Channel<T>* channel_;
+};
+
+}  // namespace internal
+
+/// A handle to a multi-producer, multi-consumer channel.
+template <typename T>
+class MpmcChannelHandle : private internal::ChannelHandle<T> {
+ public:
+  using internal::ChannelHandle<T>::is_open;
+  using internal::ChannelHandle<T>::Close;
+  using internal::ChannelHandle<T>::CreateReceiver;
+  using internal::ChannelHandle<T>::CreateSender;
+  using internal::ChannelHandle<T>::Release;
+
+ private:
+  explicit MpmcChannelHandle(internal::Channel<T>* channel)
+      : internal::ChannelHandle<T>(channel) {}
+
+  template <typename U>
+  friend std::optional<MpmcChannelHandle<U>> CreateMpmcChannel(Allocator&,
+                                                               uint16_t);
+
+  template <typename U, uint16_t kCapacity>
+  friend MpmcChannelHandle<U> CreateMpmcChannel(
+      ChannelStorage<U, kCapacity>& storage);
+};
+
+/// A handle to a multi-producer, single-consumer channel.
+template <typename T>
+class MpscChannelHandle : private internal::ChannelHandle<T> {
+ public:
+  using internal::ChannelHandle<T>::is_open;
+  using internal::ChannelHandle<T>::Close;
+  using internal::ChannelHandle<T>::CreateSender;
+  using internal::ChannelHandle<T>::Release;
+
+ private:
+  explicit MpscChannelHandle(internal::Channel<T>* channel)
+      : internal::ChannelHandle<T>(channel) {}
+
+  template <typename U>
+  friend std::optional<std::tuple<MpscChannelHandle<U>, Receiver<U>>>
+  CreateMpscChannel(Allocator&, uint16_t);
+
+  template <typename U, uint16_t kCapacity>
+  friend std::tuple<MpscChannelHandle<U>, Receiver<U>> CreateMpscChannel(
+      ChannelStorage<U, kCapacity>& storage);
+};
+
+/// A handle to a single-producer, multi-consumer channel.
+template <typename T>
+class SpmcChannelHandle : private internal::ChannelHandle<T> {
+ public:
+  using internal::ChannelHandle<T>::is_open;
+  using internal::ChannelHandle<T>::Close;
+  using internal::ChannelHandle<T>::CreateReceiver;
+  using internal::ChannelHandle<T>::Release;
+
+ private:
+  explicit SpmcChannelHandle(internal::Channel<T>* channel)
+      : internal::ChannelHandle<T>(channel) {}
+
+  template <typename U>
+  friend std::optional<std::tuple<SpmcChannelHandle<U>, Sender<U>>>
+  CreateSpmcChannel(Allocator&, uint16_t);
+
+  template <typename U, uint16_t kCapacity>
+  friend std::tuple<SpmcChannelHandle<U>, Sender<U>> CreateSpmcChannel(
+      ChannelStorage<U, kCapacity>& storage);
+};
+
+/// A handle to a single-producer, single-consumer channel.
+template <typename T>
+class SpscChannelHandle : private internal::ChannelHandle<T> {
+ public:
+  using internal::ChannelHandle<T>::is_open;
+  using internal::ChannelHandle<T>::Close;
+  using internal::ChannelHandle<T>::Release;
+
+ private:
+  explicit SpscChannelHandle(internal::Channel<T>* channel)
+      : internal::ChannelHandle<T>(channel) {}
+
+  template <typename U>
+  friend std::optional<std::tuple<SpscChannelHandle<U>, Sender<U>, Receiver<U>>>
+  CreateSpscChannel(Allocator&, uint16_t);
+
+  template <typename U, uint16_t kCapacity>
+  friend std::tuple<SpscChannelHandle<U>, Sender<U>, Receiver<U>>
+  CreateSpscChannel(ChannelStorage<U, kCapacity>& storage);
+};
+
+/// Fixed capacity storage for an asynchronous channel which supports multiple
+/// producers and multiple consumers.
+///
+/// `ChannelStorage` is used to create a channel vi
+///
+/// `ChannelStorage` must outlive the channel in which it is used.
+template <typename T, uint16_t kCapacity>
+class ChannelStorage : private containers::internal::ArrayStorage<T, kCapacity>,
+                       public internal::Channel<T> {
+ public:
+  ChannelStorage() : internal::Channel<T>(this->storage_array) {}
+
+  /// Returns true if this channel storage is in use.
+  /// If `false`, the storage can either be reused or safely destroyed.
+  [[nodiscard]] bool active() const { return this->ref_count() != 0; }
+
+ private:
+  using internal::Channel<T>::Allocated;
 };
 
 template <typename T>
@@ -489,12 +633,12 @@ class [[nodiscard]] ReceiveFuture
  private:
   using Base = ListableFutureWithWaker<ReceiveFuture<T>, std::optional<T>>;
   friend Base;
-  friend Channel<T>;
+  friend internal::Channel<T>;
   friend Receiver<T>;
 
   static constexpr const char kWaitReason[] = "Receiver::Receive";
 
-  explicit ReceiveFuture(Channel<T>& channel)
+  explicit ReceiveFuture(internal::Channel<T>& channel)
       : Base(channel.receive_futures_), channel_(&channel) {
     channel_->add_ref();
   }
@@ -528,7 +672,7 @@ class [[nodiscard]] ReceiveFuture
 
   using Base::Wake;
 
-  Channel<T>* channel_;
+  internal::Channel<T>* channel_;
 };
 
 /// A receiver which reads values from an asynchronous channel.
@@ -585,15 +729,31 @@ class Receiver {
 
  private:
   template <typename U>
-  friend class Channel;
+  friend class internal::Channel;
 
-  explicit Receiver(Channel<T>* channel) : channel_(channel) {
+  template <typename U>
+  friend std::optional<std::tuple<MpscChannelHandle<U>, Receiver<U>>>
+  CreateMpscChannel(Allocator&, uint16_t);
+
+  template <typename U, uint16_t kCapacity>
+  friend std::tuple<MpscChannelHandle<U>, Receiver<U>> CreateMpscChannel(
+      ChannelStorage<U, kCapacity>& storage);
+
+  template <typename U>
+  friend std::optional<std::tuple<SpscChannelHandle<U>, Sender<U>, Receiver<U>>>
+  CreateSpscChannel(Allocator&, uint16_t);
+
+  template <typename U, uint16_t kCapacity>
+  friend std::tuple<SpscChannelHandle<U>, Sender<U>, Receiver<U>>
+  CreateSpscChannel(ChannelStorage<U, kCapacity>& storage);
+
+  explicit Receiver(internal::Channel<T>* channel) : channel_(channel) {
     if (channel_ != nullptr) {
       channel_->add_receiver();
     }
   }
 
-  Channel<T>* channel_;
+  internal::Channel<T>* channel_;
 };
 
 template <typename T>
@@ -625,17 +785,17 @@ class [[nodiscard]] SendFuture
  private:
   using Base = ListableFutureWithWaker<SendFuture<T>, bool>;
   friend Base;
-  friend Channel<T>;
+  friend internal::Channel<T>;
   friend Sender<T>;
 
   static constexpr const char kWaitReason[] = "Sender::Send";
 
-  SendFuture(Channel<T>& channel, const T& value)
+  SendFuture(internal::Channel<T>& channel, const T& value)
       : Base(channel.send_futures_), channel_(&channel), value_(value) {
     channel_->add_ref();
   }
 
-  SendFuture(Channel<T>& channel, T&& value)
+  SendFuture(internal::Channel<T>& channel, T&& value)
       : Base(channel.send_futures_),
         channel_(&channel),
         value_(std::move(value)) {
@@ -680,7 +840,7 @@ class [[nodiscard]] SendFuture
 
   using Base::Wake;
 
-  Channel<T>* channel_;
+  internal::Channel<T>* channel_;
   T value_;
 };
 
@@ -731,11 +891,11 @@ class SendReservation {
  private:
   friend class ReserveSendFuture<T>;
 
-  explicit SendReservation(Channel<T>& channel) : channel_(&channel) {
+  explicit SendReservation(internal::Channel<T>& channel) : channel_(&channel) {
     channel_->add_ref();
   }
 
-  Channel<T>* channel_;
+  internal::Channel<T>* channel_;
 };
 
 template <typename T>
@@ -764,12 +924,12 @@ class [[nodiscard]] ReserveSendFuture
   using Base = ListableFutureWithWaker<ReserveSendFuture<T>,
                                        std::optional<SendReservation<T>>>;
   friend Base;
-  friend Channel<T>;
+  friend internal::Channel<T>;
   friend Sender<T>;
 
   static constexpr const char kWaitReason[] = "Sender::ReserveSend";
 
-  explicit ReserveSendFuture(Channel<T>* channel)
+  explicit ReserveSendFuture(internal::Channel<T>* channel)
       : Base(channel->reserve_send_futures_), channel_(channel) {
     channel_->add_ref();
   }
@@ -803,7 +963,7 @@ class [[nodiscard]] ReserveSendFuture
 
   using Base::Wake;
 
-  Channel<T>* channel_;
+  internal::Channel<T>* channel_;
 };
 
 /// A sender which writes values to an asynchronous channel.
@@ -920,38 +1080,197 @@ class Sender {
 
  private:
   template <typename U>
-  friend class Channel;
+  friend class internal::Channel;
 
-  explicit Sender(Channel<T>* channel) : channel_(channel) {
+  template <typename U>
+  friend std::optional<std::tuple<SpmcChannelHandle<U>, Sender<U>>>
+  CreateSpmcChannel(Allocator&, uint16_t);
+
+  template <typename U, uint16_t kCapacity>
+  friend std::tuple<SpmcChannelHandle<U>, Sender<U>> CreateSpmcChannel(
+      ChannelStorage<U, kCapacity>& storage);
+
+  template <typename U>
+  friend std::optional<std::tuple<SpscChannelHandle<U>, Sender<U>, Receiver<U>>>
+  CreateSpscChannel(Allocator&, uint16_t);
+
+  template <typename U, uint16_t kCapacity>
+  friend std::tuple<SpscChannelHandle<U>, Sender<U>, Receiver<U>>
+  CreateSpscChannel(ChannelStorage<U, kCapacity>& storage);
+
+  explicit Sender(internal::Channel<T>* channel) : channel_(channel) {
     if (channel_ != nullptr) {
       channel_->add_sender();
     }
   }
 
-  Channel<T>* channel_;
+  internal::Channel<T>* channel_;
 };
 
-/// Creates a dynamically allocated channel which supports multiple producers
-/// and multiple consumers with a fixed storage capacity.
+/// Creates a dynamically allocated multi-producer, multi-consumer channel
+/// with a fixed storage capacity.
 ///
-/// Returns a `DynamicChannel` handle to the channel which may be used to
-/// create senders and receivers. The handle itself can be dropped without
+/// Returns a handle to the channel which may be used to create senders and
+/// receivers. After all desired senders and receivers are created, the handle
+/// can be dropped without affecting the channel.
+///
+/// All allocation occurs during the creation of the channel. After this
+/// function returns, usage of the channel is guaranteed not to allocate.
+/// If allocation fails, returns `std::nullopt`.
+///
+/// The channel remains open as long as at least either a handle, or at least
+/// one sender and one receiver exist.
+template <typename T>
+std::optional<MpmcChannelHandle<T>> CreateMpmcChannel(Allocator& alloc,
+                                                      uint16_t capacity) {
+  auto channel = internal::Channel<T>::Allocated(alloc, capacity);
+  if (channel == nullptr) {
+    return std::nullopt;
+  }
+  return MpmcChannelHandle<T>(channel);
+}
+
+/// Creates a multi-producer, multi-consumer channel with provided static
+/// storage.
+///
+/// Returns a handle to the channel which may be used to create senders and
+/// receivers. After all desired senders and receivers are created, the handle
+/// can be dropped without affecting the channel.
+///
+/// The channel remains open as long as at least either a handle, or at least
+/// one sender and one receiver exist.
+///
+/// The provided storage must outlive the channel.
+template <typename T, uint16_t kCapacity>
+MpmcChannelHandle<T> CreateMpmcChannel(ChannelStorage<T, kCapacity>& storage) {
+  PW_ASSERT(!storage.active());
+  return MpmcChannelHandle<T>(&storage);
+}
+
+/// Creates a dynamically allocated multi-producer, single-consumer channel
+/// with a fixed storage capacity.
+///
+/// Returns a handle to the channel which may be used to create senders. After
+/// all desired senders are created, the handle can be dropped without
 /// affecting the channel.
 ///
 /// All allocation occurs during the creation of the channel. After this
 /// function returns, usage of the channel is guaranteed not to allocate.
 /// If allocation fails, returns `std::nullopt`.
 ///
-/// The channel remains open as long as at least one sender and one receiver
-//
+/// The channel remains open as long as at least either a handle, or at least
+/// one sender and one receiver exist.
 template <typename T>
-std::optional<DynamicChannel<T>> CreateDynamicChannel(Allocator& alloc,
-                                                      uint16_t capacity) {
-  auto channel = Channel<T>::Allocated(alloc, capacity);
-  if (!channel) {
+std::optional<std::tuple<MpscChannelHandle<T>, Receiver<T>>> CreateMpscChannel(
+    Allocator& alloc, uint16_t capacity) {
+  auto channel = internal::Channel<T>::Allocated(alloc, capacity);
+  if (channel == nullptr) {
     return std::nullopt;
   }
-  return DynamicChannel<T>(channel);
+  return std::make_tuple(MpscChannelHandle<T>(channel), Receiver<T>(channel));
+}
+
+/// Creates a multi-producer, single-consumer channel with provided static
+/// storage.
+///
+/// Returns a handle to the channel which may be used to create senders. After
+/// all desired senders are created, the handle can be dropped without
+/// affecting the channel.
+///
+/// The channel remains open as long as at least either a handle, or at least
+/// one sender and one receiver exist.
+///
+/// The provided storage must outlive the channel.
+template <typename T, uint16_t kCapacity>
+std::tuple<MpscChannelHandle<T>, Receiver<T>> CreateMpscChannel(
+    ChannelStorage<T, kCapacity>& storage) {
+  PW_ASSERT(!storage.active());
+  return std::make_tuple(MpscChannelHandle<T>(&storage), Receiver<T>(&storage));
+}
+
+/// Creates a dynamically allocated single-producer, multi-consumer channel
+/// with a fixed storage capacity.
+///
+/// Returns a handle to the channel which may be used to create receivers. After
+/// all desired receivers are created, the handle can be dropped without
+/// affecting the channel.
+///
+/// All allocation occurs during the creation of the channel. After this
+/// function returns, usage of the channel is guaranteed not to allocate.
+/// If allocation fails, returns `std::nullopt`.
+///
+/// The channel remains open as long as at least either a handle, or at least
+/// one sender and one receiver exist.
+template <typename T>
+std::optional<std::tuple<SpmcChannelHandle<T>, Sender<T>>> CreateSpmcChannel(
+    Allocator& alloc, uint16_t capacity) {
+  auto channel = internal::Channel<T>::Allocated(alloc, capacity);
+  if (channel == nullptr) {
+    return std::nullopt;
+  }
+  return std::make_tuple(SpmcChannelHandle<T>(channel), Sender<T>(channel));
+}
+
+/// Creates a single-producer, multi-consumer channel with provided static
+/// storage.
+///
+/// Returns a handle to the channel which may be used to create receivers. After
+/// all desired receivers are created, the handle can be dropped without
+/// affecting the channel.
+///
+/// The channel remains open as long as at least either a handle, or at least
+/// one sender and one receiver exist.
+///
+/// The provided storage must outlive the channel.
+template <typename T, uint16_t kCapacity>
+std::tuple<SpmcChannelHandle<T>, Sender<T>> CreateSpmcChannel(
+    ChannelStorage<T, kCapacity>& storage) {
+  PW_ASSERT(!storage.active());
+  return std::make_tuple(SpmcChannelHandle<T>(&storage), Sender<T>(&storage));
+}
+
+/// Creates a dynamically allocated single-producer, single-consumer channel
+/// with a fixed storage capacity.
+///
+/// Returns a handle to the channel alongside the sender and receiver. The
+/// handle can be used to forcefully close the channel. If that is not required,
+/// it can be dropped without affecting the channel.
+///
+/// All allocation occurs during the creation of the channel. After this
+/// function returns, usage of the channel is guaranteed not to allocate.
+/// If allocation fails, returns `std::nullopt`.
+///
+/// The channel remains open as long as at least either a handle, or at least
+/// one sender and one receiver exist.
+template <typename T>
+std::optional<std::tuple<SpscChannelHandle<T>, Sender<T>, Receiver<T>>>
+CreateSpscChannel(Allocator& alloc, uint16_t capacity) {
+  auto channel = internal::Channel<T>::Allocated(alloc, capacity);
+  if (channel == nullptr) {
+    return std::nullopt;
+  }
+  return std::make_tuple(
+      SpscChannelHandle<T>(channel), Sender<T>(channel), Receiver<T>(channel));
+}
+
+/// Creates a single-producer, single-consumer channel with provided static
+/// storage.
+///
+/// Returns a handle to the channel alongside the sender and receiver. The
+/// handle can be used to forcefully close the channel. If that is not required,
+/// it can be dropped without affecting the channel.
+///
+/// The channel remains open as long as at least either a handle, or at least
+/// one sender and one receiver exist.
+///
+/// The provided storage must outlive the channel.
+template <typename T, uint16_t kCapacity>
+std::tuple<SpscChannelHandle<T>, Sender<T>, Receiver<T>> CreateSpscChannel(
+    ChannelStorage<T, kCapacity>& storage) {
+  PW_ASSERT(!storage.active());
+  return std::make_tuple(SpscChannelHandle<T>(&storage),
+                         Sender<T>(&storage),
+                         Receiver<T>(&storage));
 }
 
 }  // namespace pw::async2::experimental

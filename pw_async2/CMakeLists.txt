@@ -476,6 +476,7 @@ pw_add_library(pw_async2.channel INTERFACE
     pw_async2.poll
     pw_allocator
     pw_containers.deque
+    pw_numeric.checked_arithmetic
     pw_sync.interrupt_spin_lock
   PUBLIC_INCLUDES
     public
