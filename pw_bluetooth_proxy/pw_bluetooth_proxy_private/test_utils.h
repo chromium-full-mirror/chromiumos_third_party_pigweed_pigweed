@@ -294,7 +294,7 @@ struct BasicL2capParameters {
 };
 
 struct GattNotifyChannelParameters {
-  uint16_t handle = 123;
+  uint16_t handle = 0xAB;
   uint16_t attribute_handle = 0xBC;
   ChannelEventCallback&& event_fn = nullptr;
 };

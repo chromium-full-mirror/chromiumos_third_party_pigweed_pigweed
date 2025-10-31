@@ -508,9 +508,4 @@ std::optional<uint16_t> AclDataChannel::MaxDataPacketLengthForTransport(
   }
 }
 
-bool AclDataChannel::HasAclConnection(uint16_t connection_handle) {
-  std::lock_guard lock(connection_mutex_);
-  return FindAclConnection(connection_handle) != nullptr;
-}
-
 }  // namespace pw::bluetooth::proxy

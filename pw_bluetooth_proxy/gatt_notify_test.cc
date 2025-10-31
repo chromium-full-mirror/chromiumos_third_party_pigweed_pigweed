@@ -32,8 +32,6 @@
 namespace pw::bluetooth::proxy {
 
 namespace {
-constexpr uint16_t kConnectionHandle = 123;
-
 struct AttNotifyWithStorage {
   BFrameWithStorage bframe;
   emboss::AttHandleValueNtfWriter writer;
@@ -111,8 +109,6 @@ TEST_F(GattNotifyTest, GetAttributeHandle) {
                               std::move(send_to_controller_fn),
                               /*le_acl_credits_to_reserve=*/0,
                               /*br_edr_acl_credits_to_reserve=*/0);
-  PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
-      proxy, kConnectionHandle, emboss::StatusCode::SUCCESS));
 
   GattNotifyChannel channel =
       BuildGattNotifyChannel(proxy, {.attribute_handle = 0x234});
@@ -123,7 +119,7 @@ TEST_F(GattNotifyTest, Send1ByteAttribute) {
   struct {
     int sends_called = 0;
     // First four bits 0x0 encode PB & BC flags
-    uint16_t handle = kConnectionHandle;
+    uint16_t handle = 0x0ACB;
     // Length of L2CAP PDU
     uint16_t acl_data_total_length = 0x0008;
     // Length of ATT PDU
@@ -190,8 +186,6 @@ TEST_F(GattNotifyTest, Send1ByteAttribute) {
                               /*br_edr_acl_credits_to_reserve=*/0);
   // Allow proxy to reserve 1 credit.
   PW_TEST_EXPECT_OK(SendLeReadBufferResponseFromController(proxy, 1));
-  PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
-      proxy, kConnectionHandle, emboss::StatusCode::SUCCESS));
 
   GattNotifyChannel channel = BuildGattNotifyChannel(
       proxy,
@@ -206,7 +200,7 @@ TEST_F(GattNotifyTest, Send2ByteAttribute) {
   struct {
     int sends_called = 0;
     // Max connection_handle value; first four bits 0x0 encode PB & BC flags
-    const uint16_t handle = kConnectionHandle;
+    const uint16_t handle = 0x0EFF;
     // Length of L2CAP PDU
     const uint16_t acl_data_total_length = 0x0009;
     // Length of ATT PDU
@@ -274,8 +268,6 @@ TEST_F(GattNotifyTest, Send2ByteAttribute) {
                               /*br_edr_acl_credits_to_reserve=*/0);
   // Allow proxy to reserve 1 credit.
   PW_TEST_EXPECT_OK(SendLeReadBufferResponseFromController(proxy, 1));
-  PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
-      proxy, kConnectionHandle, emboss::StatusCode::SUCCESS));
 
   GattNotifyChannel channel = BuildGattNotifyChannel(
       proxy,
@@ -299,8 +291,6 @@ TEST_F(GattNotifyTest, ReturnsErrorIfAttributeTooLarge) {
   const uint16_t kLeAclLength = 250;
   PW_TEST_EXPECT_OK(
       SendLeReadBufferResponseFromController(proxy, 0, kLeAclLength));
-  PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
-      proxy, kConnectionHandle, emboss::StatusCode::SUCCESS));
 
   // attribute_value 1 byte too large
   std::array<uint8_t,
@@ -323,8 +313,6 @@ TEST_F(GattNotifyTest, ChannelIsNotConstructedIfParametersInvalid) {
                               std::move(send_to_controller_fn),
                               /*le_acl_credits_to_reserve=*/0,
                               /*br_edr_acl_credits_to_reserve=*/0);
-  PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
-      proxy, kConnectionHandle, emboss::StatusCode::SUCCESS));
 
   // attribute value is zero
   EXPECT_EQ(
@@ -347,8 +335,6 @@ TEST_F(GattNotifyTest, PayloadIsReturnedOnError) {
                               std::move(send_to_controller_fn),
                               /*le_acl_credits_to_reserve=*/0,
                               /*br_edr_acl_credits_to_reserve=*/0);
-  PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
-      proxy, kConnectionHandle, emboss::StatusCode::SUCCESS));
 
   const std::array<const uint8_t, 2> attribute_value = {5};
 

@@ -29,8 +29,6 @@
 namespace pw::bluetooth::proxy {
 namespace {
 
-constexpr uint16_t kConnectionHandle = 0x123;
-
 using pw::containers::to_array;
 
 class RecombinerTest : public ProxyHostTest {};
@@ -46,10 +44,7 @@ TEST_F(RecombinerTest, Start) {
                    []([[maybe_unused]] H4PacketWithH4&& packet) {},
                    0,
                    0};
-  PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
-      proxy_, kConnectionHandle, emboss::StatusCode::SUCCESS));
-  BasicL2capChannel channel =
-      BuildBasicL2capChannel(proxy_, {.handle = kConnectionHandle});
+  BasicL2capChannel channel = BuildBasicL2capChannel(proxy_, {});
   pw::sync::Mutex mutex;
   LockedL2capChannel locked_channel{channel, std::unique_lock(mutex)};
 
@@ -67,10 +62,8 @@ TEST_F(RecombinerTest, GetLocalCid) {
                    []([[maybe_unused]] H4PacketWithH4&& packet) {},
                    0,
                    0};
-  PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
-      proxy_, kConnectionHandle, emboss::StatusCode::SUCCESS));
-  BasicL2capChannel channel = BuildBasicL2capChannel(
-      proxy_, {.handle = kConnectionHandle, .local_cid = kLocalCid});
+  BasicL2capChannel channel =
+      BuildBasicL2capChannel(proxy_, {.local_cid = kLocalCid});
   pw::sync::Mutex mutex;
   LockedL2capChannel locked_channel{channel, std::unique_lock(mutex)};
 
@@ -86,10 +79,7 @@ TEST_F(RecombinerTest, EndWithChannel) {
                    []([[maybe_unused]] H4PacketWithH4&& packet) {},
                    0,
                    0};
-  PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
-      proxy_, kConnectionHandle, emboss::StatusCode::SUCCESS));
-  BasicL2capChannel channel =
-      BuildBasicL2capChannel(proxy_, {.handle = kConnectionHandle});
+  BasicL2capChannel channel = BuildBasicL2capChannel(proxy_, {});
   pw::sync::Mutex mutex;
   std::optional<LockedL2capChannel> locked_channel{
       LockedL2capChannel{channel, std::unique_lock(mutex)}};
@@ -111,13 +101,10 @@ TEST_F(RecombinerTest, EndWithoutChannel) {
                    []([[maybe_unused]] H4PacketWithH4&& packet) {},
                    0,
                    0};
-  PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
-      proxy_, kConnectionHandle, emboss::StatusCode::SUCCESS));
   Recombiner recombiner{Direction::kFromController};
 
   {
-    BasicL2capChannel channel =
-        BuildBasicL2capChannel(proxy_, {.handle = kConnectionHandle});
+    BasicL2capChannel channel = BuildBasicL2capChannel(proxy_, {});
     pw::sync::Mutex mutex;
     std::optional<LockedL2capChannel> locked_channel{
         LockedL2capChannel{channel, std::unique_lock(mutex)}};
@@ -140,12 +127,9 @@ TEST_F(RecombinerTest, WriteThenTake) {
                    []([[maybe_unused]] H4PacketWithH4&& packet) {},
                    0,
                    0};
-  PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
-      proxy_, kConnectionHandle, emboss::StatusCode::SUCCESS));
   Direction kDirection = Direction::kFromController;
   Recombiner recombiner{kDirection};
-  BasicL2capChannel channel =
-      BuildBasicL2capChannel(proxy_, {.handle = kConnectionHandle});
+  BasicL2capChannel channel = BuildBasicL2capChannel(proxy_, {});
   pw::sync::Mutex mutex;
   std::optional<LockedL2capChannel> locked_channel{
       LockedL2capChannel{channel, std::unique_lock(mutex)}};
@@ -192,13 +176,10 @@ TEST_F(RecombinerTest, WriteCompleteWithoutChannel) {
                    []([[maybe_unused]] H4PacketWithH4&& packet) {},
                    0,
                    0};
-  PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
-      proxy_, kConnectionHandle, emboss::StatusCode::SUCCESS));
   Recombiner recombiner{Direction::kFromController};
 
   {
-    BasicL2capChannel channel =
-        BuildBasicL2capChannel(proxy_, {.handle = kConnectionHandle});
+    BasicL2capChannel channel = BuildBasicL2capChannel(proxy_, {});
     pw::sync::Mutex mutex;
     std::optional<LockedL2capChannel> locked_channel{
         LockedL2capChannel{channel, std::unique_lock(mutex)}};
@@ -237,12 +218,9 @@ TEST_F(RecombinerTest, RecombinedPduIsLargerThanSpecified) {
                    []([[maybe_unused]] H4PacketWithH4&& packet) {},
                    0,
                    0};
-  PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
-      proxy_, kConnectionHandle, emboss::StatusCode::SUCCESS));
   Recombiner recombiner{Direction::kFromController};
 
-  BasicL2capChannel channel =
-      BuildBasicL2capChannel(proxy_, {.handle = kConnectionHandle});
+  BasicL2capChannel channel = BuildBasicL2capChannel(proxy_, {});
   pw::sync::Mutex mutex;
   std::optional<LockedL2capChannel> locked_channel{
       LockedL2capChannel{channel, std::unique_lock(mutex)}};
@@ -282,12 +260,9 @@ TEST_F(RecombinerTest, CanClaimExtraHeader) {
                    []([[maybe_unused]] H4PacketWithH4&& packet) {},
                    0,
                    0};
-  PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
-      proxy_, kConnectionHandle, emboss::StatusCode::SUCCESS));
   Direction kDirection = Direction::kFromController;
   Recombiner recombiner{kDirection};
-  BasicL2capChannel channel =
-      BuildBasicL2capChannel(proxy_, {.handle = kConnectionHandle});
+  BasicL2capChannel channel = BuildBasicL2capChannel(proxy_, {});
   pw::sync::Mutex mutex;
   std::optional<LockedL2capChannel> locked_channel{
       LockedL2capChannel{channel, std::unique_lock(mutex)}};

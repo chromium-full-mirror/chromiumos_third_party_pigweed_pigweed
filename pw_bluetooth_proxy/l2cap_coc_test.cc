@@ -31,8 +31,6 @@ namespace pw::bluetooth::proxy {
 namespace {
 using containers::FlatMap;
 
-constexpr uint16_t kConnectionHandle = 123;
-
 // ########## L2capCocTest
 
 class L2capCocTest : public ProxyHostTest {};
@@ -143,8 +141,6 @@ TEST_F(L2capCocWriteTest, BasicWrite) {
                               /*br_edr_acl_credits_to_reserve=*/0);
   // Allow proxy to reserve 1 credit.
   PW_TEST_EXPECT_OK(SendLeReadBufferResponseFromController(proxy, 1));
-  PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
-      proxy, capture.handle, emboss::StatusCode::SUCCESS));
 
   L2capCoc channel = BuildCoc(proxy,
                               CocParameters{.handle = capture.handle,
@@ -166,12 +162,10 @@ TEST_F(L2capCocWriteTest, ErrorOnWriteToStoppedChannel) {
                               /*br_edr_acl_credits_to_reserve=*/0);
   // Allow proxy to reserve 1 credit.
   PW_TEST_EXPECT_OK(SendLeReadBufferResponseFromController(proxy, 1));
-  PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
-      proxy, kConnectionHandle, emboss::StatusCode::SUCCESS));
 
   L2capCoc channel = BuildCoc(
       proxy,
-      CocParameters{.handle = kConnectionHandle,
+      CocParameters{.handle = 123,
                     .tx_credits = 1,
                     .event_fn = []([[maybe_unused]] L2capChannelEvent event) {
                       FAIL();
@@ -196,8 +190,6 @@ TEST_F(L2capCocWriteTest, WriteExceedingMtuFails) {
                               /*br_edr_acl_credits_to_reserve=*/0);
   // Allow proxy to reserve 1 credit.
   PW_TEST_EXPECT_OK(SendLeReadBufferResponseFromController(proxy, 1));
-  PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
-      proxy, kConnectionHandle, emboss::StatusCode::SUCCESS));
 
   // Payload size exceeds MTU.
   L2capCoc small_mtu_channel = BuildCoc(proxy, CocParameters{.tx_mtu = 1});
@@ -237,8 +229,6 @@ TEST_F(L2capCocWriteTest, MultipleWritesSameChannel) {
   PW_TEST_EXPECT_OK(SendLeReadBufferResponseFromController(
       proxy,
       /*num_credits_to_reserve=*/num_writes));
-  PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
-      proxy, kConnectionHandle, emboss::StatusCode::SUCCESS));
 
   L2capCoc channel = BuildCoc(proxy, CocParameters{.tx_credits = num_writes});
   for (int i = 0; i < num_writes; ++i) {
@@ -284,8 +274,6 @@ TEST_F(L2capCocWriteTest, FlowControlDueToAclCredits) {
   PW_TEST_EXPECT_OK(SendLeReadBufferResponseFromController(
       proxy,
       /*num_credits_to_reserve=*/kAclLeCredits));
-  PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
-      proxy, kConnectionHandle, emboss::StatusCode::SUCCESS));
 
   ChannelEventCallback&& kEventFn{[&capture](L2capChannelEvent event) {
     if (event == L2capChannelEvent::kWriteAvailable) {
@@ -358,8 +346,6 @@ TEST_F(L2capCocWriteTest, UnavailableWhenSendQueueIsFullDueToL2capCocCredits) {
   PW_TEST_EXPECT_OK(SendLeReadBufferResponseFromController(
       proxy,
       /*num_credits_to_reserve=*/kAclLeCredits));
-  PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
-      proxy, kConnectionHandle, emboss::StatusCode::SUCCESS));
 
   ChannelEventCallback&& kEventFn{[&capture](L2capChannelEvent event) {
     if (event == L2capChannelEvent::kWriteAvailable) {
@@ -419,8 +405,6 @@ TEST_F(L2capCocWriteTest, MultipleWritesMultipleChannels) {
   PW_TEST_EXPECT_OK(SendLeReadBufferResponseFromController(
       proxy,
       /*num_credits_to_reserve=*/kNumChannels));
-  PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
-      proxy, kConnectionHandle, emboss::StatusCode::SUCCESS));
 
   uint16_t remote_cid = 123;
   std::array<L2capCoc, kNumChannels> channels{
@@ -473,6 +457,7 @@ TEST_F(L2capCocWriteTest, MultithreadedWrite) {
     const uint16_t kExpectedSduLength = kPayloadSize;
     const uint16_t kExpectedPduLength =
         kSduLengthFieldSize + kExpectedSduLength;
+    const uint16_t kTestHandle = 0xaa;  // 170
     const uint16_t kExpectedAclDataTotalLength =
         emboss::BasicL2capHeader::IntrinsicSizeInBytes() + kExpectedPduLength;
     pw::sync::Mutex sends_by_channel_mutex;
@@ -493,7 +478,7 @@ TEST_F(L2capCocWriteTest, MultithreadedWrite) {
         PW_TEST_ASSERT_OK_AND_ASSIGN(
             auto acl,
             MakeEmbossView<emboss::AclDataFrameView>(packet.GetHciSpan()));
-        EXPECT_EQ(acl.header().handle().Read(), kConnectionHandle);
+        EXPECT_EQ(acl.header().handle().Read(), capture.kTestHandle);
         EXPECT_EQ(acl.header().packet_boundary_flag().Read(),
                   emboss::AclDataPacketBoundaryFlag::FIRST_NON_FLUSHABLE);
         EXPECT_EQ(acl.header().broadcast_flag().Read(),
@@ -531,8 +516,6 @@ TEST_F(L2capCocWriteTest, MultithreadedWrite) {
                 /*br_edr_acl_credits_to_reserve=*/0);
   PW_TEST_EXPECT_OK(SendLeReadBufferResponseFromController(
       proxy, kNumThreads * kPacketsPerThread));
-  PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
-      proxy, kConnectionHandle, emboss::StatusCode::SUCCESS));
 
   MultiBufAllocatorContext<200 * 1024, sync::Mutex> packet_allocator_context;
   struct ThreadCapture {
@@ -554,7 +537,7 @@ TEST_F(L2capCocWriteTest, MultithreadedWrite) {
     // locking.
     ThreadCapture thread_capture{
         BuildCoc(proxy,
-                 CocParameters{.handle = kConnectionHandle,
+                 CocParameters{.handle = capture.kTestHandle,
                                .local_cid = local_cid,
                                .remote_cid = remote_cid,
                                .tx_credits = kPacketsPerThread}),
@@ -609,18 +592,17 @@ TEST_F(L2capCocReadTest, BasicRead) {
                               std::move(send_to_controller_fn),
                               /*le_acl_credits_to_reserve=*/0,
                               /*br_edr_acl_credits_to_reserve=*/0);
-  PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
-      proxy, kConnectionHandle, emboss::StatusCode::SUCCESS));
 
   struct {
     int receives_called = 0;
     std::array<uint8_t, 3> expected_payload = {0xAB, 0xCD, 0xEF};
   } capture;
 
+  uint16_t handle = 123;
   uint16_t local_cid = 234;
   L2capCoc channel = BuildCoc(
       proxy,
-      CocParameters{.handle = kConnectionHandle,
+      CocParameters{.handle = handle,
                     .local_cid = local_cid,
                     .receive_fn = [&capture](FlatConstMultiBuf&& payload) {
                       ++capture.receives_called;
@@ -643,7 +625,7 @@ TEST_F(L2capCocReadTest, BasicRead) {
 
   Result<emboss::AclDataFrameWriter> acl =
       MakeEmbossWriter<emboss::AclDataFrameWriter>(hci_arr);
-  acl->header().handle().Write(kConnectionHandle);
+  acl->header().handle().Write(handle);
   acl->data_total_length().Write(emboss::FirstKFrame::MinSizeInBytes() +
                                  capture.expected_payload.size());
 
@@ -670,6 +652,7 @@ TEST_F(L2capCocReadTest, RxCreditsAreReplenished) {
   // TODO: b/353734827 - Update test once client can to determine this constant.
   const uint16_t kRxThreshold = 3;
   struct {
+    uint16_t handle = 123;
     uint16_t local_cid = 234;
     uint16_t tx_packets_sent = 0;
     // We expect when we reach threshold to replenish exactly that amount.
@@ -687,7 +670,7 @@ TEST_F(L2capCocReadTest, RxCreditsAreReplenished) {
         PW_TEST_ASSERT_OK_AND_ASSIGN(
             auto acl,
             MakeEmbossView<emboss::AclDataFrameView>(packet.GetHciSpan()));
-        EXPECT_EQ(acl.header().handle().Read(), kConnectionHandle);
+        EXPECT_EQ(acl.header().handle().Read(), capture.handle);
         EXPECT_EQ(
             acl.data_total_length().Read(),
             emboss::BasicL2capHeader::IntrinsicSizeInBytes() +
@@ -716,11 +699,9 @@ TEST_F(L2capCocReadTest, RxCreditsAreReplenished) {
                               /*le_acl_credits_to_reserve=*/10,
                               /*br_edr_acl_credits_to_reserve=*/0);
   PW_TEST_EXPECT_OK(SendLeReadBufferResponseFromController(proxy, 12));
-  PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
-      proxy, kConnectionHandle, emboss::StatusCode::SUCCESS));
 
   L2capCoc channel = BuildCoc(proxy,
-                              CocParameters{.handle = kConnectionHandle,
+                              CocParameters{.handle = capture.handle,
                                             .local_cid = capture.local_cid,
                                             .rx_credits = kRxCredits});
 
@@ -733,7 +714,7 @@ TEST_F(L2capCocReadTest, RxCreditsAreReplenished) {
 
     Result<emboss::AclDataFrameWriter> acl =
         MakeEmbossWriter<emboss::AclDataFrameWriter>(hci_arr);
-    acl->header().handle().Write(kConnectionHandle);
+    acl->header().handle().Write(capture.handle);
     acl->data_total_length().Write(emboss::FirstKFrame::MinSizeInBytes() +
                                    expected_payload.size());
 
@@ -777,25 +758,21 @@ TEST_F(L2capCocReadTest, RxCreditsAreReplenished) {
 
 TEST_F(L2capCocReadTest, ChannelHandlesReadWithNullReceiveFn) {
   pw::Function<void(H4PacketWithHci && packet)>&& send_to_host_fn(
-      []([[maybe_unused]] H4PacketWithHci&& packet) {
-        EXPECT_EQ(packet.GetH4Type(), emboss::H4PacketType::EVENT);
-      });
+      []([[maybe_unused]] H4PacketWithHci&& packet) { FAIL(); });
   pw::Function<void(H4PacketWithH4 && packet)> send_to_controller_fn(
       []([[maybe_unused]] H4PacketWithH4&& packet) {});
   ProxyHost proxy = ProxyHost(std::move(send_to_host_fn),
                               std::move(send_to_controller_fn),
                               /*le_acl_credits_to_reserve=*/0,
                               /*br_edr_acl_credits_to_reserve=*/0);
-  PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
-      proxy, kConnectionHandle, emboss::StatusCode::SUCCESS));
 
+  uint16_t handle = 123;
   uint16_t local_cid = 234;
   L2capCoc channel = BuildCoc(
       proxy,
-      CocParameters{.handle = kConnectionHandle,
+      CocParameters{.handle = handle,
                     .local_cid = local_cid,
                     .rx_credits = 1,
-                    .receive_fn = nullptr,
                     .event_fn = []([[maybe_unused]] L2capChannelEvent event) {
                       FAIL();
                     }});
@@ -806,7 +783,7 @@ TEST_F(L2capCocReadTest, ChannelHandlesReadWithNullReceiveFn) {
 
   Result<emboss::AclDataFrameWriter> acl =
       MakeEmbossWriter<emboss::AclDataFrameWriter>(hci_arr);
-  acl->header().handle().Write(kConnectionHandle);
+  acl->header().handle().Write(handle);
   acl->data_total_length().Write(emboss::FirstKFrame::MinSizeInBytes());
 
   emboss::FirstKFrameWriter kframe = emboss::MakeFirstKFrameView(
@@ -827,15 +804,14 @@ TEST_F(L2capCocReadTest, ErrorOnRxToStoppedChannel) {
                               std::move(send_to_controller_fn),
                               /*le_acl_credits_to_reserve=*/0,
                               /*br_edr_acl_credits_to_reserve*/ 0);
-  PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
-      proxy, kConnectionHandle, emboss::StatusCode::SUCCESS));
 
   int events_received = 0;
   uint16_t num_invalid_rx = 3;
+  uint16_t handle = 123;
   uint16_t local_cid = 234;
   L2capCoc channel = BuildCoc(
       proxy,
-      CocParameters{.handle = kConnectionHandle,
+      CocParameters{.handle = handle,
                     .local_cid = local_cid,
                     .rx_credits = num_invalid_rx,
                     .receive_fn = [](FlatConstMultiBuf&&) { FAIL(); },
@@ -850,7 +826,7 @@ TEST_F(L2capCocReadTest, ErrorOnRxToStoppedChannel) {
 
   Result<emboss::AclDataFrameWriter> acl =
       MakeEmbossWriter<emboss::AclDataFrameWriter>(hci_arr);
-  acl->header().handle().Write(kConnectionHandle);
+  acl->header().handle().Write(handle);
   acl->data_total_length().Write(emboss::FirstKFrame::MinSizeInBytes());
 
   emboss::FirstKFrameWriter kframe = emboss::MakeFirstKFrameView(
@@ -871,9 +847,7 @@ TEST_F(L2capCocReadTest, TooShortAclPassedToHost) {
   int sends_called = 0;
   pw::Function<void(H4PacketWithHci && packet)>&& send_to_host_fn(
       [&sends_called]([[maybe_unused]] H4PacketWithHci&& packet) {
-        if (packet.GetH4Type() == emboss::H4PacketType::ACL_DATA) {
-          ++sends_called;
-        }
+        ++sends_called;
       });
   pw::Function<void(H4PacketWithH4 && packet)>&& send_to_controller_fn(
       []([[maybe_unused]] H4PacketWithH4&& packet) {});
@@ -881,13 +855,12 @@ TEST_F(L2capCocReadTest, TooShortAclPassedToHost) {
                               std::move(send_to_controller_fn),
                               /*le_acl_credits_to_reserve=*/0,
                               /*br_edr_acl_credits_to_reserve=*/0);
-  PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
-      proxy, kConnectionHandle, emboss::StatusCode::SUCCESS));
 
+  uint16_t handle = 123;
   uint16_t local_cid = 234;
   L2capCoc channel = BuildCoc(
       proxy,
-      CocParameters{.handle = kConnectionHandle,
+      CocParameters{.handle = handle,
                     .local_cid = local_cid,
                     .receive_fn = [](FlatConstMultiBuf&&) { FAIL(); }});
 
@@ -897,7 +870,7 @@ TEST_F(L2capCocReadTest, TooShortAclPassedToHost) {
 
   Result<emboss::AclDataFrameWriter> acl =
       MakeEmbossWriter<emboss::AclDataFrameWriter>(hci_arr);
-  acl->header().handle().Write(kConnectionHandle);
+  acl->header().handle().Write(handle);
   // Write size larger than buffer size.
   acl->data_total_length().Write(emboss::FirstKFrame::MinSizeInBytes() + 5);
 
@@ -915,15 +888,14 @@ TEST_F(L2capCocReadTest, ChannelClosedWithErrorIfMtuExceeded) {
                               std::move(send_to_controller_fn),
                               /*le_acl_credits_to_reserve=*/0,
                               /*br_edr_acl_credits_to_reserve=*/0);
-  PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
-      proxy, kConnectionHandle, emboss::StatusCode::SUCCESS));
 
+  uint16_t handle = 123;
   uint16_t local_cid = 234;
   constexpr uint16_t kRxMtu = 5;
   int events_received = 0;
   L2capCoc channel = BuildCoc(
       proxy,
-      CocParameters{.handle = kConnectionHandle,
+      CocParameters{.handle = handle,
                     .local_cid = local_cid,
                     .rx_mtu = kRxMtu,
                     .receive_fn = [](FlatConstMultiBuf&&) { FAIL(); },
@@ -940,7 +912,7 @@ TEST_F(L2capCocReadTest, ChannelClosedWithErrorIfMtuExceeded) {
 
   Result<emboss::AclDataFrameWriter> acl =
       MakeEmbossWriter<emboss::AclDataFrameWriter>(hci_arr);
-  acl->header().handle().Write(kConnectionHandle);
+  acl->header().handle().Write(handle);
   acl->data_total_length().Write(emboss::FirstKFrame::MinSizeInBytes() +
                                  kPayloadSize);
 
@@ -964,15 +936,14 @@ TEST_F(L2capCocReadTest, ChannelClosedWithErrorIfMpsExceeded) {
                               std::move(send_to_controller_fn),
                               /*le_acl_credits_to_reserve=*/0,
                               /*br_edr_acl_credits_to_reserve=*/0);
-  PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
-      proxy, kConnectionHandle, emboss::StatusCode::SUCCESS));
 
+  uint16_t handle = 123;
   uint16_t local_cid = 234;
   constexpr uint16_t kRxMps = 5;
   int events_received = 0;
   L2capCoc channel = BuildCoc(
       proxy,
-      CocParameters{.handle = kConnectionHandle,
+      CocParameters{.handle = handle,
                     .local_cid = local_cid,
                     .rx_mps = kRxMps,
                     .receive_fn = [](FlatConstMultiBuf&&) { FAIL(); },
@@ -989,7 +960,7 @@ TEST_F(L2capCocReadTest, ChannelClosedWithErrorIfMpsExceeded) {
 
   Result<emboss::AclDataFrameWriter> acl =
       MakeEmbossWriter<emboss::AclDataFrameWriter>(hci_arr);
-  acl->header().handle().Write(kConnectionHandle);
+  acl->header().handle().Write(handle);
   acl->data_total_length().Write(emboss::FirstKFrame::MinSizeInBytes() +
                                  kPayloadSize);
 
@@ -1013,14 +984,13 @@ TEST_F(L2capCocReadTest, ChannelClosedWithErrorIfPayloadsExceedSduLength) {
                               std::move(send_to_controller_fn),
                               /*le_acl_credits_to_reserve=*/0,
                               /*br_edr_acl_credits_to_reserve=*/0);
-  PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
-      proxy, kConnectionHandle, emboss::StatusCode::SUCCESS));
 
+  uint16_t handle = 123;
   uint16_t local_cid = 234;
   int events_received = 0;
   L2capCoc channel = BuildCoc(
       proxy,
-      CocParameters{.handle = kConnectionHandle,
+      CocParameters{.handle = handle,
                     .local_cid = local_cid,
                     .receive_fn = [](FlatConstMultiBuf&&) { FAIL(); },
                     .event_fn =
@@ -1047,7 +1017,7 @@ TEST_F(L2capCocReadTest, ChannelClosedWithErrorIfPayloadsExceedSduLength) {
 
   Result<emboss::AclDataFrameWriter> acl =
       MakeEmbossWriter<emboss::AclDataFrameWriter>(hci_arr);
-  acl->header().handle().Write(kConnectionHandle);
+  acl->header().handle().Write(handle);
   acl->data_total_length().Write(emboss::FirstKFrame::MinSizeInBytes() +
                                  k1stPayloadSize);
 
@@ -1084,13 +1054,12 @@ TEST_F(L2capCocReadTest, NoReadOnStoppedChannel) {
                               std::move(send_to_controller_fn),
                               /*le_acl_credits_to_reserve=*/0,
                               /*br_edr_acl_credits_to_reserve=*/0);
-  PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
-      proxy, kConnectionHandle, emboss::StatusCode::SUCCESS));
 
+  uint16_t handle = 123;
   uint16_t local_cid = 234;
   L2capCoc channel = BuildCoc(
       proxy,
-      CocParameters{.handle = kConnectionHandle,
+      CocParameters{.handle = handle,
                     .local_cid = local_cid,
                     .receive_fn = [](FlatConstMultiBuf&&) { FAIL(); }});
 
@@ -1100,7 +1069,7 @@ TEST_F(L2capCocReadTest, NoReadOnStoppedChannel) {
 
   Result<emboss::AclDataFrameWriter> acl =
       MakeEmbossWriter<emboss::AclDataFrameWriter>(hci_arr);
-  acl->header().handle().Write(kConnectionHandle);
+  acl->header().handle().Write(handle);
   acl->data_total_length().Write(emboss::FirstKFrame::MinSizeInBytes());
 
   emboss::FirstKFrameWriter kframe = emboss::MakeFirstKFrameView(
@@ -1121,14 +1090,11 @@ TEST_F(L2capCocReadTest, NoReadOnSameCidDifferentConnectionHandle) {
                               std::move(send_to_controller_fn),
                               /*le_acl_credits_to_reserve=*/0,
                               /*br_edr_acl_credits_to_reserve=*/0);
-  PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
-      proxy, kConnectionHandle, emboss::StatusCode::SUCCESS));
 
   uint16_t local_cid = 234;
   L2capCoc channel = BuildCoc(
       proxy,
-      CocParameters{.handle = kConnectionHandle,
-                    .local_cid = local_cid,
+      CocParameters{.local_cid = local_cid,
                     .receive_fn = [](FlatConstMultiBuf&&) { FAIL(); }});
 
   std::array<uint8_t, kFirstKFrameOverAclMinSize> hci_arr;
@@ -1157,18 +1123,17 @@ TEST_F(L2capCocReadTest, MultipleReadsSameChannel) {
                               std::move(send_to_controller_fn),
                               /*le_acl_credits_to_reserve=*/0,
                               /*br_edr_acl_credits_to_reserve=*/0);
-  PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
-      proxy, kConnectionHandle, emboss::StatusCode::SUCCESS));
 
   struct {
     int sends_called = 0;
     std::array<uint8_t, 3> payload = {0xAB, 0xCD, 0xEF};
   } capture;
 
+  uint16_t handle = 123;
   uint16_t local_cid = 234;
   L2capCoc channel = BuildCoc(
       proxy,
-      CocParameters{.handle = kConnectionHandle,
+      CocParameters{.handle = handle,
                     .local_cid = local_cid,
                     .receive_fn = [&capture](FlatConstMultiBuf&& payload) {
                       ++capture.sends_called;
@@ -1188,7 +1153,7 @@ TEST_F(L2capCocReadTest, MultipleReadsSameChannel) {
 
   Result<emboss::AclDataFrameWriter> acl =
       MakeEmbossWriter<emboss::AclDataFrameWriter>(hci_arr);
-  acl->header().handle().Write(kConnectionHandle);
+  acl->header().handle().Write(handle);
   acl->data_total_length().Write(emboss::FirstKFrame::MinSizeInBytes() +
                                  capture.payload.size());
 
@@ -1224,8 +1189,6 @@ TEST_F(L2capCocReadTest, MultipleReadsMultipleChannels) {
                               std::move(send_to_controller_fn),
                               /*le_acl_credits_to_reserve=*/0,
                               /*br_edr_acl_credits_to_reserve=*/0);
-  PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
-      proxy, kConnectionHandle, emboss::StatusCode::SUCCESS));
 
   struct {
     int sends_called = 0;
@@ -1234,6 +1197,7 @@ TEST_F(L2capCocReadTest, MultipleReadsMultipleChannels) {
 
   constexpr int kNumChannels = 5;
   uint16_t local_cid = 123;
+  uint16_t handle = 456;
   auto receive_fn = [&capture](FlatConstMultiBuf&& payload) {
     ++capture.sends_called;
     ASSERT_FALSE(payload.empty());
@@ -1247,23 +1211,23 @@ TEST_F(L2capCocReadTest, MultipleReadsMultipleChannels) {
   };
   std::array<L2capCoc, kNumChannels> channels{
       BuildCoc(proxy,
-               CocParameters{.handle = kConnectionHandle,
+               CocParameters{.handle = handle,
                              .local_cid = local_cid,
                              .receive_fn = receive_fn}),
       BuildCoc(proxy,
-               CocParameters{.handle = kConnectionHandle,
+               CocParameters{.handle = handle,
                              .local_cid = static_cast<uint16_t>(local_cid + 1),
                              .receive_fn = receive_fn}),
       BuildCoc(proxy,
-               CocParameters{.handle = kConnectionHandle,
+               CocParameters{.handle = handle,
                              .local_cid = static_cast<uint16_t>(local_cid + 2),
                              .receive_fn = receive_fn}),
       BuildCoc(proxy,
-               CocParameters{.handle = kConnectionHandle,
+               CocParameters{.handle = handle,
                              .local_cid = static_cast<uint16_t>(local_cid + 3),
                              .receive_fn = receive_fn}),
       BuildCoc(proxy,
-               CocParameters{.handle = kConnectionHandle,
+               CocParameters{.handle = handle,
                              .local_cid = static_cast<uint16_t>(local_cid + 4),
                              .receive_fn = receive_fn}),
   };
@@ -1274,7 +1238,7 @@ TEST_F(L2capCocReadTest, MultipleReadsMultipleChannels) {
 
   Result<emboss::AclDataFrameWriter> acl =
       MakeEmbossWriter<emboss::AclDataFrameWriter>(hci_arr);
-  acl->header().handle().Write(kConnectionHandle);
+  acl->header().handle().Write(handle);
   acl->data_total_length().Write(emboss::FirstKFrame::MinSizeInBytes() +
                                  capture.payload.size());
 
@@ -1310,8 +1274,6 @@ TEST_F(L2capCocReadTest, ChannelStoppageDoNotAffectOtherChannels) {
                               std::move(send_to_controller_fn),
                               /*le_acl_credits_to_reserve=*/0,
                               /*br_edr_acl_credits_to_reserve=*/0);
-  PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
-      proxy, kConnectionHandle, emboss::StatusCode::SUCCESS));
 
   struct {
     int sends_called = 0;
@@ -1320,6 +1282,7 @@ TEST_F(L2capCocReadTest, ChannelStoppageDoNotAffectOtherChannels) {
 
   constexpr int kNumChannels = 5;
   uint16_t local_cid = 123;
+  uint16_t handle = 456;
   auto receive_fn = [&capture](FlatConstMultiBuf&& payload) {
     ++capture.sends_called;
     ASSERT_FALSE(payload.empty());
@@ -1333,23 +1296,23 @@ TEST_F(L2capCocReadTest, ChannelStoppageDoNotAffectOtherChannels) {
   };
   std::array<L2capCoc, kNumChannels> channels{
       BuildCoc(proxy,
-               CocParameters{.handle = kConnectionHandle,
+               CocParameters{.handle = handle,
                              .local_cid = local_cid,
                              .receive_fn = receive_fn}),
       BuildCoc(proxy,
-               CocParameters{.handle = kConnectionHandle,
+               CocParameters{.handle = handle,
                              .local_cid = static_cast<uint16_t>(local_cid + 1),
                              .receive_fn = receive_fn}),
       BuildCoc(proxy,
-               CocParameters{.handle = kConnectionHandle,
+               CocParameters{.handle = handle,
                              .local_cid = static_cast<uint16_t>(local_cid + 2),
                              .receive_fn = receive_fn}),
       BuildCoc(proxy,
-               CocParameters{.handle = kConnectionHandle,
+               CocParameters{.handle = handle,
                              .local_cid = static_cast<uint16_t>(local_cid + 3),
                              .receive_fn = receive_fn}),
       BuildCoc(proxy,
-               CocParameters{.handle = kConnectionHandle,
+               CocParameters{.handle = handle,
                              .local_cid = static_cast<uint16_t>(local_cid + 4),
                              .receive_fn = receive_fn}),
   };
@@ -1364,7 +1327,7 @@ TEST_F(L2capCocReadTest, ChannelStoppageDoNotAffectOtherChannels) {
 
   Result<emboss::AclDataFrameWriter> acl =
       MakeEmbossWriter<emboss::AclDataFrameWriter>(hci_arr);
-  acl->header().handle().Write(kConnectionHandle);
+  acl->header().handle().Write(handle);
   acl->data_total_length().Write(emboss::FirstKFrame::MinSizeInBytes() +
                                  capture.payload.size());
 
@@ -1396,18 +1359,16 @@ TEST_F(L2capCocReadTest, ChannelStoppageDoNotAffectOtherChannels) {
 TEST_F(L2capCocReadTest, NonCocAclPacketPassesThroughToHost) {
   struct {
     int sends_called = 0;
+    uint16_t handle = 123;
     std::array<uint8_t, 3> expected_payload = {0xAB, 0xCD, 0xEF};
   } capture;
 
   pw::Function<void(H4PacketWithHci && packet)>&& send_to_host_fn(
       [&capture](H4PacketWithHci&& packet) {
-        if (packet.GetH4Type() == emboss::H4PacketType::EVENT) {
-          return;
-        }
         ++capture.sends_called;
         Result<emboss::AclDataFrameWriter> acl =
             MakeEmbossWriter<emboss::AclDataFrameWriter>(packet.GetHciSpan());
-        EXPECT_EQ(acl->header().handle().Read(), kConnectionHandle);
+        EXPECT_EQ(acl->header().handle().Read(), capture.handle);
         emboss::BFrameView bframe =
             emboss::MakeBFrameView(acl->payload().BackingStorage().data(),
                                    acl->data_total_length().Read());
@@ -1421,13 +1382,11 @@ TEST_F(L2capCocReadTest, NonCocAclPacketPassesThroughToHost) {
                               std::move(send_to_controller_fn),
                               /*le_acl_credits_to_reserve=*/0,
                               /*br_edr_acl_credits_to_reserve=*/0);
-  PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
-      proxy, kConnectionHandle, emboss::StatusCode::SUCCESS));
 
   // Acquire unused CoC to validate that doing so does not interfere.
   L2capCoc channel = BuildCoc(
       proxy,
-      CocParameters{.handle = kConnectionHandle,
+      CocParameters{.handle = capture.handle,
                     .receive_fn = [](FlatConstMultiBuf&&) { FAIL(); }});
 
   std::array<uint8_t,
@@ -1440,7 +1399,7 @@ TEST_F(L2capCocReadTest, NonCocAclPacketPassesThroughToHost) {
 
   Result<emboss::AclDataFrameWriter> acl =
       MakeEmbossWriter<emboss::AclDataFrameWriter>(hci_arr);
-  acl->header().handle().Write(kConnectionHandle);
+  acl->header().handle().Write(capture.handle);
   acl->data_total_length().Write(
       emboss::BasicL2capHeader::IntrinsicSizeInBytes() +
       capture.expected_payload.size());
@@ -1465,9 +1424,7 @@ TEST_F(L2capCocReadTest, AclFrameWithIncompleteL2capHeaderForwardedToHost) {
   int sends_to_host_called = 0;
   pw::Function<void(H4PacketWithHci && packet)>&& send_to_host_fn(
       [&sends_to_host_called]([[maybe_unused]] H4PacketWithHci&& packet) {
-        if (packet.GetH4Type() == emboss::H4PacketType::ACL_DATA) {
-          ++sends_to_host_called;
-        }
+        ++sends_to_host_called;
       });
   pw::Function<void(H4PacketWithH4 && packet)>&& send_to_controller_fn(
       []([[maybe_unused]] H4PacketWithH4&& packet) {});
@@ -1475,11 +1432,9 @@ TEST_F(L2capCocReadTest, AclFrameWithIncompleteL2capHeaderForwardedToHost) {
                               std::move(send_to_controller_fn),
                               /*le_acl_credits_to_reserve=*/0,
                               /*br_edr_acl_credits_to_reserve=*/0);
-  PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
-      proxy, kConnectionHandle, emboss::StatusCode::SUCCESS));
 
-  L2capCoc channel =
-      BuildCoc(proxy, CocParameters{.handle = kConnectionHandle});
+  uint16_t handle = 123;
+  L2capCoc channel = BuildCoc(proxy, CocParameters{.handle = handle});
 
   std::array<uint8_t, emboss::AclDataFrameHeader::IntrinsicSizeInBytes()>
       hci_arr;
@@ -1488,7 +1443,7 @@ TEST_F(L2capCocReadTest, AclFrameWithIncompleteL2capHeaderForwardedToHost) {
 
   Result<emboss::AclDataFrameWriter> acl =
       MakeEmbossWriter<emboss::AclDataFrameWriter>(hci_arr);
-  acl->header().handle().Write(kConnectionHandle);
+  acl->header().handle().Write(handle);
   acl->data_total_length().Write(0);
 
   proxy.HandleH4HciFromController(std::move(h4_packet));
@@ -1505,12 +1460,8 @@ TEST_F(L2capCocReadTest, FragmentedPduDoesNotInterfereWithOtherChannels) {
                               std::move(send_to_controller_fn),
                               /*le_acl_credits_to_reserve=*/0,
                               /*br_edr_acl_credits_to_reserve=*/0);
-  uint16_t handle_frag = 0x123, handle_fine = 0x234;
-  PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
-      proxy, handle_frag, emboss::StatusCode::SUCCESS));
-  PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
-      proxy, handle_fine, emboss::StatusCode::SUCCESS));
 
+  uint16_t handle_frag = 0x123, handle_fine = 0x234;
   uint16_t cid_frag = 0x345, cid_fine = 0x456;
   int packets_received = 0;
   auto receive_fn = [&packets_received](FlatConstMultiBuf&&) {
@@ -1639,13 +1590,9 @@ TEST_F(L2capCocQueueTest, ReadBufferResponseDrainsQueue) {
                 std::move(send_to_controller_fn),
                 /*le_acl_credits_to_reserve=*/L2capCoc::QueueCapacity(),
                 /*br_edr_acl_credits_to_reserve=*/0);
-  PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
-      proxy, kConnectionHandle, emboss::StatusCode::SUCCESS));
 
   L2capCoc channel =
-      BuildCoc(proxy,
-               CocParameters{.handle = kConnectionHandle,
-                             .tx_credits = L2capCoc::QueueCapacity()});
+      BuildCoc(proxy, CocParameters{.tx_credits = L2capCoc::QueueCapacity()});
 
   EXPECT_EQ(proxy.GetNumFreeLeAclPackets(), 0);
   for (size_t i = 0; i < L2capCoc::QueueCapacity(); ++i) {
@@ -1680,12 +1627,11 @@ TEST_F(L2capCocQueueTest, NocpEventDrainsQueue) {
                 /*br_edr_acl_credits_to_reserve=*/0);
   PW_TEST_EXPECT_OK(
       SendLeReadBufferResponseFromController(proxy, L2capCoc::QueueCapacity()));
-  PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
-      proxy, kConnectionHandle, emboss::StatusCode::SUCCESS));
 
+  uint16_t handle = 123;
   L2capCoc channel =
       BuildCoc(proxy,
-               CocParameters{.handle = kConnectionHandle,
+               CocParameters{.handle = handle,
                              .tx_credits = 2 * L2capCoc::QueueCapacity()});
 
   for (size_t i = 0; i < L2capCoc::QueueCapacity(); ++i) {
@@ -1707,8 +1653,7 @@ TEST_F(L2capCocQueueTest, NocpEventDrainsQueue) {
 
   PW_TEST_EXPECT_OK(SendNumberOfCompletedPackets(
       proxy,
-      FlatMap<uint16_t, uint16_t, 1>(
-          {{{kConnectionHandle, L2capCoc::QueueCapacity()}}})));
+      FlatMap<uint16_t, uint16_t, 1>({{{handle, L2capCoc::QueueCapacity()}}})));
 
   EXPECT_EQ(sends_called, 2 * L2capCoc::QueueCapacity());
 }
@@ -1729,23 +1674,22 @@ TEST_F(L2capCocQueueTest, RemovingLrdChannelDoesNotInvalidateRoundRobin) {
   PW_TEST_EXPECT_OK(
       SendLeReadBufferResponseFromController(proxy, L2capCoc::QueueCapacity()));
   EXPECT_EQ(proxy.GetNumFreeLeAclPackets(), L2capCoc::QueueCapacity());
-  PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
-      proxy, kConnectionHandle, emboss::StatusCode::SUCCESS));
 
+  uint16_t handle = 123;
   std::array<uint16_t, 3> remote_cids = {1, 2, 3};
-  L2capCoc chan_left = BuildCoc(proxy,
-                                CocParameters{.handle = kConnectionHandle,
-                                              .remote_cid = remote_cids[0],
-                                              .tx_credits = 1});
+  L2capCoc chan_left = BuildCoc(
+      proxy,
+      CocParameters{
+          .handle = handle, .remote_cid = remote_cids[0], .tx_credits = 1});
   std::optional<L2capCoc> chan_middle =
       BuildCoc(proxy,
-               CocParameters{.handle = kConnectionHandle,
+               CocParameters{.handle = handle,
                              .remote_cid = remote_cids[1],
                              .tx_credits = L2capCoc::QueueCapacity() + 1});
-  L2capCoc chan_right = BuildCoc(proxy,
-                                 CocParameters{.handle = kConnectionHandle,
-                                               .remote_cid = remote_cids[2],
-                                               .tx_credits = 1});
+  L2capCoc chan_right = BuildCoc(
+      proxy,
+      CocParameters{
+          .handle = handle, .remote_cid = remote_cids[2], .tx_credits = 1});
 
   // We have 3 channels. Make it so LRD channel iterator is on the middle
   // channel, then release that channel and ensure the other two are still
@@ -1761,7 +1705,7 @@ TEST_F(L2capCocQueueTest, RemovingLrdChannelDoesNotInvalidateRoundRobin) {
 
   // Make middle channel the LRD channel.
   PW_TEST_EXPECT_OK(SendNumberOfCompletedPackets(
-      proxy, FlatMap<uint16_t, uint16_t, 1>({{{kConnectionHandle, 1}}})));
+      proxy, FlatMap<uint16_t, uint16_t, 1>({{{handle, 1}}})));
   EXPECT_EQ(sends_called, L2capCoc::QueueCapacity() + 1);
 
   // Queue a packet each in left and right channels.
@@ -1778,7 +1722,7 @@ TEST_F(L2capCocQueueTest, RemovingLrdChannelDoesNotInvalidateRoundRobin) {
 
   // Confirm packets in remaining two channels are sent in round robin.
   PW_TEST_EXPECT_OK(SendNumberOfCompletedPackets(
-      proxy, FlatMap<uint16_t, uint16_t, 1>({{{kConnectionHandle, 2}}})));
+      proxy, FlatMap<uint16_t, uint16_t, 1>({{{handle, 2}}})));
   EXPECT_EQ(sends_called, L2capCoc::QueueCapacity() + 3);
 }
 
@@ -1802,13 +1746,12 @@ TEST_F(L2capCocQueueTest, H4BufferReleaseTriggersQueueDrain) {
   PW_TEST_EXPECT_OK(
       SendLeReadBufferResponseFromController(proxy, kAclLeCredits));
   EXPECT_EQ(proxy.GetNumFreeLeAclPackets(), kAclLeCredits);
-  PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
-      proxy, kConnectionHandle, emboss::StatusCode::SUCCESS));
 
+  constexpr uint16_t kHandle = 0x123;
   constexpr uint16_t kRemoteCid = 0x456;
   L2capCoc channel = BuildCoc(proxy,
                               CocParameters{
-                                  .handle = kConnectionHandle,
+                                  .handle = kHandle,
                                   .remote_cid = kRemoteCid,
                                   .tx_mtu = 1000,
                                   .tx_mps = 1000,
@@ -1863,12 +1806,8 @@ TEST_F(L2capCocQueueTest, RoundRobinHandlesMultiplePasses) {
                               std::move(send_to_controller_fn),
                               /*le_acl_credits_to_reserve=*/kNumSends,
                               /*br_edr_acl_credits_to_reserve=*/0);
-  PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
-      proxy, kConnectionHandle, emboss::StatusCode::SUCCESS));
 
-  L2capCoc channel = BuildCoc(
-      proxy,
-      CocParameters{.handle = kConnectionHandle, .tx_credits = kNumSends});
+  L2capCoc channel = BuildCoc(proxy, CocParameters{.tx_credits = kNumSends});
 
   // Occupy all queue slots.
   for (size_t i = 0; i < kNumSends; ++i) {
@@ -1898,9 +1837,8 @@ TEST_F(L2capCocReassemblyTest, OneSegmentRx) {
                               std::move(send_to_controller_fn),
                               /*le_acl_credits_to_reserve=*/0,
                               /*br_edr_acl_credits_to_reserve=*/0);
-  PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
-      proxy, kConnectionHandle, emboss::StatusCode::SUCCESS));
 
+  uint16_t handle = 0x123;
   uint16_t local_cid = 0x234;
   struct {
     int sdus_received = 0;
@@ -1908,7 +1846,7 @@ TEST_F(L2capCocReassemblyTest, OneSegmentRx) {
   } capture;
   L2capCoc channel = BuildCoc(
       proxy,
-      {.handle = kConnectionHandle,
+      {.handle = handle,
        .local_cid = local_cid,
        .receive_fn = [&capture](FlatConstMultiBuf&& payload) {
          ++capture.sdus_received;
@@ -1922,10 +1860,8 @@ TEST_F(L2capCocReassemblyTest, OneSegmentRx) {
                                 expected_sdu.end()));
        }});
 
-  Result<BFrameWithStorage> bframe =
-      SetupBFrame(kConnectionHandle,
-                  local_cid,
-                  capture.expected_payload.size() + kSduLengthFieldSize);
+  Result<BFrameWithStorage> bframe = SetupBFrame(
+      handle, local_cid, capture.expected_payload.size() + kSduLengthFieldSize);
   H4PacketWithHci h4_packet{emboss::H4PacketType::ACL_DATA,
                             bframe->acl.hci_span()};
 
@@ -1950,9 +1886,8 @@ TEST_F(L2capCocReassemblyTest, SduReceivedWhenSegmentedOverFullRangeOfMps) {
                               std::move(send_to_controller_fn),
                               /*le_acl_credits_to_reserve=*/0,
                               /*br_edr_acl_credits_to_reserve=*/0);
-  PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
-      proxy, kConnectionHandle, emboss::StatusCode::SUCCESS));
 
+  uint16_t handle = 0x123;
   uint16_t local_cid = 0x234;
   struct {
     uint16_t sdus_received = 0;
@@ -1961,7 +1896,7 @@ TEST_F(L2capCocReassemblyTest, SduReceivedWhenSegmentedOverFullRangeOfMps) {
   } capture;
   L2capCoc channel = BuildCoc(
       proxy,
-      {.handle = kConnectionHandle,
+      {.handle = handle,
        .local_cid = local_cid,
        .receive_fn = [&capture](FlatConstMultiBuf&& payload) {
          ++capture.sdus_received;
@@ -1980,12 +1915,8 @@ TEST_F(L2capCocReassemblyTest, SduReceivedWhenSegmentedOverFullRangeOfMps) {
   // to MPS values 5 octets greater than the payload size.
   for (uint16_t mps = 2; mps < capture.expected_payload.size() + 5; ++mps) {
     for (size_t segment_no = 0;; ++segment_no) {
-      Result<KFrameWithStorage> kframe =
-          SetupKFrame(kConnectionHandle,
-                      local_cid,
-                      mps,
-                      segment_no,
-                      span(capture.expected_payload));
+      Result<KFrameWithStorage> kframe = SetupKFrame(
+          handle, local_cid, mps, segment_no, span(capture.expected_payload));
       if (!kframe.ok()) {
         break;
       }
@@ -2008,15 +1939,14 @@ TEST_F(L2capCocReassemblyTest, ErrorIfPayloadBytesExceedSduLength) {
                               std::move(send_to_controller_fn),
                               /*le_acl_credits_to_reserve=*/0,
                               /*br_edr_acl_credits_to_reserve=*/0);
-  PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
-      proxy, kConnectionHandle, emboss::StatusCode::SUCCESS));
 
+  uint16_t handle = 0x123;
   uint16_t local_cid = 0x234;
   int events_received = 0;
   L2capCoc channel =
       BuildCoc(proxy,
                {
-                   .handle = kConnectionHandle,
+                   .handle = handle,
                    .local_cid = local_cid,
                    .receive_fn = [](FlatConstMultiBuf&&) { FAIL(); },
                    .event_fn =
@@ -2037,7 +1967,7 @@ TEST_F(L2capCocReassemblyTest, ErrorIfPayloadBytesExceedSduLength) {
 
   Result<emboss::AclDataFrameWriter> acl =
       MakeEmbossWriter<emboss::AclDataFrameWriter>(hci_arr);
-  acl->header().handle().Write(kConnectionHandle);
+  acl->header().handle().Write(handle);
   acl->data_total_length().Write(emboss::FirstKFrame::MinSizeInBytes() +
                                  kFirstPayloadLength);
 
@@ -2064,15 +1994,14 @@ TEST_F(L2capCocReassemblyTest, ErrorIfRxBufferTooSmallForFirstKFrame) {
                               std::move(send_to_controller_fn),
                               /*le_acl_credits_to_reserve=*/0,
                               /*br_edr_acl_credits_to_reserve=*/0);
-  PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
-      proxy, kConnectionHandle, emboss::StatusCode::SUCCESS));
 
+  uint16_t handle = 0x123;
   uint16_t local_cid = 0x234;
   int events_received = 0;
   L2capCoc channel =
       BuildCoc(proxy,
                {
-                   .handle = kConnectionHandle,
+                   .handle = handle,
                    .local_cid = local_cid,
                    .receive_fn = [](FlatConstMultiBuf&&) { FAIL(); },
                    .event_fn =
@@ -2088,7 +2017,7 @@ TEST_F(L2capCocReassemblyTest, ErrorIfRxBufferTooSmallForFirstKFrame) {
 
   Result<emboss::AclDataFrameWriter> acl =
       MakeEmbossWriter<emboss::AclDataFrameWriter>(hci_arr);
-  acl->header().handle().Write(kConnectionHandle);
+  acl->header().handle().Write(handle);
   acl->data_total_length().Write(emboss::FirstKFrame::MinSizeInBytes() - 1);
 
   emboss::FirstKFrameWriter kframe = emboss::MakeFirstKFrameView(
@@ -2109,6 +2038,7 @@ class L2capCocSegmentationTest : public ProxyHostTest {};
 TEST_F(L2capCocSegmentationTest, SduSentWhenSegmentedOverFullRangeOfMps) {
   constexpr size_t kPayloadSize = 312;
   struct {
+    uint16_t handle = 0x123;
     uint16_t remote_cid = 0x456;
     uint16_t sdus_received = 0;
     uint16_t mps;
@@ -2125,7 +2055,7 @@ TEST_F(L2capCocSegmentationTest, SduSentWhenSegmentedOverFullRangeOfMps) {
         static uint16_t pdu_bytes_received = 0;
         PW_TEST_ASSERT_OK_AND_ASSIGN(
             KFrameWithStorage expected_kframe,
-            SetupKFrame(kConnectionHandle,
+            SetupKFrame(capture.handle,
                         capture.remote_cid,
                         capture.mps,
                         segment_no,
@@ -2160,8 +2090,6 @@ TEST_F(L2capCocSegmentationTest, SduSentWhenSegmentedOverFullRangeOfMps) {
       proxy,
       /*num_credits_to_reserve=*/UINT8_MAX,
       /*le_acl_data_packet_length=*/UINT16_MAX));
-  PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
-      proxy, kConnectionHandle, emboss::StatusCode::SUCCESS));
 
   uint16_t sdus_sent = 0;
 
@@ -2170,7 +2098,7 @@ TEST_F(L2capCocSegmentationTest, SduSentWhenSegmentedOverFullRangeOfMps) {
   // minimum MPS supported for L2CAP channels.
   for (capture.mps = 23; capture.mps < kPayloadSize + 5; ++capture.mps) {
     L2capCoc channel = BuildCoc(proxy,
-                                {.handle = kConnectionHandle,
+                                {.handle = capture.handle,
                                  .remote_cid = capture.remote_cid,
                                  .tx_mtu = capture.expected_payload.size(),
                                  .tx_mps = capture.mps,
@@ -2186,7 +2114,7 @@ TEST_F(L2capCocSegmentationTest, SduSentWhenSegmentedOverFullRangeOfMps) {
     PW_TEST_EXPECT_OK(SendNumberOfCompletedPackets(
         proxy,
         FlatMap<uint16_t, uint16_t, 1>(
-            {{{kConnectionHandle,
+            {{{capture.handle,
                static_cast<uint8_t>(UINT8_MAX -
                                     proxy.GetNumFreeLeAclPackets())}}})));
   }
