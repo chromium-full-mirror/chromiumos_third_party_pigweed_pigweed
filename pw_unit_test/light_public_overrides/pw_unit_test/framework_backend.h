@@ -686,10 +686,11 @@ class TestInfo {
            const char* const file_name,
            void (*run_func)(const TestInfo&))
       : test_case_{
-        .suite_name = test_suite_name,
-        .test_name = test_name,
-        .file_name = file_name,
-       }, run_(run_func) {
+            .suite_name = test_suite_name,
+            .test_name = test_name,
+            .file_name = file_name,
+        },
+        run_(run_func) {
     Framework::Get().RegisterTest(this);
   }
 
@@ -912,11 +913,11 @@ inline int RUN_ALL_TESTS() {
 // For some reason GCC8 is unable to ignore -Wredundant-decls here.
 #define _PW_TEST_SUITE_NAMES_MUST_BE_UNIQUE(return_type, test_suite)
 #else  // All other compilers.
-#define _PW_TEST_SUITE_NAMES_MUST_BE_UNIQUE(return_type, test_suite)           \
-  PW_MODIFY_DIAGNOSTICS_PUSH();                                                \
-  PW_MODIFY_DIAGNOSTIC(ignored, "-Wredundant-decls");                          \
-  extern "C" return_type /* use extern "C" to escape namespacing */            \
-      PwUnitTestSuiteNamesMustBeUniqueBetweenTESTandTEST_F_##test_suite(void); \
+#define _PW_TEST_SUITE_NAMES_MUST_BE_UNIQUE(return_type, test_suite)       \
+  PW_MODIFY_DIAGNOSTICS_PUSH();                                            \
+  PW_MODIFY_DIAGNOSTIC(ignored, "-Wredundant-decls");                      \
+  extern "C" return_type /* use extern "C" to escape namespacing */        \
+  PwUnitTestSuiteNamesMustBeUniqueBetweenTESTandTEST_F_##test_suite(void); \
   PW_MODIFY_DIAGNOSTICS_POP()
 #endif  // GCC8 or older.
 

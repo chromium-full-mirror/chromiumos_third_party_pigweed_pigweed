@@ -44,7 +44,7 @@
   _PW_IF_CONSTEXPR_TEST(constexpr)                                       \
   void PwConstexprTest_##test_suite##_##test_name() __VA_ARGS__          \
                                                                          \
-  TEST(test_suite, test_name) {                                          \
+      TEST(test_suite, test_name) {                                      \
     PwConstexprTest_##test_suite##_##test_name();                        \
   }                                                                      \
                                                                          \

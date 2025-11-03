@@ -96,7 +96,7 @@ struct IsChannel<Channel<kDataType, kProperties...>> : public std::true_type {};
 template <typename Self, typename Sibling>
 using EnableIfConversionIsValid =
     std::enable_if_t<  // Sibling type must be a Channel
-        IsChannel<Sibling>::value&&
+        IsChannel<Sibling>::value &&
         // Datagram and byte channels are not interchangeable
         (Sibling::data_type() == Self::data_type()) &&
         // Cannot use a unreliable channel as a reliable channel
