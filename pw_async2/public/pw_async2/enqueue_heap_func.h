@@ -14,12 +14,13 @@
 #pragma once
 
 #include "pw_async2/dispatcher.h"
+#include "pw_async2/owned_task.h"
 
 namespace pw::async2 {
 namespace internal {
 
 template <typename Func>
-class RunHeapFuncTask : public Task {
+class RunHeapFuncTask final : public OwnedTask {
  public:
   static Task& New(Func&& func) {
     return *(new RunHeapFuncTask(std::forward<Func>(func)));
@@ -27,11 +28,11 @@ class RunHeapFuncTask : public Task {
 
  private:
   RunHeapFuncTask(Func&& func) : func_(std::forward<Func>(func)) {}
-  Poll<> DoPend(Context&) final {
+  Poll<> DoPend(Context&) override {
     func_();
     return Ready();
   }
-  void DoDestroy() final { delete this; }
+  void DoDestroy() override { delete this; }
   Func func_;
 };
 

@@ -24,7 +24,6 @@ class MockTask : public Task {
  public:
   bool should_complete = false;
   int polled = 0;
-  int destroyed = 0;
   Waker last_waker;
 
  private:
@@ -36,7 +35,6 @@ class MockTask : public Task {
     }
     return Pending();
   }
-  void DoDestroy() override { ++destroyed; }
 };
 
 template <typename T>

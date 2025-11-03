@@ -22,6 +22,7 @@
 
 #include "pw_assert/check.h"
 #include "pw_async2/internal/config.h"
+#include "pw_async2/owned_task.h"
 #include "pw_async2/waker.h"
 #include "pw_log/log.h"
 #include "pw_log/tokenized_args.h"
@@ -107,6 +108,7 @@ NativeDispatcherBase::RunOneTaskResult NativeDispatcherBase::RunOneTask(
   if (complete) {
     tasks_completed_.Increment();
     bool all_complete;
+    bool destroy_owned_task;
     {
       std::lock_guard lock(impl::dispatcher_lock());
       switch (task->state_) {
@@ -124,8 +126,15 @@ NativeDispatcherBase::RunOneTaskResult NativeDispatcherBase::RunOneTask(
       task->dispatcher_ = nullptr;
       task->RemoveAllWakersLocked();
       all_complete = woken_.empty() && sleeping_.empty();
+      destroy_owned_task = task->owned_by_dispatcher_;
     }
-    task->DoDestroy();
+
+    // If this is an allocated task, then no other threads should be accessing
+    // it, so it's not necessary to hold the dispatcher lock.
+    if (destroy_owned_task) {
+      static_cast<OwnedTask&>(*task).Destroy();
+    }
+
     return RunOneTaskResult(
         /*completed_all_tasks=*/all_complete,
         /*completed_main_task=*/task == task_to_look_for,

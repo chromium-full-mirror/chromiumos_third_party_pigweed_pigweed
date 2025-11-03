@@ -54,6 +54,7 @@ pw_add_facade(pw_async2.dispatcher STATIC
     public/pw_async2/dispatcher_base.h
     public/pw_async2/future.h
     public/pw_async2/lock.h
+    public/pw_async2/owned_task.h
     public/pw_async2/task.h
     public/pw_async2/waker.h
   PUBLIC_INCLUDES

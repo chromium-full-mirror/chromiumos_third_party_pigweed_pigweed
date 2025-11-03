@@ -52,6 +52,10 @@ void Task::Deregister() {
   {
     // Fast path: the task is not running.
     std::lock_guard lock(impl::dispatcher_lock());
+    // TODO: b/456555552 - Ideally, it wouldn't be possible to call Deregister
+    // on an OwnedTask. Currently it's private, but accessible via Task.
+    // Consider having a common BaseTask without Deregister.
+    PW_DCHECK(!owned_by_dispatcher_);
     if (TryDeregister()) {
       return;
     }

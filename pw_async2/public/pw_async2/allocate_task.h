@@ -15,21 +15,22 @@
 
 #include "pw_allocator/allocator.h"
 #include "pw_async2/dispatcher.h"
+#include "pw_async2/owned_task.h"
 
 namespace pw::async2 {
 namespace internal {
 
 template <typename Pendable>
-class AllocatedTask final : public Task {
+class AllocatedTask final : public OwnedTask {
  public:
   template <typename... Args>
   AllocatedTask(pw::allocator::Deallocator& deallocator, Args&&... args)
       : deallocator_(deallocator), pendable_(std::forward<Args>(args)...) {}
 
  private:
-  Poll<> DoPend(Context& cx) final { return pendable_.Pend(cx); }
+  Poll<> DoPend(Context& cx) override { return pendable_.Pend(cx); }
 
-  void DoDestroy() final { deallocator_.Delete(this); }
+  void DoDestroy() override { deallocator_.Delete(this); }
 
   pw::allocator::Deallocator& deallocator_;
   Pendable pendable_;

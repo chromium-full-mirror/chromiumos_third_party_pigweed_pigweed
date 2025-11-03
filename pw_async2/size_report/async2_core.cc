@@ -167,7 +167,7 @@ int Measure() {
 
 #endif  // _PW_ASYNC2_SIZE_REPORT_COROUTINE
 
-  return task.destroyed;
+  return task.polled;
 }
 
 }  // namespace pw::async2::size_report

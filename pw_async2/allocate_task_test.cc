@@ -74,24 +74,22 @@ class Pendable {
 
 TEST(AllocateTask, AllocatesWithRvalue) {
   AllocatorForTest<256> alloc;
-  Dispatcher dispatcher;
   PendableStatus status = {};
   Pendable pendable(status);
   Task* task = AllocateTask(alloc, std::move(pendable));
   ASSERT_NE(task, nullptr);
   EXPECT_NE(alloc.allocate_size(), alloc.deallocate_size());
-  task->Destroy();
+  alloc.Delete(task);
   EXPECT_EQ(alloc.allocate_size(), alloc.deallocate_size());
 }
 
 TEST(AllocateTask, AllocatesWithArgs) {
   AllocatorForTest<256> alloc;
-  Dispatcher dispatcher;
   PendableStatus status = {};
   Task* task = AllocateTask<Pendable>(alloc, status);
   ASSERT_NE(task, nullptr);
   EXPECT_NE(alloc.allocate_size(), alloc.deallocate_size());
-  task->Destroy();
+  alloc.Delete(task);
   EXPECT_EQ(alloc.allocate_size(), alloc.deallocate_size());
 }
 

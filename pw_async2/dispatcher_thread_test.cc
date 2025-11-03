@@ -30,7 +30,6 @@ class MockTask : public Task {
  public:
   std::atomic_bool should_complete = false;
   std::atomic_int polled = 0;
-  std::atomic_int destroyed = 0;
   Waker last_waker;
 
  private:
@@ -43,7 +42,6 @@ class MockTask : public Task {
       return Pending();
     }
   }
-  void DoDestroy() override { ++destroyed; }
 };
 
 TEST(Dispatcher, RunToCompletion_SleepsUntilWoken) {
@@ -64,7 +62,6 @@ TEST(Dispatcher, RunToCompletion_SleepsUntilWoken) {
 
   // Poll once when sleeping then once when woken.
   EXPECT_EQ(task.polled, 2);
-  EXPECT_EQ(task.destroyed, 1);
   EXPECT_EQ(dispatcher.tasks_polled(), 2u);
 }
 

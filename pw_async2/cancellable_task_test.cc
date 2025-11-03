@@ -32,7 +32,6 @@ using pw::async2::Waker;
 class MockTask : public Task {
  public:
   bool should_complete = false;
-  bool destroyed = false;
   Waker waker;
 
   MockTask(pw::Closure callback)
@@ -48,8 +47,6 @@ class MockTask : public Task {
     return Pending();
   }
 
-  void DoDestroy() override { destroyed = true; }
-
  private:
   pw::Closure callback_;
 };
@@ -64,14 +61,12 @@ TEST(CancellableTask, CancelsPendingTask) {
   EXPECT_TRUE(dispatcher.RunUntilStalled().IsPending());
   EXPECT_EQ(dispatcher.tasks_polled(), 1u);
   EXPECT_FALSE(task_completed);
-  EXPECT_FALSE(task.destroyed);
 
   task.Cancel();
   EXPECT_TRUE(dispatcher.RunUntilStalled().IsReady());
   EXPECT_EQ(dispatcher.tasks_polled(), 2u);
   EXPECT_FALSE(task.IsRegistered());
   EXPECT_FALSE(task_completed);
-  EXPECT_TRUE(task.destroyed);
 }
 
 TEST(CancellableTask, DoesNothingWithCompletedTask) {
@@ -84,14 +79,12 @@ TEST(CancellableTask, DoesNothingWithCompletedTask) {
   EXPECT_TRUE(dispatcher.RunUntilStalled().IsPending());
   EXPECT_EQ(dispatcher.tasks_polled(), 1u);
   EXPECT_FALSE(task_completed);
-  EXPECT_FALSE(task.destroyed);
 
   task.should_complete = true;
   std::move(task.waker).Wake();
   EXPECT_TRUE(dispatcher.RunUntilStalled().IsReady());
   EXPECT_EQ(dispatcher.tasks_polled(), 2u);
   EXPECT_TRUE(task_completed);
-  EXPECT_TRUE(task.destroyed);
 
   task.Cancel();
   EXPECT_TRUE(dispatcher.RunUntilStalled().IsReady());
@@ -111,7 +104,6 @@ TEST(CancellableTask, CancelsTaskBeforePosting) {
   EXPECT_TRUE(dispatcher.RunUntilStalled().IsReady());
   EXPECT_EQ(dispatcher.tasks_polled(), 1u);
   EXPECT_FALSE(task_completed);
-  EXPECT_TRUE(task.destroyed);
 }
 
 TEST(CancellableTask, CancelsTaskBeforeRunning) {
@@ -128,7 +120,6 @@ TEST(CancellableTask, CancelsTaskBeforeRunning) {
   EXPECT_TRUE(dispatcher.RunUntilStalled().IsReady());
   EXPECT_EQ(dispatcher.tasks_polled(), 1u);
   EXPECT_FALSE(task_completed);
-  EXPECT_TRUE(task.destroyed);
 }
 
 }  // namespace
