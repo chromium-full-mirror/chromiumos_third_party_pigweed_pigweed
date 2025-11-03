@@ -336,10 +336,6 @@ class LowEnergyScanner : public LocalAddressClient {
     delegate()->OnDirectedAdvertisement(result);
   }
 
-  std::vector<LowEnergyScanResult>& cached_scan_results() {
-    return cached_scan_results_;
-  }
-
   // Build the HCI command packet to set the scan parameters for the flavor of
   // low energy scanning being implemented.
   virtual CommandPacket BuildSetScanParametersPacket(
