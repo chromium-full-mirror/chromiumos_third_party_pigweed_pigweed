@@ -26,6 +26,7 @@ int main() {
   stdio_usb_init();
 
   static pw::multibuf::test::SimpleAllocatorForTest<4096, 4096> mb_alloc;
-  pw::SystemStart(pw::channel::Rp2StdioChannelInit(mb_alloc, mb_alloc));
+  pw::system::StartAndClobberTheStack(
+      pw::channel::Rp2StdioChannelInit(mb_alloc, mb_alloc));
   PW_UNREACHABLE;
 }
