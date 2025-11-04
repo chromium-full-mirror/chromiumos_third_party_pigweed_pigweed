@@ -144,7 +144,7 @@ class Task : public IntrusiveList<Task>::Item {
   ///
   /// If the task is currently running, this will return false and the task
   /// will not be deregistered.
-  bool TryDeregister() PW_EXCLUSIVE_LOCKS_REQUIRED(impl::dispatcher_lock());
+  bool TryDeregister() PW_LOCKS_EXCLUDED(impl::dispatcher_lock());
 
   /// Attempts to advance this `Task` to completion.
   ///
@@ -184,6 +184,7 @@ class Task : public IntrusiveList<Task>::Item {
   enum class State : unsigned char {
     kUnposted,
     kRunning,
+    kDeregisteredButRunning,
     kWoken,
     kSleeping,
   };

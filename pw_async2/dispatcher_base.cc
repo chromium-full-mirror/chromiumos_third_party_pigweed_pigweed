@@ -79,7 +79,6 @@ NativeDispatcherBase::SleepInfo NativeDispatcherBase::AttemptRequestWake(
 
 NativeDispatcherBase::RunOneTaskResult NativeDispatcherBase::RunOneTask(
     Dispatcher& dispatcher, Task* task_to_look_for) {
-  std::lock_guard task_lock(task_execution_lock_);
   Task* task;
   {
     std::lock_guard lock(impl::dispatcher_lock());
@@ -105,32 +104,44 @@ NativeDispatcherBase::RunOneTaskResult NativeDispatcherBase::RunOneTask(
     requires_waker = context.requires_waker_;
   }
 
-  if (complete) {
+  // TODO: b/456481592 - Move this code to Task.
+  impl::dispatcher_lock().lock();
+  if (complete || task->state_ == Task::State::kDeregisteredButRunning) {
     tasks_completed_.Increment();
-    bool all_complete;
-    bool destroy_owned_task;
-    {
-      std::lock_guard lock(impl::dispatcher_lock());
-      switch (task->state_) {
-        case Task::State::kUnposted:
-        case Task::State::kSleeping:
-          PW_DASSERT(false);
-          PW_UNREACHABLE;
-        case Task::State::kRunning:
-          break;
-        case Task::State::kWoken:
-          RemoveWokenTaskLocked(*task);
-          break;
-      }
-      task->state_ = Task::State::kUnposted;
-      task->dispatcher_ = nullptr;
-      task->RemoveAllWakersLocked();
-      all_complete = woken_.empty() && sleeping_.empty();
-      destroy_owned_task = task->owned_by_dispatcher_;
-    }
 
-    // If this is an allocated task, then no other threads should be accessing
-    // it, so it's not necessary to hold the dispatcher lock.
+    switch (task->state_) {
+      case Task::State::kUnposted: {
+        bool all_complete = woken_.empty() && sleeping_.empty();
+        impl::dispatcher_lock().unlock();
+        // If the Task was already deregistered by another thread, it cannot be
+        // an OwnedThread, so there is no need to destroy it.
+        return RunOneTaskResult(
+            /*completed_all_tasks=*/all_complete,
+            /*completed_main_task=*/task == task_to_look_for,
+            /*ran_a_task=*/true);
+      }
+      case Task::State::kSleeping:
+        // If the task is sleeping, then another thread must have run the
+        // dispatcher, which is invalid.
+        PW_DASSERT(false);
+        PW_UNREACHABLE;
+      case Task::State::kRunning:
+      case Task::State::kDeregisteredButRunning:
+        break;
+      case Task::State::kWoken:
+        RemoveWokenTaskLocked(*task);
+        break;
+    }
+    task->state_ = Task::State::kUnposted;
+    task->dispatcher_ = nullptr;
+    task->RemoveAllWakersLocked();
+    bool all_complete = woken_.empty() && sleeping_.empty();
+
+    const bool destroy_owned_task = task->owned_by_dispatcher_;
+
+    // If this is an OwnedTask, then no other threads should be accessing it, so
+    // it is safe to release the dispatcher lock while its destroyed.
+    impl::dispatcher_lock().unlock();
     if (destroy_owned_task) {
       static_cast<OwnedTask&>(*task).Destroy();
     }
@@ -141,7 +152,6 @@ NativeDispatcherBase::RunOneTaskResult NativeDispatcherBase::RunOneTask(
         /*ran_a_task=*/true);
   }
 
-  std::lock_guard lock(impl::dispatcher_lock());
   if (task->state_ == Task::State::kRunning) {
     PW_LOG_DEBUG(
         "Dispatcher adding task " PW_LOG_TOKEN_FMT() ":%p to sleep queue",
@@ -161,6 +171,7 @@ NativeDispatcherBase::RunOneTaskResult NativeDispatcherBase::RunOneTask(
       task->dispatcher_ = nullptr;
     }
   }
+  impl::dispatcher_lock().unlock();
   return RunOneTaskResult(
       /*completed_all_tasks=*/false,
       /*completed_main_task=*/false,
@@ -192,7 +203,7 @@ void NativeDispatcherBase::WakeTask(Task& task) {
 
   switch (task.state_) {
     case Task::State::kWoken:
-      // Do nothing-- this has already been woken.
+      // Do nothing: this has already been woken.
       return;
     case Task::State::kUnposted:
       // This should be unreachable.
@@ -202,6 +213,8 @@ void NativeDispatcherBase::WakeTask(Task& task) {
       // as the state of the world may have changed since the task
       // started running.
       break;
+    case Task::State::kDeregisteredButRunning:
+      return;  // Do nothing: the task will be deregistered when it finishes
     case Task::State::kSleeping:
       RemoveSleepingTaskLocked(task);
       // Wake away!

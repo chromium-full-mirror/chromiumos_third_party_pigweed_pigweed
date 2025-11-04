@@ -21,7 +21,6 @@
 #include "pw_containers/intrusive_list.h"
 #include "pw_metric/metric.h"
 #include "pw_sync/lock_annotations.h"
-#include "pw_sync/mutex.h"
 
 namespace pw::async2 {
 
@@ -180,19 +179,6 @@ class NativeDispatcherBase {
   void LogTaskWakers(const Task& task)
       PW_EXCLUSIVE_LOCKS_REQUIRED(impl::dispatcher_lock());
 #endif  // PW_ASYNC2_DEBUG_WAIT_REASON
-
-  // A lock guarding ``Task`` execution.
-  //
-  // This will be acquired prior to pulling any tasks off of the ``Task``
-  // queue, and only released after they have been run and possibly
-  // destroyed.
-  //
-  // If acquiring this lock and ``impl::dispatcher_lock()``, this lock must
-  // be acquired first in order to avoid deadlocks.
-  //
-  // Acquiring this lock may be a slow process, as it must wait until
-  // the running task has finished executing ``Task::Pend``.
-  pw::sync::Mutex task_execution_lock_;
 
   IntrusiveList<Task> woken_ PW_GUARDED_BY(impl::dispatcher_lock());
   IntrusiveList<Task> sleeping_ PW_GUARDED_BY(impl::dispatcher_lock());

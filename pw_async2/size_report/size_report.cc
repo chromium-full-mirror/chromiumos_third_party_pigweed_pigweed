@@ -24,6 +24,7 @@
 #include "pw_containers/intrusive_forward_list.h"
 #include "pw_preprocessor/compiler.h"
 #include "pw_sync/interrupt_spin_lock.h"
+#include "pw_sync/mutex.h"
 #include "pw_sync/thread_notification.h"
 
 namespace pw::async2::size_report {

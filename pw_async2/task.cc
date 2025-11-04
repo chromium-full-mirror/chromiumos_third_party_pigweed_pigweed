@@ -18,6 +18,7 @@
 
 #include "pw_assert/check.h"
 #include "pw_async2/dispatcher_base.h"
+#include "pw_thread/sleep.h"
 
 namespace pw::async2 {
 
@@ -48,32 +49,22 @@ bool Task::IsRegistered() const {
 }
 
 void Task::Deregister() {
-  pw::sync::Mutex* task_execution_lock;
-  {
-    // Fast path: the task is not running.
-    std::lock_guard lock(impl::dispatcher_lock());
-    // TODO: b/456555552 - Ideally, it wouldn't be possible to call Deregister
-    // on an OwnedTask. Currently it's private, but accessible via Task.
-    // Consider having a common BaseTask without Deregister.
-    PW_DCHECK(!owned_by_dispatcher_);
-    if (TryDeregister()) {
-      return;
-    }
-    // The task was running, so we have to wait for the task to stop being
-    // run by acquiring the `task_lock`.
-    task_execution_lock = &dispatcher_->task_execution_lock_;
+  while (!TryDeregister()) {
+    // Sleep between attempts in case the task is running in a lower priority
+    // priority thread. Depending on the RTOS, yield may not allow lower
+    // priority threads to be scheduled.
+    // TODO: b/456506369 - Switch to pw::this_thread::yield when it is updated.
+    this_thread::sleep_for(chrono::SystemClock::duration(1));
   }
-
-  // NOTE: there is a race here where `task_execution_lock_` may be
-  // invalidated by concurrent destruction of the dispatcher.
-  //
-  // This restriction is documented above, but is still fairly footgun-y.
-  std::lock_guard task_lock(*task_execution_lock);
-  std::lock_guard lock(impl::dispatcher_lock());
-  PW_CHECK(TryDeregister());
 }
 
 bool Task::TryDeregister() {
+  std::lock_guard lock(impl::dispatcher_lock());
+  // TODO: b/456555552 - Ideally, it wouldn't be possible to call Deregister
+  // on an OwnedTask. Currently it's private, but accessible via Task.
+  // Consider having a common BaseTask without Deregister.
+  PW_DCHECK(!owned_by_dispatcher_);
+
   switch (state_) {
     case Task::State::kUnposted:
       return true;
@@ -81,6 +72,11 @@ bool Task::TryDeregister() {
       dispatcher_->RemoveSleepingTaskLocked(*this);
       break;
     case Task::State::kRunning:
+      // Mark the task as deregistered. The dispatcher thread running the task
+      // completes deregistration and moves the task to the unposted state.
+      state_ = Task::State::kDeregisteredButRunning;
+      [[fallthrough]];
+    case Task::State::kDeregisteredButRunning:
       return false;
     case Task::State::kWoken:
       dispatcher_->RemoveWokenTaskLocked(*this);

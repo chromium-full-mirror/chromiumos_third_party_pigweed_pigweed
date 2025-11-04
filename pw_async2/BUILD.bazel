@@ -80,6 +80,7 @@ pw_facade(
     # LINT.ThenChange(//pw_async2/public/pw_async2/internal/config.h)
     implementation_deps = [
         "//pw_assert:check",
+        "//pw_thread:sleep",
     ],
     strip_include_prefix = "public",
     deps = [
@@ -94,7 +95,6 @@ pw_facade(
         "//pw_metric:metric",
         "//pw_sync:interrupt_spin_lock",
         "//pw_sync:lock_annotations",
-        "//pw_sync:mutex",
         "//pw_tokenizer",
         "//pw_toolchain:no_destructor",
     ],
@@ -154,6 +154,18 @@ pw_cc_test(
         "//pw_thread:sleep",
         "//pw_thread:thread",
         "//pw_thread_stl:options",
+    ],
+)
+
+pw_cc_test(
+    name = "task_test",
+    srcs = ["task_test.cc"],
+    deps = [
+        ":dispatcher",
+        "//pw_sync:binary_semaphore",
+        "//pw_thread:sleep",
+        "//pw_thread:test_thread_context",
+        "//pw_thread:thread",
     ],
 )
 
@@ -336,6 +348,7 @@ cc_library(
     deps = [
         ":dispatcher",
         "//pw_function",
+        "//pw_sync:mutex",
     ],
 )
 
