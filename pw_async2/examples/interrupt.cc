@@ -34,6 +34,7 @@
 #include "pw_log/log.h"
 #include "pw_status/try.h"
 #include "pw_sync/interrupt_spin_lock.h"
+#include "pw_sync/mutex.h"
 
 namespace {
 

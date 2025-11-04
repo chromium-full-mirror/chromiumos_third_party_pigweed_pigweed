@@ -152,6 +152,7 @@ pw_cc_binary(
         "//pw_containers:inline_queue",
         "//pw_log",
         "//pw_sync:interrupt_spin_lock",
+        "//pw_sync:mutex",
     ],
 )
 
