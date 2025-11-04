@@ -31,6 +31,7 @@ message CpuArchitecture {
     RV64E = 6;
     RV64I = 7;
     RV128I = 8;
+    XTENSA = 9;
   }
 }
 
