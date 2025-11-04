@@ -26,15 +26,15 @@ namespace pw::async2 {
 /// returned ``Ready``. The resulting ``Ready`` value contains a tuple of
 /// the results of joined pendable values.
 template <typename... Pendables>
-class Join {
+class [[deprecated("Use future-based Join instead")]] Joiner {
  private:
   static constexpr auto kTupleIndexSequence =
       std::make_index_sequence<sizeof...(Pendables)>();
   using TupleOfOutputRvalues = std::tuple<PendOutputOf<Pendables>&&...>;
 
  public:
-  /// Creates a ``Join`` from a series of pendable values.
-  explicit Join(Pendables&&... pendables)
+  /// Creates a ``Joiner`` from a series of pendable values.
+  explicit Joiner(Pendables&&... pendables)
       : pendables_(std::move(pendables)...),
         outputs_(Poll<PendOutputOf<Pendables>>(Pending())...) {}
 
@@ -91,11 +91,7 @@ class Join {
 };
 
 template <typename... Pendables>
-Join(Pendables&&...) -> Join<Pendables...>;
-
-/// @}
-
-namespace experimental {
+Joiner(Pendables&&...) -> Joiner<Pendables...>;
 
 template <typename... Futures>
 class JoinFuture
@@ -183,6 +179,6 @@ constexpr auto Join(Futures&&... futures) {
   return JoinFuture(std::forward<Futures>(futures)...);
 }
 
-}  // namespace experimental
+/// @}
 
 }  // namespace pw::async2

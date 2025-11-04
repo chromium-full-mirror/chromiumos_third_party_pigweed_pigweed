@@ -21,94 +21,96 @@
 
 namespace {
 
-using pw::async2::experimental::BroadcastValueProvider;
-using pw::async2::experimental::ValueFuture;
-using pw::async2::experimental::ValueProvider;
-using pw::async2::experimental::VoidFuture;
+using pw::async2::BroadcastValueProvider;
+using pw::async2::Context;
+using pw::async2::Dispatcher;
+using pw::async2::PendFuncTask;
+using pw::async2::Pending;
+using pw::async2::Poll;
+using pw::async2::Ready;
+using pw::async2::ValueFuture;
+using pw::async2::ValueProvider;
+using pw::async2::VoidFuture;
 
 TEST(ValueFuture, Pend) {
-  pw::async2::Dispatcher dispatcher;
+  Dispatcher dispatcher;
   BroadcastValueProvider<int> provider;
 
   ValueFuture<int> future = provider.Get();
   int result = -1;
 
-  pw::async2::PendFuncTask task(
-      [&](pw::async2::Context& cx) -> pw::async2::Poll<> {
-        PW_TRY_READY_ASSIGN(int value, future.Pend(cx));
-        result = value;
-        return pw::async2::Ready();
-      });
+  PendFuncTask task([&](Context& cx) -> Poll<> {
+    PW_TRY_READY_ASSIGN(int value, future.Pend(cx));
+    result = value;
+    return Ready();
+  });
 
   dispatcher.Post(task);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Pending());
+  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
 
   provider.Resolve(27);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Ready());
+  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
   EXPECT_EQ(result, 27);
 }
 
 TEST(ValueFuture, Resolved) {
-  pw::async2::Dispatcher dispatcher;
+  Dispatcher dispatcher;
   auto future = ValueFuture<int>::Resolved(42);
   int result = -1;
 
-  pw::async2::PendFuncTask task(
-      [&](pw::async2::Context& cx) -> pw::async2::Poll<> {
-        PW_TRY_READY_ASSIGN(int value, future.Pend(cx));
-        result = value;
-        return pw::async2::Ready();
-      });
+  PendFuncTask task([&](Context& cx) -> Poll<> {
+    PW_TRY_READY_ASSIGN(int value, future.Pend(cx));
+    result = value;
+    return Ready();
+  });
 
   dispatcher.Post(task);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Ready());
+  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
   EXPECT_EQ(result, 42);
 }
 
 TEST(ValueFuture, ResolvedInPlace) {
-  pw::async2::Dispatcher dispatcher;
+  Dispatcher dispatcher;
   auto future = ValueFuture<std::pair<int, int>>::Resolved(9, 3);
 
   std::optional<std::pair<int, int>> result;
-  pw::async2::PendFuncTask task(
-      [&](pw::async2::Context& cx) -> pw::async2::Poll<> {
-        PW_TRY_READY_ASSIGN(auto value, future.Pend(cx));
-        result = value;
-        return pw::async2::Ready();
-      });
+  PendFuncTask task([&](Context& cx) -> Poll<> {
+    PW_TRY_READY_ASSIGN(auto value, future.Pend(cx));
+    result = value;
+    return Ready();
+  });
 
   dispatcher.Post(task);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Ready());
+  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
   ASSERT_TRUE(result.has_value());
   EXPECT_EQ(result->first, 9);
   EXPECT_EQ(result->second, 3);
 }
 
 TEST(ValueProvider, VendsAndResolvesFuture) {
-  pw::async2::Dispatcher dispatcher;
+  Dispatcher dispatcher;
   ValueProvider<int> provider;
 
   std::optional<ValueFuture<int>> future = provider.Get();
   ASSERT_TRUE(future.has_value());
 
   int result = -1;
-  pw::async2::PendFuncTask task(
-      [&](pw::async2::Context& cx) -> pw::async2::Poll<> {
-        PW_TRY_READY_ASSIGN(int value, future->Pend(cx));
-        result = value;
-        return pw::async2::Ready();
-      });
+  PendFuncTask task([&](Context& cx) -> Poll<> {
+    PW_TRY_READY_ASSIGN(int value, future->Pend(cx));
+    result = value;
+    return Ready();
+  });
 
   dispatcher.Post(task);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Pending());
+  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
 
   provider.Resolve(91);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Ready());
+  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
   EXPECT_EQ(result, 91);
 }
 
 TEST(ValueProvider, OnlyAllowsOneFutureToExist) {
-  pw::async2::Dispatcher dispatcher;
+  Dispatcher dispatcher;
   ValueProvider<int> provider;
 
   {
@@ -123,18 +125,17 @@ TEST(ValueProvider, OnlyAllowsOneFutureToExist) {
   ASSERT_TRUE(future.has_value());
 
   int result = -1;
-  pw::async2::PendFuncTask task(
-      [&](pw::async2::Context& cx) -> pw::async2::Poll<> {
-        PW_TRY_READY_ASSIGN(int value, future->Pend(cx));
-        result = value;
-        return pw::async2::Ready();
-      });
+  PendFuncTask task([&](Context& cx) -> Poll<> {
+    PW_TRY_READY_ASSIGN(int value, future->Pend(cx));
+    result = value;
+    return Ready();
+  });
 
   dispatcher.Post(task);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Pending());
+  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
 
   provider.Resolve(82);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Ready());
+  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
   EXPECT_EQ(result, 82);
 
   // The operation has resolved, so a new future should be obtainable.
@@ -143,25 +144,24 @@ TEST(ValueProvider, OnlyAllowsOneFutureToExist) {
 }
 
 TEST(ValueProvider, ResolveInPlace) {
-  pw::async2::Dispatcher dispatcher;
+  Dispatcher dispatcher;
   ValueProvider<std::pair<int, int>> provider;
 
   std::optional<ValueFuture<std::pair<int, int>>> future = provider.Get();
   ASSERT_TRUE(future.has_value());
 
   std::optional<std::pair<int, int>> result;
-  pw::async2::PendFuncTask task(
-      [&](pw::async2::Context& cx) -> pw::async2::Poll<> {
-        PW_TRY_READY_ASSIGN(auto value, future->Pend(cx));
-        result = value;
-        return pw::async2::Ready();
-      });
+  PendFuncTask task([&](Context& cx) -> Poll<> {
+    PW_TRY_READY_ASSIGN(auto value, future->Pend(cx));
+    result = value;
+    return Ready();
+  });
 
   dispatcher.Post(task);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Pending());
+  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
 
   provider.Resolve(9, 3);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Ready());
+  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
   ASSERT_TRUE(result.has_value());
   EXPECT_EQ(result->first, 9);
   EXPECT_EQ(result->second, 3);
@@ -170,65 +170,62 @@ TEST(ValueProvider, ResolveInPlace) {
 }  // namespace
 
 TEST(VoidFuture, Pend) {
-  pw::async2::Dispatcher dispatcher;
+  Dispatcher dispatcher;
   BroadcastValueProvider<void> provider;
 
   VoidFuture future = provider.Get();
   bool completed = false;
 
-  pw::async2::PendFuncTask task(
-      [&](pw::async2::Context& cx) -> pw::async2::Poll<> {
-        PW_TRY_READY(future.Pend(cx));
-        completed = true;
-        return pw::async2::Ready();
-      });
+  PendFuncTask task([&](Context& cx) -> Poll<> {
+    PW_TRY_READY(future.Pend(cx));
+    completed = true;
+    return Ready();
+  });
 
   dispatcher.Post(task);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Pending());
+  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
   EXPECT_FALSE(completed);
 
   provider.Resolve();
-  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Ready());
+  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
   EXPECT_TRUE(completed);
 }
 
 TEST(VoidFuture, Resolved) {
-  pw::async2::Dispatcher dispatcher;
+  Dispatcher dispatcher;
   auto future = VoidFuture::Resolved();
   bool completed = false;
 
-  pw::async2::PendFuncTask task(
-      [&](pw::async2::Context& cx) -> pw::async2::Poll<> {
-        PW_TRY_READY(future.Pend(cx));
-        completed = true;
-        return pw::async2::Ready();
-      });
+  PendFuncTask task([&](Context& cx) -> Poll<> {
+    PW_TRY_READY(future.Pend(cx));
+    completed = true;
+    return Ready();
+  });
 
   dispatcher.Post(task);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Ready());
+  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
   EXPECT_TRUE(completed);
 }
 
 TEST(ValueProviderVoid, VendsAndResolvesFuture) {
-  pw::async2::Dispatcher dispatcher;
+  Dispatcher dispatcher;
   ValueProvider<void> provider;
 
   std::optional<VoidFuture> future = provider.Get();
   ASSERT_TRUE(future.has_value());
 
   bool completed = false;
-  pw::async2::PendFuncTask task(
-      [&](pw::async2::Context& cx) -> pw::async2::Poll<> {
-        PW_TRY_READY(future->Pend(cx));
-        completed = true;
-        return pw::async2::Ready();
-      });
+  PendFuncTask task([&](Context& cx) -> Poll<> {
+    PW_TRY_READY(future->Pend(cx));
+    completed = true;
+    return Ready();
+  });
 
   dispatcher.Post(task);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Pending());
+  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
   EXPECT_FALSE(completed);
 
   provider.Resolve();
-  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Ready());
+  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
   EXPECT_TRUE(completed);
 }

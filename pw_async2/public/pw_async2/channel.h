@@ -22,7 +22,7 @@
 #include "pw_sync/interrupt_spin_lock.h"
 #include "pw_sync/lock_annotations.h"
 
-namespace pw::async2::experimental {
+namespace pw::async2 {
 
 template <typename T>
 class Receiver;
@@ -1273,4 +1273,4 @@ std::tuple<SpscChannelHandle<T>, Sender<T>, Receiver<T>> CreateSpscChannel(
                          Receiver<T>(&storage));
 }
 
-}  // namespace pw::async2::experimental
+}  // namespace pw::async2

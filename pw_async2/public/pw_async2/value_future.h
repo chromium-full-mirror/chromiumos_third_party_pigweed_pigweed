@@ -16,7 +16,7 @@
 #include "pw_assert/assert.h"
 #include "pw_async2/future.h"
 
-namespace pw::async2::experimental {
+namespace pw::async2 {
 
 template <typename T>
 class ValueProvider;
@@ -251,4 +251,4 @@ class ValueProvider {
   SingleFutureProvider<ValueFuture<T>> provider_;
 };
 
-}  // namespace pw::async2::experimental
+}  // namespace pw::async2

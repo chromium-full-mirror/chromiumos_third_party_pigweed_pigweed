@@ -23,7 +23,7 @@
 #include "pw_containers/intrusive_list.h"
 #include "pw_sync/interrupt_spin_lock.h"
 
-namespace pw::async2::experimental {
+namespace pw::async2 {
 
 /// A `Future` is an abstract handle to an asynchronous operation that is polled
 /// to completion. On completion, futures may return a value representing the
@@ -287,8 +287,7 @@ class ListableFutureWithWaker
  protected:
   /// Wrapper around a future provider pointer which also serves as a
   /// conditional lock, allowing for nullptr.
-  class PW_LOCKABLE("pw::async2::experimental::ListableFutureWithWaker::Lock")
-      Provider {
+  class PW_LOCKABLE("pw::async2::ListableFutureWithWaker::Lock") Provider {
    public:
     void lock() PW_EXCLUSIVE_LOCK_FUNCTION() {
       if (provider_ != nullptr) {
@@ -422,4 +421,4 @@ class ListableFutureWithWaker
   bool complete_ = false;
 };
 
-}  // namespace pw::async2::experimental
+}  // namespace pw::async2

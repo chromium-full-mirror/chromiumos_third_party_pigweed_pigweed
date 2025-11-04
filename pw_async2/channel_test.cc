@@ -23,20 +23,30 @@
 
 namespace {
 
-using pw::async2::experimental::ChannelStorage;
-using pw::async2::experimental::CreateMpmcChannel;
-using pw::async2::experimental::CreateMpscChannel;
-using pw::async2::experimental::CreateSpmcChannel;
-using pw::async2::experimental::CreateSpscChannel;
-using pw::async2::experimental::MpmcChannelHandle;
-using pw::async2::experimental::Receiver;
-using pw::async2::experimental::Sender;
-using pw::async2::experimental::SendReservation;
+using pw::async2::ChannelStorage;
+using pw::async2::Context;
+using pw::async2::CreateMpmcChannel;
+using pw::async2::CreateMpscChannel;
+using pw::async2::CreateSpmcChannel;
+using pw::async2::CreateSpscChannel;
+using pw::async2::Dispatcher;
+using pw::async2::MpmcChannelHandle;
+using pw::async2::PendFuncTask;
+using pw::async2::Pending;
+using pw::async2::Poll;
+using pw::async2::Ready;
+using pw::async2::ReceiveFuture;
+using pw::async2::Receiver;
+using pw::async2::ReserveSendFuture;
+using pw::async2::Sender;
+using pw::async2::SendFuture;
+using pw::async2::SendReservation;
+using pw::async2::Task;
 
-class SenderTask : public pw::async2::Task {
+class SenderTask : public Task {
  public:
   SenderTask(Sender<int> sender, int start, int end)
-      : pw::async2::Task(PW_ASYNC_TASK_NAME("SenderTask")),
+      : Task(PW_ASYNC_TASK_NAME("SenderTask")),
         sender_(std::move(sender)),
         next_(start),
         end_(end) {}
@@ -44,7 +54,7 @@ class SenderTask : public pw::async2::Task {
   bool succeeded() const { return success_; }
 
  private:
-  pw::async2::Poll<> DoPend(pw::async2::Context& cx) override {
+  Poll<> DoPend(Context& cx) override {
     while (next_ <= end_) {
       if (!future_.has_value()) {
         future_.emplace(sender_.Send(next_));
@@ -53,7 +63,7 @@ class SenderTask : public pw::async2::Task {
       PW_TRY_READY_ASSIGN(bool sent, future_->Pend(cx));
       if (!sent) {
         success_ = false;
-        return pw::async2::Ready();
+        return Ready();
       }
 
       future_.reset();
@@ -62,27 +72,27 @@ class SenderTask : public pw::async2::Task {
 
     success_ = true;
     sender_.Disconnect();
-    return pw::async2::Ready();
+    return Ready();
   }
 
   Sender<int> sender_;
-  std::optional<pw::async2::experimental::SendFuture<int>> future_;
+  std::optional<SendFuture<int>> future_;
   bool success_ = false;
   int next_;
   int end_;
 };
 
-class ReceiverTask : public pw::async2::Task {
+class ReceiverTask : public Task {
  public:
   ReceiverTask(Receiver<int> receiver)
-      : pw::async2::Task(PW_ASYNC_TASK_NAME("ReceiverTask")),
+      : Task(PW_ASYNC_TASK_NAME("ReceiverTask")),
         receiver_(std::move(receiver)) {}
 
   pw::Vector<int>& received() { return received_; }
   const pw::Vector<int>& received() const { return received_; }
 
  private:
-  pw::async2::Poll<> DoPend(pw::async2::Context& cx) override {
+  Poll<> DoPend(Context& cx) override {
     while (true) {
       if (!future_.has_value()) {
         future_.emplace(receiver_.Receive());
@@ -98,23 +108,23 @@ class ReceiverTask : public pw::async2::Task {
     }
 
     receiver_.Disconnect();
-    return pw::async2::Ready();
+    return Ready();
   }
 
   Receiver<int> receiver_;
-  std::optional<pw::async2::experimental::ReceiveFuture<int>> future_;
+  std::optional<ReceiveFuture<int>> future_;
   pw::Vector<int, 10> received_;
 };
 
-class DisconnectingReceiverTask : public pw::async2::Task {
+class DisconnectingReceiverTask : public Task {
  public:
   DisconnectingReceiverTask(Receiver<int> receiver, size_t disconnect_after)
-      : pw::async2::Task(PW_ASYNC_TASK_NAME("DisconnectingReceiverTask")),
+      : Task(PW_ASYNC_TASK_NAME("DisconnectingReceiverTask")),
         receiver_(std::move(receiver)),
         disconnect_after_(disconnect_after) {}
 
  private:
-  pw::async2::Poll<> DoPend(pw::async2::Context& cx) override {
+  Poll<> DoPend(Context& cx) override {
     while (disconnect_after_ > 0) {
       if (!future_.has_value()) {
         future_.emplace(receiver_.Receive());
@@ -129,11 +139,11 @@ class DisconnectingReceiverTask : public pw::async2::Task {
     }
 
     receiver_.Disconnect();
-    return pw::async2::Ready();
+    return Ready();
   }
 
   Receiver<int> receiver_;
-  std::optional<pw::async2::experimental::ReceiveFuture<int>> future_;
+  std::optional<ReceiveFuture<int>> future_;
   size_t disconnect_after_;
 };
 
@@ -145,7 +155,7 @@ void ExpectReceived1To6(const pw::Vector<int>& received) {
 }
 
 TEST(StaticChannel, SingleProducerSingleConsumer) {
-  pw::async2::Dispatcher dispatcher;
+  Dispatcher dispatcher;
 
   ChannelStorage<int, 2> storage;
   auto [channel, sender, receiver] = CreateSpscChannel(storage);
@@ -164,7 +174,7 @@ TEST(StaticChannel, SingleProducerSingleConsumer) {
 }
 
 TEST(StaticChannel, MultiProducerSingleConsumer) {
-  pw::async2::Dispatcher dispatcher;
+  Dispatcher dispatcher;
   ChannelStorage<int, 2> storage;
   auto [channel, receiver] = CreateMpscChannel(storage);
 
@@ -189,7 +199,7 @@ TEST(StaticChannel, MultiProducerSingleConsumer) {
 }
 
 TEST(StaticChannel, SingleProducerMultiConsumer) {
-  pw::async2::Dispatcher dispatcher;
+  Dispatcher dispatcher;
   ChannelStorage<int, 2> storage;
   auto [channel, sender] = CreateSpmcChannel(storage);
 
@@ -220,7 +230,7 @@ TEST(StaticChannel, SingleProducerMultiConsumer) {
 }
 
 TEST(StaticChannel, MultiProducerMultiConsumer) {
-  pw::async2::Dispatcher dispatcher;
+  Dispatcher dispatcher;
   ChannelStorage<int, 2> storage;
   auto channel = CreateMpmcChannel(storage);
 
@@ -258,7 +268,7 @@ TEST(StaticChannel, MultiProducerMultiConsumer) {
 }
 
 TEST(StaticChannel, NonAsyncTrySend) {
-  pw::async2::Dispatcher dispatcher;
+  Dispatcher dispatcher;
   ChannelStorage<int, 2> storage;
   auto channel = CreateMpmcChannel(storage);
 
@@ -271,23 +281,23 @@ TEST(StaticChannel, NonAsyncTrySend) {
   EXPECT_TRUE(sender.TrySend(1));
   EXPECT_TRUE(sender.TrySend(2));
   EXPECT_FALSE(sender.TrySend(3));
-  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Pending());
+  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
 
   EXPECT_TRUE(sender.TrySend(3));
   EXPECT_TRUE(sender.TrySend(4));
   EXPECT_FALSE(sender.TrySend(5));
-  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Pending());
+  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
 
   EXPECT_TRUE(sender.TrySend(5));
   EXPECT_TRUE(sender.TrySend(6));
   sender.Disconnect();
-  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Ready());
+  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
 
   ExpectReceived1To6(receiver_task.received());
 }
 
 TEST(StaticChannel, ReceiverDisconnects) {
-  pw::async2::Dispatcher dispatcher;
+  Dispatcher dispatcher;
   ChannelStorage<int, 2> storage;
   auto channel = CreateMpmcChannel(storage);
 
@@ -306,10 +316,10 @@ TEST(StaticChannel, ReceiverDisconnects) {
   EXPECT_FALSE(sender_task_2.succeeded());
 }
 
-class ReservedSenderTask : public pw::async2::Task {
+class ReservedSenderTask : public Task {
  public:
   ReservedSenderTask(Sender<int> sender, int start, int end)
-      : pw::async2::Task(PW_ASYNC_TASK_NAME("ReservedSenderTask")),
+      : Task(PW_ASYNC_TASK_NAME("ReservedSenderTask")),
         sender_(std::move(sender)),
         next_(start),
         end_(end) {}
@@ -317,7 +327,7 @@ class ReservedSenderTask : public pw::async2::Task {
   bool succeeded() const { return success_; }
 
  private:
-  pw::async2::Poll<> DoPend(pw::async2::Context& cx) override {
+  Poll<> DoPend(Context& cx) override {
     while (next_ <= end_) {
       if (!future_.has_value()) {
         future_.emplace(sender_.ReserveSend());
@@ -326,7 +336,7 @@ class ReservedSenderTask : public pw::async2::Task {
       PW_TRY_READY_ASSIGN(auto reservation, future_->Pend(cx));
       if (!reservation.has_value()) {
         success_ = false;
-        return pw::async2::Ready();
+        return Ready();
       }
 
       reservation->Commit(next_);
@@ -336,18 +346,18 @@ class ReservedSenderTask : public pw::async2::Task {
 
     success_ = true;
     sender_.Disconnect();
-    return pw::async2::Ready();
+    return Ready();
   }
 
   Sender<int> sender_;
-  std::optional<pw::async2::experimental::ReserveSendFuture<int>> future_;
+  std::optional<ReserveSendFuture<int>> future_;
   bool success_ = false;
   int next_;
   int end_;
 };
 
 TEST(StaticChannel, ReserveSend) {
-  pw::async2::Dispatcher dispatcher;
+  Dispatcher dispatcher;
   ChannelStorage<int, 2> storage;
   auto channel = CreateMpmcChannel(storage);
 
@@ -365,7 +375,7 @@ TEST(StaticChannel, ReserveSend) {
 }
 
 TEST(StaticChannel, ReserveSendReservesSpace) {
-  pw::async2::Dispatcher dispatcher;
+  Dispatcher dispatcher;
   ChannelStorage<int, 2> storage;
   auto channel = CreateMpmcChannel(storage);
 
@@ -378,9 +388,8 @@ TEST(StaticChannel, ReserveSendReservesSpace) {
   static constexpr int kFirstSendValue = 40;
   static constexpr int kSecondSendValue = 43;
 
-  pw::async2::PendFuncTask reserved_sender_task(
-      [sender = std::move(sender)](
-          pw::async2::Context& cx) mutable -> pw::async2::Poll<> {
+  PendFuncTask reserved_sender_task(
+      [sender = std::move(sender)](Context& cx) mutable -> Poll<> {
         // This task runs once without sleeping.
         // The channel has two slots. First, we reserve a slot through
         // `ReserveSend`, but don't commit a value. Then, we attempt to write
@@ -393,15 +402,15 @@ TEST(StaticChannel, ReserveSendReservesSpace) {
         PW_TRY_READY_ASSIGN(auto reservation, reserve_send_future.Pend(cx));
         EXPECT_EQ(sender.remaining_capacity(), 1u);
 
-        EXPECT_EQ(send_future_1.Pend(cx), pw::async2::Ready(true));
+        EXPECT_EQ(send_future_1.Pend(cx), Ready(true));
         EXPECT_EQ(sender.remaining_capacity(), 0u);
-        EXPECT_EQ(send_future_2.Pend(cx), pw::async2::Pending());
+        EXPECT_EQ(send_future_2.Pend(cx), Pending());
 
         reservation->Commit(kReservedSendValue);
         EXPECT_EQ(sender.remaining_capacity(), 0u);
 
         sender.Disconnect();
-        return pw::async2::Ready();
+        return Ready();
       });
 
   dispatcher.Post(reserved_sender_task);
@@ -415,7 +424,7 @@ TEST(StaticChannel, ReserveSendReservesSpace) {
 }
 
 TEST(StaticChannel, ReserveSendReleasesSpaceWhenDropped) {
-  pw::async2::Dispatcher dispatcher;
+  Dispatcher dispatcher;
   ChannelStorage<int, 2> storage;
   auto channel = CreateMpmcChannel(storage);
 
@@ -426,9 +435,8 @@ TEST(StaticChannel, ReserveSendReleasesSpaceWhenDropped) {
   static constexpr int kFirstSendValue = 40;
   static constexpr int kSecondSendValue = 43;
 
-  pw::async2::PendFuncTask reserved_sender_task(
-      [sender = std::move(sender)](
-          pw::async2::Context& cx) mutable -> pw::async2::Poll<> {
+  PendFuncTask reserved_sender_task(
+      [sender = std::move(sender)](Context& cx) mutable -> Poll<> {
         // This task runs once without sleeping.
         // The channel has two slots. First, we reserve a slot through
         // `ReserveSend`, but don't commit a value. Then, we attempt to write
@@ -442,18 +450,18 @@ TEST(StaticChannel, ReserveSendReleasesSpaceWhenDropped) {
         {
           PW_TRY_READY_ASSIGN(auto reservation, reserve_send_future.Pend(cx));
           EXPECT_EQ(sender.remaining_capacity(), 1u);
-          EXPECT_EQ(send_future_1.Pend(cx), pw::async2::Ready(true));
+          EXPECT_EQ(send_future_1.Pend(cx), Ready(true));
           EXPECT_EQ(sender.remaining_capacity(), 0u);
-          EXPECT_EQ(send_future_2.Pend(cx), pw::async2::Pending());
+          EXPECT_EQ(send_future_2.Pend(cx), Pending());
           EXPECT_EQ(sender.remaining_capacity(), 0u);
         }
 
         EXPECT_EQ(sender.remaining_capacity(), 1u);
-        EXPECT_EQ(send_future_2.Pend(cx), pw::async2::Ready(true));
+        EXPECT_EQ(send_future_2.Pend(cx), Ready(true));
         EXPECT_EQ(sender.remaining_capacity(), 0u);
 
         sender.Disconnect();
-        return pw::async2::Ready();
+        return Ready();
       });
 
   dispatcher.Post(reserved_sender_task);
@@ -467,7 +475,7 @@ TEST(StaticChannel, ReserveSendReleasesSpaceWhenDropped) {
 }
 
 TEST(StaticChannel, ReserveSendManualCancel) {
-  pw::async2::Dispatcher dispatcher;
+  Dispatcher dispatcher;
   ChannelStorage<int, 2> storage;
   auto channel = CreateMpmcChannel(storage);
 
@@ -478,9 +486,8 @@ TEST(StaticChannel, ReserveSendManualCancel) {
   static constexpr int kFirstSendValue = 40;
   static constexpr int kSecondSendValue = 43;
 
-  pw::async2::PendFuncTask reserved_sender_task(
-      [sender = std::move(sender)](
-          pw::async2::Context& cx) mutable -> pw::async2::Poll<> {
+  PendFuncTask reserved_sender_task(
+      [sender = std::move(sender)](Context& cx) mutable -> Poll<> {
         // This task runs once without sleeping.
         // The channel has two slots. First, we reserve a slot through
         // `ReserveSend`, but don't commit a value. Then, we attempt to write
@@ -493,19 +500,19 @@ TEST(StaticChannel, ReserveSendManualCancel) {
 
         PW_TRY_READY_ASSIGN(auto reservation, reserve_send_future.Pend(cx));
         EXPECT_EQ(sender.remaining_capacity(), 1u);
-        EXPECT_EQ(send_future_1.Pend(cx), pw::async2::Ready(true));
+        EXPECT_EQ(send_future_1.Pend(cx), Ready(true));
         EXPECT_EQ(sender.remaining_capacity(), 0u);
-        EXPECT_EQ(send_future_2.Pend(cx), pw::async2::Pending());
+        EXPECT_EQ(send_future_2.Pend(cx), Pending());
         EXPECT_EQ(sender.remaining_capacity(), 0u);
 
         reservation->Cancel();
 
         EXPECT_EQ(sender.remaining_capacity(), 1u);
-        EXPECT_EQ(send_future_2.Pend(cx), pw::async2::Ready(true));
+        EXPECT_EQ(send_future_2.Pend(cx), Ready(true));
         EXPECT_EQ(sender.remaining_capacity(), 0u);
 
         sender.Disconnect();
-        return pw::async2::Ready();
+        return Ready();
       });
 
   dispatcher.Post(reserved_sender_task);
@@ -555,7 +562,7 @@ class MoveOnly {
 };
 
 TEST(StaticChannel, MoveOnly) {
-  pw::async2::Dispatcher dispatcher;
+  Dispatcher dispatcher;
   ChannelStorage<MoveOnly, 3> storage;
   auto channel = CreateMpmcChannel(storage);
 
@@ -563,16 +570,15 @@ TEST(StaticChannel, MoveOnly) {
   Receiver<MoveOnly> receiver = channel.CreateReceiver();
   channel.Release();
 
-  pw::async2::PendFuncTask sender_task(
-      [sender = std::move(sender)](
-          pw::async2::Context& cx) mutable -> pw::async2::Poll<> {
+  PendFuncTask sender_task(
+      [sender = std::move(sender)](Context& cx) mutable -> Poll<> {
         MoveOnly move_only_1(1);
         auto send_future = sender.Send(std::move(move_only_1));
-        EXPECT_EQ(send_future.Pend(cx), pw::async2::Ready(true));
+        EXPECT_EQ(send_future.Pend(cx), Ready(true));
 
         MoveOnly move_only_2(2);
         auto reserve_send_future = sender.ReserveSend();
-        pw::async2::Poll<std::optional<SendReservation<MoveOnly>>> poll =
+        Poll<std::optional<SendReservation<MoveOnly>>> poll =
             reserve_send_future.Pend(cx);
         auto& reservation_1 = poll.value();
         reservation_1->Commit(std::move(move_only_2));
@@ -583,12 +589,11 @@ TEST(StaticChannel, MoveOnly) {
         reservation_2->Commit(3);
 
         sender.Disconnect();
-        return pw::async2::Ready();
+        return Ready();
       });
 
-  pw::async2::PendFuncTask receiver_task(
-      [receiver = std::move(receiver)](
-          pw::async2::Context& cx) mutable -> pw::async2::Poll<> {
+  PendFuncTask receiver_task(
+      [receiver = std::move(receiver)](Context& cx) mutable -> Poll<> {
         auto receive_future = receiver.Receive();
         auto poll1 = receive_future.Pend(cx);
         EXPECT_EQ(poll1.value(), MoveOnly(1));
@@ -602,19 +607,19 @@ TEST(StaticChannel, MoveOnly) {
         EXPECT_EQ(poll3.value(), MoveOnly(3));
 
         receiver.Disconnect();
-        return pw::async2::Ready();
+        return Ready();
       });
 
   dispatcher.Post(sender_task);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Ready());
+  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
 
   dispatcher.Post(receiver_task);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Ready());
+  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
 }
 
 TEST(DynamicChannel, ForwardsDataAndAutomaticallyDeallocates) {
   pw::allocator::test::AllocatorForTest<1024> alloc;
-  pw::async2::Dispatcher dispatcher;
+  Dispatcher dispatcher;
 
   std::optional<MpmcChannelHandle<int>> channel =
       CreateMpmcChannel<int>(alloc, 2);

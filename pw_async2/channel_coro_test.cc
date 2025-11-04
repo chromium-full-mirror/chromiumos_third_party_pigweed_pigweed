@@ -23,14 +23,14 @@
 
 namespace {
 
+using pw::async2::ChannelStorage;
 using pw::async2::Coro;
 using pw::async2::CoroContext;
 using pw::async2::CoroOrElseTask;
-using pw::async2::experimental::ChannelStorage;
-using pw::async2::experimental::CreateMpscChannel;
-using pw::async2::experimental::CreateSpscChannel;
-using pw::async2::experimental::Receiver;
-using pw::async2::experimental::Sender;
+using pw::async2::CreateMpscChannel;
+using pw::async2::CreateSpscChannel;
+using pw::async2::Receiver;
+using pw::async2::Sender;
 
 Coro<pw::Status> Producer(CoroContext&,
                           Sender<int> sender,

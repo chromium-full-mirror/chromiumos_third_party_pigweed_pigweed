@@ -12,16 +12,6 @@ of the operation, if it has one.
 
 Futures are the core interface to ``pw_async2`` asynchronous APIs.
 
-.. note::
-
-   Futures are the new model for writing ``pw_async2`` code. They are currently
-   nested under an ``experimental`` namespace and are actively being developed
-   as of 2025-10-14.
-
-   Once futures are stabilized, they will be promoted to the root async2
-   namespace and the information on this page will be spread across the other
-   async2 documentation and guides.
-
 -------------
 Core concepts
 -------------
@@ -268,8 +258,7 @@ results.
              if (!future_.has_value()) {
                // Start three futures concurrently and wait for all of them
                // to complete.
-               future_.emplace(
-                   pw::async2::experimental::Join(DoWork(1), DoWork(2), DoWork(3)));
+               future_.emplace(pw::async2::Join(DoWork(1), DoWork(2), DoWork(3)));
              }
 
              PW_TRY_READY_ASSIGN(auto results, future_->Pend(cx));
@@ -297,7 +286,7 @@ results.
          pw::async2::Coro<pw::Status> JoinExample(pw::async2::CoroContext&) {
            // Start three futures concurrently and wait for all of them to complete.
            auto [status1, status2, status3] =
-               co_await pw::async2::experimental::Join(DoWork(1), DoWork(2), DoWork(3));
+               co_await pw::async2::Join(DoWork(1), DoWork(2), DoWork(3));
 
            if (!status1.ok() || !status2.ok() || !status3.ok()) {
              PW_LOG_ERROR("Operation failed");
@@ -332,8 +321,7 @@ completing the task re-running, the tuple stores all of their results.
            pw::async2::Poll<> DoPend(pw::async2::Context& cx) override {
              if (!future_.has_value()) {
                // Race two futures and wait for the first one to complete.
-               future_.emplace(
-                   pw::async2::experimental::Select(DoWork(), DoOtherWork()));
+               future_.emplace(pw::async2::Select(DoWork(), DoOtherWork()));
              }
 
              PW_TRY_READY_ASSIGN(auto results, future_->Pend(cx));
@@ -360,8 +348,7 @@ completing the task re-running, the tuple stores all of their results.
 
          pw::async2::Coro<int> SelectExample(pw::async2::CoroContext&) {
            // Race two futures and wait for the first one to complete.
-           auto results =
-               co_await pw::async2::experimental::Select(DoWork(), DoOtherWork());
+           auto results = co_await pw::async2::Select(DoWork(), DoOtherWork());
 
            // Check which future(s) completed.
            // In this example, we check all of them, but it's common to return
@@ -437,14 +424,13 @@ Examples of creating each channel type are shown below.
 
          // Create storage for a static channel with a capacity of 10 integers.
          // The storage must outlive the channel for which it is used.
-         pw::async2::experimental::ChannelStorage<int, 10> storage;
+         pw::async2::ChannelStorage<int, 10> storage;
 
          // Create a channel using the storage.
          //
          // In this example, we create a single-producer, single-consumer channel and
          // are given the sole sender and receiver.
-         auto [channel, sender, receiver] =
-             pw::async2::experimental::CreateSpscChannel(storage);
+         auto [channel, sender, receiver] = pw::async2::CreateSpscChannel(storage);
 
          // Hand the sender and receiver to various parts of the system.
          MySenderTask sender_task(std::move(sender));
@@ -469,13 +455,13 @@ Examples of creating each channel type are shown below.
 
          // Create storage for a static channel with a capacity of 10 integers.
          // The storage must outlive the channel for which it is used.
-         pw::async2::experimental::ChannelStorage<int, 10> storage;
+         pw::async2::ChannelStorage<int, 10> storage;
 
          // Create a channel using the storage.
          //
          // In this example, we create a single-producer, multi-consumer channel and
          // are given the sole sender. Receivers are created from the channel handle.
-         auto [channel, sender] = pw::async2::experimental::CreateSpmcChannel(storage);
+         auto [channel, sender] = pw::async2::CreateSpmcChannel(storage);
 
          // Hand the sender and receiver to various parts of the system.
          MySenderTask sender_task(std::move(sender));
@@ -501,13 +487,13 @@ Examples of creating each channel type are shown below.
 
          // Create storage for a static channel with a capacity of 10 integers.
          // The storage must outlive the channel for which it is used.
-         pw::async2::experimental::ChannelStorage<int, 10> storage;
+         pw::async2::ChannelStorage<int, 10> storage;
 
          // Create a channel using the storage.
          //
          // In this example, we create a multi-producer, single-consumer channel and
          // are given the sole receiver. Senders are created from the channel handle.
-         auto [channel, receiver] = pw::async2::experimental::CreateMpscChannel(storage);
+         auto [channel, receiver] = pw::async2::CreateMpscChannel(storage);
 
          // Hand the sender and receiver to various parts of the system.
          MySenderTask sender_task_1(channel.CreateSender());
@@ -533,14 +519,14 @@ Examples of creating each channel type are shown below.
 
          // Create storage for a static channel with a capacity of 10 integers.
          // The storage must outlive the channel for which it is used.
-         pw::async2::experimental::ChannelStorage<int, 10> storage;
+         pw::async2::ChannelStorage<int, 10> storage;
 
          // Create a channel using the storage.
          //
          // In this example, we create a multi-producer, multi-consumer channel.
          // Both senders and receivers are created from the channel handle.
-         pw::async2::experimental::MpmcChannelHandle<int> channel =
-             pw::async2::experimental::CreateMpmcChannel(storage);
+         pw::async2::MpmcChannelHandle<int> channel =
+             pw::async2::CreateMpmcChannel(storage);
 
          // Hand the sender and receiver to various parts of the system.
          MySenderTask sender_task_1(channel.CreateSender());
@@ -630,8 +616,8 @@ channel.
 
       .. code-block:: cpp
 
-         using pw::async2::experimental::ReserveSendFuture;
-         using pw::async2::experimental::Sender;
+         using pw::async2::ReserveSendFuture;
+         using pw::async2::Sender;
 
          class ReservedSenderTask : public pw::async2::Task {
           public:
@@ -667,7 +653,7 @@ channel.
 
          using pw::async2::Coro;
          using pw::async2::CoroContext;
-         using pw::async2::experimental::Sender;
+         using pw::async2::Sender;
 
          Coro<Status> ReservedSenderExample(CoroContext&, Sender<int> sender) {
            // Wait for space to become available.
@@ -706,8 +692,8 @@ allocation fails, the optional will be empty.
    #include "pw_async2/channel.h"
 
    constexpr size_t kCapacity = 10;
-   auto result = pw::async2::experimental::CreateSpscChannel<int>(
-       GetSystemAllocator(), kCapacity);
+   auto result =
+       pw::async2::CreateSpscChannel<int>(GetSystemAllocator(), kCapacity);
    if (!result.has_value()) {
      PW_LOG_ERROR("Out of memory");
      return;

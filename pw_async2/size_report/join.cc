@@ -35,9 +35,9 @@ int SingleTypeJoin(uint32_t mask) {
   value_1.allow_completion = true;
   value_2.allow_completion = true;
   value_3.allow_completion = true;
-  Join join(PendableFor<&PendableInt::Get>(value_1),
-            PendableFor<&PendableInt::Get>(value_2),
-            PendableFor<&PendableInt::Get>(value_3));
+  Joiner join(PendableFor<&PendableInt::Get>(value_1),
+              PendableFor<&PendableInt::Get>(value_2),
+              PendableFor<&PendableInt::Get>(value_3));
   auto result = dispatcher.RunPendableUntilStalled(join);
   PW_BLOAT_COND(result.IsReady(), mask);
 
@@ -58,9 +58,9 @@ int MultiTypeJoin(uint32_t mask) {
   value_1.allow_completion = true;
   value_2.allow_completion = true;
   value_3.allow_completion = true;
-  Join join(PendableFor<&PendableInt::Get>(value_1),
-            PendableFor<&PendableUint::Get>(value_2),
-            PendableFor<&PendableChar::Get>(value_3));
+  Joiner join(PendableFor<&PendableInt::Get>(value_1),
+              PendableFor<&PendableUint::Get>(value_2),
+              PendableFor<&PendableChar::Get>(value_3));
   auto result = dispatcher.RunPendableUntilStalled(join);
   PW_BLOAT_COND(result.IsReady(), mask);
 

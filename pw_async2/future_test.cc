@@ -22,9 +22,16 @@
 
 namespace {
 
-using pw::async2::experimental::ListableFutureWithWaker;
-using pw::async2::experimental::ListFutureProvider;
-using pw::async2::experimental::SingleFutureProvider;
+using pw::async2::Context;
+using pw::async2::Dispatcher;
+using pw::async2::is_future_v;
+using pw::async2::ListableFutureWithWaker;
+using pw::async2::ListFutureProvider;
+using pw::async2::PendFuncTask;
+using pw::async2::Pending;
+using pw::async2::Poll;
+using pw::async2::Ready;
+using pw::async2::SingleFutureProvider;
 
 class SimpleIntFuture;
 
@@ -71,12 +78,12 @@ class SimpleIntFuture : public ListableFutureWithWaker<SimpleIntFuture, int> {
     return *this;
   }
 
-  pw::async2::Poll<int> DoPend(pw::async2::Context&) {
+  Poll<int> DoPend(Context&) {
     PW_ASSERT(async_int_ != nullptr);
     std::lock_guard guard(lock());
 
     if (!async_int_->value_.has_value()) {
-      return pw::async2::Pending();
+      return Pending();
     }
 
     return async_int_->value_.value();
@@ -159,15 +166,15 @@ class NotificationFuture
     return *this;
   }
 
-  pw::async2::Poll<> DoPend(pw::async2::Context&) {
+  Poll<> DoPend(Context&) {
     PW_ASSERT(async_void_ != nullptr);
     std::lock_guard guard(lock());
 
     if (!async_void_->completed_) {
-      return pw::async2::Pending();
+      return Pending();
     }
 
-    return pw::async2::Ready();
+    return Ready();
   }
 
  private:
@@ -192,57 +199,55 @@ void AsyncNotification::ResolveAllFutures() {
   }
 }
 
-static_assert(!pw::async2::experimental::is_future_v<int>);
-static_assert(pw::async2::experimental::is_future_v<SimpleIntFuture>);
-static_assert(pw::async2::experimental::is_future_v<NotificationFuture>);
+static_assert(!is_future_v<int>);
+static_assert(is_future_v<SimpleIntFuture>);
+static_assert(is_future_v<NotificationFuture>);
 
 TEST(Future, Pend) {
-  pw::async2::Dispatcher dispatcher;
+  Dispatcher dispatcher;
   SimpleAsyncInt provider;
 
   SimpleIntFuture future = provider.Get();
   int result = -1;
 
-  pw::async2::PendFuncTask task(
-      [&](pw::async2::Context& cx) -> pw::async2::Poll<> {
-        PW_TRY_READY_ASSIGN(int value, future.Pend(cx));
-        result = value;
-        return pw::async2::Ready();
-      });
+  PendFuncTask task([&](Context& cx) -> Poll<> {
+    PW_TRY_READY_ASSIGN(int value, future.Pend(cx));
+    result = value;
+    return Ready();
+  });
 
   dispatcher.Post(task);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Pending());
+  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
 
   provider.Set(27);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Ready());
+  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
   EXPECT_EQ(result, 27);
 }
 
 TEST(Future, VoidFuture) {
-  pw::async2::Dispatcher dispatcher;
+  Dispatcher dispatcher;
   AsyncNotification notification;
 
   NotificationFuture future = notification.Wait();
   bool completed = false;
 
-  pw::async2::PendFuncTask task(
-      [&](pw::async2::Context& cx) -> pw::async2::Poll<> {
-        PW_TRY_READY(future.Pend(cx));
-        completed = true;
-        return pw::async2::Ready();
-      });
+  PendFuncTask task([&](Context& cx) -> Poll<> {
+    PW_TRY_READY(future.Pend(cx));
+    completed = true;
+    return Ready();
+  });
 
   dispatcher.Post(task);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Pending());
+  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
   EXPECT_FALSE(completed);
 
   notification.Notify();
-  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Ready());
+  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
   EXPECT_TRUE(completed);
 }
 
 TEST(Future, MoveAssign) {
-  pw::async2::Dispatcher dispatcher;
+  Dispatcher dispatcher;
   SimpleAsyncInt provider;
 
   SimpleIntFuture future1 = provider.Get();
@@ -251,46 +256,44 @@ TEST(Future, MoveAssign) {
   future1 = std::move(future2);
 
   int result = -1;
-  pw::async2::PendFuncTask task(
-      [&](pw::async2::Context& cx) -> pw::async2::Poll<> {
-        PW_TRY_READY_ASSIGN(int value, future1.Pend(cx));
-        result = value;
-        return pw::async2::Ready();
-      });
+  PendFuncTask task([&](Context& cx) -> Poll<> {
+    PW_TRY_READY_ASSIGN(int value, future1.Pend(cx));
+    result = value;
+    return Ready();
+  });
 
   dispatcher.Post(task);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Pending());
+  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
 
   provider.Set(99);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Ready());
+  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
   EXPECT_EQ(result, 99);
 }
 
 TEST(Future, MoveConstruct) {
-  pw::async2::Dispatcher dispatcher;
+  Dispatcher dispatcher;
   SimpleAsyncInt provider;
 
   SimpleIntFuture future1 = provider.Get();
   SimpleIntFuture future2(std::move(future1));
 
   int result = -1;
-  pw::async2::PendFuncTask task(
-      [&](pw::async2::Context& cx) -> pw::async2::Poll<> {
-        PW_TRY_READY_ASSIGN(int value, future2.Pend(cx));
-        result = value;
-        return pw::async2::Ready();
-      });
+  PendFuncTask task([&](Context& cx) -> Poll<> {
+    PW_TRY_READY_ASSIGN(int value, future2.Pend(cx));
+    result = value;
+    return Ready();
+  });
 
   dispatcher.Post(task);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Pending());
+  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
 
   provider.Set(99);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Ready());
+  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
   EXPECT_EQ(result, 99);
 }
 
 TEST(Future, DestroyBeforeCompletion) {
-  pw::async2::Dispatcher dispatcher;
+  Dispatcher dispatcher;
   SimpleAsyncInt provider;
 
   {
@@ -302,7 +305,7 @@ TEST(Future, DestroyBeforeCompletion) {
 }
 
 TEST(ListFutureProvider, MultipleFutures) {
-  pw::async2::Dispatcher dispatcher;
+  Dispatcher dispatcher;
   SimpleAsyncInt provider;
 
   SimpleIntFuture future1 = provider.Get();
@@ -310,32 +313,30 @@ TEST(ListFutureProvider, MultipleFutures) {
   int result1 = -1;
   int result2 = -1;
 
-  pw::async2::PendFuncTask task1(
-      [&](pw::async2::Context& cx) -> pw::async2::Poll<> {
-        PW_TRY_READY_ASSIGN(int value, future1.Pend(cx));
-        result1 = value;
-        return pw::async2::Ready();
-      });
+  PendFuncTask task1([&](Context& cx) -> Poll<> {
+    PW_TRY_READY_ASSIGN(int value, future1.Pend(cx));
+    result1 = value;
+    return Ready();
+  });
 
-  pw::async2::PendFuncTask task2(
-      [&](pw::async2::Context& cx) -> pw::async2::Poll<> {
-        PW_TRY_READY_ASSIGN(int value, future2.Pend(cx));
-        result2 = value;
-        return pw::async2::Ready();
-      });
+  PendFuncTask task2([&](Context& cx) -> Poll<> {
+    PW_TRY_READY_ASSIGN(int value, future2.Pend(cx));
+    result2 = value;
+    return Ready();
+  });
 
   dispatcher.Post(task1);
   dispatcher.Post(task2);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Pending());
+  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
 
   provider.Set(33);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Ready());
+  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
   EXPECT_EQ(result1, 33);
   EXPECT_EQ(result2, 33);
 }
 
 TEST(SingleFutureProvider, VendsAndResolvesFuture) {
-  pw::async2::Dispatcher dispatcher;
+  Dispatcher dispatcher;
   SimpleAsyncInt provider;
 
   std::optional<SimpleIntFuture> future = provider.GetSingle();
@@ -343,23 +344,22 @@ TEST(SingleFutureProvider, VendsAndResolvesFuture) {
   ASSERT_TRUE(future.has_value());
 
   int result = -1;
-  pw::async2::PendFuncTask task(
-      [&](pw::async2::Context& cx) -> pw::async2::Poll<> {
-        PW_TRY_READY_ASSIGN(int value, future->Pend(cx));
-        result = value;
-        return pw::async2::Ready();
-      });
+  PendFuncTask task([&](Context& cx) -> Poll<> {
+    PW_TRY_READY_ASSIGN(int value, future->Pend(cx));
+    result = value;
+    return Ready();
+  });
 
   dispatcher.Post(task);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Pending());
+  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
 
   provider.Set(96);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Ready());
+  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
   EXPECT_EQ(result, 96);
 }
 
 TEST(SingleFutureProvider, OnlyAllowsOneFutureToExist) {
-  pw::async2::Dispatcher dispatcher;
+  Dispatcher dispatcher;
   SimpleAsyncInt provider;
 
   {
@@ -374,18 +374,17 @@ TEST(SingleFutureProvider, OnlyAllowsOneFutureToExist) {
   ASSERT_TRUE(future.has_value());
 
   int result = -1;
-  pw::async2::PendFuncTask task(
-      [&](pw::async2::Context& cx) -> pw::async2::Poll<> {
-        PW_TRY_READY_ASSIGN(int value, future->Pend(cx));
-        result = value;
-        return pw::async2::Ready();
-      });
+  PendFuncTask task([&](Context& cx) -> Poll<> {
+    PW_TRY_READY_ASSIGN(int value, future->Pend(cx));
+    result = value;
+    return Ready();
+  });
 
   dispatcher.Post(task);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Pending());
+  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
 
   provider.Set(93);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Ready());
+  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
   EXPECT_EQ(result, 93);
 
   // The operation has resolved, so a new future should be obtainable.
@@ -394,33 +393,32 @@ TEST(SingleFutureProvider, OnlyAllowsOneFutureToExist) {
 }
 
 TEST(ListableFutureWithWaker, RelistsItselfOnPending) {
-  pw::async2::Dispatcher dispatcher;
+  Dispatcher dispatcher;
   SimpleAsyncInt provider;
 
   std::optional<SimpleIntFuture> future = provider.GetSingle();
   ASSERT_TRUE(future.has_value());
 
   int result = -1;
-  pw::async2::PendFuncTask task(
-      [&](pw::async2::Context& cx) -> pw::async2::Poll<> {
-        PW_TRY_READY_ASSIGN(int value, future->Pend(cx));
-        result = value;
-        return pw::async2::Ready();
-      });
+  PendFuncTask task([&](Context& cx) -> Poll<> {
+    PW_TRY_READY_ASSIGN(int value, future->Pend(cx));
+    result = value;
+    return Ready();
+  });
 
   dispatcher.Post(task);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Pending());
+  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
   EXPECT_EQ(dispatcher.tasks_polled(), 1u);
 
   // ResolveAllFutures pops the future off the list. Since no value is set,
   // the task will still be pending. The future should re-add itself to the list
   // to prevent the task from being permanently stalled.
   provider.ResolveAllFutures();
-  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Pending());
+  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
   EXPECT_EQ(dispatcher.tasks_polled(), 2u);  // Task ran again.
 
   provider.Set(99);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Ready());
+  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
   EXPECT_EQ(dispatcher.tasks_polled(), 3u);
   EXPECT_EQ(result, 99);
 }
@@ -431,13 +429,12 @@ class BadFuture : public ListableFutureWithWaker<BadFuture, int> {
  public:
   BadFuture() : ListableFutureWithWaker(kMovedFrom) {}
   static constexpr const char* kWaitReason = "this is a char* not an array";
-  pw::async2::Poll<int> DoPend(pw::async2::Context&) { return 5; }
+  Poll<int> DoPend(Context&) { return 5; }
 };
 
 void ShouldAssert() {
   BadFuture future;
-  pw::async2::PendFuncTask task(
-      [&](pw::async2::Context& cx) { return future.Pend(cx).Readiness(); });
+  PendFuncTask task([&](Context& cx) { return future.Pend(cx).Readiness(); });
 }
 #endif  // PW_NC_TEST
 

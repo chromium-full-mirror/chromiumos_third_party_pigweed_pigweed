@@ -25,19 +25,22 @@
 namespace {
 
 // DOCSTAG: [pw_async2-examples-channel-manual]
-using pw::async2::experimental::ReceiveFuture;
-using pw::async2::experimental::Receiver;
-using pw::async2::experimental::Sender;
-using pw::async2::experimental::SendFuture;
+using pw::async2::Context;
+using pw::async2::Poll;
+using pw::async2::Ready;
+using pw::async2::ReceiveFuture;
+using pw::async2::Receiver;
+using pw::async2::Sender;
+using pw::async2::SendFuture;
+using pw::async2::Task;
 
-class Producer : public pw::async2::Task {
+class Producer : public Task {
  public:
   explicit Producer(Sender<int>&& sender)
-      : pw::async2::Task(PW_ASYNC_TASK_NAME("Producer")),
-        sender_(std::move(sender)) {}
+      : Task(PW_ASYNC_TASK_NAME("Producer")), sender_(std::move(sender)) {}
 
  private:
-  pw::async2::Poll<> DoPend(pw::async2::Context& cx) override {
+  Poll<> DoPend(Context& cx) override {
     while (data_ < 3) {
       if (!send_future_.has_value()) {
         send_future_.emplace(sender_.Send(data_));
@@ -47,7 +50,7 @@ class Producer : public pw::async2::Task {
       ++data_;
     }
     sender_.Disconnect();
-    return pw::async2::Ready();
+    return Ready();
   }
 
   int data_ = 0;
@@ -55,16 +58,15 @@ class Producer : public pw::async2::Task {
   std::optional<SendFuture<int>> send_future_;
 };
 
-class Consumer : public pw::async2::Task {
+class Consumer : public Task {
  public:
   explicit Consumer(Receiver<int>&& receiver)
-      : pw::async2::Task(PW_ASYNC_TASK_NAME("Consumer")),
-        receiver_(std::move(receiver)) {}
+      : Task(PW_ASYNC_TASK_NAME("Consumer")), receiver_(std::move(receiver)) {}
 
   const pw::Vector<int>& values() const { return values_; }
 
  private:
-  pw::async2::Poll<> DoPend(pw::async2::Context& cx) override {
+  Poll<> DoPend(Context& cx) override {
     while (true) {
       if (!receive_future_.has_value()) {
         receive_future_.emplace(receiver_.Receive());
@@ -78,7 +80,7 @@ class Consumer : public pw::async2::Task {
       receive_future_.reset();
     }
     receiver_.Disconnect();
-    return pw::async2::Ready();
+    return Ready();
   }
 
   Receiver<int> receiver_;
@@ -88,7 +90,7 @@ class Consumer : public pw::async2::Task {
 // DOCSTAG: [pw_async2-examples-channel-manual]
 
 TEST(Channel, Manual) {
-  pw::async2::experimental::ChannelStorage<int, 1> storage;
+  pw::async2::ChannelStorage<int, 1> storage;
   auto [channel, sender, receiver] = CreateSpscChannel<int>(storage);
 
   // The returned channel handle is used to create senders and receivers.
@@ -121,8 +123,8 @@ namespace {
 // DOCSTAG: [pw_async2-examples-channel-coro]
 using pw::async2::Coro;
 using pw::async2::CoroContext;
-using pw::async2::experimental::Receiver;
-using pw::async2::experimental::Sender;
+using pw::async2::Receiver;
+using pw::async2::Sender;
 
 Coro<pw::Status> CoroProducer(CoroContext&, Sender<int> sender) {
   for (int data = 0; data < 3; ++data) {
@@ -150,7 +152,7 @@ TEST(Channel, Coro) {
   pw::async2::Dispatcher dispatcher;
   pw::async2::CoroContext coro_cx(alloc);
 
-  pw::async2::experimental::ChannelStorage<int, 1> storage;
+  pw::async2::ChannelStorage<int, 1> storage;
   auto [channel, sender, receiver] = CreateSpscChannel<int>(storage);
 
   // The returned channel handle is used to create senders and receivers.

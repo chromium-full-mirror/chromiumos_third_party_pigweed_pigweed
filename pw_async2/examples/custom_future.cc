@@ -26,8 +26,7 @@ namespace {
 class ButtonReceiver;
 
 class ButtonFuture
-    : public pw::async2::experimental::ListableFutureWithWaker<ButtonFuture,
-                                                               void> {
+    : public pw::async2::ListableFutureWithWaker<ButtonFuture, void> {
  public:
   // Provide a descriptive reason which can be used to debug blocked tasks.
   static constexpr const char kWaitReason[] = "Waiting for button press";
@@ -43,13 +42,12 @@ class ButtonFuture
   }
 
  private:
-  using Base =
-      pw::async2::experimental::ListableFutureWithWaker<ButtonFuture, void>;
+  using Base = pw::async2::ListableFutureWithWaker<ButtonFuture, void>;
   friend Base;
   friend class ButtonReceiver;
 
   explicit ButtonFuture(
-      pw::async2::experimental::SingleFutureProvider<ButtonFuture>& provider)
+      pw::async2::SingleFutureProvider<ButtonFuture>& provider)
       : Base(provider) {}
 
   void HandlePress() {
@@ -93,7 +91,7 @@ class ButtonReceiver {
   }
 
   pw::digital_io::DigitalInterrupt& line_;
-  pw::async2::experimental::SingleFutureProvider<ButtonFuture> provider_;
+  pw::async2::SingleFutureProvider<ButtonFuture> provider_;
 };
 // DOCSTAG: [pw_async2-examples-custom-future]
 

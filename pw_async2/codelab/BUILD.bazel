@@ -29,7 +29,11 @@ pw_cc_binary(
         "vending_machine.cc",
         "vending_machine.h",
     ],
-    copts = ["-Wno-unused-parameter"],
+    copts = [
+        "-Wno-unused-parameter",
+        # TODO: b/457508399 - Remove once migrated onto futures.
+        "-Wno-deprecated-declarations",
+    ],
     deps = [
         ":hardware",
         ":sensors",

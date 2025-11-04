@@ -25,16 +25,16 @@
 namespace {
 
 using ::pw::async2::AllPendablesCompleted;
+using ::pw::async2::BroadcastValueProvider;
 using ::pw::async2::Context;
 using ::pw::async2::Dispatcher;
 using ::pw::async2::PendableFor;
 using ::pw::async2::Pending;
 using ::pw::async2::Poll;
+using ::pw::async2::Select;
 using ::pw::async2::Selector;
 using ::pw::async2::VisitSelectResult;
 using ::pw::async2::Waker;
-using ::pw::async2::experimental::BroadcastValueProvider;
-using ::pw::async2::experimental::Select;
 
 // Windows GCC emits a bogus uninitialized error for the
 // move constructor below.
@@ -104,6 +104,10 @@ template <typename ResultVariant>
 void ExpectAllPendablesCompleted(ResultVariant& result_variant) {
   EXPECT_TRUE(std::holds_alternative<AllPendablesCompleted>(result_variant));
 }
+
+// TODO: b/457508399 - Remove non-future Selector.
+PW_MODIFY_DIAGNOSTICS_PUSH();
+PW_MODIFY_DIAGNOSTIC(ignored, "-Wdeprecated-declarations");
 
 TEST(Selector, OnePendable) {
   Dispatcher dispatcher;
@@ -279,6 +283,8 @@ TEST(Selector, MultiplePendables_OutOfOrderCompletion) {
   auto& result_3_variant = *result_3;
   ExpectVariantIs<2>(result_3_variant, 57);
 }
+
+PW_MODIFY_DIAGNOSTICS_POP();
 
 TEST(SelectFuture, Pend_OneReady) {
   Dispatcher dispatcher;
