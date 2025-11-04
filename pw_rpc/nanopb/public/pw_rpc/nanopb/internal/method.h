@@ -347,10 +347,10 @@ class NanopbMethod : public Method {
                                       const Packet& request)
       PW_UNLOCK_FUNCTION(rpc_lock()) {
     _PW_RPC_NANOPB_STRUCT_STORAGE_CLASS
-    std::aligned_storage_t<kRequestSize, alignof(std::max_align_t)>
+    pw::containers::Storage<alignof(std::max_align_t), kRequestSize>
         request_struct{};
     _PW_RPC_NANOPB_STRUCT_STORAGE_CLASS
-    std::aligned_storage_t<kResponseSize, alignof(std::max_align_t)>
+    pw::containers::Storage<alignof(std::max_align_t), kResponseSize>
         response_struct{};
 
     static_cast<const NanopbMethod&>(context.method())
@@ -366,7 +366,7 @@ class NanopbMethod : public Method {
                                        const Packet& request)
       PW_UNLOCK_FUNCTION(rpc_lock()) {
     _PW_RPC_NANOPB_STRUCT_STORAGE_CLASS
-    std::aligned_storage_t<kRequestSize, alignof(std::max_align_t)>
+    pw::containers::Storage<alignof(std::max_align_t), kRequestSize>
         request_struct{};
 
     static_cast<const NanopbMethod&>(context.method())
@@ -382,7 +382,7 @@ class NanopbMethod : public Method {
                                      const Packet& request)
       PW_UNLOCK_FUNCTION(rpc_lock()) {
     _PW_RPC_NANOPB_STRUCT_STORAGE_CLASS
-    std::aligned_storage_t<kRequestSize, alignof(std::max_align_t)>
+    pw::containers::Storage<alignof(std::max_align_t), kRequestSize>
         request_struct{};
 
     static_cast<const NanopbMethod&>(context.method())

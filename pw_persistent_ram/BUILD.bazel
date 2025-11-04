@@ -65,6 +65,7 @@ pw_cc_test(
     tags = ["nomsan"],
     deps = [
         ":pw_persistent_ram",
+        "//pw_containers:storage",
         "//pw_random",
     ],
 )

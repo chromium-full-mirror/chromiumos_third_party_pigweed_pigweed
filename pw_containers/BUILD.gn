@@ -311,6 +311,7 @@ pw_source_set("var_len_entry_queue") {
 pw_source_set("vector") {
   public_configs = [ ":public_include_path" ]
   public_deps = [
+    ":storage",
     "$dir_pw_toolchain:constexpr_tag",
     dir_pw_assert,
     dir_pw_preprocessor,

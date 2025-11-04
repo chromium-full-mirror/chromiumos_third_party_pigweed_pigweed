@@ -387,6 +387,7 @@ cc_library(
     ],
     strip_include_prefix = "public",
     deps = [
+        ":storage",
         "//pw_assert:assert",
         "//pw_preprocessor",
         "//pw_toolchain:constexpr_tag",

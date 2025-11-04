@@ -63,6 +63,7 @@ pw_test_group("tests") {
 pw_test("persistent_test") {
   deps = [
     ":pw_persistent_ram",
+    "$dir_pw_containers:storage",
     dir_pw_random,
   ]
   sources = [ "persistent_test.cc" ]

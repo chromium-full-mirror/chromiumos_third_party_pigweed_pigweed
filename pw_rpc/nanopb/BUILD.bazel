@@ -43,6 +43,7 @@ cc_library(
     deps = [
         ":common",
         "//pw_bytes",
+        "//pw_containers:storage",
         "//pw_function",
         "//pw_rpc",
         "//pw_rpc/raw:server_api",

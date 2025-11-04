@@ -258,6 +258,7 @@ pw_source_set("cpu_exception_entry_test_util") {
   deps = [
     ":cortex_m_constants",
     ":cpu_state",
+    "$dir_pw_containers:storage",
   ]
 }
 

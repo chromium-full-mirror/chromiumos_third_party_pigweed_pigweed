@@ -139,7 +139,7 @@ which uses placement new.
 
 .. code-block:: cpp
 
-   #include <type_traits>
+   #include "pw_containers/storage.h"
 
    template <class T>
    class NoDestroy {
@@ -149,10 +149,10 @@ which uses placement new.
        new (&static_) T(std::forward<Ts>(ts)...);
      }
 
-     T& get() { return reinterpret_cast<T&>(static_); }
+     T& get() { return reinterpret_cast<T&>(static_.data()); }
 
     private:
-     std::aligned_storage_t<sizeof(T), alignof(T)> static_;
+     pw::containers::StorageFor<T> static_;
    };
 
 This can then be used as follows to instantiate scoped statics where the

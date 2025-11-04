@@ -255,6 +255,7 @@ cc_library(
     deps = [
         ":cortex_m_constants",
         ":cpu_state",
+        "//pw_containers:storage",
     ],
 )
 

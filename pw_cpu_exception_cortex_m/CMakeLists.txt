@@ -160,6 +160,7 @@ if("${pw_cpu_exception.entry_BACKEND}" STREQUAL
     SOURCES
       exception_entry_test.cc
     PRIVATE_DEPS
+      pw_containers.storage
       pw_cpu_exception.entry
       pw_cpu_exception.handler
       pw_cpu_exception.support
