@@ -140,12 +140,16 @@ def process_snapshot(
         )
         if risc_v_cpu_state:
             output.append(risc_v_cpu_state)
-    else:
+    elif metadata_processor.cpu_arch().startswith("ARM"):
         cortex_m_cpu_state = pw_cpu_exception_cortex_m.process_snapshot(
             serialized_snapshot, symbolizer
         )
         if cortex_m_cpu_state:
             output.append(cortex_m_cpu_state)
+    else:
+        _LOG.warning(
+            "Unhandled CPU architecture %s", metadata_processor.cpu_arch()
+        )
 
     thread_info = thread_analyzer.process_snapshot(
         serialized_snapshot, detokenizer, symbolizer, thread_processing_callback
