@@ -27,8 +27,9 @@ Example module structure
      gui.rst          # GUI reference (optional)
      tutorials/*.rst  # Tutorials (optional)
 
-     BUILD.gn   # GN build required
-     BUILD      # Bazel build required
+     BUILD.bazel
+     BUILD.gn
+     CMakeLists.txt
 
      # C++ public headers; the repeated module name is required
      public/pw_foo/foo.h
@@ -62,6 +63,7 @@ Example module structure
      zip_test.cc
 
      # Python files go into 'py/<module>/...'
+     py/BUILD.bazel  # Python packages are declared in Bazel using py_library
      py/BUILD.gn     # Python packages are declared in GN using pw_python_package
      py/setup.py     # Python files are structured as standard Python packages
      py/foo_test.py  # Tests go in py/ but outside of the Python package
@@ -84,14 +86,13 @@ Example module structure
      go/...
 
      # Examples go in examples/, mixing different languages
+     examples/BUILD.bazel  # Only the Bazel build is required
      examples/demo.py
      examples/demo.cc
      examples/demo.go
-     examples/BUILD.gn
-     examples/BUILD
 
      # Size reports go under size_report/
-     size_report/BUILD.gn
+     size_report/BUILD.bazel  # Only the Bazel build is required
      size_report/base.cc
      size_report/use_case_a.cc
      size_report/use_case_b.cc
