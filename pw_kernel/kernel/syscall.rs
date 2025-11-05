@@ -224,6 +224,7 @@ pub fn handle_syscall<'a, K: Kernel>(
             crate::target::shutdown(exit_code);
         }
         SysCallId::DebugLog => handle_debug_log(kernel, args),
+        SysCallId::DebugNop => Ok(0),
         _ => {
             log_if::debug_if!(SYSCALL_DEBUG, "syscall: log");
             Err(Error::InvalidArgument)

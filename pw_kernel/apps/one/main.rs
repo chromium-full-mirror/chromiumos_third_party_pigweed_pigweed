@@ -21,6 +21,9 @@ use userspace::syscall::{self, Signals};
 use userspace::time::Instant;
 
 fn test_uppercase_ipcs() -> Result<()> {
+    pw_log::info!("Performing a no-op");
+    syscall::debug_nop()?;
+
     pw_log::info!("Ipc test starting");
     for c in 'a'..='z' {
         const SEND_BUF_LEN: usize = size_of::<char>();

@@ -63,4 +63,9 @@ impl SysCallInterface for SysCall {
     fn debug_log(_buffer: *const u8, _buffer_len: usize) -> Result<()> {
         Err(pw_status::Error::Unimplemented)
     }
+
+    #[inline(always)]
+    fn debug_nop() -> Result<()> {
+        Err(pw_status::Error::Unimplemented)
+    }
 }

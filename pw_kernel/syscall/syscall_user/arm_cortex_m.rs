@@ -160,6 +160,7 @@ syscall_veneer!(ChannelRespond, 3, channel_respond(
 syscall_veneer!(DebugPutc, 1, putc(a: u32));
 syscall_veneer!(DebugShutdown, 1, shutdown(a: u32));
 syscall_veneer!(DebugLog, 2, log(buffer: *const u8, buffer_len: usize));
+syscall_veneer!(DebugNop, 0, nop());
 
 impl SysCallInterface for SysCall {
     #[inline(always)]
@@ -206,5 +207,10 @@ impl SysCallInterface for SysCall {
     #[inline(always)]
     fn debug_log(buffer: *const u8, buffer_len: usize) -> Result<()> {
         SysCallReturnValue(unsafe { log(buffer, buffer_len) }).to_result_unit()
+    }
+
+    #[inline(always)]
+    fn debug_nop() -> Result<()> {
+        SysCallReturnValue(unsafe { nop() }).to_result_unit()
     }
 }

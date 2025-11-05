@@ -68,3 +68,8 @@ pub fn debug_shutdown(status: Result<()>) -> Result<()> {
 pub fn debug_log(buffer: &[u8]) -> Result<()> {
     SysCall::debug_log(buffer.as_ptr(), buffer.len())
 }
+
+#[inline(always)]
+pub fn debug_nop() -> Result<()> {
+    SysCall::debug_nop()
+}
