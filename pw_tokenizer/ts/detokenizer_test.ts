@@ -76,6 +76,17 @@ const generateTests3 = (description: string, csv: string) =>
       const frame = generateFrame('abcde');
       expect(detokenizer.detokenize(frame)).toEqual('regular token');
     });
+
+    it('decodes from uint8 array', () => {
+      const data = new TextEncoder().encode('abcde');
+      expect(detokenizer.detokenizeUint8Array(data)).toEqual('regular token');
+    });
+
+    it('decodes base64 from uint8 array', () => {
+      const data = new TextEncoder().encode('$8zP8hg==');
+      expect(detokenizer.detokenizeUint8Array(data)).toEqual('base64 token');
+    });
+
     it('failure to detokenize returns original string', () => {
       expect(detokenizer.detokenize(generateFrame('aabbcc'))).toEqual('aabbcc');
       expect(detokenizer.detokenize(generateFrame('$8zP7hg=='))).toEqual(

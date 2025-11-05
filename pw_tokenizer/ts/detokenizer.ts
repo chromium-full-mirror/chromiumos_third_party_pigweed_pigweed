@@ -95,7 +95,7 @@ export class Detokenizer {
     domain = '',
     maxRecursion: number = MAX_RECURSIONS,
   ): string {
-    return this.detokenizeUint8Array(tokenizedFrame, domain, maxRecursion);
+    return this.detokenizeUint8Array(tokenizedFrame.data, domain, maxRecursion);
   }
 
   /**
@@ -106,20 +106,15 @@ export class Detokenizer {
    * returned as string as is.
    */
   detokenizeUint8Array(
-    tokenizedFrame: Frame,
+    data: Uint8Array,
     domain = '',
     recursion: number = MAX_RECURSIONS,
   ): string {
-    const decodedString = new TextDecoder().decode(tokenizedFrame.data);
+    const decodedString = new TextDecoder().decode(data);
     if (PATTERN.test(decodedString)) {
-      return this.detokenizeBase64String(
-        tokenizedFrame,
-        decodedString,
-        domain,
-        recursion,
-      );
+      return this.detokenizeBase64String(decodedString, domain, recursion);
     }
-    const { token, args } = this.decodeUint8Array(tokenizedFrame.data);
+    const { token, args } = this.decodeUint8Array(data);
     // Parse arguments if this is printf-style text.
     const formatString = this.database.get(token, domain);
     if (!formatString) {
@@ -133,8 +128,7 @@ export class Detokenizer {
     return new PrintfDecoder().decode(String(formatString), args);
   }
 
-  private detokenizeBase64String(
-    tokenizedFrame: Frame,
+  public detokenizeBase64String(
     base64String: string,
     domain: string,
     recursions: number,
@@ -151,7 +145,6 @@ export class Detokenizer {
         // Detokenize nested Base64 tokens and their arguments.
         if (recursions > 0) {
           return this.detokenizeBase64String(
-            tokenizedFrame,
             decodedOriginal,
             // Update the domain value for nested tokens.
             this.getDomain(base64Substring),
