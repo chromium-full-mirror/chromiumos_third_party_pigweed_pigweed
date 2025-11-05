@@ -381,7 +381,7 @@ TEST(StaticChannel, ReserveSendReservesSpace) {
 
   ReceiverTask receiver_task(channel.CreateReceiver());
 
-  Sender<int> sender = channel.CreateSender();
+  Sender<int> channel_sender = channel.CreateSender();
   channel.Release();
 
   static constexpr int kReservedSendValue = 37;
@@ -389,7 +389,7 @@ TEST(StaticChannel, ReserveSendReservesSpace) {
   static constexpr int kSecondSendValue = 43;
 
   PendFuncTask reserved_sender_task(
-      [sender = std::move(sender)](Context& cx) mutable -> Poll<> {
+      [sender = std::move(channel_sender)](Context& cx) mutable -> Poll<> {
         // This task runs once without sleeping.
         // The channel has two slots. First, we reserve a slot through
         // `ReserveSend`, but don't commit a value. Then, we attempt to write
@@ -429,14 +429,14 @@ TEST(StaticChannel, ReserveSendReleasesSpaceWhenDropped) {
   auto channel = CreateMpmcChannel(storage);
 
   ReceiverTask receiver_task(channel.CreateReceiver());
-  Sender<int> sender = channel.CreateSender();
+  Sender<int> channel_sender = channel.CreateSender();
   channel.Release();
 
   static constexpr int kFirstSendValue = 40;
   static constexpr int kSecondSendValue = 43;
 
   PendFuncTask reserved_sender_task(
-      [sender = std::move(sender)](Context& cx) mutable -> Poll<> {
+      [sender = std::move(channel_sender)](Context& cx) mutable -> Poll<> {
         // This task runs once without sleeping.
         // The channel has two slots. First, we reserve a slot through
         // `ReserveSend`, but don't commit a value. Then, we attempt to write
@@ -480,14 +480,14 @@ TEST(StaticChannel, ReserveSendManualCancel) {
   auto channel = CreateMpmcChannel(storage);
 
   ReceiverTask receiver_task(channel.CreateReceiver());
-  Sender<int> sender = channel.CreateSender();
+  Sender<int> channel_sender = channel.CreateSender();
   channel.Release();
 
   static constexpr int kFirstSendValue = 40;
   static constexpr int kSecondSendValue = 43;
 
   PendFuncTask reserved_sender_task(
-      [sender = std::move(sender)](Context& cx) mutable -> Poll<> {
+      [sender = std::move(channel_sender)](Context& cx) mutable -> Poll<> {
         // This task runs once without sleeping.
         // The channel has two slots. First, we reserve a slot through
         // `ReserveSend`, but don't commit a value. Then, we attempt to write
@@ -566,12 +566,12 @@ TEST(StaticChannel, MoveOnly) {
   ChannelStorage<MoveOnly, 3> storage;
   auto channel = CreateMpmcChannel(storage);
 
-  Sender<MoveOnly> sender = channel.CreateSender();
-  Receiver<MoveOnly> receiver = channel.CreateReceiver();
+  Sender<MoveOnly> channel_sender = channel.CreateSender();
+  Receiver<MoveOnly> channel_receiver = channel.CreateReceiver();
   channel.Release();
 
   PendFuncTask sender_task(
-      [sender = std::move(sender)](Context& cx) mutable -> Poll<> {
+      [sender = std::move(channel_sender)](Context& cx) mutable -> Poll<> {
         MoveOnly move_only_1(1);
         auto send_future = sender.Send(std::move(move_only_1));
         EXPECT_EQ(send_future.Pend(cx), Ready(true));
@@ -593,7 +593,7 @@ TEST(StaticChannel, MoveOnly) {
       });
 
   PendFuncTask receiver_task(
-      [receiver = std::move(receiver)](Context& cx) mutable -> Poll<> {
+      [receiver = std::move(channel_receiver)](Context& cx) mutable -> Poll<> {
         auto receive_future = receiver.Receive();
         auto poll1 = receive_future.Pend(cx);
         EXPECT_EQ(poll1.value(), MoveOnly(1));
@@ -625,14 +625,14 @@ TEST(DynamicChannel, ForwardsDataAndAutomaticallyDeallocates) {
       CreateMpmcChannel<int>(alloc, 2);
   ASSERT_TRUE(channel.has_value());
 
-  Sender<int> sender = channel->CreateSender();
+  Sender<int> channel_sender = channel->CreateSender();
   Receiver<int> receiver = channel->CreateReceiver();
   channel->Release();
 
   EXPECT_EQ(alloc.metrics().num_allocations.value(), 2u);
   EXPECT_EQ(alloc.metrics().num_deallocations.value(), 0u);
 
-  SenderTask sender_task(std::move(sender), 1, 6);
+  SenderTask sender_task(std::move(channel_sender), 1, 6);
   ReceiverTask receiver_task(std::move(receiver));
 
   dispatcher.Post(sender_task);

@@ -65,6 +65,7 @@ pw_facade("dispatcher") {
     "public/pw_async2/dispatcher.h",
     "public/pw_async2/dispatcher_base.h",
     "public/pw_async2/future.h",
+    "public/pw_async2/internal/config.h",
     "public/pw_async2/lock.h",
     "public/pw_async2/owned_task.h",
     "public/pw_async2/task.h",
@@ -76,10 +77,11 @@ pw_facade("dispatcher") {
     "$dir_pw_assert",
     "$dir_pw_chrono:system_clock",
     "$dir_pw_containers:intrusive_forward_list",
+    "$dir_pw_containers:intrusive_list",
+    "$dir_pw_log",
     "$dir_pw_log:args",
     "$dir_pw_sync:interrupt_spin_lock",
     "$dir_pw_sync:lock_annotations",
-    "$dir_pw_sync:mutex",
     "$dir_pw_toolchain:no_destructor",
     dir_pw_metric,
     dir_pw_tokenizer,
@@ -87,7 +89,6 @@ pw_facade("dispatcher") {
   deps = [
     "$dir_pw_assert:check",
     "$dir_pw_thread:sleep",
-    dir_pw_log,
   ]
   sources = [
     "context.cc",
@@ -157,8 +158,10 @@ pw_test("future_test") {
     ":dispatcher",
     ":pend_func_task",
     ":poll",
+    ":select",
   ]
   sources = [ "future_test.cc" ]
+  negative_compilation_tests = true
 }
 
 pw_source_set("value_future") {
@@ -297,6 +300,7 @@ if (pw_toolchain_CXX_STANDARD >= pw_toolchain_STANDARD.CXX20) {
     public_deps = [
       ":dispatcher",
       "$dir_pw_allocator:allocator",
+      "$dir_pw_status",
       dir_pw_function,
     ]
     deps = [ dir_pw_log ]
@@ -310,6 +314,7 @@ if (pw_toolchain_CXX_STANDARD >= pw_toolchain_STANDARD.CXX20) {
       ":dispatcher",
       "$dir_pw_allocator:null_allocator",
       "$dir_pw_allocator:testing",
+      "$dir_pw_status",
     ]
     sources = [ "coro_test.cc" ]
   }
@@ -321,6 +326,7 @@ if (pw_toolchain_CXX_STANDARD >= pw_toolchain_STANDARD.CXX20) {
       ":coro",
       ":dispatcher",
       "$dir_pw_function",
+      "$dir_pw_status",
     ]
   }
 
@@ -333,6 +339,7 @@ if (pw_toolchain_CXX_STANDARD >= pw_toolchain_STANDARD.CXX20) {
       ":dispatcher",
       "$dir_pw_allocator:null_allocator",
       "$dir_pw_allocator:testing",
+      "$dir_pw_status",
     ]
   }
 
@@ -355,6 +362,7 @@ if (pw_toolchain_CXX_STANDARD >= pw_toolchain_STANDARD.CXX20) {
       ":pend_func_awaitable",
       ":poll",
       "$dir_pw_allocator:testing",
+      "$dir_pw_status",
       dir_pw_function,
     ]
     sources = [ "pend_func_awaitable_test.cc" ]
@@ -367,6 +375,7 @@ pw_source_set("time_provider") {
   public_configs = [ ":public_include_path" ]
   public_deps = [
     ":dispatcher",
+    "$dir_pw_chrono:virtual_clock",
     "$dir_pw_containers:intrusive_list",
     "$dir_pw_sync:interrupt_spin_lock",
     "$dir_pw_toolchain:no_destructor",
@@ -546,9 +555,11 @@ pw_test_group("tests") {
     ":allocate_task_test",
     ":callback_task_test",
     ":cancellable_task_test",
+    ":channel_test",
     ":dispatcher_test",
     ":dispatcher_thread_test",
     ":enqueue_heap_func_test",
+    ":future_test",
     ":join_test",
     ":poll_test",
     ":pend_func_task_test",
@@ -559,10 +570,12 @@ pw_test_group("tests") {
     ":simulated_time_provider_test",
     ":system_time_provider_test",
     ":task_test",
+    ":value_future_test",
     ":waker_queue_test",
   ]
   if (pw_toolchain_CXX_STANDARD >= pw_toolchain_STANDARD.CXX20) {
     tests += [
+      ":channel_coro_test",
       ":coro_test",
       ":coro_or_else_task_test",
       ":pend_func_awaitable_test",
