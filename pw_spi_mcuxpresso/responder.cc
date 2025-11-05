@@ -476,17 +476,9 @@ void McuxpressoResponder::CsDeasserted() {
   // the state to kSPI_Idle. Also, the DMA channel interrupts are disabled when
   // CS is respected, because SPI_RxDMACallback() and SPI_TxDMACallback() also
   // change the state to kSPI_Idle.
-#if FSL_SPI_DMA_DRIVER_VERSION >= MAKE_VERSION(2, 2, 2)
-  size_t bytes_remaining = 0;
-  status_t sdk_status =
-      SPI_SlaveTransferGetCountDMA(base_, &handle_, &bytes_remaining);
-  size_t bytes_transferred =
-      current_transaction_.rx_data.size() - bytes_remaining;
-#else
   size_t bytes_transferred = 0;
   status_t sdk_status =
       SPI_SlaveTransferGetCountDMA(base_, &handle_, &bytes_transferred);
-#endif  // FSL_SPI_DMA_DRIVER_VERSION
 
   // Transfer complete.
   Status xfer_status = OkStatus();
@@ -556,6 +548,15 @@ Status McuxpressoResponder::DoWriteReadAsync(ConstByteSpan tx_data,
     // Complete the transfer when CS is deasserted.
     SPI_EnableSSInterrupt(base_);
   }
+
+  // Work around a bug in fsl_spi_dma v2.2.2 which doesn't set transferSize:
+  // https://github.com/nxp-mcuxpresso/mcuxsdk-core/issues/19
+  //
+  // This is required for SPI_MasterTransferGetCountDMA() and
+  // SPI_SlaveTransferGetCountDMA() to return the correct value.
+#if FSL_SPI_DMA_DRIVER_VERSION >= MAKE_VERSION(2, 2, 2)
+  handle_.transferSize = transfer.dataSize;
+#endif  // FSL_SPI_DMA_DRIVER_VERSION
 
   status_t sdk_status = SPI_SlaveTransferDMA(base_, &handle_, &transfer);
   if (sdk_status != kStatus_Success) {
