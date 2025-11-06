@@ -8,8 +8,18 @@
       share ideas and projects related to Pigweed.
     </description>
     <language>en-us</language>
-    <pubDate>Mon, 7 Oct 2024 08:00:00 -0700</pubDate>
+    <pubDate>Wed, 5 Nov 2025 08:00:00 -0700</pubDate>
     <atom:link href="https://pigweed.dev/rss.xml" rel="self" type="application/rss+xml"/>
+    <item>
+      <title>Satisfying Bazel's relative paths requirement in C++ toolchains</title>
+      <link>https://pigweed.dev/docs/blog/09-bazel-relative-toolchain-paths.html</link>
+      <description>
+        How to fix Bazel's notorious "absolute path inclusion(s) found in rule"
+        error.
+      </description>
+      <pubDate>Wed, 5 Nov 2025 08:00:00 -0700</pubDate>
+      <guid>https://pigweed.dev/docs/blog/09-bazel-relative-toolchain-paths.html</guid>
+    </item>
     <item>
       <title>BazelCon 2024</title>
       <link>https://pigweed.dev/docs/blog/07-bazelcon-2024.html</link>

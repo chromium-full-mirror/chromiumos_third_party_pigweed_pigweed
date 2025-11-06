@@ -23,4 +23,5 @@ RSS feed: `https://pigweed.dev/rss.xml <https://pigweed.dev/rss.xml>`_
    #6: Shaping a better future for Bazel C/C++ toolchains <06-better-cpp-toolchains>
    #7: BazelCon 2024 <07-bazelcon-2024>
    #8: Migrating pigweed.dev to Bazel <08-bazel-docgen>
+   #9: Satisfying Bazel's relative paths requirement in C++ toolchains <09-bazel-relative-toolchain-paths.rst>
    RSS feed <https://pigweed.dev/rss.xml>
