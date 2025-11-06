@@ -201,6 +201,7 @@ pw_test("callback_task_test") {
   deps = [
     ":callback_task",
     ":dispatcher",
+    ":value_future",
     dir_pw_function,
   ]
   sources = [ "callback_task_test.cc" ]

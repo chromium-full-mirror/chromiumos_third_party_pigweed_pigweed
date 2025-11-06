@@ -280,6 +280,7 @@ pw_cc_test(
     deps = [
         ":callback_task",
         ":dispatcher",
+        ":value_future",
         "//pw_function",
     ],
 )

@@ -167,6 +167,7 @@ pw_add_test(pw_async2.callback_task_test
     callback_task_test.cc
   PRIVATE_DEPS
     pw_async2.callback_task
+    pw_async2.value_future
     pw_function
 )
 

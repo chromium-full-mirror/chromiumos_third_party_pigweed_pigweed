@@ -400,7 +400,7 @@ time using
 helps avoid timing-dependent test flakes and helps ensure that tests are fast
 since they don't need to wait for real-world time to elapse.
 
-.. _module-pw_async2-guides-callbacks:
+.. _module-pw_async2-guides-interop-callbacks:
 
 ------------------------------------------------------------
 Interacting with async2 from non-async2 code using callbacks
@@ -409,27 +409,11 @@ In a system gradually or partially adopting ``pw_async2``, there are often
 cases where non-async2 code needs to run asynchronous operations built with
 ``pw_async2``.
 
-To facilitate this, ``pw_async2`` provides callback tasks:
-:cc:`OneshotCallbackTask <pw::async2::OneshotCallbackTask>` and
-:cc:`RecurringCallbackTask <pw::async2::RecurringCallbackTask>`.
+To facilitate this, ``pw_async2`` provides
+:cc:`FutureCallbackTask <pw::async2::FutureCallbackTask>`.
 
-These tasks invoke a :ref:`pendable function
-<module-pw_async2-guides-pendable-function>`, forwarding its result to a provided
-callback on completion.
-
-The two variants of callback tasks are:
-
-* :cc:`OneshotCallbackTask\<T\> <pw::async2::OneshotCallbackTask>`: Pends
-  the pendable. When the pendable returns ``Ready(value)``, the task invokes
-  the callback once with ``value``. After the callback finishes, the
-  ``OneshotCallbackTask`` itself completes. This is useful for single,
-  asynchronous requests.
-
-* :cc:`RecurringCallbackTask\<T\> <pw::async2::RecurringCallbackTask>`:
-  Similar to the oneshot version, but after the task invokes the callback, the
-  ``RecurringCallbackTask`` continues polling the pendable function. This is
-  suitable for operations that produce a stream of values over time, where you
-  want to process each one.
+This task invokes a :ref:`future <module-pw_async2-futures>`, forwarding its
+result to a provided callback on completion.
 
 Example
 =======
@@ -444,18 +428,17 @@ Example
    void PostTaskToDispatcher(pw::async2::Task& task);
 
    // The async2 function we'd like to call.
-   pw::async2::Poll<pw::Result<int>> ReadValue(pw::async2::Context&);
+   pw::async2::Future<pw::Result<int>> ReadValue();
 
    // Non-async2 code.
-   int ReadAndPrintAsyncValue() {
-     pw::async2::OneshotCallbackTaskFor<&ReadValue> task(
-         [](pw::Result<int> result) {
-           if (result.ok()) {
-             PW_LOG_INFO("Read value: %d", result.value());
-           } else {
-             PW_LOG_ERROR("Failed to read value: %s", result.status().str());
-           }
-         });
+   void ReadAndPrintAsyncValue() {
+     pw::async2::FutureCallbackTask task(ReadValue(), [](pw::Result<int> result) {
+       if (result.ok()) {
+         PW_LOG_INFO("Read value: %d", result.value());
+       } else {
+         PW_LOG_ERROR("Failed to read value: %s", result.status().str());
+       }
+     });
 
      PostTaskToDispatcher(task);
 
@@ -464,6 +447,21 @@ Example
      // application, the task may be a member of a long-lived object, or you
      // might choose to statically allocate it.
    }
+
+.. _module-pw_async2-guides-interop-callbacks-considerations:
+
+Considerations for callback-based integration
+---------------------------------------------
+While the ``FutureCallbackTask`` helper is convenient, each instance of it is a
+distinct ``Task`` in the system which will compete for execution with other
+tasks running on the dispatcher.
+
+If an asynchronous part of the system needs to expose a robust, primary API
+based on callbacks to non-``pw_async2`` code, a more integrated solution is
+recommended. Instead of using standalone ``FutureCallbackTask`` objects, the
+``Task`` that manages the operation should natively support registering and
+managing a list of callbacks. This provides a clearer and more efficient
+interface for external consumers.
 
 .. _module-pw_async2-guides-interrupts:
 
@@ -605,82 +603,6 @@ flexibility in how tasks are allocated and stored. Common patterns include:
    // This task will be deallocated from the provided allocator when it's done.
    Task* task = AllocateTask<MyPendable>(my_allocator, arg1, arg2);
    dispatcher.Post(*task);
-
-.. _module-pw_async2-guides-interop:
-
-----------------
-Interoperability
-----------------
-``pw_async2`` is designed to integrate smoothly with existing codebases,
-including those that use traditional callback-based asynchronous patterns.
-
-.. _module-pw_async2-guides-interop-callbacks:
-
-Integrating with callback-based APIs
-====================================
-It's common to have a system where some parts use ``pw_async2`` and others use
-callbacks. To bridge this gap, ``pw_async2`` provides helpers to wrap a
-pendable function and invoke a callback with its result.
-
-* :cc:`OneShotCallbackTask <pw::async2::OneshotCallbackTask>`: Polls a
-  pendable function until it completes. When the function returns
-  ``Ready(value)``, invokes a provided callback with the ``value`` and then
-  finishes the task. This is ideal for request/response patterns.
-
-* :cc:`RecurringCallbackTask <pw::async2::RecurringCallbackTask>`: This
-  task is similar but reschedules itself after the callback is invoked. This
-  allows it to handle pendable functions that produce a stream of values over
-  time.
-
-This allows non-``pw_async2`` code to initiate and receive results from
-asynchronous operations without needing to be structured as a ``Task`` itself.
-
-.. code-block:: cpp
-
-   // A pendable function from the async part of the system.
-   Poll<Result<int>> ReadSensorAsync(Context&);
-
-   // Non-async code wants to read the sensor.
-   void ReadAndPrintSensor() {
-     // Create a task that will call our lambda when the sensor read is done.
-     auto callback_task =
-         OneshotCallbackTaskFor<&ReadSensorAsync>([](Result<int> result) {
-           if (result.ok()) {
-             printf("Sensor value: %d\n", *result);
-           }
-         });
-
-     // Post the task to the system's dispatcher.
-     GetMainDispatcher().Post(callback_task);
-
-     // The task must outlive the operation. Here, we might block or wait
-     // on a semaphore for the callback to signal completion.
-   }
-
-.. _module-pw_async2-guides-interop-callbacks-considerations:
-
-Considerations for callback-based integration
----------------------------------------------
-While ``CallbackTask`` helpers are convenient, there are design implications
-to consider:
-
-* **Separate Tasks**: Each ``CallbackTask`` is a distinct ``Task`` from the
-  perspective of the ``Dispatcher``. If a pendable function is called by both a
-  "native" ``pw_async2`` task and a ``CallbackTask``, that pendable function
-  must be designed to handle multiple concurrent callers (see
-  `Handling Multiple Callers`_).
-
-* **Transitional Tool**: These helpers are primarily intended as a transitional
-  tool for gradually migrating a codebase to ``pw_async2``. They provide a
-  quick way to bridge the two paradigms.
-
-* **Robust Callback APIs**: If an asynchronous operation needs to expose a
-  robust, primary API based on callbacks to non-``pw_async2`` parts of a
-  system, a more integrated solution is recommended. Instead of using
-  standalone ``CallbackTask`` objects, the core ``Task`` that manages the
-  operation should natively support registering and managing a list of
-  callbacks. This provides a clearer and more efficient interface for external
-  consumers.
 
 .. _module-pw_async2-guides-time-and-timers:
 
