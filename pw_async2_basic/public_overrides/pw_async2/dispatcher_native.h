@@ -50,8 +50,8 @@ class NativeDispatcher final : public NativeDispatcherBase {
   friend class ::pw::async2::Dispatcher;
 
   void DoWake() final { notify_.release(); }
-  Poll<> DoRunUntilStalled(Dispatcher&, Task* task);
-  void DoRunToCompletion(Dispatcher&, Task* task);
+  Poll<> DoRunUntilStalled(Dispatcher&);
+  void DoRunToCompletion(Dispatcher&);
 
   pw::sync::ThreadNotification notify_;
 };

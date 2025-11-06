@@ -131,7 +131,9 @@ TEST(Joiner, BindsDirectly) {
   StructWithPendMethod pendable_2(2, controller_2);
   Joiner join(std::move(pendable_1), std::move(pendable_2));
 
-  auto&& [v1, v2] = dispatcher.RunPendableToCompletion(join);
+  auto result = dispatcher.RunPendableUntilStalled(join);
+  ASSERT_TRUE(result.IsReady());
+  auto&& [v1, v2] = result.value();
   EXPECT_EQ(v1.result_, 1);
   EXPECT_EQ(v2.result_, 2);
   EXPECT_EQ(v1.move_count_, 1);

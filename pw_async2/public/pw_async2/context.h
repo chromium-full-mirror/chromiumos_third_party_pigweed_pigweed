@@ -21,7 +21,6 @@ namespace pw::async2 {
 
 class Context;
 class Dispatcher;
-class NativeDispatcherBase;
 
 namespace internal {
 
@@ -92,7 +91,7 @@ class Context {
   }
 
  private:
-  friend class NativeDispatcherBase;
+  friend class Task;
   friend bool internal::StoreWaker(Context& cx,
                                    Waker& waker_out,
                                    log::Token wait_reason);

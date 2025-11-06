@@ -22,37 +22,25 @@
 
 namespace pw::async2::backend {
 
-Poll<> NativeDispatcher::DoRunUntilStalled(Dispatcher& dispatcher, Task* task) {
-  {
-    std::lock_guard lock(impl::dispatcher_lock());
-    PW_CHECK(task == nullptr || HasPostedTask(*task),
-             "Attempted to run a dispatcher until a task was stalled, "
-             "but that task has not been `Post`ed to that `Dispatcher`.");
-  }
+Poll<> NativeDispatcher::DoRunUntilStalled(Dispatcher& dispatcher) {
   while (true) {
-    RunOneTaskResult result = RunOneTask(dispatcher, task);
-    if (result.completed_main_task() || result.completed_all_tasks()) {
+    RunTaskResult result = RunOneTask(dispatcher);
+    if (result == kNoTasks) {
       return Ready();
     }
-    if (!result.ran_a_task()) {
+    if (result == kNoReadyTasks) {
       return Pending();
     }
   }
 }
 
-void NativeDispatcher::DoRunToCompletion(Dispatcher& dispatcher, Task* task) {
-  {
-    std::lock_guard lock(impl::dispatcher_lock());
-    PW_CHECK(task == nullptr || HasPostedTask(*task),
-             "Attempted to run a dispatcher until a task was complete, "
-             "but that task has not been `Post`ed to that `Dispatcher`.");
-  }
+void NativeDispatcher::DoRunToCompletion(Dispatcher& dispatcher) {
   while (true) {
-    RunOneTaskResult result = RunOneTask(dispatcher, task);
-    if (result.completed_main_task() || result.completed_all_tasks()) {
+    RunTaskResult result = RunOneTask(dispatcher);
+    if (result == kNoTasks) {
       return;
     }
-    if (!result.ran_a_task()) {
+    if (result != kReadyTasks) {
       SleepInfo sleep_info = AttemptRequestWake(/*allow_empty=*/false);
       if (sleep_info.should_sleep()) {
         notify_.acquire();

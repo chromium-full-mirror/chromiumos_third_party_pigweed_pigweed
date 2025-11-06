@@ -336,6 +336,7 @@ TEST(LinkTest, SendAndReceiveData) {
   Result<NetworkPacket> rx_packet = NetworkPacket::Create(allocator);
   ASSERT_EQ(rx_packet.status(), OkStatus());
 
+  bool read_frame_header_finished = false;
   async2::PendFuncTask read_frame_header(
       [&](async2::Context& context) -> async2::Poll<> {
         while (!raw_frame_header.empty()) {
@@ -343,10 +344,12 @@ TEST(LinkTest, SendAndReceiveData) {
                               link.Read(context, raw_frame_header));
           raw_frame_header = raw_frame_header.subspan(bytes_read);
         }
+        read_frame_header_finished = true;
         return Ready();
       });
   dispatcher.Post(read_frame_header);
-  EXPECT_EQ(dispatcher.RunUntilStalled(read_frame_header), Ready());
+  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
+  EXPECT_TRUE(read_frame_header_finished);
 
   DemoLinkHeader frame_header = rx_frame->GetHeader();
   EXPECT_EQ(frame_header.src_addr, kLinkSrcAddr);

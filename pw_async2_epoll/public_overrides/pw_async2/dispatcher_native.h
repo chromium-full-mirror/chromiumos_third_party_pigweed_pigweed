@@ -54,8 +54,8 @@ class NativeDispatcher final : public NativeDispatcherBase {
   };
 
   void DoWake() final;
-  Poll<> DoRunUntilStalled(Dispatcher&, Task* task);
-  void DoRunToCompletion(Dispatcher&, Task* task);
+  Poll<> DoRunUntilStalled(Dispatcher&);
+  void DoRunToCompletion(Dispatcher&);
 
   Status NativeWaitForWake();
   void NativeFindAndWakeFileDescriptor(int fd, FileDescriptorType type);

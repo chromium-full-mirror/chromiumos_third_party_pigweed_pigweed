@@ -26,7 +26,7 @@ namespace pw::async2 {
 
 /// @submodule{pw_async2,backends}
 
-// Forward-declare ``Dispatcher``.
+// Forward-declare `Dispatcher`.
 // This concrete type must be provided by a backend.
 class Dispatcher;
 
@@ -38,13 +38,12 @@ using PendOutputOf = typename decltype(std::declval<T>().Pend(
 PW_MODIFY_DIAGNOSTICS_PUSH();
 PW_MODIFY_DIAGNOSTIC_GCC(ignored, "-Wnon-virtual-dtor");
 
-/// A base class used by ``Dispatcher`` implementations.
+/// A base class used by `Dispatcher` implementations.
 ///
-/// Note that only one ``Dispatcher`` implementation should exist per
-/// toolchain. However, a common base class is used in order to share
-/// behavior and standardize the interface of these ``Dispatcher`` s,
-/// and to prevent build system cycles due to ``Task`` needing to refer
-/// to the ``Dispatcher`` class.
+/// Note that only one `Dispatcher` implementation should exist per toolchain.
+/// However, a common base class is used in order to share behavior and
+/// standardize the interface of these `Dispatcher`s, and to prevent build
+/// system cycles due to `Task` needing to refer to the `Dispatcher` class.
 class NativeDispatcherBase {
  public:
   NativeDispatcherBase() = default;
@@ -56,27 +55,27 @@ class NativeDispatcherBase {
  protected:
   ~NativeDispatcherBase() = default;
 
-  /// Check that a task is posted on this ``Dispatcher``.
+  /// Check that a task is posted on this `Dispatcher`.
   bool HasPostedTask(Task& task)
       PW_EXCLUSIVE_LOCKS_REQUIRED(impl::dispatcher_lock()) {
     return task.dispatcher_ == this;
   }
 
-  /// Removes references to this ``NativeDispatcherBase`` from all linked
-  /// ``Task`` s and ``Waker`` s.
+  /// Removes references to this `NativeDispatcherBase` from all linked `Task`s
+  /// and `Waker`s.
   ///
-  /// This must be called by ``Dispatcher`` implementations in their
-  /// destructors. It is not called by the ``NativeDispatcherBase`` destructor,
-  /// as doing so would allow the ``Dispatcher`` to be referenced between the
-  /// calls to ``~Dispatcher`` and ``~NativeDispatcherBase``.
+  /// This must be called by `Dispatcher` implementations in their destructors.
+  /// It is not called by the `NativeDispatcherBase` destructor, as doing so
+  /// would allow the `Dispatcher` to be referenced between the calls to
+  /// `~Dispatcher` and `~NativeDispatcherBase`.
   void Deregister() PW_LOCKS_EXCLUDED(impl::dispatcher_lock());
 
   void Post(Task& task) PW_LOCKS_EXCLUDED(impl::dispatcher_lock());
 
   /// Information about whether and when to sleep until as returned by
-  /// ``NativeDispatcherBase::AttemptRequestWake``.
+  /// `NativeDispatcherBase::AttemptRequestWake`.
   ///
-  /// This should only be used by ``Dispatcher`` implementations.
+  /// This should only be used by `Dispatcher` implementations.
   class [[nodiscard]] SleepInfo {
     friend class NativeDispatcherBase;
 
@@ -93,47 +92,39 @@ class NativeDispatcherBase {
     bool should_sleep_;
   };
 
-  /// Indicates that this ``Dispatcher`` is about to go to sleep and
-  /// requests that it be awoken when more work is available in the future.
+  /// Indicates that this `Dispatcher` is about to go to sleep and requests that
+  /// it be awoken when more work is available in the future.
   ///
   /// Dispatchers must invoke this method before sleeping in order to ensure
-  /// that they receive a ``DoWake`` call when there is more work to do.
+  /// that they receive a `DoWake` call when there is more work to do.
   ///
-  /// The returned ``SleepInfo`` will describe whether and for how long the
-  /// ``Dispatcher`` implementation should go to sleep. Notably it will return
-  /// that the ``Dispatcher`` should not sleep if there is still more work to
-  /// be done.
+  /// The returned `SleepInfo` will describe whether and for how long the
+  /// `Dispatcher` implementation should go to sleep. Notably it will return
+  /// that the `Dispatcher` should not sleep if there is still more work to be
+  /// done.
   ///
-  /// @param  allow_empty Whether or not to allow sleeping when no tasks are
-  ///                     registered.
+  /// @param allow_empty Whether or not to allow sleeping when no tasks are
+  ///     registered.
   SleepInfo AttemptRequestWake(bool allow_empty)
       PW_LOCKS_EXCLUDED(impl::dispatcher_lock());
 
-  /// Information about the result of a call to ``RunOneTask``.
-  ///
-  /// This should only be used by ``Dispatcher`` implementations.
-  class [[nodiscard]] RunOneTaskResult {
-   public:
-    RunOneTaskResult(bool completed_all_tasks,
-                     bool completed_main_task,
-                     bool ran_a_task)
-        : completed_all_tasks_(completed_all_tasks),
-          completed_main_task_(completed_main_task),
-          ran_a_task_(ran_a_task) {}
-    bool completed_all_tasks() const { return completed_all_tasks_; }
-    bool completed_main_task() const { return completed_main_task_; }
-    bool ran_a_task() const { return ran_a_task_; }
+  /// Current state of the `Dispatcher`'s tasks.
+  enum RunTaskResult {
+    /// No tasks are posted to the dispatcher. None have been posted or all ran
+    /// to completion.
+    kNoTasks,
 
-   private:
-    bool completed_all_tasks_;
-    bool completed_main_task_;
-    bool ran_a_task_;
+    /// There are tasks sleeping, but no ready tasks to run.
+    kNoReadyTasks,
+
+    /// There are tasks ready to run.
+    kReadyTasks,
   };
 
   /// Attempts to run a single task, returning whether any tasks were
   /// run, and whether `task_to_look_for` was run.
-  [[nodiscard]] RunOneTaskResult RunOneTask(Dispatcher& dispatcher,
-                                            Task* task_to_look_for);
+  RunTaskResult RunOneTask(Dispatcher& dispatcher)
+      PW_LOCKS_EXCLUDED(impl::dispatcher_lock());
 
   uint32_t tasks_polled() const { return tasks_polled_.value(); }
   uint32_t tasks_completed() const { return tasks_completed_.value(); }
@@ -150,15 +141,15 @@ class NativeDispatcherBase {
     DoWake();
   }
 
-  /// Sends a wakeup signal to this ``Dispatcher``.
+  /// Sends a wakeup signal to this `Dispatcher`.
   ///
-  /// This method's implementation should ensure that the ``Dispatcher`` comes
-  /// back from sleep and begins invoking ``RunOneTask`` again.
+  /// This method's implementation should ensure that the `Dispatcher` comes
+  /// back from sleep and begins invoking `RunOneTask` again.
   ///
-  /// Note: the ``impl::dispatcher_lock()`` may or may not be held here, so it
-  /// must not be acquired by ``DoWake``, nor may ``DoWake`` assume that it has
-  /// been acquired.
-  virtual void DoWake() = 0;
+  /// @note The `impl::dispatcher_lock()` may or may not be held here, so it
+  /// must not be acquired by `DoWake`, nor may `DoWake` assume that it has been
+  /// acquired.
+  virtual void DoWake() PW_LOCKS_EXCLUDED(impl::dispatcher_lock()) = 0;
 
   static void UnpostTaskList(IntrusiveList<Task>& list)
       PW_EXCLUSIVE_LOCKS_REQUIRED(impl::dispatcher_lock());
@@ -166,19 +157,19 @@ class NativeDispatcherBase {
       PW_EXCLUSIVE_LOCKS_REQUIRED(impl::dispatcher_lock());
   void RemoveSleepingTaskLocked(Task&)
       PW_EXCLUSIVE_LOCKS_REQUIRED(impl::dispatcher_lock());
+  void AddSleepingTaskLocked(Task&)
+      PW_EXCLUSIVE_LOCKS_REQUIRED(impl::dispatcher_lock());
 
-  // For use by ``Waker``.
+  // For use by `Waker`.
   void WakeTask(Task&) PW_EXCLUSIVE_LOCKS_REQUIRED(impl::dispatcher_lock());
 
-  // For use by ``RunOneTask``.
+  // For use by `RunOneTask`.
   Task* PopWokenTask() PW_EXCLUSIVE_LOCKS_REQUIRED(impl::dispatcher_lock());
 
   void LogRegisteredTasks();
 
-#if PW_ASYNC2_DEBUG_WAIT_REASON
   void LogTaskWakers(const Task& task)
       PW_EXCLUSIVE_LOCKS_REQUIRED(impl::dispatcher_lock());
-#endif  // PW_ASYNC2_DEBUG_WAIT_REASON
 
   IntrusiveList<Task> woken_ PW_GUARDED_BY(impl::dispatcher_lock());
   IntrusiveList<Task> sleeping_ PW_GUARDED_BY(impl::dispatcher_lock());

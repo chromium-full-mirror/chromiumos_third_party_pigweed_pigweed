@@ -70,16 +70,7 @@ class Dispatcher {
 
   /// Runs tasks until none are able to make immediate progress.
   Poll<> RunUntilStalled() PW_LOCKS_EXCLUDED(impl::dispatcher_lock()) {
-    return native_.DoRunUntilStalled(*this, nullptr);
-  }
-
-  /// Runs tasks until none are able to make immediate progress, or until
-  /// ``task`` completes.
-  ///
-  /// Returns whether ``task`` completed.
-  Poll<> RunUntilStalled(Task& task)
-      PW_LOCKS_EXCLUDED(impl::dispatcher_lock()) {
-    return native_.DoRunUntilStalled(*this, &task);
+    return native_.DoRunUntilStalled(*this);
   }
 
   /// Runs tasks until none are able to make immediate progress, or until
@@ -91,36 +82,21 @@ class Dispatcher {
       PW_LOCKS_EXCLUDED(impl::dispatcher_lock()) {
     internal::PendableAsTaskWithOutput<Pendable> task(pendable);
     Post(task);
-    if (RunUntilStalled(task).IsReady()) {
-      return task.TakePoll();
-    }
+    RunUntilStalled().IgnorePoll();
+
     // Ensure that the task is no longer registered, as it will be destroyed
     // once we return.
     //
     // This operation will not block because we are on the dispatcher thread
     // and the dispatcher is not currently running (we just ran it).
     task.Deregister();
-    return Pending();
+
+    return task.TakePoll();
   }
 
   /// Runs until all tasks complete.
   void RunToCompletion() PW_LOCKS_EXCLUDED(impl::dispatcher_lock()) {
-    native_.DoRunToCompletion(*this, nullptr);
-  }
-
-  /// Runs until ``task`` completes.
-  void RunToCompletion(Task& task) PW_LOCKS_EXCLUDED(impl::dispatcher_lock()) {
-    native_.DoRunToCompletion(*this, &task);
-  }
-
-  /// Runs until ``pendable`` completes, returning the output of ``pendable``.
-  template <typename Pendable>
-  PendOutputOf<Pendable> RunPendableToCompletion(Pendable& pendable)
-      PW_LOCKS_EXCLUDED(impl::dispatcher_lock()) {
-    internal::PendableAsTaskWithOutput<Pendable> task(pendable);
-    Post(task);
-    native_.DoRunToCompletion(*this, &task);
-    return task.TakePoll().value();
+    native_.DoRunToCompletion(*this);
   }
 
   /// Outputs log statements about the tasks currently registered with this

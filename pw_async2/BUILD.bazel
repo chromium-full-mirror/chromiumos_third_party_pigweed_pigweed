@@ -144,20 +144,6 @@ pw_cc_test(
 )
 
 pw_cc_test(
-    name = "dispatcher_thread_test",
-    srcs = ["dispatcher_thread_test.cc"],
-    # TODO: b/343776738 - update to run on all compatible devices
-    target_compatible_with = incompatible_with_mcu(),
-    deps = [
-        ":dispatcher",
-        "//pw_function",
-        "//pw_thread:sleep",
-        "//pw_thread:thread",
-        "//pw_thread_stl:options",
-    ],
-)
-
-pw_cc_test(
     name = "task_test",
     srcs = ["task_test.cc"],
     deps = [

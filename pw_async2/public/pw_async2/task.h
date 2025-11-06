@@ -13,6 +13,7 @@
 // the License.
 #pragma once
 
+#include "pw_assert/assert.h"
 #include "pw_async2/context.h"
 #include "pw_async2/lock.h"
 #include "pw_async2/poll.h"
@@ -164,6 +165,48 @@ class Task : public IntrusiveList<Task>::Item {
   /// `Waker::Wake` to be called, either by storing a copy of the `Waker`
   /// away to be awoken by another system (such as an interrupt handler).
   virtual Poll<> DoPend(Context&) = 0;
+
+  // Sets this task to use the provided dispatcher.
+  void PostTo(NativeDispatcherBase& dispatcher)
+      PW_EXCLUSIVE_LOCKS_REQUIRED(impl::dispatcher_lock()) {
+    PW_DASSERT(state_ == State::kUnposted);
+    PW_DASSERT(dispatcher_ == nullptr);
+    state_ = State::kWoken;
+    dispatcher_ = &dispatcher;
+  }
+
+  // Clears the task's dispatcher.
+  void Unpost() PW_EXCLUSIVE_LOCKS_REQUIRED(impl::dispatcher_lock()) {
+    state_ = State::kUnposted;
+    dispatcher_ = nullptr;
+    RemoveAllWakersLocked();
+  }
+
+  /// Result from `RunInDispatcher`.
+  enum RunResult {
+    /// The task is still posted to the dispatcher.
+    kActive,
+
+    /// The task was removed from the dispatcher by another thread.
+    kDeregistered,
+
+    /// The task finished running.
+    kCompleted,
+
+    /// The task finished running and must be deleted by the dispatcher.
+    kCompletedNeedsDestroy,
+  };
+
+  // Called by the dispatcher to run this task.
+  // TODO: b/456480489 - remove the unnecessary dispatcher argument when
+  //     Dispatcher and NativeDispatcherBase are merged.
+  RunResult RunInDispatcher(Dispatcher& dispatcher)
+      PW_EXCLUSIVE_LOCKS_REQUIRED(impl::dispatcher_lock());
+
+  // Called by the dispatcher to wake this task. Returns whether the task
+  // actually needed to be woken.
+  [[nodiscard]] bool Wake()
+      PW_EXCLUSIVE_LOCKS_REQUIRED(impl::dispatcher_lock());
 
   // Unlinks all `Waker` objects associated with this `Task.`
   void RemoveAllWakersLocked()

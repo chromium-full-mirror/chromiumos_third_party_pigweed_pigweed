@@ -20,6 +20,7 @@
 
 #include "pw_async2/dispatcher.h"
 #include "pw_async2/future.h"
+#include "pw_async2/poll.h"
 #include "pw_containers/optional_tuple.h"
 
 namespace pw::async2 {

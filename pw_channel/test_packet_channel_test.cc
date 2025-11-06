@@ -44,10 +44,10 @@ TEST_F(TestPacketReaderWriterTest, Read) {
   });
 
   dispatcher_.Post(task);
-  EXPECT_TRUE(dispatcher_.RunUntilStalled(task).IsPending());
+  EXPECT_TRUE(dispatcher_.RunUntilStalled().IsPending());
   channel_.EnqueueReadPacket("hello");
 
-  EXPECT_TRUE(dispatcher_.RunUntilStalled(task).IsReady());
+  EXPECT_TRUE(dispatcher_.RunUntilStalled().IsReady());
   EXPECT_EQ(completed, 1);
 }
 
@@ -71,11 +71,11 @@ TEST_F(TestPacketReaderWriterTest, Write) {
   channel_.SetAvailableWrites(0);
 
   dispatcher_.Post(task);
-  EXPECT_TRUE(dispatcher_.RunUntilStalled(task).IsPending());
+  EXPECT_TRUE(dispatcher_.RunUntilStalled().IsPending());
   EXPECT_EQ(completed, 0);
 
   channel_.SetAvailableWrites(3);
-  EXPECT_TRUE(dispatcher_.RunUntilStalled(task).IsReady());
+  EXPECT_TRUE(dispatcher_.RunUntilStalled().IsReady());
 
   ASSERT_EQ(channel_.written_packets().size(), 3u);
   EXPECT_STREQ(channel_.written_packets()[0], "hello");

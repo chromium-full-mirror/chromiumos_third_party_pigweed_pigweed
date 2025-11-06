@@ -430,12 +430,12 @@ TEST_F(PeripheralTest,
       });
   dispatcher2().Post(stop_task);
 
-  EXPECT_EQ(dispatcher2().RunUntilStalled(stop_task), pw::async2::Pending());
+  EXPECT_EQ(dispatcher2().RunUntilStalled(), pw::async2::Pending());
   ASSERT_EQ(adapter().fake_le()->registered_advertisements().size(), 1u);
 
   // Process the stop request.
   dispatcher().RunUntilIdle();
   // Process the waker wake.
-  EXPECT_EQ(dispatcher2().RunUntilStalled(stop_task), pw::async2::Ready());
+  dispatcher2().RunToCompletion();
   ASSERT_EQ(adapter().fake_le()->registered_advertisements().size(), 0u);
 }
