@@ -121,10 +121,11 @@ extern "C" void pw_Log(int level,
     return;
   }
 
-  auto buffer = syslog_runtime::LogBufferBuilder(fuchsia_severity)
+  auto buffer = fuchsia_logging::LogBufferBuilder(fuchsia_severity)
                     .WithFile(file_name, line_number)
                     .WithMsg(formatted)
                     .Build();
   buffer.WriteKeyValue("tag", module_name);
-  buffer.Flush();
+  [[maybe_unused]] zx::result<> result =
+      fuchsia_logging::FlushToGlobalLogger(buffer);
 }

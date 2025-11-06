@@ -148,6 +148,10 @@ class ProfileServer : public ServerBase<fuchsia::bluetooth::bredr::Profile> {
             request,
         ProfileServer* profile_server);
     ~ScoConnectionServer() override;
+
+    // TODO: https://fxbug.dev/447629864 - Implement this.
+    void RequestDisconnect() override {}
+
     // Call bt::gap::ScoConnection::Activate with the appropriate callbacks. On
     // error, destroys this server.
     void Activate();
