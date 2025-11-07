@@ -69,7 +69,7 @@ class RateLimiter {
 /// modified by multiple threads calling the macro context may result in
 /// undefined behavior.
 ///
-/// Intended to supplement and replace widespread use of EVERY_N` for logging.
+/// Intended to supplement and replace widespread use of `EVERY_N` for logging.
 /// The main benefit this provides is responsiveness for bursty logs.
 /// `LOG_RATE_LIMITED` will log as soon as a burst starts - provided the
 /// `min_interval_between_logs` has elapsed - while `EVERY_N` may sit idle for a
