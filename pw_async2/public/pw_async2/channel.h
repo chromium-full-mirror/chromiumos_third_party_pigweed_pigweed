@@ -127,14 +127,14 @@ class Channel {
 
   void CloseLocked() PW_EXCLUSIVE_LOCKS_REQUIRED(lock_) {
     closed_ = true;
-    while (!send_futures_.empty()) {
-      send_futures_.Pop().Wake();
+    while (auto send_future = send_futures_.Pop()) {
+      send_future->get().Wake();
     }
-    while (!reserve_send_futures_.empty()) {
-      reserve_send_futures_.Pop().Wake();
+    while (auto reserve_send_future = reserve_send_futures_.Pop()) {
+      reserve_send_future->get().Wake();
     }
-    while (!receive_futures_.empty()) {
-      receive_futures_.Pop().Wake();
+    while (auto receive_future = receive_futures_.Pop()) {
+      receive_future->get().Wake();
     }
   }
 
@@ -156,23 +156,23 @@ class Channel {
 
   void PushAndWake(T&& value) PW_EXCLUSIVE_LOCKS_REQUIRED(lock_) {
     deque_.push_back(std::move(value));
-    if (!receive_futures_.empty()) {
-      receive_futures_.Pop().Wake();
-    }
+    WakeOneReceiver();
   }
 
   void PushAndWake(const T& value) PW_EXCLUSIVE_LOCKS_REQUIRED(lock_) {
     deque_.push_back(value);
-    if (!receive_futures_.empty()) {
-      receive_futures_.Pop().Wake();
-    }
+    WakeOneReceiver();
   }
 
   template <typename... Args>
   void EmplaceAndWake(Args&&... args) PW_EXCLUSIVE_LOCKS_REQUIRED(lock_) {
     deque_.emplace_back(std::forward<Args>(args)...);
-    if (!receive_futures_.empty()) {
-      receive_futures_.Pop().Wake();
+    WakeOneReceiver();
+  }
+
+  void WakeOneReceiver() PW_EXCLUSIVE_LOCKS_REQUIRED(lock_) {
+    if (auto future = receive_futures_.Pop()) {
+      future->get().Wake();
     }
   }
 
@@ -189,16 +189,16 @@ class Channel {
   void WakeOneSender() PW_EXCLUSIVE_LOCKS_REQUIRED(lock_) {
     // TODO: b/456507134 - Store both future types in the same list.
     if (prioritize_reserve_) {
-      if (!reserve_send_futures_.empty()) {
-        reserve_send_futures_.Pop().Wake();
-      } else if (!send_futures_.empty()) {
-        send_futures_.Pop().Wake();
+      if (auto reserve_future = reserve_send_futures_.Pop()) {
+        reserve_future->get().Wake();
+      } else if (auto send_future = send_futures_.Pop()) {
+        send_future->get().Wake();
       }
     } else {
-      if (!send_futures_.empty()) {
-        send_futures_.Pop().Wake();
-      } else if (!reserve_send_futures_.empty()) {
-        reserve_send_futures_.Pop().Wake();
+      if (auto send_future = send_futures_.Pop()) {
+        send_future->get().Wake();
+      } else if (auto reserve_future = reserve_send_futures_.Pop()) {
+        reserve_future->get().Wake();
       }
     }
 

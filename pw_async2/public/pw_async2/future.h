@@ -145,15 +145,15 @@ class ListFutureProvider {
     futures_.push_back(future);
   }
 
-  /// Removes and returns the first future from the list.
-  ///
-  /// Triggers an assertion if the list is empty.
-  FutureType& Pop() {
+  /// Removes and returns the first future from the list, if one exists.
+  std::optional<std::reference_wrapper<FutureType>> Pop() {
     std::lock_guard lock(lock_);
-    PW_ASSERT(!futures_.empty());
+    if (futures_.empty()) {
+      return std::nullopt;
+    }
     FutureType& future = futures_.front();
     futures_.pop_front();
-    return future;
+    return std::ref(future);
   }
 
   /// Returns `true` if there are no futures listed.
@@ -212,8 +212,9 @@ class SingleFutureProvider {
   }
 
   /// Claims the provider's future, leaving it unset.
-  /// Crashes if there is no future set.
-  [[nodiscard]] FutureType& Take() { return inner_.Pop(); }
+  [[nodiscard]] std::optional<std::reference_wrapper<FutureType>> Take() {
+    return inner_.Pop();
+  }
 
   /// Returns `true` if the provider has a future.
   bool has_future() { return !inner_.empty(); }
@@ -406,8 +407,9 @@ class ListableFutureWithWaker
 
   /// Adds the future back into its provider's list if unlisted.
   void Relist() {
+    std::lock_guard guard(lock());
     if (provider_ && this->unlisted()) {
-      provider_->Push(derived());
+      provider_->futures_.push_back(derived());
     }
   }
 

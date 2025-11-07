@@ -179,18 +179,16 @@ class BroadcastValueProvider {
   /// Resolves every pending `ValueFuture` with a copy of the provided value.
   template <typename U = T, std::enable_if_t<!std::is_void_v<U>, int> = 0>
   void Resolve(const U& value) {
-    while (!provider_.empty()) {
-      ValueFuture<T>& future = provider_.Pop();
-      future.Resolve(value);
+    while (auto future = provider_.Pop()) {
+      future->get().Resolve(value);
     }
   }
 
   /// Resolves every pending `ValueFuture`.
   template <typename U = T, std::enable_if_t<std::is_void_v<U>, int> = 0>
   void Resolve() {
-    while (!provider_.empty()) {
-      ValueFuture<T>& future = provider_.Pop();
-      future.Resolve();
+    while (auto future = provider_.Pop()) {
+      future->get().Resolve();
     }
   }
 
@@ -234,16 +232,16 @@ class ValueProvider {
             typename U = T,
             std::enable_if_t<!std::is_void_v<U>, int> = 0>
   void Resolve(Args&&... args) {
-    if (provider_.has_future()) {
-      provider_.Take().Resolve(std::forward<Args>(args)...);
+    if (auto future = provider_.Take()) {
+      future->get().Resolve(std::forward<Args>(args)...);
     }
   }
 
   /// Resolves the pending `ValueFuture`.
   template <typename U = T, std::enable_if_t<std::is_void_v<U>, int> = 0>
   void Resolve() {
-    if (provider_.has_future()) {
-      provider_.Take().Resolve();
+    if (auto future = provider_.Take()) {
+      future->get().Resolve();
     }
   }
 

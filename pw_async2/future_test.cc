@@ -116,13 +116,12 @@ std::optional<SimpleIntFuture> SimpleAsyncInt::GetSingle() {
 }
 
 void SimpleAsyncInt::ResolveAllFutures() {
-  while (!list_provider_.empty()) {
-    SimpleIntFuture& future = list_provider_.Pop();
-    future.Wake();
+  while (auto future = list_provider_.Pop()) {
+    future->get().Wake();
   }
 
-  if (single_provider_.has_future()) {
-    single_provider_.Take().Wake();
+  if (auto future = single_provider_.Take()) {
+    future->get().Wake();
   }
 }
 
@@ -193,9 +192,8 @@ NotificationFuture AsyncNotification::Wait() {
 }
 
 void AsyncNotification::ResolveAllFutures() {
-  while (!list_provider_.empty()) {
-    NotificationFuture& future = list_provider_.Pop();
-    future.Wake();
+  while (auto future = list_provider_.Pop()) {
+    future->get().Wake();
   }
 }
 

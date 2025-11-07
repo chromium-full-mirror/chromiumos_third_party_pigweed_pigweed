@@ -85,8 +85,8 @@ class ButtonReceiver {
   // Executed in interrupt context.
   // `SingleFutureProvider` is internally synchronized and interrupt-safe.
   void HandleInterrupt() {
-    if (provider_.has_future()) {
-      provider_.Take().HandlePress();
+    if (auto future = provider_.Take()) {
+      future->get().HandlePress();
     }
   }
 
