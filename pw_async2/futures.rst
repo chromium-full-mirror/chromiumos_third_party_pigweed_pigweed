@@ -716,10 +716,14 @@ Synchronous access
 If you need to write to a channel from a non-async context, such as a
 separate thread or an interrupt handler, you can use ``TrySend``.
 
-- ``Sender::TrySend(T value)``: Attempts to send the value immediately. Returns
+- :cc:`Sender::TrySend`: Attempts to send the value immediately. Returns
   ``true`` if successful, or ``false`` if the channel is full or closed.
 
-.. note::
+- :cc:`Sender::BlockingSend`: Blocks the running thread until the value is sent
+  or an optional timeout elapses. Returns a status indicating success or
+  whether the channel is closed or the operation timed out.
 
-   Pigweed intends to add a corresponding ``TryReceive`` to the ``Receiver``,
-   as well as synchronous blocking APIs for both senders and receivers.
+- :cc:`Receiver::BlockingReceive`: Blocks the running thread until a value is
+  received or an optional timeout elapses. Returns a ``pw::Result<T>``
+  containing either the value read or the error in case of timeout or channel
+  closure.

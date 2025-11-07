@@ -16,11 +16,15 @@
 #include <mutex>
 
 #include "pw_allocator/allocator.h"
+#include "pw_async2/callback_task.h"
+#include "pw_async2/dispatcher.h"
 #include "pw_async2/future.h"
 #include "pw_containers/deque.h"
 #include "pw_numeric/checked_arithmetic.h"
+#include "pw_result/result.h"
 #include "pw_sync/interrupt_spin_lock.h"
 #include "pw_sync/lock_annotations.h"
+#include "pw_sync/timed_thread_notification.h"
 
 namespace pw::async2 {
 
@@ -704,8 +708,55 @@ class Receiver {
 
   /// Reads a value from the channel, blocking until it is available.
   ///
-  /// Returns a `Future<std::optional<T>>` which resolves to a `T` value if the
-  /// read is successful, or `std::nullopt` if the channel is closed.
+  /// @returns
+  /// * @OK: A value was successfully read from the channel.
+  /// * @FAILED_PRECONDITION: The channel is closed.
+  /// * @DEADLINE_EXCEEDED: The operation timed out.
+  ///
+  /// This operation blocks the running thread until it is complete. It must
+  /// not be called from an async context, or it will likely deadlock.
+  Result<T> BlockingReceive(
+      Dispatcher& dispatcher,
+      chrono::SystemClock::duration timeout = kWaitForever) {
+    if (channel_ == nullptr) {
+      return Status::FailedPrecondition();
+    }
+
+    struct {
+      std::optional<T> result;
+      sync::TimedThreadNotification notification;
+    } context;
+
+    FutureCallbackTask task(ReceiveFuture<T>(*channel_),
+                            [&context](std::optional<T> result) {
+                              context.result = std::move(result);
+                              context.notification.release();
+                            });
+    dispatcher.Post(task);
+
+    if (timeout == kWaitForever) {
+      context.notification.acquire();
+      if (!context.result.has_value()) {
+        return Status::FailedPrecondition();
+      }
+      return context.result.value();
+    }
+
+    if (!context.notification.try_acquire_for(timeout)) {
+      task.Deregister();
+      return Status::DeadlineExceeded();
+    }
+
+    if (!context.result.has_value()) {
+      return Status::FailedPrecondition();
+    }
+    return context.result.value();
+  }
+
+  /// Reads a value from the channel, blocking until it is available.
+  ///
+  /// Returns a `Future<std::optional<T>>` which resolves to a `T` value if
+  /// the read is successful, or `std::nullopt` if the channel is closed.
   ///
   /// If there are multiple receivers for a channel, each of them compete for
   /// exclusive values.
@@ -727,7 +778,13 @@ class Receiver {
     }
   }
 
+  /// Returns true if the channel is closed.
+  bool closed() const { return channel_ == nullptr || channel_->closed(); }
+
  private:
+  static constexpr chrono::SystemClock::duration kWaitForever =
+      chrono::SystemClock::duration::zero();
+
   template <typename U>
   friend class internal::Channel;
 
@@ -998,9 +1055,9 @@ class Sender {
   /// Returns a `Future<bool>` which resolves to `true` if the value was
   /// successfully sent to the channel, or `false` if the channel is closed.
   ///
-  /// Note that a value being sent successfully does not guarantee that it will
-  /// be read. If all corresponding receivers disconnect, any values still
-  /// buffered in the channel are lost.
+  /// Note that a value being sent successfully does not guarantee that it
+  /// will be read. If all corresponding receivers disconnect, any values
+  /// still buffered in the channel are lost.
   SendFuture<T> Send(const T& value) {
     if (channel_ == nullptr) {
       return SendFuture<T>(SendFuture<T>::kClosed, value);
@@ -1013,9 +1070,9 @@ class Sender {
   /// Returns a `Future<bool>` which resolves to `true` if the value was
   /// successfully sent to the channel, or `false` if the channel is closed.
   ///
-  /// Note that a value being sent successfully does not guarantee that it will
-  /// be read. If all corresponding receivers disconnect, any values still
-  /// buffered in the channel are lost.
+  /// Note that a value being sent successfully does not guarantee that it
+  /// will be read. If all corresponding receivers disconnect, any values
+  /// still buffered in the channel are lost.
   SendFuture<T> Send(T&& value) {
     if (channel_ == nullptr) {
       return SendFuture<T>(SendFuture<T>::kClosed, std::move(value));
@@ -1024,8 +1081,8 @@ class Sender {
   }
 
   /// Returns a `Future<std::optional<SendReservation>>` which resolves to a
-  /// `SendReservation` which can be used to write `count` values directly into
-  /// the channel when space is available.
+  /// `SendReservation` which can be used to write `count` values directly
+  /// into the channel when space is available.
   ///
   /// If the channel is closed, the future resolves to `nullopt`.
   ReserveSendFuture<T> ReserveSend() {
@@ -1057,6 +1114,45 @@ class Sender {
     return channel_->TryPush(std::move(value));
   }
 
+  /// Synchronously attempts to send `value` to the channel, blocking until
+  /// space is available or the channel is closed.
+  ///
+  /// @returns
+  /// * @OK: The value was successfully sent to the channel.
+  /// * @FAILED_PRECONDITION: The channel is closed.
+  /// * @DEADLINE_EXCEEDED: The operation timed out.
+  ///
+  /// This operation blocks the running thread until it is complete. It must
+  /// not be called from an async context, or it will likely deadlock.
+  Status BlockingSend(Dispatcher& dispatcher,
+                      const T& value,
+                      chrono::SystemClock::duration timeout = kWaitForever) {
+    if (channel_ == nullptr) {
+      return Status::FailedPrecondition();
+    }
+    return BlockingSend(dispatcher, SendFuture<T>(*channel_, value), timeout);
+  }
+
+  /// Synchronously attempts to send `value` to the channel, blocking until
+  /// space is available or the channel is closed.
+  ///
+  /// @returns
+  /// * @OK: The value was successfully sent to the channel.
+  /// * @FAILED_PRECONDITION: The channel is closed.
+  /// * @DEADLINE_EXCEEDED: The operation timed out.
+  ///
+  /// This operation blocks the running thread until it is complete. It must
+  /// not be called from an async context, or it will likely deadlock.
+  Status BlockingSend(Dispatcher& dispatcher,
+                      T&& value,
+                      chrono::SystemClock::duration timeout = kWaitForever) {
+    if (channel_ == nullptr) {
+      return Status::FailedPrecondition();
+    }
+    return BlockingSend(
+        dispatcher, SendFuture<T>(*channel_, std::move(value)), timeout);
+  }
+
   /// Removes this sender from its channel, preventing it from writing further
   /// values.
   ///
@@ -1078,7 +1174,13 @@ class Sender {
     return channel_ != nullptr ? channel_->capacity() : 0;
   }
 
+  /// Returns true if the channel is closed.
+  bool closed() const { return channel_ == nullptr || channel_->closed(); }
+
  private:
+  static constexpr chrono::SystemClock::duration kWaitForever =
+      chrono::SystemClock::duration::zero();
+
   template <typename U>
   friend class internal::Channel;
 
@@ -1102,6 +1204,32 @@ class Sender {
     if (channel_ != nullptr) {
       channel_->add_sender();
     }
+  }
+
+  Status BlockingSend(Dispatcher& dispatcher,
+                      SendFuture<T>&& future,
+                      chrono::SystemClock::duration timeout) {
+    struct {
+      Status status;
+      sync::TimedThreadNotification notification;
+    } context;
+
+    FutureCallbackTask task(std::move(future), [&context](bool result) {
+      context.status = result ? OkStatus() : Status::FailedPrecondition();
+      context.notification.release();
+    });
+    dispatcher.Post(task);
+
+    if (timeout == kWaitForever) {
+      context.notification.acquire();
+      return context.status;
+    }
+
+    if (!context.notification.try_acquire_for(timeout)) {
+      task.Deregister();
+      return Status::DeadlineExceeded();
+    }
+    return context.status;
   }
 
   internal::Channel<T>* channel_;
@@ -1191,8 +1319,8 @@ std::tuple<MpscChannelHandle<T>, Receiver<T>> CreateMpscChannel(
 /// Creates a dynamically allocated single-producer, multi-consumer channel
 /// with a fixed storage capacity.
 ///
-/// Returns a handle to the channel which may be used to create receivers. After
-/// all desired receivers are created, the handle can be dropped without
+/// Returns a handle to the channel which may be used to create receivers.
+/// After all desired receivers are created, the handle can be dropped without
 /// affecting the channel.
 ///
 /// All allocation occurs during the creation of the channel. After this
@@ -1214,8 +1342,8 @@ std::optional<std::tuple<SpmcChannelHandle<T>, Sender<T>>> CreateSpmcChannel(
 /// Creates a single-producer, multi-consumer channel with provided static
 /// storage.
 ///
-/// Returns a handle to the channel which may be used to create receivers. After
-/// all desired receivers are created, the handle can be dropped without
+/// Returns a handle to the channel which may be used to create receivers.
+/// After all desired receivers are created, the handle can be dropped without
 /// affecting the channel.
 ///
 /// The channel remains open as long as at least either a handle, or at least
@@ -1233,8 +1361,8 @@ std::tuple<SpmcChannelHandle<T>, Sender<T>> CreateSpmcChannel(
 /// with a fixed storage capacity.
 ///
 /// Returns a handle to the channel alongside the sender and receiver. The
-/// handle can be used to forcefully close the channel. If that is not required,
-/// it can be dropped without affecting the channel.
+/// handle can be used to forcefully close the channel. If that is not
+/// required, it can be dropped without affecting the channel.
 ///
 /// All allocation occurs during the creation of the channel. After this
 /// function returns, usage of the channel is guaranteed not to allocate.
@@ -1257,8 +1385,8 @@ CreateSpscChannel(Allocator& alloc, uint16_t capacity) {
 /// storage.
 ///
 /// Returns a handle to the channel alongside the sender and receiver. The
-/// handle can be used to forcefully close the channel. If that is not required,
-/// it can be dropped without affecting the channel.
+/// handle can be used to forcefully close the channel. If that is not
+/// required, it can be dropped without affecting the channel.
 ///
 /// The channel remains open as long as at least either a handle, or at least
 /// one sender and one receiver exist.

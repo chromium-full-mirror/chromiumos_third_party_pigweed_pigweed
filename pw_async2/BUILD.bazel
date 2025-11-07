@@ -613,12 +613,14 @@ cc_library(
     ],
     strip_include_prefix = "public",
     deps = [
+        ":callback_task",
         ":dispatcher",
         ":poll",
         "//pw_allocator",
         "//pw_containers:deque",
         "//pw_numeric:checked_arithmetic",
         "//pw_sync:interrupt_spin_lock",
+        "//pw_sync:timed_thread_notification",
     ],
 )
 
@@ -634,6 +636,21 @@ pw_cc_test(
         ":poll",
         "//pw_allocator:testing",
         "//pw_containers:vector",
+    ],
+)
+
+pw_cc_test(
+    name = "channel_thread_test",
+    srcs = [
+        "channel_thread_test.cc",
+    ],
+    deps = [
+        ":channel",
+        ":dispatcher",
+        ":poll",
+        "//pw_containers:vector",
+        "//pw_thread:test_thread_context",
+        "//pw_thread:thread",
     ],
 )
 

@@ -465,12 +465,14 @@ pw_add_library(pw_async2.channel INTERFACE
   HEADERS
     public/pw_async2/channel.h
   PUBLIC_DEPS
+    pw_async2.callback_task
     pw_async2.dispatcher
     pw_async2.poll
     pw_allocator
     pw_containers.deque
     pw_numeric.checked_arithmetic
     pw_sync.interrupt_spin_lock
+    pw_sync.timed_thread_notification
   PUBLIC_INCLUDES
     public
 )
@@ -485,6 +487,18 @@ pw_add_test(pw_async2.channel_test
     pw_async2.poll
     pw_allocator.testing
     pw_containers.vector
+)
+
+pw_add_test(pw_async2.channel_thread_test
+  SOURCES
+    channel_thread_test.cc
+  PRIVATE_DEPS
+    pw_async2.channel
+    pw_async2.dispatcher
+    pw_async2.poll
+    pw_containers.vector
+    pw_thread.test_thread_context
+    pw_thread.thread
 )
 
 pw_add_test(pw_async2.task_test

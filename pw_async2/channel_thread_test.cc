@@ -1,0 +1,378 @@
+// Copyright 2025 The Pigweed Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License"); you may not
+// use this file except in compliance with the License. You may obtain a copy of
+// the License at
+//
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+// WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+// License for the specific language governing permissions and limitations under
+// the License.
+
+#include <atomic>
+
+#include "pw_async2/channel.h"
+#include "pw_async2/dispatcher.h"
+#include "pw_async2/try.h"
+#include "pw_containers/vector.h"
+#include "pw_thread/test_thread_context.h"
+#include "pw_thread/thread.h"
+#include "pw_unit_test/framework.h"
+
+namespace {
+
+using pw::async2::ChannelStorage;
+using pw::async2::Context;
+using pw::async2::CreateSpscChannel;
+using pw::async2::Dispatcher;
+using pw::async2::Pending;
+using pw::async2::Poll;
+using pw::async2::Ready;
+using pw::async2::ReceiveFuture;
+using pw::async2::Receiver;
+using pw::async2::Sender;
+using pw::async2::SendFuture;
+using pw::async2::Task;
+using pw::async2::Waker;
+
+using namespace std::chrono_literals;
+
+class SenderTask : public Task {
+ public:
+  SenderTask(Sender<int> sender, int start, int end)
+      : Task(PW_ASYNC_TASK_NAME("SenderTask")),
+        sender_(std::move(sender)),
+        next_(start),
+        end_(end) {}
+
+ private:
+  Poll<> DoPend(Context& cx) override {
+    while (next_ <= end_) {
+      if (!future_.has_value()) {
+        future_.emplace(sender_.Send(next_));
+      }
+
+      PW_TRY_READY_ASSIGN(bool sent, future_->Pend(cx));
+      if (!sent) {
+        return Ready();
+      }
+
+      future_.reset();
+      next_++;
+    }
+
+    sender_.Disconnect();
+    return Ready();
+  }
+
+  Sender<int> sender_;
+  std::optional<SendFuture<int>> future_;
+  int next_;
+  int end_;
+};
+
+class ReceiverTask : public Task {
+ public:
+  ReceiverTask(Receiver<int> receiver,
+               size_t disconnect_after = std::numeric_limits<size_t>::max())
+      : Task(PW_ASYNC_TASK_NAME("ReceiverTask")),
+        receiver_(std::move(receiver)),
+        disconnect_after_(disconnect_after) {}
+
+  const pw::Vector<int>& received() const { return received_; }
+
+ private:
+  Poll<> DoPend(Context& cx) override {
+    while (disconnect_after_ > 0) {
+      if (!future_.has_value()) {
+        future_.emplace(receiver_.Receive());
+      }
+
+      PW_TRY_READY_ASSIGN(std::optional<int> value, future_->Pend(cx));
+      if (!value.has_value()) {
+        break;
+      }
+      received_.push_back(*value);
+      future_.reset();
+      disconnect_after_--;
+    }
+
+    receiver_.Disconnect();
+    return Ready();
+  }
+
+  Receiver<int> receiver_;
+  std::optional<ReceiveFuture<int>> future_;
+  pw::Vector<int, 10> received_;
+  size_t disconnect_after_;
+};
+
+// Task which does nothing other than ensure that the dispatcher keeps running.
+class IdleTask : public Task {
+ public:
+  IdleTask() : Task(PW_ASYNC_TASK_NAME("IdleTask")) {}
+
+  void Complete() {
+    should_complete_ = true;
+    std::move(waker_).Wake();
+  }
+
+ private:
+  Poll<> DoPend(Context& cx) override {
+    if (should_complete_) {
+      return Ready();
+    }
+    PW_ASYNC_STORE_WAKER(cx, waker_, "IdleTask waiting");
+    return Pending();
+  }
+
+  Waker waker_;
+  std::atomic<bool> should_complete_ = false;
+};
+
+TEST(Channel, BlockingSend) {
+  Dispatcher dispatcher;
+
+  ChannelStorage<int, 2> storage;
+  auto [channel, sender, receiver] = CreateSpscChannel(storage);
+  channel.Release();
+
+  struct {
+    Dispatcher& dispatcher;
+    size_t send_count;
+  } sender_context{dispatcher, 0};
+
+  pw::thread::test::TestThreadContext context;
+  pw::Thread sender_thread(
+      context.options(),
+      [sender = std::move(sender), &sender_context]() mutable {
+        pw::Status last_status;
+        for (int i = 0; i < 10; ++i) {
+          last_status = sender.BlockingSend(sender_context.dispatcher, i);
+          if (last_status.ok()) {
+            ++sender_context.send_count;
+          } else {
+            break;
+          }
+        }
+
+        EXPECT_EQ(last_status, pw::OkStatus());
+      });
+
+  ReceiverTask receiver_task(std::move(receiver));
+  dispatcher.Post(receiver_task);
+
+  dispatcher.RunToCompletion();
+  sender_thread.join();
+
+  EXPECT_EQ(sender_context.send_count, 10u);
+  ASSERT_EQ(receiver_task.received().size(), 10u);
+  for (size_t i = 0; i < 10; ++i) {
+    EXPECT_EQ(receiver_task.received()[i], static_cast<int>(i));
+  }
+}
+
+TEST(Channel, BlockingSend_ChannelCloses) {
+  Dispatcher dispatcher;
+
+  ChannelStorage<int, 2> storage;
+  auto [channel, sender, receiver] = CreateSpscChannel(storage);
+  channel.Release();
+
+  IdleTask idle_task;
+  dispatcher.Post(idle_task);
+
+  struct {
+    Dispatcher& dispatcher;
+    IdleTask& idle_task;
+    size_t send_count;
+  } sender_context{dispatcher, idle_task, 0};
+
+  // The sender will write values up until the receiver disconnects and the
+  // channel closes, causing `BlockingSend` to return false.
+  pw::thread::test::TestThreadContext context;
+  pw::Thread sender_thread(
+      context.options(),
+      [sender = std::move(sender), &sender_context]() mutable {
+        pw::Status last_status;
+        for (int i = 0; i < 10; ++i) {
+          last_status = sender.BlockingSend(sender_context.dispatcher, i);
+          if (last_status.ok()) {
+            ++sender_context.send_count;
+          } else {
+            break;
+          }
+        }
+
+        EXPECT_EQ(last_status, pw::Status::FailedPrecondition());
+        EXPECT_TRUE(sender.closed());
+        sender_context.idle_task.Complete();
+      });
+
+  constexpr size_t kDisconnectAfter = 3;
+
+  ReceiverTask receiver_task(std::move(receiver), kDisconnectAfter);
+  dispatcher.Post(receiver_task);
+
+  dispatcher.RunToCompletion();
+  sender_thread.join();
+
+  EXPECT_EQ(sender_context.send_count, kDisconnectAfter);
+  ASSERT_EQ(receiver_task.received().size(), kDisconnectAfter);
+  for (size_t i = 0; i < kDisconnectAfter; ++i) {
+    EXPECT_EQ(receiver_task.received()[i], static_cast<int>(i));
+  }
+}
+
+TEST(Channel, BlockingSend_Timeout) {
+  Dispatcher dispatcher;
+
+  ChannelStorage<int, 2> storage;
+  auto [channel, sender, receiver] = CreateSpscChannel(storage);
+  channel.Release();
+
+  IdleTask idle_task;
+  dispatcher.Post(idle_task);
+
+  struct {
+    Dispatcher& dispatcher;
+    IdleTask& idle_task;
+    size_t send_count;
+  } sender_context{dispatcher, idle_task, 0};
+
+  // No task is receiving, so the sender should write values up to the channel
+  // capacity and then block, timing out and failing. The channel should remain
+  // open the entire time.
+  pw::thread::test::TestThreadContext context;
+  pw::Thread sender_thread(
+      context.options(),
+      [sender = std::move(sender), &sender_context]() mutable {
+        pw::Status last_status;
+        for (int i = 0; i < 10; ++i) {
+          last_status =
+              sender.BlockingSend(sender_context.dispatcher, i, 200ms);
+          if (last_status.ok()) {
+            ++sender_context.send_count;
+          } else {
+            break;
+          }
+        }
+
+        EXPECT_EQ(last_status, pw::Status::DeadlineExceeded());
+        EXPECT_FALSE(sender.closed());
+        sender_context.idle_task.Complete();
+      });
+
+  dispatcher.RunToCompletion();
+  sender_thread.join();
+
+  EXPECT_EQ(sender_context.send_count, 2u);
+}
+
+TEST(Channel, BlockingReceive) {
+  Dispatcher dispatcher;
+
+  ChannelStorage<int, 2> storage;
+  auto [channel, sender, receiver] = CreateSpscChannel(storage);
+  channel.Release();
+
+  IdleTask idle_task;
+  dispatcher.Post(idle_task);
+
+  struct {
+    Dispatcher& dispatcher;
+    IdleTask& idle_task;
+    size_t receive_count;
+  } receiver_context{dispatcher, idle_task, 0};
+
+  // The receive thread should read values until the sender disconnects and the
+  // channel closes.
+  pw::thread::test::TestThreadContext context;
+  pw::Thread receiver_thread(
+      context.options(),
+      [receiver = std::move(receiver), &receiver_context]() mutable {
+        pw::Status last_status;
+        int expected = 0;
+
+        while (true) {
+          pw::Result<int> received =
+              receiver.BlockingReceive(receiver_context.dispatcher);
+          last_status = received.status();
+          if (received.ok()) {
+            EXPECT_EQ(*received, expected);
+            ++receiver_context.receive_count;
+            ++expected;
+          } else {
+            break;
+          }
+        }
+
+        EXPECT_EQ(last_status, pw::Status::FailedPrecondition());
+        EXPECT_TRUE(receiver.closed());
+        receiver_context.idle_task.Complete();
+      });
+
+  SenderTask sender_task(std::move(sender), 0, 9);
+  dispatcher.Post(sender_task);
+
+  dispatcher.RunToCompletion();
+  receiver_thread.join();
+
+  EXPECT_EQ(receiver_context.receive_count, 10u);
+}
+
+TEST(Channel, BlockingReceive_Timeout) {
+  Dispatcher dispatcher;
+
+  ChannelStorage<int, 2> storage;
+  auto [channel, sender, receiver] = CreateSpscChannel(storage);
+  channel.Release();
+
+  IdleTask idle_task;
+  dispatcher.Post(idle_task);
+
+  struct {
+    Dispatcher& dispatcher;
+    IdleTask& idle_task;
+    size_t receive_count;
+  } receiver_context{dispatcher, idle_task, 0};
+
+  // Push some values into the channel upfront.
+  EXPECT_TRUE(sender.TrySend(0));
+  EXPECT_TRUE(sender.TrySend(1));
+
+  // There is no sender actively writing values, so the receive thread should
+  // first drain the two existing values, then timeout trying to read more.
+  // The channel should remain open the entire time.
+  pw::thread::test::TestThreadContext context;
+  pw::Thread receiver_thread(
+      context.options(),
+      [receiver = std::move(receiver), &receiver_context]() mutable {
+        pw::Status last_status;
+        for (int i = 0; i < 10; ++i) {
+          pw::Result<int> received =
+              receiver.BlockingReceive(receiver_context.dispatcher, 200ms);
+          last_status = received.status();
+          if (received.ok()) {
+            EXPECT_EQ(*received, i);
+            ++receiver_context.receive_count;
+          } else {
+            break;
+          }
+        }
+
+        EXPECT_EQ(last_status, pw::Status::DeadlineExceeded());
+        EXPECT_FALSE(receiver.closed());
+        receiver_context.idle_task.Complete();
+      });
+
+  dispatcher.RunToCompletion();
+  receiver_thread.join();
+
+  EXPECT_EQ(receiver_context.receive_count, 2u);
+}
+
+}  // namespace

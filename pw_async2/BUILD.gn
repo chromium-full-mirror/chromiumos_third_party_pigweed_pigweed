@@ -486,12 +486,14 @@ pw_source_set("channel") {
   public_configs = [ ":public_include_path" ]
   public = [ "public/pw_async2/channel.h" ]
   public_deps = [
+    ":callback_task",
     ":dispatcher",
     ":poll",
     "$dir_pw_allocator",
     "$dir_pw_containers:deque",
     "$dir_pw_numeric:checked_arithmetic",
     "$dir_pw_sync:interrupt_spin_lock",
+    "$dir_pw_sync:timed_thread_notification",
   ]
 }
 
@@ -505,6 +507,20 @@ pw_test("channel_test") {
     ":poll",
     "$dir_pw_allocator:testing",
     "$dir_pw_containers:vector",
+  ]
+}
+
+pw_test("channel_thread_test") {
+  enable_if = pw_async2_DISPATCHER_BACKEND != ""
+  sources = [ "channel_thread_test.cc" ]
+  deps = [
+    ":channel",
+    ":dispatcher",
+    ":poll",
+    "$dir_pw_containers:vector",
+    "$dir_pw_thread:test_thread_context",
+    "$dir_pw_thread:thread",
+    "$dir_pw_thread_stl:thread",
   ]
 }
 
