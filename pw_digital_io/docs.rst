@@ -44,7 +44,7 @@ Example API usage:
    }
 
 -------------------------
-pw::digital_io Interfaces
+pw::digital_io interfaces
 -------------------------
 There are 3 basic capabilities of a Digital IO line:
 
@@ -104,7 +104,7 @@ Synchronization requirements
   interrupt context.
 
 ------------
-Design Notes
+Design notes
 ------------
 The interfaces are intended to support many but not all use cases, and they do
 not cover every possible type of functionality supported by the hardware. There
@@ -193,7 +193,7 @@ trigger.
 The handler is passed the latest known sampled state of the line. Otherwise
 handlers running in an interrupt context cannot query the state of the line.
 
-Class Hierarchy
+Class hierarchy
 ===============
 ``pw_digital_io`` contains a 2-level hierarchy of classes.
 
@@ -248,8 +248,8 @@ undesirable for GPIO extenders controlled through I2C or another shared bus.
 The API may be extended in the future to add asynchronous capabilities, or a
 separate asynchronous API may be created.
 
-Backend Implemention Notes
-==========================
+Backend implementation notes
+============================
 * Derived classes explicitly list the non-virtual methods as public or private
   depending on the supported set of functionality. For example, ``DigitalIn``
   declare ``GetState`` public and ``SetState`` private.
