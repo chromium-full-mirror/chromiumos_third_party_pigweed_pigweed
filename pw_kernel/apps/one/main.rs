@@ -63,7 +63,7 @@ fn test_uppercase_ipcs() -> Result<()> {
 
         // Log the response character
         pw_log::info!(
-            "sent {}, received ({},{})",
+            "Sent {}, received ({},{})",
             c as char,
             char0 as char,
             char1 as char

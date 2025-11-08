@@ -146,7 +146,7 @@ pub fn process_queue<K: Kernel>(kernel: K, now: Instant<K::Clock>) {
         drop(timer_queue);
 
         let Some(mut callback_fn) = callback.callback.take() else {
-            pw_assert::panic!("Non callback function found on timer");
+            pw_assert::panic!("No callback function found on timer");
         };
         match callback_fn.callback(kernel, callback, now) {
             Some(mut next_callback) => {

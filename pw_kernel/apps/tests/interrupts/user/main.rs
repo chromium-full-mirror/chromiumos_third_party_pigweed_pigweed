@@ -23,13 +23,13 @@ fn read_expected_value(uart: &mut Uart, expected_value: u8) -> Result<()> {
     uart.wait_for_rx();
 
     let Some(value) = uart.read() else {
-        pw_log::error!("uart read() returned no value");
+        pw_log::error!("UART read() returned no value");
         return Err(Error::Unavailable);
     };
 
     if value != expected_value {
         pw_log::error!(
-            "uart read() wrong value {} (expected {})",
+            "UART read() wrong value {} (expected {})",
             value as u8,
             expected_value as u8
         );
@@ -52,7 +52,7 @@ fn test_uart_loopback() -> Result<()> {
     read_expected_value(&mut uart, 7)?;
 
     if !uart.read().is_none() {
-        pw_log::error!("buffer not empty after read");
+        pw_log::error!("Buffer not empty after read");
         return Err(Error::FailedPrecondition);
     }
 
@@ -62,7 +62,7 @@ fn test_uart_loopback() -> Result<()> {
     }
 
     if !uart.read().is_none() {
-        pw_log::error!("buffer not empty after multiple reads");
+        pw_log::error!("Buffer not empty after multiple reads");
         return Err(Error::FailedPrecondition);
     }
 

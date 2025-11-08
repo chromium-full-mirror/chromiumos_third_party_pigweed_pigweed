@@ -282,7 +282,7 @@ impl<const NUM_ENTRIES: usize> PmpConfig<NUM_ENTRIES> {
             };
             addr <<= 2;
             pw_log::debug!(
-                "{:2}: {:#010x} {} {}{}{}{} sz={:#010x}",
+                "PMP entry {:2}: addr={:#010x}, mode={}, flags={}{}{}{}, size={:#010x}",
                 i as usize,
                 addr as usize,
                 mode as &str,

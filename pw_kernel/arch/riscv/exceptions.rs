@@ -144,7 +144,7 @@ fn exception_handler(exception: Exception, mepc: usize, frame: &mut TrapFrame) {
     // For now, always dump the exception we've received and halt.
     debug_if!(
         LOG_EXCEPTIONS,
-        "Exception exception {:x} mepc {:x} current mstatus {:x}",
+        "Exception: exception_number={:#010x}, mepc={:#010x}, mstatus={:#010x}",
         exception as usize,
         mepc as usize,
         MStatus::read().0 as usize,
@@ -161,7 +161,10 @@ fn exception_handler(exception: Exception, mepc: usize, frame: &mut TrapFrame) {
         }
         _ => {
             dump_exception_frame(frame);
-            pw_assert::panic!("unhandled exception {}", exception as usize);
+            pw_assert::panic!(
+                "Unhandled exception: exception_number={:#010x}",
+                exception as usize
+            );
         }
     };
 }
@@ -170,7 +173,7 @@ fn exception_handler(exception: Exception, mepc: usize, frame: &mut TrapFrame) {
 unsafe fn interrupt_handler(interrupt: Interrupt, mepc: usize, frame: &TrapFrame) {
     debug_if!(
         LOG_EXCEPTIONS,
-        "Interrupt interrupt {:x} mepc {:x}, trap_frame {:x}, mstatus {:x}",
+        "Interrupt: interrupt_number={:#010x}, mepc={:#010x}, frame={:#010x}, mstatus={:#010x}",
         interrupt as usize,
         mepc as usize,
         core::ptr::addr_of!(frame) as usize,
@@ -187,7 +190,10 @@ unsafe fn interrupt_handler(interrupt: Interrupt, mepc: usize, frame: &TrapFrame
                 .interrupt();
         }
         _ => {
-            pw_assert::panic!("unhandled interrupt {}", interrupt as usize);
+            pw_assert::panic!(
+                "Unhandled interrupt: interrupt_number={:#010x}",
+                interrupt as usize
+            );
         }
     }
 }

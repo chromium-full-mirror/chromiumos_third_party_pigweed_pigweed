@@ -41,6 +41,7 @@ pub use locks::{SchedLockGuard, WaitQueueLock};
 pub use priority::Priority;
 use thread::*;
 
+const LOG_SCHEDULER_EVENTS: bool = false;
 const WAIT_QUEUE_DEBUG: bool = false;
 macro_rules! wait_queue_debug {
   ($($args:expr),*) => {{
@@ -64,7 +65,7 @@ impl<A: Arch> ThreadLocalState<A> {
 
 pub fn start_thread<K: Kernel>(kernel: K, mut thread: ForeignBox<Thread<K>>) {
     info!(
-        "starting thread {} {:#x}",
+        "Starting thread '{}' ({:#010x})",
         thread.name as &str,
         thread.id() as usize
     );
@@ -122,7 +123,7 @@ pub fn bootstrap_scheduler<K: Kernel>(
         .algorithm
         .schedule_thread(thread, RescheduleReason::Started);
 
-    info!("context switching to first thread");
+    info!("Context switching to first thread");
 
     // Special case where we're switching from a non-thread to something real
     let mut temp_arch_thread_state = K::ThreadState::NEW;
@@ -131,7 +132,7 @@ pub fn bootstrap_scheduler<K: Kernel>(
     drop(preempt_guard);
 
     reschedule(kernel, sched_state, Thread::<K>::null_id());
-    pw_assert::panic!("should not reach here");
+    pw_assert::panic!("Bootstrap scheduler returned unexpectedly");
 }
 
 pub struct PreemptDisableGuard<K: Kernel>(K);
@@ -145,7 +146,7 @@ impl<K: Kernel> PreemptDisableGuard<K> {
 
         // atomics have wrapping semantics so overflow is explicitly checked.
         if prev_count == usize::MAX {
-            pw_assert::debug_panic!("PreemptDisableGuard preempt_disable_count overflow")
+            pw_assert::debug_panic!("PreemptDisableGuard: preempt_disable_count overflow")
         }
 
         Self(kernel)
@@ -161,7 +162,7 @@ impl<K: Kernel> Drop for PreemptDisableGuard<K> {
             .fetch_sub(1, core::sync::atomic::Ordering::SeqCst);
 
         if prev_count == 0 {
-            pw_assert::debug_panic!("PreemptDisableGuard preempt_disable_count underflow")
+            pw_assert::debug_panic!("PreemptDisableGuard: preempt_disable_count underflow")
         }
     }
 }
@@ -282,7 +283,7 @@ impl<K: Kernel> SchedulerState<K> {
 
     #[allow(dead_code)]
     pub fn dump_all_threads(&self) {
-        info!("list of all threads:");
+        info!("List of all threads:");
         unsafe {
             let _ = self
                 .process_list
@@ -336,12 +337,12 @@ fn reschedule<K: Kernel>(
     // At the moment cannot handle an empty queue, so will panic in that case.
     // TODO: Implement either an idle thread or a special idle routine for that case.
     let Some(mut new_thread) = sched_state.algorithm.get_next_thread() else {
-        pw_assert::panic!("run_queue empty");
+        pw_assert::panic!("Run queue empty: no runnable threads (idle thread missing or blocked?)");
     };
 
     pw_assert::assert!(
         new_thread.state == State::Ready,
-        "<{}>({:#x}) not ready",
+        "<{}>({:#010x}) not ready",
         new_thread.name as &str,
         new_thread.id() as usize,
     );
@@ -360,15 +361,25 @@ fn reschedule<K: Kernel>(
 
 #[allow(dead_code)]
 pub fn yield_timeslice<K: Kernel>(kernel: K) {
-    // info!("yielding thread {:#x}", current_thread.id());
     let sched_state = kernel.get_scheduler().lock(kernel);
+    log_if::info_if!(
+        LOG_SCHEDULER_EVENTS,
+        "Yielding thread '{}' ({:#010x})",
+        sched_state.current_thread_name() as &str,
+        sched_state.current_thread_id() as usize
+    );
     sched_state.try_reschedule(kernel, RescheduleReason::Ticked);
 }
 
 #[allow(dead_code)]
 fn preempt<K: Kernel>(kernel: K) {
-    // info!("preempt thread {:#x}", current_thread.id());
     let mut sched_state = kernel.get_scheduler().lock(kernel);
+    log_if::info_if!(
+        LOG_SCHEDULER_EVENTS,
+        "Preempting thread '{}' ({:#010x})",
+        sched_state.current_thread_name() as &str,
+        sched_state.current_thread_id() as usize
+    );
 
     let current_thread_id = sched_state.reschedule_current_thread(RescheduleReason::Preempted);
 
@@ -379,7 +390,11 @@ fn preempt<K: Kernel>(kernel: K) {
 // should be preempted or not
 #[allow(dead_code)]
 pub fn tick<K: Kernel>(kernel: K, now: Instant<K::Clock>) {
-    //info!("tick {} ms", time_ms);
+    log_if::info_if!(
+        LOG_SCHEDULER_EVENTS,
+        "Scheduler tick at {}",
+        now.ticks() as u64
+    );
     pw_assert::assert!(
         kernel
             .thread_local_state()
@@ -416,7 +431,11 @@ pub fn exit_thread<K: Kernel>(kernel: K) -> ! {
     let mut current_thread = sched_state.take_current_thread();
     let current_thread_id = current_thread.id();
 
-    info!("thread {:#x} exiting", current_thread.id() as usize);
+    info!(
+        "Exiting thread '{}' ({:#010x})",
+        current_thread.name as &str,
+        current_thread.id() as usize
+    );
     current_thread.state = State::Stopped;
 
     reschedule(kernel, sched_state, current_thread_id);
@@ -460,7 +479,11 @@ impl<K: Kernel> SchedLockGuard<'_, K, WaitQueue<K>> {
         let current_thread_name = thread.name;
         thread.state = State::Waiting;
         self.queue.push_back(thread);
-        wait_queue_debug!("<{}> rescheduling", current_thread_name as &str);
+        wait_queue_debug!(
+            "WaitQueue: thread '{}' ({:#010x}) rescheduling",
+            current_thread_name as &str,
+            current_thread_id as usize
+        );
         self.reschedule(current_thread_id)
     }
 
@@ -477,10 +500,14 @@ impl<K: Kernel> SchedLockGuard<'_, K, WaitQueue<K>> {
             self.queue
                 .remove_element(NonNull::new_unchecked(waiting_thread))
         }) else {
-            pw_assert::panic!("thread no longer in wait queue");
+            pw_assert::panic!("Thread no longer in wait queue");
         };
 
-        wait_queue_debug!("<{}> timeout", thread.name as &str);
+        wait_queue_debug!(
+            "WaitQueue: timeout for thread '{}' ({:#010x})",
+            thread.name as &str,
+            thread.id() as usize
+        );
         thread.state = State::Ready;
         self.sched_mut()
             .algorithm
@@ -493,7 +520,11 @@ impl<K: Kernel> SchedLockGuard<'_, K, WaitQueue<K>> {
         let Some(mut thread) = self.queue.pop_head() else {
             return (self, WakeResult::QueueEmpty);
         };
-        wait_queue_debug!("waking <{}>", thread.name as &str);
+        wait_queue_debug!(
+            "WaitQueue: waking thread '{}' ({:#010x})",
+            thread.name as &str,
+            thread.id() as usize
+        );
         thread.state = State::Ready;
         self.sched_mut()
             .algorithm
@@ -519,15 +550,27 @@ impl<K: Kernel> SchedLockGuard<'_, K, WaitQueue<K>> {
     #[allow(clippy::return_self_not_must_use, clippy::must_use_candidate)]
     pub fn wait(mut self) -> Self {
         let thread = self.sched_mut().take_current_thread();
-        wait_queue_debug!("<{}> waiting", thread.name as &str);
+        wait_queue_debug!(
+            "WaitQueue: thread '{}' ({:#010x}) waiting",
+            thread.name as &str,
+            thread.id() as usize
+        );
         self = self.add_to_queue_and_reschedule(thread);
-        wait_queue_debug!("<{}> back", self.sched().current_thread_name() as &str);
+        wait_queue_debug!(
+            "WaitQueue: thread '{}' ({:#010x}) resumed",
+            self.sched().current_thread_name() as &str,
+            self.sched().current_thread_id() as usize
+        );
         self
     }
 
     pub fn wait_until(mut self, deadline: Instant<K::Clock>) -> (Self, Result<()>) {
         let mut thread = self.sched_mut().take_current_thread();
-        wait_queue_debug!("<{}> wait_until", thread.name as &str);
+        wait_queue_debug!(
+            "WaitQueue: thread '{}' ({:#010x}) wait_until",
+            thread.name as &str,
+            thread.id() as usize
+        );
 
         // Smuggle references to the thread and wait queue into the callback.
         // Safety:
@@ -553,8 +596,9 @@ impl<K: Kernel> SchedLockGuard<'_, K, WaitQueue<K>> {
 
             // Safety: the wait queue lock protects access to the thread.
             wait_queue_debug!(
-                "timeout callback for {} ({})",
+                "WaitQueue: timeout callback for thread '{}' ({:#010x}) (state: {})",
                 unsafe { (*thread_ptr).name } as &str,
+                (unsafe { (*thread_ptr).id() }) as usize,
                 unsafe { thread::to_string((*thread_ptr).state) } as &str
             );
 
@@ -585,7 +629,11 @@ impl<K: Kernel> SchedLockGuard<'_, K, WaitQueue<K>> {
         // below rely on it for correctness.
         self = self.add_to_queue_and_reschedule(thread);
 
-        wait_queue_debug!("<{}> back", self.sched().current_thread_name() as &str);
+        wait_queue_debug!(
+            "WaitQueue: thread '{}' ({:#010x}) resumed",
+            self.sched().current_thread_name() as &str,
+            self.sched().current_thread_id() as usize
+        );
 
         // Cancel timeout callback if has not already fired.
         //
@@ -595,8 +643,9 @@ impl<K: Kernel> SchedLockGuard<'_, K, WaitQueue<K>> {
         };
 
         wait_queue_debug!(
-            "<{}> exiting wait_until",
-            self.sched().current_thread_name() as &str
+            "WaitQueue: thread '{}' ({:#010x}) exiting wait_until",
+            self.sched().current_thread_name() as &str,
+            self.sched().current_thread_id() as usize
         );
 
         // Safety:

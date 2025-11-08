@@ -69,6 +69,7 @@ alias(
 sphinx_docs_library(
     name = "docs",
     srcs = [
+        "conventions.rst",
         "design.rst",
         "docs.rst",
         "guides.rst",

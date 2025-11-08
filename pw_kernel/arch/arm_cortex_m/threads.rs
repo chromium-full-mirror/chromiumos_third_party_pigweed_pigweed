@@ -39,6 +39,7 @@ use crate::spinlock::BareSpinLock;
 use crate::{in_interrupt_handler, nvic};
 
 const LOG_THREAD_CREATE: bool = false;
+const LOG_CONTEXT_SWITCH: bool = false;
 
 const STACK_ALIGNMENT: usize = 8;
 
@@ -179,7 +180,7 @@ impl Arch for crate::Arch {
     }
 
     fn early_init(self) {
-        info!("arch early init");
+        info!("Cortex-M early initialization");
         // TODO: set up the cpu here:
         //  --interrupt vector table--
         //  irq priority levels
@@ -192,12 +193,12 @@ impl Arch for crate::Arch {
         if let Some(val) = Peripherals::take() {
             p = val;
         } else {
-            pw_assert::panic!("Could not take peripherals.")
+            pw_assert::panic!("Peripherals already taken")
         }
 
         let cpu_id = Regs::get().scb.cpu_id.read();
         info!(
-            "CPUID revision 0x{:x} part number 0x{:x} architecture 0x{:x} variant 0x{:x} implementor 0x{:x}",
+            "CPUID: revision={:#x}, part_number={:#x}, architecture={:#x}, variant={:#x}, implementor={:#x}",
             cpu_id.revision() as u32,
             cpu_id.part_no() as u32,
             cpu_id.architecture() as u32,
@@ -206,7 +207,7 @@ impl Arch for crate::Arch {
         );
 
         let mut r = crate::regs::Regs::get();
-        info!("Num MPU Regions: {}", get_num_mpu_regions(&mut r.mpu) as u8);
+        info!("MPU regions: {}", get_num_mpu_regions(&mut r.mpu) as u8);
 
         unsafe {
             // Set the VTOR (assumes it exists)
@@ -262,7 +263,7 @@ impl Arch for crate::Arch {
     }
 
     fn init(self) {
-        info!("arch init");
+        info!("Cortex-M initialization");
         crate::timer::systick_init();
     }
 
@@ -420,10 +421,11 @@ extern "C" fn pendsv_swap_sp(frame: *mut KernelExceptionFrame) -> *mut KernelExc
     // as the context switch frame for when it is returned to later. Clear active thread
     // afterwards.
     let active_thread = unsafe { get_active_thread() };
-    // info!(
-    //     "inside pendsv: currently active thread {:08x}",
-    //     active_thread as usize
-    // );
+    log_if::info_if!(
+        LOG_CONTEXT_SWITCH,
+        "PendSV: active thread {:#010x}",
+        active_thread as usize
+    );
 
     pw_assert::assert!(active_thread != core::ptr::null_mut());
 
@@ -436,12 +438,12 @@ extern "C" fn pendsv_swap_sp(frame: *mut KernelExceptionFrame) -> *mut KernelExc
     // Return the arch frame for the current thread
     let mut sched_state = crate::Arch.get_scheduler().lock(crate::Arch);
     let new_thread = unsafe { sched_state.get_current_arch_thread_state() };
-    // info!(
-    //     "new frame {:08x}: pc {:08x}",
-    //     newframe as usize,
-    //     (*newframe).pc
-    // );
-    //   pw_log::info!("context switch {:08x}", new_thread as usize);
+    log_if::info_if!(
+        LOG_CONTEXT_SWITCH,
+        "Context switch to thread '{}' ({:#010x})",
+        sched_state.current_thread_name() as &str,
+        sched_state.current_thread_id() as usize
+    );
 
     // Memory context switch overhead is avoided for threads in the same
     // memory config space.

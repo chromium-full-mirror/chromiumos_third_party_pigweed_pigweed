@@ -25,7 +25,7 @@ pub trait TargetInterface {
 
     /// Shutdown the target.
     fn shutdown(code: u32) -> ! {
-        pw_assert::panic!("Target shutdown with code {}", code as u32);
+        pw_assert::panic!("Target shutdown: code={}", code as u32);
     }
 }
 

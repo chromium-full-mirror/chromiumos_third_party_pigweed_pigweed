@@ -27,7 +27,7 @@ pub struct Timer;
 
 impl TimerInterface for Timer {
     fn early_init() {
-        info!("starting monotonic timer");
+        info!("Starting monotonic timer");
         Self::disable();
         Self::set_next_monotonic_tick();
         Self::enable();
@@ -68,7 +68,7 @@ impl TimerInterface for Timer {
         if let Some(val) = next {
             write_mtimecmp(val);
         } else {
-            pw_assert::debug_panic!("next_monotonic_tick overflow");
+            pw_assert::debug_panic!("Next monotonic tick overflow");
         }
     }
 }

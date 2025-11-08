@@ -21,6 +21,7 @@ use time::Clock as _;
 use crate::regs::Regs;
 
 static TICKS: SpinLock<crate::Arch, u64> = SpinLock::new(0);
+const LOG_SYSTICK: bool = false;
 const SYSTICK_RELOAD_VALUE: u32 = KernelConfig::SYS_TICK_HZ / KernelConfig::SCHEDULER_TICK_HZ;
 
 pub struct Clock {}
@@ -57,11 +58,11 @@ pub fn systick_dump() {
     let current = systick_regs.cvr.read().current();
     let reload = systick_regs.rvr.read().reload();
 
-    info!("current {} reload {}", current as u32, reload as u32);
+    info!("Current {} reload {}", current as u32, reload as u32);
 }
 
 pub fn systick_early_init() {
-    info!("starting monotonic systick\n");
+    info!("Starting monotonic SysTick timer");
 
     let mut csr = Regs::get().systick.csr;
     // disable counter and interrupts
@@ -86,7 +87,7 @@ pub fn systick_early_init() {
 pub fn systick_init() {
     let systick_regs = Regs::get().systick;
     let ticks_per_10ms = systick_regs.calib.read().tenms();
-    info!("ticks_per_10ms: {}", ticks_per_10ms as u32);
+    info!("Ticks per 10ms: {}", ticks_per_10ms as u32);
     if ticks_per_10ms > 0 {
         pw_assert::eq!(
             (ticks_per_10ms * 100) as u64,
@@ -101,8 +102,8 @@ pub unsafe extern "C" fn SysTick() {
     {
         let mut ticks = TICKS.lock(crate::Arch);
         *ticks += u64::from(SYSTICK_RELOAD_VALUE);
+        log_if::info_if!(LOG_SYSTICK, "SysTick {}", *ticks as u64);
     }
-    //info!("SysTick {}", *ticks as u64);
 
     scheduler::tick(super::Arch, Clock::now());
 }

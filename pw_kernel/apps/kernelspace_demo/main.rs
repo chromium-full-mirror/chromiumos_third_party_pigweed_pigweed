@@ -85,26 +85,26 @@ fn thread_a<K: Kernel>(kernel: K, test_counter: &Mutex<K, u64>) {
     for _ in 0..3 {
         let mut counter = test_counter.lock();
         kernel::sleep_until(kernel, kernel.now() + Duration::from_secs(1));
-        info!("Thread A: incrementing counter");
+        info!("Thread A: Incrementing counter");
         *counter = (*counter).saturating_add(1);
     }
-    info!("Thread A: done");
+    info!("Thread A: Done");
 }
 
 fn thread_b<K: Kernel>(kernel: K, args: &ThreadAArgs<K>) {
     for _ in 0..4 {
         let deadline = kernel.now() + Duration::from_millis(600);
         let Ok(counter) = args.test_counter.lock_until(deadline) else {
-            info!("Thread B: timeout");
+            info!("Thread B: Timeout");
             continue;
         };
-        info!("Thread B: counter value {}", *counter as u64);
+        info!("Thread B: Counter value {}", *counter as u64);
         pw_assert::assert!(*counter < 4);
 
         drop(counter);
         // Give Thread A a chance to acquire the mutex.
         kernel::yield_timeslice(kernel);
     }
-    info!("Thread B: done");
+    info!("Thread B: Done");
     args.done_signaler.signal();
 }

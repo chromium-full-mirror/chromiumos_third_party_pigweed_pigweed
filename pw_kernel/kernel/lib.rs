@@ -231,7 +231,7 @@ pub fn main<K: Kernel>(kernel: K, init_state: &'static mut InitKernelState<K>) -
         bootstrap_thread_entry,
         &mut init_state.idle_thread,
     );
-    info!("created thread, bootstrapping");
+    info!("Created initial thread; bootstrapping");
 
     // special case where we bootstrap the system by half context switching to this thread
     scheduler::bootstrap_scheduler(kernel, preempt_guard, bootstrap_thread);

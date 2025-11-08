@@ -39,7 +39,7 @@ impl MemoryConfig {
                 pmp_config: cfg,
                 regions,
             },
-            Err(_) => panic!("Can't create Memory config"),
+            Err(_) => panic!("Cannot create PMP memory config"),
         }
     }
 

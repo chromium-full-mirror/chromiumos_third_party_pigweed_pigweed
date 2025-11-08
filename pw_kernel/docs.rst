@@ -84,6 +84,14 @@ flexible security models, and a modern developer experience.
 
       See the future direction and planned features for ``pw_kernel``.
 
+.. grid:: 2
+
+   .. grid-item-card:: :octicon:`repo` Conventions
+      :link: conventions
+      :link-type: doc
+
+      Coding, logging, and documentation conventions for ``pw_kernel``.
+
 .. TODO: https://pwbug.dev/424641732 - Re-enable the Rust API reference link.
 
 .. toctree::
@@ -92,6 +100,7 @@ flexible security models, and a modern developer experience.
 
    quickstart
    guides
+   conventions
    design
    roadmap
    tooling/panic_detector/docs

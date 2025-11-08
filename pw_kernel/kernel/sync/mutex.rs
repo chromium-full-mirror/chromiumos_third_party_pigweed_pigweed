@@ -100,10 +100,20 @@ impl<K: Kernel, T> Mutex<K, T> {
         // TODO - konkers: investigate using core::intrinsics::unlikely() or
         //                 core::hint::unlikely()
         if state.count > 1 {
-            mutex_debug!("mutex {:08x} lock wait", &raw const *self as usize);
+            mutex_debug!(
+                "Mutex {:#010x}: lock wait by thread '{}' ({:#010x})",
+                &raw const *self as usize,
+                state.sched().current_thread_name() as &str,
+                state.sched().current_thread_id() as usize
+            );
             state = state.wait();
         }
-        mutex_debug!("mutex {:08x} lock acquired", &raw const *self as usize);
+        mutex_debug!(
+            "Mutex {:#010x}: lock acquired by thread '{}' ({:#010x})",
+            &raw const *self as usize,
+            state.sched().current_thread_name() as &str,
+            state.sched().current_thread_id() as usize
+        );
 
         state.holder_thread_id = state.sched().current_thread_id();
 
@@ -132,17 +142,21 @@ impl<K: Kernel, T> Mutex<K, T> {
         if state.count > 1 {
             let result;
             mutex_debug!(
-                "mutex {:08x} lock_util({}) wait",
+                "Mutex {:#010x}: lock_until({}) wait by thread '{}' ({:#010x})",
                 &raw const *self as usize,
-                deadline.ticks() as u64
+                deadline.ticks() as u64,
+                state.sched().current_thread_name() as &str,
+                state.sched().current_thread_id() as usize
             );
             (state, result) = state.wait_until(deadline);
 
             if let Err(e) = result {
                 mutex_debug!(
-                    "mutex {:08x} lock_until error: {}",
+                    "Mutex {:#010x}: lock_until error: {} for thread '{}' ({:#010x})",
                     &raw const *self as usize,
-                    e as u32
+                    e as u32,
+                    state.sched().current_thread_name() as &str,
+                    state.sched().current_thread_id() as usize
                 );
 
                 if let Some(val) = state.count.checked_sub(1) {
@@ -155,7 +169,12 @@ impl<K: Kernel, T> Mutex<K, T> {
                 return Err(e);
             }
         }
-        mutex_debug!("mutex {:08x} lock_until", &raw const *self as usize);
+        mutex_debug!(
+            "Mutex {:#010x}: lock_until acquired by thread '{}' ({:#010x})",
+            &raw const *self as usize,
+            state.sched().current_thread_name() as &str,
+            state.sched().current_thread_id() as usize
+        );
 
         state.holder_thread_id = state.sched().current_thread_id();
 

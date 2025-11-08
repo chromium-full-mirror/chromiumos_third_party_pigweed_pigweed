@@ -150,7 +150,7 @@ impl MemoryConfig {
     pub fn dump(&self) {
         for (index, region) in self.mpu_regions.iter().enumerate() {
             pw_log::debug!(
-                "{}: {:#010x} {:#010x}",
+                "MPU region {}: RBAR={:#010x}, RLAR={:#010x}",
                 index as usize,
                 region.rbar.0 as usize,
                 region.rlar.0 as usize

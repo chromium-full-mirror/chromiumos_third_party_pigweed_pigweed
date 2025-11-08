@@ -259,7 +259,11 @@ impl<K: Kernel> Process<K> {
     }
 
     pub fn dump(&self) {
-        info!("process {} ({:#x})", self.name as &str, self.id() as usize);
+        info!(
+            "Process '{}' ({:#010x})",
+            self.name as &str,
+            self.id() as usize
+        );
         unsafe {
             let _ = self
                 .thread_list
@@ -427,7 +431,7 @@ impl<K: Kernel> Thread<K> {
     #[allow(dead_code)]
     pub fn dump(&self) {
         info!(
-            "- thread {} ({:#x}) state {}",
+            "  - Thread '{}' ({:#010x}) state: {}",
             self.name as &str,
             self.id() as usize,
             to_string(self.state) as &str
@@ -587,13 +591,13 @@ macro_rules! init_thread {
 
         /// SAFETY: This must be executed at most once at run time.
         unsafe fn __init_thread() -> ForeignBox<Thread<arch::Arch>> {
-            info!("allocating thread: {}", $name as &'static str);
+            info!("Allocating thread '{}'", $name as &'static str);
             // SAFETY: The caller promises that this function will be executed
             // at most once.
             let thread = unsafe { static_mut_ref!(Thread<arch::Arch> = Thread::new($name, $priority)) };
             let mut thread = ForeignBox::from(thread);
 
-            info!("initializing thread: {}", $name as &'static str);
+            info!("Initializing thread '{}'", $name as &'static str);
             thread.initialize_kernel_thread(
                 $crate::arch::Arch,
                 // SAFETY: The caller promises that this function will be
@@ -628,7 +632,7 @@ macro_rules! init_non_priv_process {
         unsafe fn __init_non_priv_process(object_table: ForeignBox<dyn ObjectTable<arch::Arch>>) -> &'static mut Process<arch::Arch> {
             use pw_log::info;
             info!(
-                "allocating non-privileged process: {}",
+                "Allocating non-privileged process '{}'",
                 $name as &'static str
             );
 
@@ -669,7 +673,7 @@ macro_rules! init_non_priv_thread {
         ) -> ForeignBox<Thread<arch::Arch>> {
             use pw_log::info;
             info!(
-                "allocating non-privileged thread: {}, entry {:#x}",
+                "Allocating non-privileged thread '{}' (entry: {:#010x})",
                 $name as &'static str, entry as usize
             );
             // SAFETY: The caller promises that this function will be executed
@@ -678,7 +682,7 @@ macro_rules! init_non_priv_thread {
             let mut thread = ForeignBox::from(thread);
 
             info!(
-                "initializing non-privileged thread: {}",
+                "Initializing non-privileged thread '{}'",
                 $name as &'static str
             );
             unsafe {

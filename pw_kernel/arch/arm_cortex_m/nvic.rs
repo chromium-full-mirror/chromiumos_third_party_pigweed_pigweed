@@ -32,22 +32,22 @@ impl InterruptController for Nvic {
     }
 
     fn enable_interrupt(&self, _irq: u32) {
-        todo!("unimplemented")
+        pw_assert::panic!("Unimplemented: enable_interrupt")
     }
 
     fn disable_interrupt(&self, _irq: u32) {
-        todo!("unimplemented")
+        pw_assert::panic!("Unimplemented: disable_interrupt")
     }
 
     fn enable_interrupts() {
-        debug_if!(LOG_INTERRUPTS, "enable_interrupts");
+        debug_if!(LOG_INTERRUPTS, "Enable interrupts");
         unsafe {
             cortex_m::interrupt::enable();
         }
     }
 
     fn disable_interrupts() {
-        debug_if!(LOG_INTERRUPTS, "disable_interrupts");
+        debug_if!(LOG_INTERRUPTS, "Disable interrupts");
         cortex_m::interrupt::disable();
     }
 
@@ -60,7 +60,7 @@ impl InterruptController for Nvic {
         let basepri = cortex_m::register::basepri::read();
         debug_if!(
             LOG_INTERRUPTS,
-            "interrupts_enabled: primask {} basepri {}",
+            "Interrupts enabled: PRIMASK={}, BASEPRI={}",
             primask as u32,
             basepri as u32
         );

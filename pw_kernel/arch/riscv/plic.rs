@@ -50,13 +50,13 @@ impl Plic {
             return;
         }
 
-        debug_if!(LOG_INTERRUPTS, "interrupt {}", irq as u32);
+        debug_if!(LOG_INTERRUPTS, "Interrupt {}", irq as u32);
         // SAFETY: All enabled IRQs are always less than PlicConfig::INTERRUPT_TABLE_SIZE
         if let Some(handler) = unsafe { PlicConfig::interrupt_table().get_unchecked(irq as usize) }
         {
             handler();
         } else {
-            pw_assert::panic!("Unhandled interrupt {}", irq as u32);
+            pw_assert::panic!("Unhandled interrupt: irq={}", irq as u32);
         }
 
         // Release the claim on the interrupt
@@ -115,24 +115,24 @@ impl InterruptController for Plic {
     }
 
     fn enable_interrupt(&self, irq: u32) {
-        debug_if!(LOG_INTERRUPTS, "enable interrupt {}", irq as u32);
+        debug_if!(LOG_INTERRUPTS, "Enable interrupt {}", irq as u32);
         set_interrupt_enable(irq, true);
     }
 
     fn disable_interrupt(&self, irq: u32) {
-        debug_if!(LOG_INTERRUPTS, "disable interrupt {}", irq as u32);
+        debug_if!(LOG_INTERRUPTS, "Disable interrupt {}", irq as u32);
         set_interrupt_enable(irq, false);
     }
 
     fn enable_interrupts() {
-        debug_if!(LOG_INTERRUPTS, "enable_interrupts");
+        debug_if!(LOG_INTERRUPTS, "Enable interrupts");
         unsafe {
             riscv::register::mstatus::set_mie();
         }
     }
 
     fn disable_interrupts() {
-        debug_if!(LOG_INTERRUPTS, "disable_interrupts");
+        debug_if!(LOG_INTERRUPTS, "Disable interrupts");
         unsafe {
             riscv::register::mstatus::clear_mie();
         }
@@ -140,7 +140,7 @@ impl InterruptController for Plic {
 
     fn interrupts_enabled() -> bool {
         let mie = riscv::register::mstatus::read().mie();
-        debug_if!(LOG_INTERRUPTS, "interrupts_enabled: {}", mie as u8);
+        debug_if!(LOG_INTERRUPTS, "Interrupts enabled: {}", mie as u8);
         mie
     }
 }

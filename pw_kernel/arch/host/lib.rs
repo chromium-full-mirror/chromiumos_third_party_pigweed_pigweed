@@ -46,11 +46,11 @@ impl Arch for HostArch {
         _old_thread_state: *mut ArchThreadState,
         _new_thread_state: *mut ArchThreadState,
     ) -> SpinLockGuard<'_, Self, SchedulerState<Self>> {
-        pw_assert::panic!("unimplemented");
+        pw_assert::panic!("Unimplemented: context_switch");
     }
 
     fn thread_local_state(self) -> &'static kernel::scheduler::ThreadLocalState<Self> {
-        todo!("unimplemented");
+        pw_assert::panic!("Unimplemented: thread_local_state");
     }
 
     fn now(self) -> time::Instant<Clock> {
@@ -59,10 +59,10 @@ impl Arch for HostArch {
     }
 
     fn early_init(self) {
-        info!("HOST arch early init");
+        info!("Host architecture early initialization");
     }
     fn init(self) {
-        info!("HOST arch init");
+        info!("Host architecture initialization");
     }
 }
 
@@ -85,7 +85,7 @@ impl ThreadState for ArchThreadState {
         _initial_function: extern "C" fn(usize, usize, usize),
         _args: (usize, usize, usize),
     ) {
-        pw_assert::panic!("unimplemented");
+        pw_assert::panic!("Unimplemented: initialize_kernel_frame");
     }
 
     #[cfg(feature = "user_space")]
@@ -97,7 +97,7 @@ impl ThreadState for ArchThreadState {
         _initial_pc: usize,
         _args: (usize, usize, usize),
     ) -> Result<()> {
-        pw_assert::panic!("unimplemented");
+        pw_assert::panic!("Unimplemented: initialize_user_frame");
     }
 }
 
@@ -148,26 +148,26 @@ impl HostInterruptController {
 
 impl InterruptController for HostInterruptController {
     fn early_init(&self) {
-        todo!("unimplemented");
+        pw_assert::panic!("Unimplemented: early_init");
     }
 
     fn enable_interrupt(&self, _irq: u32) {
-        todo!("unimplemented");
+        pw_assert::panic!("Unimplemented: enable_interrupt");
     }
 
     fn disable_interrupt(&self, _irq: u32) {
-        todo!("unimplemented");
+        pw_assert::panic!("Unimplemented: disable_interrupt");
     }
 
     fn enable_interrupts() {
-        todo!("unimplemented");
+        pw_assert::panic!("Unimplemented: enable_interrupts");
     }
 
     fn disable_interrupts() {
-        todo!("unimplemented");
+        pw_assert::panic!("Unimplemented: disable_interrupts");
     }
 
     fn interrupts_enabled() -> bool {
-        todo!("unimplemented");
+        pw_assert::panic!("Unimplemented: interrupts_enabled");
     }
 }
