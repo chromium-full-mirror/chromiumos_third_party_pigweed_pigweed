@@ -1904,7 +1904,7 @@ TEST_F(MultiSendTest, CanOccupyAllThenReuseEachBuffer) {
   PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
       proxy, kConnectionHandle, emboss::StatusCode::SUCCESS));
 
-  GattNotifyChannel channel =
+  std::optional<GattNotifyChannel> channel =
       BuildGattNotifyChannel(proxy, {.handle = kConnectionHandle});
 
   std::array<uint8_t, 240> attribute_value = {};
@@ -1914,7 +1914,7 @@ TEST_F(MultiSendTest, CanOccupyAllThenReuseEachBuffer) {
   do {
     FlatMultiBufInstance mbuf = MultiBufFromSpan(span(attribute_value));
     PW_TEST_EXPECT_OK(
-        channel.Write(std::move(MultiBufAdapter::Unwrap(mbuf))).status);
+        channel->Write(std::move(MultiBufAdapter::Unwrap(mbuf))).status);
     ++num_writes_0;
   } while (capture.sends_called == num_writes_0);
   // The final write should be queued and not sent.
@@ -1941,7 +1941,7 @@ TEST_F(MultiSendTest, CanOccupyAllThenReuseEachBuffer) {
   do {
     FlatMultiBufInstance mbuf = MultiBufFromSpan(span(attribute_value));
     PW_TEST_EXPECT_OK(
-        channel.Write(std::move(MultiBufAdapter::Unwrap(mbuf))).status);
+        channel->Write(std::move(MultiBufAdapter::Unwrap(mbuf))).status);
     ++num_writes_1;
   } while (capture.sends_called == num_writes_1);
   EXPECT_EQ(num_writes_0, num_writes_1);
@@ -1949,7 +1949,7 @@ TEST_F(MultiSendTest, CanOccupyAllThenReuseEachBuffer) {
   EXPECT_EQ(capture.sends_called, num_writes_1 - 1);
 
   // Free all packets before destroying ProxyHost to avoid UAF.
-  channel.Close();
+  channel.reset();
   capture.in_flight_packets.clear();
 }
 

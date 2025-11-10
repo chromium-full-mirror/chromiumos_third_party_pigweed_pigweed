@@ -14,143 +14,39 @@
 
 #include "pw_bluetooth_proxy/gatt_notify_channel.h"
 
-#include "pw_assert/check.h"
-#include "pw_bluetooth/att.emb.h"
-#include "pw_bluetooth/emboss_util.h"
-#include "pw_bluetooth/l2cap_frames.emb.h"
-#include "pw_log/log.h"
-#include "pw_status/status.h"
-
 namespace pw::bluetooth::proxy {
-
-std::optional<H4PacketWithH4> GattNotifyChannel::GenerateNextTxPacket() {
-  if (state() != State::kRunning || PayloadQueueEmpty()) {
-    return std::nullopt;
-  }
-
-  const FlatConstMultiBuf& attribute_value = GetFrontPayload();
-
-  std::optional<uint16_t> max_l2cap_payload_size = MaxL2capPayloadSize();
-  // This should have been caught during Write.
-  PW_CHECK(max_l2cap_payload_size);
-  const uint16_t max_attribute_size =
-      *max_l2cap_payload_size - emboss::AttHandleValueNtf::MinSizeInBytes();
-  // This should have been caught during Write.
-  PW_CHECK(attribute_value.size() < max_attribute_size);
-
-  size_t att_frame_size =
-      emboss::AttHandleValueNtf::MinSizeInBytes() + attribute_value.size();
-
-  pw::Result<H4PacketWithH4> result = PopulateTxL2capPacket(att_frame_size);
-  if (!result.ok()) {
-    return std::nullopt;
-  }
-  H4PacketWithH4 h4_packet = std::move(result.value());
-
-  // Write ATT PDU.
-  Result<emboss::AclDataFrameWriter> acl =
-      MakeEmbossWriter<emboss::AclDataFrameWriter>(h4_packet.GetHciSpan());
-  PW_CHECK_OK(acl);
-  PW_CHECK(acl->Ok());
-
-  Result<emboss::BFrameWriter> l2cap = MakeEmbossWriter<emboss::BFrameWriter>(
-      acl->payload().BackingStorage().data(),
-      acl->payload().BackingStorage().SizeInBytes());
-  PW_CHECK_OK(l2cap);
-  PW_CHECK(l2cap->Ok());
-
-  PW_CHECK(att_frame_size == l2cap->payload().BackingStorage().SizeInBytes());
-  Result<emboss::AttHandleValueNtfWriter> att_notify =
-      MakeEmbossWriter<emboss::AttHandleValueNtfWriter>(
-          attribute_value.size(),
-          l2cap->payload().BackingStorage().data(),
-          att_frame_size);
-  PW_CHECK_OK(att_notify);
-
-  att_notify->attribute_opcode().Write(emboss::AttOpcode::ATT_HANDLE_VALUE_NTF);
-  att_notify->attribute_handle().Write(attribute_handle_);
-  MultiBufAdapter::Copy(att_notify->attribute_value(), attribute_value);
-  PW_CHECK(att_notify->Ok());
-
-  // All content has been copied from the front payload, so release it.
-  PopFrontPayload();
-
-  return h4_packet;
+StatusWithMultiBuf GattNotifyChannel::Write(FlatConstMultiBuf&& payload) {
+  return internal_.Write(std::move(payload));
 }
 
-Status GattNotifyChannel::DoCheckWriteParameter(
-    const FlatConstMultiBuf& payload) {
-  std::optional<uint16_t> max_l2cap_payload_size = MaxL2capPayloadSize();
-  if (!max_l2cap_payload_size) {
-    PW_LOG_WARN("Tried to write before LE_Read_Buffer_Size processed.");
-    return Status::FailedPrecondition();
-  }
-  if (*max_l2cap_payload_size <= emboss::AttHandleValueNtf::MinSizeInBytes()) {
-    PW_LOG_ERROR("LE ACL data packet size limit does not support writing.");
-    return Status::FailedPrecondition();
-  }
-  const uint16_t max_attribute_size =
-      *max_l2cap_payload_size - emboss::AttHandleValueNtf::MinSizeInBytes();
-  if (payload.size() > max_attribute_size) {
-    PW_LOG_WARN("Attribute too large (%zu > %d). So will not process.",
-                payload.size(),
-                max_attribute_size);
-    return pw::Status::InvalidArgument();
-  }
-
-  return pw::OkStatus();
+Status GattNotifyChannel::IsWriteAvailable() {
+  return internal_.IsWriteAvailable();
 }
 
-pw::Result<GattNotifyChannel> GattNotifyChannel::Create(
-    L2capChannelManager& l2cap_channel_manager,
-    uint16_t connection_handle,
-    uint16_t attribute_handle,
-    ChannelEventCallback&& event_fn) {
-  if (!AreValidParameters(
-          /*connection_handle=*/connection_handle,
-          /*local_cid=*/
-          static_cast<uint16_t>(emboss::L2capFixedCid::LE_U_ATTRIBUTE_PROTOCOL),
-          /*remote_cid=*/
-          static_cast<uint16_t>(
-              emboss::L2capFixedCid::LE_U_ATTRIBUTE_PROTOCOL))) {
-    return pw::Status::InvalidArgument();
-  }
-  if (attribute_handle == 0) {
-    PW_LOG_ERROR("Attribute handle cannot be 0.");
-    return pw::Status::InvalidArgument();
-  }
-  GattNotifyChannel channel(/*l2cap_channel_manager=*/l2cap_channel_manager,
-                            /*connection_handle=*/connection_handle,
-                            /*attribute_handle=*/attribute_handle,
-                            std::move(event_fn));
-  channel.Init();
-  return channel;
+uint16_t GattNotifyChannel::attribute_handle() const {
+  return internal_.attribute_handle();
 }
 
-GattNotifyChannel::GattNotifyChannel(L2capChannelManager& l2cap_channel_manager,
-                                     uint16_t connection_handle,
-                                     uint16_t attribute_handle,
-                                     ChannelEventCallback&& event_fn)
-    : ChannelProxy(
-          /*l2cap_channel_manager=*/l2cap_channel_manager,
-          /*rx_multibuf_allocator*/ nullptr,
-          /*connection_handle=*/connection_handle,
-          /*transport=*/AclTransportType::kLe,
-          /*local_cid=*/
-          static_cast<uint16_t>(emboss::L2capFixedCid::LE_U_ATTRIBUTE_PROTOCOL),
-          /*remote_cid=*/
-          static_cast<uint16_t>(emboss::L2capFixedCid::LE_U_ATTRIBUTE_PROTOCOL),
-          /*payload_from_controller_fn=*/nullptr,
-          /*payload_from_host_fn=*/nullptr,
-          /*event_fn=*/std::move(event_fn)),
-      attribute_handle_(attribute_handle) {
-  PW_LOG_INFO("btproxy: GattNotifyChannel ctor - attribute_handle: %u",
-              attribute_handle_);
+L2capChannel::State GattNotifyChannel::state() const {
+  return internal_.state();
 }
 
-GattNotifyChannel::~GattNotifyChannel() {
-  PW_LOG_INFO("btproxy: GattNotifyChannel dtor - attribute_handle: %u",
-              attribute_handle_);
+uint16_t GattNotifyChannel::local_cid() const { return internal_.local_cid(); }
+
+uint16_t GattNotifyChannel::remote_cid() const {
+  return internal_.remote_cid();
 }
+
+uint16_t GattNotifyChannel::connection_handle() const {
+  return internal_.connection_handle();
+}
+
+AclTransportType GattNotifyChannel::transport() const {
+  return internal_.transport();
+}
+
+GattNotifyChannel::GattNotifyChannel(
+    internal::GattNotifyChannelInternal&& internal)
+    : internal_(std::move(internal)) {}
 
 }  // namespace pw::bluetooth::proxy

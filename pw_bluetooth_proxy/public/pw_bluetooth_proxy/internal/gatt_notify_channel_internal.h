@@ -14,23 +14,58 @@
 
 #pragma once
 
-#include "pw_bluetooth_proxy/gatt_notify_channel.h"
+#include <cstdint>
 
-namespace pw::bluetooth::proxy {
+#include "pw_bluetooth_proxy/channel_proxy.h"
 
-class GattNotifyChannelInternal final : public GattNotifyChannel {
+namespace pw::bluetooth::proxy::internal {
+
+/// `GattNotifyChannelInternal` supports sending GATT characteristic
+/// notifications to a remote peer.
+class GattNotifyChannelInternal final : public ChannelProxy {
  public:
-  // Should only be created by `ProxyHost` and tests.
-  static pw::Result<GattNotifyChannel> Create(
+  static pw::Result<GattNotifyChannelInternal> Create(
       L2capChannelManager& l2cap_channel_manager,
       uint16_t connection_handle,
       uint16_t attribute_handle,
-      ChannelEventCallback&& event_fn) {
-    return GattNotifyChannel::Create(l2cap_channel_manager,
-                                     connection_handle,
-                                     attribute_handle,
-                                     std::move(event_fn));
+      ChannelEventCallback&& event_fn);
+
+  GattNotifyChannelInternal(const GattNotifyChannelInternal& other) = delete;
+  GattNotifyChannelInternal& operator=(const GattNotifyChannelInternal& other) =
+      delete;
+  GattNotifyChannelInternal(GattNotifyChannelInternal&&) = default;
+  GattNotifyChannelInternal& operator=(GattNotifyChannelInternal&& other) =
+      default;
+  ~GattNotifyChannelInternal() override;
+
+  /// Return the attribute handle of this GattNotify channel.
+  uint16_t attribute_handle() const { return attribute_handle_; }
+
+  /// Check if the passed Write parameter is acceptable.
+  Status DoCheckWriteParameter(const FlatConstMultiBuf& payload) override;
+
+ private:
+  bool DoHandlePduFromController(pw::span<uint8_t>) override {
+    // Forward all packets to host.
+    return false;
   }
+
+  bool HandlePduFromHost(pw::span<uint8_t>) override {
+    // Forward all packets to controller.
+    return false;
+  }
+
+  void DoClose() override {}
+
+  [[nodiscard]] std::optional<H4PacketWithH4> GenerateNextTxPacket()
+      PW_EXCLUSIVE_LOCKS_REQUIRED(l2cap_tx_mutex()) override;
+
+  explicit GattNotifyChannelInternal(L2capChannelManager& l2cap_channel_manager,
+                                     uint16_t connection_handle,
+                                     uint16_t attribute_handle,
+                                     ChannelEventCallback&& event_fn);
+
+  uint16_t attribute_handle_;
 };
 
-}  // namespace pw::bluetooth::proxy
+}  // namespace pw::bluetooth::proxy::internal

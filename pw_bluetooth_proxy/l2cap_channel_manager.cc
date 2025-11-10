@@ -127,9 +127,13 @@ pw::Result<GattNotifyChannel> L2capChannelManager::AcquireGattNotifyChannel(
   if (!acl_data_channel_.HasAclConnection(connection_handle)) {
     return Status::Unavailable();
   }
-  Result<GattNotifyChannel> channel = GattNotifyChannelInternal::Create(
-      *this, connection_handle, attribute_handle, std::move(event_fn));
-  return channel;
+  Result<internal::GattNotifyChannelInternal> channel =
+      internal::GattNotifyChannelInternal::Create(
+          *this, connection_handle, attribute_handle, std::move(event_fn));
+  if (!channel.ok()) {
+    return channel.status();
+  }
+  return GattNotifyChannel(std::move(channel.value()));
 }
 
 void L2capChannelManager::RegisterChannel(L2capChannel& channel) {

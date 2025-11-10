@@ -79,6 +79,7 @@ pw_add_library(pw_bluetooth_proxy STATIC
     basic_l2cap_channel_internal.cc
     channel_proxy.cc
     gatt_notify_channel.cc
+    gatt_notify_channel_internal.cc
     l2cap_channel_manager.cc
     l2cap_channel.cc
     l2cap_coc.cc

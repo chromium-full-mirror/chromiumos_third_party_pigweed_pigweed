@@ -16,57 +16,71 @@
 
 #include <cstdint>
 
-#include "pw_bluetooth_proxy/channel_proxy.h"
-#include "pw_bluetooth_proxy/internal/l2cap_channel.h"
-#include "pw_bluetooth_proxy/internal/multibuf.h"
+#include "pw_bluetooth_proxy/internal/gatt_notify_channel_internal.h"
 
 namespace pw::bluetooth::proxy {
 
 /// `GattNotifyChannel` supports sending GATT characteristic notifications to a
 /// remote peer.
-class GattNotifyChannel : public ChannelProxy {
+class GattNotifyChannel final {
  public:
   GattNotifyChannel(const GattNotifyChannel& other) = delete;
   GattNotifyChannel& operator=(const GattNotifyChannel& other) = delete;
   GattNotifyChannel(GattNotifyChannel&&) = default;
   GattNotifyChannel& operator=(GattNotifyChannel&& other) = default;
-  ~GattNotifyChannel() override;
+  ~GattNotifyChannel() = default;
+
+  /// Send a payload to the remote peer.
+  ///
+  /// @param[in] payload The client payload to be sent. Payload will be
+  /// destroyed once its data has been used.
+  ///
+  /// @returns A `StatusWithMultiBuf` with one of the statuses below. If status
+  /// is not @OK then payload is also returned in `StatusWithMultiBuf`.
+  /// * @OK: Packet was successfully queued for send.
+  /// * @UNAVAILABLE: Channel could not acquire the resources to queue
+  ///   the send at this time (transient error). If an `event_fn` has been
+  ///   provided it will be called with `L2capChannelEvent::kWriteAvailable`
+  ///   when there is queue space available again.
+  /// * @INVALID_ARGUMENT: Payload is too large.
+  /// * @FAILED_PRECONDITION: Channel is not `State::kRunning`.
+  /// * @UNIMPLEMENTED: Channel does not support `Write(MultiBuf)`.
+  StatusWithMultiBuf Write(FlatConstMultiBuf&& payload);
+
+  /// Determine if channel is ready to accept one or more Write payloads.
+  ///
+  /// @returns
+  /// * @OK: Channel is ready to accept one or more `Write` payloads.
+  /// * @UNAVAILABLE: Channel does not yet have the resources to queue a Write
+  ///   at this time (transient error). If an `event_fn` has been provided it
+  ///   will be called with `L2capChannelEvent::kWriteAvailable` when there is
+  ///   queue space available again.
+  /// * @FAILED_PRECONDITION: Channel is not `State::kRunning`.
+  Status IsWriteAvailable();
+
+  static constexpr size_t QueueCapacity() {
+    return internal::GattNotifyChannelInternal::QueueCapacity();
+  }
 
   /// Return the attribute handle of this GattNotify channel.
-  uint16_t attribute_handle() const { return attribute_handle_; }
+  uint16_t attribute_handle() const;
 
-  /// Check if the passed Write parameter is acceptable.
-  Status DoCheckWriteParameter(const FlatConstMultiBuf& payload) override;
+  L2capChannel::State state() const;
 
- protected:
-  static pw::Result<GattNotifyChannel> Create(
-      L2capChannelManager& l2cap_channel_manager,
-      uint16_t connection_handle,
-      uint16_t attribute_handle,
-      ChannelEventCallback&& event_fn);
+  uint16_t local_cid() const;
 
-  bool DoHandlePduFromController(pw::span<uint8_t>) override {
-    // Forward all packets to host.
-    return false;
-  }
+  uint16_t remote_cid() const;
 
-  bool HandlePduFromHost(pw::span<uint8_t>) override {
-    // Forward all packets to controller.
-    return false;
-  }
+  uint16_t connection_handle() const;
 
-  void DoClose() override {}
+  AclTransportType transport() const;
 
  private:
-  [[nodiscard]] std::optional<H4PacketWithH4> GenerateNextTxPacket()
-      PW_EXCLUSIVE_LOCKS_REQUIRED(l2cap_tx_mutex()) override;
+  friend class L2capChannelManager;
 
-  explicit GattNotifyChannel(L2capChannelManager& l2cap_channel_manager,
-                             uint16_t connection_handle,
-                             uint16_t attribute_handle,
-                             ChannelEventCallback&& event_fn);
+  explicit GattNotifyChannel(internal::GattNotifyChannelInternal&& internal);
 
-  uint16_t attribute_handle_;
+  internal::GattNotifyChannelInternal internal_;
 };
 
 }  // namespace pw::bluetooth::proxy
