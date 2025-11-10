@@ -165,6 +165,7 @@ sphinx_docs_library(
         "//docker:docs",
         "//docs/doxygen:docs",
         "//kudzu:docs",
+        # start (sentinel for pw module create)
         "//pw_alignment:docs",
         "//pw_allocator:docs",
         "//pw_analog:docs",
@@ -350,6 +351,7 @@ sphinx_docs_library(
         "//pw_watch:docs",
         "//pw_web:docs",
         "//pw_work_queue:docs",
+        # end (sentinel for pw module create)
         "//seed:docs",
         "//targets:docs",
         "//third_party:docs",
