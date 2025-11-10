@@ -494,7 +494,8 @@ bool L2capSignalingChannel::HandleFlowControlCreditInd(
     // by the proxy, it must be an L2CAP connection-oriented channel.
     // TODO: https://pwbug.dev/360929142 - Validate type in case remote peer
     // sends indication addressed to wrong CID.
-    L2capCocInternal* coc_ptr = static_cast<L2capCocInternal*>(found_channel);
+    internal::L2capCocInternal* coc_ptr =
+        static_cast<internal::L2capCocInternal*>(found_channel);
     coc_ptr->AddTxCredits(cmd.credits().Read());
     return true;
   }

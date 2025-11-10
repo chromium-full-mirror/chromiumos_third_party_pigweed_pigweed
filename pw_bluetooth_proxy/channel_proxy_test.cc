@@ -46,9 +46,13 @@ struct OneOfEachChannel {
         coc_{std::move(coc)},
         gatt_{std::move(gatt)} {}
 
-  std::vector<L2capChannel*> AllChannels() {
-    return std::vector<L2capChannel*>{&basic_, &coc_, &gatt_};
+  bool AllChannelsClosed() const {
+    return basic_.state() == L2capChannel::State::kClosed &&
+           coc_.state() == L2capChannel::State::kClosed &&
+           gatt_.state() == L2capChannel::State::kClosed;
   }
+
+  static const size_t kNumChannels = 3;
 
   BasicL2capChannel basic_;
   L2capCoc coc_;
@@ -145,10 +149,8 @@ TEST_F(ChannelProxyTest, ChannelsStopOnProxyDestruction) {
   // Proxy dtor should result in close event for each of
   // the previously still open channels (and they should now be closed).
   proxy.reset();
-  EXPECT_EQ(events_received, 1 + channel_struct.AllChannels().size());
-  for (L2capChannel* channel : channel_struct.AllChannels()) {
-    EXPECT_EQ(channel->state(), L2capChannel::State::kClosed);
-  }
+  EXPECT_EQ(events_received, 1 + OneOfEachChannel::kNumChannels);
+  EXPECT_TRUE(channel_struct.AllChannelsClosed());
 
   // And first channel should remain closed of course.
   EXPECT_EQ(close_first_channel.state(), L2capChannel::State::kClosed);
@@ -204,10 +206,8 @@ TEST_F(ChannelProxyTest, ChannelsCloseOnReset) {
   // Proxy reset should result in close event for each of
   // the previously still open channels (and they should now be closed).
   proxy.Reset();
-  EXPECT_EQ(events_received, 1 + channel_struct.AllChannels().size());
-  for (L2capChannel* channel : channel_struct.AllChannels()) {
-    EXPECT_EQ(channel->state(), L2capChannel::State::kClosed);
-  }
+  EXPECT_EQ(events_received, 1 + OneOfEachChannel::kNumChannels);
+  EXPECT_TRUE(channel_struct.AllChannelsClosed());
 
   // And first channel should remain closed of course.
   EXPECT_EQ(close_first_channel.state(), L2capChannel::State::kClosed);

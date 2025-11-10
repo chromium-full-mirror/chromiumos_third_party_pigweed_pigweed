@@ -177,7 +177,7 @@ TEST_F(L2capCocWriteTest, ErrorOnWriteToStoppedChannel) {
                       FAIL();
                     }});
 
-  channel.Stop();
+  channel.StopForTesting();
   EXPECT_EQ(channel.IsWriteAvailable(), PW_STATUS_FAILED_PRECONDITION);
   FlatMultiBufInstance empty = MakeEmptyMultiBuf();
   EXPECT_EQ(channel.Write(std::move(MultiBufAdapter::Unwrap(empty))).status,
@@ -584,7 +584,7 @@ TEST_F(L2capCocWriteTest, MultithreadedWrite) {
   for (unsigned int i = 0; i < kNumThreads; ++i) {
     // TODO: https://pwbug.dev/422222575 -  Move channel close and dtor inside
     // each thread once we have proper channel lifecycle locking.
-    captures[i].channel.Close();
+    captures[i].channel.CloseForTesting();
   }
 
   {
@@ -859,7 +859,7 @@ TEST_F(L2capCocReadTest, ErrorOnRxToStoppedChannel) {
   kframe.channel_id().Write(local_cid);
   kframe.sdu_length().Write(0);
 
-  channel.Stop();
+  channel.StopForTesting();
   for (int i = 0; i < num_invalid_rx; ++i) {
     H4PacketWithHci h4_packet{emboss::H4PacketType::ACL_DATA, hci_arr};
     proxy.HandleH4HciFromController(std::move(h4_packet));
@@ -1108,7 +1108,7 @@ TEST_F(L2capCocReadTest, NoReadOnStoppedChannel) {
   kframe.pdu_length().Write(kSduLengthFieldSize);
   kframe.channel_id().Write(local_cid);
 
-  channel.Stop();
+  channel.StopForTesting();
   proxy.HandleH4HciFromController(std::move(h4_packet));
 }
 
@@ -1355,8 +1355,8 @@ TEST_F(L2capCocReadTest, ChannelStoppageDoNotAffectOtherChannels) {
   };
 
   // Stop the 2nd and 4th of the 5 channels.
-  channels[1].Stop();
-  channels[3].Stop();
+  channels[1].StopForTesting();
+  channels[3].StopForTesting();
 
   std::array<uint8_t, kFirstKFrameOverAclMinSize + capture.payload.size()>
       hci_arr;
@@ -1840,7 +1840,7 @@ TEST_F(L2capCocQueueTest, H4BufferReleaseTriggersQueueDrain) {
   EXPECT_EQ(capture.sends_called, num_writes);
 
   // Free all buffers before the allocator is destroyed.
-  channel.Close();
+  channel.CloseForTesting();
   capture.packet_store.clear();
 }
 

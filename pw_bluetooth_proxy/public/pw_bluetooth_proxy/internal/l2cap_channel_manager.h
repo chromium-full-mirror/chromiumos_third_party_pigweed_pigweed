@@ -56,8 +56,8 @@ class L2capChannelManager {
   pw::Result<L2capCoc> AcquireL2capCoc(
       MultiBufAllocator& rx_multibuf_allocator,
       uint16_t connection_handle,
-      L2capCoc::CocConfig rx_config,
-      L2capCoc::CocConfig tx_config,
+      ConnectionOrientedChannelConfig rx_config,
+      ConnectionOrientedChannelConfig tx_config,
       Function<void(FlatConstMultiBuf&& payload)>&& receive_fn,
       ChannelEventCallback&& event_fn);
 

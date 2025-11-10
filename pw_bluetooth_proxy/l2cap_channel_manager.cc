@@ -44,8 +44,8 @@ L2capChannelManager::~L2capChannelManager() {
 pw::Result<L2capCoc> L2capChannelManager::AcquireL2capCoc(
     MultiBufAllocator& rx_multibuf_allocator,
     uint16_t connection_handle,
-    L2capCoc::CocConfig rx_config,
-    L2capCoc::CocConfig tx_config,
+    ConnectionOrientedChannelConfig rx_config,
+    ConnectionOrientedChannelConfig tx_config,
     Function<void(FlatConstMultiBuf&& payload)>&& receive_fn,
     ChannelEventCallback&& event_fn) {
   std::lock_guard links_lock(links_mutex_);
@@ -58,15 +58,18 @@ pw::Result<L2capCoc> L2capChannelManager::AcquireL2capCoc(
   if (!acl_data_channel_.HasAclConnection(connection_handle)) {
     return Status::Unavailable();
   }
-  Result<L2capCoc> channel =
-      L2capCocInternal::Create(rx_multibuf_allocator,
-                               *this,
-                               connection_handle,
-                               rx_config,
-                               tx_config,
-                               std::move(event_fn),
-                               /*receive_fn=*/std::move(receive_fn));
-  return channel;
+  Result<internal::L2capCocInternal> channel =
+      internal::L2capCocInternal::Create(rx_multibuf_allocator,
+                                         *this,
+                                         connection_handle,
+                                         rx_config,
+                                         tx_config,
+                                         std::move(event_fn),
+                                         std::move(receive_fn));
+  if (!channel.ok()) {
+    return channel.status();
+  }
+  return L2capCoc(std::move(channel.value()));
 }
 
 pw::Result<BasicL2capChannel> L2capChannelManager::AcquireBasicL2capChannel(

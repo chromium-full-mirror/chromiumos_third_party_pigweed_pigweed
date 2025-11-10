@@ -46,6 +46,7 @@ pw_add_library(pw_bluetooth_proxy STATIC
     public/pw_bluetooth_proxy/internal/recombiner.h
     public/pw_bluetooth_proxy/l2cap_channel_common.h
     public/pw_bluetooth_proxy/l2cap_coc.h
+    public/pw_bluetooth_proxy/l2cap_coc_config.h
     public/pw_bluetooth_proxy/l2cap_status_delegate.h
     public/pw_bluetooth_proxy/proxy_host.h
 # LINT.ThenChange(bt-proxy.bzl, BUILD.gn)
@@ -79,6 +80,7 @@ pw_add_library(pw_bluetooth_proxy STATIC
     l2cap_channel_manager.cc
     l2cap_channel.cc
     l2cap_coc.cc
+    l2cap_coc_internal.cc
     l2cap_signaling_channel.cc
     l2cap_status_tracker.cc
     l2cap_logical_link.cc
