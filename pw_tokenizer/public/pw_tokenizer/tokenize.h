@@ -450,11 +450,10 @@ constexpr bool Contains(const char* haystack, const char* needle) {
 // without --gc-sections to preserve the tokenized data.
 //
 // pw_tokenizer is intended for use with ELF files only. Mach-O files (macOS
-// executables) do not support section names longer than 16 characters, so a
-// short, unused section name is used on macOS.
+// executables) have limited support for linker sections and are not supported
+// by the pw_tokenizer tooling, so tokens are not stored when building a Mach-O.
 #ifdef __APPLE__
-#define _PW_TOKENIZER_SECTION \
-  PW_KEEP_IN_SECTION(PW_STRINGIFY(_PW_TOKENIZER_UNIQUE(.pw.)))
+#define _PW_TOKENIZER_SECTION PW_USED
 #else
 #define _PW_TOKENIZER_SECTION \
   PW_KEEP_IN_SECTION(PW_STRINGIFY(_PW_TOKENIZER_UNIQUE(.pw_tokenizer.entries.)))
