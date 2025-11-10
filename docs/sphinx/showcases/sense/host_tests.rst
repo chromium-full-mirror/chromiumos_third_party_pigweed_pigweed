@@ -42,7 +42,7 @@ tests:
       .. tab-item:: VS Code
          :sync: vsc
 
-         Make sure that your platform is set to **host_simulator**, as demonstrated
+         Make sure that your platform is set to **k8-fastbuild**, as demonstrated
          in :ref:`showcase-sense-tutorial-intel-nav`. If VS Code was displaying
          red squiggly line warnings in ``blinky_test.cc``, those should go away.
 

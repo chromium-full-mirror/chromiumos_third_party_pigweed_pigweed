@@ -58,19 +58,19 @@ Interact with the Pico
 
                   bazelisk run //apps/blinky:rp2350_console
 
-         If you see a selection prompt like the one below, select
-         **Debug Probe (CMSIS-DAP) - CDC-ACM UART Interface**.
+   If you see a selection prompt like the one below, select
+   **Debug Probe (CMSIS-DAP) - CDC-ACM UART Interface**.
 
-         .. code-block:: text
+   .. code-block:: text
 
-            Please select a serial port device.
-            Available ports:
-              1 - /dev/ttyACM0 - Raspberry Pi - Debug Probe (CMSIS-DAP) - CDC-ACM UART Interface
-              2 - /dev/ttyACM1 - Raspberry Pi - Pico - Board CDC
-              3 - /dev/ttyS0 - None - n/a
-              4 - /dev/ttyS1 - None - n/a
-              5 - /dev/ttyS2 - None - n/a
-              6 - /dev/ttyS3 - None - n/a
+      Please select a serial port device.
+      Available ports:
+        1 - /dev/ttyACM0 - Raspberry Pi - Debug Probe (CMSIS-DAP) - CDC-ACM UART Interface
+        2 - /dev/ttyACM1 - Raspberry Pi - Pico - Board CDC
+        3 - /dev/ttyS0 - None - n/a
+        4 - /dev/ttyS1 - None - n/a
+        5 - /dev/ttyS2 - None - n/a
+        6 - /dev/ttyS3 - None - n/a
 
 #. Toggle the Pico's LED by typing the following into **Python Repl** (the
    bottom-left pane) and then pressing :kbd:`Enter`:

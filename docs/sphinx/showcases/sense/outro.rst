@@ -16,7 +16,17 @@ Talk to us
 ==========
 If you've got any questions or comments about Sense or Pigweed in
 general, or just want to say "hi", you can talk to the Pigweed team on our
-`Discord <https://discord.gg/M9NSeTA>`_.
+`Discord <https://discord.gg/M9NSeTA>`_. Or, drop into our monthly community
+meeting, Pigweed Live:
+
+.. grid:: 1
+
+   .. grid-item-card:: :octicon:`device-camera-video` Pigweed Live
+      :link: https://groups.google.com/g/pigweed
+      :link-type: url
+      :class-item: sales-pitch-cta-secondary
+
+      .. pigweed-live::
 
 Extend Sense with Pigweed's modules
 ===================================

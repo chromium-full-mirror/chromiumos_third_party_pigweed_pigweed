@@ -18,12 +18,6 @@ Pigweed provides robust and automated solutions for running hardware-in-the-loop
    setup <showcase-sense-tutorial-hardware>` and must be
    run over a terminal.
 
-.. note::
-
-   This section requires the VS Code terminal because there's currently
-   no way to run wildcard tests from the **Bazel Targets** UI.
-   Wildcard tests will be explained more in a moment.
-
 .. _showcase-sense-tutorial-devicetests-setup:
 
 --------------------
@@ -64,6 +58,12 @@ Run on-device tests
                export PATH="/home/kayce/.vscode/extensions/pigweed.pigweed-1.3.3/node_modules/@bazel/bazelisk:${PATH}"
                kayce@kayce0:~/tmp/sense$ export PATH="/home/kayce/.vscode/extensions/pigweed.pigweed-1.3.3/node_modules/@bazel/bazelisk:${PATH}"
                kayce@kayce0:~/tmp/sense$
+
+            .. note::
+
+               This section requires the VS Code terminal because there's currently
+               no way to run wildcard tests from the **Bazel Targets** UI.
+               Wildcard tests will be explained more in a moment.
 
       .. tab-item:: CLI
          :sync: cli
@@ -173,6 +173,10 @@ Run on-device tests
 
 #. Go to the terminal that the test runner is running in and press
    :kbd:`Control+C` to close it.
+
+.. note::
+
+   A few tests may fail. We're working on it!
 
 .. _showcase-sense-tutorial-devicetests-flash:
 

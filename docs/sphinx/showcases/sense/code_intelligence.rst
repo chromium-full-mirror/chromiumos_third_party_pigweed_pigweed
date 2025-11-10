@@ -41,24 +41,27 @@ used in your project.
 
             You can also select code analysis targets from the bottom-left
             of your VS Code GUI, in the status bar. In the next image,
-            the mouse cursor (bottom-left of image) is hovering over the GUI element
-            for selecting code analysis targets.
+            the mouse cursor (bottom-left of image) is hovering over the GUI
+            element for selecting code analysis targets.
 
             .. figure:: https://storage.googleapis.com/pigweed-media/sense/20240802/select_target_status_bar.png
 
-      #. Select the ``rp2040`` option.
+      #. Select the ``rp2040-fastbuild`` option.
 
          The code intelligence is now set up to help you with physical Pico 1
          programming. The RP2040 is the microprocessor that powers the Pico 1.
-         If you had selected the other option, ``host_simulator``,
+         If you had selected the ``k8-fastbuild`` option,
          the code intelligence would be set up to help with programming the
          simulated app that you will run on your development host later.
-         Code intelligence for the Pico 2 (``rp2350``) isn't supported yet.
-         ``rp2040`` represents one platform, ``host_simulator`` another.
+         ``rp2040-fastbuild`` represents one platform, ``k8-fastbuild`` another.
 
-         We will verify the platform-specific code intelligence now by making sure
-         that :ref:`module-pw_log` invocations resolve to different backends. This
-         will make more sense after you do the hands-on demonstration.
+         We will verify the platform-specific code intelligence now by making
+         sure that :ref:`module-pw_log` invocations resolve to different
+         backends.
+
+         .. note::
+
+            Code intelligence for the Pico 2 (``rp2350``) isn't supported yet.
 
       #. Open ``//apps/blinky/main.cc``.
 
@@ -108,10 +111,10 @@ used in your project.
 
             #define PW_HANDLE_LOG PW_LOG_TOKENIZED_TO_GLOBAL_HANDLER_WITH_PAYLOAD
 
-      #. Open the Command Palette, switch your target to ``host_simulator``,
+      #. Open the Command Palette, switch your target to ``k8-fastbuild``,
          and then repeat this workflow again, starting from the ``PW_LOG_INFO``
-         invocation in ``//apps/blinky/main.cc``. You should see the definitions finally
-         resolve to a :ref:`module-pw_log_string` backend header.
+         invocation in ``//apps/blinky/main.cc``. You should see the definitions
+         finally resolve to a :ref:`module-pw_log_string` backend header.
 
    .. tab-item:: CLI
       :sync: cli
@@ -123,16 +126,17 @@ used in your project.
 -----------
 Explanation
 -----------
-When you set your platform to ``rp2040`` and followed the call to
+When you set your platform to ``rp2040-fastbuild`` and followed the call to
 ``PW_LOG_INFO()`` in ``//apps/blinky/main.cc`` back to its source,
 you ended on a header within ``pw_log_tokenized``. When you repeated
-the process a second time with the ``host_simulator`` platform you
+the process a second time with the ``k8-fastbuild`` platform you
 ended on a header in a different module, ``pw_log_string``. This proves
 that intelligent code navigation is working. The ``pw_log`` API is a
 :ref:`facade <docs-facades>`. It's implementation is swapped out during
-compilation depending on what platform you're building for. The ``rp2040``
-platform has been set up to use the ``pw_log_tokenized`` implementation, whereas
-the ``host_simulator`` platform uses the ``pw_log_string`` implementation.
+compilation depending on what platform you're building for. The
+``rp2040-fastbuild`` platform has been set up to use the ``pw_log_tokenized``
+implementation, whereas the ``k8-fastbuild`` platform uses the ``pw_log_string``
+implementation.
 
 Here's a diagram summary of how the intelligent code navigation resolved to
 different files depending on the code analysis target you selected:
@@ -142,8 +146,8 @@ different files depending on the code analysis target you selected:
    flowchart LR
 
      a["main.cc"] --> b["log.h"]
-     b["log.h"] -. rp2040 .-> c["pw_log_tokenized/.../log_backend.h"]
-     b["log.h"] -. host_simulator .-> d["pw_log_string/.../log_backend.h"]
+     b["log.h"] -. rp2040-fastbuild .-> c["pw_log_tokenized/.../log_backend.h"]
+     b["log.h"] -. k8-fastbuild .-> d["pw_log_string/.../log_backend.h"]
 
 .. _showcase-sense-tutorial-intel-summary:
 
