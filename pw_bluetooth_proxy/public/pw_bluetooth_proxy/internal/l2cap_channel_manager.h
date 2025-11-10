@@ -14,17 +14,18 @@
 
 #pragma once
 
-#include <atomic>
 #include <optional>
 
 #include "pw_allocator/best_fit.h"
 #include "pw_allocator/synchronized_allocator.h"
+#include "pw_bluetooth_proxy/gatt_notify_channel.h"
 #include "pw_bluetooth_proxy/internal/acl_data_channel.h"
 #include "pw_bluetooth_proxy/internal/l2cap_channel.h"
 #include "pw_bluetooth_proxy/internal/l2cap_logical_link.h"
 #include "pw_bluetooth_proxy/internal/l2cap_status_tracker.h"
 #include "pw_bluetooth_proxy/internal/locked_l2cap_channel.h"
 #include "pw_bluetooth_proxy/l2cap_channel_common.h"
+#include "pw_bluetooth_proxy/l2cap_coc.h"
 #include "pw_containers/intrusive_map.h"
 #include "pw_sync/lock_annotations.h"
 
@@ -51,6 +52,29 @@ class L2capChannelManager {
                       pw::Allocator* allocator);
 
   ~L2capChannelManager();
+
+  pw::Result<L2capCoc> AcquireL2capCoc(
+      MultiBufAllocator& rx_multibuf_allocator,
+      uint16_t connection_handle,
+      L2capCoc::CocConfig rx_config,
+      L2capCoc::CocConfig tx_config,
+      Function<void(FlatConstMultiBuf&& payload)>&& receive_fn,
+      ChannelEventCallback&& event_fn);
+
+  pw::Result<BasicL2capChannel> AcquireBasicL2capChannel(
+      MultiBufAllocator& rx_multibuf_allocator,
+      uint16_t connection_handle,
+      uint16_t local_cid,
+      uint16_t remote_cid,
+      AclTransportType transport,
+      OptionalPayloadReceiveCallback&& payload_from_controller_fn,
+      OptionalPayloadReceiveCallback&& payload_from_host_fn,
+      ChannelEventCallback&& event_fn);
+
+  pw::Result<GattNotifyChannel> AcquireGattNotifyChannel(
+      uint16_t connection_handle,
+      uint16_t attribute_handle,
+      ChannelEventCallback&& event_fn);
 
   // Start proxying L2CAP packets addressed to `channel` arriving from
   // the controller and allow `channel` to send & queue Tx L2CAP packets.

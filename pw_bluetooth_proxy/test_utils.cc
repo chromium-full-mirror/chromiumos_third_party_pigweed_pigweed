@@ -238,6 +238,8 @@ Status SendLeConnectionCompleteEvent(ProxyHost& proxy,
       emboss::LeSubEventCode::CONNECTION_COMPLETE);
   view.status().Write(status);
   view.connection_handle().Write(handle);
+  view.connection_interval().Write(0x0006);
+  view.supervision_timeout().Write(0x000A);
   proxy.HandleH4HciFromController(std::move(dc_event));
   return OkStatus();
 }

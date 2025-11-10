@@ -196,6 +196,10 @@ class AclDataChannel {
   std::optional<uint16_t> MaxDataPacketLengthForTransport(
       AclTransportType transport) const;
 
+  // Returns true if an ACL connection exists with the handle
+  // `connection_handle`.
+  bool HasAclConnection(uint16_t connection_handle);
+
  private:
   // An active logical link on ACL logical transport.
   class AclConnection {
