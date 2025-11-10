@@ -22,6 +22,15 @@
 #include "pw_function/function.h"
 
 namespace pw::async2 {
+namespace internal {
+
+template <typename FutureType>
+using CallbackType = std::conditional_t<
+    std::is_same_v<typename FutureType::value_type, ReadyType>,
+    Function<void()>,
+    Function<void(typename FutureType::value_type)>>;
+
+}  // namespace internal
 
 /// @submodule{pw_async2,adapters}
 
@@ -30,19 +39,16 @@ namespace pw::async2 {
 ///
 /// A `FutureCallbackTask` terminates after the underlying future returns
 /// `Ready` and can be cleaned up afterwards.
-template <typename FutureType>
+template <typename FutureType,
+          typename Func = internal::CallbackType<FutureType>>
 class FutureCallbackTask : public Task {
  public:
   using value_type = typename FutureType::value_type;
 
-  using Callback = std::conditional_t<std::is_same_v<value_type, ReadyType>,
-                                      Function<void()>,
-                                      Function<void(value_type)>>;
-
   static_assert(is_future_v<FutureType>,
                 "FutureCallbackTask can only be used with Future types");
 
-  FutureCallbackTask(FutureType&& future, Callback&& callback)
+  FutureCallbackTask(FutureType&& future, Func&& callback)
       : future_(std::move(future)), callback_(std::move(callback)) {}
 
  private:
@@ -62,13 +68,12 @@ class FutureCallbackTask : public Task {
   }
 
   FutureType future_;
-  Callback callback_;
+  Func callback_;
 };
 
-template <typename FutureType>
-FutureCallbackTask(FutureType&&,
-                   typename FutureCallbackTask<FutureType>::Callback)
-    -> FutureCallbackTask<FutureType>;
+template <typename FutureType, typename Func>
+FutureCallbackTask(FutureType&&, Func&&)
+    -> FutureCallbackTask<FutureType, Func>;
 
 // TODO: b/458069794 - Add StreamCallbackTask.
 

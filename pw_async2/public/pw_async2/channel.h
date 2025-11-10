@@ -722,35 +722,33 @@ class Receiver {
       return Status::FailedPrecondition();
     }
 
-    struct {
-      std::optional<T> result;
-      sync::TimedThreadNotification notification;
-    } context;
+    std::optional<T> result;
+    sync::TimedThreadNotification notification;
 
     FutureCallbackTask task(ReceiveFuture<T>(*channel_),
-                            [&context](std::optional<T> result) {
-                              context.result = std::move(result);
-                              context.notification.release();
+                            [&result, &notification](std::optional<T> value) {
+                              result = std::move(value);
+                              notification.release();
                             });
     dispatcher.Post(task);
 
     if (timeout == kWaitForever) {
-      context.notification.acquire();
-      if (!context.result.has_value()) {
+      notification.acquire();
+      if (!result.has_value()) {
         return Status::FailedPrecondition();
       }
-      return context.result.value();
+      return result.value();
     }
 
-    if (!context.notification.try_acquire_for(timeout)) {
+    if (!notification.try_acquire_for(timeout)) {
       task.Deregister();
       return Status::DeadlineExceeded();
     }
 
-    if (!context.result.has_value()) {
+    if (!result.has_value()) {
       return Status::FailedPrecondition();
     }
-    return context.result.value();
+    return result.value();
   }
 
   /// Reads a value from the channel, blocking until it is available.
@@ -1209,27 +1207,26 @@ class Sender {
   Status BlockingSend(Dispatcher& dispatcher,
                       SendFuture<T>&& future,
                       chrono::SystemClock::duration timeout) {
-    struct {
-      Status status;
-      sync::TimedThreadNotification notification;
-    } context;
+    Status status;
+    sync::TimedThreadNotification notification;
 
-    FutureCallbackTask task(std::move(future), [&context](bool result) {
-      context.status = result ? OkStatus() : Status::FailedPrecondition();
-      context.notification.release();
-    });
+    FutureCallbackTask task(
+        std::move(future), [&status, &notification](bool result) {
+          status = result ? OkStatus() : Status::FailedPrecondition();
+          notification.release();
+        });
     dispatcher.Post(task);
 
     if (timeout == kWaitForever) {
-      context.notification.acquire();
-      return context.status;
+      notification.acquire();
+      return status;
     }
 
-    if (!context.notification.try_acquire_for(timeout)) {
+    if (!notification.try_acquire_for(timeout)) {
       task.Deregister();
       return Status::DeadlineExceeded();
     }
-    return context.status;
+    return status;
   }
 
   internal::Channel<T>* channel_;
