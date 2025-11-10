@@ -55,19 +55,20 @@ L2capSignalingChannel::L2capSignalingChannel(
     L2capChannelManager& l2cap_channel_manager,
     uint16_t connection_handle,
     AclTransportType transport)
-    : BasicL2capChannel(l2cap_channel_manager,
-                        /*rx_multibuf_allocator=*/nullptr,
-                        /*connection_handle=*/connection_handle,
-                        /*transport*/ transport,
-                        /*local_cid=*/ChannelIdForTransport(transport),
-                        /*remote_cid=*/ChannelIdForTransport(transport),
-                        /*payload_from_controller_fn=*/nullptr,
-                        /*payload_from_host_fn=*/nullptr,
-                        /*event_fn=*/nullptr),
+    : BasicL2capChannelInternal(l2cap_channel_manager,
+                                /*rx_multibuf_allocator=*/nullptr,
+                                /*connection_handle=*/connection_handle,
+                                /*transport*/ transport,
+                                /*local_cid=*/ChannelIdForTransport(transport),
+                                /*remote_cid=*/ChannelIdForTransport(transport),
+                                /*payload_from_controller_fn=*/nullptr,
+                                /*payload_from_host_fn=*/nullptr,
+                                /*event_fn=*/nullptr),
       l2cap_channel_manager_(l2cap_channel_manager) {}
 
 L2capSignalingChannel::L2capSignalingChannel(L2capSignalingChannel&& other)
-    : BasicL2capChannel(static_cast<BasicL2capChannel&&>(other)),
+    : BasicL2capChannelInternal(
+          static_cast<BasicL2capChannelInternal&&>(other)),
       l2cap_channel_manager_(other.l2cap_channel_manager_) {
   std::lock_guard lock(mutex_);
   std::lock_guard other_lock(other.mutex_);
@@ -78,7 +79,8 @@ L2capSignalingChannel::L2capSignalingChannel(L2capSignalingChannel&& other)
 
 L2capSignalingChannel& L2capSignalingChannel::operator=(
     L2capSignalingChannel&& other) {
-  BasicL2capChannel::operator=(static_cast<BasicL2capChannel&&>(other));
+  BasicL2capChannelInternal::operator=(
+      static_cast<BasicL2capChannelInternal&&>(other));
 
   std::lock_guard lock(mutex_);
   std::lock_guard other_lock(other.mutex_);

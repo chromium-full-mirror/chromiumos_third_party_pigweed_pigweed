@@ -15,8 +15,8 @@
 #pragma once
 
 #include "pw_bluetooth/l2cap_frames.emb.h"
-#include "pw_bluetooth_proxy/basic_l2cap_channel.h"
 #include "pw_bluetooth_proxy/direction.h"
+#include "pw_bluetooth_proxy/internal/basic_l2cap_channel_internal.h"
 #include "pw_bluetooth_proxy/internal/multibuf.h"
 #include "pw_bluetooth_proxy/l2cap_status_delegate.h"
 #include "pw_containers/vector.h"
@@ -29,7 +29,7 @@ namespace pw::bluetooth::proxy {
 // channels or LE-U signaling channels.
 //
 // Write and Read payloads are L2CAP signal commands.
-class L2capSignalingChannel final : public BasicL2capChannel {
+class L2capSignalingChannel final : public internal::BasicL2capChannelInternal {
  public:
   static L2capSignalingChannel Create(
       L2capChannelManager& l2cap_channel_manager,

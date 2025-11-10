@@ -14,151 +14,42 @@
 
 #include "pw_bluetooth_proxy/basic_l2cap_channel.h"
 
-#include "pw_assert/check.h"
-#include "pw_bluetooth/emboss_util.h"
-#include "pw_bluetooth/hci_data.emb.h"
-#include "pw_bluetooth/l2cap_frames.emb.h"
-#include "pw_bluetooth_proxy/l2cap_channel_common.h"
-#include "pw_log/log.h"
-
 namespace pw::bluetooth::proxy {
 
-pw::Result<BasicL2capChannel> BasicL2capChannel::Create(
-    L2capChannelManager& l2cap_channel_manager,
-    MultiBufAllocator* rx_multibuf_allocator,
-    uint16_t connection_handle,
-    AclTransportType transport,
-    uint16_t local_cid,
-    uint16_t remote_cid,
-    OptionalPayloadReceiveCallback&& payload_from_controller_fn,
-    OptionalPayloadReceiveCallback&& payload_from_host_fn,
-    ChannelEventCallback&& event_fn) {
-  if (!AreValidParameters(/*connection_handle=*/connection_handle,
-                          /*local_cid=*/local_cid,
-                          /*remote_cid=*/remote_cid)) {
-    return pw::Status::InvalidArgument();
-  }
-
-  BasicL2capChannel channel(
-      l2cap_channel_manager,
-      rx_multibuf_allocator,
-      /*connection_handle=*/connection_handle,
-      /*transport=*/transport,
-      /*local_cid=*/local_cid,
-      /*remote_cid=*/remote_cid,
-      /*payload_from_controller_fn=*/std::move(payload_from_controller_fn),
-      /*payload_from_host_fn=*/std::move(payload_from_host_fn),
-      /*event_fn=*/std::move(event_fn));
-  channel.Init();
-  return channel;
+StatusWithMultiBuf BasicL2capChannel::Write(FlatConstMultiBuf&& payload) {
+  return internal_.Write(std::move(payload));
 }
 
-Status BasicL2capChannel::DoCheckWriteParameter(
-    const FlatConstMultiBuf& payload) {
-  std::optional<uint16_t> max_l2cap_length = MaxL2capPayloadSize();
-  if (!max_l2cap_length) {
-    return Status::FailedPrecondition();
-  }
-  if (payload.size() > max_l2cap_length) {
-    PW_LOG_WARN("Payload (%zu bytes) is too large. So will not process.",
-                payload.size());
-    return Status::InvalidArgument();
-  }
-  return OkStatus();
+Status BasicL2capChannel::IsWriteAvailable() {
+  return internal_.IsWriteAvailable();
 }
 
-std::optional<H4PacketWithH4> BasicL2capChannel::GenerateNextTxPacket() {
-  if (state() != State::kRunning || PayloadQueueEmpty()) {
-    return std::nullopt;
-  }
+L2capChannel::State BasicL2capChannel::state() const {
+  return internal_.state();
+}
 
-  const FlatConstMultiBuf& payload = GetFrontPayload();
+uint16_t BasicL2capChannel::local_cid() const { return internal_.local_cid(); }
 
-  pw::Result<H4PacketWithH4> result = PopulateTxL2capPacket(payload.size());
-  if (!result.ok()) {
-    return std::nullopt;
-  }
-  H4PacketWithH4 h4_packet = std::move(result.value());
+uint16_t BasicL2capChannel::remote_cid() const {
+  return internal_.remote_cid();
+}
 
-  Result<emboss::AclDataFrameWriter> result2 =
-      MakeEmbossWriter<emboss::AclDataFrameWriter>(h4_packet.GetHciSpan());
-  PW_CHECK(result2.ok());
-  emboss::AclDataFrameWriter acl = result2.value();
+uint16_t BasicL2capChannel::connection_handle() const {
+  return internal_.connection_handle();
+}
 
-  emboss::BFrameWriter bframe = emboss::MakeBFrameView(
-      acl.payload().BackingStorage().data(), acl.payload().SizeInBytes());
-  PW_CHECK(bframe.IsComplete());
+AclTransportType BasicL2capChannel::transport() const {
+  return internal_.transport();
+}
 
-  MultiBufAdapter::Copy(bframe.payload(), payload);
-  PW_CHECK(acl.Ok());
-  PW_CHECK(bframe.Ok());
+void BasicL2capChannel::CloseForTesting() { return internal_.Close(); }
 
-  // All content has been copied from the front payload, so release it.
-  PopFrontPayload();
-
-  return h4_packet;
+internal::BasicL2capChannelInternal& BasicL2capChannel::InternalForTesting() {
+  return internal_;
 }
 
 BasicL2capChannel::BasicL2capChannel(
-    L2capChannelManager& l2cap_channel_manager,
-    MultiBufAllocator* rx_multibuf_allocator,
-    uint16_t connection_handle,
-    AclTransportType transport,
-    uint16_t local_cid,
-    uint16_t remote_cid,
-    OptionalPayloadReceiveCallback&& payload_from_controller_fn,
-    OptionalPayloadReceiveCallback&& payload_from_host_fn,
-    ChannelEventCallback&& event_fn)
-    : ChannelProxy(
-          l2cap_channel_manager,
-          rx_multibuf_allocator,
-          /*connection_handle=*/connection_handle,
-          /*transport=*/transport,
-          /*local_cid=*/local_cid,
-          /*remote_cid=*/remote_cid,
-          /*payload_from_controller_fn=*/std::move(payload_from_controller_fn),
-          /*payload_from_host_fn=*/std::move(payload_from_host_fn),
-          /*event_fn=*/std::move(event_fn)) {
-  PW_LOG_INFO("btproxy: BasicL2capChannel ctor");
-}
-
-BasicL2capChannel::~BasicL2capChannel() {
-  // Don't log dtor of moved-from channels.
-  if (state() != State::kUndefined) {
-    PW_LOG_INFO("btproxy: BasicL2capChannel dtor");
-  }
-}
-
-bool BasicL2capChannel::DoHandlePduFromController(pw::span<uint8_t> bframe) {
-  Result<emboss::BFrameWriter> bframe_view =
-      MakeEmbossWriter<emboss::BFrameWriter>(bframe);
-
-  if (!bframe_view.ok()) {
-    // TODO: https://pwbug.dev/360929142 - Stop channel on error.
-    PW_LOG_ERROR("(CID: 0x%X) Received invalid B-frame. So will drop.",
-                 local_cid());
-    return true;
-  }
-
-  return SendPayloadFromControllerToClient(
-      span(bframe_view->payload().BackingStorage().data(),
-           bframe_view->payload().SizeInBytes()));
-}
-
-bool BasicL2capChannel::HandlePduFromHost(pw::span<uint8_t> bframe) {
-  Result<emboss::BFrameWriter> bframe_view =
-      MakeEmbossWriter<emboss::BFrameWriter>(bframe);
-
-  if (!bframe_view.ok()) {
-    // TODO: https://pwbug.dev/360929142 - Stop channel on error.
-    PW_LOG_ERROR("(CID: 0x%X) Host transmitted invalid B-frame. So will drop.",
-                 local_cid());
-    return true;
-  }
-
-  return SendPayloadFromHostToClient(
-      span(bframe_view->payload().BackingStorage().data(),
-           bframe_view->payload().SizeInBytes()));
-}
+    internal::BasicL2capChannelInternal&& internal)
+    : internal_(std::move(internal)) {}
 
 }  // namespace pw::bluetooth::proxy

@@ -51,7 +51,8 @@ TEST_F(RecombinerTest, Start) {
   BasicL2capChannel channel =
       BuildBasicL2capChannel(proxy_, {.handle = kConnectionHandle});
   pw::sync::Mutex mutex;
-  LockedL2capChannel locked_channel{channel, std::unique_lock(mutex)};
+  LockedL2capChannel locked_channel{channel.InternalForTesting(),
+                                    std::unique_lock(mutex)};
 
   Recombiner recombiner{Direction::kFromHost};
 
@@ -72,7 +73,8 @@ TEST_F(RecombinerTest, GetLocalCid) {
   BasicL2capChannel channel = BuildBasicL2capChannel(
       proxy_, {.handle = kConnectionHandle, .local_cid = kLocalCid});
   pw::sync::Mutex mutex;
-  LockedL2capChannel locked_channel{channel, std::unique_lock(mutex)};
+  LockedL2capChannel locked_channel{channel.InternalForTesting(),
+                                    std::unique_lock(mutex)};
 
   Recombiner recombiner{Direction::kFromController};
 
@@ -91,8 +93,8 @@ TEST_F(RecombinerTest, EndWithChannel) {
   BasicL2capChannel channel =
       BuildBasicL2capChannel(proxy_, {.handle = kConnectionHandle});
   pw::sync::Mutex mutex;
-  std::optional<LockedL2capChannel> locked_channel{
-      LockedL2capChannel{channel, std::unique_lock(mutex)}};
+  std::optional<LockedL2capChannel> locked_channel{LockedL2capChannel{
+      channel.InternalForTesting(), std::unique_lock(mutex)}};
 
   Recombiner recombiner{Direction::kFromController};
 
@@ -119,8 +121,8 @@ TEST_F(RecombinerTest, EndWithoutChannel) {
     BasicL2capChannel channel =
         BuildBasicL2capChannel(proxy_, {.handle = kConnectionHandle});
     pw::sync::Mutex mutex;
-    std::optional<LockedL2capChannel> locked_channel{
-        LockedL2capChannel{channel, std::unique_lock(mutex)}};
+    std::optional<LockedL2capChannel> locked_channel{LockedL2capChannel{
+        channel.InternalForTesting(), std::unique_lock(mutex)}};
 
     PW_TEST_EXPECT_OK(recombiner.StartRecombination(*locked_channel, 8u, 0u));
   }
@@ -147,8 +149,8 @@ TEST_F(RecombinerTest, WriteThenTake) {
   BasicL2capChannel channel =
       BuildBasicL2capChannel(proxy_, {.handle = kConnectionHandle});
   pw::sync::Mutex mutex;
-  std::optional<LockedL2capChannel> locked_channel{
-      LockedL2capChannel{channel, std::unique_lock(mutex)}};
+  std::optional<LockedL2capChannel> locked_channel{LockedL2capChannel{
+      channel.InternalForTesting(), std::unique_lock(mutex)}};
 
   PW_TEST_EXPECT_OK(recombiner.StartRecombination(*locked_channel, 8u, 0u));
 
@@ -200,8 +202,8 @@ TEST_F(RecombinerTest, WriteCompleteWithoutChannel) {
     BasicL2capChannel channel =
         BuildBasicL2capChannel(proxy_, {.handle = kConnectionHandle});
     pw::sync::Mutex mutex;
-    std::optional<LockedL2capChannel> locked_channel{
-        LockedL2capChannel{channel, std::unique_lock(mutex)}};
+    std::optional<LockedL2capChannel> locked_channel{LockedL2capChannel{
+        channel.InternalForTesting(), std::unique_lock(mutex)}};
 
     PW_TEST_EXPECT_OK(recombiner.StartRecombination(*locked_channel, 8u, 0u));
 
@@ -244,8 +246,8 @@ TEST_F(RecombinerTest, RecombinedPduIsLargerThanSpecified) {
   BasicL2capChannel channel =
       BuildBasicL2capChannel(proxy_, {.handle = kConnectionHandle});
   pw::sync::Mutex mutex;
-  std::optional<LockedL2capChannel> locked_channel{
-      LockedL2capChannel{channel, std::unique_lock(mutex)}};
+  std::optional<LockedL2capChannel> locked_channel{LockedL2capChannel{
+      channel.InternalForTesting(), std::unique_lock(mutex)}};
 
   PW_TEST_EXPECT_OK(recombiner.StartRecombination(*locked_channel, 8u, 0u));
 
@@ -289,8 +291,8 @@ TEST_F(RecombinerTest, CanClaimExtraHeader) {
   BasicL2capChannel channel =
       BuildBasicL2capChannel(proxy_, {.handle = kConnectionHandle});
   pw::sync::Mutex mutex;
-  std::optional<LockedL2capChannel> locked_channel{
-      LockedL2capChannel{channel, std::unique_lock(mutex)}};
+  std::optional<LockedL2capChannel> locked_channel{LockedL2capChannel{
+      channel.InternalForTesting(), std::unique_lock(mutex)}};
 
   constexpr size_t kExtraHeaderSize = 4;
   PW_TEST_EXPECT_OK(

@@ -19,6 +19,7 @@
 
 #include "pw_assert/check.h"
 #include "pw_bluetooth_proxy/internal/acl_data_channel.h"
+#include "pw_bluetooth_proxy/internal/basic_l2cap_channel_internal.h"
 #include "pw_bluetooth_proxy/internal/gatt_notify_channel_internal.h"
 #include "pw_bluetooth_proxy/internal/l2cap_coc_internal.h"
 #include "pw_bluetooth_proxy/internal/logical_transport.h"
@@ -92,19 +93,23 @@ pw::Result<BasicL2capChannel> L2capChannelManager::AcquireBasicL2capChannel(
   if (!acl_data_channel_.HasAclConnection(connection_handle)) {
     return Status::Unavailable();
   }
-  Result<BasicL2capChannel> channel =
-      BasicL2capChannel::Create(*this,
-                                &rx_multibuf_allocator,
-                                /*connection_handle=*/connection_handle,
-                                /*transport=*/transport,
-                                /*local_cid=*/local_cid,
-                                /*remote_cid=*/remote_cid,
-                                /*payload_from_controller_fn=*/
-                                std::move(payload_from_controller_fn),
-                                /*payload_from_host_fn=*/
-                                std::move(payload_from_host_fn),
-                                /*event_fn=*/std::move(event_fn));
-  return channel;
+  Result<internal::BasicL2capChannelInternal> channel =
+      internal::BasicL2capChannelInternal::Create(
+          *this,
+          &rx_multibuf_allocator,
+          /*connection_handle=*/connection_handle,
+          /*transport=*/transport,
+          /*local_cid=*/local_cid,
+          /*remote_cid=*/remote_cid,
+          /*payload_from_controller_fn=*/
+          std::move(payload_from_controller_fn),
+          /*payload_from_host_fn=*/
+          std::move(payload_from_host_fn),
+          /*event_fn=*/std::move(event_fn));
+  if (!channel.ok()) {
+    return channel.status();
+  }
+  return BasicL2capChannel(std::move(channel.value()));
 }
 
 pw::Result<GattNotifyChannel> L2capChannelManager::AcquireGattNotifyChannel(

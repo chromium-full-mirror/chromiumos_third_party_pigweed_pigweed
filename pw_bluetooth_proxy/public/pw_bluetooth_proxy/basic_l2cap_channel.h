@@ -14,58 +14,72 @@
 
 #pragma once
 
-#include "pw_bluetooth_proxy/channel_proxy.h"
-#include "pw_bluetooth_proxy/internal/l2cap_channel.h"
-#include "pw_bluetooth_proxy/internal/multibuf.h"
-#include "pw_bluetooth_proxy/l2cap_channel_common.h"
+#include "pw_bluetooth_proxy/internal/basic_l2cap_channel_internal.h"
 
 namespace pw::bluetooth::proxy {
 
-class BasicL2capChannel : public ChannelProxy {
+class BasicL2capChannel final {
  public:
-  // TODO: https://pwbug.dev/360929142 - Take the MTU. Signaling channels would
-  // provide MTU_SIG.
-  static pw::Result<BasicL2capChannel> Create(
-      L2capChannelManager& l2cap_channel_manager,
-      MultiBufAllocator* rx_multibuf_allocator,
-      uint16_t connection_handle,
-      AclTransportType transport,
-      uint16_t local_cid,
-      uint16_t remote_cid,
-      OptionalPayloadReceiveCallback&& payload_from_controller_fn,
-      OptionalPayloadReceiveCallback&& payload_from_host_fn,
-      ChannelEventCallback&& event_fn);
-
   BasicL2capChannel(const BasicL2capChannel& other) = delete;
   BasicL2capChannel& operator=(const BasicL2capChannel& other) = delete;
   BasicL2capChannel(BasicL2capChannel&&) = default;
   BasicL2capChannel& operator=(BasicL2capChannel&& other) = default;
-  ~BasicL2capChannel() override;
+  ~BasicL2capChannel() = default;
 
-  /// Check if the passed Write parameter is acceptable.
-  Status DoCheckWriteParameter(const FlatConstMultiBuf& payload) override;
+  /// Send a payload to the remote peer.
+  ///
+  /// @param[in] payload The client payload to be sent. Payload will be
+  /// destroyed once its data has been used.
+  ///
+  /// @returns A `StatusWithMultiBuf` with one of the statuses below. If status
+  /// is not @OK then payload is also returned in `StatusWithMultiBuf`.
+  /// * @OK: Packet was successfully queued for send.
+  /// * @UNAVAILABLE: Channel could not acquire the resources to queue
+  ///   the send at this time (transient error). If an `event_fn` has been
+  ///   provided it will be called with `L2capChannelEvent::kWriteAvailable`
+  ///   when there is queue space available again.
+  /// * @INVALID_ARGUMENT: Payload is too large.
+  /// * @FAILED_PRECONDITION: Channel is not `State::kRunning`.
+  /// * @UNIMPLEMENTED: Channel does not support `Write(MultiBuf)`.
+  StatusWithMultiBuf Write(FlatConstMultiBuf&& payload);
 
- protected:
-  explicit BasicL2capChannel(
-      L2capChannelManager& l2cap_channel_manager,
-      MultiBufAllocator* rx_multibuf_allocator,
-      uint16_t connection_handle,
-      AclTransportType transport,
-      uint16_t local_cid,
-      uint16_t remote_cid,
-      OptionalPayloadReceiveCallback&& payload_from_controller_fn,
-      OptionalPayloadReceiveCallback&& payload_from_host_fn,
-      ChannelEventCallback&& event_fn);
+  /// Determine if channel is ready to accept one or more Write payloads.
+  ///
+  /// @returns
+  /// * @OK: Channel is ready to accept one or more `Write` payloads.
+  /// * @UNAVAILABLE: Channel does not yet have the resources to queue a Write
+  ///   at this time (transient error). If an `event_fn` has been provided it
+  ///   will be called with `L2capChannelEvent::kWriteAvailable` when there is
+  ///   queue space available again.
+  /// * @FAILED_PRECONDITION: Channel is not `State::kRunning`.
+  Status IsWriteAvailable();
 
-  bool HandlePduFromHost(pw::span<uint8_t> bframe) override;
+  static constexpr size_t QueueCapacity() {
+    return internal::BasicL2capChannelInternal::QueueCapacity();
+  }
 
-  void DoClose() override {}
+  L2capChannel::State state() const;
+
+  uint16_t local_cid() const;
+
+  uint16_t remote_cid() const;
+
+  uint16_t connection_handle() const;
+
+  AclTransportType transport() const;
+
+  // Close the channel in internal tests. DO NOT USE.
+  void CloseForTesting();
+
+  // Returns the internal channel. DO NOT USE.
+  internal::BasicL2capChannelInternal& InternalForTesting();
 
  private:
-  bool DoHandlePduFromController(pw::span<uint8_t> bframe) override;
+  friend class L2capChannelManager;
 
-  [[nodiscard]] std::optional<H4PacketWithH4> GenerateNextTxPacket()
-      PW_EXCLUSIVE_LOCKS_REQUIRED(l2cap_tx_mutex()) override;
+  BasicL2capChannel(internal::BasicL2capChannelInternal&& internal);
+
+  internal::BasicL2capChannelInternal internal_;
 };
 
 }  // namespace pw::bluetooth::proxy

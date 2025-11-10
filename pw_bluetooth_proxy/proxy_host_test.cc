@@ -2621,7 +2621,7 @@ TEST_F(BasicL2capChannelTest, MultithreadedWrite) {
   for (unsigned int i = 0; i < kNumThreads; ++i) {
     // TODO: https://pwbug.dev/422222575 -  Move channel close and dtor inside
     // each thread once we have proper channel lifecycle locking.
-    captures[i].channel.Close();
+    captures[i].channel.CloseForTesting();
   }
 
   {

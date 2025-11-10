@@ -18,6 +18,7 @@
 
 #include "pw_allocator/best_fit.h"
 #include "pw_allocator/synchronized_allocator.h"
+#include "pw_bluetooth_proxy/basic_l2cap_channel.h"
 #include "pw_bluetooth_proxy/gatt_notify_channel.h"
 #include "pw_bluetooth_proxy/internal/acl_data_channel.h"
 #include "pw_bluetooth_proxy/internal/l2cap_channel.h"

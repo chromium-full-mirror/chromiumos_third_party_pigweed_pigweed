@@ -37,6 +37,7 @@ def pw_bluetooth_proxy_library(name, **kwargs):
         srcs = [
             "acl_data_channel.cc",
             "basic_l2cap_channel.cc",
+            "basic_l2cap_channel_internal.cc",
             "channel_proxy.cc",
             "gatt_notify_channel.cc",
             "l2cap_channel.cc",
@@ -62,6 +63,7 @@ def pw_bluetooth_proxy_library(name, **kwargs):
             "public/pw_bluetooth_proxy/gatt_notify_channel.h",
             "public/pw_bluetooth_proxy/h4_packet.h",
             "public/pw_bluetooth_proxy/internal/acl_data_channel.h",
+            "public/pw_bluetooth_proxy/internal/basic_l2cap_channel_internal.h",
             "public/pw_bluetooth_proxy/internal/l2cap_logical_link.h",
             "public/pw_bluetooth_proxy/internal/gatt_notify_channel_internal.h",
             "public/pw_bluetooth_proxy/internal/hci_transport.h",

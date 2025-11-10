@@ -142,7 +142,7 @@ TEST_F(ChannelProxyTest, ChannelsStopOnProxyDestruction) {
       BuildOneOfEachChannel(proxy.value(), shared_event_fn, kConnectionHandle);
 
   // Channel already closed before Proxy destruction should not be affected.
-  close_first_channel.Close();
+  close_first_channel.CloseForTesting();
   EXPECT_EQ(events_received, 1ul);
   EXPECT_EQ(close_first_channel.state(), L2capChannel::State::kClosed);
 
@@ -199,7 +199,7 @@ TEST_F(ChannelProxyTest, ChannelsCloseOnReset) {
       BuildOneOfEachChannel(proxy, shared_event_fn);
 
   // Channel already closed before Proxy reset should not be affected.
-  close_first_channel.Close();
+  close_first_channel.CloseForTesting();
   EXPECT_EQ(events_received, 1ul);
   EXPECT_EQ(close_first_channel.state(), L2capChannel::State::kClosed);
 
