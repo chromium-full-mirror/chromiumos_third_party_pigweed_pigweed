@@ -49,39 +49,7 @@ Add files to the docs build
 
 Add files to the C/C++ API reference auto-generation system (Doxygen)
 =====================================================================
-#. Package your headers into a ``filegroup``:
-
-   .. code-block:: py
-
-      filegroup(
-          name = "doxygen",
-          srcs = [
-              "public/pw_string/format.h",
-              "public/pw_string/string.h",
-              "public/pw_string/string_builder.h",
-              "public/pw_string/utf_codecs.h",
-              "public/pw_string/util.h",
-          ],
-      )
-
-#. Update ``srcs`` in ``//docs/doxygen/BUILD.bazel`` to take a
-   dependency on your new ``filegroup``:
-
-   .. code-block:: py
-
-      filegroup(
-          name = "srcs",
-          srcs = [
-              # …
-              "//pw_string:doxygen",
-              # …
-          ]
-      )
-
-.. _Breathe directive: https://breathe.readthedocs.io/en/latest/directives.html
-
-#. Use a `Breathe directive`_ such as ``.. doxygenclass::`` to pull the API
-   reference content into a reStructuredText file.
+See the Doxygen-specific :ref:`contrib-doxygen-quickstart` for instructions.
 
 .. _contrib-docs-build-files-autodoc:
 
