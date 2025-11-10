@@ -183,7 +183,6 @@ sphinx_docs_library(
     name = "docs",
     srcs = [
         "BUILD.bazel",
-        "BUILD.gn",
         "basic.cc",
         "channel.cc",
         "coro_blinky_loop.cc",

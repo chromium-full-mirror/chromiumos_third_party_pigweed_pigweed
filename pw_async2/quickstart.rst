@@ -11,7 +11,6 @@ into a project. It's based on the following files in upstream Pigweed:
 
 * :cs:`pw_async2/examples/count.cc`
 * :cs:`pw_async2/examples/BUILD.bazel`
-* :cs:`pw_async2/examples/BUILD.gn`
 
 The example app can be built and run in upstream Pigweed with the
 following command:
@@ -37,30 +36,17 @@ asynchronous unit of work analogous to a thread, as well as the
 :cc:`Dispatcher <pw::async2::Dispatcher>` class, an event loop used to
 run ``Task`` instances to completion.
 
-.. tab-set::
+In Bazel, add a dependency on ``@pigweed//pw_async2:dispatcher``:
 
-   .. tab-item:: Bazel
+.. literalinclude:: examples/BUILD.bazel
+   :language: py
+   :linenos:
+   :emphasize-lines: 10
+   :start-after: count-example-start
+   :end-before: count-example-end
 
-      Add a dependency on ``@pigweed//pw_async2:dispatcher`` in
-      ``BUILD.bazel``:
-
-      .. literalinclude:: examples/BUILD.bazel
-         :language: py
-         :linenos:
-         :emphasize-lines: 10
-         :start-after: count-example-start
-         :end-before: count-example-end
-
-   .. tab-item:: GN
-
-      Add a dependency on ``$dir_pw_async2:dispatcher`` in ``BUILD.gn``:
-
-      .. literalinclude:: examples/BUILD.gn
-         :language: py
-         :linenos:
-         :emphasize-lines: 7
-         :start-after: count-example-start
-         :end-before: count-example-end
+Depend on ``pw_async2.dispatcher`` in CMake or ``$dir_pw_async2:dispatcher`` in
+``BUILD.gn``.
 
 .. _module-pw_async2-quickstart-dependencies:
 

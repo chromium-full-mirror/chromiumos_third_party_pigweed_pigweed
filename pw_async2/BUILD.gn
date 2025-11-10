@@ -582,5 +582,4 @@ pw_test_group("tests") {
       ":pend_func_awaitable_test",
     ]
   }
-  group_deps = [ "examples" ]
 }
