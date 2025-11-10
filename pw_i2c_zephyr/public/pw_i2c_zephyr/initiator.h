@@ -14,6 +14,10 @@
 #pragma once
 
 #include <zephyr/device.h>
+#include <zephyr/drivers/i2c.h>
+#include <zephyr/dt-bindings/i2c/i2c.h>
+
+#include <cstdint>
 
 #include "pw_i2c/initiator.h"
 #include "pw_sync/lock_annotations.h"
@@ -24,7 +28,11 @@ namespace pw::i2c {
 class ZephyrInitiator final : public Initiator {
  public:
   ZephyrInitiator(const struct device* dev)
-      : Initiator(Initiator::Feature::kStandard), dev_(dev) {}
+      : Initiator(Initiator::Feature::kStandard),
+        dev_(dev),
+        config_(I2C_MODE_CONTROLLER | I2C_SPEED_SET(I2C_SPEED_DT)) {}
+
+  void Enable() PW_LOCKS_EXCLUDED(mutex_);
 
  private:
   Status DoWriteReadFor(Address device_address,
@@ -35,5 +43,6 @@ class ZephyrInitiator final : public Initiator {
 
   sync::Mutex mutex_;
   const struct device* dev_ PW_GUARDED_BY(mutex_);
+  const uint32_t config_ PW_GUARDED_BY(mutex_);
 };
 }  // namespace pw::i2c

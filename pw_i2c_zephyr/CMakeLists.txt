@@ -51,6 +51,8 @@ pw_add_library(pw_i2c_zephyr.responder STATIC
     pw_log               # For logging
     pw_status            # For pw::Status
     zephyr_interface
+  PRIVATE_DEPS
+    pw_assert.check
 )
 if(CONFIG_PIGWEED_I2C_RESPONDER)
   zephyr_append_cmake_library(pw_i2c_zephyr.responder)

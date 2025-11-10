@@ -17,7 +17,21 @@
 
 #include <mutex>
 
+#include "pw_assert/check.h"
+
 namespace pw::i2c {
+
+void ZephyrInitiator::Enable() {
+  std::lock_guard lock(mutex_);
+
+  // Initialize I2C device if it isn't ready (ex. deferred initialization)
+  if (!device_is_ready(dev_)) {
+    PW_CHECK_INT_EQ(device_init(dev_), 0);
+  }
+
+  // Configure I2C device
+  PW_CHECK_INT_EQ(i2c_configure(dev_, config_), 0);
+}
 
 Status ZephyrInitiator::DoWriteReadFor(Address device_address,
                                        ConstByteSpan tx_buffer,
