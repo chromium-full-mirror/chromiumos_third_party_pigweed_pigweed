@@ -15,6 +15,24 @@ In the simplest case, Bazel will automatically update the lockfile in the
 course of your development work, as you execute commands like ``bazel build``.
 You just need to commit the changes as part of your CL.
 
+-------------------------------------
+Simple case: outdated extension files
+-------------------------------------
+If you see the following error:
+
+.. code-block:: none
+
+   ERROR: MODULE.bazel.lock is no longer up-to-date because: One or more files
+   the extension '@@rules_python+//python/extensions:pip.bzl%pip' is using have
+   changed. Please run `bazel mod deps --lockfile_mode=update` to update your
+   lockfile.
+
+Run the following command to fix it:
+
+.. code-block:: console
+
+   bazelisk mod deps --lockfile_mode=update
+
 ---------------------------------
 Complex case: platform-dependency
 ---------------------------------
@@ -27,7 +45,10 @@ builders running on platforms different from the one you developed on:
 
 .. code-block:: console
 
-   ERROR: The module extension 'ModuleExtensionId{bzlFileLabel=@@rules_rust+//crate_universe:extension.bzl, extensionName=crate, isolationKey=Optional.empty}' for platform os:osx,arch:x86_64 does not exist in the lockfile.
+   ERROR: The module extension
+   'ModuleExtensionId{bzlFileLabel=@@rules_rust+//crate_universe:extension.bzl,
+   extensionName=crate, isolationKey=Optional.empty}' for platform
+   os:osx,arch:x86_64 does not exist in the lockfile.
 
 What's going on here is that the exact versions of external dependencies that
 enter the build vary depending on the OS or CPU architecture of the system
