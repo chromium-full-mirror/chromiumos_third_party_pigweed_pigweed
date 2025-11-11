@@ -142,25 +142,26 @@ TEST(Channel, BlockingSend) {
 
   struct {
     DispatcherForTest& dispatcher;
+    Sender<int>& sender;
     size_t send_count;
-  } sender_context{dispatcher, 0};
+  } sender_context{dispatcher, sender, 0};
 
   pw::thread::test::TestThreadContext context;
-  pw::Thread sender_thread(
-      context.options(),
-      [sender = std::move(sender), &sender_context]() mutable {
-        pw::Status last_status;
-        for (int i = 0; i < 10; ++i) {
-          last_status = sender.BlockingSend(sender_context.dispatcher, i);
-          if (last_status.ok()) {
-            ++sender_context.send_count;
-          } else {
-            break;
-          }
-        }
+  pw::Thread sender_thread(context.options(), [&sender_context]() {
+    pw::Status last_status;
+    for (int i = 0; i < 10; ++i) {
+      last_status =
+          sender_context.sender.BlockingSend(sender_context.dispatcher, i);
+      if (last_status.ok()) {
+        ++sender_context.send_count;
+      } else {
+        break;
+      }
+    }
 
-        EXPECT_EQ(last_status, pw::OkStatus());
-      });
+    sender_context.sender.Disconnect();
+    EXPECT_EQ(last_status, pw::OkStatus());
+  });
 
   ReceiverTask receiver_task(std::move(receiver));
   dispatcher.Post(receiver_task);
@@ -188,29 +189,29 @@ TEST(Channel, BlockingSend_ChannelCloses) {
   struct {
     DispatcherForTest& dispatcher;
     IdleTask& idle_task;
+    Sender<int>& sender;
     size_t send_count;
-  } sender_context{dispatcher, idle_task, 0};
+  } sender_context{dispatcher, idle_task, sender, 0};
 
   // The sender will write values up until the receiver disconnects and the
   // channel closes, causing `BlockingSend` to return false.
   pw::thread::test::TestThreadContext context;
-  pw::Thread sender_thread(
-      context.options(),
-      [sender = std::move(sender), &sender_context]() mutable {
-        pw::Status last_status;
-        for (int i = 0; i < 10; ++i) {
-          last_status = sender.BlockingSend(sender_context.dispatcher, i);
-          if (last_status.ok()) {
-            ++sender_context.send_count;
-          } else {
-            break;
-          }
-        }
+  pw::Thread sender_thread(context.options(), [&sender_context]() {
+    pw::Status last_status;
+    for (int i = 0; i < 10; ++i) {
+      last_status =
+          sender_context.sender.BlockingSend(sender_context.dispatcher, i);
+      if (last_status.ok()) {
+        ++sender_context.send_count;
+      } else {
+        break;
+      }
+    }
 
-        EXPECT_EQ(last_status, pw::Status::FailedPrecondition());
-        EXPECT_TRUE(sender.closed());
-        sender_context.idle_task.Complete();
-      });
+    EXPECT_EQ(last_status, pw::Status::FailedPrecondition());
+    EXPECT_TRUE(sender_context.sender.closed());
+    sender_context.idle_task.Complete();
+  });
 
   constexpr size_t kDisconnectAfter = 3;
 
@@ -240,31 +241,30 @@ TEST(Channel, BlockingSend_Timeout) {
   struct {
     DispatcherForTest& dispatcher;
     IdleTask& idle_task;
+    Sender<int>& sender;
     size_t send_count;
-  } sender_context{dispatcher, idle_task, 0};
+  } sender_context{dispatcher, idle_task, sender, 0};
 
   // No task is receiving, so the sender should write values up to the channel
   // capacity and then block, timing out and failing. The channel should remain
   // open the entire time.
   pw::thread::test::TestThreadContext context;
-  pw::Thread sender_thread(
-      context.options(),
-      [sender = std::move(sender), &sender_context]() mutable {
-        pw::Status last_status;
-        for (int i = 0; i < 10; ++i) {
-          last_status =
-              sender.BlockingSend(sender_context.dispatcher, i, 200ms);
-          if (last_status.ok()) {
-            ++sender_context.send_count;
-          } else {
-            break;
-          }
-        }
+  pw::Thread sender_thread(context.options(), [&sender_context]() {
+    pw::Status last_status;
+    for (int i = 0; i < 10; ++i) {
+      last_status = sender_context.sender.BlockingSend(
+          sender_context.dispatcher, i, 200ms);
+      if (last_status.ok()) {
+        ++sender_context.send_count;
+      } else {
+        break;
+      }
+    }
 
-        EXPECT_EQ(last_status, pw::Status::DeadlineExceeded());
-        EXPECT_FALSE(sender.closed());
-        sender_context.idle_task.Complete();
-      });
+    EXPECT_EQ(last_status, pw::Status::DeadlineExceeded());
+    EXPECT_FALSE(sender_context.sender.closed());
+    sender_context.idle_task.Complete();
+  });
 
   dispatcher.RunToCompletion();
   sender_thread.join();
@@ -285,35 +285,34 @@ TEST(Channel, BlockingReceive) {
   struct {
     DispatcherForTest& dispatcher;
     IdleTask& idle_task;
+    Receiver<int>& receiver;
     size_t receive_count;
-  } receiver_context{dispatcher, idle_task, 0};
+  } receiver_context{dispatcher, idle_task, receiver, 0};
 
   // The receive thread should read values until the sender disconnects and the
   // channel closes.
   pw::thread::test::TestThreadContext context;
-  pw::Thread receiver_thread(
-      context.options(),
-      [receiver = std::move(receiver), &receiver_context]() mutable {
-        pw::Status last_status;
-        int expected = 0;
+  pw::Thread receiver_thread(context.options(), [&receiver_context]() {
+    pw::Status last_status;
+    int expected = 0;
 
-        while (true) {
-          pw::Result<int> received =
-              receiver.BlockingReceive(receiver_context.dispatcher);
-          last_status = received.status();
-          if (received.ok()) {
-            EXPECT_EQ(*received, expected);
-            ++receiver_context.receive_count;
-            ++expected;
-          } else {
-            break;
-          }
-        }
+    while (true) {
+      pw::Result<int> received = receiver_context.receiver.BlockingReceive(
+          receiver_context.dispatcher);
+      last_status = received.status();
+      if (received.ok()) {
+        EXPECT_EQ(*received, expected);
+        ++receiver_context.receive_count;
+        ++expected;
+      } else {
+        break;
+      }
+    }
 
-        EXPECT_EQ(last_status, pw::Status::FailedPrecondition());
-        EXPECT_TRUE(receiver.closed());
-        receiver_context.idle_task.Complete();
-      });
+    EXPECT_EQ(last_status, pw::Status::FailedPrecondition());
+    EXPECT_TRUE(receiver_context.receiver.closed());
+    receiver_context.idle_task.Complete();
+  });
 
   SenderTask sender_task(std::move(sender), 0, 9);
   dispatcher.Post(sender_task);
@@ -337,8 +336,9 @@ TEST(Channel, BlockingReceive_Timeout) {
   struct {
     DispatcherForTest& dispatcher;
     IdleTask& idle_task;
+    Receiver<int>& receiver;
     size_t receive_count;
-  } receiver_context{dispatcher, idle_task, 0};
+  } receiver_context{dispatcher, idle_task, receiver, 0};
 
   // Push some values into the channel upfront.
   EXPECT_TRUE(sender.TrySend(0));
@@ -348,26 +348,24 @@ TEST(Channel, BlockingReceive_Timeout) {
   // first drain the two existing values, then timeout trying to read more.
   // The channel should remain open the entire time.
   pw::thread::test::TestThreadContext context;
-  pw::Thread receiver_thread(
-      context.options(),
-      [receiver = std::move(receiver), &receiver_context]() mutable {
-        pw::Status last_status;
-        for (int i = 0; i < 10; ++i) {
-          pw::Result<int> received =
-              receiver.BlockingReceive(receiver_context.dispatcher, 200ms);
-          last_status = received.status();
-          if (received.ok()) {
-            EXPECT_EQ(*received, i);
-            ++receiver_context.receive_count;
-          } else {
-            break;
-          }
-        }
+  pw::Thread receiver_thread(context.options(), [&receiver_context]() {
+    pw::Status last_status;
+    for (int i = 0; i < 10; ++i) {
+      pw::Result<int> received = receiver_context.receiver.BlockingReceive(
+          receiver_context.dispatcher, 200ms);
+      last_status = received.status();
+      if (received.ok()) {
+        EXPECT_EQ(*received, i);
+        ++receiver_context.receive_count;
+      } else {
+        break;
+      }
+    }
 
-        EXPECT_EQ(last_status, pw::Status::DeadlineExceeded());
-        EXPECT_FALSE(receiver.closed());
-        receiver_context.idle_task.Complete();
-      });
+    EXPECT_EQ(last_status, pw::Status::DeadlineExceeded());
+    EXPECT_FALSE(receiver_context.receiver.closed());
+    receiver_context.idle_task.Complete();
+  });
 
   dispatcher.RunToCompletion();
   receiver_thread.join();
