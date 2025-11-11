@@ -14,6 +14,8 @@
 
 #include "pw_bluetooth_proxy/internal/basic_l2cap_channel_internal.h"
 
+#include <mutex>
+
 #include "pw_assert/check.h"
 #include "pw_bluetooth/emboss_util.h"
 #include "pw_bluetooth/hci_data.emb.h"
@@ -48,9 +50,33 @@ pw::Result<BasicL2capChannelInternal> BasicL2capChannelInternal::Create(
       /*remote_cid=*/remote_cid,
       /*payload_from_controller_fn=*/std::move(payload_from_controller_fn),
       /*payload_from_host_fn=*/std::move(payload_from_host_fn),
-      /*event_fn=*/std::move(event_fn));
+      /*event_fn=*/std::move(event_fn),
+      nullptr,
+      nullptr);
   channel.Init();
   return channel;
+}
+
+BasicL2capChannelInternal::BasicL2capChannelInternal(
+    BasicL2capChannelInternal&& other)
+    : ChannelProxy(static_cast<ChannelProxy&&>(other)) {
+  Move(std::move(other));
+}
+
+BasicL2capChannelInternal& BasicL2capChannelInternal::operator=(
+    BasicL2capChannelInternal&& other) {
+  ChannelProxy::operator=(static_cast<ChannelProxy&&>(other));
+  Move(std::move(other));
+  return *this;
+}
+
+void BasicL2capChannelInternal::Move(BasicL2capChannelInternal&& other) {
+  std::lock_guard lock(mutex_);
+  std::lock_guard other_lock(other.mutex_);
+  payload_span_from_controller_fn_ =
+      std::exchange(other.payload_span_from_controller_fn_, nullptr);
+  payload_span_from_host_fn_ =
+      std::exchange(other.payload_span_from_host_fn_, nullptr);
 }
 
 Status BasicL2capChannelInternal::DoCheckWriteParameter(
@@ -109,7 +135,9 @@ BasicL2capChannelInternal::BasicL2capChannelInternal(
     uint16_t remote_cid,
     OptionalPayloadReceiveCallback&& payload_from_controller_fn,
     OptionalPayloadReceiveCallback&& payload_from_host_fn,
-    ChannelEventCallback&& event_fn)
+    ChannelEventCallback&& event_fn,
+    PayloadSpanReceiveCallback&& payload_span_from_controller_fn,
+    PayloadSpanReceiveCallback&& payload_span_from_host_fn)
     : ChannelProxy(
           l2cap_channel_manager,
           rx_multibuf_allocator,
@@ -119,7 +147,10 @@ BasicL2capChannelInternal::BasicL2capChannelInternal(
           /*remote_cid=*/remote_cid,
           /*payload_from_controller_fn=*/std::move(payload_from_controller_fn),
           /*payload_from_host_fn=*/std::move(payload_from_host_fn),
-          /*event_fn=*/std::move(event_fn)) {
+          /*event_fn=*/std::move(event_fn)),
+      payload_span_from_controller_fn_(
+          std::move(payload_span_from_controller_fn)),
+      payload_span_from_host_fn_(std::move(payload_span_from_host_fn)) {
   PW_LOG_INFO("btproxy: BasicL2capChannelInternal ctor");
 }
 
@@ -142,9 +173,17 @@ bool BasicL2capChannelInternal::DoHandlePduFromController(
     return true;
   }
 
-  return SendPayloadFromControllerToClient(
-      span(bframe_view->payload().BackingStorage().data(),
-           bframe_view->payload().SizeInBytes()));
+  pw::span payload(bframe_view->payload().BackingStorage().data(),
+                   bframe_view->payload().SizeInBytes());
+
+  {
+    std::lock_guard lock(mutex_);
+    if (payload_span_from_controller_fn_) {
+      return payload_span_from_controller_fn_(payload);
+    }
+  }
+
+  return SendPayloadFromControllerToClient(payload);
 }
 
 bool BasicL2capChannelInternal::HandlePduFromHost(pw::span<uint8_t> bframe) {
@@ -158,9 +197,17 @@ bool BasicL2capChannelInternal::HandlePduFromHost(pw::span<uint8_t> bframe) {
     return true;
   }
 
-  return SendPayloadFromHostToClient(
-      span(bframe_view->payload().BackingStorage().data(),
-           bframe_view->payload().SizeInBytes()));
+  pw::span payload(bframe_view->payload().BackingStorage().data(),
+                   bframe_view->payload().SizeInBytes());
+
+  {
+    std::lock_guard lock(mutex_);
+    if (payload_span_from_host_fn_) {
+      return payload_span_from_host_fn_(payload);
+    }
+  }
+
+  return SendPayloadFromHostToClient(payload);
 }
 
 }  // namespace pw::bluetooth::proxy::internal

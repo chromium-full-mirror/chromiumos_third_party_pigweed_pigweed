@@ -114,6 +114,10 @@ class L2capChannel : public IntrusiveForwardList<L2capChannel>::Item {
 
   virtual ~L2capChannel();
 
+  // Complete initialization and registration of the channel. Must be called
+  // after ctor for channel to be active.
+  void Init();
+
   //-------------
   //  Status (internal public)
   //-------------
@@ -168,6 +172,13 @@ class L2capChannel : public IntrusiveForwardList<L2capChannel>::Item {
   // TODO: https://pwbug.dev/388082771 - Plan to eventually move this to
   // ClientChannel.
   StatusWithMultiBuf Write(FlatConstMultiBuf&& payload);
+
+  // Channels that need to send a payload during handling a received packet
+  // directly (for instance to replenish credits) should use this function which
+  // does not take the L2capChannelManager channels lock.
+  inline StatusWithMultiBuf WriteDuringRx(FlatConstMultiBuf&& payload) {
+    return WriteLocked(std::move(payload));
+  }
 
   /// Determine if channel is ready to accept one or more Write payloads.
   ///
@@ -237,10 +248,6 @@ class L2capChannel : public IntrusiveForwardList<L2capChannel>::Item {
       OptionalPayloadReceiveCallback&& payload_from_controller_fn,
       OptionalPayloadReceiveCallback&& payload_from_host_fn);
 
-  // Complete initialization and registration of the channel. Must be called
-  // after ctor for channel to be active.
-  void Init();
-
   // Returns whether or not ACL connection handle & L2CAP channel identifiers
   // are valid parameters for a packet.
   [[nodiscard]] static bool AreValidParameters(uint16_t connection_handle,
@@ -305,13 +312,6 @@ class L2capChannel : public IntrusiveForwardList<L2capChannel>::Item {
 
   /// Check if the passed Write parameter is acceptable.
   virtual Status DoCheckWriteParameter(const FlatConstMultiBuf& payload) = 0;
-
-  // Channels that need to send a payload during handling a received packet
-  // directly (for instance to replenish credits) should use this function which
-  // does not take the L2capChannelManager channels lock.
-  inline StatusWithMultiBuf WriteDuringRx(FlatConstMultiBuf&& payload) {
-    return WriteLocked(std::move(payload));
-  }
 
   // Write payload to queue but don't drain the queue as this would require
   // taking L2capChannelManager channel_mutex_ lock.
