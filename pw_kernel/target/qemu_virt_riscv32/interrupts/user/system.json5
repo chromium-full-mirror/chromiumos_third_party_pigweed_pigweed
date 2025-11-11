@@ -24,4 +24,26 @@
             table: {}
         },
     },
+    apps: {
+        interrupts: {
+            flash_size_bytes: 261120, // 255Kb
+            ram_size_bytes: 65536,    // 64Kb
+            process: {
+                name: "interrupt test",
+                memory_mappings: {
+                    UART0: {
+                        type: "device",
+                        start_address: 0x10000000,
+                        size_bytes: 0x2000,
+                    }
+                },
+                threads: [
+                    {
+                        name: "interrupt test",
+                        stack_size_bytes: 1024,
+                    },
+                ],
+            },
+        },
+    },
 }

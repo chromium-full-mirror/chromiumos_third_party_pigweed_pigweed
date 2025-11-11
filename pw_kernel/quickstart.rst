@@ -11,7 +11,7 @@ Quickstart
    This is an early draft. The content may change significantly over the
    next few months.
 
-This quickstart shows you how to build, run, and demo ``pw_kernel`` within
+This quickstart shows you how to build and test ``pw_kernel`` within
 :ref:`docs-glossary-upstream`.
 
 We don't yet have documentation on how to pull ``pw_kernel`` into your project
@@ -83,68 +83,17 @@ To run unittests tests for the RISC-V QEMU target and see all test output:
 
    bazelisk test --test_output=all --cache_test_results=no --config k_qemu_virt_riscv32 //pw_kernel/target/qemu_virt_riscv32/unittest_runner
 
----------------------
-Run demo applications
----------------------
-You can run pre-built demo applications in QEMU.
-
-.. tip::
-
-   To exit QEMU, press :kbd:`Ctrl+A` and then press :kbd:`X`.
-
-QEMU for MPS2-AN505 (Cortex-M33)
-================================
-.. tab-set::
-
-   .. tab-item:: Kernel-only demo
-
-      .. code-block:: console
-
-         bazelisk run --config k_qemu_mps2_an505 //pw_kernel/target/mps2_an505/kernelspace_demo
-
-   .. tab-item:: Userspace demo
-
-      .. code-block:: console
-
-         bazelisk run --config k_qemu_mps2_an505 //pw_kernel/target/mps2_an505/userspace_demo
-
-QEMU for virt (RISC-V)
-======================
-.. tab-set::
-
-   .. tab-item:: Kernel-only demo
-
-      .. code-block:: console
-
-         bazelisk run --config k_qemu_virt_riscv32 //pw_kernel/target/qemu_virt_riscv32/kernelspace_demo
-
-   .. tab-item:: Userspace demo
-
-      .. code-block:: console
-
-         bazelisk run --config k_qemu_virt_riscv32 //pw_kernel/target/qemu_virt_riscv32/userspace_demo
-
 Raspberry Pi RP2350
 ===================
-You can run the demos on a physical RP2350-based board (such as the Pico 2).
+You can run the tests on a physical RP2350-based board.
 
-Build one of the demos:
+Build one of the tests:
 
-.. tab-set::
+.. code-block:: console
 
-   .. tab-item:: Kernel-only demo
+   bazelisk build --config k_rp2350 //pw_kernel/target/pw_rp2350/ipc/user:ipc
 
-      .. code-block:: console
-
-         bazelisk build --config k_rp2350 //pw_kernel/target/pw_rp2350/kernelspace_demo
-
-   .. tab-item:: Userspace demo
-
-      .. code-block:: console
-
-         bazelisk build --config k_rp2350 //pw_kernel/target/pw_rp2350/userspace_demo
-
-The output ELF files will be located in the ``bazel-bin/pw_kernel/target/pw_rp2350/`` directory.
+The output ELF files will be located in the ``bazel-bin/pw_kernel/target/pw_rp2350/ipc/user/`` directory.
 
 To view console output from the RP2350, connect to its serial port. The
 following commands will build the firmware (if necessary) and then connect to
@@ -160,37 +109,17 @@ macOS.
 You can flash the compiled ``.elf`` files to the RP2350 using `probe-rs`_.
 See `Installation`_.
 
-Flash one of the demos:
+Flash one of the tests:
 
-.. tab-set::
+.. code-block:: console
 
-   .. tab-item:: Kernel-only demo
+   probe-rs download bazel-bin/pw_kernel/target/pw_rp2350/ipc/user/ipc.elf && probe-rs reset --chip rp2350
 
-      .. code-block:: console
+Run one of the tests:
 
-         probe-rs download --chip rp2350 bazel-bin/pw_kernel/target/pw_rp2350/kernelspace_demo/kernelspace_demo.elf && probe-rs reset --chip rp2350
+.. code-block:: console
 
-   .. tab-item:: Userspace demo
-
-      .. code-block:: console
-
-         probe-rs download --chip rp2350 bazel-bin/pw_kernel/target/pw_rp2350/userspace_demo/userspace_demo.elf && probe-rs reset --chip rp2350
-
-Run one of the demos:
-
-.. tab-set::
-
-   .. tab-item:: Kernel-only demo
-
-      .. code-block:: console
-
-         bazelisk run --config k_rp2350 //pw_kernel/target/pw_rp2350/kernelspace_demo -- -d <SERIAL_DEVICE>
-
-   .. tab-item:: Userspace demo
-
-      .. code-block:: console
-
-         bazelisk run --config k_rp2350 //pw_kernel/target/pw_rp2350/userspace_demo -- -d <SERIAL_DEVICE>
+   bazelisk run --config k_rp2350 //pw_kernel/target/pw_rp2350/ipc/user:ipc -- -d <SERIAL_DEVICE>
 
 .. tip::
 

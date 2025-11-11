@@ -11,16 +11,26 @@
 // WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 // License for the specific language governing permissions and limitations under
 // the License.
-{
-    arch: {
-        type: "armv8m",
-        vector_table_start_address: 0x10000000,
-        vector_table_size_bytes: 2048,
-    },
-    kernel: {
-        flash_start_address: 0x10000800,
-        flash_size_bytes: 261120,        // 255Kb
-        ram_start_address: 0x38000000,
-        ram_size_bytes: 65536,           // 64Kb
-    },
+#![no_std]
+#![no_main]
+
+use target_common::{TargetInterface, declare_target};
+use {console_backend as _, entry as _};
+
+pub struct Target {}
+
+impl TargetInterface for Target {
+    const NAME: &'static str = "PW RP2350 Userspace IPC";
+
+    fn console_init() {
+        console_backend::init();
+    }
+
+    fn main() -> ! {
+        codegen::start();
+        #[expect(clippy::empty_loop)]
+        loop {}
+    }
 }
+
+declare_target!(Target);

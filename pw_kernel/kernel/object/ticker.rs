@@ -20,7 +20,7 @@ use crate::Kernel;
 use crate::object::{KernelObject, ObjectBase, Signals};
 use crate::scheduler::timer::{Timer, TimerCallback};
 
-/// Demo kernel object that signals based off of a timer.
+/// Ticker object that signals based off of a timer.
 pub struct TickerObject<K: Kernel> {
     base: ObjectBase<K>,
 }
