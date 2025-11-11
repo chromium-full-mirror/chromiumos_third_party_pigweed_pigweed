@@ -16,13 +16,13 @@
 
 #include <optional>
 
-#include "pw_async2/dispatcher.h"
+#include "pw_async2/dispatcher_for_test.h"
 #include "pw_async2/value_future.h"
 #include "pw_unit_test/framework.h"
 
 namespace {
 
-using ::pw::async2::Dispatcher;
+using ::pw::async2::DispatcherForTest;
 using ::pw::async2::FutureCallbackTask;
 using ::pw::async2::Pending;
 using ::pw::async2::Ready;
@@ -36,7 +36,7 @@ TEST(FutureCallbackTask, PendsFutureUntilReady) {
   FutureCallbackTask<ValueFuture<char>> task(provider.Get(),
                                              [&result](char c) { result = c; });
 
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   dispatcher.Post(task);
   EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
   EXPECT_EQ(result, '\0');
@@ -55,7 +55,7 @@ TEST(FutureCallbackTask, ImmediatelyReturnsReady) {
   FutureCallbackTask<ValueFuture<char>> task(ValueFuture<char>::Resolved('b'),
                                              [&result](char c) { result = c; });
 
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   dispatcher.Post(task);
   EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
   EXPECT_EQ(result, 'b');
@@ -71,7 +71,7 @@ TEST(FutureCallbackTask, VoidFuture) {
   FutureCallbackTask<ValueFuture<void>> task(
       provider.Get(), [&completed]() { completed = true; });
 
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   dispatcher.Post(task);
   EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
   EXPECT_FALSE(completed);

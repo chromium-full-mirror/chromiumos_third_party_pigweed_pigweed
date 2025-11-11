@@ -14,13 +14,14 @@
 
 #include "pw_async2/simulated_time_provider.h"
 
+#include "pw_async2/dispatcher_for_test.h"
 #include "pw_chrono/system_clock.h"
 #include "pw_unit_test/framework.h"
 
 namespace {
 
 using ::pw::async2::Context;
-using ::pw::async2::Dispatcher;
+using ::pw::async2::DispatcherForTest;
 using ::pw::async2::Pending;
 using ::pw::async2::Poll;
 using ::pw::async2::Ready;
@@ -79,7 +80,7 @@ struct WaitTask : public Task {
 TEST(SimulatedTimeProvider, AdvanceTimeRunsPastTimers) {
   SimulatedTimeProvider<SystemClock> tp;
   WaitTask task(tp.WaitFor(1h));
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   dispatcher.Post(task);
   tp.AdvanceTime(30min);
   EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
@@ -90,7 +91,7 @@ TEST(SimulatedTimeProvider, AdvanceTimeRunsPastTimers) {
 TEST(SimulatedTimeProvider, AdvanceUntilNextExpirationRunsPastTimers) {
   SimulatedTimeProvider<SystemClock> tp;
   WaitTask task(tp.WaitFor(1h));
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   dispatcher.Post(task);
   EXPECT_TRUE(tp.AdvanceUntilNextExpiration());
   EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
@@ -125,8 +126,8 @@ TEST(SimulatedTimeProvider, TimerWithPastExpirationExpiresImmediately) {
   auto start = tp.now();
   tp.AdvanceTime(90min);
   auto timer = tp.WaitUntil(start + 30min);
-  Dispatcher dispatcher;
-  EXPECT_TRUE(dispatcher.RunPendableUntilStalled(timer).IsReady());
+  DispatcherForTest dispatcher;
+  EXPECT_TRUE(dispatcher.RunInTaskUntilStalled(timer).IsReady());
 }
 
 TEST(SimulatedTimeProvider, MultipleMovedTimersExpireInOrder) {
@@ -140,7 +141,7 @@ TEST(SimulatedTimeProvider, MultipleMovedTimersExpireInOrder) {
   WaitTask t1(std::move(t1_init));
   WaitTask t3(std::move(t3_init));
 
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   dispatcher.Post(t1);
   dispatcher.Post(t2);
   dispatcher.Post(t3);

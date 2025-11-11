@@ -14,16 +14,16 @@
 
 #include "pw_async2/enqueue_heap_func.h"
 
-#include "pw_async2/dispatcher_base.h"
+#include "pw_async2/dispatcher_for_test.h"
 #include "pw_unit_test/framework.h"
 
 namespace {
 
-using ::pw::async2::Dispatcher;
+using ::pw::async2::DispatcherForTest;
 using ::pw::async2::EnqueueHeapFunc;
 
-TEST(Dispatcher, DispatcherRunsEnqueuedTasksOnce) {
-  Dispatcher dispatcher;
+TEST(DispatcherForTest, DispatcherRunsEnqueuedTasksOnce) {
+  DispatcherForTest dispatcher;
   int ran = 0;
   EnqueueHeapFunc(dispatcher, [&ran]() { ++ran; });
   EXPECT_EQ(ran, 0);

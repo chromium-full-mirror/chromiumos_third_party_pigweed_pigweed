@@ -15,7 +15,7 @@
 #include "pw_async2/channel.h"
 
 #include "pw_allocator/testing.h"
-#include "pw_async2/dispatcher.h"
+#include "pw_async2/dispatcher_for_test.h"
 #include "pw_async2/pend_func_task.h"
 #include "pw_async2/try.h"
 #include "pw_containers/vector.h"
@@ -29,7 +29,7 @@ using pw::async2::CreateMpmcChannel;
 using pw::async2::CreateMpscChannel;
 using pw::async2::CreateSpmcChannel;
 using pw::async2::CreateSpscChannel;
-using pw::async2::Dispatcher;
+using pw::async2::DispatcherForTest;
 using pw::async2::MpmcChannelHandle;
 using pw::async2::PendFuncTask;
 using pw::async2::Pending;
@@ -155,7 +155,7 @@ void ExpectReceived1To6(const pw::Vector<int>& received) {
 }
 
 TEST(StaticChannel, SingleProducerSingleConsumer) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
 
   ChannelStorage<int, 2> storage;
   auto [channel, sender, receiver] = CreateSpscChannel(storage);
@@ -174,7 +174,7 @@ TEST(StaticChannel, SingleProducerSingleConsumer) {
 }
 
 TEST(StaticChannel, MultiProducerSingleConsumer) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   ChannelStorage<int, 2> storage;
   auto [channel, receiver] = CreateMpscChannel(storage);
 
@@ -199,7 +199,7 @@ TEST(StaticChannel, MultiProducerSingleConsumer) {
 }
 
 TEST(StaticChannel, SingleProducerMultiConsumer) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   ChannelStorage<int, 2> storage;
   auto [channel, sender] = CreateSpmcChannel(storage);
 
@@ -230,7 +230,7 @@ TEST(StaticChannel, SingleProducerMultiConsumer) {
 }
 
 TEST(StaticChannel, MultiProducerMultiConsumer) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   ChannelStorage<int, 2> storage;
   auto channel = CreateMpmcChannel(storage);
 
@@ -268,7 +268,7 @@ TEST(StaticChannel, MultiProducerMultiConsumer) {
 }
 
 TEST(StaticChannel, NonAsyncTrySend) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   ChannelStorage<int, 2> storage;
   auto channel = CreateMpmcChannel(storage);
 
@@ -297,7 +297,7 @@ TEST(StaticChannel, NonAsyncTrySend) {
 }
 
 TEST(StaticChannel, ReceiverDisconnects) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   ChannelStorage<int, 2> storage;
   auto channel = CreateMpmcChannel(storage);
 
@@ -357,7 +357,7 @@ class ReservedSenderTask : public Task {
 };
 
 TEST(StaticChannel, ReserveSend) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   ChannelStorage<int, 2> storage;
   auto channel = CreateMpmcChannel(storage);
 
@@ -375,7 +375,7 @@ TEST(StaticChannel, ReserveSend) {
 }
 
 TEST(StaticChannel, ReserveSendReservesSpace) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   ChannelStorage<int, 2> storage;
   auto channel = CreateMpmcChannel(storage);
 
@@ -424,7 +424,7 @@ TEST(StaticChannel, ReserveSendReservesSpace) {
 }
 
 TEST(StaticChannel, ReserveSendReleasesSpaceWhenDropped) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   ChannelStorage<int, 2> storage;
   auto channel = CreateMpmcChannel(storage);
 
@@ -475,7 +475,7 @@ TEST(StaticChannel, ReserveSendReleasesSpaceWhenDropped) {
 }
 
 TEST(StaticChannel, ReserveSendManualCancel) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   ChannelStorage<int, 2> storage;
   auto channel = CreateMpmcChannel(storage);
 
@@ -562,7 +562,7 @@ class MoveOnly {
 };
 
 TEST(StaticChannel, MoveOnly) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   ChannelStorage<MoveOnly, 3> storage;
   auto channel = CreateMpmcChannel(storage);
 
@@ -619,7 +619,7 @@ TEST(StaticChannel, MoveOnly) {
 
 TEST(DynamicChannel, ForwardsDataAndAutomaticallyDeallocates) {
   pw::allocator::test::AllocatorForTest<1024> alloc;
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
 
   std::optional<MpmcChannelHandle<int>> channel =
       CreateMpmcChannel<int>(alloc, 2);

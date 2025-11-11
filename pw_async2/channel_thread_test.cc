@@ -15,7 +15,7 @@
 #include <atomic>
 
 #include "pw_async2/channel.h"
-#include "pw_async2/dispatcher.h"
+#include "pw_async2/dispatcher_for_test.h"
 #include "pw_async2/try.h"
 #include "pw_containers/vector.h"
 #include "pw_thread/test_thread_context.h"
@@ -27,7 +27,7 @@ namespace {
 using pw::async2::ChannelStorage;
 using pw::async2::Context;
 using pw::async2::CreateSpscChannel;
-using pw::async2::Dispatcher;
+using pw::async2::DispatcherForTest;
 using pw::async2::Pending;
 using pw::async2::Poll;
 using pw::async2::Ready;
@@ -134,14 +134,14 @@ class IdleTask : public Task {
 };
 
 TEST(Channel, BlockingSend) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
 
   ChannelStorage<int, 2> storage;
   auto [channel, sender, receiver] = CreateSpscChannel(storage);
   channel.Release();
 
   struct {
-    Dispatcher& dispatcher;
+    DispatcherForTest& dispatcher;
     size_t send_count;
   } sender_context{dispatcher, 0};
 
@@ -176,7 +176,7 @@ TEST(Channel, BlockingSend) {
 }
 
 TEST(Channel, BlockingSend_ChannelCloses) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
 
   ChannelStorage<int, 2> storage;
   auto [channel, sender, receiver] = CreateSpscChannel(storage);
@@ -186,7 +186,7 @@ TEST(Channel, BlockingSend_ChannelCloses) {
   dispatcher.Post(idle_task);
 
   struct {
-    Dispatcher& dispatcher;
+    DispatcherForTest& dispatcher;
     IdleTask& idle_task;
     size_t send_count;
   } sender_context{dispatcher, idle_task, 0};
@@ -228,7 +228,7 @@ TEST(Channel, BlockingSend_ChannelCloses) {
 }
 
 TEST(Channel, BlockingSend_Timeout) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
 
   ChannelStorage<int, 2> storage;
   auto [channel, sender, receiver] = CreateSpscChannel(storage);
@@ -238,7 +238,7 @@ TEST(Channel, BlockingSend_Timeout) {
   dispatcher.Post(idle_task);
 
   struct {
-    Dispatcher& dispatcher;
+    DispatcherForTest& dispatcher;
     IdleTask& idle_task;
     size_t send_count;
   } sender_context{dispatcher, idle_task, 0};
@@ -273,7 +273,7 @@ TEST(Channel, BlockingSend_Timeout) {
 }
 
 TEST(Channel, BlockingReceive) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
 
   ChannelStorage<int, 2> storage;
   auto [channel, sender, receiver] = CreateSpscChannel(storage);
@@ -283,7 +283,7 @@ TEST(Channel, BlockingReceive) {
   dispatcher.Post(idle_task);
 
   struct {
-    Dispatcher& dispatcher;
+    DispatcherForTest& dispatcher;
     IdleTask& idle_task;
     size_t receive_count;
   } receiver_context{dispatcher, idle_task, 0};
@@ -325,7 +325,7 @@ TEST(Channel, BlockingReceive) {
 }
 
 TEST(Channel, BlockingReceive_Timeout) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
 
   ChannelStorage<int, 2> storage;
   auto [channel, sender, receiver] = CreateSpscChannel(storage);
@@ -335,7 +335,7 @@ TEST(Channel, BlockingReceive_Timeout) {
   dispatcher.Post(idle_task);
 
   struct {
-    Dispatcher& dispatcher;
+    DispatcherForTest& dispatcher;
     IdleTask& idle_task;
     size_t receive_count;
   } receiver_context{dispatcher, idle_task, 0};

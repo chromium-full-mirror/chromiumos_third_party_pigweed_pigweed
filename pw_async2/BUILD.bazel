@@ -134,11 +134,20 @@ cc_library(
     }),
 )
 
+cc_library(
+    name = "testing",
+    testonly = True,
+    hdrs = ["public/pw_async2/dispatcher_for_test.h"],
+    strip_include_prefix = "public",
+    deps = [":dispatcher"],
+)
+
 pw_cc_test(
     name = "dispatcher_test",
     srcs = ["dispatcher_test.cc"],
     deps = [
         ":dispatcher",
+        ":testing",
         "//pw_containers:vector",
     ],
 )
@@ -148,6 +157,7 @@ pw_cc_test(
     srcs = ["task_test.cc"],
     deps = [
         ":dispatcher",
+        ":testing",
         "//pw_sync:binary_semaphore",
         "//pw_thread:sleep",
         "//pw_thread:test_thread_context",
@@ -174,6 +184,7 @@ pw_cc_test(
         ":dispatcher",
         ":pendable",
         ":poll",
+        ":testing",
     ],
 )
 
@@ -186,6 +197,7 @@ pw_cc_test(
         ":pend_func_task",
         ":poll",
         ":select",
+        ":testing",
     ],
 )
 
@@ -208,6 +220,7 @@ pw_cc_test(
         ":dispatcher",
         ":pend_func_task",
         ":poll",
+        ":testing",
         ":value_future",
     ],
 )
@@ -234,6 +247,7 @@ pw_cc_test(
         ":dispatcher",
         ":pend_func_awaitable",
         ":poll",
+        ":testing",
         "//pw_allocator:testing",
         "//pw_function",
         "//pw_status",
@@ -258,6 +272,7 @@ pw_cc_test(
     deps = [
         ":dispatcher",
         ":pend_func_task",
+        ":testing",
         "//pw_function",
     ],
 )
@@ -280,6 +295,7 @@ pw_cc_test(
     deps = [
         ":callback_task",
         ":dispatcher",
+        ":testing",
         ":value_future",
         "//pw_function",
     ],
@@ -302,6 +318,7 @@ pw_cc_test(
     deps = [
         ":dispatcher",
         ":pendable_as_task",
+        ":testing",
     ],
 )
 
@@ -322,6 +339,7 @@ pw_cc_test(
     srcs = ["allocate_task_test.cc"],
     deps = [
         ":allocate_task",
+        ":testing",
         "//pw_allocator:testing",
     ],
 )
@@ -347,6 +365,7 @@ pw_cc_test(
     deps = [
         ":dispatcher",
         ":once_sender",
+        ":testing",
         "//pw_containers:vector",
     ],
 )
@@ -375,6 +394,7 @@ pw_cc_test(
     deps = [
         ":dispatcher",
         ":pend_func_task",
+        ":testing",
         ":waker_queue",
     ],
 )
@@ -406,6 +426,7 @@ pw_cc_test(
     deps = [
         ":coro",
         ":dispatcher",
+        ":testing",
         "//pw_allocator:null_allocator",
         "//pw_allocator:testing",
         "//pw_status",
@@ -433,6 +454,7 @@ pw_cc_test(
         ":coro",
         ":coro_or_else_task",
         ":dispatcher",
+        ":testing",
         "//pw_allocator:null_allocator",
         "//pw_allocator:testing",
         "//pw_status",
@@ -483,7 +505,10 @@ pw_cc_test(
     srcs = [
         "system_time_provider_test.cc",
     ],
-    deps = [":system_time_provider"],
+    deps = [
+        ":system_time_provider",
+        ":testing",
+    ],
 )
 
 cc_library(
@@ -505,6 +530,7 @@ pw_cc_test(
     ],
     deps = [
         ":simulated_time_provider",
+        ":testing",
         "//pw_chrono:system_clock",
     ],
 )
@@ -530,6 +556,7 @@ pw_cc_test(
         ":dispatcher",
         ":pendable",
         ":poll",
+        ":testing",
         "//pw_function",
     ],
 )
@@ -553,6 +580,7 @@ pw_cc_test(
     deps = [
         ":dispatcher",
         ":enqueue_heap_func",
+        ":testing",
     ],
 )
 
@@ -576,6 +604,7 @@ pw_cc_test(
     deps = [
         ":dispatcher",
         ":join",
+        ":testing",
         ":value_future",
     ],
 )
@@ -602,6 +631,7 @@ pw_cc_test(
         ":pendable",
         ":poll",
         ":select",
+        ":testing",
         ":value_future",
     ],
 )
@@ -634,6 +664,7 @@ pw_cc_test(
         ":dispatcher",
         ":pend_func_task",
         ":poll",
+        ":testing",
         "//pw_allocator:testing",
         "//pw_containers:vector",
     ],
@@ -648,6 +679,7 @@ pw_cc_test(
         ":channel",
         ":dispatcher",
         ":poll",
+        ":testing",
         "//pw_containers:vector",
         "//pw_thread:test_thread_context",
         "//pw_thread:thread",
@@ -665,6 +697,7 @@ pw_cc_test(
         ":coro_or_else_task",
         ":dispatcher",
         ":poll",
+        ":testing",
         "//pw_allocator:testing",
         "//pw_containers:vector",
     ],
@@ -706,6 +739,7 @@ filegroup(
         "public/pw_async2/coro_or_else_task.h",
         "public/pw_async2/dispatcher.h",
         "public/pw_async2/dispatcher_base.h",
+        "public/pw_async2/dispatcher_for_test.h",
         "public/pw_async2/enqueue_heap_func.h",
         "public/pw_async2/future.h",
         "public/pw_async2/internal/config.h",

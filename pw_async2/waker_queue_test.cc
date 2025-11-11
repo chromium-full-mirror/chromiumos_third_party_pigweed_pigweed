@@ -15,7 +15,7 @@
 #include "pw_async2/waker_queue.h"
 
 #include "pw_async2/context.h"
-#include "pw_async2/dispatcher.h"
+#include "pw_async2/dispatcher_for_test.h"
 #include "pw_async2/pend_func_task.h"
 #include "pw_async2/waker.h"
 #include "pw_unit_test/framework.h"
@@ -78,12 +78,12 @@ TEST(WakerQueue, Empty) {
   WakerQueue<4> queue;
   EXPECT_TRUE(queue.empty());
 
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   PendFuncTask task([&](Context& cx) {
     PW_ASYNC_STORE_WAKER(cx, queue, "Storing waker in queue");
     return Pending();
   });
-  EXPECT_EQ(dispatcher.RunPendableUntilStalled(task), Pending());
+  EXPECT_EQ(dispatcher.RunInTaskUntilStalled(task), Pending());
 
   EXPECT_EQ(queue.size(), 1u);
   EXPECT_FALSE(queue.empty());
@@ -95,12 +95,12 @@ TEST(WakerQueue, Full) {
   WakerQueue<1> queue;
   EXPECT_FALSE(queue.full());
 
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   PendFuncTask task([&](Context& cx) {
     PW_ASYNC_STORE_WAKER(cx, queue, "Storing waker in queue");
     return Pending();
   });
-  EXPECT_EQ(dispatcher.RunPendableUntilStalled(task), Pending());
+  EXPECT_EQ(dispatcher.RunInTaskUntilStalled(task), Pending());
 
   EXPECT_EQ(queue.size(), 1u);
   EXPECT_TRUE(queue.full());
@@ -116,7 +116,7 @@ TEST(WakerQueue, AddEmptyWakerFails) {
 
 TEST(WakerQueue, TryStore) {
   WakerQueue<1> queue;
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
 
   PendFuncTask task_1([&](Context& cx) {
     EXPECT_TRUE(PW_ASYNC_TRY_STORE_WAKER(cx, queue, "Task 1 storing waker"));
@@ -140,7 +140,7 @@ TEST(WakerQueue, ReStoreExistingTask) {
   WakerQueue<2> queue;
   Waker out_of_band_waker;
 
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   PendFuncTask task([&](Context& cx) {
     EXPECT_TRUE(PW_ASYNC_TRY_STORE_WAKER(cx, queue, "Storing waker in queue"));
     EXPECT_TRUE(
@@ -166,7 +166,7 @@ TEST(WakerQueue, ReStoreExistingTask) {
 }
 
 TEST(WakerQueue, WakeOne) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   QueuedReader reader;
   ReaderTask reader_task_1(reader);
   ReaderTask reader_task_2(reader);
@@ -190,7 +190,7 @@ TEST(WakerQueue, WakeOne) {
 }
 
 TEST(WakerQueue, WakeMany) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   QueuedReader reader;
   ReaderTask reader_task_1(reader);
   ReaderTask reader_task_2(reader);
@@ -218,7 +218,7 @@ TEST(WakerQueue, WakeMany) {
 }
 
 TEST(WakerQueue, WakeAll) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   QueuedReader reader;
   ReaderTask reader_task_1(reader);
   ReaderTask reader_task_2(reader);

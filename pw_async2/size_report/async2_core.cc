@@ -15,6 +15,7 @@
 #include "public/pw_async2/size_report/size_report.h"
 #include "pw_assert/check.h"
 #include "pw_async2/dispatcher.h"
+#include "pw_async2/pend_func_task.h"
 #include "pw_async2/pendable.h"
 #include "pw_async2/size_report/size_report.h"
 #include "pw_bloat/bloat_this_binary.h"
@@ -128,8 +129,9 @@ int Measure() {
   Poll<> result = dispatcher.RunUntilStalled();
   PW_BLOAT_COND(result.IsReady(), mask);
 
-  auto pendable_value = PendableFor<&PendableInt::Get>(value);
-  dispatcher.RunPendableUntilStalled(pendable_value).IgnorePoll();
+  PendFuncTask task3([&](Context& cx) { return value.Get(cx).Readiness(); });
+  dispatcher.Post(task3);
+  dispatcher.RunUntilStalled().IgnorePoll();
 
   task.should_complete = true;
   // Move the waker onto the stack to call its operator= before waking the task.

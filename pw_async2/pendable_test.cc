@@ -14,7 +14,7 @@
 
 #include "pw_async2/pendable.h"
 
-#include "pw_async2/dispatcher.h"
+#include "pw_async2/dispatcher_for_test.h"
 #include "pw_async2/poll.h"
 #include "pw_async2/waker.h"
 #include "pw_unit_test/framework.h"
@@ -22,7 +22,7 @@
 namespace {
 
 using ::pw::async2::Context;
-using ::pw::async2::Dispatcher;
+using ::pw::async2::DispatcherForTest;
 using ::pw::async2::PendableFor;
 using ::pw::async2::Pending;
 using ::pw::async2::Poll;
@@ -137,88 +137,88 @@ static_assert(
                    std::tuple<ByReference&, int>>);
 
 TEST(MemberPendableWrapper, InvokesFunctionWithoutArgs) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   PendableValue value(5);
   auto wrapper = PendableFor<&PendableValue::Get>(value);
   EXPECT_FALSE(wrapper.completed());
-  EXPECT_EQ(dispatcher.RunPendableUntilStalled(wrapper), Pending());
+  EXPECT_EQ(dispatcher.RunInTaskUntilStalled(wrapper), Pending());
   EXPECT_EQ(value.poll_count, 1);
   EXPECT_FALSE(wrapper.completed());
   value.AllowCompletion();
-  EXPECT_EQ(dispatcher.RunPendableUntilStalled(wrapper), Ready(5));
+  EXPECT_EQ(dispatcher.RunInTaskUntilStalled(wrapper), Ready(5));
   EXPECT_EQ(value.poll_count, 2);
   EXPECT_TRUE(wrapper.completed());
 }
 
 TEST(MemberPendableWrapper, InvokesFunctionWithArgs) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   PendableValue value(5);
   auto wrapper = PendableFor<&PendableValue::GetAndOffset>(value, 7, true);
   EXPECT_FALSE(wrapper.completed());
-  EXPECT_EQ(dispatcher.RunPendableUntilStalled(wrapper), Pending());
+  EXPECT_EQ(dispatcher.RunInTaskUntilStalled(wrapper), Pending());
   EXPECT_EQ(value.poll_count, 1);
   EXPECT_FALSE(wrapper.completed());
   value.AllowCompletion();
-  EXPECT_EQ(dispatcher.RunPendableUntilStalled(wrapper), Ready(-2));
+  EXPECT_EQ(dispatcher.RunInTaskUntilStalled(wrapper), Ready(-2));
   EXPECT_EQ(value.poll_count, 2);
   EXPECT_TRUE(wrapper.completed());
 }
 
 TEST(MemberPendableWrapper, MoveConstruct) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   PendableValue value(5);
   auto wrapper1 = PendableFor<&PendableValue::Get>(value);
   auto wrapper2(std::move(wrapper1));
-  EXPECT_EQ(dispatcher.RunPendableUntilStalled(wrapper2), Pending());
+  EXPECT_EQ(dispatcher.RunInTaskUntilStalled(wrapper2), Pending());
   EXPECT_EQ(value.poll_count, 1);
 }
 
 TEST(MemberPendableWrapper, MoveAssign) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   PendableValue five(5);
   PendableValue six(6);
   auto wrapper1 = PendableFor<&PendableValue::Get>(five);
   auto wrapper2 = PendableFor<&PendableValue::Get>(six);
   wrapper2 = std::move(wrapper1);
-  EXPECT_EQ(dispatcher.RunPendableUntilStalled(wrapper2), Pending());
+  EXPECT_EQ(dispatcher.RunInTaskUntilStalled(wrapper2), Pending());
   EXPECT_EQ(five.poll_count, 1);
   EXPECT_EQ(six.poll_count, 0);
 }
 
 TEST(FreePendableWrapper, InvokesFunctionWithoutArgs) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   auto pending_wrapper = PendableFor<&AlwaysPending>();
-  EXPECT_EQ(dispatcher.RunPendableUntilStalled(pending_wrapper), Pending());
+  EXPECT_EQ(dispatcher.RunInTaskUntilStalled(pending_wrapper), Pending());
   auto ready_wrapper = PendableFor<&AlwaysReady>();
-  EXPECT_EQ(dispatcher.RunPendableUntilStalled(ready_wrapper), Ready(true));
+  EXPECT_EQ(dispatcher.RunInTaskUntilStalled(ready_wrapper), Ready(true));
 }
 
 TEST(FreePendableWrapper, InvokesFunctionWithArgs) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   auto ready_wrapper = PendableFor<&AlwaysReadyWithValue>('h');
-  EXPECT_EQ(dispatcher.RunPendableUntilStalled(ready_wrapper), Ready('h'));
+  EXPECT_EQ(dispatcher.RunInTaskUntilStalled(ready_wrapper), Ready('h'));
 }
 
 TEST(FreePendableWrapper, MoveConstruct) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   auto wrapper1 = PendableFor<&AlwaysPending>();
   auto wrapper2(std::move(wrapper1));
-  EXPECT_EQ(dispatcher.RunPendableUntilStalled(wrapper2), Pending());
+  EXPECT_EQ(dispatcher.RunInTaskUntilStalled(wrapper2), Pending());
 }
 
 TEST(FreePendableWrapper, MoveAssign) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   auto wrapper1 = PendableFor<&AlwaysReadyWithValue>('x');
   auto wrapper2 = PendableFor<&AlwaysReadyWithValue>('y');
   wrapper2 = std::move(wrapper1);
-  EXPECT_EQ(dispatcher.RunPendableUntilStalled(wrapper2), Ready('x'));
+  EXPECT_EQ(dispatcher.RunInTaskUntilStalled(wrapper2), Ready('x'));
 }
 
 TEST(FreePendableWrapper, Reference) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   ByReference ref{.value = 3};
   auto wrapper = PendableFor<&IncrementReference>(ref, 7);
-  EXPECT_TRUE(dispatcher.RunPendableUntilStalled(wrapper).IsReady());
+  EXPECT_TRUE(dispatcher.RunInTaskUntilStalled(wrapper).IsReady());
   EXPECT_EQ(ref.value, 10);
 }
 

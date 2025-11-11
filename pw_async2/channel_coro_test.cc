@@ -16,7 +16,7 @@
 #include "pw_async2/channel.h"
 #include "pw_async2/coro.h"
 #include "pw_async2/coro_or_else_task.h"
-#include "pw_async2/dispatcher.h"
+#include "pw_async2/dispatcher_for_test.h"
 #include "pw_async2/try.h"
 #include "pw_containers/vector.h"
 #include "pw_unit_test/framework.h"
@@ -72,7 +72,7 @@ Coro<pw::Status> DisconnectingConsumer(CoroContext&,
 
 TEST(DynamicChannel, SingleProducerSingleConsumer) {
   pw::allocator::test::AllocatorForTest<1024> alloc;
-  pw::async2::Dispatcher dispatcher;
+  pw::async2::DispatcherForTest dispatcher;
 
   CoroContext coro_cx(alloc);
 
@@ -104,7 +104,7 @@ TEST(DynamicChannel, SingleProducerSingleConsumer) {
 
 TEST(DynamicChannel, MultiProducerSingleConsumer) {
   pw::allocator::test::AllocatorForTest<1024> alloc;
-  pw::async2::Dispatcher dispatcher;
+  pw::async2::DispatcherForTest dispatcher;
 
   CoroContext coro_cx(alloc);
 
@@ -138,7 +138,7 @@ TEST(DynamicChannel, MultiProducerSingleConsumer) {
 
 TEST(DynamicChannel, ReceiverDisconnects) {
   pw::allocator::test::AllocatorForTest<1024> alloc;
-  pw::async2::Dispatcher dispatcher;
+  pw::async2::DispatcherForTest dispatcher;
 
   CoroContext coro_cx(alloc);
 
@@ -165,7 +165,7 @@ TEST(DynamicChannel, ReceiverDisconnects) {
 
 TEST(StaticChannel, SingleProducerSingleConsumer) {
   pw::allocator::test::AllocatorForTest<1024> alloc;
-  pw::async2::Dispatcher dispatcher;
+  pw::async2::DispatcherForTest dispatcher;
 
   CoroContext coro_cx(alloc);
 

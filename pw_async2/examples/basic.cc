@@ -197,7 +197,7 @@ TEST(CoroExample, ReturnsOk) {
   CoroContext coro_cx(alloc);
   auto coro = ReceiveAndSendCoro(coro_cx, MyReceiver(), MySender());
   Dispatcher dispatcher;
-  EXPECT_EQ(dispatcher.RunPendableUntilStalled(coro), Ready(OkStatus()));
+  EXPECT_EQ(dispatcher.RunInTaskUntilStalled(coro), Ready(OkStatus()));
 }
 
 }  // namespace

@@ -17,6 +17,7 @@
 #include "public/pw_async2/size_report/size_report.h"
 #include "pw_assert/check.h"
 #include "pw_async2/dispatcher.h"
+#include "pw_async2/pend_func_task.h"
 #include "pw_async2/pendable.h"
 #include "pw_async2/size_report/size_report.h"
 #include "pw_bloat/bloat_this_binary.h"
@@ -38,7 +39,14 @@ int SingleTypeJoin(uint32_t mask) {
   Joiner join(PendableFor<&PendableInt::Get>(value_1),
               PendableFor<&PendableInt::Get>(value_2),
               PendableFor<&PendableInt::Get>(value_3));
-  auto result = dispatcher.RunPendableUntilStalled(join);
+
+  decltype(join.Pend(std::declval<Context&>())) result = Pending();
+  PendFuncTask task([&](Context& cx) {
+    result = join.Pend(cx);
+    return result.Readiness();
+  });
+  dispatcher.Post(task);
+  dispatcher.RunUntilStalled().IgnorePoll();
   PW_BLOAT_COND(result.IsReady(), mask);
 
   int value = -1;
@@ -61,7 +69,11 @@ int MultiTypeJoin(uint32_t mask) {
   Joiner join(PendableFor<&PendableInt::Get>(value_1),
               PendableFor<&PendableUint::Get>(value_2),
               PendableFor<&PendableChar::Get>(value_3));
-  auto result = dispatcher.RunPendableUntilStalled(join);
+  decltype(join.Pend(std::declval<Context&>())) result = Pending();
+  PendFuncTask task([&](Context& cx) {
+    result = join.Pend(cx);
+    return result.Readiness();
+  });
   PW_BLOAT_COND(result.IsReady(), mask);
 
   int value = -1;

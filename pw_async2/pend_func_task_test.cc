@@ -17,7 +17,7 @@
 #include <optional>
 #include <utility>
 
-#include "pw_async2/dispatcher.h"
+#include "pw_async2/dispatcher_for_test.h"
 #include "pw_function/function.h"
 #include "pw_unit_test/framework.h"
 
@@ -25,7 +25,7 @@ namespace {
 
 using ::pw::Function;
 using ::pw::async2::Context;
-using ::pw::async2::Dispatcher;
+using ::pw::async2::DispatcherForTest;
 using ::pw::async2::PendFuncTask;
 using ::pw::async2::Pending;
 using ::pw::async2::Poll;
@@ -33,7 +33,7 @@ using ::pw::async2::Ready;
 using ::pw::async2::Waker;
 
 TEST(PendFuncTask, PendDelegatesToFunc) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
 
   Waker waker;
   int poll_count = 0;

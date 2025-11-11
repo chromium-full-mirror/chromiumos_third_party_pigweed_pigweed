@@ -15,13 +15,14 @@
 #include "pw_async2/allocate_task.h"
 
 #include "pw_allocator/testing.h"
+#include "pw_async2/dispatcher_for_test.h"
 
 namespace {
 
 using ::pw::allocator::test::AllocatorForTest;
 using ::pw::async2::AllocateTask;
 using ::pw::async2::Context;
-using ::pw::async2::Dispatcher;
+using ::pw::async2::DispatcherForTest;
 using ::pw::async2::Pending;
 using ::pw::async2::Poll;
 using ::pw::async2::Ready;
@@ -95,7 +96,7 @@ TEST(AllocateTask, AllocatesWithArgs) {
 
 TEST(AllocateTask, DestroysOnceAfterPendReturnsReady) {
   AllocatorForTest<256> alloc;
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   PendableStatus status = {};
   Task* task = AllocateTask<Pendable>(alloc, status);
   ASSERT_NE(task, nullptr);

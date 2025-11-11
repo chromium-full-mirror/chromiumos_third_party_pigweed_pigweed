@@ -14,7 +14,7 @@
 
 // DOCSTAG[pw_async2-minimal-test]
 #include "pw_async2/context.h"
-#include "pw_async2/dispatcher.h"
+#include "pw_async2/dispatcher_for_test.h"
 #include "pw_async2/pend_func_task.h"
 #include "pw_unit_test/framework.h"
 
@@ -24,7 +24,7 @@ using ::pw::async2::Ready;
 namespace examples {
 
 TEST(Async2UnitTest, MinimalExample) {
-  pw::async2::Dispatcher dispatcher;
+  pw::async2::DispatcherForTest dispatcher;
 
   // Create a test task to run the pw_async2 code under test.
   pw::async2::PendFuncTask task([](Context&) { return Ready(); });
@@ -80,7 +80,7 @@ class FortuneTeller {
 };
 
 TEST(Async2UnitTest, MultiStepExample) {
-  pw::async2::Dispatcher dispatcher;
+  pw::async2::DispatcherForTest dispatcher;
 
   FortuneTeller oracle;
   const char* fortune = "";

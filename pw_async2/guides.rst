@@ -510,13 +510,16 @@ must run async code from a :cc:`Task <pw::async2::Task>` on a
 
 To test ``pw_async2`` code:
 
-#. Declare a dispatcher.
+#. Add a dependency on ``//pw_async2:testing``.
+#. Declare a :cc:`pw::async2::DispatcherForTest`.
 #. Create a task to run the async code under test. Either implement
    :cc:`Task <pw::async2::Task>` or use
    :cc:`PendFuncTask <pw::async2::PendFuncTask>` to wrap a lambda.
 #. Post the task to the dispatcher.
 #. Call :cc:`RunUntilStalled <pw::async2::Dispatcher::RunUntilStalled>`
-   to execute the task.
+   to execute the task until it can make no further progress, or
+   :cc:`RunToCompletion <pw::async2::Dispatcher::RunToCompletion>` if all tasks
+   should complete.
 
 The following example shows the basic structure of a ``pw_async2`` unit test.
 
@@ -532,14 +535,12 @@ stored and woken properly.
 To run the test task multiple times:
 
 #. Post the task to the dispatcher.
-#. Call :cc:`RunUntilStalled() <pw::async2::Dispatcher::RunUntilStalled>`,
-   which returns :cc:`Pending <pw::async2::Pending>`.
+#. Call :cc:`RunUntilStalled() <pw::async2::Dispatcher::RunUntilStalled>`.
 #. Perform actions to allow the task to advance.
 #. Call :cc:`RunUntilStalled() <pw::async2::Dispatcher::RunUntilStalled>`
    again.
-#. Repeat until the task runs to completion and :cc:`RunUntilStalled()
-   <pw::async2::Dispatcher::RunUntilStalled>` returns
-   :cc:`Ready <pw::async2::Ready>`.
+#. Repeat until the task runs to completion, calling :cc:`RunToCompletion()
+   <pw::async2::Dispatcher::RunToCompletion>` when the task should complete.
 
 The example below runs a task multiple times to test waiting for a
 ``FortuneTeller`` class to produce a fortune.

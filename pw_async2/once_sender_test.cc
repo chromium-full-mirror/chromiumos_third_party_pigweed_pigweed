@@ -14,14 +14,14 @@
 
 #include "pw_async2/once_sender.h"
 
-#include "pw_async2/dispatcher.h"
+#include "pw_async2/dispatcher_for_test.h"
 #include "pw_containers/vector.h"
 #include "pw_unit_test/framework.h"
 
 namespace {
 
 using ::pw::async2::Context;
-using ::pw::async2::Dispatcher;
+using ::pw::async2::DispatcherForTest;
 using ::pw::async2::OnceReceiver;
 using ::pw::async2::OnceRefReceiver;
 using ::pw::async2::OnceRefSender;
@@ -87,7 +87,7 @@ class ValueTask : public Task {
 };
 
 TEST(OnceSender, OnceSenderEmplace) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   ValueTask task;
   dispatcher.Post(task);
   EXPECT_TRUE(dispatcher.RunUntilStalled().IsPending());
@@ -101,7 +101,7 @@ TEST(OnceSender, OnceSenderEmplace) {
 }
 
 TEST(OnceSender, OnceSenderEmplaceUseInitializeConstructor) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   ValueTask task(/*use_make_constructor=*/false);
   dispatcher.Post(task);
   EXPECT_TRUE(dispatcher.RunUntilStalled().IsPending());
@@ -115,7 +115,7 @@ TEST(OnceSender, OnceSenderEmplaceUseInitializeConstructor) {
 }
 
 TEST(OnceSender, OnceSenderMoveAssign) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   ValueTask task;
   dispatcher.Post(task);
   EXPECT_TRUE(dispatcher.RunUntilStalled().IsPending());
@@ -130,7 +130,7 @@ TEST(OnceSender, OnceSenderMoveAssign) {
 }
 
 TEST(OnceSender, DestroyingOnceSenderCausesReceiverPendToReturnCancelled) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   ValueTask task;
   dispatcher.Post(task);
   EXPECT_TRUE(dispatcher.RunUntilStalled().IsPending());
@@ -145,7 +145,7 @@ TEST(OnceSender, DestroyingOnceSenderCausesReceiverPendToReturnCancelled) {
 }
 
 TEST(OnceSender, DestroyingOnceReceiverCausesSenderMethodsToBeNoOps) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   ValueTask task;
   dispatcher.Post(task);
   EXPECT_TRUE(dispatcher.RunUntilStalled().IsPending());
@@ -199,7 +199,7 @@ class VectorTask : public Task {
 };
 
 TEST(OnceSender, OnceRefSenderSetConstRef) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   VectorTask task;
   dispatcher.Post(task);
   EXPECT_TRUE(dispatcher.RunUntilStalled().IsPending());
@@ -212,7 +212,7 @@ TEST(OnceSender, OnceRefSenderSetConstRef) {
 }
 
 TEST(OnceSender, OnceRefSenderSetConstRefUseInitializeConstructor) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   VectorTask task(/*use_make_constructor=*/false);
   dispatcher.Post(task);
   EXPECT_TRUE(dispatcher.RunUntilStalled().IsPending());
@@ -225,7 +225,7 @@ TEST(OnceSender, OnceRefSenderSetConstRefUseInitializeConstructor) {
 }
 
 TEST(OnceSender, OnceRefSenderModify) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   VectorTask task;
   dispatcher.Post(task);
   EXPECT_TRUE(dispatcher.RunUntilStalled().IsPending());
@@ -243,7 +243,7 @@ TEST(OnceSender, OnceRefSenderModify) {
 }
 
 TEST(OnceSender, DestroyingOnceRefSenderCausesReceiverPendToReturnCancelled) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   VectorTask task;
   dispatcher.Post(task);
   EXPECT_TRUE(dispatcher.RunUntilStalled().IsPending());
@@ -285,7 +285,7 @@ class MoveOnlyRefTask : public Task {
 };
 
 TEST(OnceSender, OnceRefSenderSetRValue) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   MoveOnlyRefTask task;
   dispatcher.Post(task);
   EXPECT_TRUE(dispatcher.RunUntilStalled().IsPending());
@@ -322,7 +322,7 @@ class AlreadyCompletedReceiverTask : public Task {
 };
 
 TEST(OnceSender, OnceReceiverAlreadyCompleted) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   OnceReceiver<MoveOnlyValue> receiver(2);
   AlreadyCompletedReceiverTask task(std::move(receiver));
   dispatcher.Post(task);

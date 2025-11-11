@@ -14,13 +14,13 @@
 
 #include "pw_async2/pendable_as_task.h"
 
-#include "pw_async2/dispatcher.h"
+#include "pw_async2/dispatcher_for_test.h"
 #include "pw_unit_test/framework.h"
 
 namespace {
 
 using ::pw::async2::Context;
-using ::pw::async2::Dispatcher;
+using ::pw::async2::DispatcherForTest;
 using ::pw::async2::PendableAsTask;
 using ::pw::async2::Pending;
 using ::pw::async2::Poll;
@@ -49,7 +49,7 @@ struct StructWithPendMethod {
 };
 
 TEST(PendableAsTask, PendDelegatesToPendable) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
 
   int poll_count = 0;
   bool allow_completion = false;
@@ -74,7 +74,7 @@ TEST(PendableAsTask, PendDelegatesToPendable) {
 }
 
 TEST(PendableAsTask, PendDelegatesToPendablePtr) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
 
   int poll_count = 0;
   bool allow_completion = false;

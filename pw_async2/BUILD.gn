@@ -106,6 +106,14 @@ pw_source_set("config") {
   friend = [ "./*" ]
 }
 
+pw_source_set("testing") {
+  public_configs = [ ":public_include_path" ]
+  public = [ "public/pw_async2/dispatcher_for_test.h" ]
+  deps = [ dir_pw_assert ]
+  public_deps = [ ":dispatcher" ]
+  testonly = pw_unit_test_TESTONLY
+}
+
 pw_test("dispatcher_test") {
   enable_if = pw_async2_DISPATCHER_BACKEND != "" &&
               pw_chrono_SYSTEM_CLOCK_BACKEND != "" &&
@@ -113,6 +121,7 @@ pw_test("dispatcher_test") {
               pw_sync_TIMED_THREAD_NOTIFICATION_BACKEND != ""
   deps = [
     ":dispatcher",
+    ":testing",
     "$dir_pw_containers:vector",
   ]
   sources = [ "dispatcher_test.cc" ]
@@ -133,6 +142,7 @@ pw_test("pendable_test") {
     ":dispatcher",
     ":pendable",
     ":poll",
+    ":testing",
   ]
   sources = [ "pendable_test.cc" ]
 }
@@ -144,6 +154,7 @@ pw_test("future_test") {
     ":pend_func_task",
     ":poll",
     ":select",
+    ":testing",
   ]
   sources = [ "future_test.cc" ]
   negative_compilation_tests = true
@@ -164,6 +175,7 @@ pw_test("value_future_test") {
     ":dispatcher",
     ":pend_func_task",
     ":poll",
+    ":testing",
     ":value_future",
   ]
   sources = [ "value_future_test.cc" ]
@@ -183,6 +195,7 @@ pw_test("pend_func_task_test") {
   deps = [
     ":dispatcher",
     ":pend_func_task",
+    ":testing",
   ]
   sources = [ "pend_func_task_test.cc" ]
 }
@@ -201,6 +214,7 @@ pw_test("callback_task_test") {
   deps = [
     ":callback_task",
     ":dispatcher",
+    ":testing",
     ":value_future",
     dir_pw_function,
   ]
@@ -218,6 +232,7 @@ pw_test("pendable_as_task_test") {
   deps = [
     ":dispatcher",
     ":pendable_as_task",
+    ":testing",
   ]
   sources = [ "pendable_as_task_test.cc" ]
 }
@@ -235,6 +250,7 @@ pw_test("allocate_task_test") {
   enable_if = pw_async2_DISPATCHER_BACKEND != ""
   deps = [
     ":allocate_task",
+    ":testing",
     "$dir_pw_allocator:testing",
   ]
   sources = [ "allocate_task_test.cc" ]
@@ -254,6 +270,7 @@ pw_test("once_sender_test") {
   enable_if = pw_async2_DISPATCHER_BACKEND != ""
   deps = [
     ":once_sender",
+    ":testing",
     "$dir_pw_containers:vector",
   ]
   sources = [ "once_sender_test.cc" ]
@@ -274,6 +291,7 @@ pw_test("waker_queue_test") {
   enable_if = pw_async2_DISPATCHER_BACKEND != ""
   deps = [
     ":pend_func_task",
+    ":testing",
     ":waker_queue",
   ]
   sources = [ "waker_queue_test.cc" ]
@@ -298,6 +316,7 @@ if (pw_toolchain_CXX_STANDARD >= pw_toolchain_STANDARD.CXX20) {
     deps = [
       ":coro",
       ":dispatcher",
+      ":testing",
       "$dir_pw_allocator:null_allocator",
       "$dir_pw_allocator:testing",
       "$dir_pw_status",
@@ -323,6 +342,7 @@ if (pw_toolchain_CXX_STANDARD >= pw_toolchain_STANDARD.CXX20) {
       ":coro",
       ":coro_or_else_task",
       ":dispatcher",
+      ":testing",
       "$dir_pw_allocator:null_allocator",
       "$dir_pw_allocator:testing",
       "$dir_pw_status",
@@ -347,6 +367,7 @@ if (pw_toolchain_CXX_STANDARD >= pw_toolchain_STANDARD.CXX20) {
       ":dispatcher",
       ":pend_func_awaitable",
       ":poll",
+      ":testing",
       "$dir_pw_allocator:testing",
       "$dir_pw_status",
       dir_pw_function,
@@ -388,7 +409,10 @@ pw_test("system_time_provider_test") {
       pw_chrono_SYSTEM_CLOCK_BACKEND != "" &&
       pw_sync_INTERRUPT_SPIN_LOCK_BACKEND != "" && pw_thread_YIELD_BACKEND != ""
   sources = [ "system_time_provider_test.cc" ]
-  deps = [ ":system_time_provider" ]
+  deps = [
+    ":system_time_provider",
+    ":testing",
+  ]
 }
 
 pw_source_set("simulated_time_provider") {
@@ -408,6 +432,7 @@ pw_test("simulated_time_provider_test") {
   sources = [ "simulated_time_provider_test.cc" ]
   deps = [
     ":simulated_time_provider",
+    ":testing",
     "$dir_pw_chrono:system_clock",
   ]
 }
@@ -424,6 +449,7 @@ pw_test("enqueue_heap_func_test") {
   deps = [
     ":dispatcher",
     ":enqueue_heap_func",
+    ":testing",
   ]
 }
 
@@ -439,6 +465,7 @@ pw_test("join_test") {
   deps = [
     ":dispatcher",
     ":join",
+    ":testing",
     ":value_future",
   ]
   negative_compilation_tests = true
@@ -460,6 +487,7 @@ pw_test("select_test") {
     ":dispatcher",
     ":pendable",
     ":select",
+    ":testing",
     ":value_future",
   ]
 }
@@ -477,6 +505,7 @@ pw_test("cancellable_task_test") {
     ":dispatcher",
     ":pendable",
     ":poll",
+    ":testing",
     dir_pw_function,
   ]
   sources = [ "cancellable_task_test.cc" ]
@@ -505,6 +534,7 @@ pw_test("channel_test") {
     ":dispatcher",
     ":pend_func_task",
     ":poll",
+    ":testing",
     "$dir_pw_allocator:testing",
     "$dir_pw_containers:vector",
   ]
@@ -517,6 +547,7 @@ pw_test("channel_thread_test") {
     ":channel",
     ":dispatcher",
     ":poll",
+    ":testing",
     "$dir_pw_containers:vector",
     "$dir_pw_thread:test_thread_context",
     "$dir_pw_thread:thread",
@@ -528,6 +559,7 @@ pw_test("task_test") {
   enable_if = pw_async2_DISPATCHER_BACKEND != ""
   deps = [
     ":dispatcher",
+    ":testing",
     "$dir_pw_sync:binary_semaphore",
     "$dir_pw_thread:sleep",
     "$dir_pw_thread:test_thread_context",
@@ -546,6 +578,7 @@ if (pw_toolchain_CXX_STANDARD >= pw_toolchain_STANDARD.CXX20) {
       ":coro_or_else_task",
       ":dispatcher",
       ":poll",
+      ":testing",
       "$dir_pw_allocator:testing",
       "$dir_pw_containers:vector",
     ]

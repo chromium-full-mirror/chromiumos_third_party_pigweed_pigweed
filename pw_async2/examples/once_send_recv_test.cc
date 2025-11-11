@@ -116,12 +116,12 @@ int main() {
   auto coro = ReceiveAndLogValue(coro_cx, std::move(receiver));
 
   Dispatcher dispatcher;
-  PW_CHECK(dispatcher.RunPendableUntilStalled(coro).IsPending());
+  PW_CHECK(dispatcher.RunInTaskUntilStalled(coro).IsPending());
 
   // Send a value to the task
   sender.emplace(5);
 
-  PW_CHECK(dispatcher.RunPendableUntilStalled(coro) == Ready(OkStatus()));
+  PW_CHECK(dispatcher.RunInTaskUntilStalled(coro) == Ready(OkStatus()));
   return 0;
 }
 
@@ -166,9 +166,9 @@ TEST(OnceSendRecv, ReceiveAndLogValueCoro) {
   auto [sender, receiver] = MakeOnceSenderAndReceiver<int>();
   auto coro = examples::coro::ReceiveAndLogValue(coro_cx, std::move(receiver));
   Dispatcher dispatcher;
-  EXPECT_TRUE(dispatcher.RunPendableUntilStalled(coro).IsPending());
+  EXPECT_TRUE(dispatcher.RunInTaskUntilStalled(coro).IsPending());
   sender.emplace(5);
-  EXPECT_EQ(dispatcher.RunPendableUntilStalled(coro), Ready(OkStatus()));
+  EXPECT_EQ(dispatcher.RunInTaskUntilStalled(coro), Ready(OkStatus()));
 }
 
 }  // namespace

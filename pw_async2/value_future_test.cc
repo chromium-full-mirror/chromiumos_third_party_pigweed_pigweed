@@ -14,7 +14,7 @@
 
 #include "pw_async2/value_future.h"
 
-#include "pw_async2/dispatcher.h"
+#include "pw_async2/dispatcher_for_test.h"
 #include "pw_async2/pend_func_task.h"
 #include "pw_async2/try.h"
 #include "pw_unit_test/framework.h"
@@ -23,7 +23,7 @@ namespace {
 
 using pw::async2::BroadcastValueProvider;
 using pw::async2::Context;
-using pw::async2::Dispatcher;
+using pw::async2::DispatcherForTest;
 using pw::async2::PendFuncTask;
 using pw::async2::Pending;
 using pw::async2::Poll;
@@ -33,7 +33,7 @@ using pw::async2::ValueProvider;
 using pw::async2::VoidFuture;
 
 TEST(ValueFuture, Pend) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   BroadcastValueProvider<int> provider;
 
   ValueFuture<int> future = provider.Get();
@@ -54,7 +54,7 @@ TEST(ValueFuture, Pend) {
 }
 
 TEST(ValueFuture, Resolved) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   auto future = ValueFuture<int>::Resolved(42);
   int result = -1;
 
@@ -70,7 +70,7 @@ TEST(ValueFuture, Resolved) {
 }
 
 TEST(ValueFuture, ResolvedInPlace) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   auto future = ValueFuture<std::pair<int, int>>::Resolved(9, 3);
 
   std::optional<std::pair<int, int>> result;
@@ -88,7 +88,7 @@ TEST(ValueFuture, ResolvedInPlace) {
 }
 
 TEST(ValueProvider, VendsAndResolvesFuture) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   ValueProvider<int> provider;
 
   std::optional<ValueFuture<int>> future = provider.Get();
@@ -110,7 +110,7 @@ TEST(ValueProvider, VendsAndResolvesFuture) {
 }
 
 TEST(ValueProvider, OnlyAllowsOneFutureToExist) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   ValueProvider<int> provider;
 
   {
@@ -144,7 +144,7 @@ TEST(ValueProvider, OnlyAllowsOneFutureToExist) {
 }
 
 TEST(ValueProvider, ResolveInPlace) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   ValueProvider<std::pair<int, int>> provider;
 
   std::optional<ValueFuture<std::pair<int, int>>> future = provider.Get();
@@ -170,7 +170,7 @@ TEST(ValueProvider, ResolveInPlace) {
 }  // namespace
 
 TEST(VoidFuture, Pend) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   BroadcastValueProvider<void> provider;
 
   VoidFuture future = provider.Get();
@@ -192,7 +192,7 @@ TEST(VoidFuture, Pend) {
 }
 
 TEST(VoidFuture, Resolved) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   auto future = VoidFuture::Resolved();
   bool completed = false;
 
@@ -208,7 +208,7 @@ TEST(VoidFuture, Resolved) {
 }
 
 TEST(ValueProviderVoid, VendsAndResolvesFuture) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   ValueProvider<void> provider;
 
   std::optional<VoidFuture> future = provider.Get();

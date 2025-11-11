@@ -16,7 +16,7 @@
 
 #include <variant>
 
-#include "pw_async2/dispatcher.h"
+#include "pw_async2/dispatcher_for_test.h"
 #include "pw_async2/pendable.h"
 #include "pw_async2/poll.h"
 #include "pw_async2/value_future.h"
@@ -27,7 +27,7 @@ namespace {
 using ::pw::async2::AllPendablesCompleted;
 using ::pw::async2::BroadcastValueProvider;
 using ::pw::async2::Context;
-using ::pw::async2::Dispatcher;
+using ::pw::async2::DispatcherForTest;
 using ::pw::async2::PendableFor;
 using ::pw::async2::Pending;
 using ::pw::async2::Poll;
@@ -110,56 +110,56 @@ PW_MODIFY_DIAGNOSTICS_PUSH();
 PW_MODIFY_DIAGNOSTIC(ignored, "-Wdeprecated-declarations");
 
 TEST(Selector, OnePendable) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
 
   PendableValue value(47);
   Selector selector(PendableFor<&PendableValue::Get>(value));
 
-  EXPECT_EQ(dispatcher.RunPendableUntilStalled(selector), Pending());
+  EXPECT_EQ(dispatcher.RunInTaskUntilStalled(selector), Pending());
   value.allow_completion_ = true;
-  auto result = dispatcher.RunPendableUntilStalled(selector);
+  auto result = dispatcher.RunInTaskUntilStalled(selector);
   ASSERT_TRUE(result.IsReady());
   auto& result_variant = *result;
   ExpectVariantIs<0>(result_variant, 47);
 }
 
 TEST(Selector, DoesNotRepollAfterReady) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   PendableValue value(47);
   Selector selector(PendableFor<&PendableValue::Get>(value));
 
-  EXPECT_EQ(dispatcher.RunPendableUntilStalled(selector), Pending());
+  EXPECT_EQ(dispatcher.RunInTaskUntilStalled(selector), Pending());
   EXPECT_EQ(value.poll_count_, 1);
 
   value.allow_completion_ = true;
-  EXPECT_TRUE(dispatcher.RunPendableUntilStalled(selector).IsReady());
+  EXPECT_TRUE(dispatcher.RunInTaskUntilStalled(selector).IsReady());
   EXPECT_EQ(value.poll_count_, 2);
 
   // After the selector returns Ready, it should not poll the pendable again.
-  auto result = dispatcher.RunPendableUntilStalled(selector);
+  auto result = dispatcher.RunInTaskUntilStalled(selector);
   EXPECT_EQ(value.poll_count_, 2);
   ASSERT_TRUE(result.IsReady());
   ExpectAllPendablesCompleted(*result);
 }
 
 TEST(Selector, MultiplePendables_OneReady) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
 
   PendableValue value_1(47);
   PendableValue value_2(52);
   Selector selector(PendableFor<&PendableValue::Get>(value_1),
                     PendableFor<&PendableValue::Get>(value_2));
 
-  EXPECT_EQ(dispatcher.RunPendableUntilStalled(selector), Pending());
+  EXPECT_EQ(dispatcher.RunInTaskUntilStalled(selector), Pending());
   value_2.allow_completion_ = true;
-  auto result = dispatcher.RunPendableUntilStalled(selector);
+  auto result = dispatcher.RunInTaskUntilStalled(selector);
   ASSERT_TRUE(result.IsReady());
   auto& result_variant = *result;
   ExpectVariantIs<1>(result_variant, 52);
 }
 
 TEST(Selector, MultiplePendables_PollLoop) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
 
   PendableValue value_1(47);
   PendableValue value_2(52);
@@ -175,7 +175,7 @@ TEST(Selector, MultiplePendables_PollLoop) {
   while (!completed) {
     iterations++;
 
-    auto result = dispatcher.RunPendableUntilStalled(selector);
+    auto result = dispatcher.RunInTaskUntilStalled(selector);
     if (result.IsPending()) {
       FAIL();
       break;
@@ -200,7 +200,7 @@ TEST(Selector, MultiplePendables_PollLoop) {
 }
 
 TEST(Selector, MultiplePendables_AllReady) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
 
   PendableValue value_1(47);
   PendableValue value_2(52);
@@ -210,17 +210,17 @@ TEST(Selector, MultiplePendables_AllReady) {
   value_1.allow_completion_ = true;
   value_2.allow_completion_ = true;
 
-  auto result = dispatcher.RunPendableUntilStalled(selector);
+  auto result = dispatcher.RunInTaskUntilStalled(selector);
   ASSERT_TRUE(result.IsReady());
   ExpectVariantIs<0>(*result, 47);
 
-  auto result_2 = dispatcher.RunPendableUntilStalled(selector);
+  auto result_2 = dispatcher.RunInTaskUntilStalled(selector);
   ASSERT_TRUE(result_2.IsReady());
   ExpectVariantIs<1>(*result_2, 52);
 }
 
 TEST(Selector, MultiplePendables_SequentialCompletion) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
 
   PendableValue value_1(47);
   PendableValue value_2(52);
@@ -229,30 +229,30 @@ TEST(Selector, MultiplePendables_SequentialCompletion) {
                     PendableFor<&PendableValue::Get>(value_2),
                     PendableFor<&PendableValue::Get>(value_3));
 
-  EXPECT_EQ(dispatcher.RunPendableUntilStalled(selector), Pending());
+  EXPECT_EQ(dispatcher.RunInTaskUntilStalled(selector), Pending());
 
   value_1.allow_completion_ = true;
-  auto result_1 = dispatcher.RunPendableUntilStalled(selector);
+  auto result_1 = dispatcher.RunInTaskUntilStalled(selector);
   ASSERT_TRUE(result_1.IsReady());
   ExpectVariantIs<0>(*result_1, 47);
 
-  EXPECT_EQ(dispatcher.RunPendableUntilStalled(selector), Pending());
+  EXPECT_EQ(dispatcher.RunInTaskUntilStalled(selector), Pending());
 
   value_2.allow_completion_ = true;
-  auto result_2 = dispatcher.RunPendableUntilStalled(selector);
+  auto result_2 = dispatcher.RunInTaskUntilStalled(selector);
   ASSERT_TRUE(result_2.IsReady());
   ExpectVariantIs<1>(*result_2, 52);
 
-  EXPECT_EQ(dispatcher.RunPendableUntilStalled(selector), Pending());
+  EXPECT_EQ(dispatcher.RunInTaskUntilStalled(selector), Pending());
 
   value_3.allow_completion_ = true;
-  auto result_3 = dispatcher.RunPendableUntilStalled(selector);
+  auto result_3 = dispatcher.RunInTaskUntilStalled(selector);
   ASSERT_TRUE(result_3.IsReady());
   ExpectVariantIs<2>(*result_3, 57);
 }
 
 TEST(Selector, MultiplePendables_OutOfOrderCompletion) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
 
   PendableValue value_1(47);
   PendableValue value_2(52);
@@ -261,24 +261,24 @@ TEST(Selector, MultiplePendables_OutOfOrderCompletion) {
                     PendableFor<&PendableValue::Get>(value_2),
                     PendableFor<&PendableValue::Get>(value_3));
 
-  EXPECT_EQ(dispatcher.RunPendableUntilStalled(selector), Pending());
+  EXPECT_EQ(dispatcher.RunInTaskUntilStalled(selector), Pending());
 
   value_2.allow_completion_ = true;
-  auto result_2 = dispatcher.RunPendableUntilStalled(selector);
+  auto result_2 = dispatcher.RunInTaskUntilStalled(selector);
   ASSERT_TRUE(result_2.IsReady());
   ExpectVariantIs<1>(*result_2, 52);
 
-  EXPECT_EQ(dispatcher.RunPendableUntilStalled(selector), Pending());
+  EXPECT_EQ(dispatcher.RunInTaskUntilStalled(selector), Pending());
 
   value_1.allow_completion_ = true;
-  auto result_1 = dispatcher.RunPendableUntilStalled(selector);
+  auto result_1 = dispatcher.RunInTaskUntilStalled(selector);
   ASSERT_TRUE(result_1.IsReady());
   ExpectVariantIs<0>(*result_1, 47);
 
-  EXPECT_EQ(dispatcher.RunPendableUntilStalled(selector), Pending());
+  EXPECT_EQ(dispatcher.RunInTaskUntilStalled(selector), Pending());
 
   value_3.allow_completion_ = true;
-  auto result_3 = dispatcher.RunPendableUntilStalled(selector);
+  auto result_3 = dispatcher.RunInTaskUntilStalled(selector);
   ASSERT_TRUE(result_3.IsReady());
   auto& result_3_variant = *result_3;
   ExpectVariantIs<2>(result_3_variant, 57);
@@ -287,17 +287,17 @@ TEST(Selector, MultiplePendables_OutOfOrderCompletion) {
 PW_MODIFY_DIAGNOSTICS_POP();
 
 TEST(SelectFuture, Pend_OneReady) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
 
   BroadcastValueProvider<int> int_provider;
   BroadcastValueProvider<char> char_provider;
 
   auto future = Select(int_provider.Get(), char_provider.Get());
 
-  EXPECT_EQ(dispatcher.RunPendableUntilStalled(future), Pending());
+  EXPECT_EQ(dispatcher.RunInTaskUntilStalled(future), Pending());
 
   char_provider.Resolve('y');
-  auto result = dispatcher.RunPendableUntilStalled(future);
+  auto result = dispatcher.RunInTaskUntilStalled(future);
   ASSERT_TRUE(result.IsReady());
 
   EXPECT_FALSE(result->has_value<0>());
@@ -308,7 +308,7 @@ TEST(SelectFuture, Pend_OneReady) {
 }
 
 TEST(SelectFuture, Pend_MultipleReady) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
 
   BroadcastValueProvider<int> int_provider;
   BroadcastValueProvider<char> char_provider;
@@ -317,12 +317,12 @@ TEST(SelectFuture, Pend_MultipleReady) {
   auto future =
       Select(int_provider.Get(), char_provider.Get(), bool_provider.Get());
 
-  EXPECT_EQ(dispatcher.RunPendableUntilStalled(future), Pending());
+  EXPECT_EQ(dispatcher.RunInTaskUntilStalled(future), Pending());
 
   char_provider.Resolve('y');
   bool_provider.Resolve(false);
 
-  auto result = dispatcher.RunPendableUntilStalled(future);
+  auto result = dispatcher.RunInTaskUntilStalled(future);
   ASSERT_TRUE(result.IsReady());
 
   EXPECT_FALSE(result->has_value<0>());

@@ -20,7 +20,7 @@
 #include "pw_allocator/testing.h"
 #include "pw_async2/coro.h"
 #include "pw_async2/coro_or_else_task.h"
-#include "pw_async2/dispatcher.h"
+#include "pw_async2/dispatcher_for_test.h"
 #include "pw_async2/poll.h"
 #include "pw_function/function.h"
 #include "pw_status/status.h"
@@ -37,7 +37,7 @@ using ::pw::async2::Context;
 using ::pw::async2::Coro;
 using ::pw::async2::CoroContext;
 using ::pw::async2::CoroOrElseTask;
-using ::pw::async2::Dispatcher;
+using ::pw::async2::DispatcherForTest;
 using ::pw::async2::PendFuncAwaitable;
 using ::pw::async2::Pending;
 using ::pw::async2::Poll;
@@ -91,7 +91,7 @@ TEST(PendFuncAwaitable, TestMailbox) {
       ReadMailbox(coro_cx, mailbox, output),
       [&error_handler_did_run](Status) { error_handler_did_run = true; });
 
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   dispatcher.Post(task);
 
   EXPECT_EQ(mailbox.PollCount(), 0);

@@ -14,7 +14,7 @@
 
 #include "pw_async2/task.h"
 
-#include "pw_async2/dispatcher.h"
+#include "pw_async2/dispatcher_for_test.h"
 #include "pw_sync/binary_semaphore.h"
 #include "pw_thread/sleep.h"
 #include "pw_thread/test_thread_context.h"
@@ -26,7 +26,7 @@ namespace {
 using namespace std::chrono_literals;
 
 using pw::async2::Context;
-using pw::async2::Dispatcher;
+using pw::async2::DispatcherForTest;
 using pw::async2::Pending;
 using pw::async2::Poll;
 using pw::async2::Ready;
@@ -60,13 +60,13 @@ TEST(Task, IsRegistered) {
   BlockingTask task(Ready());
   EXPECT_FALSE(task.IsRegistered());
 
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   dispatcher.Post(task);
   EXPECT_TRUE(task.IsRegistered());
 }
 
 TEST(Task, DeregisterWhileSleeping) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   BlockingTask task(Ready());
   dispatcher.Post(task);
 
@@ -75,7 +75,7 @@ TEST(Task, DeregisterWhileSleeping) {
 }
 
 void DeregisterWhileRunning(Poll<> task_return) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
 
   BlockingTask task(task_return);
   dispatcher.Post(task);

@@ -17,7 +17,7 @@
 #include "pw_allocator/null_allocator.h"
 #include "pw_allocator/testing.h"
 #include "pw_async2/coro.h"
-#include "pw_async2/dispatcher_base.h"
+#include "pw_async2/dispatcher_for_test.h"
 #include "pw_status/status.h"
 
 namespace {
@@ -32,7 +32,7 @@ using ::pw::async2::Context;
 using ::pw::async2::Coro;
 using ::pw::async2::CoroContext;
 using ::pw::async2::CoroOrElseTask;
-using ::pw::async2::Dispatcher;
+using ::pw::async2::DispatcherForTest;
 using ::pw::async2::Pending;
 using ::pw::async2::Poll;
 using ::pw::async2::Ready;
@@ -54,7 +54,7 @@ TEST(CoroTest, BasicFunctionsWithoutYieldingRun) {
   CoroOrElseTask task(
       StoresFiveThenReturns(coro_cx, output),
       [&error_handler_did_run](Status) { error_handler_did_run = true; });
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   dispatcher.Post(task);
   EXPECT_TRUE(dispatcher.RunUntilStalled().IsReady());
   EXPECT_EQ(output, 5);
@@ -68,7 +68,7 @@ TEST(CoroTest, AllocationFailureProducesInvalidCoro) {
   int output = 0;
   CoroOrElseTask task(StoresFiveThenReturns(coro_cx, output),
                       [&status](Status actual) { status = actual; });
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   dispatcher.Post(task);
   EXPECT_TRUE(dispatcher.RunUntilStalled().IsReady());
   EXPECT_EQ(status, Status::Internal());

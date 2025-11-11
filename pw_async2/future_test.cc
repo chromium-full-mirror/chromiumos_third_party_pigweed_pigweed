@@ -14,7 +14,7 @@
 
 #include "pw_async2/future.h"
 
-#include "pw_async2/dispatcher.h"
+#include "pw_async2/dispatcher_for_test.h"
 #include "pw_async2/pend_func_task.h"
 #include "pw_async2/try.h"
 #include "pw_compilation_testing/negative_compilation.h"
@@ -23,7 +23,7 @@
 namespace {
 
 using pw::async2::Context;
-using pw::async2::Dispatcher;
+using pw::async2::DispatcherForTest;
 using pw::async2::is_future_v;
 using pw::async2::ListableFutureWithWaker;
 using pw::async2::ListFutureProvider;
@@ -202,7 +202,7 @@ static_assert(is_future_v<SimpleIntFuture>);
 static_assert(is_future_v<NotificationFuture>);
 
 TEST(Future, Pend) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   SimpleAsyncInt provider;
 
   SimpleIntFuture future = provider.Get();
@@ -223,7 +223,7 @@ TEST(Future, Pend) {
 }
 
 TEST(Future, VoidFuture) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   AsyncNotification notification;
 
   NotificationFuture future = notification.Wait();
@@ -245,7 +245,7 @@ TEST(Future, VoidFuture) {
 }
 
 TEST(Future, MoveAssign) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   SimpleAsyncInt provider;
 
   SimpleIntFuture future1 = provider.Get();
@@ -269,7 +269,7 @@ TEST(Future, MoveAssign) {
 }
 
 TEST(Future, MoveConstruct) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   SimpleAsyncInt provider;
 
   SimpleIntFuture future1 = provider.Get();
@@ -291,7 +291,7 @@ TEST(Future, MoveConstruct) {
 }
 
 TEST(Future, DestroyBeforeCompletion) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   SimpleAsyncInt provider;
 
   {
@@ -303,7 +303,7 @@ TEST(Future, DestroyBeforeCompletion) {
 }
 
 TEST(ListFutureProvider, MultipleFutures) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   SimpleAsyncInt provider;
 
   SimpleIntFuture future1 = provider.Get();
@@ -334,7 +334,7 @@ TEST(ListFutureProvider, MultipleFutures) {
 }
 
 TEST(SingleFutureProvider, VendsAndResolvesFuture) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   SimpleAsyncInt provider;
 
   std::optional<SimpleIntFuture> future = provider.GetSingle();
@@ -357,7 +357,7 @@ TEST(SingleFutureProvider, VendsAndResolvesFuture) {
 }
 
 TEST(SingleFutureProvider, OnlyAllowsOneFutureToExist) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   SimpleAsyncInt provider;
 
   {
@@ -391,7 +391,7 @@ TEST(SingleFutureProvider, OnlyAllowsOneFutureToExist) {
 }
 
 TEST(ListableFutureWithWaker, RelistsItselfOnPending) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   SimpleAsyncInt provider;
 
   std::optional<SimpleIntFuture> future = provider.GetSingle();

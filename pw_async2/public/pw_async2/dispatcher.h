@@ -20,27 +20,6 @@
 #include "pw_async2/waker.h"
 
 namespace pw::async2 {
-namespace internal {
-
-template <typename Pendable>
-class PendableAsTaskWithOutput : public Task {
- public:
-  using value_type = PendOutputOf<Pendable>;
-  PendableAsTaskWithOutput(Pendable& pendable)
-      : pendable_(pendable), output_(Pending()) {}
-
-  Poll<value_type> TakePoll() { return std::move(output_); }
-
- private:
-  Poll<> DoPend(Context& cx) final {
-    output_ = pendable_.Pend(cx);
-    return output_.Readiness();
-  }
-  Pendable& pendable_;
-  Poll<value_type> output_;
-};
-
-}  // namespace internal
 
 /// @submodule{pw_async2,core}
 
@@ -71,27 +50,6 @@ class Dispatcher {
   /// Runs tasks until none are able to make immediate progress.
   Poll<> RunUntilStalled() PW_LOCKS_EXCLUDED(impl::dispatcher_lock()) {
     return native_.DoRunUntilStalled(*this);
-  }
-
-  /// Runs tasks until none are able to make immediate progress, or until
-  /// ``pendable`` completes.
-  ///
-  /// Returns a ``Poll`` containing the possible output of ``pendable``.
-  template <typename Pendable>
-  Poll<PendOutputOf<Pendable>> RunPendableUntilStalled(Pendable& pendable)
-      PW_LOCKS_EXCLUDED(impl::dispatcher_lock()) {
-    internal::PendableAsTaskWithOutput<Pendable> task(pendable);
-    Post(task);
-    RunUntilStalled().IgnorePoll();
-
-    // Ensure that the task is no longer registered, as it will be destroyed
-    // once we return.
-    //
-    // This operation will not block because we are on the dispatcher thread
-    // and the dispatcher is not currently running (we just ran it).
-    task.Deregister();
-
-    return task.TakePoll();
   }
 
   /// Runs until all tasks complete.

@@ -14,7 +14,7 @@
 
 #include "pw_async2/join.h"
 
-#include "pw_async2/dispatcher.h"
+#include "pw_async2/dispatcher_for_test.h"
 #include "pw_async2/value_future.h"
 #include "pw_compilation_testing/negative_compilation.h"
 #include "pw_unit_test/framework.h"
@@ -23,7 +23,7 @@ namespace {
 
 using ::pw::async2::BroadcastValueProvider;
 using ::pw::async2::Context;
-using ::pw::async2::Dispatcher;
+using ::pw::async2::DispatcherForTest;
 using ::pw::async2::Join;
 using ::pw::async2::Joiner;
 using ::pw::async2::Pending;
@@ -98,7 +98,7 @@ PW_MODIFY_DIAGNOSTICS_PUSH();
 PW_MODIFY_DIAGNOSTIC(ignored, "-Wdeprecated-declarations");
 
 TEST(Joiner, PendDelegatesToPendables) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
 
   PendableController controller_1;
   PendableController controller_2;
@@ -106,13 +106,13 @@ TEST(Joiner, PendDelegatesToPendables) {
   StructWithPendMethod pendable_2(2, controller_2);
   Joiner join(std::move(pendable_1), std::move(pendable_2));
 
-  EXPECT_EQ(dispatcher.RunPendableUntilStalled(join), Pending());
+  EXPECT_EQ(dispatcher.RunInTaskUntilStalled(join), Pending());
   controller_2.allow_completion_ = true;
   std::move(controller_2.waker_).Wake();
-  EXPECT_EQ(dispatcher.RunPendableUntilStalled(join), Pending());
+  EXPECT_EQ(dispatcher.RunInTaskUntilStalled(join), Pending());
   controller_1.allow_completion_ = true;
   std::move(controller_1.waker_).Wake();
-  auto&& result = dispatcher.RunPendableUntilStalled(join);
+  auto&& result = dispatcher.RunInTaskUntilStalled(join);
   ASSERT_TRUE(result.IsReady());
   auto&& [v1, v2] = std::move(*result);
   EXPECT_EQ(v1.result_, 1);
@@ -122,7 +122,7 @@ TEST(Joiner, PendDelegatesToPendables) {
 }
 
 TEST(Joiner, BindsDirectly) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   PendableController controller_1;
   controller_1.allow_completion_ = true;
   PendableController controller_2;
@@ -131,7 +131,7 @@ TEST(Joiner, BindsDirectly) {
   StructWithPendMethod pendable_2(2, controller_2);
   Joiner join(std::move(pendable_1), std::move(pendable_2));
 
-  auto result = dispatcher.RunPendableUntilStalled(join);
+  auto result = dispatcher.RunInTaskUntilStalled(join);
   ASSERT_TRUE(result.IsReady());
   auto&& [v1, v2] = result.value();
   EXPECT_EQ(v1.result_, 1);
@@ -143,17 +143,17 @@ TEST(Joiner, BindsDirectly) {
 PW_MODIFY_DIAGNOSTICS_POP();
 
 TEST(JoinFuture, ReturnsReadyWhenAllPendablesAreReady) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
 
   BroadcastValueProvider<int> int_provider;
   BroadcastValueProvider<char> char_provider;
 
   auto future = Join(int_provider.Get(), char_provider.Get());
-  EXPECT_EQ(dispatcher.RunPendableUntilStalled(future), Pending());
+  EXPECT_EQ(dispatcher.RunInTaskUntilStalled(future), Pending());
   int_provider.Resolve(43);
-  EXPECT_EQ(dispatcher.RunPendableUntilStalled(future), Pending());
+  EXPECT_EQ(dispatcher.RunInTaskUntilStalled(future), Pending());
   char_provider.Resolve('d');
-  auto&& result = dispatcher.RunPendableUntilStalled(future);
+  auto&& result = dispatcher.RunInTaskUntilStalled(future);
   ASSERT_TRUE(result.IsReady());
   auto&& [i, c] = *result;
   EXPECT_EQ(i, 43);

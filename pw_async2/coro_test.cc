@@ -16,7 +16,7 @@
 
 #include "pw_allocator/null_allocator.h"
 #include "pw_allocator/testing.h"
-#include "pw_async2/dispatcher_base.h"
+#include "pw_async2/dispatcher_for_test.h"
 #include "pw_status/status.h"
 
 namespace {
@@ -30,7 +30,7 @@ using ::pw::allocator::test::AllocatorForTest;
 using ::pw::async2::Context;
 using ::pw::async2::Coro;
 using ::pw::async2::CoroContext;
-using ::pw::async2::Dispatcher;
+using ::pw::async2::DispatcherForTest;
 using ::pw::async2::Pending;
 using ::pw::async2::Poll;
 using ::pw::async2::Ready;
@@ -77,7 +77,7 @@ TEST(CoroTest, BasicFunctionsWithoutYieldingRun) {
   CoroContext coro_cx(alloc);
   int output = 0;
   ExpectCoroTask task = StoresFiveThenReturns(coro_cx, output);
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   dispatcher.Post(task);
   EXPECT_TRUE(dispatcher.RunUntilStalled().IsReady());
   EXPECT_EQ(output, 5);
@@ -96,7 +96,7 @@ TEST(CoroTest, ObjectWithCoroMethodIsCallable) {
   ObjectWithCoroMethod obj(4);
   int out = 22;
   ExpectCoroTask task = obj.CoroMethodStoresField(coro_cx, out);
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   dispatcher.Post(task);
   EXPECT_TRUE(dispatcher.RunUntilStalled().IsReady());
   EXPECT_EQ(out, 4);
@@ -140,7 +140,7 @@ TEST(CoroTest, AwaitMultipleAndAwakenRuns) {
   MockPendable b;
   int output = 0;
   ExpectCoroTask task = AddTwoThenStore(coro_cx, a, b, output);
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   dispatcher.Post(task);
 
   EXPECT_TRUE(dispatcher.RunUntilStalled().IsPending());
