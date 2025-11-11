@@ -70,7 +70,6 @@ def target_codegen(
         templates = {
             "object_channel_handler": "@pigweed//pw_kernel/tooling/system_generator/templates/objects:channel_handler.rs.tmpl",
             "object_channel_initiator": "@pigweed//pw_kernel/tooling/system_generator/templates/objects:channel_initiator.rs.tmpl",
-            "object_ticker": "@pigweed//pw_kernel/tooling/system_generator/templates/objects:ticker.rs.tmpl",
             "system": "@pigweed//pw_kernel/tooling/system_generator/templates:system.rs.tmpl",
         },
         **kwargs):

@@ -28,11 +28,9 @@ use crate::sync::spinlock::SpinLock;
 
 mod buffer;
 mod channel;
-mod ticker;
 
 pub use buffer::SyscallBuffer;
 pub use channel::{ChannelHandlerObject, ChannelInitiatorObject};
-pub use ticker::{TickerCallback, TickerObject};
 
 /// Trait that all kernel objects implement.
 ///

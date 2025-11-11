@@ -129,14 +129,9 @@ pub struct MemoryMapping {
 #[serde(tag = "type")]
 #[serde(rename_all = "snake_case")]
 pub enum ObjectConfig {
-    Ticker(TickerConfig),
     ChannelInitiator(ChannelInitiatorConfig),
     ChannelHandler(ChannelHandlerConfig),
 }
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(deny_unknown_fields)]
-pub struct TickerConfig;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
