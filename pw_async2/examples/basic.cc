@@ -196,7 +196,7 @@ TEST(CoroExample, ReturnsOk) {
   AllocatorForTest<256> alloc;
   CoroContext coro_cx(alloc);
   auto coro = ReceiveAndSendCoro(coro_cx, MyReceiver(), MySender());
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   EXPECT_EQ(dispatcher.RunInTaskUntilStalled(coro), Ready(OkStatus()));
 }
 

@@ -15,7 +15,7 @@
 #include "pw_multibuf/allocator.h"
 
 #include "gtest/gtest.h"
-#include "pw_async2/dispatcher.h"
+#include "pw_async2/dispatcher_for_test.h"
 #include "pw_async2/poll.h"
 #include "pw_multibuf/allocator_async.h"
 
@@ -23,7 +23,7 @@ namespace pw::multibuf {
 namespace {
 
 using ::pw::async2::Context;
-using ::pw::async2::Dispatcher;
+using ::pw::async2::DispatcherForTest;
 using ::pw::async2::Pending;
 using ::pw::async2::Poll;
 using ::pw::async2::PollOptional;
@@ -126,7 +126,7 @@ TEST(MultiBufAllocatorAsync,
   AllocateTask task(async_alloc.AllocateAsync(44, 33));
   mbuf_alloc.ExpectAllocateAndReturn(44, 33, kAllowDiscontiguous, MultiBuf());
 
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   dispatcher.Post(task);
   EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
 
@@ -139,7 +139,7 @@ TEST(MultiBufAllocatorAsync, AllocateAsyncWillNotPollUntilMoreMemoryAvailable) {
   MultiBufAllocatorAsync async_alloc{mbuf_alloc};
 
   AllocateTask task(async_alloc.AllocateAsync(44, 33));
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   dispatcher.Post(task);
 
   // First attempt will return `ResourceExhausted` to signal temporary OOM.
@@ -183,7 +183,7 @@ TEST(MultiBufAllocatorAsync, MoveMultiBufAllocationFuture) {
   AllocateTask task(std::move(fut3));
   mbuf_alloc.ExpectAllocateAndReturn(44, 33, kAllowDiscontiguous, MultiBuf());
 
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   dispatcher.Post(task);
   EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
 

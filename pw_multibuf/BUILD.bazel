@@ -230,8 +230,8 @@ pw_cc_test(
         ":allocator",
         ":allocator_async",
         ":v1_config",
-        "//pw_async2:dispatcher",
         "//pw_async2:poll",
+        "//pw_async2:testing",
     ],
 )
 # LINT.ThenChange(BUILD.gn, CMakeLists.txt)
@@ -265,8 +265,8 @@ pw_cc_test(
         ":v1_config",
         "//pw_allocator:null_allocator",
         "//pw_allocator:testing",
-        "//pw_async2:dispatcher",
         "//pw_async2:poll",
+        "//pw_async2:testing",
     ],
 )
 

@@ -17,6 +17,7 @@
 
 #include "pw_allocator/testing.h"
 #include "pw_assert/check.h"
+#include "pw_async2/dispatcher_for_test.h"
 #include "pw_compilation_testing/negative_compilation.h"
 #include "pw_multibuf/allocator.h"
 #include "pw_multibuf/allocator_async.h"
@@ -28,7 +29,8 @@ namespace {
 
 using ::pw::allocator::test::AllocatorForTest;
 using ::pw::async2::Context;
-using ::pw::async2::Dispatcher;
+using ::pw::async2::DispatcherForTest;
+
 using ::pw::async2::Pending;
 using ::pw::async2::Poll;
 using ::pw::async2::PollOptional;
@@ -121,7 +123,7 @@ class WriteOnlyStub : public pw::channel::Implement<pw::channel::ByteWriter> {
 };
 
 TEST(Channel, MethodsShortCircuitAfterCloseReturnsReady) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
 
   class : public Task {
    public:
@@ -322,7 +324,7 @@ TEST(Channel, TestByteReader) {
   static constexpr size_t kReadDataSize = sizeof(kReadData);
   static constexpr size_t kArbitraryMetaSize = 512;
 
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   std::array<std::byte, kReadDataSize> data_area;
   AllocatorForTest<kArbitraryMetaSize> meta_alloc;
   SimpleAllocator simple_allocator(data_area, meta_alloc);
@@ -370,7 +372,7 @@ TEST(Channel, TestByteReader) {
 }
 
 TEST(Channel, TestDatagramWriter) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   static constexpr size_t kArbitraryDataSize = 128;
   static constexpr size_t kArbitraryMetaSize = 512;
   std::array<std::byte, kArbitraryDataSize> data_area;

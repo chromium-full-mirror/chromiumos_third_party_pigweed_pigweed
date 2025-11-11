@@ -17,6 +17,7 @@
 #include <array>
 
 #include "pw_async/fake_dispatcher.h"
+#include "pw_async2/dispatcher_for_test.h"
 #include "pw_async2/pend_func_task.h"
 #include "pw_async2/poll.h"
 #include "pw_bluetooth/uuid.h"
@@ -124,7 +125,7 @@ class CentralTest : public ::testing::Test {
 
  private:
   pw::async::test::FakeDispatcher async_dispatcher_;
-  pw::async2::Dispatcher async2_dispatcher_;
+  pw::async2::DispatcherForTest async2_dispatcher_;
   bt::gap::testing::FakeAdapter adapter_{async_dispatcher_};
 
   pw::multibuf::test::SimpleAllocatorForTest</*kDataSizeBytes=*/2024,

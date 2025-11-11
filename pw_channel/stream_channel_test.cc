@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <array>
 
+#include "pw_async2/dispatcher_for_test.h"
 #include "pw_async2/pend_func_task.h"
 #include "pw_bytes/suffix.h"
 #include "pw_multibuf/simple_allocator_for_test.h"
@@ -100,7 +101,7 @@ TEST(StreamChannel, ReadsAndWritesData) {
     return Ready();
   });
 
-  pw::async2::Dispatcher dispatcher;
+  pw::async2::DispatcherForTest dispatcher;
   dispatcher.Post(write_task);
   dispatcher.Post(read_task);
 

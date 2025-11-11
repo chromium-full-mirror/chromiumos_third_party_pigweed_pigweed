@@ -15,7 +15,7 @@
 #include "pw_channel/test_packet_channel.h"
 
 #include "pw_allocator/testing.h"
-#include "pw_async2/dispatcher.h"
+#include "pw_async2/dispatcher_for_test.h"
 #include "pw_async2/pend_func_task.h"
 #include "pw_async2/poll.h"
 #include "pw_unit_test/framework.h"
@@ -31,7 +31,7 @@ class TestPacketReaderWriterTest : public ::testing::Test {
 
   pw::allocator::test::AllocatorForTest<512> allocator_;
   pw::channel::TestPacketReaderWriter<const char*> channel_;
-  pw::async2::Dispatcher dispatcher_;
+  pw::async2::DispatcherForTest dispatcher_;
 };
 
 TEST_F(TestPacketReaderWriterTest, Read) {

@@ -18,6 +18,7 @@
 #include <array>
 
 #include "pw_allocator/testing.h"
+#include "pw_async2/dispatcher_for_test.h"
 #include "pw_multibuf/header_chunk_region_tracker.h"
 #include "pw_multibuf/simple_allocator.h"
 #include "pw_string/string.h"
@@ -87,7 +88,7 @@ class TestChannelPair {
 // TODO: b/330788671 - Have the test tasks run in multiple stages to ensure that
 //     wakers are stored / woken properly by ForwardingChannel.
 TEST(ForwardingDatagramChannel, ForwardsEmptyDatagrams) {
-  pw::async2::Dispatcher dispatcher;
+  pw::async2::DispatcherForTest dispatcher;
 
   class : public pw::async2::Task {
    public:
@@ -143,7 +144,7 @@ TEST(ForwardingDatagramChannel, ForwardsEmptyDatagrams) {
 }
 
 TEST(ForwardingDatagramChannel, ForwardsNonEmptyDatagrams) {
-  pw::async2::Dispatcher dispatcher;
+  pw::async2::DispatcherForTest dispatcher;
 
   class : public pw::async2::Task {
    public:
@@ -190,7 +191,7 @@ TEST(ForwardingDatagramChannel, ForwardsNonEmptyDatagrams) {
 }
 
 TEST(ForwardingDatagramChannel, ForwardsDatagrams) {
-  pw::async2::Dispatcher dispatcher;
+  pw::async2::DispatcherForTest dispatcher;
 
   class : public pw::async2::Task {
    public:
@@ -274,7 +275,7 @@ TEST(ForwardingDatagramchannel, PendCloseAwakensAndClosesPeer) {
     DatagramReader& reader_;
   };
 
-  pw::async2::Dispatcher dispatcher;
+  pw::async2::DispatcherForTest dispatcher;
   TestChannelPair<pw::channel::DataType::kDatagram> pair;
   TryToReadUntilClosed read_task(pair->first());
   dispatcher.Post(read_task);
@@ -310,7 +311,7 @@ TEST(ForwardingDatagramchannel, PendCloseAwakensAndClosesPeer) {
 }
 
 TEST(ForwardingByteChannel, IgnoresEmptyWrites) {
-  pw::async2::Dispatcher dispatcher;
+  pw::async2::DispatcherForTest dispatcher;
 
   class : public pw::async2::Task {
    public:
@@ -398,7 +399,7 @@ TEST(ForwardingByteChannel, WriteData) {
   ReadTask read_task(*pair);
   WriteTask write_task(*pair, data.Take());
 
-  pw::async2::Dispatcher dispatcher;
+  pw::async2::DispatcherForTest dispatcher;
 
   dispatcher.Post(read_task);
   ASSERT_FALSE(dispatcher.RunUntilStalled().IsReady());
@@ -409,7 +410,7 @@ TEST(ForwardingByteChannel, WriteData) {
 }
 
 TEST(ForwardingByteChannel, WriteDataInMultiplePieces) {
-  pw::async2::Dispatcher dispatcher;
+  pw::async2::DispatcherForTest dispatcher;
 
   class : public pw::async2::Task {
    public:
@@ -494,7 +495,7 @@ TEST(ForwardingByteChannel, PendCloseAwakensAndClosesPeer) {
     ByteReader& reader_;
   };
 
-  pw::async2::Dispatcher dispatcher;
+  pw::async2::DispatcherForTest dispatcher;
   TestChannelPair<pw::channel::DataType::kByte> pair;
   TryToReadUntilClosed read_task(pair->first());
   dispatcher.Post(read_task);

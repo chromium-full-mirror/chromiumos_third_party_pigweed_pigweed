@@ -15,7 +15,7 @@
 #include "coin_slot.h"
 
 #include "pw_async2/context.h"
-#include "pw_async2/dispatcher.h"
+#include "pw_async2/dispatcher_for_test.h"
 #include "pw_async2/pend_func_task.h"
 #include "pw_async2/poll.h"
 #include "pw_async2/try.h"
@@ -37,7 +37,7 @@ TEST(CoinSlotTest, PendAndDeposit) {
     return Ready();
   });
 
-  pw::async2::Dispatcher dispatcher;
+  pw::async2::DispatcherForTest dispatcher;
   dispatcher.Post(task);
 
   ASSERT_EQ(dispatcher.RunUntilStalled(), Pending()) << "No deposits yet";
@@ -62,7 +62,7 @@ TEST(CoinSlotTest, MultipleDeposits) {
     unsigned int total_coins = 0;
   } task;
 
-  pw::async2::Dispatcher dispatcher;
+  pw::async2::DispatcherForTest dispatcher;
   dispatcher.Post(task);
 
   ASSERT_EQ(dispatcher.RunUntilStalled(), Pending()) << "No deposits yet";

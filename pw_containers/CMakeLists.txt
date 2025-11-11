@@ -553,6 +553,7 @@ pw_add_test(pw_containers.inline_async_deque_test
     pw_async2.poll
     pw_containers.inline_async_deque
     pw_containers._test_helpers
+    pw_async2.testing
     pw_status
   GROUPS
     modules
@@ -644,6 +645,7 @@ pw_add_test(pw_containers.inline_async_queue_test
     pw_async2.dispatcher
     pw_async2.pend_func_task
     pw_async2.poll
+    pw_async2.testing
     pw_status
   GROUPS
     modules

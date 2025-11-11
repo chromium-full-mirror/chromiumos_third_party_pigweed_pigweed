@@ -17,6 +17,7 @@
 #include <cstddef>
 
 #include "pw_allocator/testing.h"
+#include "pw_async2/dispatcher_for_test.h"
 #include "pw_async2/pend_func_task.h"
 #include "pw_channel/packet_proxy_task.h"
 #include "pw_channel/test_packet_channel.h"
@@ -94,7 +95,7 @@ class PacketProxyTest : public ::testing::Test {
 };
 
 TEST_F(PacketProxyTest, ForwardPacketsBothDirections) {
-  pw::async2::Dispatcher dispatcher;
+  pw::async2::DispatcherForTest dispatcher;
   proxy_.Run(dispatcher);
   EXPECT_TRUE(dispatcher.RunUntilStalled().IsPending());
   EXPECT_TRUE(channel_1_.written_packets().empty());
@@ -111,7 +112,7 @@ TEST_F(PacketProxyTest, ForwardPacketsBothDirections) {
 }
 
 TEST_F(PacketProxyTest, RequestCancellationFromPacket) {
-  pw::async2::Dispatcher dispatcher;
+  pw::async2::DispatcherForTest dispatcher;
   proxy_.Run(dispatcher);
 
   EXPECT_TRUE(dispatcher.RunUntilStalled().IsPending());

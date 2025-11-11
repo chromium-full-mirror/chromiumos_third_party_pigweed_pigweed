@@ -202,6 +202,7 @@ pw_add_test(pw_multibuf.allocator_test
   PRIVATE_DEPS
     pw_async2.dispatcher
     pw_async2.poll
+    pw_async2.testing
     pw_multibuf.allocator
     pw_multibuf.allocator_async
     pw_multibuf.v1_config

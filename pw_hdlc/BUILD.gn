@@ -160,6 +160,7 @@ pw_test("router_test") {
     ":router",
     "$dir_pw_allocator:testing",
     "$dir_pw_async2:pend_func_task",
+    "$dir_pw_async2:testing",
     "$dir_pw_channel:forwarding_channel",
     "$dir_pw_channel:loopback_channel",
     "$dir_pw_multibuf:simple_allocator",

@@ -98,6 +98,7 @@ pw_cc_test(
         ":proxy",
         "//pw_allocator:testing",
         "//pw_async2:pend_func_task",
+        "//pw_async2:testing",
         "//pw_bytes",
         "//pw_channel:packet_channel",
         "//pw_channel:test_packet_channel",

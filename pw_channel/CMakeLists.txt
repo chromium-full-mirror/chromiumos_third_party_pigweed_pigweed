@@ -75,6 +75,7 @@ pw_add_test(pw_channel.packet_channel_test
     pw_allocator.allocator
     pw_async2.dispatcher
     pw_async2.poll
+    pw_async2.testing
     pw_containers
     pw_unit_test
     pw_compilation_testing._pigweed_only_negative_compilation
@@ -125,6 +126,7 @@ pw_add_test(pw_channel.loopback_channel_test
     pw_channel.loopback_channel
     pw_multibuf.allocator_async
     pw_multibuf.testing
+    pw_async2.testing
 )
 
 pw_add_library(pw_channel.epoll_channel STATIC
@@ -150,6 +152,7 @@ pw_add_test(pw_channel.epoll_channel_test
     pw_channel.epoll_channel
     pw_multibuf.allocator_async
     pw_multibuf.testing
+    pw_async2.testing
     pw_thread.sleep
     pw_thread.thread
 )
@@ -178,6 +181,7 @@ pw_add_test(pw_channel.stream_channel_test
     pw_async2.pend_func_task
     pw_multibuf.allocator_async
     pw_multibuf.testing
+    pw_async2.testing
     pw_stream
     pw_stream.mpsc_stream
     pw_thread.thread
@@ -207,6 +211,7 @@ pw_add_test(pw_channel.test_packet_channel_test
     pw_async2.dispatcher
     pw_async2.pend_func_task
     pw_async2.poll
+    pw_async2.testing
     pw_channel.test_packet_channel
     pw_result
 )
@@ -236,6 +241,7 @@ pw_add_test(pw_channel.packet_proxy_test
   PRIVATE_DEPS
     pw_allocator.testing
     pw_async2.pend_func_task
+    pw_async2.testing
     pw_channel.packet_proxy
     pw_channel.test_packet_channel
 )

@@ -15,7 +15,7 @@
 #include "pw_bluetooth_proxy/comms2/proxy.h"
 
 #include "pw_allocator/testing.h"
-#include "pw_async2/dispatcher.h"
+#include "pw_async2/dispatcher_for_test.h"
 #include "pw_async2/pend_func_task.h"
 #include "pw_async2/task.h"
 #include "pw_bluetooth/hci_common.emb.h"
@@ -70,7 +70,7 @@ class ProxyTest : public ::testing::Test {
   pw::bluetooth::proxy::L2capTask host_task_;
   Proxy proxy_;
 
-  pw::async2::Dispatcher dispatcher_;
+  pw::async2::DispatcherForTest dispatcher_;
 };
 
 OpCode GetOpCode(const H4Packet& bytes) {

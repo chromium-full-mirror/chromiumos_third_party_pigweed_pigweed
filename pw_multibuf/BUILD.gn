@@ -199,8 +199,8 @@ pw_test("allocator_test") {
   deps = [
     ":allocator",
     ":allocator_async",
-    "$dir_pw_async2:dispatcher",
     "$dir_pw_async2:poll",
+    "$dir_pw_async2:testing",
   ]
   sources = [ "allocator_test.cc" ]
   configs = [ ":v1_config" ]
@@ -286,6 +286,8 @@ pw_source_set("testing") {
     ":simple_allocator",
     "$dir_pw_allocator:synchronized_allocator",
     "$dir_pw_allocator:testing",
+    "$dir_pw_async2:dispatcher",
+    "$dir_pw_async2:testing",
     "$dir_pw_sync:mutex",
     dir_pw_assert,
   ]

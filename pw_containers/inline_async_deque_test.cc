@@ -15,7 +15,7 @@
 #include "pw_containers/inline_async_deque.h"
 
 #include "pw_async2/context.h"
-#include "pw_async2/dispatcher.h"
+#include "pw_async2/dispatcher_for_test.h"
 #include "pw_async2/pend_func_task.h"
 #include "pw_async2/try.h"
 #include "pw_containers/internal/container_tests.h"
@@ -26,7 +26,8 @@
 namespace {
 
 using pw::async2::Context;
-using pw::async2::Dispatcher;
+using pw::async2::DispatcherForTest;
+
 using pw::async2::PendFuncTask;
 using pw::async2::Pending;
 using pw::async2::Poll;
@@ -62,7 +63,7 @@ PW_CONTAINERS_COMMON_DEQUE_TESTS(InlineAsyncDequeCommonTest16);
 TEST(InlineAsyncDequeTest, PendHasZeroSpaceReturnsSuccessImmediately) {
   pw::InlineAsyncDeque<int, 4> deque;
 
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   PendFuncTask task([&](Context& context) -> Poll<> {
     return deque.PendHasSpace(context, 0);
   });
@@ -75,7 +76,7 @@ TEST(InlineAsyncDequeTest, PendHasSpaceWhenAvailableReturnsSuccessImmediately) {
   deque.push_back(1);
   deque.push_back(2);
 
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   PendFuncTask task([&](Context& context) -> Poll<> {
     return deque.PendHasSpace(context, 2);
   });
@@ -89,7 +90,7 @@ TEST(InlineAsyncDequeTest, PendHasSpaceWhenFullWaitsUntilPopFront) {
   deque.push_back(2);
   deque.push_back(3);
 
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   PendFuncTask task([&](Context& context) -> Poll<> {
     return deque.PendHasSpace(context, 3);
   });
@@ -109,7 +110,7 @@ TEST(InlineAsyncDequeTest, PendHasSpaceWhenFullWaitsUntilPopBack) {
   deque.push_back(2);
   deque.push_back(3);
 
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   PendFuncTask task([&](Context& context) -> Poll<> {
     return deque.PendHasSpace(context, 3);
   });
@@ -130,7 +131,7 @@ TEST(InlineAsyncDequeTest, PendHasSpaceWhenFullWaitsUntilClear) {
   deque.push_back(3);
   deque.push_back(4);
 
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   PendFuncTask task([&](Context& context) -> Poll<> {
     return deque.PendHasSpace(context, 2);
   });
@@ -145,7 +146,7 @@ TEST(InlineAsyncDequeTest, PendHasSpaceOnGenericSizedReference) {
   pw::InlineAsyncDeque<int, 4> deque1;
   pw::InlineAsyncDeque<int>& deque2 = deque1;
 
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   PendFuncTask task([&](Context& context) -> Poll<> {
     return deque2.PendHasSpace(context, 1);
   });
@@ -155,7 +156,7 @@ TEST(InlineAsyncDequeTest, PendHasSpaceOnGenericSizedReference) {
 
 TEST(InlineAsyncDequeTest, PendHasSpaceWaitsAfterReadyUntilPushFront) {
   pw::InlineAsyncDeque<int, 4> deque;
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
 
   PendFuncTask task1([&](Context& context) -> Poll<> {
     return deque.PendHasSpace(context, 1);
@@ -178,7 +179,7 @@ TEST(InlineAsyncDequeTest, PendHasSpaceWaitsAfterReadyUntilPushFront) {
 
 TEST(InlineAsyncDequeTest, PendHasSpaceWaitsAfterReadyUntilPushBack) {
   pw::InlineAsyncDeque<int, 4> deque;
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
 
   PendFuncTask task1([&](Context& context) -> Poll<> {
     return deque.PendHasSpace(context, 1);
@@ -203,7 +204,7 @@ TEST(InlineAsyncDequeTest, PendNotEmptyWhenNotEmptyReturnsSuccessImmediately) {
   pw::InlineAsyncDeque<int, 4> deque;
   deque.push_back(1);
 
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   PendFuncTask task(
       [&](Context& context) -> Poll<> { return deque.PendNotEmpty(context); });
   dispatcher.Post(task);
@@ -213,7 +214,7 @@ TEST(InlineAsyncDequeTest, PendNotEmptyWhenNotEmptyReturnsSuccessImmediately) {
 TEST(InlineAsyncDequeTest, PendNotEmptyWhenEmptyWaitsUntilPush) {
   pw::InlineAsyncDeque<int, 4> deque;
 
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   PendFuncTask task(
       [&](Context& context) -> Poll<> { return deque.PendNotEmpty(context); });
   dispatcher.Post(task);
@@ -228,7 +229,7 @@ TEST(InlineAsyncDequeTest, PendNotEmptyOnGenericSizedReference) {
   pw::InlineAsyncDeque<int>& deque2 = deque1;
   deque2.push_back(1);
 
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   PendFuncTask task(
       [&](Context& context) -> Poll<> { return deque2.PendNotEmpty(context); });
   dispatcher.Post(task);
@@ -237,7 +238,7 @@ TEST(InlineAsyncDequeTest, PendNotEmptyOnGenericSizedReference) {
 
 TEST(InlineAsyncDequeTest, PendNotEmptyWaitsAfterReadyUntilPopFront) {
   pw::InlineAsyncDeque<int, 4> deque;
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   deque.push_back(1);
   deque.push_back(2);
 
@@ -260,7 +261,7 @@ TEST(InlineAsyncDequeTest, PendNotEmptyWaitsAfterReadyUntilPopFront) {
 
 TEST(InlineAsyncDequeTest, PendNotEmptyWaitsAfterReadyUntilPopBack) {
   pw::InlineAsyncDeque<int, 4> deque;
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   deque.push_back(1);
   deque.push_back(2);
 

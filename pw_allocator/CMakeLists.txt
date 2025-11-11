@@ -637,8 +637,10 @@ pw_add_test(pw_allocator.async_pool_test
     pw_allocator.async_pool
     pw_allocator.chunk_pool
     pw_allocator.testing
+    pw_allocator.testing
     pw_async2.dispatcher
     pw_async2.pend_func_task
+    pw_async2.testing
   GROUPS
     modules
     pw_allocator

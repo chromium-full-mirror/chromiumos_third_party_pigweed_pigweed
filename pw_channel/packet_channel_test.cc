@@ -17,7 +17,7 @@
 #include <utility>
 
 #include "lib/stdcompat/utility.h"
-#include "pw_async2/dispatcher.h"
+#include "pw_async2/dispatcher_for_test.h"
 #include "pw_async2/task.h"
 #include "pw_async2/try.h"
 #include "pw_compilation_testing/negative_compilation.h"
@@ -31,7 +31,7 @@ namespace {
 using pw::Result;
 using pw::Status;
 using pw::async2::Context;
-using pw::async2::Dispatcher;
+using pw::async2::DispatcherForTest;
 using pw::async2::Pending;
 using pw::async2::Poll;
 using pw::async2::PollResult;
@@ -260,7 +260,7 @@ TEST(PacketChannel, WriteOnlyChannelProperties) {
 }
 
 TEST(PacketChannel, TestPacketReader_ReadPackets) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   TestPacketReader reader_impl;
   auto& channel = reader_impl.channel();
 
@@ -288,7 +288,7 @@ TEST(PacketChannel, TestPacketReader_ReadPackets) {
 }
 
 TEST(PacketChannel, TestPacketReader_ReadUntilEndOfStream) {
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   TestPacketReader reader_impl;
   auto& channel = reader_impl.channel();
 
@@ -398,7 +398,7 @@ TEST(PacketWriter, Write) {
   TestPacketWriterImpl<> writer_impl;
   auto& writer = writer_impl.channel();
 
-  pw::async2::Dispatcher dispatcher;
+  pw::async2::DispatcherForTest dispatcher;
   WriteFivePackets task(writer);
   dispatcher.Post(task);
 
@@ -423,7 +423,7 @@ TEST(PacketWriter, WriteWithFlowControl) {
   TestPacketWriterImpl<> writer_impl;
   auto& writer = writer_impl.channel();
 
-  pw::async2::Dispatcher dispatcher;
+  pw::async2::DispatcherForTest dispatcher;
   WriteFivePackets task(writer);
   dispatcher.Post(task);
 
@@ -460,7 +460,7 @@ TEST(PacketWriter, WriteWithFlowControl) {
 PW_NC_EXPECT("PendRead may only be called on readable channels");
 void CallReadOnWriter() {
   TestPacketWriterImpl<> ws;
-  Dispatcher d;
+  DispatcherForTest d;
   Context cx = d.MakeContext(ws.channel(), d);
   ws.channel().PendRead(cx);
 }
@@ -468,7 +468,7 @@ void CallReadOnWriter() {
 PW_NC_EXPECT("PendReadyToWrite may only be called on writable channels");
 void CallWriteOnReader_PendReadyToWrite() {
   ReadOnlyPacketStub rs;
-  Dispatcher d;
+  DispatcherForTest d;
   Context cx = d.MakeContext(rs.channel(), d);
   rs.channel().PendReadyToWrite(cx);
 }
@@ -476,7 +476,7 @@ void CallWriteOnReader_PendReadyToWrite() {
 PW_NC_EXPECT("PendWrite may only be called on writable channels");
 void CallWriteOnReader_PendWrite() {
   ReadOnlyPacketStub rs;
-  Dispatcher d;
+  DispatcherForTest d;
   Context cx = d.MakeContext(rs.channel(), d);
   rs.channel().PendWrite(cx);
 }

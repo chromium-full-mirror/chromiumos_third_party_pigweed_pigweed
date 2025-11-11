@@ -15,6 +15,7 @@
 #include "pw_hdlc/router.h"
 
 #include "pw_allocator/testing.h"
+#include "pw_async2/dispatcher_for_test.h"
 #include "pw_async2/pend_func_task.h"
 #include "pw_bytes/suffix.h"
 #include "pw_channel/forwarding_channel.h"
@@ -28,7 +29,8 @@ namespace {
 
 using ::pw::allocator::test::AllocatorForTest;
 using ::pw::async2::Context;
-using ::pw::async2::Dispatcher;
+using ::pw::async2::DispatcherForTest;
+
 using ::pw::async2::PendFuncTask;
 using ::pw::async2::Pending;
 using ::pw::async2::Poll;
@@ -166,7 +168,7 @@ void ExpectSendAndReceive(
       router.AddChannel(incoming_pair.second(), kAddress, kArbitraryAddressTwo),
       OkStatus());
 
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   dispatcher.Post(router_task);
   dispatcher.Post(send_task);
   dispatcher.Post(recv_task);
@@ -220,7 +222,7 @@ TEST(Router, PendOnClosedIoChannelReturnsReady) {
 
   PendFuncTask router_task([&router](Context& cx) { return router.Pend(cx); });
 
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   dispatcher.Post(router_task);
   dispatcher.Post(recv_task);
 

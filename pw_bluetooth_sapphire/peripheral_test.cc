@@ -15,6 +15,7 @@
 #include "pw_bluetooth_sapphire/peripheral.h"
 
 #include "pw_async/fake_dispatcher.h"
+#include "pw_async2/dispatcher_for_test.h"
 #include "pw_async2/pend_func_task.h"
 #include "pw_bluetooth_sapphire/internal/host/gap/fake_adapter.h"
 #include "pw_unit_test/framework.h"
@@ -93,7 +94,7 @@ class PeripheralTest : public ::testing::Test {
 
  private:
   pw::async::test::FakeDispatcher async_dispatcher_;
-  pw::async2::Dispatcher async2_dispatcher_;
+  pw::async2::DispatcherForTest async2_dispatcher_;
   bt::gap::testing::FakeAdapter adapter_{async_dispatcher_};
   pw::bluetooth_sapphire::Peripheral peripheral_{adapter_.AsWeakPtr(),
                                                  async_dispatcher_};
