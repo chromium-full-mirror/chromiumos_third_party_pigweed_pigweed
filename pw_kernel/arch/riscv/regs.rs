@@ -108,6 +108,7 @@ impl MCauseVal {
 
     /// Extract the trap cause field.
     #[inline]
+    #[must_use]
     pub fn cause(&self) -> Cause {
         if self.is_interrupt() {
             // Safety: Interrupt is non-exhaustive
@@ -120,6 +121,7 @@ impl MCauseVal {
 
     /// Returns `true` if the cause is an interrupt
     #[inline]
+    #[must_use]
     pub fn is_interrupt(&self) -> bool {
         // is_negative() is used to test the high bit to be word size independent.
         self.0.cast_signed().is_negative()
@@ -179,6 +181,7 @@ impl MStatusVal {
 
     /// Extract the state dirty field.
     #[inline]
+    #[must_use]
     pub fn sd(&self) -> bool {
         // is_negative() is used to as a word size independent way to test the
         // high bit.

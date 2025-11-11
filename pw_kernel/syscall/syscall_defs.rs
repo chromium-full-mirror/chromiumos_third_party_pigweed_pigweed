@@ -446,7 +446,9 @@ unsafe extern "C" {
 
 pub trait SysCallInterface {
     fn object_wait(handle: u32, signal_mask: u32, deadline: u64) -> Result<()>;
-    fn channel_transact(
+
+    #[expect(clippy::missing_safety_doc)]
+    unsafe fn channel_transact(
         handle: u32,
         send_data: *const u8,
         send_len: usize,
@@ -454,18 +456,29 @@ pub trait SysCallInterface {
         recv_len: usize,
         deadline: u64,
     ) -> Result<u32>;
-    fn channel_read(
+
+    #[expect(clippy::missing_safety_doc)]
+    unsafe fn channel_read(
         object_handle: u32,
         offset: usize,
         buffer: *mut u8,
         buffer_len: usize,
     ) -> Result<u32>;
-    fn channel_respond(object_handle: u32, buffer: *const u8, buffer_len: usize) -> Result<()>;
+
+    #[expect(clippy::missing_safety_doc)]
+    unsafe fn channel_respond(
+        object_handle: u32,
+        buffer: *const u8,
+        buffer_len: usize,
+    ) -> Result<()>;
 
     fn debug_putc(a: u32) -> Result<u32>;
     // TODO: Consider adding an feature flagged PowerManager object and move
     // this shutdown call to it.
     fn debug_shutdown(a: u32) -> Result<()>;
-    fn debug_log(buffer: *const u8, buffer_len: usize) -> Result<()>;
+
+    #[expect(clippy::missing_safety_doc)]
+    unsafe fn debug_log(buffer: *const u8, buffer_len: usize) -> Result<()>;
+
     fn debug_nop() -> Result<()>;
 }

@@ -38,7 +38,7 @@ pub enum PmpCfgAddressMode {
 }
 
 #[repr(transparent)]
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Default, PartialEq, Eq)]
 pub struct PmpCfgVal(pub(crate) u8);
 impl PmpCfgVal {
     rw_bool_field!(u8, r, 0, "readable");
@@ -48,14 +48,9 @@ impl PmpCfgVal {
     rw_bool_field!(u8, l, 7, "locked");
 }
 
-impl Default for PmpCfgVal {
-    fn default() -> Self {
-        PmpCfgVal(0)
-    }
-}
-
 impl PmpCfgVal {
     #[cfg(not(feature = "epmp"))]
+    #[must_use]
     pub const fn from_region_type(ty: MemoryRegionType, address_mode: PmpCfgAddressMode) -> Self {
         // Prepare PmpCfgVals for PMP.
         Self(0)
@@ -99,7 +94,7 @@ impl<const NUM_ENTRIES: usize> PmpConfig<NUM_ENTRIES> {
             }
             let region = &regions[cur_region];
             let size = region.size();
-            if size % (1 << (2 + KernelConfig::PMP_GRANULARITY)) != 0 {
+            if !size.is_multiple_of(1 << (2 + KernelConfig::PMP_GRANULARITY)) {
                 // Region sizes must be at least the size of the RISC-V Granularity.
                 return Err(Error::InvalidArgument);
             }
@@ -181,6 +176,9 @@ impl<const NUM_ENTRIES: usize> PmpConfig<NUM_ENTRIES> {
     }
 
     /// Clear the PMPCFG registers disabling the current configuration.
+    ///
+    /// # Safety
+    /// Caller must ensure that it is safe and sound to clear the memory config.
     pub unsafe fn clear(&self) {
         unsafe {
             asm!("csrw pmpcfg0, x0");
@@ -191,6 +189,10 @@ impl<const NUM_ENTRIES: usize> PmpConfig<NUM_ENTRIES> {
     }
 
     /// Write this PMP configuration to the registers.
+    ///
+    /// # Safety
+    /// Caller must ensure that it is safe and sound to update the PMP with this
+    /// memory config.
     pub unsafe fn write(&self) {
         // Currently only 16 entry, rv32 PMPs are supported.
         pw_assert::debug_assert!(NUM_ENTRIES == 16);
@@ -223,6 +225,11 @@ impl<const NUM_ENTRIES: usize> PmpConfig<NUM_ENTRIES> {
     }
 
     /// Read the PMP configuration from the registers.
+    ///
+    /// # Safety
+    /// Caller must ensure that the PMP configuration register are not changed
+    /// while this call is being executed.
+    #[must_use]
     pub unsafe fn read() -> Self {
         // Currently only 16 entry, rv32 PMPs are supported.
         pw_assert::debug_assert!(NUM_ENTRIES == 16);
@@ -275,7 +282,7 @@ impl<const NUM_ENTRIES: usize> PmpConfig<NUM_ENTRIES> {
                 }
                 PmpCfgAddressMode::Napot => {
                     size = 1 << (!addr).trailing_zeros();
-                    addr = addr & !(size - 1);
+                    addr &= !(size - 1);
                     size <<= 3;
                     "NPT"
                 }

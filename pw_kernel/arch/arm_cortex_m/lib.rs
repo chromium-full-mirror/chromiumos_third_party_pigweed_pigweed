@@ -71,9 +71,7 @@ fn in_interrupt_handler() -> bool {
 
 #[allow(dead_code)]
 fn dump_int_pri() {
-    info!(
-        "BASEPRI={}, PRIMASK={}",
-        cortex_m::register::basepri::read() as u8,
-        cortex_m::register::primask::read().is_active() as u8
-    );
+    let basepri = cortex_m::register::basepri::read();
+    let primask: u8 = cortex_m::register::primask::read().is_active().into();
+    info!("BASEPRI={}, PRIMASK={}", basepri as u8, primask as u8);
 }

@@ -70,6 +70,7 @@ pub struct ArchThreadState {
 
 impl ArchThreadState {
     #[inline(never)]
+    #[expect(clippy::too_many_arguments)]
     fn initialize_frame(
         &mut self,
         user_frame: *mut ExceptionFrame,
@@ -128,7 +129,7 @@ impl Arch for crate::Arch {
         // Remember active_thread only if it wasn't already set and trigger
         // a pendsv only the first time
         unsafe {
-            if get_active_thread() == core::ptr::null_mut() {
+            if get_active_thread().is_null() {
                 set_active_thread(old_thread_state);
 
                 // Queue a PendSV
@@ -271,6 +272,7 @@ impl Arch for crate::Arch {
         unsafe {
             asm!("bkpt");
         }
+        #[expect(clippy::empty_loop)]
         loop {}
     }
 }
@@ -284,7 +286,7 @@ impl kernel::scheduler::thread::ThreadState for ArchThreadState {
         local: ThreadLocalState::new(),
     };
 
-    fn initialize_kernel_frame(
+    unsafe fn initialize_kernel_frame(
         &mut self,
         kernel_stack: Stack,
         memory_config: *const MemoryConfig,
@@ -325,7 +327,7 @@ impl kernel::scheduler::thread::ThreadState for ArchThreadState {
     }
 
     #[cfg(feature = "user_space")]
-    fn initialize_user_frame(
+    unsafe fn initialize_user_frame(
         &mut self,
         kernel_stack: Stack,
         memory_config: *const MemoryConfig,
@@ -427,7 +429,7 @@ extern "C" fn pendsv_swap_sp(frame: *mut KernelExceptionFrame) -> *mut KernelExc
         active_thread as usize
     );
 
-    pw_assert::assert!(active_thread != core::ptr::null_mut());
+    pw_assert::assert!(!active_thread.is_null());
 
     unsafe {
         (*active_thread).frame = frame;

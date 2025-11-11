@@ -107,7 +107,10 @@ impl RbarVal {
     /// Extract access permissions field.
     pub const fn ap(&self) -> RbarAp {
         // Safety: Value is masked to only contain valid enum values.
-        unsafe { core::mem::transmute(ops::get_u32(self.0, 1, 2) as u8) }
+        #[expect(clippy::cast_possible_truncation)]
+        unsafe {
+            core::mem::transmute(ops::get_u32(self.0, 1, 2) as u8)
+        }
     }
 
     /// Update access permissions field.
@@ -118,7 +121,10 @@ impl RbarVal {
     /// Extract shareability field.
     pub const fn sh(&self) -> RbarSh {
         // Safety: Value is masked to only contain valid enum values.
-        unsafe { core::mem::transmute(ops::get_u32(self.0, 3, 4) as u8) }
+        #[expect(clippy::cast_possible_truncation)]
+        unsafe {
+            core::mem::transmute(ops::get_u32(self.0, 3, 4) as u8)
+        }
     }
 
     /// Update shareability field.
@@ -160,18 +166,19 @@ rw_reg!(
 #[repr(u8)]
 pub enum MairDeviceMemoryOrdering {
     /// non-Gathering, non-Reordering, no Early Write acknowledgement.
-    #[allow(non_camel_case_types)]
+    #[expect(non_camel_case_types)]
     nGnRnE = 0b00,
 
     /// non-Gathering, non-Reordering, Early Write acknowledgement.
-    #[allow(non_camel_case_types)]
+    #[expect(non_camel_case_types)]
     nGnRE = 0b01,
 
     /// non-Gathering, Reordering, Early Write acknowledgement.
-    #[allow(non_camel_case_types)]
+    #[expect(non_camel_case_types)]
     nGRE = 0b10,
 
     /// Gathering, Reordering, Early Write acknowledgement.
+    #[expect(clippy::upper_case_acronyms)]
     GRE = 0b11,
 }
 
@@ -253,6 +260,7 @@ macro_rules! attr_field {
         #[doc = "Extract "]
         #[doc = $desc]
         #[doc = "field"]
+        #[expect(clippy::cast_possible_truncation)]
         pub const fn $name(&self) -> u8 {
             ops::get_u32(self.0, $start, $end) as u8
         }

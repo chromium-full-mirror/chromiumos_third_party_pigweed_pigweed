@@ -160,7 +160,11 @@ pub trait ThreadState: 'static + Sized {
     /// Arranges for the thread to start at `initial_function` with arguments
     /// passed in the first two argument slots.  The stack pointer of the thread
     /// is set to the top of the kernel stack.
-    fn initialize_kernel_frame(
+    ///
+    /// # Safety
+    /// Caller guarantees that the `memory_config` pointer remains valid for the
+    /// lifetime of the thread.
+    unsafe fn initialize_kernel_frame(
         &mut self,
         kernel_stack: Stack,
         memory_config: *const Self::MemoryConfig,
@@ -172,8 +176,12 @@ pub trait ThreadState: 'static + Sized {
     ///
     /// Arranges for the thread to start at `initial_function` with arguments
     /// passed in the first two argument slots
+    ///
+    /// # Safety
+    /// Caller guarantees that the `memory_config` pointer remains valid for the
+    /// lifetime of the thread.
     #[cfg(feature = "user_space")]
-    fn initialize_user_frame(
+    unsafe fn initialize_user_frame(
         &mut self,
         kernel_stack: Stack,
         memory_config: *const Self::MemoryConfig,

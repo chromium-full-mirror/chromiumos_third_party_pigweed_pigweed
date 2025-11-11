@@ -33,6 +33,7 @@ impl MemoryConfig {
     /// # Panics
     /// Will panic if the current target's PMP will does not have enough entries
     /// to represent the provided `regions`.
+    #[must_use]
     pub const fn const_new(regions: &'static [MemoryRegion]) -> Self {
         match PmpConfig::new(regions) {
             Ok(cfg) => Self {
@@ -44,6 +45,10 @@ impl MemoryConfig {
     }
 
     /// Write this memory configuration to the PMP registers.
+    ///
+    /// # Safety
+    /// Caller must ensure that it is safe and sound to update the PMP with this
+    /// memory config.
     pub unsafe fn write(&self) {
         unsafe {
             // We clear first so the following write can't create an
@@ -78,6 +83,6 @@ impl memory_config::MemoryConfig for MemoryConfig {
         end_addr: usize,
     ) -> bool {
         let validation_region = MemoryRegion::new(access_type, start_addr, end_addr);
-        MemoryRegion::regions_have_access(&self.regions, &validation_region)
+        MemoryRegion::regions_have_access(self.regions, &validation_region)
     }
 }

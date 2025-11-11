@@ -31,8 +31,9 @@ impl TargetInterface for Target {
         static mut DEMO_STATE: demo::DemoState<Arch> = demo::DemoState::new(Arch);
         // SAFETY: `main` is only executed once, so we never generate more
         // than one `&mut` reference to `DEMO_STATE`.
-        #[allow(static_mut_refs)]
+        #[expect(static_mut_refs)]
         let _ = demo::main(Arch, unsafe { &mut DEMO_STATE });
+        #[expect(clippy::empty_loop)]
         loop {}
     }
 }

@@ -231,6 +231,7 @@ Pigweed project's ``.vscode/settings.json`` file.
    "rust-analyzer.check.overrideCommand": [
      "bazelisk",
      "build",
+     "--config=k_lint",
      "--config=$CONFIG",
      "--@rules_rust//:error_format=json",
      "--experimental_ui_max_stdouterr_bytes=10485760",

@@ -41,11 +41,12 @@ impl TargetInterface for Target {
     const NAME: &'static str = "QEMU-VIRT-RISCV Interrupts";
 
     fn main() -> ! {
-        let exit_status = match { interrupts::main::<Arch, TargetUart>(Arch) } {
+        let exit_status = match interrupts::main::<Arch, TargetUart>(Arch) {
             Ok(()) => EXIT_SUCCESS,
             Err(_e) => EXIT_FAILURE,
         };
         exit(exit_status);
+        #[expect(clippy::empty_loop)]
         loop {}
     }
 }

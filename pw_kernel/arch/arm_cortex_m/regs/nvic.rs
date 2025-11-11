@@ -144,7 +144,7 @@ impl Nvic {
         unsafe {
             let (reg, offset) = priority_reg_and_offset(index, IPR_BASE);
             let val = reg.read_volatile();
-            reg.write_volatile((val & (0xff << offset)) | ((priority as u32) << offset))
+            reg.write_volatile((val & (0xff << offset)) | ((u32::from(priority)) << offset))
         }
     }
 }

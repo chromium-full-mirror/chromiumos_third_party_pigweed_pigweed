@@ -28,6 +28,7 @@ impl regs::BaseAddress for Uart {
 impl uart_16550_regs::Uart16550BaseAddress for Uart {}
 
 impl Uart {
+    #[must_use]
     pub const fn new(base_address: usize) -> Uart {
         Self { base_address }
     }
@@ -38,9 +39,9 @@ impl Uart {
         mcr.write(self, val);
         log_if::debug_if!(
             LOG_UART,
-            "set MCR to {:02x},  should be {:02x}",
-            mcr.read(self).0 as u32,
-            val.0 as u32
+            "set MCR to {:#04x},  should be {:#04x}",
+            mcr.read(self).0 as u8,
+            val.0 as u8
         );
     }
 

@@ -24,7 +24,7 @@ pub mod __private {
 
     pub fn write(buffer: &[u8]) -> Result<()> {
         // Use the direct syscall interface to avoid a circular dependency in the
-        syscall_user::SysCall::debug_log(buffer.as_ptr(), buffer.len())
+        unsafe { syscall_user::SysCall::debug_log(buffer.as_ptr(), buffer.len()) }
     }
 
     type TokenizedWriter = Base64TokenizedMessageWriter<fn(&[u8]) -> Result<()>>;

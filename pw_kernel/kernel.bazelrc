@@ -23,9 +23,6 @@ test:k_doctest --test_tag_filters=-integration,-do_not_build,-do_not_run_test,-k
 
 # Lint configuration
 # ==================
-common:k_lint --config=k_common
-common:k_lint --platforms=//pw_kernel/target/host:host
-
 # Enable clippy lints
 build:k_lint --aspects=@rules_rust//rust:defs.bzl%rust_clippy_aspect
 build:k_lint --output_groups=+clippy_checks

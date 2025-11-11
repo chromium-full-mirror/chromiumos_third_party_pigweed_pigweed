@@ -35,9 +35,10 @@ impl<K: Kernel> regs::BaseAddress for Uart<K> {
 impl<K: Kernel> uart_16550_regs::Uart16550BaseAddress for Uart<K> {}
 
 impl<K: Kernel> Uart<K> {
+    #[must_use]
     pub const fn new(base_address: usize) -> Uart<K> {
         Self {
-            base_address: base_address,
+            base_address,
             read_buffer: SpinLock::new(CircularBuffer::new()),
         }
     }
@@ -74,7 +75,7 @@ pub fn interrupt_handler<K: Kernel>(kernel: K, uart: &Uart<K>) {
     log_if::debug_if!(
         LOG_UART,
         "uart {}: interrupt_handler",
-        uart.base_address as u32
+        uart.base_address as usize
     );
 
     let lsr = uart_16550_regs::Lsr;

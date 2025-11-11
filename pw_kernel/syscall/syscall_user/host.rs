@@ -23,7 +23,7 @@ impl SysCallInterface for SysCall {
     }
 
     #[inline(always)]
-    fn channel_transact(
+    unsafe fn channel_transact(
         _handle: u32,
         _send_data: *const u8,
         _send_len: usize,
@@ -35,7 +35,7 @@ impl SysCallInterface for SysCall {
     }
 
     #[inline(always)]
-    fn channel_read(
+    unsafe fn channel_read(
         _handle: u32,
         _offset: usize,
         _buffer: *mut u8,
@@ -45,7 +45,7 @@ impl SysCallInterface for SysCall {
     }
 
     #[inline(always)]
-    fn channel_respond(_handle: u32, _buffer: *const u8, _buffer_len: usize) -> Result<()> {
+    unsafe fn channel_respond(_handle: u32, _buffer: *const u8, _buffer_len: usize) -> Result<()> {
         Err(pw_status::Error::Unimplemented)
     }
 
@@ -60,7 +60,7 @@ impl SysCallInterface for SysCall {
     }
 
     #[inline(always)]
-    fn debug_log(_buffer: *const u8, _buffer_len: usize) -> Result<()> {
+    unsafe fn debug_log(_buffer: *const u8, _buffer_len: usize) -> Result<()> {
         Err(pw_status::Error::Unimplemented)
     }
 

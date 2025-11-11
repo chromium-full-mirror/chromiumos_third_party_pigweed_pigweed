@@ -90,8 +90,8 @@ pub fn systick_init() {
     info!("Ticks per 10ms: {}", ticks_per_10ms as u32);
     if ticks_per_10ms > 0 {
         pw_assert::eq!(
-            (ticks_per_10ms * 100) as u64,
-            KernelConfig::SYS_TICK_HZ as u64
+            (ticks_per_10ms * 100) as u32,
+            KernelConfig::SYS_TICK_HZ as u32
         );
     }
 }

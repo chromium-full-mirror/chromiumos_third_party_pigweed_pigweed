@@ -82,6 +82,7 @@ unsafe impl Send for BareSpinLock {}
 unsafe impl Sync for BareSpinLock {}
 
 impl BareSpinLock {
+    #[must_use]
     pub const fn new() -> Self {
         Self {
             is_locked: UnsafeCell::new(false),
@@ -142,9 +143,9 @@ impl kernel::sync::spinlock::BareSpinLock for BareSpinLock {
             *self.is_locked.get() = true;
         }
 
-        return CortexMSpinLockGuard {
+        CortexMSpinLockGuard {
             guard: ManuallyDrop::new(guard),
             lock: self,
-        };
+        }
     }
 }

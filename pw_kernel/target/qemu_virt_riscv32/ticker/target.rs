@@ -25,6 +25,7 @@ impl TargetInterface for Target {
 
     fn main() -> ! {
         codegen::start();
+        #[expect(clippy::empty_loop)]
         loop {}
     }
 
@@ -35,6 +36,7 @@ impl TargetInterface for Target {
             _ => EXIT_FAILURE,
         };
         exit(status);
+        #[expect(clippy::empty_loop)]
         loop {}
     }
 }

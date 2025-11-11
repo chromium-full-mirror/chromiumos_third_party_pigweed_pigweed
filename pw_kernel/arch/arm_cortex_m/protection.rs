@@ -84,6 +84,9 @@ impl MpuRegion {
             }
         };
 
+        // pw_cast::CastInto can't be used in const context usizes are explicitly
+        // cast to u32s.
+        #[expect(clippy::cast_possible_truncation)]
         Self {
             rbar: RbarVal::const_default()
                 .with_xn(xn)
@@ -115,6 +118,7 @@ impl MemoryConfig {
     /// # Panics
     /// Will panic if the current target's MPU does not support enough regions
     /// to represent `regions`.
+    #[must_use]
     pub const fn const_new(regions: &'static [MemoryRegion]) -> Self {
         let mut mpu_regions = [MpuRegion::const_default(); KernelConfig::NUM_MPU_REGIONS];
         let mut i = 0;
@@ -129,6 +133,10 @@ impl MemoryConfig {
     }
 
     /// Write this memory configuration to the MPU registers.
+    ///
+    /// # Safety
+    /// Caller must ensure that it is safe and sound to update the MPU with this
+    /// memory config.
     pub unsafe fn write(&self) {
         let mut mpu = Regs::get().mpu;
         mpu.ctrl.write(
@@ -139,7 +147,11 @@ impl MemoryConfig {
                 .with_privdefena(true),
         );
         for (index, region) in self.mpu_regions.iter().enumerate() {
-            mpu.rnr.write(RnrVal::default().with_region(index as u8));
+            pw_assert::debug_assert!(index < 255);
+            #[expect(clippy::cast_possible_truncation)]
+            {
+                mpu.rnr.write(RnrVal::default().with_region(index as u8));
+            }
             mpu.rbar.write(region.rbar);
             mpu.rlar.write(region.rlar);
         }
@@ -195,6 +207,6 @@ impl memory_config::MemoryConfig for MemoryConfig {
         end_addr: usize,
     ) -> bool {
         let validation_region = MemoryRegion::new(access_type, start_addr, end_addr);
-        MemoryRegion::regions_have_access(&self.generic_regions, &validation_region)
+        MemoryRegion::regions_have_access(self.generic_regions, &validation_region)
     }
 }

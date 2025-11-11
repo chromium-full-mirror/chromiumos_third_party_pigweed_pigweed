@@ -169,7 +169,7 @@ impl SysCallInterface for SysCall {
     }
 
     #[inline(always)]
-    fn channel_transact(
+    unsafe fn channel_transact(
         handle: u32,
         send_data: *const u8,
         send_len: usize,
@@ -184,13 +184,18 @@ impl SysCallInterface for SysCall {
     }
 
     #[inline(always)]
-    fn channel_read(handle: u32, offset: usize, buffer: *mut u8, buffer_len: usize) -> Result<u32> {
+    unsafe fn channel_read(
+        handle: u32,
+        offset: usize,
+        buffer: *mut u8,
+        buffer_len: usize,
+    ) -> Result<u32> {
         SysCallReturnValue(unsafe { channel_read(handle, offset, buffer, buffer_len) })
             .to_result_u32()
     }
 
     #[inline(always)]
-    fn channel_respond(handle: u32, buffer: *const u8, buffer_len: usize) -> Result<()> {
+    unsafe fn channel_respond(handle: u32, buffer: *const u8, buffer_len: usize) -> Result<()> {
         SysCallReturnValue(unsafe { channel_respond(handle, buffer, buffer_len) }).to_result_unit()
     }
 
@@ -205,7 +210,7 @@ impl SysCallInterface for SysCall {
     }
 
     #[inline(always)]
-    fn debug_log(buffer: *const u8, buffer_len: usize) -> Result<()> {
+    unsafe fn debug_log(buffer: *const u8, buffer_len: usize) -> Result<()> {
         SysCallReturnValue(unsafe { log(buffer, buffer_len) }).to_result_unit()
     }
 

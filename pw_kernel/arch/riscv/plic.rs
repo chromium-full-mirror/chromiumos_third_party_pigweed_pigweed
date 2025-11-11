@@ -17,6 +17,7 @@ use core::ptr;
 use kernel::interrupt::InterruptController;
 use kernel_config::{PlicConfig, PlicConfigInterface};
 use log_if::debug_if;
+use pw_cast::CastInto;
 use pw_log::info;
 
 // TODO: Once the kernel supports more than one hart, these addresses will
@@ -84,16 +85,16 @@ impl InterruptController for Plic {
 
         pw_assert::assert!(PlicConfig::INTERRUPT_TABLE_SIZE <= PlicConfig::NUM_IRQS as usize);
         // Start at 1, as interrupt source 0 does not exist
-        for irq in 1..(PlicConfig::NUM_IRQS) as u32 {
+        for irq in 1..PlicConfig::NUM_IRQS {
             set_interrupt_priority(irq, IRQ_PRIORITY);
 
-            if irq < PlicConfig::INTERRUPT_TABLE_SIZE as u32
+            if irq < PlicConfig::INTERRUPT_TABLE_SIZE.cast_into()
                 && PlicConfig::interrupt_table()[irq as usize].is_some()
             {
                 debug_if!(
                     LOG_INTERRUPTS,
                     "Enabling interrupt {} with priority {}",
-                    irq as u32,
+                    irq as usize,
                     IRQ_PRIORITY as u32
                 );
                 self.enable_interrupt(irq);
@@ -140,7 +141,11 @@ impl InterruptController for Plic {
 
     fn interrupts_enabled() -> bool {
         let mie = riscv::register::mstatus::read().mie();
-        debug_if!(LOG_INTERRUPTS, "Interrupts enabled: {}", mie as u8);
+        debug_if!(
+            LOG_INTERRUPTS,
+            "Interrupts enabled: {}",
+            u8::from(mie) as u8
+        );
         mie
     }
 }

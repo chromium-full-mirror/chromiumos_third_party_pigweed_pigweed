@@ -62,7 +62,7 @@ impl InterruptController for Nvic {
             LOG_INTERRUPTS,
             "Interrupts enabled: PRIMASK={}, BASEPRI={}",
             primask as u32,
-            basepri as u32
+            basepri as u8,
         );
         primask.is_active() && (basepri == 0)
     }

@@ -97,38 +97,46 @@ fn dump_exception_frame(frame: &TrapFrame) {
 
     info!(
         "ra  {:#010x} t0 {:#010x} t1  {:#010x} t2  {:#010x}",
-        frame.ra as u32, frame.t0 as u32, frame.t1 as u32, frame.t2 as u32
+        frame.ra as usize, frame.t0 as usize, frame.t1 as usize, frame.t2 as usize
     );
     info!(
         "t3  {:#010x} t4 {:#010x} t5  {:#010x} t6  {:#010x}",
-        frame.t3 as u32, frame.t4 as u32, frame.t5 as u32, frame.t6 as u32
+        frame.t3 as usize, frame.t4 as usize, frame.t5 as usize, frame.t6 as usize
     );
     info!(
         "a0  {:#010x} a1 {:#010x} a2  {:#010x} a3  {:#010x}",
-        frame.a0 as u32, frame.a1 as u32, frame.a2 as u32, frame.a3 as u32
+        frame.a0 as usize, frame.a1 as usize, frame.a2 as usize, frame.a3 as usize
     );
     info!(
         "a4  {:#010x} a5 {:#010x} a6  {:#010x} a7  {:#010x}",
-        frame.a4 as u32, frame.a5 as u32, frame.a6 as u32, frame.a7 as u32
+        frame.a4 as usize, frame.a5 as usize, frame.a6 as usize, frame.a7 as usize
     );
     info!(
         "tp  {:#010x} gp {:#010x} sp  {:#010x}",
-        frame.tp as u32, frame.gp as u32, frame.sp as u32
+        frame.tp as usize, frame.gp as usize, frame.sp as usize
     );
-    info!("mstatus {:#010x}", frame.status as u32);
-    info!("mcause {:#010x}", MCause::read().0 as u32);
-    info!("mtval {:#010x}", MtVal::read().0 as u32);
-    info!("epc {:#010x}", frame.epc as u32);
+    info!("mstatus {:#010x}", frame.status as usize);
+    info!("mcause {:#010x}", MCause::read().0 as usize);
+    info!("mtval {:#010x}", MtVal::read().0 as usize);
+    info!("epc {:#010x}", frame.epc as usize);
 }
 
 // Pulls arguments out of the trap frame and calls the arch-independent syscall
 // handler.
 fn handle_ecall(frame: &mut TrapFrame) {
+    // Explicitly truncate the syscall ID to 16 bits per syscall ABI.
+    #[expect(clippy::cast_possible_truncation)]
     let id = frame.t0 as u16;
     let args = RiscVSyscallArgs::new(frame);
     let ret_val = raw_handle_syscall(super::Arch, id, args);
-    (*frame).a0 = ret_val.cast_unsigned() as usize;
-    (*frame).a1 = (ret_val.cast_unsigned() >> 32) as usize;
+
+    // Explicit truncation is assumed when packing a u64 into two u32 (usize)
+    // registers.
+    #[expect(clippy::cast_possible_truncation)]
+    {
+        frame.a0 = ret_val.cast_unsigned() as usize;
+        frame.a1 = (ret_val.cast_unsigned() >> 32) as usize;
+    }
 
     // ECALL exceptions do not "retire the instruction" requiring the advancing
     // of the PC past the ECALL instruction.  ECALLs are encoded as 4 byte

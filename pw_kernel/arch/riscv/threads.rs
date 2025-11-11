@@ -210,7 +210,7 @@ impl kernel::scheduler::thread::ThreadState for ArchThreadState {
     };
 
     #[inline(never)]
-    fn initialize_kernel_frame(
+    unsafe fn initialize_kernel_frame(
         &mut self,
         kernel_stack: Stack,
         memory_config: *const MemoryConfig,
@@ -228,7 +228,7 @@ impl kernel::scheduler::thread::ThreadState for ArchThreadState {
     }
 
     #[cfg(feature = "user_space")]
-    fn initialize_user_frame(
+    unsafe fn initialize_user_frame(
         &mut self,
         kernel_stack: Stack,
         memory_config: *const MemoryConfig,
@@ -245,7 +245,7 @@ impl kernel::scheduler::thread::ThreadState for ArchThreadState {
             kernel_stack,
             asm_user_trampoline,
             mstatus,
-            initial_sp as usize,
+            initial_sp,
             (initial_pc, args.0, args.1, args.2),
         );
 

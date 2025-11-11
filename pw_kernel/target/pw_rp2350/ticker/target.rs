@@ -28,11 +28,13 @@ impl TargetInterface for Target {
 
     fn main() -> ! {
         codegen::start();
+        #[expect(clippy::empty_loop)]
         loop {}
     }
 
     fn shutdown(code: u32) -> ! {
         pw_log::info!("Shutting down with code {}", code as u32);
+        #[expect(clippy::empty_loop)]
         loop {}
     }
 }

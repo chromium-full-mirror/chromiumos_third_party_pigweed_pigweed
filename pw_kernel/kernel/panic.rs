@@ -50,5 +50,7 @@ extern "C" fn panic_is_possible(
     core::hint::black_box(filename_len);
     core::hint::black_box(line);
     core::hint::black_box(col);
+
+    #[expect(clippy::empty_loop)]
     loop {}
 }

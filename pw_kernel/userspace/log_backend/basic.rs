@@ -28,8 +28,10 @@ pub mod __private {
             // Use the direct syscall interface to avoid a circular dependency in the
             // `userspace` crate.
             let buffer = s.as_bytes();
-            syscall_user::SysCall::debug_log(buffer.as_ptr(), buffer.len())
-                .map_err(|_| core::fmt::Error)
+            unsafe {
+                syscall_user::SysCall::debug_log(buffer.as_ptr(), buffer.len())
+                    .map_err(|_| core::fmt::Error)
+            }
         }
     }
 }

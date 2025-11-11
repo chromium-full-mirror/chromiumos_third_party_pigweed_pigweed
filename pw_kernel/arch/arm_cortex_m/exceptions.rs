@@ -87,6 +87,7 @@ impl ExcReturn {
 /// Return Payload.
 #[derive(Clone, Copy)]
 #[allow(dead_code)]
+#[expect(clippy::enum_variant_names)]
 #[repr(usize)]
 pub enum ExcReturnStack {
     /// Main, Non-Secure stack
@@ -135,6 +136,7 @@ pub enum ExcReturnFrameType {
 /// Return Payload.
 #[derive(Clone, Copy)]
 #[allow(dead_code)]
+#[expect(clippy::enum_variant_names)]
 #[repr(usize)]
 pub enum ExcReturnMode {
     /// Handler, Non-Secure mode
@@ -260,7 +262,7 @@ extern "C" fn pw_kernel_hard_fault(frame: *mut KernelExceptionFrame) -> *mut Ker
     );
 
     unsafe { &*frame }.dump();
-    #[allow(clippy::empty_loop)]
+    #[expect(clippy::empty_loop)]
     loop {}
 }
 
@@ -269,7 +271,7 @@ extern "C" fn pw_kernel_hard_fault(frame: *mut KernelExceptionFrame) -> *mut Ker
 extern "C" fn pw_kernel_default(frame: *mut KernelExceptionFrame) -> *mut KernelExceptionFrame {
     info!("DefaultHandler exception triggered");
     unsafe { &*frame }.dump();
-    #[allow(clippy::empty_loop)]
+    #[expect(clippy::empty_loop)]
     loop {}
 }
 
@@ -280,7 +282,7 @@ extern "C" fn pw_kernel_non_maskable_int(
 ) -> *mut KernelExceptionFrame {
     info!("NonMaskableInt exception triggered");
     unsafe { &*frame }.dump();
-    #[allow(clippy::empty_loop)]
+    #[expect(clippy::empty_loop)]
     loop {}
 }
 
@@ -296,7 +298,7 @@ extern "C" fn pw_kernel_memory_management(
     );
     unsafe { &*frame }.dump();
 
-    #[allow(clippy::empty_loop)]
+    #[expect(clippy::empty_loop)]
     loop {}
 }
 
@@ -309,6 +311,7 @@ extern "C" fn pw_kernel_bus_fault(frame: *mut KernelExceptionFrame) -> *mut Kern
         unsafe { bfar.read_volatile() } as u32
     );
     unsafe { &*frame }.dump();
+    #[expect(clippy::empty_loop)]
     loop {}
 }
 
@@ -317,6 +320,7 @@ extern "C" fn pw_kernel_bus_fault(frame: *mut KernelExceptionFrame) -> *mut Kern
 extern "C" fn pw_kernel_usage_fault(frame: *mut KernelExceptionFrame) -> *mut KernelExceptionFrame {
     info!("UsageFault exception triggered");
     unsafe { &*frame }.dump();
+    #[expect(clippy::empty_loop)]
     loop {}
 }
 
@@ -330,6 +334,6 @@ extern "C" fn pw_kernel_debug_monitor(
 ) -> *mut KernelExceptionFrame {
     info!("DebugMonitor exception triggered");
     unsafe { &*frame }.dump();
-    #[allow(clippy::empty_loop)]
+    #[expect(clippy::empty_loop)]
     loop {}
 }

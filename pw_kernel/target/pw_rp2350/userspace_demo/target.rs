@@ -28,6 +28,7 @@ impl TargetInterface for Target {
 
     fn main() -> ! {
         codegen::start();
+        #[expect(clippy::empty_loop)]
         loop {}
     }
 }

@@ -78,7 +78,7 @@ impl ThreadState for ArchThreadState {
     const NEW: Self = Self;
     type MemoryConfig = MemoryConfig;
 
-    fn initialize_kernel_frame(
+    unsafe fn initialize_kernel_frame(
         &mut self,
         _kernel_stack: Stack,
         _memory_config: *const MemoryConfig,
@@ -89,7 +89,7 @@ impl ThreadState for ArchThreadState {
     }
 
     #[cfg(feature = "user_space")]
-    fn initialize_user_frame(
+    unsafe fn initialize_user_frame(
         &mut self,
         _kernel_stack: Stack,
         _memory_config: *const MemoryConfig,

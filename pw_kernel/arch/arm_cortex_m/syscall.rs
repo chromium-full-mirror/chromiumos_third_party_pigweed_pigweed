@@ -76,11 +76,19 @@ extern "C" fn handle_svc(frame_ptr: *mut KernelExceptionFrame) -> *mut KernelExc
 
     let frame = unsafe { &mut *frame_ptr };
 
+    // Explicitly truncate the syscall ID to 16 bits per syscall ABI.
+    #[expect(clippy::cast_possible_truncation)]
     let id = frame.r11 as u16;
+
     let args = CortexMSyscallArgs::new(frame);
     let ret_val = raw_handle_syscall(super::Arch, id, args);
-    frame.r4 = (ret_val as u64) as u32;
-    frame.r5 = (ret_val as u64 >> 32) as u32;
+    let ret_val = ret_val.cast_unsigned();
+    // Intentionally truncate ret_val to marshal return value into r4 and r5
+    #[expect(clippy::cast_possible_truncation)]
+    {
+        frame.r4 = ret_val as u32;
+        frame.r5 = (ret_val >> 32) as u32;
+    }
 
     // In order for the return from svcall to return correctly, svcall needs
     // to be marked as active again.
