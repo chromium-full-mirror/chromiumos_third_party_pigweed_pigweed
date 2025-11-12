@@ -27,10 +27,28 @@ namespace pw::i2c {
 
 class ZephyrInitiator final : public Initiator {
  public:
+  // I2C bitrates defined in zephyr/dt-bindings/i2c/i2c.h
+  enum class BitRate : uint32_t {
+    // Use I2C_SPEED_SET(...) to set enum value so it can be used by
+    // i2c_configure(...)
+    kStandard100kHz = I2C_SPEED_SET(I2C_SPEED_STANDARD),
+    kFast400kHz = I2C_SPEED_SET(I2C_SPEED_FAST),
+    kFastPlus1MHz = I2C_SPEED_SET(I2C_SPEED_FAST_PLUS),
+    kHigh3p4MHz = I2C_SPEED_SET(I2C_SPEED_HIGH),
+    kUltra5MHz = I2C_SPEED_SET(I2C_SPEED_ULTRA),
+  };
+
   ZephyrInitiator(const struct device* dev)
       : Initiator(Initiator::Feature::kStandard),
         dev_(dev),
         config_(I2C_MODE_CONTROLLER | I2C_SPEED_SET(I2C_SPEED_DT)) {}
+
+  // Use this constructor to explicitly set the bitrate, for example, when the
+  // vendor doesn't support using "I2C_SPEED_SET(I2C_SPEED_DT)".
+  ZephyrInitiator(const struct device* dev, BitRate bitrate)
+      : Initiator(Initiator::Feature::kStandard),
+        dev_(dev),
+        config_(I2C_MODE_CONTROLLER | static_cast<uint32_t>(bitrate)) {}
 
   void Enable() PW_LOCKS_EXCLUDED(mutex_);
 
