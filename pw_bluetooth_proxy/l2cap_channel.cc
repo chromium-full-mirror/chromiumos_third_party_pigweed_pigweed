@@ -31,31 +31,28 @@
 
 namespace pw::bluetooth::proxy {
 
+// TODO: https://pwbug.dev/380504851 - Add tests for move operators.
 void L2capChannel::MoveFields(L2capChannel& other) {
-  // TODO: https://pwbug.dev/380504851 - Add tests for move operators.
-
-  holder_ = other.holder_;
-  other.holder_ = nullptr;
-  if (holder_) {
-    holder_->SetUnderlyingChannel(this);
-  }
-
   state_ = other.state();
   connection_handle_ = other.connection_handle();
   transport_ = other.transport();
   local_cid_ = other.local_cid();
   remote_cid_ = other.remote_cid();
+  // TODO: https://pwbug.dev/450060983 - Moving these functions outside of a
+  // mutex is unsafe.
   payload_from_controller_fn_ = std::move(other.payload_from_controller_fn_);
   payload_from_host_fn_ = std::move(other.payload_from_host_fn_);
   rx_multibuf_allocator_ = other.rx_multibuf_allocator_;
-  {
-    std::lock_guard lock(tx_mutex_);
-    std::lock_guard other_lock(other.tx_mutex_);
-    payload_queue_ = std::move(other.payload_queue_);
-    notify_on_dequeue_ = other.notify_on_dequeue_;
-    other.Undefine();
-    l2cap_channel_manager_.MoveChannelRegistration(other, *this);
-  }
+
+  std::lock_guard lock(mutex_);
+  event_fn_ = std::move(other.event_fn_);
+
+  std::lock_guard tx_lock(tx_mutex_);
+  std::lock_guard other_tx_lock(other.tx_mutex_);
+  payload_queue_ = std::move(other.payload_queue_);
+  notify_on_dequeue_ = other.notify_on_dequeue_;
+  other.Undefine();
+  l2cap_channel_manager_.MoveChannelRegistration(other, *this);
 }
 
 L2capChannel::L2capChannel(L2capChannel&& other)
@@ -252,12 +249,14 @@ L2capChannel::L2capChannel(
     uint16_t local_cid,
     uint16_t remote_cid,
     OptionalPayloadReceiveCallback&& payload_from_controller_fn,
-    OptionalPayloadReceiveCallback&& payload_from_host_fn)
+    OptionalPayloadReceiveCallback&& payload_from_host_fn,
+    ChannelEventCallback&& event_fn)
     : l2cap_channel_manager_(l2cap_channel_manager),
       connection_handle_(connection_handle),
       transport_(transport),
       local_cid_(local_cid),
       remote_cid_(remote_cid),
+      event_fn_(std::move(event_fn)),
       rx_multibuf_allocator_(rx_multibuf_allocator),
       payload_from_controller_fn_(std::move(payload_from_controller_fn)),
       payload_from_host_fn_(std::move(payload_from_host_fn)) {
@@ -459,6 +458,27 @@ pw::Status L2capChannel::StartRecombinationBuf(Direction direction,
 
 void L2capChannel::EndRecombinationBuf(Direction direction) {
   GetRecombinationBufOptRef(direction) = std::nullopt;
+}
+
+void L2capChannel::SendEvent(L2capChannelEvent event) {
+  // We don't log kWriteAvailable since they happen often. Optimally we would
+  // just debug log them also, but one of our downstreams logs all levels.
+  if (event != L2capChannelEvent::kWriteAvailable) {
+    PW_LOG_INFO(
+        "btproxy: L2capChannel::SendEvent -  connection: %#x, "
+        "local_cid: %#x, event: %u,",
+        connection_handle_,
+        local_cid_,
+        cpp23::to_underlying(event));
+  }
+
+  // TODO: https://pwbug.dev/401346239 - This will deadlock if the client's
+  // event callback does anything that causes another event to be sent. This
+  // seems unlikely given the current set of events.
+  std::lock_guard lock(mutex_);
+  if (event_fn_) {
+    event_fn_(event);
+  }
 }
 
 }  // namespace pw::bluetooth::proxy

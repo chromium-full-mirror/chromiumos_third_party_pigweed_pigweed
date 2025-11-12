@@ -28,7 +28,6 @@ pw_add_library(pw_bluetooth_proxy STATIC
 # LINT.IfChange
   HEADERS
     public/pw_bluetooth_proxy/basic_l2cap_channel.h
-    public/pw_bluetooth_proxy/channel_proxy.h
     public/pw_bluetooth_proxy/direction.h
     public/pw_bluetooth_proxy/gatt_notify_channel.h
     public/pw_bluetooth_proxy/h4_packet.h
@@ -77,7 +76,6 @@ pw_add_library(pw_bluetooth_proxy STATIC
     acl_data_channel.cc
     basic_l2cap_channel.cc
     basic_l2cap_channel_internal.cc
-    channel_proxy.cc
     gatt_notify_channel.cc
     gatt_notify_channel_internal.cc
     l2cap_channel_manager.cc

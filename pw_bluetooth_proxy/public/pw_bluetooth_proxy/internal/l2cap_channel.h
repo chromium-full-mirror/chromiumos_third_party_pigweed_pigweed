@@ -53,60 +53,6 @@ class L2capChannel : public IntrusiveForwardList<L2capChannel>::Item {
 
   };
 
-  // L2capChannels can be held by a Holder that the channel will provide tx
-  // packets to and accept rx packets and events from. This is typically a
-  // ChannelProxy or an object that manages ChannelProxies.
-  class Holder {
-   public:
-    explicit Holder(L2capChannel* underlying_channel) {
-      SetUnderlyingChannel(underlying_channel);
-    }
-    virtual ~Holder() = default;
-
-    Holder(const Holder& other) = delete;
-    Holder& operator=(const Holder& other) = delete;
-    Holder(Holder&& other) { MoveFields(other); }
-    Holder& operator=(Holder&& other) {
-      MoveFields(other);
-
-      return *this;
-    }
-
-   protected:
-    // Allow L2capChannel to access underlying channel and call
-    // HandleUnderlyingEvent without exposing it to clients in subclass
-    // ChannelProxy.
-    friend L2capChannel;
-
-    L2capChannel* GetUnderlyingChannel() { return underlying_channel_; }
-
-    // Handle the passed event from the underlying channel. Typically by sending
-    // onwards towards the client.
-    virtual void HandleUnderlyingChannelEvent(L2capChannelEvent event) = 0;
-
-    void SetUnderlyingChannel(L2capChannel* underlying_channel) {
-      underlying_channel_ = underlying_channel;
-      underlying_channel_->SetHolder(this);
-    }
-
-    // Verify current underlying channel matches `expected`.
-    void CheckUnderlyingChannel(L2capChannel* expected) {
-      PW_ASSERT(underlying_channel_ == expected);
-    }
-
-   private:
-    void MoveFields(Holder& other) {
-      underlying_channel_ = other.underlying_channel_;
-      other.underlying_channel_ = nullptr;
-      if (underlying_channel_) {
-        underlying_channel_->SwitchHolder(&other, this);
-      }
-    }
-
-    // Underlying L2capChannel that this object is holding.
-    L2capChannel* underlying_channel_ = nullptr;
-  };
-
   L2capChannel(const L2capChannel& other) = delete;
   L2capChannel& operator=(const L2capChannel& other) = delete;
   L2capChannel(L2capChannel&& other);
@@ -246,7 +192,8 @@ class L2capChannel : public IntrusiveForwardList<L2capChannel>::Item {
       uint16_t local_cid,
       uint16_t remote_cid,
       OptionalPayloadReceiveCallback&& payload_from_controller_fn,
-      OptionalPayloadReceiveCallback&& payload_from_host_fn);
+      OptionalPayloadReceiveCallback&& payload_from_host_fn,
+      ChannelEventCallback&& event_fn);
 
   // Returns whether or not ACL connection handle & L2CAP channel identifiers
   // are valid parameters for a packet.
@@ -254,36 +201,12 @@ class L2capChannel : public IntrusiveForwardList<L2capChannel>::Item {
                                                uint16_t local_cid,
                                                uint16_t remote_cid);
 
-  // Set the holder for this L2capChannel. Should not already be set.
-  // Should only be called L2capChannel::Holder.
-  void SetHolder(Holder* holder) {
-    PW_ASSERT(holder);
-    holder_ = holder;
-    // Verify holder has this as its underlying channel.
-    holder_->CheckUnderlyingChannel(this);
-  }
-
-  // Switch to indicated holder for this L2capChannel.
-  // Intended to only be be called by L2capChannel::Holder move functions.
-  void SwitchHolder(Holder* old_holder, Holder* new_holder) {
-    PW_ASSERT(holder_ == old_holder);
-    holder_ = new_holder;
-    holder_->CheckUnderlyingChannel(this);
-  }
-
-  // Verifies current holder matches `expected`.
-  void CheckHolder(Holder* expected) { PW_ASSERT(holder_ == expected); }
-
   //-------------------
   //  Other (protected)
   //-------------------
 
   // Send `event` to client if an event callback was provided.
-  void SendEvent(L2capChannelEvent event) {
-    if (holder_) {
-      holder_->HandleUnderlyingChannelEvent(event);
-    }
-  }
+  void SendEvent(L2capChannelEvent event) PW_LOCKS_EXCLUDED(mutex_);
 
   // Called on channel closure, i.e. when the ACL connection or L2CAP connection
   // is being dropped. Derived channels should override this to clean up state
@@ -493,12 +416,7 @@ class L2capChannel : public IntrusiveForwardList<L2capChannel>::Item {
   //  Data members
   //--------------
 
-  // Holder to pass on rx and events to (if present).
-  // Currently set explicitly by derived class during ctor/move since it's a
-  // pointer to that derived instance.
-  // TODO: https://pwbug.dev/388082771 - Update comment once we are composing
-  // L2capChannel rather than inheriting from it.
-  Holder* holder_ = nullptr;
+  inline static sync::Mutex mutex_ PW_ACQUIRED_BEFORE(tx_mutex_);
 
   L2capChannelManager& l2cap_channel_manager_;
 
@@ -516,7 +434,7 @@ class L2capChannel : public IntrusiveForwardList<L2capChannel>::Item {
   uint16_t remote_cid_;
 
   // Notify clients of asynchronous events encountered such as errors.
-  ChannelEventCallback event_fn_;
+  ChannelEventCallback event_fn_ PW_GUARDED_BY(mutex_);
 
   // Optional client-provided allocator for MultiBufs.
   MultiBufAllocator* rx_multibuf_allocator_ = nullptr;

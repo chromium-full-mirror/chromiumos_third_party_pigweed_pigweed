@@ -20,7 +20,6 @@
 #include "pw_bluetooth/emboss_util.h"
 #include "pw_bluetooth/hci_data.emb.h"
 #include "pw_bluetooth/l2cap_frames.emb.h"
-#include "pw_bluetooth_proxy/channel_proxy.h"
 #include "pw_bluetooth_proxy/h4_packet.h"
 #include "pw_bluetooth_proxy/internal/l2cap_channel.h"
 #include "pw_bluetooth_proxy/internal/l2cap_channel_manager.h"
@@ -39,7 +38,7 @@ const float kRxCreditReplenishThreshold = 0.30;
 }  // namespace
 
 L2capCocInternal::L2capCocInternal(L2capCocInternal&& other)
-    : ChannelProxy(std::move(static_cast<ChannelProxy&>(other))),
+    : L2capChannel(static_cast<L2capChannel&&>(other)),
       rx_mtu_(other.rx_mtu_),
       rx_mps_(other.rx_mps_),
       tx_mtu_(other.tx_mtu_),
@@ -60,13 +59,6 @@ L2capCocInternal::L2capCocInternal(L2capCocInternal&& other)
     rx_remaining_credits_ = other.rx_remaining_credits_;
     rx_total_credits_ = other.rx_total_credits_;
   }
-
-  // Verify L2capChannel::holder_ and Holder::underlying_channel_ were properly
-  // set.
-  // TODO: https://pwbug.dev/388082771 - Being used for testing during
-  // transition. Delete when done.
-  CheckHolder(this);
-  CheckUnderlyingChannel(this);
 }
 
 Status L2capCocInternal::DoCheckWriteParameter(
@@ -164,7 +156,7 @@ bool L2capCocInternal::DoHandlePduFromController(pw::span<uint8_t> kframe) {
         local_cid(),
         remote_cid(),
         cpp23::to_underlying(state()));
-    StopUnderlyingChannelWithEvent(L2capChannelEvent::kRxWhileStopped);
+    StopAndSendEvent(L2capChannelEvent::kRxWhileStopped);
     return true;
   }
 
@@ -208,7 +200,7 @@ bool L2capCocInternal::DoHandlePduFromController(pw::span<uint8_t> kframe) {
           "(CID %#x) Rx K-frame payload exceeds MPU. So stopping channel & "
           "reporting it needs to be closed.",
           local_cid());
-      StopUnderlyingChannelWithEvent(L2capChannelEvent::kRxInvalid);
+      StopAndSendEvent(L2capChannelEvent::kRxInvalid);
       return true;
     }
 
@@ -224,7 +216,7 @@ bool L2capCocInternal::DoHandlePduFromController(pw::span<uint8_t> kframe) {
           "(CID %#x) Buffer is too small for first K-frame. So stopping "
           "channel and reporting it needs to be closed.",
           local_cid());
-      StopUnderlyingChannelWithEvent(L2capChannelEvent::kRxInvalid);
+      StopAndSendEvent(L2capChannelEvent::kRxInvalid);
       return true;
     }
 
@@ -237,7 +229,7 @@ bool L2capCocInternal::DoHandlePduFromController(pw::span<uint8_t> kframe) {
           "(CID %#x) Rx K-frame SDU exceeds MTU. So stopping channel & "
           "reporting it needs to be closed.",
           local_cid());
-      StopUnderlyingChannelWithEvent(L2capChannelEvent::kRxInvalid);
+      StopAndSendEvent(L2capChannelEvent::kRxInvalid);
       return true;
     }
 
@@ -249,7 +241,7 @@ bool L2capCocInternal::DoHandlePduFromController(pw::span<uint8_t> kframe) {
           "(CID %#x) Rx K-frame payload exceeds MPU. So stopping channel & "
           "reporting it needs to be closed.",
           local_cid());
-      StopUnderlyingChannelWithEvent(L2capChannelEvent::kRxInvalid);
+      StopAndSendEvent(L2capChannelEvent::kRxInvalid);
       return true;
     }
 
@@ -260,7 +252,7 @@ bool L2capCocInternal::DoHandlePduFromController(pw::span<uint8_t> kframe) {
           "(CID %#x) Rx MultiBuf allocator out of memory. So stopping channel "
           "and reporting it needs to be closed.",
           local_cid());
-      StopUnderlyingChannelWithEvent(L2capChannelEvent::kRxOutOfMemory);
+      StopAndSendEvent(L2capChannelEvent::kRxOutOfMemory);
       return true;
     }
 
@@ -280,7 +272,7 @@ bool L2capCocInternal::DoHandlePduFromController(pw::span<uint8_t> kframe) {
         "(CID %#x) Sum of K-frame payload sizes exceeds the specified SDU "
         "length. So stopping channel and reporting it needs to be closed.",
         local_cid());
-    StopUnderlyingChannelWithEvent(L2capChannelEvent::kRxInvalid);
+    StopAndSendEvent(L2capChannelEvent::kRxInvalid);
     return true;
   }
 
@@ -312,7 +304,7 @@ L2capCocInternal::L2capCocInternal(
     ConnectionOrientedChannelConfig tx_config,
     ChannelEventCallback&& event_fn,
     Function<void(FlatConstMultiBuf&& payload)>&& receive_fn)
-    : ChannelProxy(l2cap_channel_manager,
+    : L2capChannel(l2cap_channel_manager,
                    &rx_multibuf_allocator,
                    /*connection_handle=*/connection_handle,
                    /*transport=*/AclTransportType::kLe,
@@ -335,13 +327,6 @@ L2capCocInternal::L2capCocInternal(
       rx_remaining_credits_,
       rx_total_credits_,
       tx_credits_);
-
-  // Verify L2capChannel::holder_ and Holder::underlying_channel_ were properly
-  // set.
-  // TODO: https://pwbug.dev/388082771 - Being used for testing during
-  // transition. Delete when done.
-  CheckHolder(this);
-  CheckUnderlyingChannel(this);
 }
 
 L2capCocInternal::~L2capCocInternal() {
@@ -469,7 +454,7 @@ void L2capCocInternal::AddTxCredits(uint16_t credits) {
           long{emboss::L2capLeCreditBasedConnectionReq::max_credit_value()},
           local_cid(),
           remote_cid());
-      StopUnderlyingChannelWithEvent(L2capChannelEvent::kRxInvalid);
+      StopAndSendEvent(L2capChannelEvent::kRxInvalid);
       return;
     }
 

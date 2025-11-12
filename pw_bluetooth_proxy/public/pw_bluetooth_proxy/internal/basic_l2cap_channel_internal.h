@@ -14,14 +14,13 @@
 
 #pragma once
 
-#include "pw_bluetooth_proxy/channel_proxy.h"
 #include "pw_bluetooth_proxy/internal/l2cap_channel.h"
 #include "pw_bluetooth_proxy/internal/multibuf.h"
 #include "pw_bluetooth_proxy/l2cap_channel_common.h"
 
 namespace pw::bluetooth::proxy::internal {
 
-class BasicL2capChannelInternal final : public ChannelProxy {
+class BasicL2capChannelInternal final : public L2capChannel {
  public:
   using PayloadSpanReceiveCallback = Function<bool(pw::span<uint8_t>)>;
 

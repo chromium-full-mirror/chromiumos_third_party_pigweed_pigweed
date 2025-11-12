@@ -59,13 +59,13 @@ pw::Result<BasicL2capChannelInternal> BasicL2capChannelInternal::Create(
 
 BasicL2capChannelInternal::BasicL2capChannelInternal(
     BasicL2capChannelInternal&& other)
-    : ChannelProxy(static_cast<ChannelProxy&&>(other)) {
+    : L2capChannel(static_cast<L2capChannel&&>(other)) {
   Move(std::move(other));
 }
 
 BasicL2capChannelInternal& BasicL2capChannelInternal::operator=(
     BasicL2capChannelInternal&& other) {
-  ChannelProxy::operator=(static_cast<ChannelProxy&&>(other));
+  L2capChannel::operator=(static_cast<L2capChannel&&>(other));
   Move(std::move(other));
   return *this;
 }
@@ -138,7 +138,7 @@ BasicL2capChannelInternal::BasicL2capChannelInternal(
     ChannelEventCallback&& event_fn,
     PayloadSpanReceiveCallback&& payload_span_from_controller_fn,
     PayloadSpanReceiveCallback&& payload_span_from_host_fn)
-    : ChannelProxy(
+    : L2capChannel(
           l2cap_channel_manager,
           rx_multibuf_allocator,
           /*connection_handle=*/connection_handle,

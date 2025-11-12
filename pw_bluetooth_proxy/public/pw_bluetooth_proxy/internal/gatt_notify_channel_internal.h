@@ -16,13 +16,13 @@
 
 #include <cstdint>
 
-#include "pw_bluetooth_proxy/channel_proxy.h"
+#include "pw_bluetooth_proxy/internal/l2cap_channel.h"
 
 namespace pw::bluetooth::proxy::internal {
 
 /// `GattNotifyChannelInternal` supports sending GATT characteristic
 /// notifications to a remote peer.
-class GattNotifyChannelInternal final : public ChannelProxy {
+class GattNotifyChannelInternal final : public L2capChannel {
  public:
   static pw::Result<GattNotifyChannelInternal> Create(
       L2capChannelManager& l2cap_channel_manager,

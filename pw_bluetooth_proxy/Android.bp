@@ -28,7 +28,6 @@ cc_library_static {
         "acl_data_channel.cc",
         "basic_l2cap_channel.cc",
         "basic_l2cap_channel_internal.cc",
-        "channel_proxy.cc",
         "gatt_notify_channel.cc",
         "gatt_notify_channel_internal.cc",
         "l2cap_channel.cc",

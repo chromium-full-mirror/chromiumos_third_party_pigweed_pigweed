@@ -16,9 +16,7 @@
 
 #include <optional>
 
-#include "pw_bluetooth_proxy/channel_proxy.h"
 #include "pw_bluetooth_proxy/internal/l2cap_channel.h"
-#include "pw_bluetooth_proxy/internal/l2cap_signaling_channel.h"
 #include "pw_bluetooth_proxy/internal/multibuf.h"
 #include "pw_bluetooth_proxy/l2cap_channel_common.h"
 #include "pw_bluetooth_proxy/l2cap_coc_config.h"
@@ -29,7 +27,7 @@ namespace pw::bluetooth::proxy::internal {
 /// L2CAP connection-oriented channel that supports writing to and reading
 /// from a remote peer.
 
-class L2capCocInternal final : public ChannelProxy {
+class L2capCocInternal final : public L2capChannel {
  public:
   // TODO: https://pwbug.dev/382783733 - Move downstream client to
   // `L2capChannelEvent` instead of `L2capCoc::Event` and delete this alias.
