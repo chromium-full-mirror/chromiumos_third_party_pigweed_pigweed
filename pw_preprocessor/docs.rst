@@ -22,8 +22,8 @@ The preprocessor module provides several headers.
 
 pw_preprocessor/apply.h
 -----------------------
-Defines general macro to support macro expansion. Includes the
-:cc:`PW_APPLY` macro.
+Defines the :cc:`PW_APPLY` macro, which expands to a macro invocation for each
+argument it is passed, with optional separators.
 
 pw_preprocessor/arguments.h
 ---------------------------

@@ -56,6 +56,7 @@ pw_source_set("arch") {
 pw_test_group("tests") {
   tests = [
     ":arguments_test",
+    ":apply_test",
     ":boolean_test",
     ":compiler_test",
     ":concat_test",
@@ -66,6 +67,14 @@ pw_test_group("tests") {
 pw_test("arguments_test") {
   deps = [ ":pw_preprocessor" ]
   sources = [ "arguments_test.cc" ]
+}
+
+pw_test("apply_test") {
+  sources = [ "apply_test.cc" ]
+  deps = [
+    ":pw_preprocessor",
+    "$dir_pw_unit_test:constexpr",
+  ]
 }
 
 pw_test("boolean_test") {
