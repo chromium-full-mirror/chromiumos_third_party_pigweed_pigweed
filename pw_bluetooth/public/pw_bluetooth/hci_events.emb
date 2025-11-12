@@ -1379,7 +1379,7 @@ struct ModeChangeEvent:
     --   Number of baseband slots between sniff anchor points
     --   Time between sniff anchor points = N * 0x625ms (1 Baseband slot)
     --   Time range: 1.25ms to 40.9s
-    [requires: 0x0002 <= this <= 0xFFFE]
+    [requires: 0x0000 <= this <= 0xFFFE]
 
 # 7.7.21 Return Link Keys event
 # HCI_Return_Link_Keys
