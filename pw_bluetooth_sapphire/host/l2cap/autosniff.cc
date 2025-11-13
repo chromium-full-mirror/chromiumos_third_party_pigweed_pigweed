@@ -108,7 +108,7 @@ void Autosniff::ResetTimeout() {
   auto view = exit_sniff_mode_cmd.view_t();
   view.connection_handle().Write(handle_);
   mode_transition_ = true;
-  cmd_channel_->SendCommand(
+  (void)cmd_channel_->SendCommand(
       std::move(exit_sniff_mode_cmd),
       ChangeModesCallback(GetWeakPtr(), AclConnectionMode::ACTIVE));
 }
@@ -177,7 +177,7 @@ RecurringDisposition Autosniff::OnTimeout() {
   view.sniff_attempt().Write(params_.sniff_attempt);
   view.sniff_timeout().Write(params_.sniff_timeout);
   mode_transition_ = true;
-  cmd_channel_->SendCommand(
+  (void)cmd_channel_->SendCommand(
       std::move(sniff_mode_cmd),
       ChangeModesCallback(GetWeakPtr(), AclConnectionMode::SNIFF));
 

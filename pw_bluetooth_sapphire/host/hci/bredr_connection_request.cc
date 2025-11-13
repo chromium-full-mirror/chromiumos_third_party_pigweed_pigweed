@@ -110,9 +110,9 @@ void BrEdrConnectionRequest::CreateConnection(
          "hci-bredr",
          "initiating connection request (peer: %s)",
          bt_str(peer_id_));
-  command_channel->SendCommand(std::move(packet),
-                               std::move(complete_cb),
-                               hci_spec::kCommandStatusEventCode);
+  (void)command_channel->SendCommand(std::move(packet),
+                                     std::move(complete_cb),
+                                     hci_spec::kCommandStatusEventCode);
 }
 
 // Status is either a Success or an Error value

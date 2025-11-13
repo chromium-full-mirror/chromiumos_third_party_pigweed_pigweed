@@ -478,8 +478,8 @@ void ScoConnectionManager::SendCommandWithStatusCallback(
       cb(event.ToResult());
     };
   }
-  transport_->command_channel()->SendCommand(std::move(command_packet),
-                                             std::move(command_cb));
+  (void)transport_->command_channel()->SendCommand(std::move(command_packet),
+                                                   std::move(command_cb));
 }
 
 void ScoConnectionManager::SendRejectConnectionCommand(
@@ -503,7 +503,7 @@ void ScoConnectionManager::SendRejectConnectionCommand(
   reject_params.bd_addr().CopyFrom(addr.view());
   reject_params.reason().Write(reason);
 
-  transport_->command_channel()->SendCommand(
+  (void)transport_->command_channel()->SendCommand(
       std::move(reject),
       hci::CommandChannel::CommandCallback(nullptr),
       hci_spec::kCommandStatusEventCode);

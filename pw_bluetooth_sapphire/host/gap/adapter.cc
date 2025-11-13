@@ -828,7 +828,7 @@ void AdapterImpl::SetDeviceClass(DeviceClass dev_class,
       hci_spec::kWriteClassOfDevice);
   write_dev_class.view_t().class_of_device().BackingStorage().WriteUInt(
       dev_class.to_int());
-  hci_->command_channel()->SendCommand(
+  (void)hci_->command_channel()->SendCommand(
       std::move(write_dev_class),
       [cb = std::move(callback)](auto, const hci::EventPacket& event) {
         HCI_IS_ERROR(event, WARN, "gap", "set device class failed");
@@ -877,7 +877,7 @@ void AdapterImpl::GetSupportedDelayRange(
                 codec_configuration_size);
   }
 
-  hci_->command_channel()->SendCommand(
+  (void)hci_->command_channel()->SendCommand(
       std::move(cmd_packet),
       [callback = std::move(cb)](auto /*id*/, const hci::EventPacket& event) {
         auto view = event.view<

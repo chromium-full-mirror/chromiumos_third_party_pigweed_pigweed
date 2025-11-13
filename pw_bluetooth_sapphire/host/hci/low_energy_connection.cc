@@ -96,8 +96,12 @@ bool LowEnergyConnection::StartEncryption() {
   if (!hci().is_alive()) {
     return false;
   }
-  return hci()->command_channel()->SendCommand(
-      std::move(cmd), std::move(event_cb), hci_spec::kCommandStatusEventCode);
+  return hci()
+      ->command_channel()
+      ->SendCommand(std::move(cmd),
+                    std::move(event_cb),
+                    hci_spec::kCommandStatusEventCode)
+      .ok();
 }
 
 void LowEnergyConnection::HandleEncryptionStatus(Result<bool> result,
@@ -164,7 +168,7 @@ LowEnergyConnection::OnLELongTermKeyRequestEvent(const EventPacket& event) {
     cmd_view.connection_handle().Write(handle);
     cmd_view.long_term_key().CopyFrom(
         pw::bluetooth::emboss::LinkKeyView(&ltk()->value()));
-    hci()->command_channel()->SendCommand(cmd, std::move(status_cb));
+    (void)hci()->command_channel()->SendCommand(cmd, std::move(status_cb));
   } else {
     bt_log(DEBUG, "hci-le", "LTK request rejected");
 
@@ -173,7 +177,7 @@ LowEnergyConnection::OnLELongTermKeyRequestEvent(const EventPacket& event) {
         hci_spec::kLELongTermKeyRequestNegativeReply);
     auto cmd_view = cmd.view_t();
     cmd_view.connection_handle().Write(handle);
-    hci()->command_channel()->SendCommand(cmd, std::move(status_cb));
+    (void)hci()->command_channel()->SendCommand(cmd, std::move(status_cb));
   }
 
   return CommandChannel::EventCallbackResult::kContinue;

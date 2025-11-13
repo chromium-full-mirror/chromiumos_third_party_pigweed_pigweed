@@ -127,7 +127,7 @@ void A2dpOffloadManager::StartA2dpOffload(
   }
   PW_MODIFY_DIAGNOSTICS_POP();
 
-  cmd_channel_->SendCommand(
+  (void)cmd_channel_->SendCommand(
       std::move(packet),
       [cb = std::move(callback),
        id = local_id,
@@ -219,7 +219,7 @@ void A2dpOffloadManager::RequestStopA2dpOffload(
   packet_view.vendor_command().sub_opcode().Write(
       android_hci::kStopA2dpOffloadCommandSubopcode);
 
-  cmd_channel_->SendCommand(
+  (void)cmd_channel_->SendCommand(
       std::move(packet),
       [cb = std::move(callback),
        self = weak_self_.GetWeakPtr(),

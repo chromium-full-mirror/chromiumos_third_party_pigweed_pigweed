@@ -16,6 +16,7 @@
 #include <lib/fit/function.h>
 #include <pw_async/dispatcher.h>
 #include <pw_async/task.h>
+#include <pw_result/result.h>
 
 #include <list>
 #include <memory>
@@ -119,9 +120,9 @@ class CommandChannel final {
   // |complete_event_code| cannot be a code that has been registered for events
   // via AddEventHandler or its related methods.
   //
-  // Returns a ID unique to the command transaction, or zero if the parameters
-  // are invalid.  This ID will be supplied to |callback| in its |id| parameter
-  // to identify the transaction.
+  // Returns a ID unique to the command transaction, or an error if the
+  // parameters are invalid.  This ID will be supplied to |callback| in its |id|
+  // parameter to identify the transaction.
   //
   // NOTE: Commands queued are not guaranteed to be finished or sent in order,
   // although commands with the same opcode will be sent in order, and commands
@@ -133,10 +134,11 @@ class CommandChannel final {
   // Control" for more information about the HCI command flow control.
   using CommandCallback =
       fit::function<void(TransactionId id, const EventPacket& event_packet)>;
-  TransactionId SendCommand(CommandPacket command_packet,
-                            CommandCallback callback,
-                            hci_spec::EventCode complete_event_code =
-                                hci_spec::kCommandCompleteEventCode);
+  pw::Result<TransactionId> SendCommand(
+      CommandPacket command_packet,
+      CommandCallback callback,
+      hci_spec::EventCode complete_event_code =
+          hci_spec::kCommandCompleteEventCode);
 
   // As SendCommand, but the transaction completes on the LE Meta Event.
   // |le_meta_subevent_code| is a LE Meta Event subevent code as described in
@@ -144,16 +146,17 @@ class CommandChannel final {
   //
   // |le_meta_subevent_code| cannot be a code that has been registered for
   // events via AddLEMetaEventHandler.
-  TransactionId SendLeAsyncCommand(CommandPacket command_packet,
-                                   CommandCallback callback,
-                                   hci_spec::EventCode le_meta_subevent_code);
+  pw::Result<TransactionId> SendLeAsyncCommand(
+      CommandPacket command_packet,
+      CommandCallback callback,
+      hci_spec::EventCode le_meta_subevent_code);
 
   // As SendCommand, but will wait to run this command until there are no
   // commands with with opcodes specified in |exclude| from executing. This is
   // useful to prevent running different commands that cannot run concurrently
   // (i.e. Inquiry and Connect). Two commands with the same opcode will never
   // run simultaneously.
-  TransactionId SendExclusiveCommand(
+  pw::Result<TransactionId> SendExclusiveCommand(
       CommandPacket command_packet,
       CommandCallback callback,
       hci_spec::EventCode complete_event_code =
@@ -162,7 +165,7 @@ class CommandChannel final {
 
   // As SendExclusiveCommand, but the transaction completes on the LE Meta Event
   // with subevent code |le_meta_subevent_code|.
-  TransactionId SendLeAsyncExclusiveCommand(
+  pw::Result<TransactionId> SendLeAsyncExclusiveCommand(
       CommandPacket command_packet,
       CommandCallback callback,
       std::optional<hci_spec::EventCode> le_meta_subevent_code,
@@ -267,7 +270,7 @@ class CommandChannel final {
   WeakPtr AsWeakPtr() { return weak_ptr_factory_.GetWeakPtr(); }
 
  private:
-  TransactionId SendExclusiveCommandInternal(
+  pw::Result<TransactionId> SendExclusiveCommandInternal(
       CommandPacket command_packet,
       CommandCallback callback,
       hci_spec::EventCode complete_event_code,

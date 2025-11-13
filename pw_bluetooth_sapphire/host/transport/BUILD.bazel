@@ -64,6 +64,8 @@ cc_library(
         "//pw_bluetooth_sapphire:lease",
         "//pw_bluetooth_sapphire/host/common",
         "//pw_bluetooth_sapphire/host/hci-spec",
+        "//pw_result",
+        "//pw_status",
         "//third_party/fuchsia:fit",
     ],
 )

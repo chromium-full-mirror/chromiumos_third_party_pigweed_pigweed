@@ -456,7 +456,7 @@ void AclDataChannelImpl::RequestAclPriority(
         auto packet_data = packet.mutable_data();
         encoded.Copy(&packet_data);
 
-        transport_->command_channel()->SendCommand(
+        (void)transport_->command_channel()->SendCommand(
             std::move(packet),
             [cb = std::move(request_cb), priority](
                 auto, const hci::EventPacket& event) mutable {

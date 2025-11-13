@@ -20,6 +20,8 @@
 #include <pw_bluetooth/hci_android.emb.h>
 #include <pw_bluetooth/hci_common.emb.h>
 #include <pw_bytes/endian.h>
+#include <pw_result/result.h>
+#include <pw_status/status.h>
 
 #include <optional>
 
@@ -181,7 +183,7 @@ CommandChannel::~CommandChannel() {
   hci_->SetEventFunction(nullptr);
 }
 
-CommandChannel::TransactionId CommandChannel::SendCommand(
+pw::Result<CommandChannel::TransactionId> CommandChannel::SendCommand(
     CommandPacket command_packet,
     CommandCallback callback,
     const hci_spec::EventCode complete_event_code) {
@@ -189,7 +191,7 @@ CommandChannel::TransactionId CommandChannel::SendCommand(
       std::move(command_packet), std::move(callback), complete_event_code);
 }
 
-CommandChannel::TransactionId CommandChannel::SendLeAsyncCommand(
+pw::Result<CommandChannel::TransactionId> CommandChannel::SendLeAsyncCommand(
     CommandPacket command_packet,
     CommandCallback callback,
     hci_spec::EventCode le_meta_subevent_code) {
@@ -197,7 +199,7 @@ CommandChannel::TransactionId CommandChannel::SendLeAsyncCommand(
       std::move(command_packet), std::move(callback), le_meta_subevent_code);
 }
 
-CommandChannel::TransactionId CommandChannel::SendExclusiveCommand(
+pw::Result<CommandChannel::TransactionId> CommandChannel::SendExclusiveCommand(
     CommandPacket command_packet,
     CommandCallback callback,
     const hci_spec::EventCode complete_event_code,
@@ -209,7 +211,8 @@ CommandChannel::TransactionId CommandChannel::SendExclusiveCommand(
                                       std::move(exclusions));
 }
 
-CommandChannel::TransactionId CommandChannel::SendLeAsyncExclusiveCommand(
+pw::Result<CommandChannel::TransactionId>
+CommandChannel::SendLeAsyncExclusiveCommand(
     CommandPacket command_packet,
     CommandCallback callback,
     std::optional<hci_spec::EventCode> le_meta_subevent_code,
@@ -221,7 +224,8 @@ CommandChannel::TransactionId CommandChannel::SendLeAsyncExclusiveCommand(
                                       std::move(exclusions));
 }
 
-CommandChannel::TransactionId CommandChannel::SendExclusiveCommandInternal(
+pw::Result<CommandChannel::TransactionId>
+CommandChannel::SendExclusiveCommandInternal(
     CommandPacket command_packet,
     CommandCallback callback,
     hci_spec::EventCode complete_event_code,
@@ -229,7 +233,7 @@ CommandChannel::TransactionId CommandChannel::SendExclusiveCommandInternal(
     std::unordered_set<hci_spec::OpCode> exclusions) {
   if (!active_) {
     bt_log(INFO, "hci", "ignoring command (CommandChannel is inactive)");
-    return 0;
+    return PW_STATUS_FAILED_PRECONDITION;
   }
 
   PW_CHECK((complete_event_code == hci_spec::kLEMetaEventCode) ==
@@ -248,7 +252,7 @@ CommandChannel::TransactionId CommandChannel::SendExclusiveCommandInternal(
 
     if (handler && !handler->is_async()) {
       bt_log(DEBUG, "hci", "event handler already handling this event");
-      return 0u;
+      return PW_STATUS_FAILED_PRECONDITION;
     }
   }
 

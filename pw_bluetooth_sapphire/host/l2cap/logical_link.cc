@@ -885,7 +885,7 @@ void LogicalLink::SetBrEdrAutomaticFlushTimeout(
   write_timeout_view.connection_handle().Write(handle_);
   write_timeout_view.flush_timeout().Write(converted_flush_timeout);
 
-  cmd_channel_->SendCommand(
+  (void)cmd_channel_->SendCommand(
       std::move(write_timeout),
       [cb = std::move(callback_wrapper), handle = handle_, flush_timeout](
           auto, const hci::EventPacket& event) mutable {

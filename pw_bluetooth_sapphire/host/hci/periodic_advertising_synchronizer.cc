@@ -411,7 +411,7 @@ void PeriodicAdvertisingSynchronizer::SendCreateSyncCommand(
   state_ = State::kCreateSyncPending;
   // Complete on the Command Status event because there is a separate event
   // handler for LE Periodic Advertising Sync Established.
-  transport_->command_channel()->SendCommand(
+  (void)transport_->command_channel()->SendCommand(
       std::move(*create_cmd),
       [self, advertiser_list_full](auto, const EventPacket& event) {
         if (!self.is_alive()) {
@@ -455,7 +455,7 @@ void PeriodicAdvertisingSynchronizer::SendCreateSyncCancelCommand() {
       pw::bluetooth::emboss::OpCode::
           LE_PERIODIC_ADVERTISING_CREATE_SYNC_CANCEL);
   state_ = State::kCreateSyncCancelPending;
-  transport_->command_channel()->SendCommand(
+  (void)transport_->command_channel()->SendCommand(
       std::move(cancel_cmd), [self](auto, const EventPacket& event) {
         if (!self.is_alive()) {
           return;
@@ -499,7 +499,7 @@ void PeriodicAdvertisingSynchronizer::SendAddDeviceToListCommand(
       DeviceAddress::DeviceAddrToLePeerAddrNoAnon(entry.address.type()));
   view.advertiser_address().CopyFrom(entry.address.value().view());
   view.advertising_sid().Write(entry.advertising_sid);
-  transport_->command_channel()->SendCommand(
+  (void)transport_->command_channel()->SendCommand(
       std::move(add_cmd), [self, entry](auto, const EventPacket& event) {
         if (!self.is_alive()) {
           return;
@@ -560,7 +560,7 @@ void PeriodicAdvertisingSynchronizer::SendRemoveDeviceFromListCommand(
   view.advertiser_address().CopyFrom(entry.address.value().view());
   view.advertising_sid().Write(entry.advertising_sid);
 
-  transport_->command_channel()->SendCommand(
+  (void)transport_->command_channel()->SendCommand(
       std::move(remove_cmd), [self, entry](auto, const EventPacket& event) {
         if (!self.is_alive()) {
           return;
@@ -629,7 +629,7 @@ void PeriodicAdvertisingSynchronizer::OnSyncEstablished(
         pw::bluetooth::emboss::LEPeriodicAdvertisingTerminateSyncCommandWriter>(
         pw::bluetooth::emboss::OpCode::LE_PERIODIC_ADVERTISING_TERMINATE_SYNC);
     command.view_t().sync_handle().Write(parsed_event->sync_handle);
-    transport_->command_channel()->SendCommand(
+    (void)transport_->command_channel()->SendCommand(
         std::move(command),
         [self = weak_self_.GetWeakPtr()](auto,
                                          const EventPacket& complete_event) {
@@ -840,7 +840,8 @@ bool PeriodicAdvertisingSynchronizer::CancelEstablishedSync(SyncId sync_id) {
     }
   };
 
-  transport_->command_channel()->SendCommand(std::move(command), std::move(cb));
+  (void)transport_->command_channel()->SendCommand(std::move(command),
+                                                   std::move(cb));
   return true;
 }
 

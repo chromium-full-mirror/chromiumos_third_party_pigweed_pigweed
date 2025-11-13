@@ -383,7 +383,7 @@ void IsoStreamImpl::SetupDataPath(
   WeakSelf<IsoStreamImpl>::WeakPtr self = weak_self_.GetWeakPtr();
 
   bt_log(INFO, "iso", "sending LE_Setup_ISO_Data_Path command");
-  hci_->command_channel()->SendCommand(
+  (void)hci_->command_channel()->SendCommand(
       std::move(cmd_packet),
       [on_complete_callback = std::move(on_complete_cb),
        self,

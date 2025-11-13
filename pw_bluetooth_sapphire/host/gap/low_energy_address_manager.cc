@@ -168,7 +168,7 @@ void LowEnergyAddressManager::TryRefreshRandomAddress() {
     ResolveAddressRequests();
   };
 
-  cmd_->SendCommand(std::move(cmd), std::move(cmd_complete_cb));
+  (void)cmd_->SendCommand(std::move(cmd), std::move(cmd_complete_cb));
 }
 
 void LowEnergyAddressManager::CleanUpPrivacyState() {

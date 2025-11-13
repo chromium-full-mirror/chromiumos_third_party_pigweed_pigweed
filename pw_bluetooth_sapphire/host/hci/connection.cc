@@ -138,9 +138,9 @@ void Connection::Disconnect(pw::bluetooth::emboss::StatusCode reason) {
          static_cast<unsigned char>(reason));
 
   // Send HCI Disconnect.
-  hci_->command_channel()->SendCommand(std::move(disconn),
-                                       std::move(status_cb),
-                                       hci_spec::kCommandStatusEventCode);
+  (void)hci_->command_channel()->SendCommand(std::move(disconn),
+                                             std::move(status_cb),
+                                             hci_spec::kCommandStatusEventCode);
 }
 
 }  // namespace bt::hci
