@@ -53,6 +53,7 @@ target_codegen(
     name = "codegen",
     arch = "//pw_kernel/arch/arm_cortex_m:arch_arm_cortex_m",
     system_config = ":system_config",
+    target_compatible_with = TARGET_COMPATIBLE_WITH,
 )
 
 target_linker_script(

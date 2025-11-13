@@ -49,6 +49,7 @@ target_codegen(
     name = "codegen",
     arch = "//pw_kernel/arch/riscv:arch_riscv",
     system_config = ":system_config",
+    target_compatible_with = TARGET_COMPATIBLE_WITH,
 )
 
 target_linker_script(
