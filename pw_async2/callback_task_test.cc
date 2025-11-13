@@ -24,8 +24,6 @@ namespace {
 
 using ::pw::async2::DispatcherForTest;
 using ::pw::async2::FutureCallbackTask;
-using ::pw::async2::Pending;
-using ::pw::async2::Ready;
 using ::pw::async2::ValueFuture;
 using ::pw::async2::ValueProvider;
 
@@ -38,12 +36,12 @@ TEST(FutureCallbackTask, PendsFutureUntilReady) {
 
   DispatcherForTest dispatcher;
   dispatcher.Post(task);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
   EXPECT_EQ(result, '\0');
 
   provider.Resolve('b');
 
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
+  dispatcher.RunToCompletion();
   EXPECT_EQ(result, 'b');
 
   EXPECT_FALSE(task.IsRegistered());
@@ -57,7 +55,7 @@ TEST(FutureCallbackTask, ImmediatelyReturnsReady) {
 
   DispatcherForTest dispatcher;
   dispatcher.Post(task);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
+  dispatcher.RunToCompletion();
   EXPECT_EQ(result, 'b');
 
   EXPECT_FALSE(task.IsRegistered());
@@ -73,12 +71,12 @@ TEST(FutureCallbackTask, VoidFuture) {
 
   DispatcherForTest dispatcher;
   dispatcher.Post(task);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
   EXPECT_FALSE(completed);
 
   provider.Resolve();
 
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
+  dispatcher.RunToCompletion();
   EXPECT_TRUE(completed);
 
   EXPECT_FALSE(task.IsRegistered());

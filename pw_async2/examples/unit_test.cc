@@ -31,7 +31,7 @@ TEST(Async2UnitTest, MinimalExample) {
 
   // Post and run the task on the dispatcher.
   dispatcher.Post(task);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
+  dispatcher.RunToCompletion();
 }
 
 }  // namespace examples
@@ -95,13 +95,13 @@ TEST(Async2UnitTest, MultiStepExample) {
   dispatcher.Post(task);
 
   // The fortune hasn't been set, so the task should be pending.
-  ASSERT_EQ(dispatcher.RunUntilStalled(), Pending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
 
   // Set the fortune, which wakes the pending task.
   oracle.SetFortune("you will bring balance to the force");
 
   // The task runs, gets the fortune, then returns Ready.
-  ASSERT_EQ(dispatcher.RunUntilStalled(), Ready());
+  dispatcher.RunToCompletion();
 
   // Ensure the fortune was set as expected.
   EXPECT_STREQ(fortune, "you will bring balance to the force");

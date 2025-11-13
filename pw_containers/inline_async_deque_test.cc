@@ -29,9 +29,7 @@ using pw::async2::Context;
 using pw::async2::DispatcherForTest;
 
 using pw::async2::PendFuncTask;
-using pw::async2::Pending;
 using pw::async2::Poll;
-using pw::async2::Ready;
 
 static_assert(!std::is_constructible_v<pw::InlineAsyncDeque<int>>,
               "Cannot construct generic capacity container");
@@ -68,7 +66,7 @@ TEST(InlineAsyncDequeTest, PendHasZeroSpaceReturnsSuccessImmediately) {
     return deque.PendHasSpace(context, 0);
   });
   dispatcher.Post(task);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
+  dispatcher.RunToCompletion();
 }
 
 TEST(InlineAsyncDequeTest, PendHasSpaceWhenAvailableReturnsSuccessImmediately) {
@@ -81,7 +79,7 @@ TEST(InlineAsyncDequeTest, PendHasSpaceWhenAvailableReturnsSuccessImmediately) {
     return deque.PendHasSpace(context, 2);
   });
   dispatcher.Post(task);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
+  dispatcher.RunToCompletion();
 }
 
 TEST(InlineAsyncDequeTest, PendHasSpaceWhenFullWaitsUntilPopFront) {
@@ -95,13 +93,13 @@ TEST(InlineAsyncDequeTest, PendHasSpaceWhenFullWaitsUntilPopFront) {
     return deque.PendHasSpace(context, 3);
   });
   dispatcher.Post(task);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
 
   deque.pop_front();
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
 
   deque.pop_front();
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
+  dispatcher.RunToCompletion();
 }
 
 TEST(InlineAsyncDequeTest, PendHasSpaceWhenFullWaitsUntilPopBack) {
@@ -115,13 +113,13 @@ TEST(InlineAsyncDequeTest, PendHasSpaceWhenFullWaitsUntilPopBack) {
     return deque.PendHasSpace(context, 3);
   });
   dispatcher.Post(task);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
 
   deque.pop_back();
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
 
   deque.pop_back();
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
+  dispatcher.RunToCompletion();
 }
 
 TEST(InlineAsyncDequeTest, PendHasSpaceWhenFullWaitsUntilClear) {
@@ -136,10 +134,10 @@ TEST(InlineAsyncDequeTest, PendHasSpaceWhenFullWaitsUntilClear) {
     return deque.PendHasSpace(context, 2);
   });
   dispatcher.Post(task);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
 
   deque.clear();
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
+  dispatcher.RunToCompletion();
 }
 
 TEST(InlineAsyncDequeTest, PendHasSpaceOnGenericSizedReference) {
@@ -151,7 +149,7 @@ TEST(InlineAsyncDequeTest, PendHasSpaceOnGenericSizedReference) {
     return deque2.PendHasSpace(context, 1);
   });
   dispatcher.Post(task);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
+  dispatcher.RunToCompletion();
 }
 
 TEST(InlineAsyncDequeTest, PendHasSpaceWaitsAfterReadyUntilPushFront) {
@@ -162,7 +160,7 @@ TEST(InlineAsyncDequeTest, PendHasSpaceWaitsAfterReadyUntilPushFront) {
     return deque.PendHasSpace(context, 1);
   });
   dispatcher.Post(task1);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
+  dispatcher.RunToCompletion();
 
   PendFuncTask task2([&](Context& context) -> Poll<> {
     return deque.PendHasSpace(context, 2);
@@ -171,10 +169,10 @@ TEST(InlineAsyncDequeTest, PendHasSpaceWaitsAfterReadyUntilPushFront) {
 
   // Even though there is room, the queue returns "Pending" until the space
   // reserved by the first task has been claimed.
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
 
   deque.push_front(1);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
+  dispatcher.RunToCompletion();
 }
 
 TEST(InlineAsyncDequeTest, PendHasSpaceWaitsAfterReadyUntilPushBack) {
@@ -185,7 +183,7 @@ TEST(InlineAsyncDequeTest, PendHasSpaceWaitsAfterReadyUntilPushBack) {
     return deque.PendHasSpace(context, 1);
   });
   dispatcher.Post(task1);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
+  dispatcher.RunToCompletion();
 
   PendFuncTask task2([&](Context& context) -> Poll<> {
     return deque.PendHasSpace(context, 2);
@@ -194,10 +192,10 @@ TEST(InlineAsyncDequeTest, PendHasSpaceWaitsAfterReadyUntilPushBack) {
 
   // Even though there is room, the queue returns "Pending" until the space
   // reserved by the first task has been claimed.
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
 
   deque.push_back(1);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
+  dispatcher.RunToCompletion();
 }
 
 TEST(InlineAsyncDequeTest, PendNotEmptyWhenNotEmptyReturnsSuccessImmediately) {
@@ -208,7 +206,7 @@ TEST(InlineAsyncDequeTest, PendNotEmptyWhenNotEmptyReturnsSuccessImmediately) {
   PendFuncTask task(
       [&](Context& context) -> Poll<> { return deque.PendNotEmpty(context); });
   dispatcher.Post(task);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
+  dispatcher.RunToCompletion();
 }
 
 TEST(InlineAsyncDequeTest, PendNotEmptyWhenEmptyWaitsUntilPush) {
@@ -218,10 +216,10 @@ TEST(InlineAsyncDequeTest, PendNotEmptyWhenEmptyWaitsUntilPush) {
   PendFuncTask task(
       [&](Context& context) -> Poll<> { return deque.PendNotEmpty(context); });
   dispatcher.Post(task);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
 
   deque.push_back(1);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
+  dispatcher.RunToCompletion();
 }
 
 TEST(InlineAsyncDequeTest, PendNotEmptyOnGenericSizedReference) {
@@ -233,7 +231,7 @@ TEST(InlineAsyncDequeTest, PendNotEmptyOnGenericSizedReference) {
   PendFuncTask task(
       [&](Context& context) -> Poll<> { return deque2.PendNotEmpty(context); });
   dispatcher.Post(task);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
+  dispatcher.RunToCompletion();
 }
 
 TEST(InlineAsyncDequeTest, PendNotEmptyWaitsAfterReadyUntilPopFront) {
@@ -245,7 +243,7 @@ TEST(InlineAsyncDequeTest, PendNotEmptyWaitsAfterReadyUntilPopFront) {
   PendFuncTask task1(
       [&](Context& context) -> Poll<> { return deque.PendNotEmpty(context); });
   dispatcher.Post(task1);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
+  dispatcher.RunToCompletion();
 
   PendFuncTask task2(
       [&](Context& context) -> Poll<> { return deque.PendNotEmpty(context); });
@@ -253,10 +251,10 @@ TEST(InlineAsyncDequeTest, PendNotEmptyWaitsAfterReadyUntilPopFront) {
 
   // Even though there is an item, the queue returns "Pending" until the item
   // reserved by the first task has been claimed.
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
 
   deque.pop_front();
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
+  dispatcher.RunToCompletion();
 }
 
 TEST(InlineAsyncDequeTest, PendNotEmptyWaitsAfterReadyUntilPopBack) {
@@ -268,7 +266,7 @@ TEST(InlineAsyncDequeTest, PendNotEmptyWaitsAfterReadyUntilPopBack) {
   PendFuncTask task1(
       [&](Context& context) -> Poll<> { return deque.PendNotEmpty(context); });
   dispatcher.Post(task1);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
+  dispatcher.RunToCompletion();
 
   PendFuncTask task2(
       [&](Context& context) -> Poll<> { return deque.PendNotEmpty(context); });
@@ -276,10 +274,10 @@ TEST(InlineAsyncDequeTest, PendNotEmptyWaitsAfterReadyUntilPopBack) {
 
   // Even though there is an item, the queue returns "Pending" until the item
   // reserved by the first task has been claimed.
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
 
   deque.pop_back();
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
+  dispatcher.RunToCompletion();
 }
 
 }  // namespace

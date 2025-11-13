@@ -128,10 +128,10 @@ TEST(WakerQueue, TryStore) {
   });
 
   dispatcher.Post(task_1);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
 
   dispatcher.Post(task_2);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
 
   queue.WakeAll();
 }
@@ -148,7 +148,7 @@ TEST(WakerQueue, ReStoreExistingTask) {
     return Pending();
   });
   dispatcher.Post(task);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
 
   EXPECT_EQ(queue.size(), 1u);
 
@@ -157,7 +157,7 @@ TEST(WakerQueue, ReStoreExistingTask) {
   std::move(out_of_band_waker).Wake();
   EXPECT_EQ(queue.size(), 1u);
 
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
   EXPECT_EQ(queue.size(), 1u);
 
   // NOLINTNEXTLINE(bugprone-use-after-move)
@@ -173,18 +173,18 @@ TEST(WakerQueue, WakeOne) {
 
   dispatcher.Post(reader_task_1);
   dispatcher.Post(reader_task_2);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
   EXPECT_EQ(reader.queue.size(), 2u);
 
   reader.SetValueAndWakeOne(7);
   EXPECT_EQ(reader.queue.size(), 1u);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
   EXPECT_EQ(reader_task_1.value, 7);
   EXPECT_EQ(reader_task_2.value, 0);
 
   reader.SetValueAndWakeOne(9);
   EXPECT_TRUE(reader.queue.empty());
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
+  dispatcher.RunToCompletion();
   EXPECT_EQ(reader_task_1.value, 7);
   EXPECT_EQ(reader_task_2.value, 9);
 }
@@ -199,18 +199,18 @@ TEST(WakerQueue, WakeMany) {
   dispatcher.Post(reader_task_1);
   dispatcher.Post(reader_task_2);
   dispatcher.Post(reader_task_3);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
   EXPECT_EQ(reader.queue.size(), 3u);
 
   reader.SetValueAndWakeMany(7, /*tasks_to_wake=*/2);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
   EXPECT_EQ(reader.queue.size(), 1u);
   EXPECT_EQ(reader_task_1.value, 7);
   EXPECT_EQ(reader_task_2.value, 7);
   EXPECT_EQ(reader_task_3.value, 0);
 
   reader.SetValueAndWakeMany(9, /*tasks_to_wake=*/2);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
+  dispatcher.RunToCompletion();
   EXPECT_TRUE(reader.queue.empty());
   EXPECT_EQ(reader_task_1.value, 7);
   EXPECT_EQ(reader_task_2.value, 7);
@@ -227,18 +227,18 @@ TEST(WakerQueue, WakeAll) {
   dispatcher.Post(reader_task_1);
   dispatcher.Post(reader_task_2);
   dispatcher.Post(reader_task_3);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
   EXPECT_EQ(reader.queue.size(), 3u);
 
   reader.SetValueAndWakeAll(6);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
+  dispatcher.RunToCompletion();
   EXPECT_TRUE(reader.queue.empty());
   EXPECT_EQ(reader_task_1.value, 6);
   EXPECT_EQ(reader_task_2.value, 6);
   EXPECT_EQ(reader_task_3.value, 6);
 
   reader.SetValueAndWakeAll(12);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
+  dispatcher.RunToCompletion();
   EXPECT_TRUE(reader.queue.empty());
   EXPECT_EQ(reader_task_1.value, 6);
   EXPECT_EQ(reader_task_2.value, 6);

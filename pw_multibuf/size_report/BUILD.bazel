@@ -37,6 +37,7 @@ cc_library(
     strip_include_prefix = "public",
     deps = [
         "//pw_assert:assert",
+        "//pw_async2:basic_dispatcher",
         "//pw_async2:dispatcher",
         "//pw_bytes",
         "//pw_checksum",

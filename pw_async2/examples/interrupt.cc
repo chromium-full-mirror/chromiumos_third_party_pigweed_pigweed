@@ -26,7 +26,7 @@
 #include <ctime>
 #include <thread>
 
-#include "pw_async2/dispatcher.h"
+#include "pw_async2/basic_dispatcher.h"
 #include "pw_async2/pend_func_task.h"
 #include "pw_async2/poll.h"
 #include "pw_async2/try.h"
@@ -135,7 +135,7 @@ int main() {
   tcsetattr(STDIN_FILENO, TCSANOW, &config);
 
   // DOCSTAG: [pw_async2-examples-interrupt-reader]
-  pw::async2::Dispatcher dispatcher;
+  pw::async2::BasicDispatcher dispatcher;
 
   // Create a task that reads from the UART in a loop.
   pw::async2::PendFuncTask reader_task(

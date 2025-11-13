@@ -19,7 +19,7 @@
 #include "pw_allocator/testing.h"
 #include "pw_assert/check.h"
 #include "pw_async2/context.h"
-#include "pw_async2/dispatcher.h"
+#include "pw_async2/dispatcher_for_test.h"
 #include "pw_async2/pend_func_task.h"
 #include "pw_async2/poll.h"
 #include "pw_async2/try.h"
@@ -293,7 +293,7 @@ const char* kLoremIpsum =
 TEST(LinkTest, SendAndReceiveData) {
   allocator::test::AllocatorForTest<2048> allocator;
   Link link;
-  async2::Dispatcher dispatcher;
+  async2::DispatcherForTest dispatcher;
 
   auto tx_payload =
       allocator.MakeUnique<std::byte[]>(std::strlen(kLoremIpsum) + 1);
@@ -348,7 +348,7 @@ TEST(LinkTest, SendAndReceiveData) {
         return Ready();
       });
   dispatcher.Post(read_frame_header);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
+  dispatcher.RunUntilStalled();
   EXPECT_TRUE(read_frame_header_finished);
 
   DemoLinkHeader frame_header = rx_frame->GetHeader();
@@ -383,7 +383,7 @@ TEST(LinkTest, SendAndReceiveData) {
         return Ready();
       });
   dispatcher.Post(read_remaining_frame);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
+  dispatcher.RunToCompletion();
 
   rx_packet = LinkFrame::ExtractNetworkPacket(std::move(*rx_frame));
   ASSERT_EQ(rx_packet.status(), OkStatus());

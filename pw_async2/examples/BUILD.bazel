@@ -88,9 +88,9 @@ pw_cc_test(
     target_compatible_with = incompatible_with_mcu(),
     deps = [
         "//pw_allocator:libc_allocator",
+        "//pw_async2:basic_dispatcher",
         "//pw_async2:coro",
         "//pw_async2:coro_or_else_task",
-        "//pw_async2:dispatcher",
         "//pw_async2:pendable",
         "//pw_containers:inline_async_queue",
         "//pw_containers:vector",
@@ -104,6 +104,7 @@ pw_cc_test(
     srcs = ["inline_async_queue_with_tasks_test.cc"],
     target_compatible_with = incompatible_with_mcu(),
     deps = [
+        "//pw_async2:basic_dispatcher",
         "//pw_containers:inline_async_queue",
         "//pw_containers:vector",
         "//pw_log",
@@ -132,8 +133,8 @@ pw_cc_test(
         "//pw_allocator:libc_allocator",
         "//pw_allocator:testing",
         "//pw_assert:check",
+        "//pw_async2:basic_dispatcher",
         "//pw_async2:coro",
-        "//pw_async2:dispatcher",
         "//pw_async2:once_sender",
     ],
 )
@@ -147,7 +148,7 @@ pw_cc_binary(
         "//conditions:default": ["@platforms//:incompatible"],
     }),
     deps = [
-        "//pw_async2:dispatcher",
+        "//pw_async2:basic_dispatcher",
         "//pw_async2:pend_func_task",
         "//pw_containers:inline_queue",
         "//pw_log",
@@ -171,7 +172,7 @@ pw_cc_test(
     srcs = ["custom_future.cc"],
     deps = [
         "//pw_assert:check",
-        "//pw_async2:dispatcher",
+        "//pw_async2:basic_dispatcher",
         "//pw_async2:pend_func_task",
         "//pw_digital_io",
         "//pw_sync:interrupt_spin_lock",

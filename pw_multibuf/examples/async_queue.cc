@@ -19,6 +19,7 @@
 #include "pw_assert/assert.h"
 #include "pw_async2/context.h"
 #include "pw_async2/dispatcher.h"
+#include "pw_async2/dispatcher_for_test.h"
 #include "pw_async2/pend_func_task.h"
 #include "pw_async2/poll.h"
 #include "pw_async2/try.h"
@@ -136,10 +137,10 @@ TEST(RingBufferTest, CanPushAndPop) {
       });
   // DOCSTAG: [pw_multibuf-examples-async_queue-consumer]
 
-  async2::Dispatcher dispatcher;
+  async2::DispatcherForTest dispatcher;
   dispatcher.Post(producer);
   dispatcher.Post(consumer);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), async2::Ready());
+  dispatcher.RunToCompletion();
   EXPECT_EQ(producer_index, kNumMsgs);
   EXPECT_EQ(consumer_index, kNumMsgs);
 }

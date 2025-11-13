@@ -14,7 +14,7 @@
 
 #include "coin_slot.h"
 #include "hardware.h"
-#include "pw_async2/dispatcher.h"
+#include "pw_async2/basic_dispatcher.h"
 #include "vending_machine.h"
 
 namespace {
@@ -43,7 +43,7 @@ void item_drop_sensor_isr() {
 }
 
 int main() {
-  pw::async2::Dispatcher dispatcher;
+  pw::async2::BasicDispatcher dispatcher;
   codelab::HardwareInit(&dispatcher);
 
   // Fill in your implementation here.

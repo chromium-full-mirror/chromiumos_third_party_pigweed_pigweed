@@ -19,6 +19,7 @@
 #include "pw_assert/check.h"
 #include "pw_async2/context.h"
 #include "pw_async2/dispatcher.h"
+#include "pw_async2/dispatcher_for_test.h"
 #include "pw_async2/pend_func_task.h"
 #include "pw_async2/poll.h"
 #include "pw_async2/try.h"
@@ -442,7 +443,7 @@ class SimpleAsyncAllocator : public Allocator {
 
 TEST(PseudoEncrypt, RoundTrip) {
   SimpleAsyncAllocator allocator;
-  async2::Dispatcher dispatcher;
+  async2::DispatcherForTest dispatcher;
   constexpr uint64_t kKey = 0xDEADBEEFFEEDFACEull;
 
   // DOCSTAG: [pw_multibuf-examples-pseudo_encrypt-e2e]
@@ -513,7 +514,7 @@ TEST(PseudoEncrypt, RoundTrip) {
   dispatcher.Post(msg_receiver);
   // DOCSTAG: [pw_multibuf-examples-pseudo_encrypt-e2e]
 
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
+  dispatcher.RunToCompletion();
   EXPECT_EQ(tx_index, kNumLines);
   EXPECT_EQ(rx_index, kNumLines);
 }

@@ -75,10 +75,10 @@ TEST(AsyncPoolTest, PendAllocateIsNotReadyUntilDeallocate) {
         return pw::async2::Ready();
       });
   dispatcher.Post(task);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Pending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
 
   pool.Deallocate(ptrs[0]);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Ready());
+  dispatcher.RunToCompletion();
   EXPECT_NE(async_ptr, nullptr);
   ptrs[0] = async_ptr;
 

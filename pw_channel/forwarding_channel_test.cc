@@ -139,7 +139,7 @@ TEST(ForwardingDatagramChannel, ForwardsEmptyDatagrams) {
 
   dispatcher.Post(test_task);
 
-  EXPECT_TRUE(dispatcher.RunUntilStalled().IsReady());
+  dispatcher.RunToCompletion();
   EXPECT_EQ(test_task.test_completed, 1);
 }
 
@@ -186,7 +186,7 @@ TEST(ForwardingDatagramChannel, ForwardsNonEmptyDatagrams) {
 
   dispatcher.Post(test_task);
 
-  EXPECT_TRUE(dispatcher.RunUntilStalled().IsReady());
+  dispatcher.RunToCompletion();
   EXPECT_EQ(test_task.test_completed, 1);
 }
 
@@ -242,7 +242,7 @@ TEST(ForwardingDatagramChannel, ForwardsDatagrams) {
 
   dispatcher.Post(test_task);
 
-  EXPECT_TRUE(dispatcher.RunUntilStalled().IsReady());
+  dispatcher.RunToCompletion();
   EXPECT_EQ(test_task.test_completed, 1);
 }
 
@@ -280,8 +280,8 @@ TEST(ForwardingDatagramchannel, PendCloseAwakensAndClosesPeer) {
   TryToReadUntilClosed read_task(pair->first());
   dispatcher.Post(read_task);
 
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
 
   Waker empty_waker;
   Context empty_cx(dispatcher, empty_waker);
@@ -298,13 +298,13 @@ TEST(ForwardingDatagramchannel, PendCloseAwakensAndClosesPeer) {
 
   // First should read the packet and immediately be marked closed.
   EXPECT_EQ(read_task.packets_read, 0);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
   EXPECT_EQ(read_task.packets_read, 1);
 
   EXPECT_FALSE(pair->first().is_read_or_write_open());
 
   std::move(read_task.waker).Wake();  // wake the task so it runs again
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());  // runs to completion
+  dispatcher.RunToCompletion();       // runs to completion
 
   EXPECT_FALSE(pair->first().is_read_or_write_open());
   EXPECT_EQ(read_task.packets_read, 1);
@@ -350,7 +350,7 @@ TEST(ForwardingByteChannel, IgnoresEmptyWrites) {
 
   dispatcher.Post(test_task);
 
-  EXPECT_TRUE(dispatcher.RunUntilStalled().IsReady());
+  dispatcher.RunToCompletion();
   EXPECT_EQ(test_task.test_completed, 1);
 }
 
@@ -402,11 +402,11 @@ TEST(ForwardingByteChannel, WriteData) {
   pw::async2::DispatcherForTest dispatcher;
 
   dispatcher.Post(read_task);
-  ASSERT_FALSE(dispatcher.RunUntilStalled().IsReady());
-  ASSERT_FALSE(dispatcher.RunUntilStalled().IsReady());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
 
   dispatcher.Post(write_task);
-  ASSERT_TRUE(dispatcher.RunUntilStalled().IsReady());
+  dispatcher.RunToCompletion();
 }
 
 TEST(ForwardingByteChannel, WriteDataInMultiplePieces) {
@@ -462,7 +462,7 @@ TEST(ForwardingByteChannel, WriteDataInMultiplePieces) {
 
   dispatcher.Post(test_task);
 
-  EXPECT_TRUE(dispatcher.RunUntilStalled().IsReady());
+  dispatcher.RunToCompletion();
   EXPECT_EQ(test_task.test_completed, 1);
 }
 
@@ -500,8 +500,8 @@ TEST(ForwardingByteChannel, PendCloseAwakensAndClosesPeer) {
   TryToReadUntilClosed read_task(pair->first());
   dispatcher.Post(read_task);
 
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
 
   Waker empty_waker;
   Context empty_cx(dispatcher, empty_waker);
@@ -520,13 +520,13 @@ TEST(ForwardingByteChannel, PendCloseAwakensAndClosesPeer) {
 
   // First should read the packet and immediately be marked closed.
   EXPECT_EQ(read_task.bytes_read, 0);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
   EXPECT_EQ(read_task.bytes_read, 5);
 
   EXPECT_FALSE(pair->second().is_read_or_write_open());
 
   std::move(read_task.waker).Wake();  // wake the task so it runs again
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());  // runs to completion
+  dispatcher.RunToCompletion();       // runs to completion
 
   EXPECT_FALSE(pair->first().is_read_or_write_open());
   EXPECT_EQ(read_task.bytes_read, 5);

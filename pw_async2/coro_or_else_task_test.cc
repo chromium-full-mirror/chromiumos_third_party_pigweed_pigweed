@@ -33,9 +33,7 @@ using ::pw::async2::Coro;
 using ::pw::async2::CoroContext;
 using ::pw::async2::CoroOrElseTask;
 using ::pw::async2::DispatcherForTest;
-using ::pw::async2::Pending;
 using ::pw::async2::Poll;
-using ::pw::async2::Ready;
 using ::pw::async2::Task;
 using ::pw::async2::Waker;
 
@@ -56,7 +54,7 @@ TEST(CoroTest, BasicFunctionsWithoutYieldingRun) {
       [&error_handler_did_run](Status) { error_handler_did_run = true; });
   DispatcherForTest dispatcher;
   dispatcher.Post(task);
-  EXPECT_TRUE(dispatcher.RunUntilStalled().IsReady());
+  dispatcher.RunToCompletion();
   EXPECT_EQ(output, 5);
   EXPECT_FALSE(error_handler_did_run);
 }
@@ -70,7 +68,7 @@ TEST(CoroTest, AllocationFailureProducesInvalidCoro) {
                       [&status](Status actual) { status = actual; });
   DispatcherForTest dispatcher;
   dispatcher.Post(task);
-  EXPECT_TRUE(dispatcher.RunUntilStalled().IsReady());
+  dispatcher.RunToCompletion();
   EXPECT_EQ(status, Status::Internal());
 }
 

@@ -166,6 +166,7 @@ TEST(Channel, BlockingSend) {
   ReceiverTask receiver_task(std::move(receiver));
   dispatcher.Post(receiver_task);
 
+  dispatcher.AllowBlocking();
   dispatcher.RunToCompletion();
   sender_thread.join();
 
@@ -218,6 +219,7 @@ TEST(Channel, BlockingSend_ChannelCloses) {
   ReceiverTask receiver_task(std::move(receiver), kDisconnectAfter);
   dispatcher.Post(receiver_task);
 
+  dispatcher.AllowBlocking();
   dispatcher.RunToCompletion();
   sender_thread.join();
 
@@ -266,6 +268,7 @@ TEST(Channel, BlockingSend_Timeout) {
     sender_context.idle_task.Complete();
   });
 
+  dispatcher.AllowBlocking();
   dispatcher.RunToCompletion();
   sender_thread.join();
 
@@ -317,6 +320,7 @@ TEST(Channel, BlockingReceive) {
   SenderTask sender_task(std::move(sender), 0, 9);
   dispatcher.Post(sender_task);
 
+  dispatcher.AllowBlocking();
   dispatcher.RunToCompletion();
   receiver_thread.join();
 
@@ -367,6 +371,7 @@ TEST(Channel, BlockingReceive_Timeout) {
     receiver_context.idle_task.Complete();
   });
 
+  dispatcher.AllowBlocking();
   dispatcher.RunToCompletion();
   receiver_thread.join();
 

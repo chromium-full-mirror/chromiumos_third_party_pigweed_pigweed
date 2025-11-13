@@ -16,6 +16,7 @@
 
 #include "public/pw_async2/size_report/size_report.h"
 #include "pw_assert/check.h"
+#include "pw_async2/basic_dispatcher.h"
 #include "pw_async2/dispatcher.h"
 #include "pw_async2/pend_func_task.h"
 #include "pw_async2/pendable.h"
@@ -24,8 +25,11 @@
 #include "pw_log/log.h"
 
 namespace pw::async2::size_report {
+namespace {
 
-static Dispatcher dispatcher;
+BasicDispatcher dispatcher;
+
+}  // namespace
 
 #ifdef _PW_ASYNC2_SIZE_REPORT_JOIN
 
@@ -46,7 +50,7 @@ int SingleTypeJoin(uint32_t mask) {
     return result.Readiness();
   });
   dispatcher.Post(task);
-  dispatcher.RunUntilStalled().IgnorePoll();
+  dispatcher.RunUntilStalled();
   PW_BLOAT_COND(result.IsReady(), mask);
 
   int value = -1;

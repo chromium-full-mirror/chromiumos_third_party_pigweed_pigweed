@@ -59,6 +59,7 @@ pw_cc_size_binary(
     deps = [
         ":size_report",
         "//pw_assert:check",
+        "//pw_async2:basic_dispatcher",
         "//pw_async2:dispatcher",
         "//pw_async2:pend_func_task",
         "//pw_async2:pendable",
@@ -73,6 +74,7 @@ pw_cc_size_binary(
     deps = [
         ":size_report",
         "//pw_assert:check",
+        "//pw_async2:basic_dispatcher",
         "//pw_async2:dispatcher",
         "//pw_async2:pend_func_task",
         "//pw_async2:pendable",
@@ -87,6 +89,7 @@ pw_cc_size_binary(
     deps = [
         ":size_report",
         "//pw_assert:check",
+        "//pw_async2:basic_dispatcher",
         "//pw_async2:dispatcher",
         "//pw_async2:once_sender",
         "//pw_async2:pend_func_task",
@@ -105,6 +108,7 @@ pw_cc_size_binary(
     deps = [
         ":size_report",
         "//pw_assert:check",
+        "//pw_async2:basic_dispatcher",
         "//pw_async2:dispatcher",
         "//pw_async2:once_sender",
         "//pw_async2:pend_func_task",
@@ -135,6 +139,7 @@ pw_cc_size_binary(
     deps = [
         ":size_report",
         "//pw_assert:check",
+        "//pw_async2:basic_dispatcher",
         "//pw_async2:dispatcher",
         "//pw_async2:pend_func_task",
         "//pw_async2:pendable",
@@ -154,6 +159,7 @@ pw_cc_size_binary(
     deps = [
         ":size_report",
         "//pw_assert:check",
+        "//pw_async2:basic_dispatcher",
         "//pw_async2:dispatcher",
         "//pw_async2:pend_func_task",
         "//pw_async2:pendable",
@@ -170,6 +176,7 @@ pw_cc_size_binary(
     deps = [
         ":size_report",
         "//pw_assert:check",
+        "//pw_async2:basic_dispatcher",
         "//pw_async2:dispatcher",
         "//pw_async2:pend_func_task",
         "//pw_async2:pendable",
@@ -186,6 +193,7 @@ pw_cc_size_binary(
     deps = [
         ":size_report",
         "//pw_assert:check",
+        "//pw_async2:basic_dispatcher",
         "//pw_async2:dispatcher",
         "//pw_async2:pend_func_task",
         "//pw_async2:pendable",
@@ -202,6 +210,7 @@ pw_cc_size_binary(
     deps = [
         ":size_report",
         "//pw_assert:check",
+        "//pw_async2:basic_dispatcher",
         "//pw_async2:dispatcher",
         "//pw_async2:join",
         "//pw_async2:pend_func_task",
@@ -221,6 +230,7 @@ pw_cc_size_binary(
     deps = [
         ":size_report",
         "//pw_assert:check",
+        "//pw_async2:basic_dispatcher",
         "//pw_async2:dispatcher",
         "//pw_async2:join",
         "//pw_async2:pend_func_task",

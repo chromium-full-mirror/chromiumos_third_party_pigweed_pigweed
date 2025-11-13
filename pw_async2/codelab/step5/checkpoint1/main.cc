@@ -15,7 +15,7 @@
 #include "coin_slot.h"
 #include "hardware.h"
 #include "item_drop_sensor.h"
-#include "pw_async2/dispatcher.h"
+#include "pw_async2/basic_dispatcher.h"
 #include "vending_machine.h"
 
 namespace {
@@ -40,7 +40,7 @@ void key_press_isr(int key) { keypad.Press(key); }
 void item_drop_sensor_isr() { item_drop_sensor.Drop(); }
 
 int main() {
-  pw::async2::Dispatcher dispatcher;
+  pw::async2::BasicDispatcher dispatcher;
   codelab::HardwareInit(&dispatcher);
 
   codelab::DispenseRequestQueue dispense_requests;

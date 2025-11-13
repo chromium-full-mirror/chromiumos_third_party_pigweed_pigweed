@@ -267,18 +267,18 @@ TEST(PacketChannel, TestPacketReader_ReadPackets) {
   ReadPacketsTask read_task(channel, 3);
   dispatcher.Post(read_task);
 
-  EXPECT_FALSE(dispatcher.RunUntilStalled().IsReady());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
   EXPECT_EQ(read_task.ran_to_completion, 0);
   EXPECT_EQ(reader_impl.queue_size(), 0u);
 
   reader_impl.PushPacket(TestPacket(10));
-  EXPECT_FALSE(dispatcher.RunUntilStalled().IsReady());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
   EXPECT_EQ(read_task.received_packets.size(), 1u);
   EXPECT_EQ(read_task.received_packets[0].value(), 10);
 
   reader_impl.PushPacket(TestPacket(20));
   reader_impl.PushPacket(TestPacket(30));
-  EXPECT_TRUE(dispatcher.RunUntilStalled().IsReady());
+  dispatcher.RunToCompletion();
   EXPECT_EQ(read_task.ran_to_completion, 1);
   ASSERT_EQ(read_task.received_packets.size(), 3u);
   EXPECT_EQ(read_task.received_packets[0].value(), 10);
@@ -297,11 +297,11 @@ TEST(PacketChannel, TestPacketReader_ReadUntilEndOfStream) {
 
   reader_impl.PushPacket(TestPacket(1));
   reader_impl.PushPacket(TestPacket(2));
-  EXPECT_FALSE(dispatcher.RunUntilStalled().IsReady());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
   ASSERT_EQ(read_task.received_packets.size(), 2u);
 
   reader_impl.SimulateEndOfStream();
-  EXPECT_TRUE(dispatcher.RunUntilStalled().IsReady());
+  dispatcher.RunToCompletion();
   EXPECT_EQ(read_task.final_status, Status::OutOfRange());
   ASSERT_EQ(read_task.received_packets.size(), 2u);
   EXPECT_EQ(read_task.received_packets[0].value(), 1);
@@ -344,7 +344,7 @@ TEST(PacketChannel, Conversions) {
   TakesPacketReader(rs.channel());
   TakesPacketReader(rs.channel().as<kReadable>());
 #if PW_NC_TEST(CannotConvertReadOnlyToWriter)
-  PW_NC_EXPECT("private");
+  PW_NC_EXPECT("private|inaccessible base");
   TakesPacketWriter(rs.channel());
 #endif  // PW_NC_TEST
 
@@ -354,7 +354,7 @@ TEST(PacketChannel, Conversions) {
   TakesPacketWriter(ws.channel());
   TakesPacketWriter(ws.channel().as<kWritable>());
 #if PW_NC_TEST(CannotConvertWriteOnlyToReader)
-  PW_NC_EXPECT("private");
+  PW_NC_EXPECT("private|inaccessible base");
   TakesPacketReader(ws.channel());
 #endif  // PW_NC_TEST
 }
@@ -404,12 +404,12 @@ TEST(PacketWriter, Write) {
 
   writer_impl.set_ready_to_write(false);
 
-  EXPECT_FALSE(dispatcher.RunUntilStalled().IsReady());
-  EXPECT_FALSE(dispatcher.RunUntilStalled().IsReady());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
 
   writer_impl.set_ready_to_write(true);
 
-  EXPECT_TRUE(dispatcher.RunUntilStalled().IsReady());
+  dispatcher.RunToCompletion();
   EXPECT_EQ(task.ran_to_completion, 1);
 
   ASSERT_EQ(writer_impl.packets().size(), 5u);
@@ -430,12 +430,12 @@ TEST(PacketWriter, WriteWithFlowControl) {
   ASSERT_EQ(writer_impl.GetAvailableWrites(), pw::channel::kNoFlowControl);
 
   writer.SetAvailableWrites(0);
-  ASSERT_FALSE(dispatcher.RunUntilStalled().IsReady());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
 
   EXPECT_TRUE(writer_impl.packets().empty());
 
   writer.SetAvailableWrites(2);
-  ASSERT_FALSE(dispatcher.RunUntilStalled().IsReady());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
 
   EXPECT_EQ(writer_impl.GetAvailableWrites(), 0u);
   ASSERT_EQ(writer_impl.packets().size(), 2u);
@@ -445,7 +445,7 @@ TEST(PacketWriter, WriteWithFlowControl) {
   }
 
   writer.AcknowledgeWrites(4);
-  ASSERT_TRUE(dispatcher.RunUntilStalled().IsReady());
+  dispatcher.RunToCompletion();
 
   EXPECT_EQ(writer_impl.GetAvailableWrites(), 1u);
   ASSERT_EQ(writer_impl.packets().size(), 5u);
@@ -501,9 +501,8 @@ bool Illegal(
 }
 #elif PW_NC_TEST(PacketChannelImplInvalidOrdering)
 PW_NC_EXPECT("Properties must be specified in the following order");
-class BadChannel
-    : public pw::channel::PacketChannelImpl<TestPacket, kWritable, kReadable> {
-};
+class BadChannel : public pw::channel::internal::
+                       PacketChannelImpl<TestPacket, kWritable, kReadable> {};
 #elif PW_NC_TEST(PacketChannelNoReadOrWrite)
 PW_NC_EXPECT("At least one of kReadable or kWritable must be provided");
 bool Illegal(pw::channel::PacketChannel<TestPacket>& foo) {
@@ -511,7 +510,8 @@ bool Illegal(pw::channel::PacketChannel<TestPacket>& foo) {
 }
 #elif PW_NC_TEST(PacketChannelImplNoReadOrWrite)
 PW_NC_EXPECT("At least one of kReadable or kWritable must be provided");
-class BadChannel : public pw::channel::PacketChannelImpl<TestPacket> {};
+class BadChannel : public pw::channel::internal::PacketChannelImpl<TestPacket> {
+};
 #elif PW_NC_TEST(PacketChannelDuplicateProperties)
 PW_NC_EXPECT("without duplicates");
 bool Illegal(

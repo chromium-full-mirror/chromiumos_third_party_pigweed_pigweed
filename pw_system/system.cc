@@ -22,6 +22,7 @@
 #include "pw_allocator/synchronized_allocator.h"
 #include "pw_assert/check.h"
 #include "pw_async2/allocate_task.h"
+#include "pw_async2/basic_dispatcher.h"
 #include "pw_async2/pend_func_task.h"
 #include "pw_log/log.h"
 #include "pw_rpc/echo_service_pwpb.h"

@@ -97,29 +97,29 @@ class PacketProxyTest : public ::testing::Test {
 TEST_F(PacketProxyTest, ForwardPacketsBothDirections) {
   pw::async2::DispatcherForTest dispatcher;
   proxy_.Run(dispatcher);
-  EXPECT_TRUE(dispatcher.RunUntilStalled().IsPending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
   EXPECT_TRUE(channel_1_.written_packets().empty());
   EXPECT_TRUE(channel_2_.written_packets().empty());
 
   channel_1_.EnqueueReadPacket(TestPacket(123));
-  EXPECT_TRUE(dispatcher.RunUntilStalled().IsPending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
   ASSERT_EQ(channel_2_.written_packets().size(), 1u);
 
   pw::async2::PendFuncTask reset(
       [this](pw::async2::Context& context) { return proxy_.Reset(context); });
   dispatcher.Post(reset);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Ready());
+  dispatcher.RunToCompletion();
 }
 
 TEST_F(PacketProxyTest, RequestCancellationFromPacket) {
   pw::async2::DispatcherForTest dispatcher;
   proxy_.Run(dispatcher);
 
-  EXPECT_TRUE(dispatcher.RunUntilStalled().IsPending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
 
   channel_1_.EnqueueReadPacket(TestPacket(TestPacket::kRequestReset));
 
-  EXPECT_EQ(dispatcher.RunUntilStalled(), pw::async2::Ready());
+  dispatcher.RunToCompletion();
 }
 
 }  // namespace

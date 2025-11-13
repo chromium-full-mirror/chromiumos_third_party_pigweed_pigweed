@@ -281,17 +281,17 @@ TEST(StaticChannel, NonAsyncTrySend) {
   EXPECT_TRUE(sender.TrySend(1));
   EXPECT_TRUE(sender.TrySend(2));
   EXPECT_FALSE(sender.TrySend(3));
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
 
   EXPECT_TRUE(sender.TrySend(3));
   EXPECT_TRUE(sender.TrySend(4));
   EXPECT_FALSE(sender.TrySend(5));
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
 
   EXPECT_TRUE(sender.TrySend(5));
   EXPECT_TRUE(sender.TrySend(6));
   sender.Disconnect();
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
+  dispatcher.RunToCompletion();
 
   ExpectReceived1To6(receiver_task.received());
 }
@@ -611,10 +611,10 @@ TEST(StaticChannel, MoveOnly) {
       });
 
   dispatcher.Post(sender_task);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
+  dispatcher.RunToCompletion();
 
   dispatcher.Post(receiver_task);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
+  dispatcher.RunToCompletion();
 }
 
 TEST(DynamicChannel, ForwardsDataAndAutomaticallyDeallocates) {

@@ -54,6 +54,7 @@ TEST(SystemTimeProvider, InvokesTimerAfterDelay) {
   SystemClock::time_point expected_completion = start_time + 50ms;
   WaitTask task(GetSystemTimeProvider().WaitUntil(expected_completion));
   DispatcherForTest dispatcher;
+  dispatcher.AllowBlocking();
   dispatcher.Post(task);
   dispatcher.RunToCompletion();
   ASSERT_TRUE(task.time_completed_.IsReady());
@@ -69,6 +70,7 @@ TEST(SystemTimeProvider, InvokesTwoTimersInOrder) {
   DispatcherForTest dispatcher;
   dispatcher.Post(t1);
   dispatcher.Post(t2);
+  dispatcher.AllowBlocking();
   dispatcher.RunToCompletion();
   ASSERT_TRUE(t1.time_completed_.IsReady());
   EXPECT_GE(t1.time_completed_->time_since_epoch().count(),

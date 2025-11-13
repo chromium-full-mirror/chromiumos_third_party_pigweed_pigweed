@@ -18,6 +18,7 @@
 namespace pw::async2 {
 namespace internal {
 
+// This should be updated to work for futures instead of generic pendables.
 template <typename Pendable>
 class PendableAsTaskWithOutput : public Task {
  public:
@@ -54,12 +55,18 @@ class DispatcherForTest : public Dispatcher {
   DispatcherForTest(DispatcherForTest&&) = delete;
   DispatcherForTest& operator=(DispatcherForTest&&) = delete;
 
+  bool RunUntilStalled() { return Dispatcher::RunUntilStalled().IsPending(); }
+
+  /// Whether to allow the dispatcher to block by calling `DoWaitForWake`.
+  /// `RunToCompletion` may block the thread if there are no tasks ready to run.
+  void AllowBlocking() {}
+
   template <typename Pendable>
   Poll<PendOutputOf<Pendable>> RunInTaskUntilStalled(Pendable& pendable)
       PW_LOCKS_EXCLUDED(impl::dispatcher_lock()) {
     internal::PendableAsTaskWithOutput<Pendable> task(pendable);
     Post(task);
-    RunUntilStalled().IgnorePoll();
+    RunUntilStalled();
 
     // Ensure that the task is no longer registered, as it will be destroyed
     // once we return.

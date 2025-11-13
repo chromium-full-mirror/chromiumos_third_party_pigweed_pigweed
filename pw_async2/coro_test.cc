@@ -79,7 +79,7 @@ TEST(CoroTest, BasicFunctionsWithoutYieldingRun) {
   ExpectCoroTask task = StoresFiveThenReturns(coro_cx, output);
   DispatcherForTest dispatcher;
   dispatcher.Post(task);
-  EXPECT_TRUE(dispatcher.RunUntilStalled().IsReady());
+  dispatcher.RunToCompletion();
   EXPECT_EQ(output, 5);
 }
 
@@ -98,7 +98,7 @@ TEST(CoroTest, ObjectWithCoroMethodIsCallable) {
   ExpectCoroTask task = obj.CoroMethodStoresField(coro_cx, out);
   DispatcherForTest dispatcher;
   dispatcher.Post(task);
-  EXPECT_TRUE(dispatcher.RunUntilStalled().IsReady());
+  dispatcher.RunToCompletion();
   EXPECT_EQ(out, 4);
 }
 
@@ -143,25 +143,25 @@ TEST(CoroTest, AwaitMultipleAndAwakenRuns) {
   DispatcherForTest dispatcher;
   dispatcher.Post(task);
 
-  EXPECT_TRUE(dispatcher.RunUntilStalled().IsPending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
   EXPECT_EQ(a.poll_count, 1);
   EXPECT_EQ(b.poll_count, 0);
 
-  EXPECT_TRUE(dispatcher.RunUntilStalled().IsPending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
   EXPECT_EQ(a.poll_count, 1);
   EXPECT_EQ(b.poll_count, 0);
 
   int a_value = 4;
   a.return_value = a_value;
   std::move(a.last_waker).Wake();
-  EXPECT_TRUE(dispatcher.RunUntilStalled().IsPending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
   EXPECT_EQ(a.poll_count, 2);
   EXPECT_EQ(b.poll_count, 1);
 
   int b_value = 5;
   b.return_value = b_value;
   std::move(b.last_waker).Wake();
-  EXPECT_TRUE(dispatcher.RunUntilStalled().IsReady());
+  dispatcher.RunToCompletion();
   EXPECT_EQ(a.poll_count, 2);
   EXPECT_EQ(b.poll_count, 2);
   EXPECT_EQ(output, a_value + b_value);

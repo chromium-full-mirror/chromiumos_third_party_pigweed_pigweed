@@ -176,7 +176,7 @@ TEST(ManualExample, ReturnsOk) {
   auto task = ReceiveAndSend(MyReceiver(), MySender());
   Dispatcher dispatcher;
   dispatcher.Post(task);
-  EXPECT_TRUE(dispatcher.RunUntilStalled().IsReady());
+  dispatcher.RunToCompletion();
 }
 
 TEST(ManualExample, Runs) {

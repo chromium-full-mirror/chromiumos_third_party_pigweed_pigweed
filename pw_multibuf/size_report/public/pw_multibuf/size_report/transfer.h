@@ -15,7 +15,7 @@
 
 #include <algorithm>
 
-#include "pw_async2/dispatcher.h"
+#include "pw_async2/basic_dispatcher.h"
 #include "pw_multibuf/size_report/common.h"
 #include "pw_multibuf/size_report/receiver.h"
 #include "pw_multibuf/size_report/sender.h"
@@ -25,7 +25,7 @@ namespace pw::multibuf::size_report {
 template <typename MultiBufType>
 void TransferMessage(Sender<MultiBufType>& sender,
                      Receiver<MultiBufType>& receiver) {
-  async2::Dispatcher dispatcher;
+  async2::BasicDispatcher dispatcher;
   dispatcher.Post(sender);
   dispatcher.Post(receiver);
   sender.Send(kLoremIpsum.data());

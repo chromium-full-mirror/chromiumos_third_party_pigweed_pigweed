@@ -13,7 +13,7 @@
 // the License.
 
 #include "pw_assert/check.h"
-#include "pw_async2/dispatcher.h"
+#include "pw_async2/basic_dispatcher.h"
 #include "pw_async2/future.h"
 #include "pw_async2/pend_func_task.h"
 #include "pw_digital_io/digital_io.h"
@@ -121,7 +121,7 @@ class DigitalInterruptMock : public pw::digital_io::DigitalInterrupt {
 };
 
 TEST(CustomFuture, CompilesAndRuns) {
-  pw::async2::Dispatcher dispatcher;
+  pw::async2::BasicDispatcher dispatcher;
   DigitalInterruptMock line;
 
   ButtonReceiver receiver(line);
@@ -133,12 +133,12 @@ TEST(CustomFuture, CompilesAndRuns) {
 
   dispatcher.Post(function_task);
 
-  EXPECT_FALSE(dispatcher.RunUntilStalled().IsReady());
+  dispatcher.RunUntilStalled();
 
   // Simulate button press.
   line.Trigger();
 
-  EXPECT_TRUE(dispatcher.RunUntilStalled().IsReady());
+  dispatcher.RunToCompletion();
 }
 
 }  // namespace

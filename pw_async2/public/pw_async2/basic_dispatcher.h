@@ -1,4 +1,4 @@
-// Copyright 2024 The Pigweed Authors
+// Copyright 2025 The Pigweed Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License"); you may not
 // use this file except in compliance with the License. You may obtain a copy of
@@ -11,26 +11,20 @@
 // WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 // License for the specific language governing permissions and limitations under
 // the License.
+#pragma once
 
-#include "pw_async2/enqueue_heap_func.h"
+#include "pw_async2/dispatcher.h"
 
-#include "pw_async2/dispatcher_for_test.h"
-#include "pw_unit_test/framework.h"
+namespace pw::async2 {
 
-namespace {
+/// @submodule{pw_async2,dispatcher}
 
-using ::pw::async2::DispatcherForTest;
-using ::pw::async2::EnqueueHeapFunc;
+/// Temporary class to enable a non-breaking transition to supporting multiple
+/// dispatcher implementations. `Dispatcher` declarations will need to be
+/// replaced with a declaration of a `Dispatcher` implementation.
+class BasicDispatcher : public Dispatcher {
+ public:
+  bool RunUntilStalled() { return Dispatcher::RunUntilStalled().IsPending(); }
+};
 
-TEST(DispatcherForTest, DispatcherRunsEnqueuedTasksOnce) {
-  DispatcherForTest dispatcher;
-  int ran = 0;
-  EnqueueHeapFunc(dispatcher, [&ran]() { ++ran; });
-  EXPECT_EQ(ran, 0);
-  dispatcher.RunToCompletion();
-  EXPECT_EQ(ran, 1);
-  dispatcher.RunToCompletion();
-  EXPECT_EQ(ran, 1);
-}
-
-}  // namespace
+}  // namespace pw::async2

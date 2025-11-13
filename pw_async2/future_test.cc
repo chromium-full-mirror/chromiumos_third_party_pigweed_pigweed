@@ -215,10 +215,10 @@ TEST(Future, Pend) {
   });
 
   dispatcher.Post(task);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
 
   provider.Set(27);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
+  dispatcher.RunToCompletion();
   EXPECT_EQ(result, 27);
 }
 
@@ -236,11 +236,11 @@ TEST(Future, VoidFuture) {
   });
 
   dispatcher.Post(task);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
   EXPECT_FALSE(completed);
 
   notification.Notify();
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
+  dispatcher.RunToCompletion();
   EXPECT_TRUE(completed);
 }
 
@@ -261,10 +261,10 @@ TEST(Future, MoveAssign) {
   });
 
   dispatcher.Post(task);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
 
   provider.Set(99);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
+  dispatcher.RunToCompletion();
   EXPECT_EQ(result, 99);
 }
 
@@ -283,10 +283,10 @@ TEST(Future, MoveConstruct) {
   });
 
   dispatcher.Post(task);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
 
   provider.Set(99);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
+  dispatcher.RunToCompletion();
   EXPECT_EQ(result, 99);
 }
 
@@ -325,10 +325,10 @@ TEST(ListFutureProvider, MultipleFutures) {
 
   dispatcher.Post(task1);
   dispatcher.Post(task2);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
 
   provider.Set(33);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
+  dispatcher.RunToCompletion();
   EXPECT_EQ(result1, 33);
   EXPECT_EQ(result2, 33);
 }
@@ -349,10 +349,10 @@ TEST(SingleFutureProvider, VendsAndResolvesFuture) {
   });
 
   dispatcher.Post(task);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
 
   provider.Set(96);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
+  dispatcher.RunToCompletion();
   EXPECT_EQ(result, 96);
 }
 
@@ -379,10 +379,10 @@ TEST(SingleFutureProvider, OnlyAllowsOneFutureToExist) {
   });
 
   dispatcher.Post(task);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
 
   provider.Set(93);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
+  dispatcher.RunToCompletion();
   EXPECT_EQ(result, 93);
 
   // The operation has resolved, so a new future should be obtainable.
@@ -405,18 +405,18 @@ TEST(ListableFutureWithWaker, RelistsItselfOnPending) {
   });
 
   dispatcher.Post(task);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
   EXPECT_EQ(dispatcher.tasks_polled(), 1u);
 
   // ResolveAllFutures pops the future off the list. Since no value is set,
   // the task will still be pending. The future should re-add itself to the list
   // to prevent the task from being permanently stalled.
   provider.ResolveAllFutures();
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
   EXPECT_EQ(dispatcher.tasks_polled(), 2u);  // Task ran again.
 
   provider.Set(99);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
+  dispatcher.RunToCompletion();
   EXPECT_EQ(dispatcher.tasks_polled(), 3u);
   EXPECT_EQ(result, 99);
 }

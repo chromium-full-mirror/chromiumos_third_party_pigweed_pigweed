@@ -95,15 +95,15 @@ TEST(PendFuncAwaitable, TestMailbox) {
   dispatcher.Post(task);
 
   EXPECT_EQ(mailbox.PollCount(), 0);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
   EXPECT_EQ(mailbox.PollCount(), 1);
 
   // Unwoken mailbox is not polled.
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
   EXPECT_EQ(mailbox.PollCount(), 1);
 
   mailbox.SetValue(5);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
+  dispatcher.RunToCompletion();
   EXPECT_EQ(mailbox.PollCount(), 2);
   EXPECT_EQ(output, 5);
   EXPECT_FALSE(error_handler_did_run);

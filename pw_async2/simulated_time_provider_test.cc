@@ -83,9 +83,9 @@ TEST(SimulatedTimeProvider, AdvanceTimeRunsPastTimers) {
   DispatcherForTest dispatcher;
   dispatcher.Post(task);
   tp.AdvanceTime(30min);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
   tp.AdvanceTime(40min);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
+  dispatcher.RunToCompletion();
 }
 
 TEST(SimulatedTimeProvider, AdvanceUntilNextExpirationRunsPastTimers) {
@@ -94,7 +94,7 @@ TEST(SimulatedTimeProvider, AdvanceUntilNextExpirationRunsPastTimers) {
   DispatcherForTest dispatcher;
   dispatcher.Post(task);
   EXPECT_TRUE(tp.AdvanceUntilNextExpiration());
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
+  dispatcher.RunToCompletion();
   EXPECT_FALSE(tp.AdvanceUntilNextExpiration());
 }
 
@@ -146,28 +146,28 @@ TEST(SimulatedTimeProvider, MultipleMovedTimersExpireInOrder) {
   dispatcher.Post(t2);
   dispatcher.Post(t3);
 
-  EXPECT_TRUE(dispatcher.RunUntilStalled().IsPending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
   EXPECT_FALSE(t1.completed_);
   EXPECT_FALSE(t2.completed_);
   EXPECT_FALSE(t3.completed_);
 
   // t1 should expire first.
   EXPECT_TRUE(tp.AdvanceUntilNextExpiration());
-  EXPECT_TRUE(dispatcher.RunUntilStalled().IsPending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
   EXPECT_TRUE(t1.completed_);
   EXPECT_FALSE(t2.completed_);
   EXPECT_FALSE(t3.completed_);
 
   // Then t2.
   EXPECT_TRUE(tp.AdvanceUntilNextExpiration());
-  EXPECT_TRUE(dispatcher.RunUntilStalled().IsPending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
   EXPECT_TRUE(t1.completed_);
   EXPECT_TRUE(t2.completed_);
   EXPECT_FALSE(t3.completed_);
 
   // Then t3.
   EXPECT_TRUE(tp.AdvanceUntilNextExpiration());
-  EXPECT_TRUE(dispatcher.RunUntilStalled().IsReady());
+  dispatcher.RunToCompletion();
   EXPECT_TRUE(t1.completed_);
   EXPECT_TRUE(t2.completed_);
   EXPECT_TRUE(t3.completed_);

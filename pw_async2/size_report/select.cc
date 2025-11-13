@@ -16,6 +16,7 @@
 
 #include "public/pw_async2/size_report/size_report.h"
 #include "pw_assert/check.h"
+#include "pw_async2/basic_dispatcher.h"
 #include "pw_async2/dispatcher.h"
 #include "pw_async2/pend_func_task.h"
 #include "pw_async2/pendable.h"
@@ -24,8 +25,11 @@
 #include "pw_log/log.h"
 
 namespace pw::async2::size_report {
+namespace {
 
-static Dispatcher dispatcher;
+BasicDispatcher dispatcher;
+
+}
 
 #ifdef _PW_ASYNC2_SIZE_REPORT_SELECT
 
@@ -42,7 +46,7 @@ int SingleTypeSelect(uint32_t mask) {
     return result.Readiness();
   });
   dispatcher.Post(task);
-  dispatcher.RunUntilStalled().IgnorePoll();
+  dispatcher.RunUntilStalled();
   PW_BLOAT_COND(result.IsReady(), mask);
 
   value_1.allow_completion = true;
@@ -81,7 +85,8 @@ int MultiTypeSelect(uint32_t mask) {
     return result.Readiness();
   });
   dispatcher.Post(task);
-  PW_BLOAT_COND(dispatcher.RunUntilStalled().IsReady(), mask);
+  dispatcher.RunUntilStalled();
+  PW_BLOAT_COND(result.IsReady(), mask);
 
   value_3.allow_completion = true;
 
@@ -201,13 +206,13 @@ int Measure() {
   PendFuncTask task2(
       [&](Context& cx) { return pendable_int.Get(cx).Readiness(); });
   dispatcher.Post(task2);
-  dispatcher.RunUntilStalled().IgnorePoll();
+  dispatcher.RunUntilStalled();
 
   SelectComparison comparison;
   PendFuncTask task3(
       [&](Context& cx) { return comparison.Pend(cx).Readiness(); });
   dispatcher.Post(task3);
-  PW_BLOAT_COND(dispatcher.RunUntilStalled().IsReady(), mask);
+  dispatcher.RunUntilStalled();
 #endif
 
   return result;

@@ -21,6 +21,7 @@ package(default_visibility = ["//visibility:public"])
 licenses(["notice"])
 
 deps = [
+    "//pw_async2:basic_dispatcher",
     "//pw_async2:dispatcher",
     "//pw_async2:pendable",
     "//pw_async2:poll",

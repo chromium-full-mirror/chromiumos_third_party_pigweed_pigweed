@@ -149,7 +149,7 @@ TEST(Channel, MethodsShortCircuitAfterCloseReturnsReady) {
   } test_task;
   dispatcher.Post(test_task);
 
-  EXPECT_TRUE(dispatcher.RunUntilStalled().IsReady());
+  dispatcher.RunToCompletion();
 }
 
 TEST(Channel, ReadOnlyChannelOnlyOpenForReads) {
@@ -361,12 +361,12 @@ TEST(Channel, TestByteReader) {
 
   dispatcher.Post(test_task);
 
-  EXPECT_FALSE(dispatcher.RunUntilStalled().IsReady());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
 
   auto kReadDataBytes = reinterpret_cast<const std::byte*>(kReadData);
   std::copy(kReadDataBytes, kReadDataBytes + kReadDataSize, read_buf.begin());
   test_task.channel.PushData(std::move(read_buf));
-  EXPECT_TRUE(dispatcher.RunUntilStalled().IsReady());
+  dispatcher.RunToCompletion();
 
   EXPECT_EQ(test_task.test_executed, 1);
 }
@@ -438,17 +438,17 @@ TEST(Channel, TestDatagramWriter) {
   SendWriteDataAndFlush test_task(write_channel.channel(), 24601);
   dispatcher.Post(test_task);
 
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
 
   write_channel.MakeReadyToWrite();
 
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
 
   write_channel.MakeReadyToFlush();
 
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
+  dispatcher.RunToCompletion();
   EXPECT_EQ(test_task.test_executed, 1);
 
   std::byte contents[64] = {};
@@ -503,7 +503,7 @@ TEST(Channel, Conversions) {
   [[maybe_unused]] const pw::channel::AnyChannel& plain = byte_channel;
 
 #if PW_NC_TEST(CannotImplicitlyLoseWritability)
-  PW_NC_EXPECT("no matching function for call");
+  PW_NC_EXPECT("TakesAWritableByteChannel");
   TakesAWritableByteChannel(byte_channel.channel());
 #elif PW_NC_TEST(CannotExplicitlyLoseWritability)
   PW_NC_EXPECT("Cannot use a non-writable channel as a writable channel");
@@ -518,7 +518,7 @@ TEST(Channel, Conversions) {
 }
 
 #if PW_NC_TEST(CannotImplicitlyUseDatagramChannelAsByteChannel)
-PW_NC_EXPECT("no matching function for call");
+PW_NC_EXPECT("TakesAReadableByteChannel");
 void DatagramChannelNcTest(
     pw::channel::DatagramChannel<kReliable, kReadable>& dgram) {
   TakesAReadableByteChannel(dgram);
@@ -560,7 +560,7 @@ PW_NC_EXPECT("PendReadyToWrite may only be called on writable channels");
 }
 #elif PW_NC_TEST(CannotCallUnsupportedWriteMethodsOnChannelImpl)
 PW_NC_EXPECT("PendReadyToWrite may only be called on writable channels");
-[[maybe_unused]] void Bad(Context& cx, pw::channel::ByteReaderImpl& c) {
+[[maybe_unused]] void Bad(Context& cx, pw::channel::ByteReader& c) {
   std::ignore = c.PendReadyToWrite(cx);
 }
 #elif PW_NC_TEST(CannotCallUnsupportedReadMethodsOnChannel)
@@ -570,7 +570,7 @@ PW_NC_EXPECT("PendRead may only be called on readable channels");
 }
 #elif PW_NC_TEST(CannotCallUnsupportedReadMethodsOnChannelImpl)
 PW_NC_EXPECT("PendRead may only be called on readable channels");
-[[maybe_unused]] void Bad(Context& cx, pw::channel::DatagramWriterImpl& c) {
+[[maybe_unused]] void Bad(Context& cx, pw::channel::DatagramWriter& c) {
   std::ignore = c.PendRead(cx);
 }
 #endif  // PW_NC_TEST

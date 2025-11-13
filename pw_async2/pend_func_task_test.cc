@@ -51,16 +51,16 @@ TEST(PendFuncTask, PendDelegatesToFunc) {
   dispatcher.Post(func_task);
 
   EXPECT_EQ(poll_count, 0);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
   EXPECT_EQ(poll_count, 1);
 
   // Unwoken task is not polled.
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
   EXPECT_EQ(poll_count, 1);
 
   std::move(waker).Wake();
   allow_completion = true;
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
+  dispatcher.RunToCompletion();
   EXPECT_EQ(poll_count, 2);
 }
 

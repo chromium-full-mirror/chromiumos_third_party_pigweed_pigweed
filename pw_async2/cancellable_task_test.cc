@@ -58,12 +58,12 @@ TEST(CancellableTask, CancelsPendingTask) {
       [&task_completed]() { task_completed = true; });
   DispatcherForTest dispatcher;
   dispatcher.Post(task);
-  EXPECT_TRUE(dispatcher.RunUntilStalled().IsPending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
   EXPECT_EQ(dispatcher.tasks_polled(), 1u);
   EXPECT_FALSE(task_completed);
 
   task.Cancel();
-  EXPECT_TRUE(dispatcher.RunUntilStalled().IsReady());
+  dispatcher.RunToCompletion();
   EXPECT_EQ(dispatcher.tasks_polled(), 2u);
   EXPECT_FALSE(task.IsRegistered());
   EXPECT_FALSE(task_completed);
@@ -76,18 +76,18 @@ TEST(CancellableTask, DoesNothingWithCompletedTask) {
       [&task_completed]() { task_completed = true; });
   DispatcherForTest dispatcher;
   dispatcher.Post(task);
-  EXPECT_TRUE(dispatcher.RunUntilStalled().IsPending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
   EXPECT_EQ(dispatcher.tasks_polled(), 1u);
   EXPECT_FALSE(task_completed);
 
   task.should_complete = true;
   std::move(task.waker).Wake();
-  EXPECT_TRUE(dispatcher.RunUntilStalled().IsReady());
+  dispatcher.RunToCompletion();
   EXPECT_EQ(dispatcher.tasks_polled(), 2u);
   EXPECT_TRUE(task_completed);
 
   task.Cancel();
-  EXPECT_TRUE(dispatcher.RunUntilStalled().IsReady());
+  dispatcher.RunToCompletion();
   EXPECT_EQ(dispatcher.tasks_polled(), 2u);
 }
 
@@ -101,7 +101,7 @@ TEST(CancellableTask, CancelsTaskBeforePosting) {
 
   DispatcherForTest dispatcher;
   dispatcher.Post(task);
-  EXPECT_TRUE(dispatcher.RunUntilStalled().IsReady());
+  dispatcher.RunToCompletion();
   EXPECT_EQ(dispatcher.tasks_polled(), 1u);
   EXPECT_FALSE(task_completed);
 }
@@ -117,7 +117,7 @@ TEST(CancellableTask, CancelsTaskBeforeRunning) {
   task.should_complete = true;
   task.Cancel();
 
-  EXPECT_TRUE(dispatcher.RunUntilStalled().IsReady());
+  dispatcher.RunToCompletion();
   EXPECT_EQ(dispatcher.tasks_polled(), 1u);
   EXPECT_FALSE(task_completed);
 }

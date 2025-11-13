@@ -30,8 +30,8 @@
 namespace examples::manual {
 
 using ::pw::Result;
+using ::pw::async2::BasicDispatcher;
 using ::pw::async2::Context;
-using ::pw::async2::Dispatcher;
 using ::pw::async2::MakeOnceSenderAndReceiver;
 using ::pw::async2::OnceReceiver;
 using ::pw::async2::Poll;
@@ -66,7 +66,7 @@ int main() {
   auto [sender, receiver] = MakeOnceSenderAndReceiver<int>();
   ReceiveAndLogValueTask task(std::move(receiver));
   // DOCSTAG: [pw_async2-examples-once-send-recv-construction]
-  Dispatcher dispatcher;
+  BasicDispatcher dispatcher;
   dispatcher.Post(task);
 
   // DOCSTAG: [pw_async2-examples-once-send-recv-send-value]
@@ -87,9 +87,9 @@ using ::pw::OkStatus;
 using ::pw::Result;
 using ::pw::Status;
 using ::pw::allocator::LibCAllocator;
+using ::pw::async2::BasicDispatcher;
 using ::pw::async2::Coro;
 using ::pw::async2::CoroContext;
-using ::pw::async2::Dispatcher;
 using ::pw::async2::MakeOnceSenderAndReceiver;
 using ::pw::async2::OnceReceiver;
 using ::pw::async2::Ready;
@@ -115,13 +115,13 @@ int main() {
   auto [sender, receiver] = MakeOnceSenderAndReceiver<int>();
   auto coro = ReceiveAndLogValue(coro_cx, std::move(receiver));
 
-  Dispatcher dispatcher;
-  PW_CHECK(dispatcher.RunInTaskUntilStalled(coro).IsPending());
+  BasicDispatcher dispatcher;
+  PW_CHECK(dispatcher.RunPendableUntilStalled(coro).IsPending());
 
   // Send a value to the task
   sender.emplace(5);
 
-  PW_CHECK(dispatcher.RunInTaskUntilStalled(coro) == Ready(OkStatus()));
+  PW_CHECK(dispatcher.RunPendableUntilStalled(coro) == Ready(OkStatus()));
   return 0;
 }
 
@@ -133,10 +133,10 @@ using ::pw::OkStatus;
 using ::pw::Result;
 using ::pw::Status;
 using ::pw::allocator::test::AllocatorForTest;
+using ::pw::async2::BasicDispatcher;
 using ::pw::async2::Context;
 using ::pw::async2::Coro;
 using ::pw::async2::CoroContext;
-using ::pw::async2::Dispatcher;
 using ::pw::async2::MakeOnceSenderAndReceiver;
 using ::pw::async2::OnceReceiver;
 using ::pw::async2::Poll;
@@ -150,11 +150,11 @@ TEST(OnceSendRecv, ReceiveAndLogValueTask) {
 
   auto [sender, receiver] = MakeOnceSenderAndReceiver<int>();
   examples::manual::ReceiveAndLogValueTask task(std::move(receiver));
-  Dispatcher dispatcher;
+  BasicDispatcher dispatcher;
   dispatcher.Post(task);
-  EXPECT_TRUE(dispatcher.RunUntilStalled().IsPending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
   sender.emplace(5);
-  EXPECT_TRUE(dispatcher.RunUntilStalled().IsReady());
+  dispatcher.RunToCompletion();
 }
 
 TEST(OnceSendRecv, ReceiveAndLogValueCoro) {
@@ -165,10 +165,10 @@ TEST(OnceSendRecv, ReceiveAndLogValueCoro) {
   CoroContext coro_cx(alloc);
   auto [sender, receiver] = MakeOnceSenderAndReceiver<int>();
   auto coro = examples::coro::ReceiveAndLogValue(coro_cx, std::move(receiver));
-  Dispatcher dispatcher;
-  EXPECT_TRUE(dispatcher.RunInTaskUntilStalled(coro).IsPending());
+  BasicDispatcher dispatcher;
+  EXPECT_TRUE(dispatcher.RunPendableUntilStalled(coro).IsPending());
   sender.emplace(5);
-  EXPECT_EQ(dispatcher.RunInTaskUntilStalled(coro), Ready(OkStatus()));
+  EXPECT_EQ(dispatcher.RunPendableUntilStalled(coro), Ready(OkStatus()));
 }
 
 }  // namespace

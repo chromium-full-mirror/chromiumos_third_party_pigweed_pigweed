@@ -136,7 +136,7 @@ TEST_F(EpollChannelTest, Read_ValidData_Succeeds) {
   ReaderTask<ByteReader> read_task(channel.channel(), 1);
   dispatcher.Post(read_task);
 
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
   EXPECT_EQ(read_task.poll_count, 1);
   EXPECT_EQ(read_task.read_count, 0);
   EXPECT_EQ(read_task.bytes_read, 0);
@@ -156,7 +156,7 @@ TEST_F(EpollChannelTest, Read_ValidData_Succeeds) {
 
   CloseTask close_task(channel);
   dispatcher.Post(close_task);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
+  dispatcher.RunToCompletion();
   EXPECT_EQ(close_task.close_status, pw::OkStatus());
 }
 
@@ -170,13 +170,13 @@ TEST_F(EpollChannelTest, Read_Closed_ReturnsFailedPrecondition) {
 
   CloseTask close_task(channel);
   dispatcher.Post(close_task);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
+  dispatcher.RunToCompletion();
   EXPECT_EQ(close_task.close_status, pw::OkStatus());
 
   ReaderTask<ByteReader> read_task(channel.channel(), 1);
   dispatcher.Post(read_task);
 
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
+  dispatcher.RunToCompletion();
   EXPECT_EQ(read_task.read_status, pw::Status::FailedPrecondition());
 }
 
@@ -259,7 +259,7 @@ TEST_F(EpollChannelTest, Write_ValidData_Succeeds) {
 
   CloseTask close_task(channel);
   dispatcher.Post(close_task);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
+  dispatcher.RunToCompletion();
   EXPECT_EQ(close_task.close_status, pw::OkStatus());
 }
 
@@ -279,7 +279,7 @@ TEST_F(EpollChannelTest, Write_EmptyData_Succeeds) {
 
   CloseTask close_task(channel);
   dispatcher.Post(close_task);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
+  dispatcher.RunToCompletion();
   EXPECT_EQ(close_task.close_status, pw::OkStatus());
 }
 
@@ -293,7 +293,7 @@ TEST_F(EpollChannelTest, Write_Closed_ReturnsFailedPrecondition) {
 
   CloseTask close_task(channel);
   dispatcher.Post(close_task);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
+  dispatcher.RunToCompletion();
   EXPECT_EQ(close_task.close_status, pw::OkStatus());
 
   WriterTask<ByteWriter> write_task(channel.channel(), 1, {});
@@ -335,7 +335,7 @@ TEST_F(EpollChannelTest, PendReadyToWrite_BlocksWhenUnavailable) {
 
   // Try to write a bunch of data, eventually filling the pipe and blocking the
   // task.
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
   EXPECT_EQ(write_task.poll_count, 1);
   EXPECT_EQ(write_task.write_pending_count, 1);
   EXPECT_EQ(write_task.last_write_status, pw::Status::Unavailable());

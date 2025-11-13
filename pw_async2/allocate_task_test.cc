@@ -102,21 +102,21 @@ TEST(AllocateTask, DestroysOnceAfterPendReturnsReady) {
   ASSERT_NE(task, nullptr);
   dispatcher.Post(*task);
 
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
   EXPECT_EQ(status.polled, 1);
   EXPECT_EQ(status.destroyed, 0);
 
   std::move(status.last_waker).Wake();
   status.should_finish = true;
 
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
+  dispatcher.RunToCompletion();
   EXPECT_EQ(status.polled, 2);
   EXPECT_EQ(status.destroyed, 1);
 
   // Ensure that the allocated task is not polled or destroyed again after being
   // deallocated.
   std::move(status.last_waker).Wake();
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
+  dispatcher.RunToCompletion();
   EXPECT_EQ(status.polled, 2);
   EXPECT_EQ(status.destroyed, 1);
 }

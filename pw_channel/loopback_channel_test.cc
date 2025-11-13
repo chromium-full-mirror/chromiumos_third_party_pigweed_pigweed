@@ -74,14 +74,14 @@ TEST(LoopbackDatagramChannel, LoopsEmptyDatagrams) {
 
   DispatcherForTest dispatcher;
   dispatcher.Post(read_task);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
   EXPECT_EQ(read_task.poll_count, 1);
   EXPECT_EQ(read_task.read_count, 0);
   EXPECT_EQ(read_task.bytes_read_count, 0);
 
   PW_TEST_EXPECT_OK(channel.StageWrite(alloc.BufWith({})));
 
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
   EXPECT_EQ(read_task.poll_count, 2);
   EXPECT_EQ(read_task.read_count, 1);
   EXPECT_EQ(read_task.bytes_read_count, 0);
@@ -94,14 +94,14 @@ TEST(LoopbackDatagramChannel, LoopsDatagrams) {
 
   DispatcherForTest dispatcher;
   dispatcher.Post(read_task);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
   EXPECT_EQ(read_task.poll_count, 1);
   EXPECT_EQ(read_task.read_count, 0);
   EXPECT_EQ(read_task.bytes_read_count, 0);
 
   PW_TEST_EXPECT_OK(channel.StageWrite(alloc.BufWith({1_b, 2_b, 3_b})));
 
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
   EXPECT_EQ(read_task.poll_count, 2);
   EXPECT_EQ(read_task.read_count, 1);
   EXPECT_EQ(read_task.bytes_read_count, 3);
@@ -114,14 +114,14 @@ TEST(LoopbackByteChannel, IgnoresEmptyWrites) {
 
   DispatcherForTest dispatcher;
   dispatcher.Post(read_task);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
   EXPECT_EQ(read_task.poll_count, 1);
   EXPECT_EQ(read_task.read_count, 0);
   EXPECT_EQ(read_task.bytes_read_count, 0);
 
   PW_TEST_EXPECT_OK(channel.StageWrite(alloc.BufWith({})));
 
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
   EXPECT_EQ(read_task.poll_count, 1);
   EXPECT_EQ(read_task.read_count, 0);
   EXPECT_EQ(read_task.bytes_read_count, 0);
@@ -134,14 +134,14 @@ TEST(LoopbackByteChannel, LoopsData) {
 
   DispatcherForTest dispatcher;
   dispatcher.Post(read_task);
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
   EXPECT_EQ(read_task.poll_count, 1);
   EXPECT_EQ(read_task.read_count, 0);
   EXPECT_EQ(read_task.bytes_read_count, 0);
 
   PW_TEST_EXPECT_OK(channel.StageWrite(alloc.BufWith({1_b, 2_b, 3_b})));
 
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
   EXPECT_EQ(read_task.poll_count, 2);
   EXPECT_EQ(read_task.read_count, 1);
   EXPECT_EQ(read_task.bytes_read_count, 3);

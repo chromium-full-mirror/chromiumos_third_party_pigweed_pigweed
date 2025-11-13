@@ -105,6 +105,16 @@ label_flag(
     build_setting_default = ":dispatcher_backend_multiplexer",
 )
 
+cc_library(
+    name = "basic_dispatcher",
+    hdrs = ["public/pw_async2/basic_dispatcher.h"],
+    strip_include_prefix = "public",
+    deps = [
+        ":dispatcher",
+        "//pw_sync:thread_notification",
+    ],
+)
+
 label_flag(
     name = "config_override",
     build_setting_default = "//pw_build:default_module_config",
@@ -731,6 +741,7 @@ filegroup(
     name = "doxygen",
     srcs = [
         "public/pw_async2/allocate_task.h",
+        "public/pw_async2/basic_dispatcher.h",
         "public/pw_async2/callback_task.h",
         "public/pw_async2/cancellable_task.h",
         "public/pw_async2/channel.h",

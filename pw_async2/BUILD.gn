@@ -33,6 +33,7 @@ declare_args() {
 
 config("public_include_path") {
   include_dirs = [ "public" ]
+  visibility = [ ":*" ]
 }
 
 pw_source_set("poll") {
@@ -95,6 +96,15 @@ pw_facade("dispatcher") {
     "dispatcher_base.cc",
     "task.cc",
     "waker.cc",
+  ]
+}
+
+pw_source_set("basic_dispatcher") {
+  public_configs = [ ":public_include_path" ]
+  public = [ "public/pw_async2/basic_dispatcher.h" ]
+  public_deps = [
+    ":dispatcher",
+    "$dir_pw_sync:thread_notification",
   ]
 }
 

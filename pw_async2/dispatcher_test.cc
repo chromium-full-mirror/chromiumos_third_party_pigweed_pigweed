@@ -74,7 +74,7 @@ TEST(DispatcherForTest, RunUntilStalledReturnsOnNotReady) {
   task.should_complete = false;
   DispatcherForTest dispatcher;
   dispatcher.Post(task);
-  dispatcher.RunUntilStalled().IgnorePoll();
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
   EXPECT_EQ(task.polled, 1);
   EXPECT_EQ(dispatcher.tasks_polled(), 1u);
   EXPECT_EQ(dispatcher.tasks_completed(), 0u);
@@ -86,13 +86,13 @@ TEST(DispatcherForTest, RunUntilStalledDoesNotPendSleepingTask) {
   DispatcherForTest dispatcher;
   dispatcher.Post(task);
 
-  dispatcher.RunUntilStalled().IgnorePoll();
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
   EXPECT_EQ(task.polled, 1);
   EXPECT_EQ(dispatcher.tasks_polled(), 1u);
   EXPECT_EQ(dispatcher.tasks_completed(), 0u);
 
   task.should_complete = true;
-  dispatcher.RunUntilStalled().IgnorePoll();
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
   EXPECT_EQ(task.polled, 1);
   EXPECT_EQ(dispatcher.tasks_polled(), 1u);
   EXPECT_EQ(dispatcher.tasks_completed(), 0u);

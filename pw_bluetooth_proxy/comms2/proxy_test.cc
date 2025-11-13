@@ -80,12 +80,12 @@ OpCode GetOpCode(const H4Packet& bytes) {
 
 TEST_F(ProxyTest, Passthrough) {
   proxy_.Run(dispatcher_);
-  EXPECT_EQ(dispatcher_.RunUntilStalled(), pw::async2::Pending());
+  EXPECT_TRUE(dispatcher_.RunUntilStalled());
 
   controller_channel_.EnqueueReadPacket(CreateCommand(OpCode::INQUIRY));
   host_channel_.EnqueueReadPacket(CreateCommand(OpCode::REMOTE_NAME_REQUEST));
 
-  EXPECT_EQ(dispatcher_.RunUntilStalled(), pw::async2::Pending());
+  EXPECT_TRUE(dispatcher_.RunUntilStalled());
 
   ASSERT_EQ(host_channel_.written_packets().size(), 1u);
   EXPECT_EQ(GetOpCode(host_channel_.written_packets().front()),
@@ -98,21 +98,21 @@ TEST_F(ProxyTest, Passthrough) {
   pw::async2::PendFuncTask reset(
       [this](pw::async2::Context& context) { return proxy_.Reset(context); });
   dispatcher_.Post(reset);
-  EXPECT_EQ(dispatcher_.RunUntilStalled(), pw::async2::Ready());
+  dispatcher_.RunToCompletion();
 }
 
 TEST_F(ProxyTest, ResetCommand) {
   proxy_.Run(dispatcher_);
-  EXPECT_EQ(dispatcher_.RunUntilStalled(), pw::async2::Pending());
+  EXPECT_TRUE(dispatcher_.RunUntilStalled());
 
   controller_channel_.EnqueueReadPacket(CreateCommand(OpCode::RESET));
 
-  EXPECT_EQ(dispatcher_.RunUntilStalled(), pw::async2::Pending())
-      << "Resets from controller are ignored";
+  // Resets from controller are ignored.
+  EXPECT_TRUE(dispatcher_.RunUntilStalled());
 
   host_channel_.EnqueueReadPacket(CreateCommand(OpCode::RESET));
 
-  EXPECT_EQ(dispatcher_.RunUntilStalled(), pw::async2::Ready());
+  dispatcher_.RunToCompletion();
 
   ASSERT_EQ(host_channel_.written_packets().size(), 1u);
   EXPECT_EQ(GetOpCode(host_channel_.written_packets().front()), OpCode::RESET);
@@ -122,12 +122,12 @@ TEST_F(ProxyTest, ResetCommand) {
 
 TEST_F(ProxyTest, ResetProxy) {
   proxy_.Run(dispatcher_);
-  EXPECT_EQ(dispatcher_.RunUntilStalled(), pw::async2::Pending());
+  EXPECT_TRUE(dispatcher_.RunUntilStalled());
 
   pw::async2::PendFuncTask reset(
       [this](pw::async2::Context& context) { return proxy_.Reset(context); });
   dispatcher_.Post(reset);
-  EXPECT_EQ(dispatcher_.RunUntilStalled(), pw::async2::Ready());
+  dispatcher_.RunToCompletion();
 }
 
 }  // namespace

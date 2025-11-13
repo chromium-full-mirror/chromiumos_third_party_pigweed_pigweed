@@ -173,7 +173,7 @@ void ExpectSendAndReceive(
   dispatcher.Post(send_task);
   dispatcher.Post(recv_task);
 
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
   ASSERT_EQ(recv_task.received.size(), data.size());
   for (size_t i = 0; i < data.size(); i++) {
     ExpectElementsEqual(recv_task.received[i], std::data(data)[i]);
@@ -226,7 +226,7 @@ TEST(Router, PendOnClosedIoChannelReturnsReady) {
   dispatcher.Post(router_task);
   dispatcher.Post(recv_task);
 
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Pending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
 
   // Close the underlying byte channel.
   Waker null_waker;
@@ -234,7 +234,7 @@ TEST(Router, PendOnClosedIoChannelReturnsReady) {
   EXPECT_EQ(byte_pair.second().PendClose(null_cx), Ready(OkStatus()));
 
   // Both the router and the receive task should complete.
-  EXPECT_EQ(dispatcher.RunUntilStalled(), Ready());
+  dispatcher.RunToCompletion();
 }
 
 }  // namespace

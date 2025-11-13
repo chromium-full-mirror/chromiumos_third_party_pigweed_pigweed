@@ -17,8 +17,8 @@
 #include <algorithm>
 #include <array>
 
+#include "pw_async2/basic_dispatcher.h"
 #include "pw_async2/context.h"
-#include "pw_async2/dispatcher.h"
 #include "pw_async2/poll.h"
 #include "pw_async2/task.h"
 #include "pw_async2/try.h"
@@ -33,8 +33,8 @@ namespace examples {
 
 using ::pw::InlineAsyncQueue;
 using ::pw::Vector;
+using ::pw::async2::BasicDispatcher;
 using ::pw::async2::Context;
-using ::pw::async2::Dispatcher;
 using ::pw::async2::Poll;
 using ::pw::async2::Ready;
 using ::pw::async2::Task;
@@ -159,7 +159,7 @@ Poll<> Consumer::DoPend(Context& cx) {
 
 int main() {
   // The dispatcher handles dispatching to all tasks.
-  Dispatcher dispatcher;
+  BasicDispatcher dispatcher;
 
   // The queue shared by both the producer and consumer.
   Queue queue;

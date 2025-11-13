@@ -104,6 +104,16 @@ pw_add_test(pw_async2.dispatcher_test
     pw_containers.vector
 )
 
+pw_add_library(pw_async2.basic_dispatcher INTERFACE
+  HEADERS
+    public/pw_async2/basic_dispatcher.h
+  PUBLIC_DEPS
+    pw_async2.dispatcher
+    pw_sync.thread_notification
+  PUBLIC_INCLUDES
+    public
+)
+
 pw_add_library(pw_async2.pendable INTERFACE
   HEADERS
     public/pw_async2/pendable.h

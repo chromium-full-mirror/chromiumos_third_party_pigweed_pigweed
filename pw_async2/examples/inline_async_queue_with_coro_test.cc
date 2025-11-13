@@ -18,10 +18,10 @@
 #include <array>
 
 #include "pw_allocator/libc_allocator.h"
+#include "pw_async2/basic_dispatcher.h"
 #include "pw_async2/context.h"
 #include "pw_async2/coro.h"
 #include "pw_async2/coro_or_else_task.h"
-#include "pw_async2/dispatcher.h"
 #include "pw_async2/pendable.h"
 #include "pw_containers/inline_async_queue.h"
 #include "pw_containers/vector.h"
@@ -37,11 +37,11 @@ using ::pw::OkStatus;
 using ::pw::Status;
 using ::pw::Vector;
 using ::pw::allocator::LibCAllocator;
+using ::pw::async2::BasicDispatcher;
 using ::pw::async2::Context;
 using ::pw::async2::Coro;
 using ::pw::async2::CoroContext;
 using ::pw::async2::CoroOrElseTask;
-using ::pw::async2::Dispatcher;
 using ::pw::async2::PendableFor;
 
 // Use a queue with a capacity for at most four integers.
@@ -115,7 +115,7 @@ Coro<Status> Consumer(CoroContext& context, Queue& queue) {
 
 int main() {
   // The dispatcher handles dispatching to all tasks.
-  Dispatcher dispatcher;
+  BasicDispatcher dispatcher;
 
   // The CoroContext needs an allocator instance. Use the libc allocator.
   LibCAllocator alloc;

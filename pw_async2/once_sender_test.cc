@@ -90,10 +90,10 @@ TEST(OnceSender, OnceSenderEmplace) {
   DispatcherForTest dispatcher;
   ValueTask task;
   dispatcher.Post(task);
-  EXPECT_TRUE(dispatcher.RunUntilStalled().IsPending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
 
   task.sender()->emplace(5);
-  EXPECT_TRUE(dispatcher.RunUntilStalled().IsReady());
+  dispatcher.RunToCompletion();
 
   ASSERT_TRUE(task.ready_value().has_value());
   ASSERT_TRUE(task.ready_value().value().ok());
@@ -104,10 +104,10 @@ TEST(OnceSender, OnceSenderEmplaceUseInitializeConstructor) {
   DispatcherForTest dispatcher;
   ValueTask task(/*use_make_constructor=*/false);
   dispatcher.Post(task);
-  EXPECT_TRUE(dispatcher.RunUntilStalled().IsPending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
 
   task.sender()->emplace(5);
-  EXPECT_TRUE(dispatcher.RunUntilStalled().IsReady());
+  dispatcher.RunToCompletion();
 
   ASSERT_TRUE(task.ready_value().has_value());
   ASSERT_TRUE(task.ready_value().value().ok());
@@ -118,11 +118,11 @@ TEST(OnceSender, OnceSenderMoveAssign) {
   DispatcherForTest dispatcher;
   ValueTask task;
   dispatcher.Post(task);
-  EXPECT_TRUE(dispatcher.RunUntilStalled().IsPending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
 
   MoveOnlyValue value(7);
   *task.sender() = std::move(value);
-  EXPECT_TRUE(dispatcher.RunUntilStalled().IsReady());
+  dispatcher.RunToCompletion();
 
   ASSERT_TRUE(task.ready_value().has_value());
   ASSERT_TRUE(task.ready_value().value().ok());
@@ -133,10 +133,10 @@ TEST(OnceSender, DestroyingOnceSenderCausesReceiverPendToReturnCancelled) {
   DispatcherForTest dispatcher;
   ValueTask task;
   dispatcher.Post(task);
-  EXPECT_TRUE(dispatcher.RunUntilStalled().IsPending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
 
   task.DestroySender();
-  EXPECT_TRUE(dispatcher.RunUntilStalled().IsReady());
+  dispatcher.RunToCompletion();
   task.DestroyReceiver();
 
   ASSERT_TRUE(task.ready_value().has_value());
@@ -148,7 +148,7 @@ TEST(OnceSender, DestroyingOnceReceiverCausesSenderMethodsToBeNoOps) {
   DispatcherForTest dispatcher;
   ValueTask task;
   dispatcher.Post(task);
-  EXPECT_TRUE(dispatcher.RunUntilStalled().IsPending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
 
   task.DestroyReceiver();
   task.sender()->emplace(6);
@@ -202,11 +202,11 @@ TEST(OnceSender, OnceRefSenderSetConstRef) {
   DispatcherForTest dispatcher;
   VectorTask task;
   dispatcher.Post(task);
-  EXPECT_TRUE(dispatcher.RunUntilStalled().IsPending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
 
   pw::Vector<int, 2> other = {0, 1};
   task.sender()->Set(other);
-  EXPECT_TRUE(dispatcher.RunUntilStalled().IsReady());
+  dispatcher.RunToCompletion();
   EXPECT_EQ(task.value()[0], 0);
   EXPECT_EQ(task.value()[1], 1);
 }
@@ -215,11 +215,11 @@ TEST(OnceSender, OnceRefSenderSetConstRefUseInitializeConstructor) {
   DispatcherForTest dispatcher;
   VectorTask task(/*use_make_constructor=*/false);
   dispatcher.Post(task);
-  EXPECT_TRUE(dispatcher.RunUntilStalled().IsPending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
 
   pw::Vector<int, 2> other = {0, 1};
   task.sender()->Set(other);
-  EXPECT_TRUE(dispatcher.RunUntilStalled().IsReady());
+  dispatcher.RunToCompletion();
   EXPECT_EQ(task.value()[0], 0);
   EXPECT_EQ(task.value()[1], 1);
 }
@@ -228,16 +228,16 @@ TEST(OnceSender, OnceRefSenderModify) {
   DispatcherForTest dispatcher;
   VectorTask task;
   dispatcher.Post(task);
-  EXPECT_TRUE(dispatcher.RunUntilStalled().IsPending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
 
   task.sender()->ModifyUnsafe([](pw::Vector<int>& vec) { vec.push_back(0); });
-  EXPECT_TRUE(dispatcher.RunUntilStalled().IsPending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
 
   task.sender()->ModifyUnsafe([](pw::Vector<int>& vec) { vec.push_back(1); });
-  EXPECT_TRUE(dispatcher.RunUntilStalled().IsPending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
 
   task.sender()->Commit();
-  EXPECT_TRUE(dispatcher.RunUntilStalled().IsReady());
+  dispatcher.RunToCompletion();
   EXPECT_EQ(task.value()[0], 0);
   EXPECT_EQ(task.value()[1], 1);
 }
@@ -246,10 +246,10 @@ TEST(OnceSender, DestroyingOnceRefSenderCausesReceiverPendToReturnCancelled) {
   DispatcherForTest dispatcher;
   VectorTask task;
   dispatcher.Post(task);
-  EXPECT_TRUE(dispatcher.RunUntilStalled().IsPending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
 
   task.DestroySender();
-  EXPECT_TRUE(dispatcher.RunUntilStalled().IsReady());
+  dispatcher.RunToCompletion();
   task.DestroyReceiver();
 
   ASSERT_TRUE(task.ready_value().has_value());
@@ -288,11 +288,11 @@ TEST(OnceSender, OnceRefSenderSetRValue) {
   DispatcherForTest dispatcher;
   MoveOnlyRefTask task;
   dispatcher.Post(task);
-  EXPECT_TRUE(dispatcher.RunUntilStalled().IsPending());
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
 
   MoveOnlyValue value2(2);
   task.sender()->Set(std::move(value2));
-  EXPECT_TRUE(dispatcher.RunUntilStalled().IsReady());
+  dispatcher.RunToCompletion();
   ASSERT_TRUE(task.ready_value().has_value());
   ASSERT_TRUE(task.ready_value()->ok());
   EXPECT_EQ(task.value().value(), 2);
@@ -326,7 +326,7 @@ TEST(OnceSender, OnceReceiverAlreadyCompleted) {
   OnceReceiver<MoveOnlyValue> receiver(2);
   AlreadyCompletedReceiverTask task(std::move(receiver));
   dispatcher.Post(task);
-  EXPECT_TRUE(dispatcher.RunUntilStalled().IsReady());
+  dispatcher.RunToCompletion();
   ASSERT_TRUE(task.ready_value().has_value());
   ASSERT_TRUE(task.ready_value()->ok());
   EXPECT_EQ(task.ready_value()->value().value(), 2);
