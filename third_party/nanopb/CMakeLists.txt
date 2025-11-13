@@ -71,8 +71,6 @@ add_custom_command(
     "${dir_pw_third_party_nanopb}/generator/proto/nanopb.proto"
     "${dir_pw_third_party_nanopb}/generator/proto/_utils.py"
     "${dir_pw_third_party_nanopb}/generator/protoc-gen-nanopb"
-    "${dir_pw_third_party_nanopb}/generator/nanopb_generator.py2"
-    "${dir_pw_third_party_nanopb}/generator/protoc-gen-nanopb-py2"
     "${dir_pw_third_party_nanopb}/generator/protoc"
     "${dir_pw_third_party_nanopb}/generator/protoc-gen-nanopb.bat"
     "${dir_pw_third_party_nanopb}/generator/protoc.bat"
