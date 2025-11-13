@@ -195,28 +195,15 @@ impl Solver<'_> {
                 if cfg!(feature = "solver_trace") && *expr != old_expr {
                     println!("Expr index {expr_index} changed from {old_expr:?} to {expr:?}");
                 }
-                let found = matches!(expr, Expr::Const(_) | Expr::GlobalDeref(_));
+                let found = expr.const_eval(&self.mem_read_fn).is_some();
                 all_consts &= found;
             }
             if all_consts {
-                // All of the register expressions have been resolved to a
-                // constant or memory load from a constanst address; we've found a solution!
+                // All of the register expressions can be evaluated without
+                // runtime data; we've found a solution!
                 let mut row = vec![];
                 for expr in exprs {
-                    row.push(match expr {
-                        Expr::Const(v) => *v,
-                        Expr::GlobalDeref(addr) => {
-                            let Some(v) = (self.mem_read_fn)(*addr) else {
-                                if cfg!(feature = "solver_trace") {
-                                    println!("{} Aborting branch: could not read from address 0x{addr:x}", " ".repeat(self.depth));
-                                }
-                                self.depth -= 1;
-                                return;
-                            };
-                            v
-                        }
-                        _ => unreachable!(),
-                    });
+                    row.push(expr.const_eval(&self.mem_read_fn).unwrap());
                 }
                 self.solutions.push(Solution {
                     results: row,
@@ -269,6 +256,22 @@ impl Debug for Expr {
     }
 }
 impl Expr {
+    fn const_eval(&self, rodata_read_fn: &dyn Fn(u32) -> Option<u32>) -> Option<u32> {
+        match self {
+            Self::Const(v) => Some(*v),
+            Self::GlobalDeref(addr) => rodata_read_fn(*addr),
+            Self::Reg(_) => None,
+            Self::Add(a, b) => {
+                let a = a.const_eval(rodata_read_fn)?;
+                let b = b.const_eval(rodata_read_fn)?;
+                Some(a.wrapping_add(b))
+            }
+            Self::PtrDeref(val) => {
+                let addr = val.const_eval(rodata_read_fn)?;
+                rodata_read_fn(addr)
+            }
+        }
+    }
     fn reg(reg: Reg) -> Self {
         match reg {
             Reg::X0 => Expr::Const(0),
