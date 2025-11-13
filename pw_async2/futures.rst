@@ -719,9 +719,18 @@ separate thread or an interrupt handler, you can use ``TrySend``.
 - :cc:`Sender::TrySend`: Attempts to send the value immediately. Returns
   ``true`` if successful, or ``false`` if the channel is full or closed.
 
+- :cc:`Sender::TryReserveSend`: Attempts to reserve a slot in the channel
+  immediately. Returns a ``std::optional<SendReservation<T>>`` which contains
+  a reservation if successful, or ``std::nullopt`` if the channel is full or
+  closed.
+
 - :cc:`Sender::BlockingSend`: Blocks the running thread until the value is sent
   or an optional timeout elapses. Returns a status indicating success or
   whether the channel is closed or the operation timed out.
+
+- :cc:`Receiver::TryReceive`: Attempts to read a value from the channel
+  immediately. Returns a ``pw::Result<T>`` containing the value if successful,
+  or an error if the channel is empty or closed.
 
 - :cc:`Receiver::BlockingReceive`: Blocks the running thread until a value is
   received or an optional timeout elapses. Returns a ``pw::Result<T>``

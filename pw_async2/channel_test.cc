@@ -296,6 +296,66 @@ TEST(StaticChannel, NonAsyncTrySend) {
   ExpectReceived1To6(receiver_task.received());
 }
 
+TEST(StaticChannel, TryReserveSend) {
+  ChannelStorage<int, 2> storage;
+  auto channel = CreateMpmcChannel(storage);
+
+  Sender<int> sender = channel.CreateSender();
+  Receiver<int> receiver = channel.CreateReceiver();
+  channel.Release();
+
+  auto r1 = sender.TryReserveSend();
+  EXPECT_TRUE(r1.has_value());
+  EXPECT_EQ(sender.remaining_capacity(), 1u);
+  auto r2 = sender.TryReserveSend();
+  EXPECT_TRUE(r2.has_value());
+  EXPECT_EQ(sender.remaining_capacity(), 0u);
+  auto r3 = sender.TryReserveSend();
+  EXPECT_FALSE(r3.has_value());
+  EXPECT_EQ(sender.remaining_capacity(), 0u);
+
+  r1->Commit(1);
+  EXPECT_EQ(sender.remaining_capacity(), 0u);
+
+  // Read then reserve again.
+  auto result = receiver.TryReceive();
+  ASSERT_TRUE(result.ok());
+  EXPECT_EQ(*result, 1);
+  auto r4 = sender.TryReserveSend();
+  ASSERT_TRUE(r4.has_value());
+
+  // Disconnect receiver to close the channel.
+  receiver.Disconnect();
+
+  auto r5 = sender.TryReserveSend();
+  ASSERT_FALSE(r5.has_value());
+}
+
+TEST(StaticChannel, TryReceive) {
+  ChannelStorage<int, 2> storage;
+  auto channel = CreateMpmcChannel(storage);
+
+  Sender<int> sender = channel.CreateSender();
+  Receiver<int> receiver = channel.CreateReceiver();
+  channel.Release();
+
+  auto result = receiver.TryReceive();
+  EXPECT_TRUE(result.status().IsUnavailable());
+
+  EXPECT_TRUE(sender.TrySend(1));
+  result = receiver.TryReceive();
+  ASSERT_TRUE(result.ok());
+  EXPECT_EQ(*result, 1);
+
+  result = receiver.TryReceive();
+  EXPECT_TRUE(result.status().IsUnavailable());
+
+  // Close the channel.
+  sender.Disconnect();
+  result = receiver.TryReceive();
+  EXPECT_TRUE(result.status().IsFailedPrecondition());
+}
+
 TEST(StaticChannel, ReceiverDisconnects) {
   DispatcherForTest dispatcher;
   ChannelStorage<int, 2> storage;

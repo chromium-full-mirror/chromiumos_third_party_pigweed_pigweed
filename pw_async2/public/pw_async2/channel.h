@@ -280,17 +280,21 @@ class Channel {
 
   void DropReservation() {
     std::lock_guard lock(lock_);
-    PW_ASSERT(!closed_ && reservations_ > 0);
+    PW_ASSERT(reservations_ > 0);
     reservations_--;
-    WakeOneSender();
+    if (!closed_) {
+      WakeOneSender();
+    }
   }
 
   template <typename... Args>
   void CommitReservation(Args&&... args) {
     std::lock_guard lock(lock_);
-    PW_ASSERT(!closed_ && reservations_ > 0);
+    PW_ASSERT(reservations_ > 0);
     reservations_--;
-    EmplaceAndWake(std::forward<Args>(args)...);
+    if (!closed_) {
+      EmplaceAndWake(std::forward<Args>(args)...);
+    }
   }
 
   void add_receiver() {
@@ -765,6 +769,26 @@ class Receiver {
     return ReceiveFuture<T>(*channel_);
   }
 
+  /// Reads a value from the channel if one is available.
+  ///
+  /// @returns
+  /// * @OK: A value was successfully read from the channel.
+  /// * @FAILED_PRECONDITION: The channel is closed.
+  /// * @UNAVAILABLE: The channel is empty.
+  Result<T> TryReceive() {
+    if (channel_ == nullptr) {
+      return Status::FailedPrecondition();
+    }
+    std::optional<T> value = channel_->TryPop();
+    if (value.has_value()) {
+      return std::move(*value);
+    }
+    if (channel_->closed()) {
+      return Status::FailedPrecondition();
+    }
+    return Status::Unavailable();
+  }
+
   /// Removes this receiver from its channel, preventing the receiver from
   /// reading further values.
   ///
@@ -945,6 +969,7 @@ class SendReservation {
 
  private:
   friend class ReserveSendFuture<T>;
+  friend class Sender<T>;
 
   explicit SendReservation(internal::Channel<T>& channel) : channel_(&channel) {
     channel_->add_ref();
@@ -1088,6 +1113,23 @@ class Sender {
       return ReserveSendFuture<T>(ReserveSendFuture<T>::kClosed);
     }
     return ReserveSendFuture<T>(channel_);
+  }
+
+  /// Synchronously attempts to reserve a slot in the channel.
+  ///
+  /// Returns a `SendReservation` if space is available.
+  /// Returns `std::nullopt` if the channel is full or closed.
+  ///
+  /// This operation is thread-safe and may be called from outside of an async
+  /// context.
+  std::optional<SendReservation<T>> TryReserveSend() {
+    if (channel_ == nullptr) {
+      return std::nullopt;
+    }
+    if (!channel_->Reserve()) {
+      return std::nullopt;
+    }
+    return SendReservation<T>(*channel_);
   }
 
   /// Synchronously attempts to send `value` if there is space in the channel.
