@@ -52,6 +52,7 @@ impl<W: Fn(&[u8]) -> Result<()>> MessageWriter for Base64TokenizedMessageWriter<
     fn finalize(self) -> Result<()> {
         let write_len = self.cursor.position();
         let data = self.cursor.into_inner();
+        let data = data.get(0..write_len).ok_or(Error::OutOfRange)?;
 
         // Pigweed's detokenization tools recognize base64 encoded data
         // prefixed with a `$` as tokenized data interspersed with plain text.
@@ -60,21 +61,25 @@ impl<W: Fn(&[u8]) -> Result<()>> MessageWriter for Base64TokenizedMessageWriter<
         // TODO: b/401562650 - implement streaming base64 encoder.
         const ENCODED_SIZE: usize = pw_base64::encoded_size(BUFFER_SIZE);
         let mut encode_buffer = [0u8; ENCODED_SIZE + 2];
+
+        // Base64 tokens are prefixed with '$'.
         encode_buffer[0] = b'$';
-        // pass a slice of encode_buffer to ensure $ is not encoded.
-        let data_slice = data.get(0..write_len).ok_or(Error::OutOfRange)?;
-        if let Ok(s) = pw_base64::encode_str(data_slice, &mut encode_buffer[1..ENCODED_SIZE + 1]) {
-            // postfix the encoded buffer with a newline after the $ and encoded string
-            let encoded_len = s.len();
-            if let Some(bytes_ref) = encode_buffer.get_mut(encoded_len + 1) {
-                *bytes_ref = b'\n';
-            } else {
-                return Err(Error::OutOfRange);
-            }
-            (self.write)(&encode_buffer)
-        } else {
-            unreachable()
-        }
+
+        // Offset the encode buffer past the '$' at the beginning, leaving room
+        // for a newline at then end.
+        let Ok(s) = pw_base64::encode_str(data, &mut encode_buffer[1..ENCODED_SIZE + 1]) else {
+            unreachable();
+        };
+
+        // Postfix the encoded buffer with a newline after the $ and encoded string.
+        let encoded_len = s.len();
+        let Some(bytes_ref) = encode_buffer.get_mut(encoded_len + 1) else {
+            return Err(Error::OutOfRange);
+        };
+        *bytes_ref = b'\n';
+
+        // Pass the trimmed buffer to write.
+        (self.write)(&encode_buffer[..encoded_len + 2])
     }
 }
 
