@@ -88,7 +88,7 @@ fn test_thread_entry_b<K: Kernel>(kernel: K, args: &ThreadAArgs<K>) {
 fn thread_a<K: Kernel>(kernel: K, test_counter: &Mutex<K, u64>) {
     for _ in 0..3 {
         let mut counter = test_counter.lock();
-        kernel::sleep_until(kernel, kernel.now() + Duration::from_secs(1));
+        let _ = kernel::sleep_until(kernel, kernel.now() + Duration::from_secs(1));
         info!("Thread A: Incrementing counter");
         *counter = (*counter).saturating_add(1);
     }

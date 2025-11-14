@@ -21,7 +21,7 @@ use time::Instant;
 
 use crate::Kernel;
 use crate::scheduler::algorithm::RescheduleReason;
-use crate::scheduler::{SchedulerState, WaitQueue};
+use crate::scheduler::{SchedulerState, WaitQueue, WaitType};
 use crate::sync::spinlock::SpinLockGuard;
 
 pub struct SmuggledSchedLock<K, T> {
@@ -220,12 +220,16 @@ impl<'lock, K: Kernel, T> WaitQueueLockGuard<'lock, K, T> {
         (self, result)
     }
 
-    pub fn wait_until(self, deadline: Instant<K::Clock>) -> (Self, Result<()>) {
-        self.operate_on_wait_queue(|guard| guard.wait_until(deadline))
+    pub fn wait_until(
+        self,
+        wait_type: WaitType,
+        deadline: Instant<K::Clock>,
+    ) -> (Self, Result<()>) {
+        self.operate_on_wait_queue(|guard| guard.wait_until(wait_type, deadline))
     }
 
-    pub fn wait(self) -> Self {
-        self.operate_on_wait_queue(|guard| (guard.wait(), ())).0
+    pub fn wait(self, wait_type: WaitType) -> (Self, Result<()>) {
+        self.operate_on_wait_queue(|guard| guard.wait(wait_type))
     }
 
     pub fn wake_one(self) -> (Self, super::WakeResult) {

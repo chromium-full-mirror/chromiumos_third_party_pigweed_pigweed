@@ -20,7 +20,7 @@ use pw_status::Result;
 use time::Instant;
 
 use crate::Kernel;
-use crate::scheduler::WaitQueueLock;
+use crate::scheduler::{WaitQueueLock, WaitType};
 
 /// Configuration for the behavior of an [`Event`].
 #[derive(Eq, PartialEq)]
@@ -165,13 +165,15 @@ impl<K: Kernel> Event<K> {
     /// # Interrupt context
     ///
     /// This method is *not* safe to call in an interrupt context.
-    pub fn wait(&self) {
+    pub fn wait(&self) -> Result<()> {
         let mut state = self.state.lock();
         if !state.signaled {
-            state.wait();
+            let (_, ret) = state.wait(WaitType::Interruptible);
+            return ret;
         } else if self.config == EventConfig::AutoReset {
             state.signaled = false;
         }
+        Ok(())
     }
 
     /// Waits until the `Event` is in the signaled state or the `deadline` is
@@ -187,7 +189,7 @@ impl<K: Kernel> Event<K> {
     pub fn wait_until(&self, deadline: Instant<K::Clock>) -> Result<()> {
         let mut state = self.state.lock();
         if !state.signaled {
-            let (_state, result) = state.wait_until(deadline);
+            let (_state, result) = state.wait_until(WaitType::Interruptible, deadline);
             return result;
         } else if self.config == EventConfig::AutoReset {
             state.signaled = false;

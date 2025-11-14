@@ -20,6 +20,7 @@ use list::ForeignList;
 use crate::Kernel;
 use crate::scheduler::Priority;
 use crate::scheduler::priority_bitmask::PriorityBitmask;
+use crate::scheduler::thread::ThreadOwner;
 use crate::thread::{Thread, ThreadListAdapter};
 
 type RunQueue<K> = ForeignList<Thread<K>, ThreadListAdapter<K>>;
@@ -100,7 +101,8 @@ impl<K: Kernel> SchedulerAlgorithm<K> {
         }
     }
 
-    pub fn schedule_thread(&mut self, thread: ForeignBox<Thread<K>>, reason: RescheduleReason) {
+    pub fn schedule_thread(&mut self, mut thread: ForeignBox<Thread<K>>, reason: RescheduleReason) {
+        thread.owner = ThreadOwner::Scheduler;
         let priority = thread.algorithm_state.current_priority;
         self.ready_bitmask.set_priority(priority);
         let run_queue = &mut self.run_queues[priority as usize];

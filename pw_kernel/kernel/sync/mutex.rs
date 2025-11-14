@@ -19,8 +19,8 @@ use pw_status::Result;
 use time::Instant;
 
 use crate::Kernel;
-use crate::scheduler::WaitQueueLock;
 use crate::scheduler::thread::Thread;
+use crate::scheduler::{WaitQueueLock, WaitType};
 
 const MUTEX_DEBUG: bool = false;
 macro_rules! mutex_debug {
@@ -106,7 +106,11 @@ impl<K: Kernel, T> Mutex<K, T> {
                 state.sched().current_thread_name() as &str,
                 state.sched().current_thread_id() as usize
             );
-            state = state.wait();
+            // Mutexes use uninterruptible waits because cleaning up a terminating
+            // thread may involve aquisiation of mutex protected resources.
+            let res;
+            (state, res) = state.wait(WaitType::NonInterruptible);
+            pw_assert::debug_assert!(res.is_ok());
         }
         mutex_debug!(
             "Mutex {:#010x}: lock acquired by thread '{}' ({:#010x})",
@@ -148,7 +152,10 @@ impl<K: Kernel, T> Mutex<K, T> {
                 state.sched().current_thread_name() as &str,
                 state.sched().current_thread_id() as usize
             );
-            (state, result) = state.wait_until(deadline);
+
+            // Mutexes use uninterruptible waits because cleaning up a terminating
+            // thread may involve aquisiation of mutex protected resources.
+            (state, result) = state.wait_until(WaitType::NonInterruptible, deadline);
 
             if let Err(e) = result {
                 mutex_debug!(
