@@ -309,13 +309,74 @@
       ]
     },
     {
-      "name": "k_lint",
+      "name": "k_host_lint",
       "build_config": {
-        "name": "k_lint_config",
-        "description": "Kernel lint config",
+        "name": "k_host_lint_config",
+        "description": "Kernel host lint config",
         "build_type": "bazel",
         "args": [
-          "--config=k_lint"
+          "--config=k_lint",
+          "--config=k_host"
+        ],
+        "env": {},
+        "driver_options": {
+          "@type": "pw.build.proto.BazelDriverOptions",
+          "no_test": true
+        }
+      },
+      "targets": [
+        "//pw_kernel/..."
+      ]
+    },
+    {
+      "name": "k_qemu_mps2_an505_lint",
+      "build_config": {
+        "name": "k_qemu_mps2_an505_lint_config",
+        "description": "Kernel QEMU MPS2 AN505 host lint config",
+        "build_type": "bazel",
+        "args": [
+          "--config=k_lint",
+          "--config=k_qemu_mps2_an505"
+        ],
+        "env": {},
+        "driver_options": {
+          "@type": "pw.build.proto.BazelDriverOptions",
+          "no_test": true
+        }
+      },
+      "targets": [
+        "//pw_kernel/..."
+      ]
+    },
+    {
+      "name": "k_qemu_virt_riscv32_lint",
+      "build_config": {
+        "name": "k_k_qemu_virt_riscv32_lint_config",
+        "description": "Kernel QEMU virt_ristv32 lint config",
+        "build_type": "bazel",
+        "args": [
+          "--config=k_lint",
+          "--config=k_qemu_virt_riscv32"
+        ],
+        "env": {},
+        "driver_options": {
+          "@type": "pw.build.proto.BazelDriverOptions",
+          "no_test": true
+        }
+      },
+      "targets": [
+        "//pw_kernel/..."
+      ]
+    },
+    {
+      "name": "k_rp2350_lint",
+      "build_config": {
+        "name": "k_rp2350_lint_config",
+        "description": "Kernel PW RP2350 lint config",
+        "build_type": "bazel",
+        "args": [
+          "--config=k_lint",
+          "--config=k_rp2350"
         ],
         "env": {},
         "driver_options": {
@@ -539,7 +600,10 @@
         "k_qemu_mps2_an505",
         "k_qemu_virt_riscv32",
         "k_rp2350",
-        "k_lint"
+        "k_host_lint",
+        "k_qemu_mps2_an505_lint",
+        "k_qemu_virt_riscv32_lint",
+        "k_rp2350_lint"
       ]
     },
     {
