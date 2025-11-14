@@ -398,7 +398,7 @@ here.
 ``pw.pw_env_setup.rosetta``
   Whether to use Rosetta to use amd64 packages on arm64 Macs. Accepted values
   are  ``never``, ``allow``, and ``force``. For now, ``allow`` means ``force``.
-  At some point in the future ``allow`` will be changed to mean ``never``.
+  The default value is ``never``.
 
 An example of a config file is below.
 

@@ -305,7 +305,7 @@ class EnvSetup:
                 )
             )
 
-        rosetta = config.pop('rosetta', 'allow')
+        rosetta = config.pop('rosetta', 'never')
         if rosetta not in ('never', 'allow', 'force'):
             raise ValueError(rosetta)
         self._rosetta = rosetta in ('allow', 'force')
