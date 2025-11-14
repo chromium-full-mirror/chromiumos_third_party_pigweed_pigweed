@@ -814,7 +814,7 @@ class Receiver {
 
  private:
   static constexpr chrono::SystemClock::duration kWaitForever =
-      chrono::SystemClock::duration::zero();
+      chrono::SystemClock::duration::max();
 
   template <typename U>
   friend class internal::Channel;
@@ -1232,7 +1232,7 @@ class Sender {
 
  private:
   static constexpr chrono::SystemClock::duration kWaitForever =
-      chrono::SystemClock::duration::zero();
+      chrono::SystemClock::duration::max();
 
   template <typename U>
   friend class internal::Channel;
