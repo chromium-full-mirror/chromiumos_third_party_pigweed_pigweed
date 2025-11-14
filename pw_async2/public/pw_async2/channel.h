@@ -38,9 +38,6 @@ template <typename T>
 class Sender;
 
 template <typename T>
-class SingleSender;
-
-template <typename T>
 class SendFuture;
 
 template <typename T>
@@ -418,7 +415,7 @@ class Channel {
 template <typename T>
 class ChannelHandle {
  public:
-  ChannelHandle() : channel_(nullptr) {}
+  constexpr ChannelHandle() : channel_(nullptr) {}
 
   ChannelHandle(const ChannelHandle& other) : channel_(other.channel_) {
     if (channel_ != nullptr) {
@@ -510,6 +507,8 @@ class ChannelHandle {
 template <typename T>
 class MpmcChannelHandle : private internal::ChannelHandle<T> {
  public:
+  constexpr MpmcChannelHandle() = default;
+
   using internal::ChannelHandle<T>::is_open;
   using internal::ChannelHandle<T>::Close;
   using internal::ChannelHandle<T>::CreateReceiver;
@@ -533,6 +532,8 @@ class MpmcChannelHandle : private internal::ChannelHandle<T> {
 template <typename T>
 class MpscChannelHandle : private internal::ChannelHandle<T> {
  public:
+  constexpr MpscChannelHandle() = default;
+
   using internal::ChannelHandle<T>::is_open;
   using internal::ChannelHandle<T>::Close;
   using internal::ChannelHandle<T>::CreateSender;
@@ -555,6 +556,8 @@ class MpscChannelHandle : private internal::ChannelHandle<T> {
 template <typename T>
 class SpmcChannelHandle : private internal::ChannelHandle<T> {
  public:
+  constexpr SpmcChannelHandle() = default;
+
   using internal::ChannelHandle<T>::is_open;
   using internal::ChannelHandle<T>::Close;
   using internal::ChannelHandle<T>::CreateReceiver;
@@ -577,6 +580,8 @@ class SpmcChannelHandle : private internal::ChannelHandle<T> {
 template <typename T>
 class SpscChannelHandle : private internal::ChannelHandle<T> {
  public:
+  constexpr SpscChannelHandle() = default;
+
   using internal::ChannelHandle<T>::is_open;
   using internal::ChannelHandle<T>::Close;
   using internal::ChannelHandle<T>::Release;
@@ -687,6 +692,8 @@ class [[nodiscard]] ReceiveFuture
 template <typename T>
 class Receiver {
  public:
+  constexpr Receiver() : channel_(nullptr) {}
+
   Receiver(const Receiver& other) = delete;
   Receiver& operator=(const Receiver& other) = delete;
 
@@ -800,8 +807,10 @@ class Receiver {
     }
   }
 
-  /// Returns true if the channel is closed.
-  bool closed() const { return channel_ == nullptr || channel_->closed(); }
+  /// Returns true if the channel is open.
+  [[nodiscard]] bool is_open() const {
+    return channel_ != nullptr && !channel_->closed();
+  }
 
  private:
   static constexpr chrono::SystemClock::duration kWaitForever =
@@ -1050,6 +1059,8 @@ class [[nodiscard]] ReserveSendFuture
 template <typename T>
 class Sender {
  public:
+  constexpr Sender() : channel_(nullptr) {}
+
   Sender(const Sender& other) = delete;
   Sender& operator=(const Sender& other) = delete;
 
@@ -1214,8 +1225,10 @@ class Sender {
     return channel_ != nullptr ? channel_->capacity() : 0;
   }
 
-  /// Returns true if the channel is closed.
-  bool closed() const { return channel_ == nullptr || channel_->closed(); }
+  /// Returns true if the channel is open.
+  [[nodiscard]] bool is_open() const {
+    return channel_ != nullptr && !channel_->closed();
+  }
 
  private:
   static constexpr chrono::SystemClock::duration kWaitForever =

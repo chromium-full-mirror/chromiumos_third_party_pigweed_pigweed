@@ -31,6 +31,7 @@ using pw::async2::CreateSpmcChannel;
 using pw::async2::CreateSpscChannel;
 using pw::async2::DispatcherForTest;
 using pw::async2::MpmcChannelHandle;
+using pw::async2::MpscChannelHandle;
 using pw::async2::PendFuncTask;
 using pw::async2::Pending;
 using pw::async2::Poll;
@@ -41,6 +42,8 @@ using pw::async2::ReserveSendFuture;
 using pw::async2::Sender;
 using pw::async2::SendFuture;
 using pw::async2::SendReservation;
+using pw::async2::SpmcChannelHandle;
+using pw::async2::SpscChannelHandle;
 using pw::async2::Task;
 
 class SenderTask : public Task {
@@ -744,6 +747,23 @@ TEST(DynamicChannel, AllocationFailure) {
   EXPECT_EQ(deque_only_alloc.metrics().allocated_bytes.value(), 0u);
   EXPECT_EQ(deque_only_alloc.metrics().num_allocations.value(), 1u);
   EXPECT_EQ(deque_only_alloc.metrics().num_deallocations.value(), 1u);
+}
+
+TEST(ChannelHandles, DefaultConstruct) {
+  SpscChannelHandle<int> channel1;
+  EXPECT_FALSE(channel1.is_open());
+  SpmcChannelHandle<int> channel2;
+  EXPECT_FALSE(channel2.is_open());
+  MpscChannelHandle<int> channel3;
+  EXPECT_FALSE(channel3.is_open());
+  MpmcChannelHandle<int> channel4;
+  EXPECT_FALSE(channel4.is_open());
+
+  Sender<int> sender;
+  EXPECT_FALSE(sender.is_open());
+
+  Receiver<int> receiver;
+  EXPECT_FALSE(receiver.is_open());
 }
 
 }  // namespace

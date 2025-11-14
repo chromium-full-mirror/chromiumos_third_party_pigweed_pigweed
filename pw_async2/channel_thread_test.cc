@@ -210,7 +210,7 @@ TEST(Channel, BlockingSend_ChannelCloses) {
     }
 
     EXPECT_EQ(last_status, pw::Status::FailedPrecondition());
-    EXPECT_TRUE(sender_context.sender.closed());
+    EXPECT_FALSE(sender_context.sender.is_open());
     sender_context.idle_task.Complete();
   });
 
@@ -264,7 +264,7 @@ TEST(Channel, BlockingSend_Timeout) {
     }
 
     EXPECT_EQ(last_status, pw::Status::DeadlineExceeded());
-    EXPECT_FALSE(sender_context.sender.closed());
+    EXPECT_TRUE(sender_context.sender.is_open());
     sender_context.idle_task.Complete();
   });
 
@@ -313,7 +313,7 @@ TEST(Channel, BlockingReceive) {
     }
 
     EXPECT_EQ(last_status, pw::Status::FailedPrecondition());
-    EXPECT_TRUE(receiver_context.receiver.closed());
+    EXPECT_FALSE(receiver_context.receiver.is_open());
     receiver_context.idle_task.Complete();
   });
 
@@ -367,7 +367,7 @@ TEST(Channel, BlockingReceive_Timeout) {
     }
 
     EXPECT_EQ(last_status, pw::Status::DeadlineExceeded());
-    EXPECT_FALSE(receiver_context.receiver.closed());
+    EXPECT_TRUE(receiver_context.receiver.is_open());
     receiver_context.idle_task.Complete();
   });
 
