@@ -13,7 +13,7 @@
 // the License.
 
 #include "pw_allocator/allocator.h"
-#include "pw_async2/dispatcher.h"
+#include "pw_async2/dispatcher_for_test.h"
 #include "pw_status/status.h"
 
 namespace {
@@ -196,7 +196,7 @@ TEST(CoroExample, ReturnsOk) {
   AllocatorForTest<256> alloc;
   CoroContext coro_cx(alloc);
   auto coro = ReceiveAndSendCoro(coro_cx, MyReceiver(), MySender());
-  DispatcherForTest dispatcher;
+  pw::async2::DispatcherForTest dispatcher;
   EXPECT_EQ(dispatcher.RunInTaskUntilStalled(coro), Ready(OkStatus()));
 }
 

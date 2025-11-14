@@ -124,6 +124,7 @@ pw_cc_size_binary(
     deps = [
         ":size_report",
         "//pw_assert:check",
+        "//pw_async2:basic_dispatcher",
         "//pw_async2:coro",
         "//pw_async2:dispatcher",
         "//pw_async2:pend_func_task",

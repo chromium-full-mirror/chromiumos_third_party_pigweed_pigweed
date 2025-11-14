@@ -165,8 +165,7 @@ int Measure() {
   int output = 0;
   ExpectCoroTask coro_task = StoresFiveThenReturns(coro_cx, output);
   dispatcher.Post(coro_task);
-  result = dispatcher.RunUntilStalled();
-  PW_BLOAT_COND(result.IsReady(), mask);
+  PW_BLOAT_COND(dispatcher.RunUntilStalled(), mask);
 
 #endif  // _PW_ASYNC2_SIZE_REPORT_COROUTINE
 

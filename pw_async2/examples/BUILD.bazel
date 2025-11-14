@@ -31,7 +31,7 @@ pw_cc_test(
     deps = [
         "//pw_allocator:testing",
         "//pw_async2:coro",
-        "//pw_async2:dispatcher",
+        "//pw_async2:testing",
     ],
 )
 
@@ -135,7 +135,9 @@ pw_cc_test(
         "//pw_assert:check",
         "//pw_async2:basic_dispatcher",
         "//pw_async2:coro",
+        "//pw_async2:coro_or_else_task",
         "//pw_async2:once_sender",
+        "//pw_async2:testing",
     ],
 )
 

@@ -17,9 +17,11 @@
 #include "pw_allocator/libc_allocator.h"
 #include "pw_allocator/testing.h"
 #include "pw_assert/check.h"
+#include "pw_async2/basic_dispatcher.h"
 #include "pw_async2/context.h"
 #include "pw_async2/coro.h"
-#include "pw_async2/dispatcher.h"
+#include "pw_async2/coro_or_else_task.h"
+#include "pw_async2/dispatcher_for_test.h"
 #include "pw_async2/once_sender.h"
 #include "pw_async2/poll.h"
 #include "pw_async2/try.h"
@@ -83,45 +85,46 @@ int main() {
 
 namespace examples::coro {
 
-using ::pw::OkStatus;
-using ::pw::Result;
-using ::pw::Status;
 using ::pw::allocator::LibCAllocator;
 using ::pw::async2::BasicDispatcher;
 using ::pw::async2::Coro;
 using ::pw::async2::CoroContext;
+using ::pw::async2::CoroOrElseTask;
 using ::pw::async2::MakeOnceSenderAndReceiver;
 using ::pw::async2::OnceReceiver;
 using ::pw::async2::Ready;
 
 // The receiver should take ownership of an appropriate OnceReceiver<T>.
-Coro<Status> ReceiveAndLogValue(CoroContext&, OnceReceiver<int> int_receiver) {
+Coro<pw::Status> ReceiveAndLogValue(CoroContext&,
+                                    OnceReceiver<int> int_receiver) {
   // DOCSTAG: [pw_async2-examples-once-send-recv-coro-await]
-  Result<int> value = co_await int_receiver;
+  pw::Result<int> value = co_await int_receiver;
   if (!value.ok()) {
     PW_LOG_ERROR(
         "OnceSender was destroyed without sending a message! Outrageous :(");
-    co_return Status::Cancelled();
+    co_return pw::Status::Cancelled();
   }
   PW_LOG_INFO("Got an int: %d", *value);
   // DOCSTAG: [pw_async2-examples-once-send-recv-coro-await]
 
-  co_return OkStatus();
+  co_return pw::OkStatus();
 }
 
 int main() {
   LibCAllocator alloc;
   CoroContext coro_cx(alloc);
   auto [sender, receiver] = MakeOnceSenderAndReceiver<int>();
-  auto coro = ReceiveAndLogValue(coro_cx, std::move(receiver));
+  CoroOrElseTask task(ReceiveAndLogValue(coro_cx, std::move(receiver)),
+                      [](pw::Status) { PW_CRASH("Allocation failed"); });
 
   BasicDispatcher dispatcher;
-  PW_CHECK(dispatcher.RunPendableUntilStalled(coro).IsPending());
+  dispatcher.Post(task);
+  PW_CHECK(dispatcher.RunUntilStalled());
 
   // Send a value to the task
   sender.emplace(5);
 
-  PW_CHECK(dispatcher.RunPendableUntilStalled(coro) == Ready(OkStatus()));
+  PW_CHECK(!dispatcher.RunUntilStalled());
   return 0;
 }
 
@@ -129,14 +132,11 @@ int main() {
 
 namespace {
 
-using ::pw::OkStatus;
-using ::pw::Result;
-using ::pw::Status;
 using ::pw::allocator::test::AllocatorForTest;
-using ::pw::async2::BasicDispatcher;
 using ::pw::async2::Context;
 using ::pw::async2::Coro;
 using ::pw::async2::CoroContext;
+using ::pw::async2::DispatcherForTest;
 using ::pw::async2::MakeOnceSenderAndReceiver;
 using ::pw::async2::OnceReceiver;
 using ::pw::async2::Poll;
@@ -150,7 +150,7 @@ TEST(OnceSendRecv, ReceiveAndLogValueTask) {
 
   auto [sender, receiver] = MakeOnceSenderAndReceiver<int>();
   examples::manual::ReceiveAndLogValueTask task(std::move(receiver));
-  BasicDispatcher dispatcher;
+  DispatcherForTest dispatcher;
   dispatcher.Post(task);
   EXPECT_TRUE(dispatcher.RunUntilStalled());
   sender.emplace(5);
@@ -165,10 +165,10 @@ TEST(OnceSendRecv, ReceiveAndLogValueCoro) {
   CoroContext coro_cx(alloc);
   auto [sender, receiver] = MakeOnceSenderAndReceiver<int>();
   auto coro = examples::coro::ReceiveAndLogValue(coro_cx, std::move(receiver));
-  BasicDispatcher dispatcher;
-  EXPECT_TRUE(dispatcher.RunPendableUntilStalled(coro).IsPending());
+  DispatcherForTest dispatcher;
+  EXPECT_TRUE(dispatcher.RunInTaskUntilStalled(coro).IsPending());
   sender.emplace(5);
-  EXPECT_EQ(dispatcher.RunPendableUntilStalled(coro), Ready(OkStatus()));
+  EXPECT_EQ(dispatcher.RunInTaskUntilStalled(coro), Ready(pw::OkStatus()));
 }
 
 }  // namespace
