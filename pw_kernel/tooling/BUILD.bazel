@@ -39,10 +39,7 @@ rust_binary(
     target_compatible_with = incompatible_with_mcu(),
     visibility = ["//visibility:public"],
     deps = [
-        "@rust_crates//:anyhow",
         "@rust_crates//:cliclack",
-        "@rust_crates//:serde",
-        "@rust_crates//:serde_json",
     ],
 )
 
