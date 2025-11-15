@@ -21,6 +21,7 @@ out/
 outbazel/
 .presubmit/
 docs/_build
+docs/sphinx/changelog/py/cache
 twister-out*/
 twister-template-build/
 

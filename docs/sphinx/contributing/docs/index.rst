@@ -63,8 +63,7 @@ Authoring guidelines and style guides for ``pigweed.dev`` contributors.
       :link-type: ref
       :class-item: sales-pitch-cta-secondary
 
-      How to use the semi-automation tool to create a new bi-weekly update
-      in :ref:`docs-changelog`.
+      How to generate the monthly "What's new in Pigweed" changelog updates.
 
 .. toctree::
    :maxdepth: 1

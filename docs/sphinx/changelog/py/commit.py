@@ -11,9 +11,10 @@
 # WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 # License for the specific language governing permissions and limitations under
 # the License.
-"""Provides data related to a single Git commit."""
+"""Provides and caches data related to a single Git commit."""
 
 from pathlib import Path
+import json
 
 
 class Commit:  # pylint: disable=too-many-instance-attributes
@@ -51,6 +52,42 @@ class Commit:  # pylint: disable=too-many-instance-attributes
         self.summary = None
         self.parent = None
         self.children = []
+        # Cache setup
+        self.cache = path / Path(
+            "cache/{}/{}/commits/{}.json".format(year, month, sha)
+        )
+        if not self.cache.parent.is_dir():
+            self.cache.parent.mkdir(parents=True)
+        if self.cache.exists():
+            self._load()
+
+    def save(self):
+        """Save Gemini-generated data to the cache.
+
+        Only cache Gemini-generated data. When iterating on the changelog tool,
+        if this data is not cached, iterations become unbearably long.
+        """
+        data = {
+            "newsworthy": self.newsworthy,
+            "reason": self.reason,
+            "summary": self.summary,
+            "parent": self.parent,
+            "children": self.children,
+        }
+        with open(self.cache, "w") as f:
+            json.dump(data, f, indent=2)
+
+    # Private
+
+    def _load(self):
+        """Load data from the cache."""
+        with open(self.cache, "r") as f:
+            cache = json.load(f)
+        self.newsworthy = cache["newsworthy"]
+        self.reason = cache["reason"]
+        self.summary = cache["summary"]
+        self.parent = cache["parent"]
+        self.children = cache["children"]
 
     def _tags(self):
         """Parse the tags from the first line of the commit message.
