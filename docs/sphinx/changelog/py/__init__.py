@@ -1,4 +1,4 @@
-# Copyright 2022 The Pigweed Authors
+# Copyright 2025 The Pigweed Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may not
 # use this file except in compliance with the License. You may obtain a copy of
@@ -11,17 +11,3 @@
 # WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 # License for the specific language governing permissions and limitations under
 # the License.
-
-# Pigweed upstream specific dependencies:
-# pigweed.dev Sphinx themes
-sphinx-copybutton==0.5.1
-breathe==4.35.0
-google-genai==1.39.1
-pydata-sphinx-theme==0.15.4
-sphinx-reredirects==0.1.3
-sphinxcontrib-doxylink==1.13.0
-
-# WARNING: This list is for Pigweed repo only Python requirements.
-# If you are adding a new Python dependency to be used by downstream
-# projects please add them to constraint.list as well as the Python
-# package's setup.cfg file.

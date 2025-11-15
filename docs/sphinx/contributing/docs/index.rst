@@ -68,12 +68,11 @@ Authoring guidelines and style guides for ``pigweed.dev`` contributors.
 .. grid:: 1
 
    .. grid-item-card:: :octicon:`list-ordered` Changelog updates
-      :link: docs-contrib-docs-changelog
+      :link: contrib-changelog
       :link-type: ref
       :class-item: sales-pitch-cta-secondary
 
-      How to use the semi-automation tool to create a new bi-weekly update
-      in :ref:`docs-changelog`.
+      How to generate the monthly "What's new in Pigweed" changelog updates.
 
 .. toctree::
    :maxdepth: 1

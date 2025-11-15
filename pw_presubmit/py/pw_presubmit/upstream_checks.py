@@ -285,6 +285,7 @@ _EXCLUDE_FROM_COPYRIGHT_NOTICE: Sequence[str] = (
     r'\.expected$',
     r'\.md$',
     r'\.rst$',
+    r'^docs/sphinx/changelog/py/templates/.*\.tmpl$',
     # TODO: b/388905812 - Delete this file.
     r'^docs/sphinx/size_report_notice$',
     # keep-sorted: end

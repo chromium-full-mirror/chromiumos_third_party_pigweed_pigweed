@@ -189,7 +189,7 @@ if is_bazel_build:
 
 html_theme_options = {
     # https://pydata-sphinx-theme.readthedocs.io/en/stable/user_guide/header-links.html#navigation-bar-dropdown-links
-    'header_links_before_dropdown': 5,
+    'header_links_before_dropdown': 6,
     # https://pydata-sphinx-theme.readthedocs.io/en/stable/user_guide/header-links.html#icon-links
     'icon_links': [
         {

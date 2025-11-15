@@ -597,6 +597,16 @@
       "use_config": "bazel_default",
       "target": "@pigweed//:watch",
       "type": "GENERAL"
+    },
+    {
+      "name": "changelog",
+      "description": "Update the pigweed.dev changelog",
+      "use_config": "bazel_default",
+      "target": "@pigweed//docs/sphinx/changelog/py:changelog",
+      "type": "GENERAL",
+      "analyzer_friendly_args": [
+        "--check"
+      ]
     }
   ],
   "groups": [

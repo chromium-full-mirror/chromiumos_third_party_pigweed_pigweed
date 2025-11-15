@@ -41,7 +41,6 @@ sphinx_docs_library(
     name = "static",
     srcs = [
         "_static/css/pigweed.css",
-        "_static/js/changelog.js",
         "_static/js/pigweed.js",
     ],
     visibility = ["//visibility:private"],
@@ -68,7 +67,6 @@ sphinx_docs_library(
         "api/index.rst",
         "bazel_compatibility.rst",
         "build_system.rst",
-        "changelog.rst",
         "index.rst",
         "module_metadata.json",
         "module_metadata_schema.json",
