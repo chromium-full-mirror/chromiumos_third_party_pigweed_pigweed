@@ -30,11 +30,18 @@ from pw_build.workflows.describe import Describe
 from pw_build.workflows.manager import WorkflowsManager
 from pw_cli import multitool, argument_types
 from pw_config_loader import find_config
+import toml
+import yaml
 
 _LOG = logging.getLogger(__name__)
 _PROJECT_BUILDER_LOGGER = logging.getLogger(f'{_LOG.name}.project_builder')
 
-_WORKFLOWS_FILE = 'workflows.json'
+_WORKFLOWS_FILES = (
+    'workflows.json',
+    'workflows.textproto',
+    'workflows.toml',
+    'workflows.yaml',
+)
 
 
 class _BuiltinPlugin(multitool.MultitoolPlugin):
@@ -187,20 +194,52 @@ class WorkflowsCli(multitool.MultitoolCli):
         return msg
 
     @staticmethod
+    def _load_proto_textproto(config: Path) -> workflows_pb2.WorkflowSuite:
+        return text_format.Parse(
+            config.read_text(),
+            workflows_pb2.WorkflowSuite(),
+        )
+
+    @staticmethod
+    def _load_proto_toml(config: Path) -> workflows_pb2.WorkflowSuite:
+        toml_msg = toml.loads(config.read_text())
+        msg = workflows_pb2.WorkflowSuite()
+        json_format.ParseDict(toml_msg, msg)
+        return msg
+
+    @staticmethod
+    def _load_proto_yaml(config: Path) -> workflows_pb2.WorkflowSuite:
+        with config.open() as ins:
+            yaml_msg = yaml.safe_load(ins)
+        msg = workflows_pb2.WorkflowSuite()
+        json_format.ParseDict(yaml_msg, msg)
+        return msg
+
+    @staticmethod
     def _load_config_from(
         search_from: Path = Path.cwd(),
     ) -> workflows_pb2.WorkflowSuite:
         config = next(
-            find_config.configs_in_parents(_WORKFLOWS_FILE, search_from),
+            find_config.configs_in_parents(_WORKFLOWS_FILES, search_from),
             None,
         )
         if not config:
             _LOG.critical(
-                'No `%s` file found in current directory or its parents',
-                _WORKFLOWS_FILE,
+                'No `%s` files found in current directory or its parents',
+                _WORKFLOWS_FILES,
             )
             return workflows_pb2.WorkflowSuite()
-        return WorkflowsCli._load_proto_json(config)
+
+        if config.suffix == '.json':
+            return WorkflowsCli._load_proto_json(config)
+        if config.suffix == '.textproto':
+            return WorkflowsCli._load_proto_textproto(config)
+        if config.suffix == '.toml':
+            return WorkflowsCli._load_proto_toml(config)
+        if config.suffix == '.yaml':
+            return WorkflowsCli._load_proto_yaml(config)
+
+        raise ValueError(f'{config} has suffix {config.suffix}')
 
     def add_arguments(self, parser: argparse.ArgumentParser) -> None:
         super().add_arguments(parser)

@@ -12,7 +12,9 @@ How it Works
 
 #. **Configuration initialization**: The Workflows launcher reads a
    ``workflows.json`` configuration file to identify existing build
-   configurations.
+   configurations. (``workflows.textproto``, ``workflows.toml``, and
+   ``workflows.yaml`` are also supported, as long as only one ``workflows.*``
+   file exists).
 #. **Subtool identification**: The subtool requested by the user (e.g.
    ``format``) is located in the configuration, and the associated
    ``build_type`` is mapped to a registered driver.

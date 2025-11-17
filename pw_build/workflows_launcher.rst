@@ -56,8 +56,15 @@ the Pigweed repository.
 
    $ ./pw
 
-The launcher will automatically find and load a ``workflows.json`` file in the
-current directory or any parent directory.
+The launcher will automatically find and load a workflows config file in the
+current directory or any parent directory. It looks for any of the following
+filenames, and requires exactly one of them be present in a directory. This doc
+will use JSON in examples.
+
+* ``workflows.json``
+* ``workflows.textproto``
+* ``workflows.toml``
+* ``workflows.yaml``
 
 .. note::
 

@@ -103,6 +103,7 @@ py_library(
         "//pw_config_loader/py:pw_config_loader",
         "@com_google_protobuf//:protobuf_python",
         "@com_google_protobuf//:well_known_types_py_pb2",
+        "@pigweed_python_packages//toml",
     ],
 )
 
