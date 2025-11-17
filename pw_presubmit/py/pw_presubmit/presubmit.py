@@ -76,7 +76,6 @@ from pw_cli.file_filter import FileFilter, exclude_paths
 from pw_package import package_manager
 from pw_presubmit import git_repo, tools
 from pw_presubmit.presubmit_context import (
-    FormatContext,
     FormatOptions,
     LuciContext,
     PRESUBMIT_CONTEXT,
@@ -1145,7 +1144,7 @@ def call(
 
 
 def install_package(
-    ctx: FormatContext | PresubmitContext,
+    ctx: PresubmitContext,
     name: str,
     force: bool = False,
 ) -> None:

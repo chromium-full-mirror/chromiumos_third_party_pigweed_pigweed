@@ -29,7 +29,6 @@ import re
 import shutil
 import subprocess
 import sys
-import tempfile
 from typing import (
     Callable,
     Collection,
@@ -39,7 +38,6 @@ from typing import (
 )
 
 from pw_cli.collect_files import (
-    add_file_collection_arguments,
     collect_files_in_current_repo,
     file_summary,
 )
@@ -83,6 +81,7 @@ from pw_presubmit.format.owners import (
 )
 from pw_presubmit.format.prettier import PrettierFormatter
 from pw_presubmit.format.private.cli_support import (
+    add_arguments,
     summarize_findings,
     findings_to_formatted_diffs,
 )
@@ -691,14 +690,10 @@ class CodeFormatter:
         self,
         root: Path | None,
         files: Iterable[Path],
-        output_dir: Path,
         code_formats: Collection[CodeFormat] = CODE_FORMATS_WITH_YAPF,
-        package_root: Path | None = None,
     ):
         self.root = root
         self._formats: dict[CodeFormat, list] = collections.defaultdict(list)
-        self.root_output_dir = output_dir
-        self.package_root = package_root or output_dir / 'packages'
         self._format_options = FormatOptions.load()
         raw_paths = files
         self.paths: tuple[Path, ...] = self._format_options.filter_paths(files)
@@ -719,14 +714,10 @@ class CodeFormatter:
                 _LOG.debug('No formatter found for %s', path)
 
     def _context(self, code_format: CodeFormat):
-        outdir = self.root_output_dir / code_format.language.replace(' ', '_')
-        os.makedirs(outdir, exist_ok=True)
 
         return FormatContext(
             root=self.root,
-            output_dir=outdir,
             paths=tuple(self._formats[code_format]),
-            package_root=self.package_root,
             format_options=self._format_options,
         )
 
@@ -771,11 +762,10 @@ def _file_summary(files: Iterable[Path | str], base: Path) -> list[str]:
 def format_paths_in_repo(
     paths: Collection[Path | str],
     exclude: Collection[Pattern[str]],
-    fix: bool,
+    apply_fixes: bool,
     base: str,
     code_formats: Collection[CodeFormat] = CODE_FORMATS,
-    output_directory: Path | None = None,
-    package_root: Path | None = None,
+    jobs: int = 1,  # pylint: disable=unused-argument
 ) -> int:
     """Checks or fixes formatting for files in a Git repo."""
 
@@ -794,21 +784,17 @@ def format_paths_in_repo(
 
     return format_files(
         files,
-        fix,
+        apply_fixes,
         repo=repo,
         code_formats=code_formats,
-        output_directory=output_directory,
-        package_root=package_root,
     )
 
 
 def format_files(
     paths: Collection[Path | str],
-    fix: bool,
+    apply_fixes: bool,
     repo: Path | None = None,
     code_formats: Collection[CodeFormat] = CODE_FORMATS,
-    output_directory: Path | None = None,
-    package_root: Path | None = None,
 ) -> int:
     """Checks or fixes formatting for the specified files."""
 
@@ -821,21 +807,10 @@ def format_files(
         if git_repo.is_repo(parent):
             root = git_repo.root(parent)
 
-    output_dir: Path
-    if output_directory:
-        output_dir = output_directory
-    elif root:
-        output_dir = root / _DEFAULT_PATH
-    else:
-        tempdir = tempfile.TemporaryDirectory()
-        output_dir = Path(tempdir.name)
-
     formatter = CodeFormatter(
         files=(Path(p) for p in paths),
         code_formats=code_formats,
         root=root,
-        output_dir=output_dir,
-        package_root=package_root,
     )
 
     _LOG.info('Checking formatting for %s', plural(formatter.paths, 'file'))
@@ -846,12 +821,12 @@ def format_files(
     check_errors = findings_to_formatted_diffs(formatter.check())
     summarize_findings(
         check_errors,
-        log_fix_command=(not fix),
+        log_fix_command=(not apply_fixes),
         log_oneliner_summary=True,
     )
 
     if check_errors:
-        if fix:
+        if apply_fixes:
             _LOG.info(
                 'Applying formatting fixes to %d files', len(check_errors)
             )
@@ -875,54 +850,21 @@ def format_files(
     return 0
 
 
-def arguments(git_paths: bool) -> argparse.ArgumentParser:
+def arguments(
+    git_paths: bool = True,  # pylint: disable=unused-argument
+) -> argparse.ArgumentParser:
     """Creates an argument parser for format_files or format_paths_in_repo."""
 
     parser = argparse.ArgumentParser(description=__doc__)
 
-    if git_paths:
-        add_file_collection_arguments(parser)
-    else:
-
-        def existing_path(arg: str) -> Path:
-            path = Path(arg)
-            if not path.is_file():
-                raise argparse.ArgumentTypeError(
-                    f'{arg} is not a path to a file'
-                )
-
-            return path
-
-        parser.add_argument(
-            'paths',
-            metavar='path',
-            nargs='+',
-            type=existing_path,
-            help='File paths to check',
-        )
-
-    parser.add_argument(
-        '--fix', action='store_true', help='Apply formatting fixes in place.'
-    )
-
-    parser.add_argument(
-        '--output-directory',
-        type=Path,
-        help=f"Output directory (default: {'<repo root>' / _DEFAULT_PATH})",
-    )
-    parser.add_argument(
-        '--package-root',
-        type=Path,
-        default=Path(os.environ['PW_PACKAGE_ROOT']),
-        help='Package root directory',
-    )
+    add_arguments(parser, default_to_fix=False)
 
     return parser
 
 
 def main() -> int:
     """Check and fix formatting for source files."""
-    return format_paths_in_repo(**vars(arguments(git_paths=True).parse_args()))
+    return format_paths_in_repo(**vars(arguments().parse_args()))
 
 
 if __name__ == '__main__':

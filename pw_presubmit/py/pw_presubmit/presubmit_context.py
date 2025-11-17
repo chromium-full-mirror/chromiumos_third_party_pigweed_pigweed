@@ -415,18 +415,14 @@ class FormatContext:
 
     Attributes:
         root: Source checkout root directory
-        output_dir: Output directory for this specific language.
         paths: Modified files for the presubmit step to check (often used in
             formatting steps but ignored in compile steps).
-        package_root: Root directory for pw package installations.
         format_options: Formatting options, derived from pigweed.json.
         dry_run: Whether to just report issues or also fix them.
     """
 
     root: Path | None
-    output_dir: Path
     paths: tuple[Path, ...]
-    package_root: Path
     format_options: FormatOptions
     dry_run: bool = False
 

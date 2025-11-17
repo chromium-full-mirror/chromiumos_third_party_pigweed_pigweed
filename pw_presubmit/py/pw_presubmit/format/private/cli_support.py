@@ -139,14 +139,27 @@ def summarize_findings(
         _LOG.warning('To fix formatting, run:\n\n%s\n', message)
 
 
-def add_arguments(parser: argparse.ArgumentParser) -> None:
+def add_arguments(
+    parser: argparse.ArgumentParser, *, default_to_fix: bool
+) -> None:
     """Adds formatting CLI arguments to an argument parser."""
     add_file_collection_arguments(parser)
-    parser.add_argument(
+    fix_mode = parser.add_mutually_exclusive_group()
+    fix_mode.add_argument(
         '--check',
         action='store_false',
         dest='apply_fixes',
-        help='Only display findings, do not apply formatting fixes.',
+        help='{}Only display findings, do not apply formatting fixes.'.format(
+            '(Default) ' if not default_to_fix else ''
+        ),
+    )
+    fix_mode.add_argument(
+        '--fix',
+        action='store_true',
+        dest='apply_fixes',
+        help='{}Apply formatting fixes in place.'.format(
+            '(Default) ' if default_to_fix else ''
+        ),
     )
     parser.add_argument(
         '-j',
@@ -154,6 +167,7 @@ def add_arguments(parser: argparse.ArgumentParser) -> None:
         type=int,
         help='Number of parallel jobs to use. Defaults to the number of CPUs.',
     )
+    parser.set_defaults(apply_fixes=default_to_fix)
 
 
 def relativize_paths(
