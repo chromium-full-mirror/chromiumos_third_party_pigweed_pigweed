@@ -27,10 +27,14 @@ class Context;
 ///
 /// Example usage:
 ///
+///   pw::thread::backend::NativeContextWithStack<kStackSize>
+///       static_example_thread_context;
+///
 ///   pw::Thread example_thread(
 ///     pw::thread::zephyr::Options(static_example_thread_context)
 ///         .set_priority(kFooPriority)
-///         .set_name("example_thread"),
+///         .set_name("example_thread")
+///         .set_stack(static_example_thread_context.stack()),
 ///     example_thread_function, example_arg);
 ///
 /// TODO(aeremin): Add support for time slice configuration
