@@ -18,6 +18,7 @@
 // #include "pw_log/log.h"
 
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 
 #include "pw_assert/config.h"
