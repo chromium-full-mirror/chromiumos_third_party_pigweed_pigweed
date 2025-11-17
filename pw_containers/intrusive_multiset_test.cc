@@ -214,6 +214,37 @@ TEST_F(IntrusiveMultiSetTest, ReverseIterator) {
   EXPECT_EQ(iter, multiset.crbegin());
 }
 
+TEST_F(IntrusiveMultiSetTest, IteratorIsDefaultConstructible) {
+  IntrusiveMultiSet::iterator iter;
+  EXPECT_NE(iter, multiset_.begin());
+  EXPECT_NE(iter, multiset_.begin());
+  EXPECT_EQ(iter, IntrusiveMultiSet::iterator());
+}
+
+TEST_F(IntrusiveMultiSetTest, IteratorIsCopyConstructible) {
+  IntrusiveMultiSet::iterator iter1 = multiset_.begin();
+  IntrusiveMultiSet::iterator iter2(iter1);
+  EXPECT_EQ(iter2, multiset_.begin());
+}
+
+TEST_F(IntrusiveMultiSetTest, IteratorCopyAssignable) {
+  IntrusiveMultiSet::iterator iter1 = multiset_.begin();
+  IntrusiveMultiSet::iterator iter2 = iter1;
+  EXPECT_EQ(iter2, multiset_.begin());
+}
+
+TEST_F(IntrusiveMultiSetTest, IteratorisMoveConstructible) {
+  IntrusiveMultiSet::iterator iter1 = multiset_.begin();
+  IntrusiveMultiSet::iterator iter2(std::move(iter1));
+  EXPECT_EQ(iter2, multiset_.begin());
+}
+
+TEST_F(IntrusiveMultiSetTest, IteratorMoveAssignable) {
+  IntrusiveMultiSet::iterator iter1 = multiset_.begin();
+  IntrusiveMultiSet::iterator iter2 = std::move(iter1);
+  EXPECT_EQ(iter2, multiset_.begin());
+}
+
 TEST_F(IntrusiveMultiSetTest, ConstIterator_CompareNonConst) {
   EXPECT_EQ(multiset_.end(), multiset_.cend());
 }

@@ -207,6 +207,37 @@ TEST_F(IntrusiveSetTest, ReverseIterator) {
   EXPECT_EQ(iter, set.crbegin());
 }
 
+TEST_F(IntrusiveSetTest, IteratorIsDefaultConstructible) {
+  IntrusiveSet::iterator iter;
+  EXPECT_NE(iter, set_.begin());
+  EXPECT_NE(iter, set_.begin());
+  EXPECT_EQ(iter, IntrusiveSet::iterator());
+}
+
+TEST_F(IntrusiveSetTest, IteratorIsCopyConstructible) {
+  IntrusiveSet::iterator iter1 = set_.begin();
+  IntrusiveSet::iterator iter2(iter1);
+  EXPECT_EQ(iter2, set_.begin());
+}
+
+TEST_F(IntrusiveSetTest, IteratorCopyAssignable) {
+  IntrusiveSet::iterator iter1 = set_.begin();
+  IntrusiveSet::iterator iter2 = iter1;
+  EXPECT_EQ(iter2, set_.begin());
+}
+
+TEST_F(IntrusiveSetTest, IteratorisMoveConstructible) {
+  IntrusiveSet::iterator iter1 = set_.begin();
+  IntrusiveSet::iterator iter2(std::move(iter1));
+  EXPECT_EQ(iter2, set_.begin());
+}
+
+TEST_F(IntrusiveSetTest, IteratorMoveAssignable) {
+  IntrusiveSet::iterator iter1 = set_.begin();
+  IntrusiveSet::iterator iter2 = std::move(iter1);
+  EXPECT_EQ(iter2, set_.begin());
+}
+
 TEST_F(IntrusiveSetTest, ConstIterator_CompareNonConst) {
   EXPECT_EQ(set_.end(), set_.cend());
 }

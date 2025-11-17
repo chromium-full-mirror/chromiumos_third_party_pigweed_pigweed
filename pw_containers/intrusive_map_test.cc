@@ -298,6 +298,37 @@ TEST_F(IntrusiveMapTest, ReverseIterator) {
   EXPECT_EQ(iter, map.crbegin());
 }
 
+TEST_F(IntrusiveMapTest, IteratorIsDefaultConstructible) {
+  IntrusiveMap::iterator iter;
+  EXPECT_NE(iter, map_.begin());
+  EXPECT_NE(iter, map_.begin());
+  EXPECT_EQ(iter, IntrusiveMap::iterator());
+}
+
+TEST_F(IntrusiveMapTest, IteratorIsCopyConstructible) {
+  IntrusiveMap::iterator iter1 = map_.begin();
+  IntrusiveMap::iterator iter2(iter1);
+  EXPECT_EQ(iter2, map_.begin());
+}
+
+TEST_F(IntrusiveMapTest, IteratorCopyAssignable) {
+  IntrusiveMap::iterator iter1 = map_.begin();
+  IntrusiveMap::iterator iter2 = iter1;
+  EXPECT_EQ(iter2, map_.begin());
+}
+
+TEST_F(IntrusiveMapTest, IteratorisMoveConstructible) {
+  IntrusiveMap::iterator iter1 = map_.begin();
+  IntrusiveMap::iterator iter2(std::move(iter1));
+  EXPECT_EQ(iter2, map_.begin());
+}
+
+TEST_F(IntrusiveMapTest, IteratorMoveAssignable) {
+  IntrusiveMap::iterator iter1 = map_.begin();
+  IntrusiveMap::iterator iter2 = std::move(iter1);
+  EXPECT_EQ(iter2, map_.begin());
+}
+
 TEST_F(IntrusiveMapTest, ConstIterator_CompareNonConst) {
   EXPECT_EQ(map_.end(), map_.cend());
 }

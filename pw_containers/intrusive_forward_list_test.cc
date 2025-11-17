@@ -162,7 +162,7 @@ TEST(IntrusiveForwardListTest, Construct_DuplicateItems) {
 }
 #endif  // TESTING_CHECK_FAILURES_IS_SUPPORTED
 
-TEST(IntrusiveListTest, Construct_Move) {
+TEST(IntrusiveForwardListTest, Construct_Move) {
   std::array<Item, 4> items1{{{0}, {1}, {2}, {3}}};
   List list1(items1.begin(), items1.end());
   List list2(std::move(list1));
@@ -177,7 +177,7 @@ TEST(IntrusiveListTest, Construct_Move) {
   list2.clear();
 }
 
-TEST(IntrusiveListTest, Construct_Move_Empty) {
+TEST(IntrusiveForwardListTest, Construct_Move_Empty) {
   List list1;
   List list2(std::move(list1));
 
@@ -185,7 +185,7 @@ TEST(IntrusiveListTest, Construct_Move_Empty) {
   EXPECT_TRUE(list2.empty());
 }
 
-TEST(IntrusiveListTest, Assign_Move) {
+TEST(IntrusiveForwardListTest, Assign_Move) {
   std::array<Item, 4> items1{{{0}, {1}, {2}, {3}}};
   std::array<Item, 2> items2{{{4}, {5}}};
   List list1(items1.begin(), items1.end());
@@ -203,7 +203,7 @@ TEST(IntrusiveListTest, Assign_Move) {
   list2.clear();
 }
 
-TEST(IntrusiveListTest, Assign_Move_Empty) {
+TEST(IntrusiveForwardListTest, Assign_Move_Empty) {
   std::array<Item, 3> items1{{{0}, {1}, {2}}};
   List list1(items1.begin(), items1.end());
   List list2;
@@ -236,6 +236,42 @@ TEST(IntrusiveForwardListTest, Assign_EmptyRange) {
 }
 
 // Element access unit tests
+
+TEST(IntrusiveForwardListTest, IteratorIsDefaultConstructible) {
+  List list;
+  List::iterator iter;
+  EXPECT_NE(iter, list.begin());
+  EXPECT_NE(iter, list.begin());
+  EXPECT_EQ(iter, List::iterator());
+}
+
+TEST(IntrusiveForwardListTest, IteratorIsCopyConstructible) {
+  List list;
+  List::iterator iter1 = list.begin();
+  List::iterator iter2(iter1);
+  EXPECT_EQ(iter2, list.begin());
+}
+
+TEST(IntrusiveForwardListTest, IteratorCopyAssignable) {
+  List list;
+  List::iterator iter1 = list.begin();
+  List::iterator iter2 = iter1;
+  EXPECT_EQ(iter2, list.begin());
+}
+
+TEST(IntrusiveForwardListTest, IteratorisMoveConstructible) {
+  List list;
+  List::iterator iter1 = list.begin();
+  List::iterator iter2(std::move(iter1));
+  EXPECT_EQ(iter2, list.begin());
+}
+
+TEST(IntrusiveForwardListTest, IteratorMoveAssignable) {
+  List list;
+  List::iterator iter1 = list.begin();
+  List::iterator iter2 = std::move(iter1);
+  EXPECT_EQ(iter2, list.begin());
+}
 
 TEST(IntrusiveForwardListTest, ListFront) {
   Item item1(1);

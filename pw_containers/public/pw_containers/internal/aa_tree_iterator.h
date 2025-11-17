@@ -35,6 +35,7 @@ class AATreeIterator {
   using reference = T&;
   using iterator_category = std::bidirectional_iterator_tag;
 
+  constexpr AATreeIterator() = default;
   constexpr AATreeIterator(const AATreeIterator& other) { *this = other; }
 
   constexpr AATreeIterator& operator=(const AATreeIterator& other) {
@@ -128,7 +129,7 @@ class AATreeIterator {
 
   T* downcast() { return static_cast<T*>(item_); }
 
-  AATreeItem** root_;
+  AATreeItem** root_ = nullptr;
   mutable AATreeItem* item_ = nullptr;
 };
 
