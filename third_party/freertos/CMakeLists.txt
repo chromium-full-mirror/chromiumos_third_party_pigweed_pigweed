@@ -156,3 +156,15 @@ pw_add_library(pw_third_party.freertos.config_assert INTERFACE
   PUBLIC_DEPS
     pw_assert
 )
+
+pw_add_library(pw_third_party.freertos.support STATIC
+  SOURCES
+    pw_assert_malloc_failed_hook.cc
+    pw_assert_stack_overflow_hook.cc
+    static_task_allocation.cc
+  PUBLIC_DEPS
+    pw_third_party.freertos
+    pw_string.util
+  PRIVATE_DEPS
+    pw_assert.check
+)
