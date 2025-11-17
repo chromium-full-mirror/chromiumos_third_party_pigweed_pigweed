@@ -384,12 +384,6 @@ class ClockDivider {
   /// configured when the clock divider gets enabled next.
   Status SetDivider(uint32_t divider) { return DoSetDivider(divider); }
 
-  // TODO: https://pwbug.dev/434801926 - Remove this compat shim
-  [[deprecated("Use SetDivider()")]]
-  Status Set(uint32_t divider) {
-    return SetDivider(divider);
-  }
-
   /// Return the element implementing this interface.
   Element& element() const { return element_; }
 
