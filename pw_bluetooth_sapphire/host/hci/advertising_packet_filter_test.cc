@@ -177,8 +177,7 @@ TEST_F(AdvertisingPacketFilterTest, OffloadingEnabledOnFirstOffloadableFilter) {
 }
 
 // disable offloading if we can't store all filters on chip
-TEST_F(AdvertisingPacketFilterTest,
-       DISABLED_OffloadingDisabledIfMemoryUnavailable) {
+TEST_F(AdvertisingPacketFilterTest, OffloadingDisabledIfMemoryUnavailable) {
   AdvertisingPacketFilter packet_filter({true, 1}, transport()->GetWeakPtr());
 
   DiscoveryFilter filter_a;
@@ -224,8 +223,7 @@ TEST_F(AdvertisingPacketFilterTest, OffloadingReenabledIfMemoryAvailable) {
 }
 
 // replace filters if we send a new set with the same scan id
-TEST_F(AdvertisingPacketFilterTest,
-       DISABLED_OffloadingSetPacketFiltersReplaces) {
+TEST_F(AdvertisingPacketFilterTest, OffloadingSetPacketFiltersReplaces) {
   AdvertisingPacketFilter packet_filter({true, 1}, transport()->GetWeakPtr());
 
   DiscoveryFilter filter_a;
@@ -254,7 +252,7 @@ TEST_F(AdvertisingPacketFilterTest,
 }
 
 // service uuid filter is sent to the controller
-TEST_F(AdvertisingPacketFilterTest, DISABLED_OffloadingServiceUUID) {
+TEST_F(AdvertisingPacketFilterTest, OffloadingServiceUUID) {
   UUID uuid(kUuid);
 
   AdvertisingPacketFilter packet_filter({true, 1}, transport()->GetWeakPtr());
@@ -277,7 +275,7 @@ TEST_F(AdvertisingPacketFilterTest, DISABLED_OffloadingServiceUUID) {
 }
 
 // solicitation uuid filter is sent to the controller
-TEST_F(AdvertisingPacketFilterTest, DISABLED_OffloadingSolicitationUUID) {
+TEST_F(AdvertisingPacketFilterTest, OffloadingSolicitationUUID) {
   UUID uuid(kUuid);
 
   AdvertisingPacketFilter packet_filter({true, 1}, transport()->GetWeakPtr());
@@ -300,7 +298,7 @@ TEST_F(AdvertisingPacketFilterTest, DISABLED_OffloadingSolicitationUUID) {
 }
 
 // local name filter is sent to the controller
-TEST_F(AdvertisingPacketFilterTest, DISABLED_OffloadingNameSubstring) {
+TEST_F(AdvertisingPacketFilterTest, OffloadingNameSubstring) {
   AdvertisingPacketFilter packet_filter({true, 1}, transport()->GetWeakPtr());
 
   DiscoveryFilter filter;
@@ -320,7 +318,7 @@ TEST_F(AdvertisingPacketFilterTest, DISABLED_OffloadingNameSubstring) {
 }
 
 // service data uuid filter is sent to the controller
-TEST_F(AdvertisingPacketFilterTest, DISABLED_OffloadingServiceDataUUID) {
+TEST_F(AdvertisingPacketFilterTest, OffloadingServiceDataUUID) {
   UUID uuid(kUuid);
 
   AdvertisingPacketFilter packet_filter({true, 1}, transport()->GetWeakPtr());
@@ -343,7 +341,7 @@ TEST_F(AdvertisingPacketFilterTest, DISABLED_OffloadingServiceDataUUID) {
 }
 
 // manufacturer code filter is sent to the controller
-TEST_F(AdvertisingPacketFilterTest, DISABLED_OffloadingManufacturerCode) {
+TEST_F(AdvertisingPacketFilterTest, OffloadingManufacturerCode) {
   AdvertisingPacketFilter packet_filter({true, 1}, transport()->GetWeakPtr());
 
   DiscoveryFilter filter;
@@ -361,6 +359,20 @@ TEST_F(AdvertisingPacketFilterTest, DISABLED_OffloadingManufacturerCode) {
   RunUntilIdle();
 
   ASSERT_TRUE(test_device()->packet_filter_state().filters.empty());
+}
+
+TEST_F(AdvertisingPacketFilterTest, UnsetFiltersDoesntInadvertentlyEnable) {
+  AdvertisingPacketFilter packet_filter({false, 1}, transport()->GetWeakPtr());
+
+  DiscoveryFilter filter;
+  filter.set_name_substring("bluetooth");
+  packet_filter.SetPacketFilters(0, {filter});
+  RunUntilIdle();
+  ASSERT_FALSE(test_device()->packet_filter_state().enabled);
+
+  packet_filter.UnsetPacketFilters(0);
+  RunUntilIdle();
+  ASSERT_FALSE(test_device()->packet_filter_state().enabled);
 }
 
 }  // namespace bt::hci

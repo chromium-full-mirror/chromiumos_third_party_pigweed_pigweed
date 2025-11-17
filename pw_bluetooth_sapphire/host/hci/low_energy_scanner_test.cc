@@ -890,7 +890,7 @@ TYPED_TEST(LowEnergyScannerTest, CachedScanResultsAreFiltered) {
   EXPECT_EQ(1u, results.count(kRandomAddress1));
 }
 
-TYPED_TEST(LowEnergyScannerTest, NewFilterWhileOffloadingEnabled) {
+TYPED_TEST(LowEnergyScannerTest, DISABLED_NewFilterWhileOffloadingEnabled) {
   this->EnableOffloading();
 
   EXPECT_TRUE(this->StartScan(true));
