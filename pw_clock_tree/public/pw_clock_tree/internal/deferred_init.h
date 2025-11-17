@@ -37,7 +37,7 @@ class DeferredInit {
   T& operator*() { return *object(); }
 
  private:
-  alignas(T) std::array<std::byte, sizeof(T)> storage_;
+  alignas(T) std::array<std::byte, sizeof(T)> storage_ = {};
   std::atomic<bool> constructed_ = false;
   sync::InterruptSpinLock construct_lock_;
 
