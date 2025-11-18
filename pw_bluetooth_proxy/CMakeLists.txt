@@ -40,6 +40,8 @@ pw_add_library(pw_bluetooth_proxy STATIC
     public/pw_bluetooth_proxy/internal/credit_based_flow_control_tx_engine.h
     public/pw_bluetooth_proxy/internal/credit_based_flow_control_rx_engine.h
     public/pw_bluetooth_proxy/internal/gatt_notify_channel_internal.h
+    public/pw_bluetooth_proxy/internal/gatt_notify_rx_engine.h
+    public/pw_bluetooth_proxy/internal/gatt_notify_tx_engine.h
     public/pw_bluetooth_proxy/internal/hci_transport.h
     public/pw_bluetooth_proxy/internal/l2cap_channel_manager.h
     public/pw_bluetooth_proxy/internal/l2cap_channel.h
@@ -88,6 +90,7 @@ pw_add_library(pw_bluetooth_proxy STATIC
     credit_based_flow_control_rx_engine.cc
     gatt_notify_channel.cc
     gatt_notify_channel_internal.cc
+    gatt_notify_tx_engine.cc
     l2cap_channel_manager.cc
     l2cap_channel.cc
     l2cap_coc.cc
@@ -182,6 +185,7 @@ pw_add_test(pw_bluetooth_proxy.pw_bluetooth_proxy_test
     pw_bluetooth_proxy_private/test_utils.h
     channel_proxy_test.cc
     gatt_notify_test.cc
+    gatt_notify_tx_engine_test.cc
     h4_packet_test.cc
     l2cap_coc_test.cc
     proxy_host_test.cc
