@@ -12,16 +12,6 @@
 # License for the specific language governing permissions and limitations under
 # the License.
 
-.cipd
-.presubmit
-.environment
-.vscode
-environment
-node_modules
-out
-bazel-bin
-bazel-out
-bazel-pigweed
-bazel-testlogs
-outbazel
-pw_web/node_modules
+packages:
+  - '.'
+  - '../pw_async2/codelab/webui'

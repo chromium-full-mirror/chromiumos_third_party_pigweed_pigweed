@@ -21,7 +21,12 @@ import sourceMaps from 'rollup-plugin-sourcemaps';
 export default [
   // // Bundle proto collection script
   {
-    input: path.join('pw_protobuf_compiler', 'ts', 'build_default_protos.ts'),
+    input: path.join(
+      '..',
+      'pw_protobuf_compiler',
+      'ts',
+      'build_default_protos.ts',
+    ),
     output: [
       {
         file: path.join('dist', 'bin', 'build_default_protos.js'),
@@ -30,19 +35,20 @@ export default [
       },
     ],
     plugins: [
-      pluginTypescript({
-        tsconfig: './tsconfig.json',
-        exclude: ['**/*_test.ts'],
-      }),
       resolve(),
       commonjs(),
+      pluginTypescript({
+        tsconfig: '../tsconfig.json',
+        include: ['**/*.ts', '../pw_protobuf_compiler/ts/**/*.ts'],
+        exclude: ['**/*_test.ts'],
+      }),
 
       // Resolve source maps to the original source
       sourceMaps(),
     ],
   },
   {
-    input: path.join('pw_protobuf_compiler', 'ts', 'build_cli.ts'),
+    input: path.join('..', 'pw_protobuf_compiler', 'ts', 'build_cli.ts'),
     output: [
       {
         file: path.join('dist', 'bin', 'pw_protobuf_compiler.js'),
@@ -51,12 +57,13 @@ export default [
       },
     ],
     plugins: [
-      pluginTypescript({
-        tsconfig: './tsconfig.json',
-        exclude: ['**/*_test.ts'],
-      }),
       resolve(),
       commonjs(),
+      pluginTypescript({
+        tsconfig: '../tsconfig.json',
+        include: ['**/*.ts', '../pw_protobuf_compiler/ts/**/*.ts'],
+        exclude: ['**/*_test.ts'],
+      }),
 
       // Resolve source maps to the original source
       sourceMaps(),

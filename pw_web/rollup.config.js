@@ -34,7 +34,23 @@ export default [
       },
     ],
     plugins: [
-      pluginTypescript({ tsconfig: './tsconfig.json' }),
+      pluginTypescript({
+        tsconfig: '../tsconfig.json',
+        include: [
+          'dist/protos/collection.ts',
+          '../pw_protobuf_compiler/ts/**/*.ts',
+        ],
+        compilerOptions: {
+          baseUrl: '.',
+          typeRoots: ['./node_modules/@types'],
+          paths: {
+            '*': ['node_modules/*'],
+            'pigweedjs/pw_*': ['../pw_*/ts'],
+            'pigweedjs/protos/*': ['./dist/protos/*'],
+            'pigweedjs/types/*': ['./ts/types/*'],
+          },
+        },
+      }),
       commonjs(),
       resolve(),
 
@@ -63,8 +79,19 @@ export default [
     plugins: [
       postcss({ plugins: [] }),
       pluginTypescript({
-        tsconfig: './tsconfig.json',
+        tsconfig: '../tsconfig.json',
         exclude: ['**/*_test.ts'],
+        include: ['ts/**/*.ts', 'log-viewer/src/**/*.ts', '../pw_*/ts/**/*.ts'],
+        compilerOptions: {
+          baseUrl: '.',
+          typeRoots: ['./node_modules/@types'],
+          paths: {
+            '*': ['node_modules/*'],
+            'pigweedjs/pw_*': ['../pw_*/ts'],
+            'pigweedjs/protos/*': ['./dist/protos/*'],
+            'pigweedjs/types/*': ['./ts/types/*'],
+          },
+        },
       }),
       nodePolyfills(),
       resolve(),
@@ -95,8 +122,19 @@ export default [
     plugins: [
       postcss({ plugins: [] }),
       pluginTypescript({
-        tsconfig: './tsconfig.json',
+        tsconfig: '../tsconfig.json',
         exclude: ['**/*_test.ts'],
+        include: ['ts/**/*.ts', 'log-viewer/src/**/*.ts', '../pw_*/ts/**/*.ts'],
+        compilerOptions: {
+          baseUrl: '.',
+          typeRoots: ['./node_modules/@types'],
+          paths: {
+            '*': ['node_modules/*'],
+            'pigweedjs/pw_*': ['../pw_*/ts'],
+            'pigweedjs/protos/*': ['./dist/protos/*'],
+            'pigweedjs/types/*': ['./ts/types/*'],
+          },
+        },
       }),
       nodePolyfills(),
       resolve(),
@@ -127,8 +165,19 @@ export default [
     ],
     plugins: [
       pluginTypescript({
-        tsconfig: './tsconfig.json',
+        tsconfig: '../tsconfig.json',
         exclude: ['**/*_test.ts'],
+        include: ['ts/**/*.ts', 'log-viewer/src/**/*.ts', '../pw_*/ts/**/*.ts'],
+        compilerOptions: {
+          baseUrl: '.',
+          typeRoots: ['./node_modules/@types'],
+          paths: {
+            '*': ['node_modules/*'],
+            'pigweedjs/pw_*': ['../pw_*/ts'],
+            'pigweedjs/protos/*': ['./dist/protos/*'],
+            'pigweedjs/types/*': ['./ts/types/*'],
+          },
+        },
       }),
       nodePolyfills(),
       resolve(),

@@ -12,12 +12,10 @@
 # License for the specific language governing permissions and limitations under
 # the License.
 
-load("@aspect_bazel_lib//lib:directory_path.bzl", "directory_path")
-load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_run_binary")
+load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
 load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
 load("@bazel_skylib//rules:native_binary.bzl", "native_binary")
 load("@hedron_compile_commands//:refresh_compile_commands.bzl", "refresh_compile_commands")
-load("@npm//:defs.bzl", "npm_link_all_packages")
 load("@pigweed//pw_build:compatibility.bzl", "incompatible_with_mcu")
 load("@rules_python//sphinxdocs:sphinx_docs_library.bzl", "sphinx_docs_library")
 
@@ -27,10 +25,10 @@ licenses(["notice"])
 exports_files(
     [
         "pigweed.json",
+        "tsconfig.json",
         # Needed for releasing //pw_bluetooth_sapphire/fuchsia/bt_host.
         "LICENSE",
         "PIGWEED_MODULES",
-        "tsconfig.json",
     ],
     visibility = [":__subpackages__"],
 )
@@ -190,125 +188,6 @@ sphinx_docs_library(
     visibility = [":__subpackages__"],
 )
 
-# NPM bundling via rollup
-npm_link_all_packages(name = "node_modules")
-
-directory_path(
-    name = "rollup_entry_point",
-    directory = "//:node_modules/rollup/dir",
-    path = "dist/bin/rollup",
-    target_compatible_with = incompatible_with_mcu(),
-)
-
-js_binary(
-    name = "rollup_bin",
-    entry_point = ":rollup_entry_point",
-    target_compatible_with = incompatible_with_mcu(),
-    visibility = [":__subpackages__"],
-)
-
-directory_path(
-    name = "prettier_entry_point",
-    directory = "//:node_modules/prettier/dir",
-    path = "bin/prettier.cjs",
-    target_compatible_with = incompatible_with_mcu(),
-    visibility = [":__subpackages__"],
-)
-
-js_binary(
-    name = "prettier",
-    entry_point = ":prettier_entry_point",
-    env = {
-        "BAZEL_BINDIR": ".",
-    },
-    target_compatible_with = incompatible_with_mcu(),
-    visibility = [":__subpackages__"],
-)
-
-filegroup(
-    name = "js_files",
-    srcs = glob([
-        "ts/**/*.ts",
-    ]) + [
-        "package.json",
-        "rollup.config.js",
-        "rollup-protos.config.js",
-        "tsconfig.json",
-    ],
-)
-
-js_run_binary(
-    name = "build_protos_builder",
-    srcs = [
-        ":js_files",
-        ":node_modules",
-        "//pw_hdlc/ts:js_files",
-        "//pw_protobuf_compiler/ts:js_files",
-        "//pw_status/ts:js_files",
-        "//pw_tokenizer/ts:js_files",
-    ],
-    outs = ["dist/bin/build_default_protos.js"],
-    args = ["-c rollup-protos.config.js"],
-    target_compatible_with = incompatible_with_mcu(),
-    tool = ":rollup_bin",
-)
-
-js_binary(
-    name = "build_protos_binary",
-    entry_point = ":build_protos_builder",
-    target_compatible_with = incompatible_with_mcu(),
-)
-
-js_run_binary(
-    name = "build_protos",
-    srcs = [
-        ":js_files",
-        ":node_modules",
-        "//pw_log:js_protos",
-        "//pw_protobuf:js_protos",
-        "//pw_protobuf_compiler/ts:js_files",
-        "//pw_rpc/ts:js_files",
-        "//pw_tokenizer/ts:js_files",
-        "//pw_transfer/ts:js_files",
-    ],
-    out_dirs = ["dist/protos"],
-    target_compatible_with = incompatible_with_mcu(),
-    tool = ":build_protos_binary",
-)
-
-js_run_binary(
-    name = "pw_web",
-    srcs = [
-        ":build_protos",
-        ":js_files",
-        ":node_modules",
-        "//pw_hdlc/ts:js_files",
-        "//pw_protobuf_compiler/ts:js_files",
-        "//pw_rpc/ts:js_files",
-        "//pw_status/ts:js_files",
-        "//pw_tokenizer/ts:js_files",
-        "//pw_transfer/ts:js_files",
-        "//pw_web:js_files",
-    ],
-    outs = [
-        "dist/index.mjs",
-        "dist/index.mjs.map",
-        "dist/index.umd.js",
-        "dist/index.umd.js.map",
-        "dist/logging.mjs",
-        "dist/logging.umd.js",
-        "dist/logging.umd.js.map",
-        "dist/proto_collection.umd.js",
-        "dist/proto_collection.umd.js.map",
-        "dist/pw_console.mjs",
-        "dist/pw_console.umd.js",
-        "dist/pw_console.umd.js.map",
-    ],
-    args = ["-c"],
-    target_compatible_with = incompatible_with_mcu(),
-    tool = ":rollup_bin",
-)
-
 filegroup(
     name = "clang_tidy_config",
     srcs = [".clang-tidy"],
@@ -318,4 +197,10 @@ filegroup(
 filegroup(
     name = "pylintrc",
     srcs = [".pylintrc"],
+)
+
+copy_to_bin(
+    name = "tsconfig",
+    srcs = ["tsconfig.json"],
+    visibility = ["//pw_web:__subpackages__"],
 )

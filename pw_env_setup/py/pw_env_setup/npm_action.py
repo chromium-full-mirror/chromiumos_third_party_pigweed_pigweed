@@ -49,8 +49,8 @@ def run_action(env=None):
     with env():
         npm = shutil.which('npm.cmd' if os.name == 'nt' else 'npm')
 
-        repo_root = os.environ.get('PW_PROJECT_ROOT') or os.environ.get(
-            'PW_ROOT'
+        repo_root = os.environ.get('PW_ROOT') or os.environ.get(
+            'PW_PROJECT_ROOT'
         )
 
         # TODO: b/323378974 - Better integrate NPM actions with pw_env_setup so
@@ -61,6 +61,8 @@ def run_action(env=None):
         npm_env['npm_config_cache'] = os.path.join(
             npm_env['_PW_ACTUAL_ENVIRONMENT_ROOT'], 'npm-cache'
         )
+
+        web_dir = Path(repo_root) / 'pw_web'
 
         subprocess.run(
             [
@@ -73,7 +75,7 @@ def run_action(env=None):
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             stdin=subprocess.DEVNULL,
-            cwd=repo_root,
+            cwd=web_dir,
             env=npm_env,
             check=True,
         )
@@ -93,7 +95,7 @@ def run_action(env=None):
                 ],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
-                cwd=repo_root,
+                cwd=web_dir,
                 env=npm_env,
                 check=True,
             )

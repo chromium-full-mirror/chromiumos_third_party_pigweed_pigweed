@@ -158,7 +158,7 @@ pw_py_importable_runfile(
 
 pw_py_importable_runfile(
     name = "prettier_runfiles",
-    src = "//:prettier",
+    src = "//pw_web:prettier",
     executable = True,
     tags = ["manual"],
     visibility = ["//visibility:private"],

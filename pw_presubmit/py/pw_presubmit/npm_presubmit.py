@@ -21,8 +21,9 @@ from pw_presubmit.presubmit_context import PresubmitContext
 
 def npm_test(ctx: PresubmitContext) -> None:
     """Run npm install and npm test in Pigweed root to test all web modules"""
-    call('npm', "install", cwd=ctx.root)
-    call('npm', "test", cwd=ctx.root)
+    web_dir = ctx.root / 'pw_web'
+    call('npm', "install", cwd=web_dir)
+    call('npm', "test", cwd=web_dir)
 
 
 def vscode_test(ctx: PresubmitContext) -> None:

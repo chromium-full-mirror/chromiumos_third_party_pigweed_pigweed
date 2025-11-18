@@ -538,11 +538,20 @@ node.toolchain(node_version = "20.12.1")
 npm = use_extension("@aspect_rules_js//npm:extensions.bzl", "npm", dev_dependency = True)
 npm.npm_translate_lock(
     name = "npm",
+    data = [
+        "//:package.json",
+        "//pw_async2/codelab/webui:package.json",
+        "//pw_web:package.json",
+        "//pw_web:pnpm-workspace.yaml",
+    ],
     # Uncomment the following when pnpm lock file needs to be updated.
     # update_pnpm_lock = True,
-    pnpm_lock = "//:pnpm-lock.yaml",
+    pnpm_lock = "//pw_web:pnpm-lock.yaml",
 )
 use_repo(npm, "npm")
+
+pnpm = use_extension("@aspect_rules_js//npm:extensions.bzl", "pnpm")
+use_repo(pnpm, "pnpm")
 
 # Setup Fuchsia SDK.
 # ==================

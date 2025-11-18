@@ -16,13 +16,15 @@ import { pathsToModuleNameMapper } from 'ts-jest';
 import type { InitialOptionsTsJest } from 'ts-jest/dist/types';
 
 const paths = {
-  'pigweedjs/pw_*': ['./pw_*/ts'],
+  'pigweedjs/pw_*': ['../pw_*/ts'],
   'pigweedjs/protos/*': ['./dist/protos/*'],
 };
 const config: InitialOptionsTsJest = {
   preset: 'ts-jest/presets/js-with-ts',
   testRegex: '(/__tests__/.*|(\\_|/)(test|spec))\\.tsx?$',
   moduleNameMapper: pathsToModuleNameMapper(paths, { prefix: '<rootDir>/' }),
+  setupFilesAfterEnv: ['./jest.polyfills.js'],
+  transformIgnorePatterns: ['/node_modules/(?!rxjs)'],
 };
 
 export default config;

@@ -25,7 +25,7 @@ import {
   WebSerial,
 } from '../dist/index.umd';
 
-import { ProtoCollection } from '../dist/protos/collection.umd';
+import { ProtoCollection } from '../dist/proto_collection.umd';
 import {
   createLogViewer,
   MockLogSource,

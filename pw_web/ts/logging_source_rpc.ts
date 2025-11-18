@@ -12,8 +12,8 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 
-import { Detokenizer } from '../pw_tokenizer/ts';
-import { LogSource } from '../pw_web/log-viewer/src/log-source';
+import { Detokenizer } from '../../pw_tokenizer/ts';
+import { LogSource } from '../log-viewer/src/log-source';
 import { Device } from './device';
 import { LogEntry } from './logging';
 
@@ -22,7 +22,7 @@ export class PigweedRPCLogSource extends LogSource {
   private logs: LogEntry[] = [];
   private call: any;
   constructor(device: Device, tokenDB: string | undefined) {
-    super();
+    super('Pigweed RPC');
     if (tokenDB && tokenDB.length > 0) {
       this.detokenizer = new Detokenizer(tokenDB);
     }
@@ -31,6 +31,14 @@ export class PigweedRPCLogSource extends LogSource {
         .getEntriesList()
         .forEach((entry: any) => this.processFrame(entry.getMessage()));
     });
+  }
+
+  start() {
+    // Implementation not needed as this is controlled externally.
+  }
+
+  stop() {
+    // Implementation not needed as this is controlled externally.
   }
 
   destroy() {

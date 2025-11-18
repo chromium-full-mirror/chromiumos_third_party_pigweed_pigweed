@@ -12,11 +12,12 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 
+/* eslint-env node */
+/* eslint-disable @typescript-eslint/no-var-requires */
 'use strict';
 
 const path = require('path');
 const NodePolyfillPlugin = require('node-polyfill-webpack-plugin');
-const webpack = require('webpack');
 
 /**@type {import('webpack').Configuration}*/
 const configForVsCodeExt = {

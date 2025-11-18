@@ -1,4 +1,4 @@
-// Copyright 2023 The Pigweed Authors
+// Copyright 2022 The Pigweed Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License"); you may not
 // use this file except in compliance with the License. You may obtain a copy of
@@ -12,15 +12,11 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 
-import '../pw_web/log-viewer/src/index.css';
-
-export { LogSource } from '../pw_web/log-viewer/src/log-source';
-export { MockLogSource } from '../pw_web/log-viewer/src/custom/mock-log-source';
-export { LogViewer } from '../pw_web/log-viewer/src/components/log-viewer';
-export { createLogViewer } from '../pw_web/log-viewer/src/createLogViewer';
-export {
-  LogEntry,
-  Field,
-  Severity,
-} from '../pw_web/log-viewer/src/shared/interfaces';
-export { PigweedRPCLogSource } from './logging_source_rpc';
+export * as pw_hdlc from '../../pw_hdlc/ts';
+export * as pw_rpc from '../../pw_rpc/ts';
+export * as pw_status from '../../pw_status/ts';
+export * as pw_tokenizer from '../../pw_tokenizer/ts';
+export * as pw_protobuf_compiler from '../../pw_protobuf_compiler/ts';
+export * as pw_transfer from '../../pw_transfer/ts';
+export * as WebSerial from './transport/web_serial_transport';
+export { Device } from './device';

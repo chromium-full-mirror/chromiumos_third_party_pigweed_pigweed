@@ -12,7 +12,7 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 
-import '../pw_web/log-viewer/src/index.css';
-import '../pw_web/log-viewer/src/console.css';
+import '../log-viewer/src/index.css';
+import '../log-viewer/src/console.css';
 
-export { renderPWConsole } from '../pw_web/log-viewer/src/console';
+export { renderPWConsole } from '../log-viewer/src/console';
