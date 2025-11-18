@@ -33,6 +33,10 @@ pw_add_library(pw_bluetooth_proxy STATIC
     public/pw_bluetooth_proxy/h4_packet.h
     public/pw_bluetooth_proxy/internal/acl_data_channel.h
     public/pw_bluetooth_proxy/internal/basic_l2cap_channel_internal.h
+    public/pw_bluetooth_proxy/internal/rx_engine.h
+    public/pw_bluetooth_proxy/internal/tx_engine.h
+    public/pw_bluetooth_proxy/internal/basic_mode_tx_engine.h
+    public/pw_bluetooth_proxy/internal/basic_mode_rx_engine.h
     public/pw_bluetooth_proxy/internal/gatt_notify_channel_internal.h
     public/pw_bluetooth_proxy/internal/hci_transport.h
     public/pw_bluetooth_proxy/internal/l2cap_channel_manager.h
@@ -76,6 +80,8 @@ pw_add_library(pw_bluetooth_proxy STATIC
     acl_data_channel.cc
     basic_l2cap_channel.cc
     basic_l2cap_channel_internal.cc
+    basic_mode_tx_engine.cc
+    basic_mode_rx_engine.cc
     gatt_notify_channel.cc
     gatt_notify_channel_internal.cc
     l2cap_channel_manager.cc
@@ -178,6 +184,8 @@ pw_add_test(pw_bluetooth_proxy.pw_bluetooth_proxy_test
     recombiner_test.cc
     test_utils.cc
     utils_test.cc
+    basic_mode_tx_engine_test.cc
+    basic_mode_rx_engine_test.cc
 # LINT.ThenChange(bt-proxy.bzl, BUILD.gn)
 
   GROUPS

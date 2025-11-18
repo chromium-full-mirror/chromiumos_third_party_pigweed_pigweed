@@ -43,6 +43,10 @@ _pw_bluetooth_proxy_public = [
   "public/pw_bluetooth_proxy/h4_packet.h",
   "public/pw_bluetooth_proxy/internal/acl_data_channel.h",
   "public/pw_bluetooth_proxy/internal/basic_l2cap_channel_internal.h",
+  "public/pw_bluetooth_proxy/internal/rx_engine.h",
+  "public/pw_bluetooth_proxy/internal/tx_engine.h",
+  "public/pw_bluetooth_proxy/internal/basic_mode_tx_engine.h",
+  "public/pw_bluetooth_proxy/internal/basic_mode_rx_engine.h",
   "public/pw_bluetooth_proxy/internal/gatt_notify_channel_internal.h",
   "public/pw_bluetooth_proxy/internal/hci_transport.h",
   "public/pw_bluetooth_proxy/internal/l2cap_channel.h",
@@ -107,6 +111,8 @@ _pw_bluetooth_proxy_sources = [
   "acl_data_channel.cc",
   "basic_l2cap_channel.cc",
   "basic_l2cap_channel_internal.cc",
+  "basic_mode_rx_engine.cc",
+  "basic_mode_tx_engine.cc",
   "gatt_notify_channel.cc",
   "gatt_notify_channel_internal.cc",
   "l2cap_channel.cc",
@@ -205,6 +211,8 @@ _pw_bluetooth_proxy_test_deps = [
 ]
 
 _pw_bluetooth_proxy_test_sources = [
+  "basic_mode_rx_engine_test.cc",
+  "basic_mode_tx_engine_test.cc",
   "channel_proxy_test.cc",
   "gatt_notify_test.cc",
   "h4_packet_test.cc",

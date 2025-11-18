@@ -28,6 +28,8 @@ cc_library_static {
         "acl_data_channel.cc",
         "basic_l2cap_channel.cc",
         "basic_l2cap_channel_internal.cc",
+        "basic_mode_tx_engine.cc",
+        "basic_mode_rx_engine.cc",
         "gatt_notify_channel.cc",
         "gatt_notify_channel_internal.cc",
         "l2cap_channel.cc",
