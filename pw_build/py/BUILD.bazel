@@ -201,8 +201,11 @@ pw_py_binary(
 
 pw_py_binary(
     name = "pigweed_build",
-    srcs = ["pigweed_upstream_build/main.py"],
-    main = "pigweed_upstream_build/main.py",
+    srcs = [
+        "pigweed_upstream_build/__init__.py",
+        "pigweed_upstream_build/__main__.py",
+    ],
+    main = "pigweed_upstream_build/__main__.py",
     deps = [
         ":presubmit_runner",
         ":pw_project_builder",

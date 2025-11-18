@@ -110,8 +110,6 @@ ProjectBuilder
 ==============
 .. autoclass:: pw_build.project_builder.ProjectBuilder
 
-.. autofunction:: pw_build.project_builder.run_builds
-
 
 .. _module-pw_build-project_builder-cli:
 
@@ -119,10 +117,10 @@ ProjectBuilder
 Upstream ``pw build`` Command-Line Interface Usage
 --------------------------------------------------
 .. argparse::
-   :module: pigweed_upstream_build.main
+   :module: pigweed_upstream_build.__main__
    :func: _build_argument_parser
    :prog: pw build
 
    This is the command line interface provided by the ``pw build`` command
-   (:cs:`main.py <main:pw_build/py/pigweed_upstream_build/main.py>`)
-   in upstream Pigweed.
+   in upstream Pigweed:
+   :cs:`__main__.py <main:pw_build/py/pigweed_upstream_build/__main__.py>`

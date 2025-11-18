@@ -106,7 +106,7 @@ def pigweed_environment() -> envparse.EnvNamespace:
 
 _BAZEL_PROJECT_ROOT_ALLOW_LIST = [
     AllowedCaller(
-        filename='pw_build/py/pigweed_upstream_build/main.py',
+        filename='pw_build/py/pigweed_upstream_build/__main__.py',
         name='__main__',
         function='<module>',
     ),

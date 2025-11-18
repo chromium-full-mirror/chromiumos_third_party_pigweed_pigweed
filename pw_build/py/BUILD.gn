@@ -137,7 +137,8 @@ pw_python_package("pigweed_upstream_build") {
     }
   }
   sources = [
-    "pigweed_upstream_build/main.py",
+    "pigweed_upstream_build/__init__.py",
+    "pigweed_upstream_build/__main__.py",
     "pw_build/project_builder_presubmit_runner.py",
   ]
   python_deps = [
