@@ -20,7 +20,7 @@
 #include <mutex>
 
 #include "pw_assert/check.h"
-#include "pw_async2/dispatcher_base.h"
+#include "pw_async2/dispatcher.h"
 #include "pw_async2/internal/config.h"
 #include "pw_log/log.h"
 #include "pw_thread/sleep.h"
@@ -92,8 +92,7 @@ bool Task::TryDeregister() {
 
   // Wake the dispatcher up if this was the last task so that it can see that
   // all tasks have completed.
-  if (dispatcher_->woken_.empty() && dispatcher_->sleeping_.empty() &&
-      dispatcher_->wants_wake_) {
+  if (dispatcher_->woken_.empty() && dispatcher_->sleeping_.empty()) {
     dispatcher_->Wake();
   }
   dispatcher_ = nullptr;
@@ -101,22 +100,22 @@ bool Task::TryDeregister() {
 }
 
 // Called by the dispatcher to run this task.
-Task::RunResult Task::RunInDispatcher(Dispatcher& dispatcher) {
-  state_ = State::kRunning;
+Task::RunResult Task::RunInDispatcher() {
+  PW_LOG_DEBUG("Dispatcher running task " PW_LOG_TOKEN_FMT() ":%p",
+               name_,
+               static_cast<const void*>(this));
 
   // The task is pended without the lock held.
-  impl::dispatcher_lock().unlock();
-
   bool complete;
   bool requires_waker;
   {
     Waker waker(*this);
-    Context context(dispatcher, waker);
+    Context context(GetDispatcherWhileRunning(), waker);
     complete = Pend(context).IsReady();
     requires_waker = context.requires_waker_;
   }
 
-  impl::dispatcher_lock().lock();
+  std::lock_guard lock(impl::dispatcher_lock());
 
   if (complete || state_ == State::kDeregisteredButRunning) {
     switch (state_) {
@@ -141,6 +140,9 @@ Task::RunResult Task::RunInDispatcher(Dispatcher& dispatcher) {
     dispatcher_ = nullptr;
     RemoveAllWakersLocked();
 
+    PW_LOG_DEBUG("Task " PW_LOG_TOKEN_FMT() ":%p completed",
+                 name_,
+                 static_cast<const void*>(this));
     return owned_by_dispatcher_ ? kCompletedNeedsDestroy : kCompleted;
   }
 
@@ -163,6 +165,10 @@ Task::RunResult Task::RunInDispatcher(Dispatcher& dispatcher) {
       dispatcher_ = nullptr;
     }
   }
+  PW_LOG_DEBUG(
+      "Task " PW_LOG_TOKEN_FMT() ":%p finished its run and is still pending",
+      name_,
+      static_cast<const void*>(this));
   return kActive;
 }
 

@@ -29,7 +29,7 @@ namespace pw::async2 {
 /// Generates a token for use as a task name.
 #define PW_ASYNC_TASK_NAME(name) PW_LOG_TOKEN_EXPR("pw_async2", name)
 
-class NativeDispatcherBase;
+class Dispatcher;
 
 /// A task which may complete one or more asynchronous operations.
 ///
@@ -128,7 +128,6 @@ class Task : public IntrusiveList<Task>::Item {
 
  private:
   friend class Dispatcher;
-  friend class NativeDispatcherBase;
   friend class OwnedTask;
   friend class Waker;
 
@@ -167,7 +166,7 @@ class Task : public IntrusiveList<Task>::Item {
   virtual Poll<> DoPend(Context&) = 0;
 
   // Sets this task to use the provided dispatcher.
-  void PostTo(NativeDispatcherBase& dispatcher)
+  void PostTo(Dispatcher& dispatcher)
       PW_EXCLUSIVE_LOCKS_REQUIRED(impl::dispatcher_lock()) {
     PW_DASSERT(state_ == State::kUnposted);
     PW_DASSERT(dispatcher_ == nullptr);
@@ -182,26 +181,30 @@ class Task : public IntrusiveList<Task>::Item {
     RemoveAllWakersLocked();
   }
 
-  /// Result from `RunInDispatcher`.
+  void MarkRunning() PW_EXCLUSIVE_LOCKS_REQUIRED(impl::dispatcher_lock()) {
+    state_ = State::kRunning;
+  }
+
+  // Result from `RunInDispatcher`. This is a superset of
+  // Dispatcher::RunTaskResult, which merges kCompletedNeedsDestroy into
+  // kCompleted.
   enum RunResult {
-    /// The task is still posted to the dispatcher.
+    // The task is still posted to the dispatcher.
     kActive,
 
-    /// The task was removed from the dispatcher by another thread.
+    // The task was removed from the dispatcher by another thread.
     kDeregistered,
 
-    /// The task finished running.
+    // The task finished running.
     kCompleted,
 
-    /// The task finished running and must be deleted by the dispatcher.
+    // The task finished running and must be deleted by the dispatcher.
     kCompletedNeedsDestroy,
   };
 
-  // Called by the dispatcher to run this task.
-  // TODO: b/456480489 - remove the unnecessary dispatcher argument when
-  //     Dispatcher and NativeDispatcherBase are merged.
-  RunResult RunInDispatcher(Dispatcher& dispatcher)
-      PW_EXCLUSIVE_LOCKS_REQUIRED(impl::dispatcher_lock());
+  // Called by the dispatcher to run this task. The task has already been marked
+  // as running.
+  RunResult RunInDispatcher() PW_LOCKS_EXCLUDED(impl::dispatcher_lock());
 
   // Called by the dispatcher to wake this task. Returns whether the task
   // actually needed to be woken.
@@ -224,6 +227,10 @@ class Task : public IntrusiveList<Task>::Item {
   void RemoveWakerLocked(Waker&)
       PW_EXCLUSIVE_LOCKS_REQUIRED(impl::dispatcher_lock());
 
+  Dispatcher& GetDispatcherWhileRunning() PW_NO_LOCK_SAFETY_ANALYSIS {
+    return *dispatcher_;
+  }
+
   enum class State : unsigned char {
     kUnposted,
     kRunning,
@@ -243,8 +250,7 @@ class Task : public IntrusiveList<Task>::Item {
   //
   // This value must be cleared by the dispatcher upon destruction in order to
   // prevent null access.
-  NativeDispatcherBase* dispatcher_ PW_GUARDED_BY(impl::dispatcher_lock()) =
-      nullptr;
+  Dispatcher* dispatcher_ PW_GUARDED_BY(impl::dispatcher_lock()) = nullptr;
 
   // Linked list of `Waker` s that may awaken this `Task`.
   IntrusiveForwardList<Waker> wakers_ PW_GUARDED_BY(impl::dispatcher_lock());

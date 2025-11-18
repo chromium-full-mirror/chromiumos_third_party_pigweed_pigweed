@@ -47,17 +47,15 @@ pw_add_test(pw_async2.poll_test
     pw_async2.testing
 )
 
-pw_add_facade(pw_async2.dispatcher STATIC
-  BACKEND
-    pw_async2.dispatcher_BACKEND
+pw_add_library(pw_async2.dispatcher STATIC
   HEADERS
     public/pw_async2/context.h
     public/pw_async2/dispatcher.h
-    public/pw_async2/dispatcher_base.h
     public/pw_async2/future.h
     public/pw_async2/internal/config.h
     public/pw_async2/lock.h
     public/pw_async2/owned_task.h
+    public/pw_async2/runnable_dispatcher.h
     public/pw_async2/task.h
     public/pw_async2/waker.h
   PUBLIC_INCLUDES
@@ -70,7 +68,6 @@ pw_add_facade(pw_async2.dispatcher STATIC
     pw_containers.intrusive_list
     pw_log
     pw_log.args
-    pw_metric
     pw_sync.interrupt_spin_lock
     pw_sync.lock_annotations
     pw_tokenizer
@@ -81,18 +78,22 @@ pw_add_facade(pw_async2.dispatcher STATIC
     pw_thread.sleep
   SOURCES
     context.cc
-    dispatcher_base.cc
+    dispatcher.cc
+    runnable_dispatcher.cc
     task.cc
     waker.cc
 )
 
-pw_add_library(pw_async2.testing INTERFACE
+pw_add_library(pw_async2.testing STATIC
   HEADERS
     public/pw_async2/dispatcher_for_test.h
   PUBLIC_DEPS
     pw_async2.dispatcher
+    ${pw_async2.dispatcher_for_test_BACKEND}
   PUBLIC_INCLUDES
     public
+  SOURCES
+    dispatcher_for_test.cc
 )
 
 pw_add_test(pw_async2.dispatcher_test
@@ -112,6 +113,15 @@ pw_add_library(pw_async2.basic_dispatcher INTERFACE
     pw_sync.thread_notification
   PUBLIC_INCLUDES
     public
+)
+
+pw_add_library(pw_async2.basic_dispatcher_for_test INTERFACE
+  HEADERS
+    dispatcher_for_test_public_overrides/pw_async2_backend/native_dispatcher_for_test.h
+  PUBLIC_DEPS
+    pw_async2.basic_dispatcher
+  PUBLIC_INCLUDES
+    dispatcher_for_test_public_overrides
 )
 
 pw_add_library(pw_async2.pendable INTERFACE

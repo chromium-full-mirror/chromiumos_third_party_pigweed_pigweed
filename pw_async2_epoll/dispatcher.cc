@@ -12,7 +12,7 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 
-#include "pw_async2/dispatcher_native.h"
+#include "pw_async2_epoll/dispatcher.h"
 
 #include <fcntl.h>
 #include <sys/epoll.h>
@@ -23,17 +23,16 @@
 
 #include "pw_assert/check.h"
 #include "pw_log/log.h"
-#include "pw_preprocessor/compiler.h"
 #include "pw_status/status.h"
 
-namespace pw::async2::backend {
+namespace pw::async2 {
 namespace {
 
 constexpr char kNotificationSignal = 'c';
 
 }  // namespace
 
-Status NativeDispatcher::NativeInit() {
+Status EpollDispatcher::NativeInit() {
   epoll_fd_ = epoll_create1(0);
   if (epoll_fd_ == -1) {
     PW_LOG_ERROR("Failed to open epoll: %s", std::strerror(errno));
@@ -60,36 +59,7 @@ Status NativeDispatcher::NativeInit() {
   return OkStatus();
 }
 
-Poll<> NativeDispatcher::DoRunUntilStalled(Dispatcher& dispatcher) {
-  while (true) {
-    RunTaskResult result = RunOneTask(dispatcher);
-    if (result == kNoTasks) {
-      return Ready();
-    }
-    if (result == kNoReadyTasks) {
-      return Pending();
-    }
-  }
-}
-
-void NativeDispatcher::DoRunToCompletion(Dispatcher& dispatcher) {
-  while (true) {
-    RunTaskResult result = RunOneTask(dispatcher);
-    if (result == kNoTasks) {
-      return;
-    }
-    if (result != kReadyTasks) {
-      SleepInfo sleep_info = AttemptRequestWake(/*allow_empty=*/false);
-      if (sleep_info.should_sleep()) {
-        if (!NativeWaitForWake().ok()) {
-          break;
-        }
-      }
-    }
-  }
-}
-
-Status NativeDispatcher::NativeWaitForWake() {
+Status EpollDispatcher::NativeWaitForWake() {
   std::array<epoll_event, kMaxEventsToProcessAtOnce> events;
 
   int num_events =
@@ -105,7 +75,7 @@ Status NativeDispatcher::NativeWaitForWake() {
   }
 
   for (int i = 0; i < num_events; ++i) {
-    epoll_event& event = events[i];
+    epoll_event& event = events[static_cast<size_t>(i)];
     if (event.data.fd == wait_fd_) {
       // Consume the wake notification.
       char unused;
@@ -137,8 +107,10 @@ Status NativeDispatcher::NativeWaitForWake() {
   return OkStatus();
 }
 
-Status NativeDispatcher::NativeRegisterFileDescriptor(int fd,
-                                                      FileDescriptorType type) {
+void EpollDispatcher::DoWaitForWake() { PW_CHECK_OK(NativeWaitForWake()); }
+
+Status EpollDispatcher::NativeRegisterFileDescriptor(int fd,
+                                                     FileDescriptorType type) {
   epoll_event event;
   event.events = EPOLLET;
   event.data.fd = fd;
@@ -158,7 +130,7 @@ Status NativeDispatcher::NativeRegisterFileDescriptor(int fd,
   return OkStatus();
 }
 
-Status NativeDispatcher::NativeUnregisterFileDescriptor(int fd) {
+Status EpollDispatcher::NativeUnregisterFileDescriptor(int fd) {
   epoll_event event;
   event.data.fd = fd;
   if (epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, fd, &event) == -1) {
@@ -169,7 +141,7 @@ Status NativeDispatcher::NativeUnregisterFileDescriptor(int fd) {
   return OkStatus();
 }
 
-void NativeDispatcher::DoWake() {
+void EpollDispatcher::DoWake() {
   // Perform a write to unblock the waiting dispatcher.
   //
   // We ignore the result of the write, since nonblocking writes can
@@ -179,4 +151,4 @@ void NativeDispatcher::DoWake() {
   write(notify_fd_, &kNotificationSignal, 1);
 }
 
-}  // namespace pw::async2::backend
+}  // namespace pw::async2

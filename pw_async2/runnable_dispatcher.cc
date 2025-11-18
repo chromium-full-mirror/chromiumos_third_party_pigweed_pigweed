@@ -11,27 +11,22 @@
 // WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 // License for the specific language governing permissions and limitations under
 // the License.
-#pragma once
 
 #include "pw_async2/runnable_dispatcher.h"
-#include "pw_sync/thread_notification.h"
 
 namespace pw::async2 {
 
-/// @submodule{pw_async2,dispatcher}
+void RunnableDispatcher::RunToCompletion() {
+  while (RunUntilStalled()) {
+    WaitForWake();
+  }
+}
 
-/// Simple `RunnableDispatcher` implementation that uses a
-/// `pw::sync::ThreadNotification` to wait for tasks to wake.
-class BasicDispatcher final : public RunnableDispatcher {
- public:
-  BasicDispatcher() = default;
-
- private:
-  void DoWake() override { notify_.release(); }
-
-  void DoWaitForWake() override { notify_.acquire(); }
-
-  pw::sync::ThreadNotification notify_;
-};
+[[noreturn]] void RunnableDispatcher::RunForever() {
+  while (true) {
+    RunUntilStalled();
+    WaitForWake();
+  }
+}
 
 }  // namespace pw::async2

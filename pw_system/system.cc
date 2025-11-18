@@ -84,12 +84,14 @@ void PostTaskFunctionOrCrash(Func&& func) {
   PW_CHECK(PostTaskFunction(std::forward<Func>(func)));
 }
 
-}  // namespace
-
-async2::Dispatcher& AsyncCore::dispatcher() {
-  static async2::Dispatcher dispatcher;
+async2::RunnableDispatcher& runnable_dispatcher() {
+  static async2::BasicDispatcher dispatcher;
   return dispatcher;
 }
+
+}  // namespace
+
+async2::Dispatcher& AsyncCore::dispatcher() { return runnable_dispatcher(); }
 
 Allocator& AsyncCore::allocator() {
   alignas(
@@ -135,7 +137,7 @@ void AsyncCore::Init(channel::ByteReaderWriter& io_channel) {
 
   PW_CONSTINIT static ThreadContextFor<kDispatcherThread> dispatcher_thread;
   Thread(dispatcher_thread, [] {
-    System().dispatcher().RunToCompletion();
+    runnable_dispatcher().RunForever();
   }).detach();
 
   PW_CONSTINIT static ThreadContextFor<kWorkQueueThread> work_queue_thread;

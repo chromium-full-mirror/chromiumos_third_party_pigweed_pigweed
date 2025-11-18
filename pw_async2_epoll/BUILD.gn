@@ -17,22 +17,33 @@ import("//build_overrides/pigweed.gni")
 import("$dir_pw_build/target_types.gni")
 import("$dir_pw_unit_test/test.gni")
 
-config("backend_config") {
-  include_dirs = [ "public_overrides" ]
+config("public_include_path") {
+  include_dirs = [ "public" ]
   visibility = [ ":*" ]
 }
 
-# This target provides a backend for the `$dir_pw_async:dispatcher` facade.
-pw_source_set("dispatcher_backend") {
-  public_configs = [ ":backend_config" ]
+pw_source_set("pw_async2_epoll") {
+  public_configs = [ ":public_include_path" ]
   public_deps = [
-    "$dir_pw_assert:check",
-    "$dir_pw_async2:dispatcher.facade",
+    "$dir_pw_async2:dispatcher",
     "$dir_pw_async2:poll",
+    dir_pw_assert,
+    dir_pw_status,
   ]
   deps = [ dir_pw_log ]
-  public = [ "public_overrides/pw_async2/dispatcher_native.h" ]
-  sources = [ "dispatcher_native.cc" ]
+  public = [ "public/pw_async2_epoll/dispatcher.h" ]
+  sources = [ "dispatcher.cc" ]
+}
+
+config("dispatcher_for_test_public_include_path") {
+  include_dirs = [ "dispatcher_for_test_public_overrides" ]
+  visibility = [ ":*" ]
+}
+
+pw_source_set("dispatcher_for_test") {
+  public_configs = [ ":dispatcher_for_test_public_include_path" ]
+  public = [ "dispatcher_for_test_public_overrides/pw_async2_backend/native_dispatcher_for_test.h" ]
+  public_deps = [ ":pw_async2_epoll" ]
 }
 
 pw_test_group("tests") {

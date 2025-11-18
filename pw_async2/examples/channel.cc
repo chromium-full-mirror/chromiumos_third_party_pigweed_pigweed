@@ -17,7 +17,7 @@
 #include "pw_allocator/testing.h"
 #include "pw_async2/coro.h"
 #include "pw_async2/coro_or_else_task.h"
-#include "pw_async2/dispatcher.h"
+#include "pw_async2/dispatcher_for_test.h"
 #include "pw_async2/try.h"
 #include "pw_containers/vector.h"
 #include "pw_unit_test/framework.h"
@@ -106,7 +106,7 @@ TEST(Channel, Manual) {
   Producer producer(std::move(sender));
   Consumer consumer(std::move(receiver));
 
-  pw::async2::Dispatcher dispatcher;
+  pw::async2::DispatcherForTest dispatcher;
 
   dispatcher.Post(producer);
   dispatcher.Post(consumer);
@@ -149,7 +149,7 @@ Coro<pw::Status> CoroConsumer(CoroContext&,
 
 TEST(Channel, Coro) {
   pw::allocator::test::AllocatorForTest<1024> alloc;
-  pw::async2::Dispatcher dispatcher;
+  pw::async2::DispatcherForTest dispatcher;
   pw::async2::CoroContext coro_cx(alloc);
 
   pw::async2::ChannelStorage<int, 1> storage;

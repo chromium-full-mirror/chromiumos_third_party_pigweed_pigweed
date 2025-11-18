@@ -166,8 +166,8 @@ class [[deprecated("Use future-based Select instead")]] Selector {
         return PendFrom<kTupleIndex + 1>(cx, has_active_pendable);
       }
 
-      using value_type =
-          PendOutputOf<std::tuple_element_t<kTupleIndex, decltype(pendables_)>>;
+      using value_type = internal::PendOutputOf<
+          std::tuple_element_t<kTupleIndex, decltype(pendables_)>>;
       Poll<value_type> result = pendable.Pend(cx);
 
       if (result.IsReady()) {

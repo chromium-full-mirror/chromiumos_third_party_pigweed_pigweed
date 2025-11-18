@@ -15,6 +15,7 @@
 import("//build_overrides/pigweed.gni")
 
 import("$dir_pigweed/build_overrides/pi_pico.gni")
+
 import("$dir_pw_async2/backend.gni")
 import("$dir_pw_build/target_types.gni")
 import("$dir_pw_thread/backend.gni")
@@ -87,7 +88,7 @@ pw_test("forwarding_channel_test") {
     "$dir_pw_multibuf:simple_allocator",
     dir_pw_preprocessor,
   ]
-  enable_if = pw_async2_DISPATCHER_BACKEND != ""
+  enable_if = pw_async2_DISPATCHER_FOR_TEST_BACKEND != ""
 }
 
 pw_source_set("loopback_channel") {
@@ -108,7 +109,7 @@ pw_test("loopback_channel_test") {
     "$dir_pw_multibuf:allocator_async",
     "$dir_pw_multibuf:testing",
   ]
-  enable_if = pw_async2_DISPATCHER_BACKEND != ""
+  enable_if = pw_async2_DISPATCHER_FOR_TEST_BACKEND != ""
 }
 
 pw_source_set("epoll_channel") {
@@ -135,8 +136,8 @@ pw_test("epoll_channel_test") {
     "$dir_pw_thread:thread",
     "$dir_pw_thread_stl:thread",
   ]
-  enable_if =
-      pw_async2_DISPATCHER_BACKEND == "$dir_pw_async2_epoll:dispatcher_backend"
+  enable_if = pw_async2_DISPATCHER_FOR_TEST_BACKEND ==
+              "$dir_pw_async2_epoll:dispatcher_backend"
 }
 
 if (pw_build_EXECUTABLE_TARGET_TYPE == "pico_executable") {
@@ -187,8 +188,9 @@ pw_test("stream_channel_test") {
     "$dir_pw_unit_test",
     dir_pw_stream,
   ]
-  enable_if = host_os != "win" && pw_async2_DISPATCHER_BACKEND != "" &&
-              pw_thread_THREAD_BACKEND != ""
+  enable_if = host_os != "win" && pw_async2_DISPATCHER_FOR_TEST_BACKEND != "" &&
+              pw_thread_THREAD_BACKEND != "" &&
+              pw_thread_TEST_THREAD_CONTEXT_BACKEND != ""
 }
 
 pw_test_group("tests") {
@@ -213,7 +215,7 @@ pw_test("channel_test") {
     "$dir_pw_multibuf:allocator_async",
     "$dir_pw_multibuf:simple_allocator",
   ]
-  enable_if = pw_async2_DISPATCHER_BACKEND != ""
+  enable_if = pw_async2_DISPATCHER_FOR_TEST_BACKEND != ""
   negative_compilation_tests = true
 }
 
@@ -227,7 +229,7 @@ pw_test("packet_channel_test") {
     "$dir_pw_unit_test",
     "$pw_external_fuchsia:stdcompat",
   ]
-  enable_if = pw_async2_DISPATCHER_BACKEND != ""
+  enable_if = pw_async2_DISPATCHER_FOR_TEST_BACKEND != ""
   negative_compilation_tests = true
 }
 
@@ -257,7 +259,7 @@ pw_test("test_packet_channel_test") {
     "$dir_pw_async2:testing",
     dir_pw_result,
   ]
-  enable_if = pw_async2_DISPATCHER_BACKEND != ""
+  enable_if = pw_async2_DISPATCHER_FOR_TEST_BACKEND != ""
 }
 
 pw_source_set("packet_proxy") {
@@ -288,5 +290,5 @@ pw_test("packet_proxy_test") {
     "$dir_pw_async2:pend_func_task",
     "$dir_pw_async2:testing",
   ]
-  enable_if = pw_async2_DISPATCHER_BACKEND != ""
+  enable_if = pw_async2_DISPATCHER_FOR_TEST_BACKEND != ""
 }

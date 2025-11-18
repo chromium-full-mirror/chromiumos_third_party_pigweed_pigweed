@@ -20,13 +20,14 @@ import("$dir_pigweed/third_party/nanopb/nanopb.gni")
 import("$dir_pigweed/third_party/pico_sdk/pi_pico.gni")
 import("$dir_pigweed/third_party/smartfusion_mss/mss.gni")
 import("$dir_pigweed/third_party/stm32cube/stm32cube.gni")
-import("$dir_pw_async2/backend.gni")
+
 import("$dir_pw_build/error.gni")
 import("$dir_pw_build/facade.gni")
 import("$dir_pw_build/module_config.gni")
 import("$dir_pw_build/target_types.gni")
 import("$dir_pw_cpu_exception/backend.gni")
 import("$dir_pw_protobuf_compiler/proto.gni")
+import("$dir_pw_sync/backend.gni")
 import("$dir_pw_unit_test/test.gni")
 import("backend.gni")
 
@@ -442,6 +443,7 @@ pw_source_set("async") {
     "$dir_pw_allocator:best_fit_block_allocator",
     "$dir_pw_allocator:synchronized_allocator",
     "$dir_pw_async2:allocate_task",
+    "$dir_pw_async2:basic_dispatcher",
     "$dir_pw_async2:pend_func_task",
     "$dir_pw_hdlc:router",
     "$dir_pw_multibuf:simple_allocator",
@@ -468,15 +470,6 @@ pw_executable("system_example") {
     "$dir_pw_rpc/pwpb:echo_service",
     "$dir_pw_thread:sleep",
     "$dir_pw_trace",
-  ]
-}
-
-pw_executable("system_async_host_example") {
-  sources = [ "system_async_host_example.cc" ]
-  deps = [
-    ":async",
-    "$dir_pw_channel:epoll_channel",
-    "$dir_pw_multibuf:testing",
   ]
 }
 
@@ -517,7 +510,7 @@ pw_test("async_packet_io_test") {
   ]
 
   # TODO: b/317922402 - Run on Windows when thread detaching is supported.
-  enable_if = host_os != "win" && pw_async2_DISPATCHER_BACKEND != ""
+  enable_if = host_os != "win" && pw_sync_THREAD_NOTIFICATION_BACKEND != ""
 }
 
 pw_test("system_async_test") {
@@ -530,7 +523,7 @@ pw_test("system_async_test") {
   ]
 
   # TODO: b/317922402 - Run on Windows when thread detaching is supported.
-  enable_if = host_os != "win" && pw_async2_DISPATCHER_BACKEND != ""
+  enable_if = host_os != "win" && pw_sync_THREAD_NOTIFICATION_BACKEND != ""
 }
 
 group("system_examples") {

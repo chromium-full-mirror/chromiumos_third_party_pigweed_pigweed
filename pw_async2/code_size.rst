@@ -14,12 +14,12 @@ system. These size reports assume a baseline system with an RTOS which already
 uses a handful of core Pigweed components including HAL abstractions and
 ``pw_allocator.``
 
-The first row captures the core of ``pw_async2``: the dispatcher, tasks,
-and wakers, using the ``pw_async2_basic`` dispatcher backend. This is the
-minimum size cost a system must pay to adopt ``pw_async2``. The following row
-demonstrates the cost of adding another task to this system. Of course, the
-majority of the cost of the task exists within its implementation --- this
-simply shows that there is minimal internal overhead.
+The first row captures the core of ``pw_async2``: the dispatcher, tasks, and
+wakers, using the :cc:`pw::async2::BasicDispatcher`. This is the minimum size
+cost a system must pay to adopt ``pw_async2``. The following row demonstrates
+the cost of adding another task to this system. Of course, the majority of the
+cost of the task exists within its implementation --- this simply shows that
+there is minimal internal overhead.
 
 .. include:: size_report/full_size_report
 

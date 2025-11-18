@@ -159,7 +159,7 @@ template <typename Callable>
 /// them into ``Task::Pend`` via its ``Context`` argument.
 class Waker : public pw::IntrusiveForwardList<Waker>::Item {
   friend class Task;
-  friend class NativeDispatcherBase;
+  friend class Dispatcher;
   friend class internal::WakerQueueBase;
 
  public:

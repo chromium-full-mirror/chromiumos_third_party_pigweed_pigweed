@@ -130,7 +130,7 @@
 /// [Guides](../../pw_async2/guides.html) |
 /// [Code size analysis](../../pw_async2/code_size.html) |
 /// [Coroutines](../../pw_async2/coroutines.html) |
-/// [Backends](../../pw_async2/backends.html)
+/// [Dispatcher](../../pw_async2/dispatcher.html) |
 /// @endmaindocs
 
 /// @defgroup pw_async2_adapters Pendable adapters
@@ -141,9 +141,9 @@
 /// @ingroup pw_async2
 /// @brief Heap allocate space for tasks or functions with `pw::Allocator`
 
-/// @defgroup pw_async2_backends Dispatcher backends
+/// @defgroup pw_async2_dispatcher Dispatcher
 /// @ingroup pw_async2
-/// @brief Dispatcher implementation interfaces
+/// @brief Dispatcher interface and implementations
 
 /// @defgroup pw_async2_combinators Combinators
 /// @ingroup pw_async2
@@ -151,7 +151,7 @@
 
 /// @defgroup pw_async2_core Core
 /// @ingroup pw_async2
-/// @brief Core primitives such as tasks, dispatchers, polls, contexts, and wakers
+/// @brief Core primitives such as tasks, polls, contexts, and wakers
 /// @details Learn more: [Core concepts](../../pw_async2/design.html#core-concepts)
 
 /// @defgroup pw_async2_coroutines Coroutines

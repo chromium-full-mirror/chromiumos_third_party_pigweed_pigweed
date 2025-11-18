@@ -17,6 +17,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include "pw_assert/check.h"
 #include "pw_log/log.h"
 #include "pw_status/try.h"
 
@@ -30,10 +31,10 @@ void EpollChannel::Register() {
     return;
   }
 
-  if (!dispatcher_->native()
-           .NativeRegisterFileDescriptor(channel_fd_,
-                                         async2::backend::NativeDispatcher::
-                                             FileDescriptorType::kReadWrite)
+  if (!dispatcher_
+           ->NativeRegisterFileDescriptor(
+               channel_fd_,
+               async2::EpollDispatcher::FileDescriptorType::kReadWrite)
            .ok()) {
     set_closed();
     return;
@@ -67,13 +68,14 @@ async2::PollResult<multibuf::MultiBuf> EpollChannel::DoPendRead(
   }
 
   if (errno == EAGAIN) {
+    PW_DCHECK_PTR_EQ(&cx.dispatcher(), dispatcher_);
+
     // EAGAIN on a non-blocking read indicates that there is no data available.
     // Put the task to sleep until the dispatcher is notified that the file
     // descriptor is active.
     PW_ASYNC_STORE_WAKER(
         cx,
-        cx.dispatcher().native().NativeAddReadWakerForFileDescriptor(
-            channel_fd_),
+        dispatcher_->NativeAddReadWakerForFileDescriptor(channel_fd_),
         "EpollChannel is waiting on a file descriptor read");
     return async2::Pending();
   }
@@ -88,10 +90,11 @@ async2::Poll<Status> EpollChannel::DoPendReadyToWrite(async2::Context& cx) {
   // The previous write operation failed. Block the task until the dispatcher
   // receives a notification for the channel's file descriptor.
   ready_to_write_ = true;
+
+  PW_DCHECK_PTR_EQ(&cx.dispatcher(), dispatcher_);
   PW_ASYNC_STORE_WAKER(
       cx,
-      cx.dispatcher().native().NativeAddWriteWakerForFileDescriptor(
-          channel_fd_),
+      dispatcher_->NativeAddWriteWakerForFileDescriptor(channel_fd_),
       "EpollChannel is waiting on a file descriptor write");
   return async2::Pending();
 }
@@ -117,9 +120,7 @@ Status EpollChannel::DoStageWrite(multibuf::MultiBuf&& data) {
 
 void EpollChannel::Cleanup() {
   if (is_read_or_write_open()) {
-    dispatcher_->native()
-        .NativeUnregisterFileDescriptor(channel_fd_)
-        .IgnoreError();
+    dispatcher_->NativeUnregisterFileDescriptor(channel_fd_).IgnoreError();
     set_closed();
   }
   close(channel_fd_);

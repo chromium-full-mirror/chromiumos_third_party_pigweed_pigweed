@@ -13,7 +13,7 @@
 // the License.
 
 #include "pw_async2/coro.h"
-#include "pw_async2/dispatcher.h"
+#include "pw_async2/dispatcher_for_test.h"
 #include "pw_async2/simulated_time_provider.h"
 #include "pw_chrono/system_clock.h"
 #include "pw_result/result.h"
@@ -63,7 +63,7 @@ using ::pw::allocator::test::AllocatorForTest;
 using ::pw::async2::Context;
 using ::pw::async2::Coro;
 using ::pw::async2::CoroContext;
-using ::pw::async2::Dispatcher;
+using ::pw::async2::DispatcherForTest;
 using ::pw::async2::Pending;
 using ::pw::async2::Poll;
 using ::pw::async2::Ready;
@@ -92,9 +92,9 @@ TEST(CoroExample, ReturnsOk) {
   SimulatedTimeProvider<SystemClock> time;
   Led led;
   ExpectCoroTask task = Blink(coro_cx, time, led, /*times=*/3);
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   dispatcher.Post(task);
-  while (dispatcher.RunUntilStalled().IsPending()) {
+  while (dispatcher.RunUntilStalled()) {
     time.AdvanceUntilNextExpiration();
   }
 }

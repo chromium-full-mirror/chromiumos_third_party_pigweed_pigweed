@@ -34,7 +34,7 @@ class OwnedTask : public Task {
       : Task(name, Task::OwnedTag{}) {}
 
  private:
-  friend NativeDispatcherBase;
+  friend Dispatcher;
 
   // Deregister is private on OwnedTask because it's unsafe to call after the
   // task is posted. The dispatcher could delete the task at any time, so posted

@@ -13,7 +13,7 @@
 // the License.
 #pragma once
 
-#include "pw_async2/dispatcher.h"
+#include "pw_async2/runnable_dispatcher.h"
 
 namespace pw::async2 {
 namespace internal {
@@ -41,32 +41,36 @@ class PendableAsTaskWithOutput : public Task {
 
 /// @module{pw_async2}
 
-/// `DispatcherForTest` is a `Dispatcher` implementation to use in unit tests.
+/// `DispatcherForTestFacade` defines the interface for `DispatcherForTest`.
+/// Backends must provide:
 ///
-/// This class will be restructured as a facade when multiple `Dispatcher`
-/// implementations are supported.
-class DispatcherForTest : public Dispatcher {
+/// - A ``pw_async2_backend/native_dispatcher_for_test.h`` header.
+/// - A class or alias named ``pw::async2::backend::NativeDispatcherForTest``
+///   that:
+///   - Implements `RunnableDispatcher`.
+///   - Is default constructible.
+template <typename Native>
+class DispatcherForTestFacade final : public RunnableDispatcher {
  public:
-  DispatcherForTest() = default;
+  /// `DispatcherForTest` is default constructible.
+  DispatcherForTestFacade() = default;
 
-  DispatcherForTest(const DispatcherForTest&) = delete;
-  DispatcherForTest& operator=(const DispatcherForTest&) = delete;
+  DispatcherForTestFacade(const DispatcherForTestFacade&) = delete;
+  DispatcherForTestFacade& operator=(const DispatcherForTestFacade&) = delete;
 
-  DispatcherForTest(DispatcherForTest&&) = delete;
-  DispatcherForTest& operator=(DispatcherForTest&&) = delete;
-
-  bool RunUntilStalled() { return Dispatcher::RunUntilStalled().IsPending(); }
+  DispatcherForTestFacade(DispatcherForTestFacade&&) = delete;
+  DispatcherForTestFacade& operator=(DispatcherForTestFacade&&) = delete;
 
   /// Whether to allow the dispatcher to block by calling `DoWaitForWake`.
   /// `RunToCompletion` may block the thread if there are no tasks ready to run.
-  void AllowBlocking() {}
+  void AllowBlocking() { blocking_is_allowed_ = true; }
 
   template <typename Pendable>
-  Poll<PendOutputOf<Pendable>> RunInTaskUntilStalled(Pendable& pendable)
-      PW_LOCKS_EXCLUDED(impl::dispatcher_lock()) {
+  Poll<internal::PendOutputOf<Pendable>> RunInTaskUntilStalled(
+      Pendable& pendable) PW_LOCKS_EXCLUDED(impl::dispatcher_lock()) {
     internal::PendableAsTaskWithOutput<Pendable> task(pendable);
-    Post(task);
-    RunUntilStalled();
+    native().Post(task);
+    native().RunUntilStalled();
 
     // Ensure that the task is no longer registered, as it will be destroyed
     // once we return.
@@ -77,6 +81,46 @@ class DispatcherForTest : public Dispatcher {
 
     return task.TakePoll();
   }
+
+  /// Returns the total number of times the dispatcher has called a task's
+  /// ``Pend()`` method.
+  uint32_t tasks_polled() const { return tasks_polled_; }
+
+  /// Returns the total number of tasks the dispatcher has run to completion.
+  uint32_t tasks_completed() const { return tasks_completed_; }
+
+  /// Returns the total number of times the dispatcher has been woken.
+  uint32_t wake_count() const { return wake_count_; }
+
+ private:
+  // These functions are implemented in dispatcher_for_test.cc for the
+  // NativeDispatcherForTest specialization only.
+  bool DoRunUntilStalled() override;
+
+  void DoWake() override;
+
+  void DoWaitForWake() override;
+
+  RunnableDispatcher& native() { return native_; }
+
+  Native native_;
+  bool blocking_is_allowed_ = false;
+
+  // TODO: b/401049619 - Optionally provide metrics for production dispatchers.
+  uint32_t tasks_polled_ = 0u;
+  uint32_t tasks_completed_ = 0u;
+  uint32_t wake_count_ = 0u;
 };
+
+}  // namespace pw::async2
+
+#include "pw_async2_backend/native_dispatcher_for_test.h"
+
+namespace pw::async2 {
+
+/// `DispatcherForTest` is a `RunnableDispatcher` implementation to use in unit
+/// tests. See `DispatcherForTestFacade` for details.
+using DispatcherForTest =
+    DispatcherForTestFacade<backend::NativeDispatcherForTest>;
 
 }  // namespace pw::async2

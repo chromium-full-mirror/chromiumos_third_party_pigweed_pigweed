@@ -155,7 +155,6 @@ pw_source_set("router") {
 }
 
 pw_test("router_test") {
-  enable_if = pw_async2_DISPATCHER_BACKEND != ""
   deps = [
     ":router",
     "$dir_pw_allocator:testing",
@@ -166,6 +165,7 @@ pw_test("router_test") {
     "$dir_pw_multibuf:simple_allocator",
   ]
   sources = [ "router_test.cc" ]
+  enable_if = pw_async2_DISPATCHER_FOR_TEST_BACKEND != ""
 }
 
 pw_test_group("tests") {

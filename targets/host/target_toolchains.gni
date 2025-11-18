@@ -16,7 +16,7 @@ import("//build_overrides/pigweed.gni")
 
 import("$dir_pigweed/targets/common/stl.gni")
 import("$dir_pw_async/backend.gni")
-import("$dir_pw_async2/backend.gni")
+
 import("$dir_pw_perf_test/perf_test.gni")
 import("$dir_pw_protobuf_compiler/proto.gni")
 import("$dir_pw_rpc/system_server/backend.gni")
@@ -47,7 +47,8 @@ _host_common = {
   pw_async_FAKE_DISPATCHER_BACKEND = "$dir_pw_async_basic:fake_dispatcher"
 
   # Configure backend for async facade.
-  pw_async2_DISPATCHER_BACKEND = "$dir_pw_async2_basic:dispatcher_backend"
+  pw_async2_DISPATCHER_FOR_TEST_BACKEND =
+      "$dir_pw_async2:basic_dispatcher_for_test"
 
   # Configure backend for logging facade.
   pw_log_BACKEND = "$dir_pw_log_basic"
@@ -85,7 +86,6 @@ _host_common = {
 _linux_config = {
   pw_bloat_BLOATY_CONFIG = get_path_info("linux.bloaty", "abspath")
   pw_unit_test_AUTOMATIC_RUNNER = get_path_info("run_test", "abspath")
-  pw_async2_DISPATCHER_BACKEND = "$dir_pw_async2_epoll:dispatcher_backend"
   pw_rust_ENABLE_EXPERIMENTAL_BUILD = true
 }
 

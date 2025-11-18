@@ -41,7 +41,6 @@ filegroup(
         "//pw_analog:doxygen",
         "//pw_async:doxygen",
         "//pw_async2:doxygen",
-        "//pw_async2_basic:doxygen",
         "//pw_async_basic:doxygen",
         "//pw_base64:doxygen",
         "//pw_bloat:doxygen",

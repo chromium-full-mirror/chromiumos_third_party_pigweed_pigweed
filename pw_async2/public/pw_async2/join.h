@@ -30,13 +30,14 @@ class [[deprecated("Use future-based Join instead")]] Joiner {
  private:
   static constexpr auto kTupleIndexSequence =
       std::make_index_sequence<sizeof...(Pendables)>();
-  using TupleOfOutputRvalues = std::tuple<PendOutputOf<Pendables>&&...>;
+  using TupleOfOutputRvalues =
+      std::tuple<internal::PendOutputOf<Pendables>&&...>;
 
  public:
   /// Creates a ``Joiner`` from a series of pendable values.
   explicit Joiner(Pendables&&... pendables)
       : pendables_(std::move(pendables)...),
-        outputs_(Poll<PendOutputOf<Pendables>>(Pending())...) {}
+        outputs_(Poll<internal::PendOutputOf<Pendables>>(Pending())...) {}
 
   /// Attempts to complete all of the pendables, returning ``Ready``
   /// with their results if all are complete.
@@ -60,7 +61,8 @@ class [[deprecated("Use future-based Join instead")]] Joiner {
   template <size_t... Is>
   Poll<TupleOfOutputRvalues> TakeOutputs(std::index_sequence<Is...>) {
     return Poll<TupleOfOutputRvalues>(
-        std::forward_as_tuple<PendOutputOf<Pendables>...>(TakeOutput<Is>()...));
+        std::forward_as_tuple<internal::PendOutputOf<Pendables>...>(
+            TakeOutput<Is>()...));
   }
 
   /// For pendable at `TupleIndex`, if it has not already returned
@@ -80,14 +82,15 @@ class [[deprecated("Use future-based Join instead")]] Joiner {
 
   /// Takes the result of the sub-pendable at index ``kTupleIndex``.
   template <size_t kTupleIndex>
-  PendOutputOf<typename std::tuple_element<kTupleIndex,
-                                           std::tuple<Pendables...>>::type>&&
+  internal::PendOutputOf<
+      typename std::tuple_element<kTupleIndex,
+                                  std::tuple<Pendables...>>::type>&&
   TakeOutput() {
     return std::move(std::get<kTupleIndex>(outputs_).value());
   }
 
   std::tuple<Pendables...> pendables_;
-  std::tuple<Poll<PendOutputOf<Pendables>>...> outputs_;
+  std::tuple<Poll<internal::PendOutputOf<Pendables>>...> outputs_;
 };
 
 template <typename... Pendables>
@@ -147,12 +150,13 @@ class JoinFuture
   template <size_t... Is>
   Poll<TupleOfOutputRvalues> TakeOutputs(std::index_sequence<Is...>) {
     return Poll<TupleOfOutputRvalues>(
-        std::forward_as_tuple<PendOutputOf<Futures>...>(TakeOutput<Is>()...));
+        std::forward_as_tuple<internal::PendOutputOf<Futures>...>(
+            TakeOutput<Is>()...));
   }
 
   /// Takes the result of the future at index ``kTupleIndex``.
   template <size_t kTupleIndex>
-  PendOutputOf<
+  internal::PendOutputOf<
       typename std::tuple_element<kTupleIndex, std::tuple<Futures...>>::type>&&
   TakeOutput() {
     return std::move(std::get<kTupleIndex>(outputs_).value());
@@ -161,7 +165,7 @@ class JoinFuture
   static_assert(std::conjunction_v<is_future<Futures>...>,
                 "All types in JoinFuture must be Future types");
   std::optional<std::tuple<Futures...>> futures_;
-  std::tuple<Poll<PendOutputOf<Futures>>...> outputs_;
+  std::tuple<Poll<internal::PendOutputOf<Futures>>...> outputs_;
 };
 
 template <typename... Futures>

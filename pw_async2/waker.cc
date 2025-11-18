@@ -16,7 +16,7 @@
 
 #include <mutex>
 
-#include "pw_async2/dispatcher_base.h"
+#include "pw_async2/dispatcher.h"
 
 namespace pw::async2 {
 namespace internal {

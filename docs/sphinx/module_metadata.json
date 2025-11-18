@@ -81,9 +81,6 @@
       "C++17"
     ]
   },
-  "pw_async2_basic": {
-    "status": "unstable"
-  },
   "pw_async2_epoll": {
     "status": "unstable"
   },

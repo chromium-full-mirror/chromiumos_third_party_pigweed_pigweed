@@ -13,7 +13,7 @@
 // the License.
 #pragma once
 
-#include "pw_async2/dispatcher_base.h"
+#include "pw_async2/dispatcher.h"
 #include "pw_channel/channel.h"
 #include "pw_multibuf/allocator.h"
 #include "pw_multibuf/allocator_async.h"

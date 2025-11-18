@@ -16,13 +16,13 @@
 #include <unordered_map>
 
 #include "pw_assert/assert.h"
-#include "pw_async2/dispatcher_base.h"
+#include "pw_async2/runnable_dispatcher.h"
 
-namespace pw::async2::backend {
+namespace pw::async2 {
 
-class NativeDispatcher final : public NativeDispatcherBase {
+class EpollDispatcher final : public RunnableDispatcher {
  public:
-  NativeDispatcher() { PW_ASSERT_OK(NativeInit()); }
+  EpollDispatcher() { PW_ASSERT_OK(NativeInit()); }
 
   Status NativeInit();
 
@@ -53,9 +53,9 @@ class NativeDispatcher final : public NativeDispatcherBase {
     Waker write;
   };
 
-  void DoWake() final;
-  Poll<> DoRunUntilStalled(Dispatcher&);
-  void DoRunToCompletion(Dispatcher&);
+  void DoWake() override;
+
+  void DoWaitForWake() override;
 
   Status NativeWaitForWake();
   void NativeFindAndWakeFileDescriptor(int fd, FileDescriptorType type);
@@ -67,4 +67,4 @@ class NativeDispatcher final : public NativeDispatcherBase {
   std::unordered_map<int, ReadWriteWaker> wakers_;
 };
 
-}  // namespace pw::async2::backend
+}  // namespace pw::async2

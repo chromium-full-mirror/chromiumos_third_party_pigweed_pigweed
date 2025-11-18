@@ -24,8 +24,6 @@ if(CONFIG_ZEPHYR_PIGWEED_MODULE)
       pw_assert.assert pw_assert_zephyr.assert pw_assert/backend.cmake)
   pw_set_zephyr_backend_ifdef(CONFIG_PIGWEED_ASSERT
       pw_assert.check pw_assert_zephyr.check pw_assert/backend.cmake)
-  pw_set_zephyr_backend_ifdef(CONFIG_ZEPHYR_PIGWEED_MODULE
-      pw_async2.dispatcher pw_async2_basic.dispatcher_backend pw_async2/backend.cmake)
   pw_set_zephyr_backend_ifdef(CONFIG_PIGWEED_CHRONO_SYSTEM_CLOCK
       pw_chrono.system_clock pw_chrono_zephyr.system_clock pw_chrono/backend.cmake)
   pw_set_zephyr_backend_ifdef(CONFIG_PIGWEED_CHRONO_SYSTEM_TIMER
@@ -92,7 +90,6 @@ add_subdirectory(pw_assert_zephyr EXCLUDE_FROM_ALL)
 add_subdirectory(pw_async EXCLUDE_FROM_ALL)
 add_subdirectory(pw_async_basic EXCLUDE_FROM_ALL)
 add_subdirectory(pw_async2 EXCLUDE_FROM_ALL)
-add_subdirectory(pw_async2_basic EXCLUDE_FROM_ALL)
 add_subdirectory(pw_async2_epoll EXCLUDE_FROM_ALL)
 add_subdirectory(pw_async_fuchsia EXCLUDE_FROM_ALL)
 add_subdirectory(pw_atomic EXCLUDE_FROM_ALL)
@@ -204,7 +201,6 @@ add_custom_target(pw_apps)
 # pw_system example apps
 add_subdirectory(targets/host_device_simulator EXCLUDE_FROM_ALL)
 add_dependencies(pw_apps pw_system.system_example)
-add_dependencies(pw_apps pw_system.system_async_host_example)
 
 if(CONFIG_ZEPHYR_PIGWEED_MODULE)
   add_subdirectory(zephyr)

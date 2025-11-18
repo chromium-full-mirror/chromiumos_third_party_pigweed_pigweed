@@ -104,13 +104,12 @@ Learn more
 
 .. grid:: 2
 
-   .. grid-item-card:: :octicon:`code-square` Backends
-      :link: module-pw_async2-backends
+   .. grid-item-card:: :octicon:`code-square` Dispatchers
+      :link: module-pw_async2-dispatcher
       :link-type: ref
       :class-item: sales-pitch-cta-secondary
 
-      You can fulfill the ``pw_async2`` interface with a Pigweed-provided
-      backend or roll your own.
+      You can use a Pigweed-provided dispatcher or roll your own.
 
    .. grid-item-card:: :octicon:`pencil` Coroutines
       :link: module-pw_async2-coro
@@ -128,7 +127,7 @@ Learn more
    codelab/docs
    quickstart
    guides
-   backends
+   dispatcher
    code_size
    coroutines
    futures

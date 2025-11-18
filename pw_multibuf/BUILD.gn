@@ -195,7 +195,6 @@ pw_source_set("allocator_async") {
 
 # TODO: https://pwbug.dev/384583239 - Split async into its own test.
 pw_test("allocator_test") {
-  enable_if = pw_async2_DISPATCHER_BACKEND != ""
   deps = [
     ":allocator",
     ":allocator_async",
@@ -204,6 +203,7 @@ pw_test("allocator_test") {
   ]
   sources = [ "allocator_test.cc" ]
   configs = [ ":v1_config" ]
+  enable_if = pw_async2_DISPATCHER_FOR_TEST_BACKEND != ""
 }
 
 # LINT.ThenChange(BUILD.bazel, CMakeLists.txt)
@@ -227,7 +227,6 @@ pw_source_set("simple_allocator") {
 
 # LINT.IfChange
 pw_test("simple_allocator_test") {
-  enable_if = pw_async2_DISPATCHER_BACKEND != ""
   deps = [
     ":simple_allocator",
     "$dir_pw_allocator:null_allocator",
@@ -235,6 +234,7 @@ pw_test("simple_allocator_test") {
   ]
   sources = [ "simple_allocator_test.cc" ]
   configs = [ ":v1_config" ]
+  enable_if = pw_async2_DISPATCHER_FOR_TEST_BACKEND != ""
 }
 
 pw_source_set("stream") {
@@ -250,13 +250,13 @@ pw_source_set("stream") {
 }
 
 pw_test("stream_test") {
-  enable_if = pw_async2_DISPATCHER_BACKEND != ""
   deps = [
     ":internal_test_utils",
     ":stream",
   ]
   sources = [ "stream_test.cc" ]
   configs = [ ":v1_config" ]
+  enable_if = pw_async2_DISPATCHER_FOR_TEST_BACKEND != ""
 }
 
 pw_source_set("from_span") {

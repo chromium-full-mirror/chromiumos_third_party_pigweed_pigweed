@@ -407,6 +407,7 @@ pw_add_library(pw_system.async STATIC
     pw_allocator.best_fit_block_allocator
     pw_allocator.synchronized_allocator
     pw_async2.allocate_task
+    pw_async2.basic_dispatcher
     pw_async2.pend_func_task
     pw_hdlc.router
     pw_multibuf.simple_allocator
@@ -472,14 +473,3 @@ if((NOT "${pw_async2.dispatcher_BACKEND}" STREQUAL "") AND
       pw_system
   )
 endif()
-
-add_executable(pw_system.system_async_host_example EXCLUDE_FROM_ALL
-  system_async_host_example.cc
-)
-target_link_libraries(pw_system.system_async_host_example
-  PRIVATE
-    pw_system.async
-    pw_channel.epoll_channel
-    pw_multibuf.testing
-    pw_rpc.pwpb.echo_service
-)

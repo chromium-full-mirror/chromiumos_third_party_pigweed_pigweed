@@ -713,29 +713,6 @@ pw_cc_test(
     ],
 )
 
-pw_cc_binary(
-    name = "system_async_host_example",
-    testonly = True,
-    srcs = ["system_async_host_example.cc"],
-    features = [
-        "-conversion_warnings",
-        "-ctad_warnings",
-    ],
-    deps = [
-        ":async",
-        "//pw_assert:check",
-        "//pw_channel:epoll_channel",
-        "//pw_multibuf:testing",
-    ],
-)
-
-platform_data(
-    name = "system_async_host_simulator_example",
-    testonly = True,
-    platform = "//targets/host_device_simulator",
-    target = ":system_async_host_example",
-)
-
 platform_data(
     name = "simulator_system_example",
     testonly = True,

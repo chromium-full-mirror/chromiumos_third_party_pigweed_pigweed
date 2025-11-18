@@ -23,23 +23,30 @@ package(
 licenses(["notice"])
 
 cc_library(
-    name = "dispatcher",
-    srcs = ["dispatcher_native.cc"],
-    hdrs = [
-        "public_overrides/pw_async2/dispatcher_native.h",
+    name = "pw_async2_epoll",
+    srcs = ["dispatcher.cc"],
+    hdrs = ["public/pw_async2_epoll/dispatcher.h"],
+    implementation_deps = [
+        "//pw_assert:check",
+        "//pw_log",
     ],
-    features = ["-conversion_warnings"],
-    implementation_deps = ["//pw_assert:check"],
-    strip_include_prefix = "public_overrides",
+    strip_include_prefix = "public",
     target_compatible_with = ["@platforms//os:linux"],
     deps = [
         "//pw_assert:assert",
-        "//pw_async2:dispatcher.facade",
+        "//pw_async2:dispatcher",
         "//pw_async2:poll",
-        "//pw_log",
-        "//pw_preprocessor",
         "//pw_status",
     ],
+)
+
+cc_library(
+    name = "dispatcher_for_test",
+    hdrs = [
+        "dispatcher_for_test_public_overrides/pw_async2_backend/native_dispatcher_for_test.h",
+    ],
+    strip_include_prefix = "dispatcher_for_test_public_overrides",
+    deps = [":pw_async2_epoll"],
 )
 
 sphinx_docs_library(

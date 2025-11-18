@@ -13,25 +13,10 @@
 // the License.
 #pragma once
 
-#include "pw_async2/runnable_dispatcher.h"
-#include "pw_sync/thread_notification.h"
+#include "pw_async2_epoll/dispatcher.h"
 
-namespace pw::async2 {
+namespace pw::async2::backend {
 
-/// @submodule{pw_async2,dispatcher}
+using NativeDispatcherForTest = EpollDispatcher;
 
-/// Simple `RunnableDispatcher` implementation that uses a
-/// `pw::sync::ThreadNotification` to wait for tasks to wake.
-class BasicDispatcher final : public RunnableDispatcher {
- public:
-  BasicDispatcher() = default;
-
- private:
-  void DoWake() override { notify_.release(); }
-
-  void DoWaitForWake() override { notify_.acquire(); }
-
-  pw::sync::ThreadNotification notify_;
-};
-
-}  // namespace pw::async2
+}  // namespace pw::async2::backend

@@ -16,7 +16,7 @@
 
 #include "pico/stdlib.h"
 #include "pw_assert/check.h"
-#include "pw_async2/dispatcher_base.h"
+#include "pw_async2/dispatcher.h"
 #include "pw_log/log.h"
 #include "pw_multibuf/allocator.h"
 #include "pw_multibuf/allocator_async.h"

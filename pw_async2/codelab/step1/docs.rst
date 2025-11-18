@@ -74,10 +74,12 @@ blinking an LED, processing sensor data, or running a vending machine.
 Post the task to a dispatcher
 -----------------------------
 The :cc:`Dispatcher <pw::async2::Dispatcher>` is the engine that runs the
-tasks. It's a simple, cooperative scheduler. You give it tasks by calling
-:cc:`Post() <pw::async2::Dispatcher::Post>`. You run tasks with the dispatcher
-by calling :cc:`RunUntilStalled() <pw::async2::Dispatcher::RunUntilStalled>`
-or :cc:`RunToCompletion() <pw::async2::Dispatcher::RunToCompletion>`.
+tasks. It's a simple, cooperative scheduler. You give it tasks to run by calling
+:cc:`Post() <pw::async2::Dispatcher::Post>`. How you run the tasks depends on
+the implementation. For a :cc:`RunnableDispatcher
+<pw::async2::RunnableDispatcher>` call :cc:`RunUntilStalled()
+<pw::async2::RunnableDispatcher::RunUntilStalled>` or :cc:`RunToCompletion()
+<pw::async2::RunnableDispatcher::RunToCompletion>`.
 
 The dispatcher maintains a queue of tasks that are ready to be polled. When a
 run is triggered, it grabs a task from the queue and invokes the task's
@@ -96,7 +98,7 @@ again.
 
    * Tell the dispatcher to run all of its tasks until they return ``Ready()``
      by calling its :cc:`RunToCompletion()
-     <pw::async2::Dispatcher::RunToCompletion>` method
+     <pw::async2::RunnableDispatcher::RunToCompletion>` method
 
    .. dropdown:: Hint
 

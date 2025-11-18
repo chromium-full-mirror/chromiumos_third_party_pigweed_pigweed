@@ -14,7 +14,7 @@
 
 #include "pw_channel/stream_channel.h"
 
-#include "pw_async2/dispatcher_base.h"
+#include "pw_async2/dispatcher.h"
 #include "pw_log/log.h"
 #include "pw_multibuf/multibuf.h"
 #include "pw_status/status.h"

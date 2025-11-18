@@ -43,6 +43,7 @@ pw_cc_binary(
     deps = [
         "//pw_allocator:libc_allocator",
         "//pw_async2:allocate_task",
+        "//pw_async2:basic_dispatcher",
         "//pw_async2:coro",
         "//pw_async2:coro_or_else_task",
         "//pw_async2:dispatcher",
@@ -65,6 +66,7 @@ pw_cc_test(
         "//pw_async2:coro",
         "//pw_async2:coro_or_else_task",
         "//pw_async2:dispatcher",
+        "//pw_async2:testing",
         "//pw_containers:vector",
     ],
 )
@@ -77,6 +79,7 @@ pw_cc_test(
         "//pw_async2:coro",
         "//pw_async2:dispatcher",
         "//pw_async2:simulated_time_provider",
+        "//pw_async2:testing",
         "//pw_async2:time_provider",
         "//pw_chrono:system_clock",
     ],

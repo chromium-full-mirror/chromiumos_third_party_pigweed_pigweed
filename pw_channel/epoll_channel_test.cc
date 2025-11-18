@@ -36,8 +36,6 @@ namespace {
 using namespace std::chrono_literals;
 
 using ::pw::async2::Context;
-using ::pw::async2::DispatcherForTest;
-
 using ::pw::async2::Pending;
 using ::pw::async2::Poll;
 using ::pw::async2::PollOptional;
@@ -127,7 +125,7 @@ class EpollChannelTest : public ::testing::Test {
 
 TEST_F(EpollChannelTest, Read_ValidData_Succeeds) {
   SimpleAllocatorForTest alloc;
-  DispatcherForTest dispatcher;
+  pw::async2::EpollDispatcher dispatcher;
 
   EpollChannel channel(read_fd_, dispatcher, alloc);
   ASSERT_TRUE(channel.is_read_open());
@@ -162,7 +160,7 @@ TEST_F(EpollChannelTest, Read_ValidData_Succeeds) {
 
 TEST_F(EpollChannelTest, Read_Closed_ReturnsFailedPrecondition) {
   SimpleAllocatorForTest alloc;
-  DispatcherForTest dispatcher;
+  pw::async2::EpollDispatcher dispatcher;
 
   EpollChannel channel(read_fd_, dispatcher, alloc);
   ASSERT_TRUE(channel.is_read_open());
@@ -239,7 +237,7 @@ class WriterTask : public Task {
 
 TEST_F(EpollChannelTest, Write_ValidData_Succeeds) {
   SimpleAllocatorForTest alloc;
-  DispatcherForTest dispatcher;
+  pw::async2::EpollDispatcher dispatcher;
 
   EpollChannel channel(write_fd_, dispatcher, alloc);
   ASSERT_TRUE(channel.is_read_open());
@@ -265,7 +263,7 @@ TEST_F(EpollChannelTest, Write_ValidData_Succeeds) {
 
 TEST_F(EpollChannelTest, Write_EmptyData_Succeeds) {
   SimpleAllocatorForTest alloc;
-  DispatcherForTest dispatcher;
+  pw::async2::EpollDispatcher dispatcher;
 
   EpollChannel channel(write_fd_, dispatcher, alloc);
   ASSERT_TRUE(channel.is_read_open());
@@ -285,7 +283,7 @@ TEST_F(EpollChannelTest, Write_EmptyData_Succeeds) {
 
 TEST_F(EpollChannelTest, Write_Closed_ReturnsFailedPrecondition) {
   SimpleAllocatorForTest alloc;
-  DispatcherForTest dispatcher;
+  pw::async2::EpollDispatcher dispatcher;
 
   EpollChannel channel(write_fd_, dispatcher, alloc);
   ASSERT_TRUE(channel.is_read_open());
@@ -305,7 +303,7 @@ TEST_F(EpollChannelTest, Write_Closed_ReturnsFailedPrecondition) {
 
 TEST_F(EpollChannelTest, Destructor_ClosesFileDescriptor) {
   SimpleAllocatorForTest alloc;
-  DispatcherForTest dispatcher;
+  pw::async2::EpollDispatcher dispatcher;
 
   {
     EpollChannel channel(write_fd_, dispatcher, alloc);
@@ -320,7 +318,7 @@ TEST_F(EpollChannelTest, Destructor_ClosesFileDescriptor) {
 
 TEST_F(EpollChannelTest, PendReadyToWrite_BlocksWhenUnavailable) {
   SimpleAllocatorForTest alloc;
-  DispatcherForTest dispatcher;
+  pw::async2::EpollDispatcher dispatcher;
   EpollChannel channel(write_fd_, dispatcher, alloc);
   ASSERT_TRUE(channel.is_read_open());
   ASSERT_TRUE(channel.is_write_open());

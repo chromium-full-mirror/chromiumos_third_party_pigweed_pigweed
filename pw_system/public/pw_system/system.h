@@ -16,6 +16,7 @@
 #include <tuple>
 
 #include "pw_allocator/allocator.h"
+#include "pw_async2/dispatcher.h"
 #include "pw_channel/channel.h"
 #include "pw_function/function.h"
 #include "pw_rpc/server.h"

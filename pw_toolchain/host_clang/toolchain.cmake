@@ -38,9 +38,6 @@ pw_add_global_compile_options(-std=c++20 LANGUAGES CXX)
 pw_set_backend(pw_assert.check pw_assert.print_and_abort_check_backend)
 pw_set_backend(pw_assert.assert pw_assert.print_and_abort_assert_backend)
 
-# Configure backend for async dispatcher facade
-pw_set_backend(pw_async2.dispatcher pw_async2_epoll.dispatcher_backend)
-
 # Configure backend for logging facade.
 pw_set_backend(pw_log pw_log_basic)
 

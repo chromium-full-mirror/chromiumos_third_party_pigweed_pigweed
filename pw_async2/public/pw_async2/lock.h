@@ -18,23 +18,19 @@
 
 namespace pw::async2::impl {
 
-/// @submodule{pw_async2,backends}
-
-/// A lock guarding the `Task` queue and `Waker` lists. This is a `Dispatcher`
-/// implementation detail and should only be used by `Dispatcher` backends.
-///
-/// This is an `InterruptSpinLock` in order to allow posting work from ISR
-/// contexts.
-///
-/// This lock is global rather than per-dispatcher in order to allow `Task` and
-/// `Waker` to take out the lock without dereferencing their `Dispatcher*`
-/// fields, which are themselves guarded by the lock in order to allow the
-/// `Dispatcher` to `Deregister` itself upon destruction.
+// A lock guarding the `Dispatcher`'s `Task` queue and `Waker` lists. This is an
+// internal implementation detail. Do not use it directly.
+//
+// This is an `InterruptSpinLock` in order to allow posting work from ISR
+// contexts.
+//
+// This lock is global rather than per-dispatcher in order to allow `Task` and
+// `Waker` to take out the lock without dereferencing their `Dispatcher*`
+// fields, which are themselves guarded by the lock in order to allow the
+// `Dispatcher` to `Deregister` itself upon destruction.
 inline pw::sync::InterruptSpinLock& dispatcher_lock() {
   static NoDestructor<pw::sync::InterruptSpinLock> lock;
   return *lock;
 }
-
-/// @}
 
 }  // namespace pw::async2::impl

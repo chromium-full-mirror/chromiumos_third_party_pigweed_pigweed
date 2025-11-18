@@ -13,7 +13,7 @@
 // the License.
 
 #include "pw_allocator/allocator.h"
-#include "pw_async2/dispatcher_for_test.h"
+#include "pw_async2/dispatcher.h"
 #include "pw_status/status.h"
 
 namespace {
@@ -56,7 +56,7 @@ class MySender {
 // can still define types beforehand.
 
 // DOCSTAG: [pw_async2-examples-basic-manual]
-#include "pw_async2/dispatcher.h"
+#include "pw_async2/dispatcher_for_test.h"
 #include "pw_async2/poll.h"
 #include "pw_async2/try.h"
 #include "pw_log/log.h"
@@ -166,7 +166,7 @@ using ::pw::allocator::test::AllocatorForTest;
 using ::pw::async2::Context;
 using ::pw::async2::Coro;
 using ::pw::async2::CoroContext;
-using ::pw::async2::Dispatcher;
+using ::pw::async2::DispatcherForTest;
 using ::pw::async2::Pending;
 using ::pw::async2::Poll;
 using ::pw::async2::Ready;
@@ -174,7 +174,7 @@ using ::pw::async2::Task;
 
 TEST(ManualExample, ReturnsOk) {
   auto task = ReceiveAndSend(MyReceiver(), MySender());
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   dispatcher.Post(task);
   dispatcher.RunToCompletion();
 }
@@ -184,7 +184,7 @@ TEST(ManualExample, Runs) {
   auto sender = MySender();
   // DOCSTAG: [pw_async2-examples-basic-dispatcher]
   auto task = ReceiveAndSend(std::move(receiver), std::move(sender));
-  Dispatcher dispatcher;
+  DispatcherForTest dispatcher;
   // Registers `task` to run on the dispatcher.
   dispatcher.Post(task);
   // Sets the dispatcher to run until all `Post`ed tasks have completed.

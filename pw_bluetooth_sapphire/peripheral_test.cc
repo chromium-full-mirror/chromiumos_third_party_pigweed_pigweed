@@ -64,7 +64,7 @@ class PeripheralTest : public ::testing::Test {
     EXPECT_TRUE(task.result().status().IsUnknown());
 
     dispatcher().RunUntilIdle();
-    EXPECT_TRUE(dispatcher2().RunUntilStalled().IsReady());
+    dispatcher2().RunToCompletion();
     if (!task.result().status().ok()) {
       return std::nullopt;
     }
@@ -90,7 +90,7 @@ class PeripheralTest : public ::testing::Test {
   bt::gap::testing::FakeAdapter& adapter() { return adapter_; }
 
   pw::async::test::FakeDispatcher& dispatcher() { return async_dispatcher_; }
-  pw::async2::Dispatcher& dispatcher2() { return async2_dispatcher_; }
+  pw::async2::RunnableDispatcher& dispatcher2() { return async2_dispatcher_; }
 
  private:
   pw::async::test::FakeDispatcher async_dispatcher_;
@@ -431,7 +431,7 @@ TEST_F(PeripheralTest,
       });
   dispatcher2().Post(stop_task);
 
-  EXPECT_EQ(dispatcher2().RunUntilStalled(), pw::async2::Pending());
+  EXPECT_TRUE(dispatcher2().RunUntilStalled());
   ASSERT_EQ(adapter().fake_le()->registered_advertisements().size(), 1u);
 
   // Process the stop request.

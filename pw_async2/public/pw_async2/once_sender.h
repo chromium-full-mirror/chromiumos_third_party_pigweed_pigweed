@@ -14,7 +14,6 @@
 #pragma once
 
 #include "pw_async2/dispatcher.h"
-#include "pw_async2/dispatcher_base.h"
 #include "pw_function/function.h"
 #include "pw_sync/mutex.h"
 

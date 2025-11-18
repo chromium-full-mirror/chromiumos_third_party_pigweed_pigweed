@@ -204,19 +204,19 @@ Test the keypad implementation
         ░ ░            ░              ░  ░         ░      ░  ░  ░
         ░
 
-      pw_async2/dispatcher_base.cc:151: PW_CHECK() or PW_DCHECK() FAILED!
+      pw_async2/task.cc:156: PW_CHECK() or PW_DCHECK() FAILED!
 
         FAILED ASSERTION
 
-          !task->wakers_.empty()
+          !wakers_.empty()
 
         FILE & LINE
 
-          pw_async2/dispatcher_base.cc:151
+          pw_async2/task.cc:156
 
         FUNCTION
 
-          NativeDispatcherBase::RunOneTaskResult pw::async2::NativeDispatcherBase::RunOneTask(Dispatcher &, Task *)
+          Task::RunResult pw::async2::Task::RunInDispatcher()
 
         MESSAGE
 
