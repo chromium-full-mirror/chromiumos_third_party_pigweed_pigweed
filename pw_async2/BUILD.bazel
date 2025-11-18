@@ -64,19 +64,11 @@ cc_library(
         "public/pw_async2/context.h",
         "public/pw_async2/dispatcher.h",
         "public/pw_async2/future.h",
-        "public/pw_async2/internal/config.h",
-        "public/pw_async2/lock.h",
         "public/pw_async2/owned_task.h",
         "public/pw_async2/runnable_dispatcher.h",
         "public/pw_async2/task.h",
         "public/pw_async2/waker.h",
     ],
-    # LINT.IfChange
-    defines = select({
-        ":debug_wait_reason_disabled": ["PW_ASYNC2_DEBUG_WAIT_REASON=0"],
-        ":debug_wait_reason_enabled": ["PW_ASYNC2_DEBUG_WAIT_REASON=1"],
-    }),
-    # LINT.ThenChange(//pw_async2/public/pw_async2/internal/config.h)
     implementation_deps = [
         "//pw_assert:check",
         "//pw_thread:sleep",
@@ -84,6 +76,7 @@ cc_library(
     strip_include_prefix = "public",
     deps = [
         ":config_override",
+        ":internal",
         ":poll",
         "//pw_assert:assert",
         "//pw_chrono:system_clock",
@@ -91,9 +84,27 @@ cc_library(
         "//pw_containers:intrusive_list",
         "//pw_log",
         "//pw_log:args",
-        "//pw_sync:interrupt_spin_lock",
         "//pw_sync:lock_annotations",
         "//pw_tokenizer",
+    ],
+)
+
+cc_library(
+    name = "internal",
+    hdrs = [
+        "public/pw_async2/internal/config.h",
+        "public/pw_async2/internal/lock.h",
+    ],
+    # LINT.IfChange
+    defines = select({
+        ":debug_wait_reason_disabled": ["PW_ASYNC2_DEBUG_WAIT_REASON=0"],
+        ":debug_wait_reason_enabled": ["PW_ASYNC2_DEBUG_WAIT_REASON=1"],
+    }),
+    # LINT.ThenChange(//pw_async2/public/pw_async2/internal/config.h)
+    strip_include_prefix = "public",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//pw_sync:interrupt_spin_lock",
         "//pw_toolchain:no_destructor",
     ],
 )

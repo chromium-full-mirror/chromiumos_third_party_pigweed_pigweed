@@ -17,7 +17,7 @@
 #include <mutex>
 
 #include "pw_async2/context.h"
-#include "pw_async2/lock.h"
+#include "pw_async2/internal/lock.h"
 #include "pw_async2/task.h"
 #include "pw_async2/waker.h"
 #include "pw_containers/intrusive_list.h"
@@ -69,11 +69,11 @@ class Dispatcher {
   /// again until the ``Task`` completes.
   ///
   /// This method is thread-safe and interrupt-safe.
-  void Post(Task& task) PW_LOCKS_EXCLUDED(impl::dispatcher_lock());
+  void Post(Task& task) PW_LOCKS_EXCLUDED(internal::lock());
 
   /// Outputs log statements about the tasks currently registered with this
   /// dispatcher.
-  void LogRegisteredTasks() PW_LOCKS_EXCLUDED(impl::dispatcher_lock());
+  void LogRegisteredTasks() PW_LOCKS_EXCLUDED(internal::lock());
 
  protected:
   constexpr Dispatcher() = default;
@@ -84,14 +84,14 @@ class Dispatcher {
   ///
   /// @retval true The dispatcher has posted tasks, but they are sleeping.
   /// @retval false The dispatcher has no posted tasks.
-  bool PopAndRunAllReadyTasks() PW_LOCKS_EXCLUDED(impl::dispatcher_lock());
+  bool PopAndRunAllReadyTasks() PW_LOCKS_EXCLUDED(internal::lock());
 
   /// Pops a task and marks it as running. The task must be passed to `RunTask`.
   ///
   /// `PopTaskToRun` MUST be called repeatedly until it returns `nullptr`, at
   /// which point the dispatcher will request a wake.
-  Task* PopTaskToRun() PW_LOCKS_EXCLUDED(impl::dispatcher_lock()) {
-    std::lock_guard lock(impl::dispatcher_lock());
+  Task* PopTaskToRun() PW_LOCKS_EXCLUDED(internal::lock()) {
+    std::lock_guard lock(internal::lock());
     return PopTaskToRunLocked();
   }
 
@@ -114,13 +114,13 @@ class Dispatcher {
   ///
   /// Like the no-argument overload, `PopTaskToRun` MUST be called repeatedly
   /// until it returns `nullptr`.
-  Task* PopTaskToRun(State& result) PW_LOCKS_EXCLUDED(impl::dispatcher_lock());
+  Task* PopTaskToRun(State& result) PW_LOCKS_EXCLUDED(internal::lock());
 
   /// Pop a single task to run. Each call to `PopSingleTaskForThisWake` can
   /// result in up to one `DoWake()` call, so use `PopTaskToRun` or
   /// `PopAndRunAllReadyTasks` to run multiple tasks.
-  Task* PopSingleTaskForThisWake() PW_LOCKS_EXCLUDED(impl::dispatcher_lock()) {
-    std::lock_guard lock(impl::dispatcher_lock());
+  Task* PopSingleTaskForThisWake() PW_LOCKS_EXCLUDED(internal::lock()) {
+    std::lock_guard lock(internal::lock());
     set_wants_wake();
     return PopTaskToRunLocked();
   }
@@ -145,7 +145,7 @@ class Dispatcher {
   /// `RunTask` returns `kActive`. It is only safe to access a popped task
   /// before calling `RunTask`, since it is marked as running and will not be
   /// destroyed until after it runs.
-  RunTaskResult RunTask(Task& task) PW_LOCKS_EXCLUDED(impl::dispatcher_lock());
+  RunTaskResult RunTask(Task& task) PW_LOCKS_EXCLUDED(internal::lock());
 
  private:
   friend class Task;
@@ -166,10 +166,10 @@ class Dispatcher {
   /// - `PopTaskToRun()` returns `nullptr`, or
   /// - `PopSingleTaskForThisWake()` is called.
   ///
-  /// @note The `impl::dispatcher_lock()` may or may not be held here, so it
+  /// @note The `internal::lock()` may or may not be held here, so it
   /// must not be acquired by `DoWake`, nor may `DoWake` assume that it has been
   /// acquired.
-  virtual void DoWake() PW_LOCKS_EXCLUDED(impl::dispatcher_lock()) = 0;
+  virtual void DoWake() PW_LOCKS_EXCLUDED(internal::lock()) = 0;
 
   void Wake() {
     if (wanted_wake()) {
@@ -177,42 +177,40 @@ class Dispatcher {
     }
   }
 
-  Task* PopTaskToRunLocked()
-      PW_EXCLUSIVE_LOCKS_REQUIRED(impl::dispatcher_lock());
+  Task* PopTaskToRunLocked() PW_EXCLUSIVE_LOCKS_REQUIRED(internal::lock());
 
   // Removes references to this `Dispatcher` from all linked `Task`s and
   // `Waker`s.
-  void Deregister() PW_LOCKS_EXCLUDED(impl::dispatcher_lock());
+  void Deregister() PW_LOCKS_EXCLUDED(internal::lock());
 
   static void UnpostTaskList(IntrusiveList<Task>& list)
-      PW_EXCLUSIVE_LOCKS_REQUIRED(impl::dispatcher_lock());
+      PW_EXCLUSIVE_LOCKS_REQUIRED(internal::lock());
 
   void RemoveWokenTaskLocked(Task& task)
-      PW_EXCLUSIVE_LOCKS_REQUIRED(impl::dispatcher_lock()) {
+      PW_EXCLUSIVE_LOCKS_REQUIRED(internal::lock()) {
     woken_.remove(task);
   }
   void RemoveSleepingTaskLocked(Task& task)
-      PW_EXCLUSIVE_LOCKS_REQUIRED(impl::dispatcher_lock()) {
+      PW_EXCLUSIVE_LOCKS_REQUIRED(internal::lock()) {
     sleeping_.remove(task);
   }
   void AddSleepingTaskLocked(Task& task)
-      PW_EXCLUSIVE_LOCKS_REQUIRED(impl::dispatcher_lock()) {
+      PW_EXCLUSIVE_LOCKS_REQUIRED(internal::lock()) {
     sleeping_.push_front(task);
   }
 
   // For use by ``Waker``.
-  void WakeTask(Task& task)
-      PW_EXCLUSIVE_LOCKS_REQUIRED(impl::dispatcher_lock());
+  void WakeTask(Task& task) PW_EXCLUSIVE_LOCKS_REQUIRED(internal::lock());
 
   void LogTaskWakers(const Task& task)
-      PW_EXCLUSIVE_LOCKS_REQUIRED(impl::dispatcher_lock());
+      PW_EXCLUSIVE_LOCKS_REQUIRED(internal::lock());
 
   // Indicates that this Dispatcher should be woken when Wake() is called. This
   // prevents unnecessary wakes when, for example, multiple wakers wake the same
   // task or multiple tasks are posted before the dipsatcher runs.
   //
   // Must be called while the lock is held to prevent missed wakes.
-  void set_wants_wake() PW_EXCLUSIVE_LOCKS_REQUIRED(impl::dispatcher_lock()) {
+  void set_wants_wake() PW_EXCLUSIVE_LOCKS_REQUIRED(internal::lock()) {
     wants_wake_.store(true, std::memory_order_relaxed);
   }
 
@@ -220,11 +218,11 @@ class Dispatcher {
     return wants_wake_.exchange(false, std::memory_order_relaxed);
   }
 
-  IntrusiveList<Task> woken_ PW_GUARDED_BY(impl::dispatcher_lock());
-  IntrusiveList<Task> sleeping_ PW_GUARDED_BY(impl::dispatcher_lock());
+  IntrusiveList<Task> woken_ PW_GUARDED_BY(internal::lock());
+  IntrusiveList<Task> sleeping_ PW_GUARDED_BY(internal::lock());
 
   // Latches wake requests to avoid duplicate DoWake calls.
-  std::atomic<bool> wants_wake_ PW_GUARDED_BY(impl::dispatcher_lock()) = false;
+  std::atomic<bool> wants_wake_ PW_GUARDED_BY(internal::lock()) = false;
 };
 
 /// @}

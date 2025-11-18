@@ -30,14 +30,14 @@
 namespace pw::async2 {
 
 void Dispatcher::Deregister() {
-  std::lock_guard lock(impl::dispatcher_lock());
+  std::lock_guard lock(internal::lock());
   UnpostTaskList(woken_);
   UnpostTaskList(sleeping_);
 }
 
 void Dispatcher::Post(Task& task) {
   {
-    std::lock_guard lock(impl::dispatcher_lock());
+    std::lock_guard lock(internal::lock());
     task.PostTo(*this);
     woken_.push_back(task);
     set_wants_wake();
@@ -65,7 +65,7 @@ Task* Dispatcher::PopTaskToRunLocked() {
 }
 
 Task* Dispatcher::PopTaskToRun(State& result) {
-  std::lock_guard lock(impl::dispatcher_lock());
+  std::lock_guard lock(internal::lock());
 
   Task* task = PopTaskToRunLocked();
   if (task != nullptr) {
@@ -92,7 +92,7 @@ Dispatcher::RunTaskResult Dispatcher::RunTask(Task& task) {
   const Task::RunResult run_result = task.RunInDispatcher();
 
   // If this is an OwnedTask, then no other threads should be accessing it, so
-  // it is safe to destroy it without holding impl::dispatcher_lock().
+  // it is safe to destroy it without holding internal::lock().
   if (run_result == Task::kCompletedNeedsDestroy) {
     static_cast<OwnedTask&>(task).Destroy();
     return RunTaskResult::kCompleted;
@@ -126,7 +126,7 @@ void Dispatcher::WakeTask(Task& task) {
 //     to use it.
 void Dispatcher::LogRegisteredTasks() {
   PW_LOG_INFO("pw::async2::Dispatcher");
-  std::lock_guard lock(impl::dispatcher_lock());
+  std::lock_guard lock(internal::lock());
 
   PW_LOG_INFO("Woken tasks:");
   for (const Task& task : woken_) {

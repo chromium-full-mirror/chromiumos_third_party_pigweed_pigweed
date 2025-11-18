@@ -22,7 +22,7 @@ namespace pw::async2 {
 namespace internal {
 
 bool CloneWaker(Waker& waker_in, Waker& waker_out, log::Token wait_reason) {
-  std::lock_guard lock(impl::dispatcher_lock());
+  std::lock_guard lock(internal::lock());
   if (waker_out.task_ != nullptr && waker_out.task_ != waker_in.task_) {
     return false;
   }
@@ -37,7 +37,7 @@ bool StoreWaker(Context& cx, Waker& waker_out, log::Token wait_reason) {
 }  // namespace internal
 
 Waker::Waker(Waker&& other) noexcept {
-  std::lock_guard lock(impl::dispatcher_lock());
+  std::lock_guard lock(internal::lock());
   if (other.task_ == nullptr) {
     return;
   }
@@ -47,7 +47,7 @@ Waker::Waker(Waker&& other) noexcept {
 }
 
 Waker& Waker::operator=(Waker&& other) noexcept {
-  std::lock_guard lock(impl::dispatcher_lock());
+  std::lock_guard lock(internal::lock());
   RemoveFromTaskWakerListLocked();
   if (other.task_ == nullptr) {
     return *this;
@@ -59,7 +59,7 @@ Waker& Waker::operator=(Waker&& other) noexcept {
 }
 
 void Waker::Wake() && {
-  std::lock_guard lock(impl::dispatcher_lock());
+  std::lock_guard lock(internal::lock());
   if (task_ != nullptr) {
     task_->dispatcher_->WakeTask(*task_);
     RemoveFromTaskWakerListLocked();
@@ -87,12 +87,12 @@ void Waker::InternalCloneIntoLocked(Waker& out,
 }
 
 bool Waker::IsEmpty() const {
-  std::lock_guard lock(impl::dispatcher_lock());
+  std::lock_guard lock(internal::lock());
   return task_ == nullptr;
 }
 
 void Waker::InsertIntoTaskWakerList() {
-  std::lock_guard lock(impl::dispatcher_lock());
+  std::lock_guard lock(internal::lock());
   InsertIntoTaskWakerListLocked();
 }
 
@@ -103,7 +103,7 @@ void Waker::InsertIntoTaskWakerListLocked() {
 }
 
 void Waker::RemoveFromTaskWakerList() {
-  std::lock_guard lock(impl::dispatcher_lock());
+  std::lock_guard lock(internal::lock());
   RemoveFromTaskWakerListLocked();
 }
 

@@ -53,7 +53,7 @@ pw_add_library(pw_async2.dispatcher STATIC
     public/pw_async2/dispatcher.h
     public/pw_async2/future.h
     public/pw_async2/internal/config.h
-    public/pw_async2/lock.h
+    public/pw_async2/internal/lock.h
     public/pw_async2/owned_task.h
     public/pw_async2/runnable_dispatcher.h
     public/pw_async2/task.h

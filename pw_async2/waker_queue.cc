@@ -37,15 +37,14 @@ void WakerQueueBase::WakeMany(size_t count) {
   }
 }
 
-bool WakerQueueBase::Add(Waker&& waker)
-    PW_LOCKS_EXCLUDED(impl::dispatcher_lock()) {
+bool WakerQueueBase::Add(Waker&& waker) PW_LOCKS_EXCLUDED(internal::lock()) {
   if (waker.IsEmpty()) {
     return false;
   }
 
   {
     // Don't store multiple wakers for the same task.
-    std::lock_guard lock(impl::dispatcher_lock());
+    std::lock_guard lock(internal::lock());
     for (Waker& queued_waker : queue_) {
       if (waker.task_ == queued_waker.task_) {
         return true;

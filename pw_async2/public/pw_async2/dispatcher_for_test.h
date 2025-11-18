@@ -67,7 +67,7 @@ class DispatcherForTestFacade final : public RunnableDispatcher {
 
   template <typename Pendable>
   Poll<internal::PendOutputOf<Pendable>> RunInTaskUntilStalled(
-      Pendable& pendable) PW_LOCKS_EXCLUDED(impl::dispatcher_lock()) {
+      Pendable& pendable) PW_LOCKS_EXCLUDED(internal::lock()) {
     internal::PendableAsTaskWithOutput<Pendable> task(pendable);
     native().Post(task);
     native().RunUntilStalled();

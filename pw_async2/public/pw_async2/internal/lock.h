@@ -16,10 +16,10 @@
 #include "pw_sync/interrupt_spin_lock.h"
 #include "pw_toolchain/no_destructor.h"
 
-namespace pw::async2::impl {
+namespace pw::async2::internal {
 
-// A lock guarding the `Dispatcher`'s `Task` queue and `Waker` lists. This is an
-// internal implementation detail. Do not use it directly.
+// A lock guarding `Task` queue and `Waker` lists for all `Dispatcher`s. This is
+// an internal implementation detail. Do not use it directly.
 //
 // This is an `InterruptSpinLock` in order to allow posting work from ISR
 // contexts.
@@ -28,9 +28,9 @@ namespace pw::async2::impl {
 // `Waker` to take out the lock without dereferencing their `Dispatcher*`
 // fields, which are themselves guarded by the lock in order to allow the
 // `Dispatcher` to `Deregister` itself upon destruction.
-inline pw::sync::InterruptSpinLock& dispatcher_lock() {
+inline pw::sync::InterruptSpinLock& lock() {
   static NoDestructor<pw::sync::InterruptSpinLock> lock;
   return *lock;
 }
 
-}  // namespace pw::async2::impl
+}  // namespace pw::async2::internal

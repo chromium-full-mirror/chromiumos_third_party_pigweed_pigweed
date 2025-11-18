@@ -49,7 +49,7 @@ void Task::RemoveWakerLocked(Waker& waker) {
 }
 
 bool Task::IsRegistered() const {
-  std::lock_guard lock(impl::dispatcher_lock());
+  std::lock_guard lock(internal::lock());
   return state_ != State::kUnposted;
 }
 
@@ -64,7 +64,7 @@ void Task::Deregister() {
 }
 
 bool Task::TryDeregister() {
-  std::lock_guard lock(impl::dispatcher_lock());
+  std::lock_guard lock(internal::lock());
   // TODO: b/456555552 - Ideally, it wouldn't be possible to call Deregister
   // on an OwnedTask. Currently it's private, but accessible via Task.
   // Consider having a common BaseTask without Deregister.
@@ -115,7 +115,7 @@ Task::RunResult Task::RunInDispatcher() {
     requires_waker = context.requires_waker_;
   }
 
-  std::lock_guard lock(impl::dispatcher_lock());
+  std::lock_guard lock(internal::lock());
 
   if (complete || state_ == State::kDeregisteredButRunning) {
     switch (state_) {
