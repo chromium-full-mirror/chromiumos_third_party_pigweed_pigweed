@@ -30,8 +30,15 @@ elseif(pw_third_party_nanopb_ADD_SUBDIRECTORY)
   add_subdirectory("${dir_pw_third_party_nanopb}" third_party/nanopb)
 endif()
 
+if(CONFIG_ZEPHYR_PIGWEED_MODULE)
+# The nanopb Zephyr module adds nanopb to the Zephyr interface
+# Use this target, as the native nanopb target is not aware of Zephyr-provided
+# build flags
+set(nanopb_main_library zephyr_interface)
+else()
 set(nanopb_main_library
     $<IF:$<TARGET_EXISTS:protobuf-nanopb-static>,protobuf-nanopb-static,protobuf-nanopb>)
+endif()
 
 add_library(pw_third_party.nanopb INTERFACE)
 target_link_libraries(pw_third_party.nanopb INTERFACE "${nanopb_main_library}")
