@@ -13,6 +13,7 @@
 // the License.
 #pragma once
 
+#include "pw_polyfill/language_feature_macros.h"
 #include "pw_sync/interrupt_spin_lock.h"
 #include "pw_toolchain/no_destructor.h"
 
@@ -29,7 +30,7 @@ namespace pw::async2::internal {
 // fields, which are themselves guarded by the lock in order to allow the
 // `Dispatcher` to `Deregister` itself upon destruction.
 inline pw::sync::InterruptSpinLock& lock() {
-  static NoDestructor<pw::sync::InterruptSpinLock> lock;
+  PW_CONSTINIT static NoDestructor<pw::sync::InterruptSpinLock> lock;
   return *lock;
 }
 

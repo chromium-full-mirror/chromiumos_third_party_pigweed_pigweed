@@ -104,6 +104,7 @@ cc_library(
     strip_include_prefix = "public",
     visibility = ["//visibility:private"],
     deps = [
+        "//pw_polyfill",
         "//pw_sync:interrupt_spin_lock",
         "//pw_toolchain:no_destructor",
     ],

@@ -103,6 +103,7 @@ pw_source_set("internal") {
   public_deps = [
     "$dir_pw_sync:interrupt_spin_lock",
     "$dir_pw_toolchain:no_destructor",
+    dir_pw_polyfill,
     pw_async2_CONFIG,
   ]
   visibility = [ ":*" ]

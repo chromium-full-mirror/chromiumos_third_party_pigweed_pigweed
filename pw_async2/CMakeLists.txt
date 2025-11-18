@@ -68,6 +68,7 @@ pw_add_library(pw_async2.dispatcher STATIC
     pw_containers.intrusive_list
     pw_log
     pw_log.args
+    pw_polyfill
     pw_sync.interrupt_spin_lock
     pw_sync.lock_annotations
     pw_tokenizer
