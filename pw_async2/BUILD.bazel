@@ -696,6 +696,12 @@ pw_cc_test(
     srcs = [
         "channel_thread_test.cc",
     ],
+    # b/458819597 - Enable sanitizers after fixing race conditions.
+    tags = [
+        "noasan",
+        "nomsan",
+        "notsan",
+    ],
     deps = [
         ":channel",
         ":dispatcher",
