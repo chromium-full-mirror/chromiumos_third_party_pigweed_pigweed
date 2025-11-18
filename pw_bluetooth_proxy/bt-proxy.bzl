@@ -53,6 +53,8 @@ def pw_bluetooth_proxy_library(name, **kwargs):
             "recombiner.cc",
             "basic_mode_tx_engine.cc",
             "basic_mode_rx_engine.cc",
+            "credit_based_flow_control_tx_engine.cc",
+            "credit_based_flow_control_rx_engine.cc",
         ],
         # LINT.ThenChange(Android.bp, BUILD.gn, CMakeLists.txt)
 
@@ -81,6 +83,8 @@ def pw_bluetooth_proxy_library(name, **kwargs):
             "public/pw_bluetooth_proxy/internal/tx_engine.h",
             "public/pw_bluetooth_proxy/internal/basic_mode_tx_engine.h",
             "public/pw_bluetooth_proxy/internal/basic_mode_rx_engine.h",
+            "public/pw_bluetooth_proxy/internal/credit_based_flow_control_tx_engine.h",
+            "public/pw_bluetooth_proxy/internal/credit_based_flow_control_rx_engine.h",
             "public/pw_bluetooth_proxy/l2cap_channel_common.h",
             "public/pw_bluetooth_proxy/l2cap_coc.h",
             "public/pw_bluetooth_proxy/l2cap_coc_config.h",
@@ -155,6 +159,8 @@ def pw_bluetooth_proxy_test(name, versioned_deps, **kwargs):
             "utils_test.cc",
             "basic_mode_tx_engine_test.cc",
             "basic_mode_rx_engine_test.cc",
+            "credit_based_flow_control_tx_engine_test.cc",
+            "credit_based_flow_control_rx_engine_test.cc",
         ],
         features = ["-conversion_warnings"],
         deps = [

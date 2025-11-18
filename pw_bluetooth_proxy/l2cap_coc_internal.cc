@@ -52,7 +52,6 @@ L2capCocInternal::L2capCocInternal(L2capCocInternal&& other)
   {
     std::lock_guard lock(rx_mutex_);
     std::lock_guard other_lock(other.rx_mutex_);
-    remaining_sdu_bytes_to_ignore_ = other.remaining_sdu_bytes_to_ignore_;
     rx_sdu_ = std::move(other.rx_sdu_);
     rx_sdu_offset_ = other.rx_sdu_offset_;
     rx_sdu_bytes_remaining_ = other.rx_sdu_bytes_remaining_;

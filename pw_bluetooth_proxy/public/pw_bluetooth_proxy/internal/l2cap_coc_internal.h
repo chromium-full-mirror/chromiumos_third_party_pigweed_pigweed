@@ -113,7 +113,6 @@ class L2capCocInternal final : public L2capChannel {
   Function<void(FlatConstMultiBuf&& payload)> receive_fn_;
 
   sync::Mutex rx_mutex_;
-  uint16_t remaining_sdu_bytes_to_ignore_ PW_GUARDED_BY(rx_mutex_) = 0;
   std::optional<FlatMultiBufInstance> rx_sdu_ PW_GUARDED_BY(rx_mutex_) =
       std::nullopt;
   uint16_t rx_sdu_offset_ PW_GUARDED_BY(rx_mutex_) = 0;

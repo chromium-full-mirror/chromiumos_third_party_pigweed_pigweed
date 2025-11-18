@@ -30,6 +30,8 @@ cc_library_static {
         "basic_l2cap_channel_internal.cc",
         "basic_mode_tx_engine.cc",
         "basic_mode_rx_engine.cc",
+        "credit_based_flow_control_tx_engine.cc",
+        "credit_based_flow_control_rx_engine.cc",
         "gatt_notify_channel.cc",
         "gatt_notify_channel_internal.cc",
         "l2cap_channel.cc",

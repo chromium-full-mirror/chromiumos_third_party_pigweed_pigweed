@@ -1,0 +1,268 @@
+
+// Copyright 2025 The Pigweed Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License"); you may not
+// use this file except in compliance with the License. You may obtain a copy of
+// the License at
+//
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+// WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+// License for the specific language governing permissions and limitations under
+// the License.
+
+#include "pw_bluetooth_proxy/internal/credit_based_flow_control_tx_engine.h"
+
+#include "pw_allocator/testing.h"
+#include "pw_bluetooth_proxy_private/test_utils.h"
+#include "pw_containers/inline_queue.h"
+#include "pw_unit_test/framework.h"
+
+namespace pw::bluetooth::proxy::internal {
+
+namespace {
+
+constexpr uint16_t kConnectionHandle = 0x40;
+constexpr uint16_t kRemoteCid = 0x50;
+constexpr uint16_t kLocalCid = 0x60;
+constexpr uint16_t kMtu = 7;
+constexpr uint16_t kMps = 5;
+
+constexpr std::array<std::byte, 7> kPayload0 = {std::byte{0x00},
+                                                std::byte{0x01},
+                                                std::byte{0x02},
+                                                std::byte{0x03},
+                                                std::byte{0x04},
+                                                std::byte{0x05},
+                                                std::byte{0x06}};
+constexpr std::array<std::byte, 3> kPayload1 = {
+    std::byte{0x08}, std::byte{0x07}, std::byte{0x06}};
+
+class CreditBasedFlowControlTxEngineTest : public ::testing::Test,
+                                           public TxEngine::Delegate {
+ public:
+  void SetUp() override {
+    // Queue 2 packets
+    MultiBufAllocator& allocator = packet_allocator_context_.GetAllocator();
+    std::optional<FlatMultiBufInstance> buffer_0 =
+        MultiBufAdapter::Create(allocator, kPayload0.size());
+    MultiBufAdapter::Copy(buffer_0.value(), /*dst_offset=*/0, kPayload0);
+    payload_queue_.emplace(
+        std::move(MultiBufAdapter::Unwrap(buffer_0.value())));
+
+    std::optional<FlatMultiBufInstance> buffer_1 =
+        MultiBufAdapter::Create(allocator, kPayload1.size());
+    MultiBufAdapter::Copy(buffer_1.value(), /*dst_offset=*/0, kPayload1);
+    payload_queue_.emplace(
+        std::move(MultiBufAdapter::Unwrap(buffer_1.value())));
+
+    max_payload_size_ = 20;
+    ConnectionOrientedChannelConfig config{
+        .cid = kRemoteCid, .mtu = kMtu, .mps = kMps, .credits = 0};
+    engine_.emplace(config, kConnectionHandle, kLocalCid, *this);
+  }
+
+  void TearDown() override { engine_.reset(); }
+
+  CreditBasedFlowControlTxEngine& engine() { return engine_.value(); }
+
+  MultiBufAllocator& multibuf_allocator() {
+    return packet_allocator_context_.GetAllocator();
+  }
+
+  void set_max_payload_size(std::optional<uint16_t> max_payload_size) {
+    max_payload_size_ = max_payload_size;
+  }
+
+  // TxEngine::Delegate overrides:
+
+  std::optional<uint16_t> MaxL2capPayloadSize() override {
+    return max_payload_size_;
+  }
+
+  const FlatConstMultiBuf* GetFrontPayload() override {
+    if (!payload_queue_.empty()) {
+      return &MultiBufAdapter::Unwrap(payload_queue_.front());
+    }
+    return nullptr;
+  }
+
+  void PopFrontPayload() override {
+    ASSERT_FALSE(payload_queue_.empty());
+    payload_queue_.pop();
+  }
+
+  pw::Result<H4PacketWithH4> AllocateH4(uint16_t length) override {
+    void* allocation =
+        allocator_.Allocate(allocator::Layout(length, alignof(uint8_t)));
+    PW_ASSERT(allocation);
+    return H4PacketWithH4(
+        pw::span<uint8_t>(static_cast<uint8_t*>(allocation), length),
+        [this](const uint8_t* buffer) {
+          allocator_.Deallocate(const_cast<uint8_t*>(buffer));
+        });
+  }
+
+ private:
+  pw::allocator::test::AllocatorForTest<500> allocator_;
+  MultiBufAllocatorContext<500> packet_allocator_context_;
+  std::optional<uint16_t> max_payload_size_;
+  InlineQueue<FlatConstMultiBufInstance, 2> payload_queue_;
+  std::optional<CreditBasedFlowControlTxEngine> engine_;
+};
+
+TEST_F(CreditBasedFlowControlTxEngineTest, GenerateNextPacket) {
+  // No credits yet
+  EXPECT_EQ(engine().GenerateNextPacket().status(), Status::Unavailable());
+  Result<bool> credits_result = engine().AddCredits(2);
+  ASSERT_TRUE(credits_result.ok());
+  EXPECT_TRUE(credits_result.value());
+
+  // Generate first segment of first SDU
+  Result<H4PacketWithH4> packet_0 = engine().GenerateNextPacket();
+  PW_TEST_ASSERT_OK(packet_0);
+  pw::span<uint8_t> packet_0_span = packet_0->GetH4Span();
+  EXPECT_EQ(packet_0_span.size(), 14u);
+  const std::array<uint8_t, 14> kExpectedH4_0 = {0x02,  // H4 type: ACL
+                                                        // ACL header:
+                                                 0x40,
+                                                 0x00,  // Handle
+                                                 0x09,
+                                                 0x00,  // Data Total Length
+                                                        // L2cap K-Frame:
+                                                 0x05,
+                                                 0x00,  // PDU length
+                                                 0x50,
+                                                 0x00,  // Remote Channel ID
+                                                 0x07,
+                                                 0x00,  // SDU length
+                                                 // Payload:
+                                                 0x00,
+                                                 0x01,
+                                                 0x02};
+  EXPECT_TRUE(std::equal(packet_0_span.begin(),
+                         packet_0_span.end(),
+                         kExpectedH4_0.begin(),
+                         kExpectedH4_0.end()));
+
+  // Add credit for third packet.
+  credits_result = engine().AddCredits(1);
+  ASSERT_TRUE(credits_result.ok());
+  // False because the previous number of credits was 1.
+  EXPECT_FALSE(credits_result.value());
+
+  // Generate second segment of first SDU
+  Result<H4PacketWithH4> packet_1 = engine().GenerateNextPacket();
+  PW_TEST_ASSERT_OK(packet_1);
+  pw::span<uint8_t> packet_1_span = packet_1->GetH4Span();
+  EXPECT_EQ(packet_1_span.size(), 13u);
+  const std::array<uint8_t, 13> kExpectedH4_1 = {0x02,  // H4 type: ACL
+                                                        // ACL header:
+                                                 0x40,
+                                                 0x00,  // Handle
+                                                 0x08,
+                                                 0x00,  // Data Total Length
+                                                        // L2cap B-Frame:
+                                                 0x04,
+                                                 0x00,  // PDU length
+                                                 0x50,
+                                                 0x00,  // Remote Channel ID
+                                                 // Payload:
+                                                 0x03,
+                                                 0x04,
+                                                 0x05,
+                                                 0x06};
+  EXPECT_TRUE(std::equal(packet_1_span.begin(),
+                         packet_1_span.end(),
+                         kExpectedH4_1.begin(),
+                         kExpectedH4_1.end()));
+
+  // Generate first (and last) segment of second SDU
+  Result<H4PacketWithH4> packet_2 = engine().GenerateNextPacket();
+  PW_TEST_ASSERT_OK(packet_2);
+  pw::span<uint8_t> packet_2_span = packet_2->GetH4Span();
+  EXPECT_EQ(packet_2_span.size(), 14u);
+
+  const std::array<uint8_t, 14> kExpectedH4_2 = {0x02,  // H4 type: ACL
+                                                        // ACL header:
+                                                 0x40,
+                                                 0x00,  // Handle
+                                                 0x09,
+                                                 0x00,  // Data Total Length
+                                                        // L2cap K-Frame:
+                                                 0x05,
+                                                 0x00,  // PDU length
+                                                 0x50,
+                                                 0x00,  // Remote Channel ID
+                                                 0x03,
+                                                 0x00,  // SDU length
+                                                 // Payload:
+                                                 0x08,
+                                                 0x07,
+                                                 0x06};
+  EXPECT_TRUE(std::equal(packet_2_span.begin(),
+                         packet_2_span.end(),
+                         kExpectedH4_2.begin(),
+                         kExpectedH4_2.end()));
+
+  credits_result = engine().AddCredits(1);
+  ASSERT_TRUE(credits_result.ok());
+  EXPECT_TRUE(credits_result.value());
+
+  // No more packets queued.
+  Result<H4PacketWithH4> result = engine().GenerateNextPacket();
+  EXPECT_EQ(result.status(), Status::Unavailable());
+}
+
+TEST_F(CreditBasedFlowControlTxEngineTest, CheckWriteParameterLargerThanMtu) {
+  std::optional<FlatMultiBufInstance> buffer =
+      MultiBufAdapter::Create(multibuf_allocator(), kMtu + 1);
+  ASSERT_TRUE(buffer.has_value());
+  const FlatConstMultiBuf& write_param =
+      MultiBufAdapter::Unwrap(buffer.value());
+
+  Status status = engine().CheckWriteParameter(write_param);
+  EXPECT_EQ(status, Status::InvalidArgument());
+}
+
+TEST_F(CreditBasedFlowControlTxEngineTest, CheckWriteParameterOk) {
+  std::optional<FlatMultiBufInstance> buffer =
+      MultiBufAdapter::Create(multibuf_allocator(), kMtu - 1);
+  ASSERT_TRUE(buffer.has_value());
+  const FlatConstMultiBuf& write_param =
+      MultiBufAdapter::Unwrap(buffer.value());
+
+  Status status = engine().CheckWriteParameter(write_param);
+  EXPECT_TRUE(status.ok());
+}
+
+TEST_F(CreditBasedFlowControlTxEngineTest, AddTooManyCredits) {
+  Result<bool> status_0 =
+      engine().AddCredits(std::numeric_limits<uint16_t>::max());
+  EXPECT_TRUE(status_0.ok());
+  Result<bool> status_1 = engine().AddCredits(1);
+  EXPECT_EQ(status_1.status(), Status::InvalidArgument());
+}
+
+TEST_F(CreditBasedFlowControlTxEngineTest, HandlePduFromHost) {
+  std::array<uint8_t, 2> frame = {0x00, 0x01};
+  TxEngine::HandlePduFromHostReturnValue result =
+      engine().HandlePduFromHost(frame);
+  EXPECT_TRUE(result.forward_to_controller);
+  EXPECT_FALSE(result.send_to_client.has_value());
+}
+
+TEST_F(CreditBasedFlowControlTxEngineTest, MaxSizeNotKnownYet) {
+  set_max_payload_size(std::nullopt);
+  Result<bool> credits_result = engine().AddCredits(2);
+  ASSERT_TRUE(credits_result.ok());
+  EXPECT_TRUE(credits_result.value());
+  Result<H4PacketWithH4> packet = engine().GenerateNextPacket();
+  EXPECT_EQ(packet.status(), Status::Unavailable());
+}
+
+}  // namespace
+
+}  // namespace pw::bluetooth::proxy::internal
