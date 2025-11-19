@@ -24,6 +24,13 @@ use crate::ArchConfigInterface;
 #[serde(deny_unknown_fields)]
 pub struct SystemConfig<A: ArchConfigInterface> {
     pub arch: A,
+    #[serde(flatten)]
+    pub base: BaseConfig,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct BaseConfig {
     pub kernel: KernelConfig,
     #[serde(default)]
     pub apps: LinkedHashMap<String, AppConfig>,
@@ -154,7 +161,7 @@ pub struct ThreadConfig {
 
 impl<A: ArchConfigInterface> SystemConfig<A> {
     fn handler_exists(&self, app_name: &str, object_name: &str) -> bool {
-        let Some(app) = self.apps.get(app_name) else {
+        let Some(app) = self.base.apps.get(app_name) else {
             return false;
         };
 
@@ -167,7 +174,7 @@ impl<A: ArchConfigInterface> SystemConfig<A> {
 
     pub fn calculate_and_validate(&mut self) -> Result<()> {
         // Generate `ordered_object_names` fields.
-        for (_, app_config) in &mut self.apps {
+        for (_, app_config) in &mut self.base.apps {
             app_config.process.ordered_object_names = app_config
                 .process
                 .objects
@@ -184,7 +191,7 @@ impl<A: ArchConfigInterface> SystemConfig<A> {
         }
 
         // Check to make sure that channel objects are properly linked.
-        for (name, app_config) in &self.apps {
+        for (name, app_config) in &self.base.apps {
             for (ident, object) in &app_config.process.objects {
                 let ObjectConfig::ChannelInitiator(initiator) = object else {
                     continue;

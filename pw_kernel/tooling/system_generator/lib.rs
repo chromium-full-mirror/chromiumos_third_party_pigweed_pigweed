@@ -157,6 +157,7 @@ impl<'a, A: ArchConfigInterface + Serialize> SystemGenerator<'a, A> {
         let template = self.env.get_template("app")?;
         let app = self
             .config
+            .base
             .apps
             .get(app_name)
             .ok_or_else(|| anyhow!("Unable to find app \"{app_name}\" in system manifest"))?;
@@ -177,15 +178,15 @@ impl<'a, A: ArchConfigInterface + Serialize> SystemGenerator<'a, A> {
         // TODO: davidroth - remove the requirement of setting the size of
         // flash, and instead calculate it based on code size.
         let mut next_flash_start_address =
-            self.config.kernel.flash_start_address + self.config.kernel.flash_size_bytes;
+            self.config.base.kernel.flash_start_address + self.config.base.kernel.flash_size_bytes;
         next_flash_start_address = Self::align(next_flash_start_address, FLASH_ALIGNMENT);
         let mut next_ram_start_address =
-            self.config.kernel.ram_start_address + self.config.kernel.ram_size_bytes;
+            self.config.base.kernel.ram_start_address + self.config.base.kernel.ram_size_bytes;
         next_ram_start_address = Self::align(next_ram_start_address, RAM_ALIGNMENT);
 
-        self.config.arch_crate_name = self.config.arch.get_arch_crate_name();
+        self.config.base.arch_crate_name = self.config.arch.get_arch_crate_name();
 
-        for app in self.config.apps.values_mut() {
+        for app in self.config.base.apps.values_mut() {
             app.flash_start_address = next_flash_start_address;
             next_flash_start_address = Self::align(
                 app.flash_start_address + app.flash_size_bytes,
@@ -206,11 +207,11 @@ impl<'a, A: ArchConfigInterface + Serialize> SystemGenerator<'a, A> {
     }
 
     fn populate_interrupt_table(&mut self) -> Result<()> {
-        if self.config.kernel.interrupt_table.is_none() {
+        if self.config.base.kernel.interrupt_table.is_none() {
             return Ok(());
         }
 
-        let interrupt_table = self.config.kernel.interrupt_table.as_mut().unwrap();
+        let interrupt_table = self.config.base.kernel.interrupt_table.as_mut().unwrap();
 
         // Calculate the size of the interrupt table, which is the highest handled IRQ + 1
         interrupt_table.table_size = interrupt_table
