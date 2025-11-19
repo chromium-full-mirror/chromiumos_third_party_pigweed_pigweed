@@ -94,7 +94,7 @@ add_executable(pw_async2.interrupt EXCLUDE_FROM_ALL
 target_link_libraries(pw_async2.interrupt
   PRIVATE
     pw_async2.dispatcher
-    pw_async2.pend_func_task
+    pw_async2.value_future
     pw_containers.inline_queue
     pw_log
     pw_sync.interrupt_spin_lock

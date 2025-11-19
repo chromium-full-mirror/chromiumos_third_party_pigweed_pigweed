@@ -27,9 +27,9 @@
 #include <thread>
 
 #include "pw_async2/basic_dispatcher.h"
-#include "pw_async2/pend_func_task.h"
 #include "pw_async2/poll.h"
 #include "pw_async2/try.h"
+#include "pw_async2/value_future.h"
 #include "pw_containers/inline_queue.h"
 #include "pw_log/log.h"
 #include "pw_status/try.h"
@@ -44,38 +44,42 @@ class FakeUart {
  public:
   // Asynchronously reads a single byte from the UART.
   //
-  // If a byte is available in the receive queue, it returns `Ready(byte)`.
-  // If another task is already waiting for a byte, it returns
+  // If a byte is available in the receive queue, it returns a Future that is
+  // already `Ready(byte)`.
+  // If another task is already waiting for a byte, it returns a Future that is
   // `Ready(Status::Unavailable())`.
-  // Otherwise, it returns `Pending` and arranges for the task to be woken up
-  // when a byte arrives.
-  pw::async2::PollResult<char> ReadByte(pw::async2::Context& cx) {
+  // Otherwise, it returns a `Pending` Future and arranges for the task to be
+  // woken up when a byte arrives.
+  pw::async2::ValueFuture<pw::Result<char>> ReadByte() {
     // Blocking inside an async function is generally an anti-pattern because it
     // prevents the single-threaded dispatcher from making progress on other
     // tasks. However, using `pw::sync::InterruptSpinLock` here is acceptable
     // due to the short-running nature of the ISR.
     std::lock_guard lock(lock_);
 
+    using ResultFuture = pw::async2::ValueFuture<pw::Result<char>>;
+
     // Check if the UART has been put into a failure state.
-    PW_TRY(status_);
+    if (!status_.ok()) {
+      return ResultFuture::Resolved(status_);
+    }
 
     // If a byte is already in the queue, return it immediately.
     if (!rx_queue_.empty()) {
       char byte = rx_queue_.front();
       rx_queue_.pop();
-      return byte;
+      return ResultFuture::Resolved(byte);
     }
 
     // If the queue is empty, the operation can't complete yet. Arrange for the
     // task to be woken up later.
-    // `PW_ASYNC_TRY_STORE_WAKER` stores a waker from the current task's
-    // context. If another task's waker is already stored, it returns false.
-    if (PW_ASYNC_TRY_STORE_WAKER(cx, waker_, "Waiting for a byte from UART")) {
-      return pw::async2::Pending();
+    // `TryGet` returns a future if one is available, or `std::nullopt` if
+    // another task is already waiting.
+    std::optional<ResultFuture> future = provider_.TryGet();
+    if (!future.has_value()) {
+      return ResultFuture::Resolved(pw::Status::Unavailable());
     }
-
-    // Another task is already waiting for a byte.
-    return pw::Status::Unavailable();
+    return std::move(*future);
   }
 
   // Simulates a hardware interrupt that receives a character.
@@ -90,11 +94,14 @@ class FakeUart {
 
     // Generate a random lowercase letter to simulate receiving data.
     char c = 'a' + (std::rand() % 26);
-    rx_queue_.push(c);
 
-    // Wake any task that is waiting for the data. Waking an empty waker is a
-    // no-op, so this can be called unconditionally.
-    std::move(waker_).Wake();
+    // If a task is waiting for a byte, give it the byte immediately.
+    if (provider_.has_future()) {
+      provider_.Resolve(c);
+    } else {
+      // Otherwise, store the byte in the queue.
+      rx_queue_.push(c);
+    }
   }
 
   // Puts the UART into a terminated state.
@@ -102,22 +109,22 @@ class FakeUart {
     std::lock_guard lock(lock_);
     status_ = status;
     // Wake up any pending task so it can observe the status change and exit.
-    std::move(waker_).Wake();
+    provider_.Resolve(status);
   }
 
  private:
   pw::sync::InterruptSpinLock lock_;
   pw::InlineQueue<char, 16> rx_queue_ PW_GUARDED_BY(lock_);
-  pw::async2::Waker waker_;
+  pw::async2::ValueProvider<pw::Result<char>> provider_;
   pw::Status status_;
 };
 // DOCSTAG: [pw_async2-examples-interrupt-uart]
 
-FakeUart uart;
+FakeUart fake_uart;
 
 void SigintHandler(int /*signum*/) {
   std::printf("\r\033[K");  // Clear ^C from the terminal.
-  uart.set_status(pw::Status::Cancelled());
+  fake_uart.set_status(pw::Status::Cancelled());
 }
 
 }  // namespace
@@ -138,23 +145,37 @@ int main() {
   pw::async2::BasicDispatcher dispatcher;
 
   // Create a task that reads from the UART in a loop.
-  pw::async2::PendFuncTask reader_task(
-      [](pw::async2::Context& cx) -> pw::async2::Poll<> {
-        while (true) {
-          // Poll `ReadByte` until it returns a `Ready`, then assign it to
-          // `result`.
-          PW_TRY_READY_ASSIGN(pw::Result<char> result, uart.ReadByte(cx));
+  class ReaderTask : public pw::async2::Task {
+   public:
+    ReaderTask(FakeUart& uart) : uart_(uart) {}
 
-          if (!result.ok()) {
-            PW_LOG_ERROR("UART read failed: %s", result.status().str());
-            break;
-          }
-
-          PW_LOG_INFO("Received: %c", *result);
+   private:
+    pw::async2::Poll<> DoPend(pw::async2::Context& cx) override {
+      while (true) {
+        if (!future_.has_value()) {
+          future_ = uart_.ReadByte();
         }
 
-        return pw::async2::Ready();
-      });
+        PW_TRY_READY_ASSIGN(pw::Result<char> result, future_->Pend(cx));
+
+        future_.reset();
+
+        if (!result.ok()) {
+          PW_LOG_ERROR("UART read failed: %s", result.status().str());
+          break;
+        }
+
+        PW_LOG_INFO("Received: %c", result.value());
+      }
+
+      return pw::async2::Ready();
+    }
+
+    FakeUart& uart_;
+    std::optional<pw::async2::ValueFuture<pw::Result<char>>> future_;
+  };
+
+  ReaderTask reader_task(fake_uart);
 
   // Post the task to the dispatcher to schedule it for execution.
   dispatcher.Post(reader_task);
@@ -165,7 +186,7 @@ int main() {
       char c;
       read(STDIN_FILENO, &c, 1);
       if (c == ' ') {
-        uart.HandleReceiveInterrupt();
+        fake_uart.HandleReceiveInterrupt();
       }
     }
   });

@@ -154,7 +154,7 @@ pw_cc_binary(
     }),
     deps = [
         "//pw_async2:basic_dispatcher",
-        "//pw_async2:pend_func_task",
+        "//pw_async2:value_future",
         "//pw_containers:inline_queue",
         "//pw_log",
         "//pw_sync:interrupt_spin_lock",

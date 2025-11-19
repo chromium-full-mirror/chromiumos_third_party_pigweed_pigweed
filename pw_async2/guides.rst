@@ -473,16 +473,18 @@ interrupts. The following example demonstrates this by creating a fake UART
 device with an asynchronous reading interface and a separate thread that
 simulates hardware interrupts.
 
-The example can be built and run in upstream Pigweed with the
-following command:
+The example can be :ref:`built and run in upstream Pigweed <docs-contributing>`
+with the following command:
 
 .. code-block:: sh
 
    bazelisk run //pw_async2/examples:interrupt
 
 ``FakeUart`` simulates an interrupt-driven UART with an asynchronous interface
-for reading bytes (``ReadByte``). The ``HandleReceiveInterrupt`` method would
-be called from an ISR. (In the example, this is simulated via keyboard input.)
+for reading bytes. The ``ReadByte`` method returns a ``ValueFuture`` that
+resolves when a byte is available. The ``HandleReceiveInterrupt`` method would
+be called from an ISR to resolve pending futures or queue data. (In the example,
+this is simulated via keyboard input.)
 
 .. literalinclude:: examples/interrupt.cc
    :language: cpp
@@ -490,7 +492,8 @@ be called from an ISR. (In the example, this is simulated via keyboard input.)
    :start-after: [pw_async2-examples-interrupt-uart]
    :end-before: [pw_async2-examples-interrupt-uart]
 
-A reader task polls the fake UART until it receives data.
+A reader task obtains a future from the UART and polls it until it receives
+data.
 
 .. literalinclude:: examples/interrupt.cc
    :language: cpp
@@ -500,6 +503,8 @@ A reader task polls the fake UART until it receives data.
 
 This example shows how to bridge the gap between low-level, interrupt-driven
 hardware and the high-level, cooperative multitasking model of ``pw_async2``.
+
+Full source code for this example: :cs:`pw_async2/examples/interrupt.cc`
 
 ------------
 Unit testing
