@@ -15,25 +15,31 @@
 #![no_main]
 
 use arch_riscv::Arch;
+use kernel_config::Uart0Config;
 use pw_status::Result;
 use riscv_semihosting::debug::{EXIT_FAILURE, EXIT_SUCCESS, exit};
 use target_common::{TargetInterface, declare_target};
+use uart_16550_config::UartConfigInterface;
 use {codegen as _, console_backend as _, entry as _};
 
 pub struct Target {}
 struct TargetUart {}
 
+uart_16550_kernel::declare_uarts!(Arch, UARTS, [
+    UART0: Uart0Config,
+]);
+
 impl interrupts::TestUart for TargetUart {
     fn enable_loopback() {
-        entry::UART0.enable_loopback()
+        UART0.enable_loopback()
     }
 
     fn read() -> Result<Option<u8>> {
-        entry::UART0.read(Arch)
+        UART0.read(Arch)
     }
 
     fn write(byte: u8) -> Result<()> {
-        entry::UART0.write(byte)
+        UART0.write(byte)
     }
 }
 
@@ -41,6 +47,8 @@ impl TargetInterface for Target {
     const NAME: &'static str = "QEMU-VIRT-RISCV Kernelspace Interrupts";
 
     fn main() -> ! {
+        uart_16550_kernel::init(Arch, &UARTS);
+
         let exit_status = match interrupts::main::<Arch, TargetUart>(Arch) {
             Ok(()) => EXIT_SUCCESS,
             Err(_e) => EXIT_FAILURE,

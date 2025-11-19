@@ -12,7 +12,6 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 
-use kernel::Arch;
 #[cfg(feature = "exceptions_reload_pmp")]
 use kernel::Kernel;
 use kernel::syscall::{SyscallArgs, raw_handle_syscall};
@@ -33,7 +32,7 @@ use crate::MemoryConfig;
 use crate::regs::{
     Cause, Exception, Interrupt, MCause, MCauseVal, MStatus, MtVal, MtVec, MtVecMode,
 };
-use crate::timer;
+use crate::{plic, timer};
 
 const LOG_EXCEPTIONS: bool = false;
 
@@ -193,9 +192,7 @@ unsafe fn interrupt_handler(interrupt: Interrupt, mepc: usize, frame: &TrapFrame
             timer::mtimer_tick();
         }
         Interrupt::MachineExternal => {
-            crate::Arch::get_interrupt_controller(crate::Arch)
-                .lock(crate::Arch)
-                .interrupt();
+            plic::interrupt();
         }
         _ => {
             pw_assert::panic!(

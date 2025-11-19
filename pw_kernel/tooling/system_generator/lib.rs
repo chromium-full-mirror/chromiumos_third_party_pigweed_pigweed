@@ -25,7 +25,10 @@ use serde::de::DeserializeOwned;
 
 pub mod system_config;
 
+use system_config::ObjectConfig::Interrupt;
 use system_config::SystemConfig;
+
+use crate::system_config::InterruptTableConfig;
 
 #[derive(Debug, Parser)]
 pub struct Cli {
@@ -227,19 +230,94 @@ impl<'a, A: ArchConfigInterface + Serialize> SystemGenerator<'a, A> {
     }
 
     fn populate_interrupt_table(&mut self) -> Result<()> {
+        // Add any interrupts handled by interrupt objects.
+        for (app_name, app) in &mut self.config.base.apps {
+            for (object_name, object) in &mut app.process.objects {
+                let &mut Interrupt(ref mut interrupt_config) = object else {
+                    continue;
+                };
+
+                // Allow defining interrupt objects without requiring an interrupt_table
+                // to also be defined in the config.
+                if self.config.base.kernel.interrupt_table.is_none() {
+                    self.config.base.kernel.interrupt_table = Some(InterruptTableConfig::default());
+                }
+
+                let interrupt_table = self.config.base.kernel.interrupt_table.as_mut().unwrap();
+
+                interrupt_config.object_ref_name =
+                    std::format!("INTERRUPT_OBJECT_{app_name}_{object_name}").to_uppercase();
+
+                if interrupt_config.irqs.len() > 16 {
+                    return Err(anyhow!(
+                        "Interrupt object {} in app {} has more than 16 interrupts",
+                        object_name,
+                        app_name,
+                    ));
+                }
+
+                for (ref mut index, (irq_name, irq)) in
+                    (&interrupt_config.irqs).into_iter().enumerate()
+                {
+                    if interrupt_table.table.contains_key(&*irq.to_string()) {
+                        return Err(anyhow!(
+                            "IRQ {}={} in app {} object {} already handled.",
+                            irq_name,
+                            irq,
+                            app_name,
+                            object_name
+                        ));
+                    }
+
+                    let handler_name =
+                        std::format!("interrupt_handler_{app_name}_{object_name}_{irq_name}")
+                            .to_lowercase();
+
+                    interrupt_table
+                        .ordered_table
+                        .insert(*irq, handler_name.clone());
+
+                    interrupt_config.handlers.insert(*irq, handler_name.clone());
+
+                    interrupt_config.interrupt_signal_map.insert(
+                        irq_name.to_string(),
+                        std::format!(
+                            "Signals::INTERRUPT_{}",
+                            (b'A' + u8::try_from(*index).unwrap()) as char
+                        ),
+                    );
+
+                    interrupt_config
+                        .ordered_interrupt_names
+                        .push(irq_name.to_string());
+                    *index += 1;
+                }
+            }
+        }
+
+        // If there's no interrupt_table defined by the user and no interrupt objects,
+        // there is no need to generate an interrupt table.
         if self.config.base.kernel.interrupt_table.is_none() {
             return Ok(());
         }
 
         let interrupt_table = self.config.base.kernel.interrupt_table.as_mut().unwrap();
 
+        // Add any handlers defined in the config to the ordered list.
+        for (irq, handler) in &interrupt_table.table {
+            interrupt_table
+                .ordered_table
+                // Use the safe wrapper handler to keep the table elements safe.
+                .insert(irq.parse::<u32>().unwrap(), std::format!("safe_{handler}"));
+        }
+
         // Calculate the size of the interrupt table, which is the highest handled IRQ + 1
         interrupt_table.table_size = interrupt_table
-            .table
+            .ordered_table
             .keys()
             .max()
-            .map(|max_irq| (max_irq.parse::<usize>().unwrap()) + 1)
-            .unwrap_or(0);
+            .map(|max_irq| max_irq + 1)
+            .unwrap_or(0) as usize;
 
         Ok(())
     }

@@ -180,6 +180,8 @@ def app_package(name, system_config, app_name, **kwargs):
     rust_library(
         name = name,
         srcs = [":{}.rustsrc".format(name)],
-        deps = [":{}.linker_script".format(name)],
+        deps = [":{}.linker_script".format(name)] + [
+            "@pigweed//pw_kernel/syscall:syscall_defs",
+        ],
         **kwargs
     )

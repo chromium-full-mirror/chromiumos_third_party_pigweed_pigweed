@@ -1,0 +1,69 @@
+// Copyright 2025 The Pigweed Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License"); you may not
+// use this file except in compliance with the License. You may obtain a copy of
+// the License at
+//
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+// WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+// License for the specific language governing permissions and limitations under
+// the License.
+
+#[allow(unused_imports)]
+use {{ arch_crate_name }} as arch;
+#[allow(unused_imports)]
+use foreign_box::ForeignRc;
+#[allow(unused_imports)]
+use kernel::interrupt_controller::{StaticContext, InterruptTableEntry};
+#[allow(unused_imports)]
+use kernel::object::InterruptObject;
+#[allow(unused_imports)]
+use syscall_defs::Signals;
+
+{% for app_name in apps %}
+    {%- set app = apps[app_name] -%}
+    {%- for object_name in app.process.ordered_object_names %}
+    {%- set object = app.process.objects[object_name] %}
+        {%- if object.type == "interrupt" %}
+static {{object.object_ref_name}}: StaticContext<ForeignRc<<arch::Arch as kernel::Arch>::AtomicUsize, InterruptObject<arch::Arch>>> = StaticContext::new();
+            {%- for irq_name in object.irqs %}
+                {%- set irq = object.irqs[irq_name] %}
+                {%- set handler_name = object.handlers[irq] %}
+                {%- set mapped_signal = object.interrupt_signal_map[irq_name] %}
+extern "C" fn {{handler_name}}() {
+    if let Some(object) = unsafe { {{object.object_ref_name}}.get() } {
+        object.interrupt(arch::Arch, {{mapped_signal}});
+    }
+}
+            {% endfor %}
+        {%- endif -%}
+    {%- endfor -%}
+{%- endfor %}
+
+{%- for irq in kernel.interrupt_table.table %}
+    {%- set handler_name = kernel.interrupt_table.table[irq] %}
+unsafe extern "C" { fn {{handler_name}}(); }
+
+// Safe wrapper to keep the interrupt table entires safe.
+#[inline(always)]
+extern "C" fn safe_{{handler_name}}() {
+    unsafe { {{handler_name}}(); }
+}
+
+{%- endfor %}
+
+static PW_KERNEL_INTERRUPT_TABLE_ARRAY: [InterruptTableEntry; {{kernel.interrupt_table.table_size}}] = {
+    #[allow(unused_mut)]
+    let mut interrupt_table: [InterruptTableEntry; {{kernel.interrupt_table.table_size}}] = [None; {{kernel.interrupt_table.table_size}}];
+{%- for irq in kernel.interrupt_table.ordered_table %}
+    {%- set handler_name = kernel.interrupt_table.ordered_table[irq] %}
+    interrupt_table[{{irq}}] = Some({{handler_name}});
+{%- endfor %}
+    interrupt_table
+};
+
+#[unsafe(no_mangle)]
+pub static PW_KERNEL_INTERRUPT_TABLE: &[InterruptTableEntry] = &PW_KERNEL_INTERRUPT_TABLE_ARRAY;

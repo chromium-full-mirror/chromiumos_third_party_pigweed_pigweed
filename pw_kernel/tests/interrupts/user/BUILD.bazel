@@ -38,3 +38,30 @@ app_package(
     system_config = "//pw_kernel/target:system_config_file",
     tags = ["kernel"],
 )
+
+rust_binary(
+    name = "uart_listener",
+    srcs = [
+        "uart_listener.rs",
+    ],
+    edition = "2024",
+    tags = ["kernel"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":app_uart_listener",
+        "//pw_kernel/drivers/uart/uart_16550:uart_16550_user",
+        "//pw_kernel/lib/pw_assert",
+        "//pw_kernel/syscall:syscall_user",
+        "//pw_kernel/userspace",
+        "//pw_log/rust:pw_log",
+        "//pw_status/rust:pw_status",
+    ],
+)
+
+app_package(
+    name = "app_uart_listener",
+    app_name = "uart_listener",
+    edition = "2024",
+    system_config = "//pw_kernel/target:system_config_file",
+    tags = ["kernel"],
+)

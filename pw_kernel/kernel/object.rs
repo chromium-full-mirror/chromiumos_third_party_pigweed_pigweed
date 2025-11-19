@@ -28,9 +28,11 @@ use crate::sync::spinlock::SpinLock;
 
 mod buffer;
 mod channel;
+mod interrupt;
 
 pub use buffer::SyscallBuffer;
 pub use channel::{ChannelHandlerObject, ChannelInitiatorObject};
+pub use interrupt::InterruptObject;
 
 /// Trait that all kernel objects implement.
 ///
@@ -46,7 +48,7 @@ pub trait KernelObject<K: Kernel>: Any + Send + Sync {
         kernel: K,
         signal_mask: Signals,
         deadline: Instant<K::Clock>,
-    ) -> Result<()> {
+    ) -> Result<Signals> {
         Err(Error::Unimplemented)
     }
 
@@ -67,7 +69,12 @@ pub trait KernelObject<K: Kernel>: Any + Send + Sync {
     }
 
     #[allow(unused_variables)]
-    fn channel_respond(&self, ctx: K, response_buffer: SyscallBuffer) -> Result<()> {
+    fn channel_respond(&self, kernel: K, response_buffer: SyscallBuffer) -> Result<()> {
+        Err(Error::Unimplemented)
+    }
+
+    #[allow(unused_variables)]
+    fn interrupt_ack(&self, kernel: K, signal_mask: Signals) -> Result<()> {
         Err(Error::Unimplemented)
     }
 }

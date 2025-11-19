@@ -13,6 +13,10 @@
 // the License.
 #![no_std]
 
+{% if kernel.interrupt_table %}
+{%- include "interrupts" -%}
+{% endif %}
+
 {% if apps | length > 0 %}
 pub fn start() {
     use core::ptr::NonNull;
@@ -37,6 +41,7 @@ pub fn start() {
     {%- for object_name in app.process.ordered_object_names %}
     {%- set object = app.process.objects[object_name] %}
         {% if object.type == "channel_handler" -%}
+            #[allow(unused_variables)]
             let (
                 object_{{app_name}}_{{object_name | lower}},
                 object_{{app_name}}_{{object_name | lower}}_handler
@@ -82,6 +87,8 @@ pub fn start() {
                 object_{{app_name}}_{{object_name | lower}}
         {% elif object.type == "channel_initiator" -%}
             {% include "object_channel_initiator" %}
+        {% elif object.type == "interrupt" -%}
+            {% include "object_interrupt" %}
         {%- endif -%}
         ;
     {%- endfor %}
@@ -123,25 +130,4 @@ pub fn start() {
 {%- endfor -%}
 {%- endfor %}
 }
-{%- endif %}
-
-
-{% if kernel.interrupt_table %}
-
-{%- for irq in kernel.interrupt_table.table %}
-{%- set handler_name = kernel.interrupt_table.table[irq] %}
-unsafe extern "C" { fn {{handler_name}}(); }
-{%- endfor %}
-
-#[unsafe(no_mangle)]
-pub static PW_KERNEL_INTERRUPT_TABLE: [Option<unsafe extern "C" fn()>; {{kernel.interrupt_table.table_size}}] = {
-    #[allow(unused_mut)]
-    let mut interrupt_table: [Option<unsafe extern "C" fn()>; {{kernel.interrupt_table.table_size}}] = [None; {{kernel.interrupt_table.table_size}}];
-{%- for irq in kernel.interrupt_table.table %}
-    {%- set handler_name = kernel.interrupt_table.table[irq] %}
-    interrupt_table[{{irq}}] = Some({{handler_name}});
-{%- endfor %}
-    interrupt_table
-};
-
 {%- endif %}

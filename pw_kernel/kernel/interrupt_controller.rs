@@ -12,6 +12,8 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 
+use core::cell::UnsafeCell;
+
 /// This trait provides a generic interface to an architecture's interrupt
 /// controller, such as a RISC-V PLIC or an Arm NVIC.
 pub trait InterruptController {
@@ -24,6 +26,9 @@ pub trait InterruptController {
     /// Disable a specific interrupt by its IRQ number.
     fn disable_interrupt(&self, irq: u32);
 
+    /// Handling of the interrupt is complete.
+    fn interrupt_ack(irq: u32);
+
     /// Globally enable interrupts.
     fn enable_interrupts();
 
@@ -33,3 +38,37 @@ pub trait InterruptController {
     /// Returns `true` if interrupts are globally enabled.
     fn interrupts_enabled() -> bool;
 }
+
+/// StaticContext provides a context with Send & Sync for
+/// use with static instances of ForeignRc.
+pub struct StaticContext<T> {
+    inner: UnsafeCell<Option<T>>,
+}
+
+impl<T: Clone> StaticContext<T> {
+    pub const fn new() -> Self {
+        Self {
+            inner: UnsafeCell::new(None),
+        }
+    }
+
+    /// # Safety
+    /// Users of [`StaticContext::set()`] must ensure that
+    /// their calls into them are not done concurrently.
+    pub unsafe fn set(&self, val: T) {
+        unsafe { *self.inner.get() = Some(val) };
+    }
+
+    /// # Safety
+    /// Users of [`StaticContext::get()`] must ensure that
+    /// their calls into them are not done concurrently.
+    pub unsafe fn get(&self) -> Option<T> {
+        unsafe { (*self.inner.get()).clone() }
+    }
+}
+
+unsafe impl<T> Sync for StaticContext<T> {}
+unsafe impl<T> Send for StaticContext<T> {}
+
+pub type InterruptHandler = extern "C" fn();
+pub type InterruptTableEntry = Option<InterruptHandler>;

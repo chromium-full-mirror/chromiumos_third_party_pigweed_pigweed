@@ -14,7 +14,7 @@
 
 #![no_std]
 
-use kernel::interrupt::InterruptController;
+use kernel::interrupt_controller::InterruptController;
 use kernel::scheduler::SchedulerState;
 use kernel::scheduler::thread::{Stack, ThreadState};
 use kernel::sync::spinlock::SpinLockGuard;
@@ -157,6 +157,10 @@ impl InterruptController for HostInterruptController {
 
     fn disable_interrupt(&self, _irq: u32) {
         pw_assert::panic!("Unimplemented: disable_interrupt");
+    }
+
+    fn interrupt_ack(_irq: u32) {
+        pw_assert::panic!("Unimplemented: interrupt_ack");
     }
 
     fn enable_interrupts() {

@@ -14,33 +14,43 @@
 #![no_main]
 #![no_std]
 
-use app_interrupts::mapping;
+use app_interrupts::{handle, mapping};
 use pw_status::{Error, Result, StatusCode};
 use uart_16550_user::Uart;
+use userspace::syscall::Signals;
+use userspace::time::Instant;
 use userspace::{entry, syscall};
 
-fn read_expected_value(uart: &mut Uart, expected_value: u8) -> Result<()> {
-    uart.wait_for_rx();
+// TODO: once multiple target's are supported, feature flag the IRQ.
+const IRQ_NUMBER: u32 = 10;
 
-    let Some(value) = uart.read() else {
-        pw_log::error!("UART read() returned no value");
-        return Err(Error::Unavailable);
+fn read_expected_value(expected_value: u8) -> Result<()> {
+    // the UART listener responds on IPC with the value written to the UART.
+    syscall::object_wait(handle::IPC, Signals::READABLE, Instant::MAX)?;
+
+    let mut buffer = [0u8; 1];
+    let len = syscall::channel_read(handle::IPC, 0, &mut buffer)?;
+    if len != 1 {
+        return Err(Error::OutOfRange);
     };
 
-    if value != expected_value {
+    if buffer[0] != expected_value {
         pw_log::error!(
             "UART read() wrong value {} (expected {})",
-            value as u8,
+            buffer[0] as u8,
             expected_value as u8
         );
         return Err(Error::Internal);
     }
 
+    let response_buffer = [0u8; 0];
+    syscall::channel_respond(handle::IPC, &response_buffer)?;
+
     Ok(())
 }
 
-fn test_uart_loopback() -> Result<()> {
-    let mut uart = Uart::new(mapping::UART0_START_ADDRESS);
+fn test_uart_interrupts() -> Result<()> {
+    let mut uart = Uart::new(mapping::UART0_START_ADDRESS, IRQ_NUMBER);
 
     // enable lo to support writing and then reading back the result.
     uart.enable_loopback();
@@ -49,7 +59,7 @@ fn test_uart_loopback() -> Result<()> {
     while !uart.read().is_none() {}
 
     uart.write(7);
-    read_expected_value(&mut uart, 7)?;
+    read_expected_value(7)?;
 
     if !uart.read().is_none() {
         pw_log::error!("Buffer not empty after read");
@@ -58,7 +68,7 @@ fn test_uart_loopback() -> Result<()> {
 
     for i in 0..3u8 {
         uart.write(i);
-        read_expected_value(&mut uart, i)?;
+        read_expected_value(i)?;
     }
 
     if !uart.read().is_none() {
@@ -72,7 +82,7 @@ fn test_uart_loopback() -> Result<()> {
 #[entry]
 fn entry() -> ! {
     pw_log::info!("🔄 RUNNING");
-    let ret = test_uart_loopback();
+    let ret = test_uart_interrupts();
 
     // Log that an error occurred so that the app that caused the shutdown is logged.
     if ret.is_err() {

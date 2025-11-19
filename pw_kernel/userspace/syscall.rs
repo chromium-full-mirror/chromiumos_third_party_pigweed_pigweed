@@ -21,7 +21,7 @@ use syscall_user::SysCall;
 use crate::time::Instant;
 
 #[inline(always)]
-pub fn object_wait(object_handle: u32, signal_mask: Signals, deadline: Instant) -> Result<()> {
+pub fn object_wait(object_handle: u32, signal_mask: Signals, deadline: Instant) -> Result<Signals> {
     SysCall::object_wait(object_handle, signal_mask.bits(), deadline.ticks())
 }
 
@@ -56,6 +56,11 @@ pub fn channel_read(object_handle: u32, offset: usize, buffer: &mut [u8]) -> Res
 #[inline(always)]
 pub fn channel_respond(object_handle: u32, buffer: &[u8]) -> Result<()> {
     unsafe { SysCall::channel_respond(object_handle, buffer.as_ptr(), buffer.len()) }
+}
+
+#[inline(always)]
+pub fn interrupt_ack(object_handle: u32, signal_mask: Signals) -> Result<()> {
+    SysCall::interrupt_ack(object_handle, signal_mask)
 }
 
 #[inline(always)]

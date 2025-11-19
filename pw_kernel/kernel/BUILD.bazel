@@ -28,11 +28,12 @@ RISCV_DEPS = [
 rust_library(
     name = "kernel",
     srcs = [
-        "interrupt.rs",
+        "interrupt_controller.rs",
         "lib.rs",
         "object.rs",
         "object/buffer.rs",
         "object/channel.rs",
+        "object/interrupt.rs",
         "panic.rs",
         "scheduler.rs",
         "scheduler/algorithm.rs",

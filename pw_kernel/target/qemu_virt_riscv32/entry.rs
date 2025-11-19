@@ -16,8 +16,6 @@
 
 use arch_riscv::Arch;
 use kernel::{self as _};
-use kernel_config::Uart0Config;
-use uart_16550_config::UartConfigInterface;
 
 #[unsafe(no_mangle)]
 #[allow(non_snake_case)]
@@ -26,15 +24,9 @@ pub extern "C" fn pw_assert_HandleFailure() -> ! {
     Arch::panic()
 }
 
-uart_16550_kernel::declare_uarts!(Arch, UARTS, [
-    UART0: Uart0Config,
-]);
-
 #[riscv_rt::entry]
 fn main() -> ! {
     kernel::static_init_state!(static mut INIT_STATE: InitKernelState<Arch>);
-
-    uart_16550_kernel::init(&UARTS);
 
     // SAFETY: `main` is only executed once, so we never generate more than one
     // `&mut` reference to `INIT_STATE`.

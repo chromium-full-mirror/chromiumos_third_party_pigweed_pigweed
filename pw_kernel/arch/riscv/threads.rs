@@ -17,7 +17,7 @@ use core::mem;
 use core::ptr::NonNull;
 
 use kernel::Arch;
-use kernel::interrupt::InterruptController;
+use kernel::interrupt_controller::InterruptController;
 use kernel::scheduler::thread::Stack;
 use kernel::scheduler::{self, SchedulerState, ThreadLocalState};
 use kernel::sync::spinlock::SpinLockGuard;

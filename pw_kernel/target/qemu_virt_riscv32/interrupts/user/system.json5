@@ -20,16 +20,18 @@
         flash_size_bytes: 261120,        // 255Kb
         ram_start_address: 0x81000000,
         ram_size_bytes: 65536,           // 64Kb
-        interrupt_table: {
-            table: {}
-        },
     },
     apps: {
         interrupts: {
             flash_size_bytes: 261120, // 255Kb
             ram_size_bytes: 65536,    // 64Kb
             process: {
-                name: "interrupt test",
+                name: "interrupt process",
+                objects: {
+                    IPC: {
+                        type: "channel_handler",
+                    },
+                },
                 memory_mappings: {
                     UART0: {
                         type: "device",
@@ -39,7 +41,40 @@
                 },
                 threads: [
                     {
-                        name: "interrupt test",
+                        name: "interrupt thread",
+                        stack_size_bytes: 1024,
+                    },
+                ],
+            },
+        },
+        uart_listener: {
+            flash_size_bytes: 261120, // 255Kb
+            ram_size_bytes: 65536,    // 64Kb
+            process: {
+                name: "uart listener process",
+                objects: {
+                    UART_INTERRUPTS: {
+                        type: "interrupt",
+                        irqs: {
+                            "UART0": 10
+                        },
+                    },
+                    IPC: {
+                        type: "channel_initiator",
+                        handler_app: "interrupts",
+                        handler_object_name: "IPC",
+                    },
+                },
+                memory_mappings: {
+                    UART0: {
+                        type: "device",
+                        start_address: 0x10000000,
+                        size_bytes: 0x2000,
+                    }
+                },
+                threads: [
+                    {
+                        name: "uart listener thread",
                         stack_size_bytes: 1024,
                     },
                 ],

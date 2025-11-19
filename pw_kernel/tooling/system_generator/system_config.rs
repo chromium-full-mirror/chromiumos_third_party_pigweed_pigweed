@@ -12,7 +12,7 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
 use anyhow::{Result, anyhow};
 use hashlink::LinkedHashMap;
@@ -69,9 +69,11 @@ pub struct KernelConfig {
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct InterruptTableConfig {
-    pub table: BTreeMap<String, String>,
+    pub table: HashMap<String, String>,
     #[serde(skip_deserializing)]
     pub table_size: usize,
+    #[serde(skip_deserializing)]
+    pub ordered_table: BTreeMap<u32, String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -102,7 +104,7 @@ pub struct ProcessConfig {
     memory_mappings: LinkedHashMap<String, MemoryMapping>,
 
     #[serde(default)]
-    objects: LinkedHashMap<String, ObjectConfig>,
+    pub objects: LinkedHashMap<String, ObjectConfig>,
     threads: Vec<ThreadConfig>,
 
     // Internally the template engine (`minijinja`) does not preserve the order of
@@ -118,6 +120,7 @@ pub struct ProcessConfig {
     #[serde(skip_deserializing)]
     ordered_object_names: Vec<String>,
 }
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum MemoryMappingType {
@@ -138,6 +141,7 @@ pub struct MemoryMapping {
 pub enum ObjectConfig {
     ChannelInitiator(ChannelInitiatorConfig),
     ChannelHandler(ChannelHandlerConfig),
+    Interrupt(InterruptConfig),
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -150,6 +154,20 @@ pub struct ChannelInitiatorConfig {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct ChannelHandlerConfig;
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct InterruptConfig {
+    pub irqs: LinkedHashMap<String, u32>,
+    #[serde(skip_deserializing)]
+    pub handlers: HashMap<u32, String>,
+    #[serde(skip_deserializing)]
+    pub object_ref_name: String,
+    #[serde(skip_deserializing)]
+    pub ordered_interrupt_names: Vec<String>,
+    #[serde(skip_deserializing)]
+    pub interrupt_signal_map: HashMap<String, String>,
+}
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]

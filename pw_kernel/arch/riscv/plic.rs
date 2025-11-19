@@ -14,22 +14,135 @@
 
 use core::ptr;
 
-use kernel::interrupt::InterruptController;
+use kernel::interrupt_controller::{InterruptController, InterruptTableEntry};
 use kernel_config::{PlicConfig, PlicConfigInterface};
 use log_if::debug_if;
-use pw_cast::CastInto;
 use pw_log::info;
-
-// TODO: Once the kernel supports more than one hart, these addresses will
-// will need to be updated to handle multiple contexts.
-// See Section 1.1 https://github.com/riscv/riscv-plic-spec/blob/1.0.0/riscv-plic-1.0.0.pdf
-//
-// Note that as per Section 3 of the spec, all registers are 32bit rather than usize.
-const PLIC_SRC_PRIORITY_BASE: usize = PlicConfig::PLIC_BASE_ADDRESS + 0x4;
-const PLIC_TARGET_ENABLE_BASE: usize = PlicConfig::PLIC_BASE_ADDRESS + 0x2000;
-const PLIC_CLAIM: usize = PlicConfig::PLIC_BASE_ADDRESS + 0x200004;
+use regs::{rw_block_reg, rw_int_field};
 
 const LOG_INTERRUPTS: bool = false;
+
+// TODO: Once the kernel supports more than one HART, we'll need to configure the number of contexts.
+static CONTEXT_0: Context = Context { index: 0 };
+
+struct Context {
+    index: u16,
+}
+
+impl regs::BaseAddress for Context {
+    fn base_address(&self) -> usize {
+        // Only one context is currently supported.
+        pw_assert::debug_assert!(self.index == 0);
+        PlicConfig::PLIC_BASE_ADDRESS
+    }
+}
+
+// Marker type to ensure only the PLIC can be passed to these block registers.
+pub trait PlicBaseAddress: regs::BaseAddress {}
+impl PlicBaseAddress for Context {}
+
+// As per section 3 https://github.com/riscv/riscv-plic-spec/blob/1.0.0/riscv-plic-1.0.0.pdf
+// all registers are u32, not usize.
+
+#[doc = "Interrupt Priorities Registers"]
+struct Ipr {}
+impl Ipr {
+    const REG_OFFSET: usize = 0;
+
+    fn offset<A: PlicBaseAddress>(&self, addr: &A, irq: u32) -> usize {
+        addr.base_address() + Self::REG_OFFSET + (irq as usize * 4)
+    }
+
+    #[allow(dead_code)]
+    fn read<A: PlicBaseAddress>(&mut self, addr: &A, irq: u32) -> IprValue {
+        let ptr: *const IprValue = ptr::with_exposed_provenance::<IprValue>(self.offset(addr, irq));
+        unsafe { ptr.read_volatile() }
+    }
+
+    #[allow(dead_code)]
+    fn write<A: PlicBaseAddress>(&mut self, addr: &A, irq: u32, val: IprValue) {
+        let ptr = ptr::with_exposed_provenance_mut::<IprValue>(self.offset(addr, irq));
+        unsafe { ptr.write_volatile(val) }
+    }
+}
+
+#[allow(dead_code)]
+struct IprValue(u32);
+impl IprValue {
+    rw_int_field!(u32, priority, 0, 31, u32, "Priority");
+}
+
+#[doc = "Interrupt Enables Registers"]
+struct Ier {}
+impl Ier {
+    const REG_OFFSET: usize = 0x2000;
+
+    fn offset<A: PlicBaseAddress>(&self, addr: &A, irq: u32) -> usize {
+        addr.base_address() + Self::REG_OFFSET + (4 * (irq as usize / 32))
+    }
+
+    #[allow(dead_code)]
+    fn read<A: PlicBaseAddress>(&mut self, addr: &A, irq: u32) -> IerValue {
+        let ptr = ptr::with_exposed_provenance::<IerValue>(self.offset(addr, irq));
+        unsafe { ptr.read_volatile() }
+    }
+
+    #[allow(dead_code)]
+    fn write<A: PlicBaseAddress>(&mut self, addr: &A, irq: u32, val: IerValue) {
+        let ptr = ptr::with_exposed_provenance_mut::<IerValue>(self.offset(addr, irq));
+        unsafe { ptr.write_volatile(val) }
+    }
+}
+
+struct IerValue(u32);
+impl IerValue {
+    rw_int_field!(u32, sources, 0, 31, u32, "sources");
+}
+
+rw_block_reg!(
+    Icr,
+    IcrValue,
+    u32,
+    PlicBaseAddress,
+    0x200004,
+    "Interrupt Claim Registers"
+);
+
+struct IcrValue(pub u32);
+impl IcrValue {
+    rw_int_field!(u32, irq, 0, 31, u32, "Irq");
+}
+
+unsafe extern "Rust" {
+    static PW_KERNEL_INTERRUPT_TABLE: &'static [InterruptTableEntry];
+}
+
+pub fn interrupt() {
+    // Claim the interrupt
+    let icr = Icr;
+    let irq = icr.read(&CONTEXT_0).irq();
+
+    if irq == 0 {
+        return;
+    }
+
+    debug_if!(LOG_INTERRUPTS, "Interrupt {}", irq as u32);
+
+    // This lookup is not behind a lock as the table is static.  A locking scheme
+    // will be required if we ever make the interrupt table dynamic.
+    let Some(handler) = unsafe { PW_KERNEL_INTERRUPT_TABLE }
+        .get(irq as usize)
+        .copied()
+        .flatten()
+    else {
+        pw_assert::panic!("Unhandled interrupt: irq={}", irq as u32);
+    };
+
+    handler();
+
+    // It is up to the interrupt handler to call interrupt_ack()
+    // to release the claim.
+}
 
 pub struct Plic {}
 
@@ -37,70 +150,25 @@ impl Plic {
     pub const fn new() -> Self {
         Self {}
     }
-
-    pub fn interrupt(&self) {
-        let claim_reg = ptr::with_exposed_provenance_mut::<u32>(PLIC_CLAIM);
-        let irq: u32;
-
-        // Claim the interrupt
-        unsafe {
-            irq = claim_reg.read_volatile();
-        }
-
-        if irq == 0 {
-            return;
-        }
-
-        debug_if!(LOG_INTERRUPTS, "Interrupt {}", irq as u32);
-        // SAFETY: All enabled IRQs are always less than PlicConfig::INTERRUPT_TABLE_SIZE
-        if let Some(handler) = unsafe { PlicConfig::interrupt_table().get_unchecked(irq as usize) }
-        {
-            handler();
-        } else {
-            pw_assert::panic!("Unhandled interrupt: irq={}", irq as u32);
-        }
-
-        // Release the claim on the interrupt
-        unsafe {
-            claim_reg.write_volatile(irq);
-        }
-    }
 }
 
 impl InterruptController for Plic {
     fn early_init(&self) {
-        info!("Initializing PLIC");
-
-        debug_if!(
-            LOG_INTERRUPTS,
-            "Base: {:#x} Src Priority: {:#x} Target Enable: {:#x} Claim: {:#x}",
-            PlicConfig::PLIC_BASE_ADDRESS as usize,
-            PLIC_SRC_PRIORITY_BASE as usize,
-            PLIC_TARGET_ENABLE_BASE as usize,
-            PLIC_CLAIM as usize
+        info!(
+            "Initializing PLIC {:#x}",
+            PlicConfig::PLIC_BASE_ADDRESS as usize
         );
 
         const GLOBAL_PRIORITY: u32 = 0;
         const IRQ_PRIORITY: u32 = 1;
 
-        pw_assert::assert!(PlicConfig::INTERRUPT_TABLE_SIZE <= PlicConfig::NUM_IRQS as usize);
-        // Start at 1, as interrupt source 0 does not exist
-        for irq in 1..PlicConfig::NUM_IRQS {
+        // Disable all interrupt sources at init and provide a default priority of 1 (lowest).
+        // It is up to the kernel driver or interrupt object to enable the interrupts (and
+        // optionally change the priority).
+        // Start at 1, as interrupt source 0 is reserved.
+        for irq in 1..PlicConfig::MAX_IRQS {
+            self.disable_interrupt(irq);
             set_interrupt_priority(irq, IRQ_PRIORITY);
-
-            if irq < PlicConfig::INTERRUPT_TABLE_SIZE.cast_into()
-                && PlicConfig::interrupt_table()[irq as usize].is_some()
-            {
-                debug_if!(
-                    LOG_INTERRUPTS,
-                    "Enabling interrupt {} with priority {}",
-                    irq as usize,
-                    IRQ_PRIORITY as u32
-                );
-                self.enable_interrupt(irq);
-            } else {
-                self.disable_interrupt(irq);
-            }
         }
 
         debug_if!(
@@ -123,6 +191,13 @@ impl InterruptController for Plic {
     fn disable_interrupt(&self, irq: u32) {
         debug_if!(LOG_INTERRUPTS, "Disable interrupt {}", irq as u32);
         set_interrupt_enable(irq, false);
+    }
+
+    fn interrupt_ack(irq: u32) {
+        debug_if!(LOG_INTERRUPTS, "Interrupt {} handler done", irq as u32);
+        // Release the claim on the interrupt
+        let mut icr = Icr;
+        icr.write(&CONTEXT_0, IcrValue(irq));
     }
 
     fn enable_interrupts() {
@@ -151,28 +226,24 @@ impl InterruptController for Plic {
 }
 
 fn set_interrupt_enable(irq: u32, enable: bool) {
-    let enable_reg = ptr::with_exposed_provenance_mut::<u32>(
-        PLIC_TARGET_ENABLE_BASE + (4 * (irq as usize / 32)),
-    );
+    let mut ier: Ier = Ier {};
+    let enabled_sources = ier.read(&CONTEXT_0, irq).0;
     let bitmask = 1 << (irq % 32);
-    unsafe {
-        let current_enables = enable_reg.read_volatile();
-        let new_enables = if enable {
-            current_enables | bitmask
-        } else {
-            current_enables & !bitmask
-        };
-        enable_reg.write_volatile(new_enables);
+    let new_enabled_sources = if enable {
+        enabled_sources | bitmask
+    } else {
+        enabled_sources & !bitmask
     };
+
+    ier.write(&CONTEXT_0, irq, IerValue(new_enabled_sources));
 }
 
 fn set_global_priority(priority: u32) {
-    let priority_reg = ptr::with_exposed_provenance_mut::<u32>(PlicConfig::PLIC_BASE_ADDRESS);
-    unsafe { priority_reg.write_volatile(priority) };
+    let mut ipr = Ipr {};
+    ipr.write(&CONTEXT_0, 0, IprValue(priority));
 }
 
 fn set_interrupt_priority(irq: u32, priority: u32) {
-    let priority_reg =
-        ptr::with_exposed_provenance_mut::<u32>(PlicConfig::PLIC_BASE_ADDRESS + (irq as usize * 4));
-    unsafe { priority_reg.write_volatile(priority) };
+    let mut ipr = Ipr {};
+    ipr.write(&CONTEXT_0, irq, IprValue(priority));
 }

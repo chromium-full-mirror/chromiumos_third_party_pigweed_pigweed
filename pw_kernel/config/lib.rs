@@ -76,29 +76,14 @@ pub enum ExceptionMode {
     Vectored(usize),
 }
 
-pub type InterruptHandler = fn();
-pub type InterruptTableEntry = Option<InterruptHandler>;
-pub type InterruptTable = [InterruptTableEntry];
-
 /// PLIC configuration.
 pub trait PlicConfigInterface {
     /// The PLIC base address.
     const PLIC_BASE_ADDRESS: usize;
 
-    /// The number of IRQs the interrupt controller handles.
-    const NUM_IRQS: u32;
-
-    // TODO: investigate removing the need for these now
-    // that the interrupt table in codegend.
-
-    /// The size of the table which store the interrupt handlers.
-    /// To save space, the table doesn't need to be the size of
-    /// NUM_IRQS, but can instead be the size of the highest
-    /// IRQ + 1.
-    const INTERRUPT_TABLE_SIZE: usize;
-
-    /// The PLIC interrupt table.
-    fn interrupt_table() -> &'static InterruptTable;
+    /// The maximum number of interrupts the
+    /// PLIC supports per context.
+    const MAX_IRQS: u32 = 1023;
 }
 
 /// CLINT timer config.

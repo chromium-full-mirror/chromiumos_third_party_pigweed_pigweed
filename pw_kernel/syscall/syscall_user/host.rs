@@ -12,13 +12,13 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 use pw_status::Result;
-use syscall_defs::SysCallInterface;
+use syscall_defs::{Signals, SysCallInterface};
 
 pub struct SysCall {}
 
 impl SysCallInterface for SysCall {
     #[inline(always)]
-    fn object_wait(_: u32, _: u32, _: u64) -> Result<()> {
+    fn object_wait(_: u32, _: u32, _: u64) -> Result<Signals> {
         Err(pw_status::Error::Unimplemented)
     }
 
@@ -46,6 +46,11 @@ impl SysCallInterface for SysCall {
 
     #[inline(always)]
     unsafe fn channel_respond(_handle: u32, _buffer: *const u8, _buffer_len: usize) -> Result<()> {
+        Err(pw_status::Error::Unimplemented)
+    }
+
+    #[inline(always)]
+    fn interrupt_ack(_handle: u32, _signal_mask: Signals) -> Result<()> {
         Err(pw_status::Error::Unimplemented)
     }
 

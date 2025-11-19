@@ -44,22 +44,17 @@ constraint_value(
     constraint_setting = "//pw_kernel/target:target",
 )
 
-ENTRY_DEPS = [
-    ":uart",
-    ":config",
-    "//pw_kernel/arch/riscv:arch_riscv",
-    "//pw_kernel/drivers/uart/uart_16550:uart_16550_config",
-    "//pw_kernel/kernel",
-    "@rust_crates//:riscv-rt",
-]
-
 rust_library(
     name = "entry",
     srcs = ["entry.rs"],
     edition = "2024",
     tags = ["kernel"],
     target_compatible_with = TARGET_COMPATIBLE_WITH,
-    deps = ENTRY_DEPS,
+    deps = [
+        "//pw_kernel/arch/riscv:arch_riscv",
+        "//pw_kernel/kernel",
+        "@rust_crates//:riscv-rt",
+    ],
 )
 
 rust_library(
@@ -74,11 +69,6 @@ rust_library(
         "//pw_kernel/drivers/uart/uart_16550:uart_16550_config",
         "//pw_kernel/lib/memory_config",
     ],
-)
-
-alias(
-    name = "uart",
-    actual = "//pw_kernel/drivers/uart/uart_16550:uart_16550_kernel",
 )
 
 filegroup(

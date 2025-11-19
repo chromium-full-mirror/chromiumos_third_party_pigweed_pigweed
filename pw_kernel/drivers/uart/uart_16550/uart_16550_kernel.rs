@@ -15,6 +15,7 @@
 
 use circular_buffer::CircularBuffer;
 use kernel::Kernel;
+use kernel::interrupt_controller::InterruptController;
 use kernel::sync::spinlock::SpinLock;
 use pw_status::Result;
 
@@ -23,6 +24,7 @@ const LOG_UART: bool = false;
 const BUFFER_SIZE: usize = 128;
 pub struct Uart<K: Kernel> {
     base_address: usize,
+    irq: u32,
     read_buffer: SpinLock<K, CircularBuffer<u8, BUFFER_SIZE>>,
 }
 
@@ -36,9 +38,10 @@ impl<K: Kernel> uart_16550_regs::Uart16550BaseAddress for Uart<K> {}
 
 impl<K: Kernel> Uart<K> {
     #[must_use]
-    pub const fn new(base_address: usize) -> Uart<K> {
+    pub const fn new(base_address: usize, irq: u32) -> Uart<K> {
         Self {
             base_address,
+            irq,
             read_buffer: SpinLock::new(CircularBuffer::new()),
         }
     }
@@ -64,10 +67,15 @@ impl<K: Kernel> Uart<K> {
     }
 }
 
-pub fn init<K: Kernel>(uarts: &[&Uart<K>]) {
+pub fn init<K: Kernel>(kernel: K, uarts: &[&Uart<K>]) {
     for uart in uarts {
         let mut ier = uart_16550_regs::Ier;
         ier.write(*uart, ier.read(*uart).with_erbfi(true));
+
+        kernel
+            .get_interrupt_controller()
+            .lock(kernel)
+            .enable_interrupt(uart.irq);
     }
 }
 
@@ -84,6 +92,8 @@ pub fn interrupt_handler<K: Kernel>(kernel: K, uart: &Uart<K>) {
         log_if::debug_if!(LOG_UART, "data ready: {}", value.data() as u8);
         let _ = uart.read_buffer.lock(kernel).push_back(value.data());
     }
+
+    K::InterruptController::interrupt_ack(uart.irq);
 }
 
 #[doc(hidden)]
@@ -102,7 +112,7 @@ macro_rules! declare_uarts {
             use $crate::Uart;
             use $crate::interrupt_handler;
             $(
-                pub static $uart_name: $crate::Uart<$arch> = $crate::Uart::new($config::BASE_ADDRESS);
+                pub static $uart_name: $crate::Uart<$arch> = $crate::Uart::new($config::BASE_ADDRESS, $config::IRQ);
                 #[unsafe(no_mangle)]
                 pub extern "C" fn [<interrupt_handler_ $uart_name:lower>]() {
                     $crate::interrupt_handler($arch, &$uart_name);

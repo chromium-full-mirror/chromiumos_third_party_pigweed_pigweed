@@ -18,5 +18,5 @@ pub trait UartConfigInterface {
     /// Base address of the UART.
     const BASE_ADDRESS: usize;
     /// Interrupt number on which the UART is configured.
-    const IRQ: usize;
+    const IRQ: u32;
 }

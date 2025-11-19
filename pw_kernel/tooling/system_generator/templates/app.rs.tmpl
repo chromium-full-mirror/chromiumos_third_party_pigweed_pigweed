@@ -26,6 +26,33 @@ pub mod mapping {
     #[allow(unused)]
     pub const {{mapping_name | upper}}_START_ADDRESS: usize = {{mapping.start_address | hex}};
 {%- endfor %}
+}
 
+pub mod signals {
+    #[allow(unused_imports)]
+    use syscall_defs::Signals;
 
+    {%- for object_name in process.ordered_object_names %}
+    {%- set object = process.objects[object_name] %}
+        {%- if object.type == "interrupt" %}
+            {%- for irq_name in object.ordered_interrupt_names %}
+                {%- set mapped_signal = object.interrupt_signal_map[irq_name] %}
+    #[allow(unused)]
+    pub const {{irq_name | upper}}: syscall_defs::Signals = {{mapped_signal}};
+            {%- endfor %}
+        {%- endif -%}
+    {%- endfor %}
+}
+
+pub mod interrupts {
+    {%- for object_name in process.ordered_object_names %}
+    {%- set object = process.objects[object_name] %}
+        {%- if object.type == "interrupt" %}
+            {%- for irq_name in object.irqs %}
+                {%- set irq = object.irqs[irq_name] %}
+    #[allow(unused)]
+    pub const {{irq_name | upper}}: u32 = {{irq}};
+            {%- endfor %}
+        {%- endif -%}
+    {% endfor %}
 }

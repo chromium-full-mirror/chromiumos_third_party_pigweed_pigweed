@@ -12,7 +12,7 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 
-use kernel::interrupt::InterruptController;
+use kernel::interrupt_controller::InterruptController;
 use log_if::debug_if;
 use pw_log::info;
 
@@ -37,6 +37,10 @@ impl InterruptController for Nvic {
 
     fn disable_interrupt(&self, _irq: u32) {
         pw_assert::panic!("Unimplemented: disable_interrupt")
+    }
+
+    fn interrupt_ack(_irq: u32) {
+        pw_assert::panic!("Unimplemented: interrupt_ack");
     }
 
     fn enable_interrupts() {

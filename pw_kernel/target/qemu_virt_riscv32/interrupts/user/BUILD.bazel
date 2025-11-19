@@ -23,6 +23,7 @@ system_image(
     name = "interrupts",
     apps = [
         "//pw_kernel/tests/interrupts/user:interrupts",
+        "//pw_kernel/tests/interrupts/user:uart_listener",
     ],
     kernel = ":target",
     platform = "//pw_kernel/target/qemu_virt_riscv32",

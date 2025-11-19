@@ -127,7 +127,32 @@
 //!     than there is space for will return an error.
 //!
 //! ### Interrupt
-//! In design
+//! Interrupt objects provide a mechanism for handling hardware interrupts.
+//! A single Interrupt object can be configured to handle multiple interrupt
+//! sources (IRQs), up to a maximum of 16 per object.
+
+//! Each interrupt source handled by an Interrupt object is mapped to a unique
+//! signal bit within the higher 16 bits of `Signals`. These signals
+//! range from `Signals::INTERRUPT_A` (bit 16) to `Signals::INTERRUPT_P` (bit 31).
+//!
+//! When a interrupt occurs for a source handled by an Interrupt object, the kernel
+//! masks the interrupt and then signals the corresponding `INTERRUPT_` bit on the
+//! object. Userspace threads can wait on the Interrupt object using the
+//! [`object_wait()`] syscall.
+//!
+//! Upon waking from `object_wait()`, the returned `Signals` mask indicates which
+//! interrupt(s) have triggered. After the userspace handler has serviced the
+//! interrupt(s), it must call the [`interrupt_ack()`] syscall to allow the
+//! interrupt(s) to be triggered again. This syscall must be provided with a
+//! `Signals` mask containing the bits for the interrupts that have been
+//! handled.
+//!
+//! [`interrupt_ack()`] accomplishes two things:
+//! 1. It clears the specified signal bits on the Interrupt object, allowing it to
+//!    receive new signals for those interrupts.
+//! 2. It signals to the underlying hardware interrupt controller (e.g., PLIC or
+//!    NVIC) that the associated IRQ(s) have been acknowledged, re-enabling them
+//!    at the hardware level.
 //!
 //! ### Futex
 //! In design
@@ -188,6 +213,20 @@ impl SysCallReturnValue {
             Ok(value.cast_unsigned() as u32)
         }
     }
+    pub fn to_result_signals(self) -> Result<Signals> {
+        let value = self.0;
+        if value < 0 {
+            // TODO debug assert if error number is out of range
+            let value = (-value).cast_unsigned();
+            // TODO(421404517): Avoid the lossy cast
+            #[allow(clippy::cast_possible_truncation)]
+            Err(unsafe { core::mem::transmute::<u32, Error>(value as u32) })
+        } else {
+            // TODO(421404517): Avoid the lossy cast
+            #[allow(clippy::cast_possible_truncation)]
+            Ok(Signals(value.cast_unsigned() as u32))
+        }
+    }
 }
 
 impl From<Result<u64>> for SysCallReturnValue {
@@ -209,6 +248,7 @@ pub enum SysCallId {
     ChannelTransact = 0x0001,
     ChannelRead = 0x0002,
     ChannelRespond = 0x0003,
+    InterruptAck = 0x0004,
 
     // System calls prefixed with 0xF000 are reserved development/debugging use.
     DebugPutc = 0xf000,
@@ -241,7 +281,28 @@ bitflags! {
         const ERROR = 1 << 2;
 
         /// Object has a protocol specific user signal pending.
-        const USER = 1 << 16;
+        const USER = 1 << 15;
+
+        /// Bits 16-31 are used to denote which interrupt on the
+        /// interrupt object was signaled.  They are intentionally
+        /// named by letter not number so as not to confuse the
+        /// position within an object mask to the IRQ number.
+        const INTERRUPT_A = 1 << 16;
+        const INTERRUPT_B = 1 << 17;
+        const INTERRUPT_C = 1 << 18;
+        const INTERRUPT_D = 1 << 19;
+        const INTERRUPT_E = 1 << 20;
+        const INTERRUPT_F = 1 << 21;
+        const INTERRUPT_G = 1 << 22;
+        const INTERRUPT_H = 1 << 23;
+        const INTERRUPT_I = 1 << 24;
+        const INTERRUPT_J = 1 << 25;
+        const INTERRUPT_K = 1 << 26;
+        const INTERRUPT_L = 1 << 27;
+        const INTERRUPT_M = 1 << 28;
+        const INTERRUPT_N = 1 << 29;
+        const INTERRUPT_O = 1 << 30;
+        const INTERRUPT_P = 1 << 31;
     }
 }
 
@@ -394,6 +455,19 @@ unsafe extern "C" {
     /// to signal the initiator.
     pub fn object_raise_peer_user_signal(object_handle: u32) -> isize;
 
+    /// Acknowledges the signaled interrupts allowing them to be signaled again.
+    ///
+    /// This must be called by the interrupt handler after processing the
+    /// interrupts received via an interrupt object. It signals to the
+    /// underlying interrupt controller that the interrupt handling is complete
+    /// and can be signaled again.
+    ///
+    /// # Returns
+    /// - `0`: On success.
+    /// - [`Error::InvalidArgument`]: `object_handle` is not a valid Interrupt
+    ///   object, or the `signal_mask` is invalid.
+    pub fn interrupt_ack(object_handle: u32, signal_mask: Signals) -> isize;
+
     //
     // waiting
     //
@@ -436,16 +510,10 @@ unsafe extern "C" {
     ///   `object` is not a valid object.
     /// - [`Error::NotFound`]: `object` is not in `wait_group`.
     pub fn wait_group_remove(wait_group: u32, object: u32) -> isize;
-
-    //
-    // Interrupts
-    //
-    // Signal only, latchable object signalable from "interrupt context"
-
 }
 
 pub trait SysCallInterface {
-    fn object_wait(handle: u32, signal_mask: u32, deadline: u64) -> Result<()>;
+    fn object_wait(handle: u32, signal_mask: u32, deadline: u64) -> Result<Signals>;
 
     #[expect(clippy::missing_safety_doc)]
     unsafe fn channel_transact(
@@ -471,6 +539,8 @@ pub trait SysCallInterface {
         buffer: *const u8,
         buffer_len: usize,
     ) -> Result<()>;
+
+    fn interrupt_ack(object_handle: u32, signal_mask: Signals) -> Result<()>;
 
     fn debug_putc(a: u32) -> Result<u32>;
     // TODO: Consider adding an feature flagged PowerManager object and move

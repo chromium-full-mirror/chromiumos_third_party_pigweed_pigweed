@@ -15,7 +15,7 @@
 use core::arch::naked_asm;
 
 use pw_status::Result;
-use syscall_defs::{SysCallId, SysCallInterface, SysCallReturnValue};
+use syscall_defs::{Signals, SysCallId, SysCallInterface, SysCallReturnValue};
 
 pub struct SysCall {}
 
@@ -157,6 +157,7 @@ syscall_veneer!(ChannelRespond, 3, channel_respond(
     buffer: *const u8,
     buffer_len: usize
 ));
+syscall_veneer!(InterruptAck, 2, interrupt_ack(handle: u32, signal_mask: Signals));
 syscall_veneer!(DebugPutc, 1, putc(a: u32));
 syscall_veneer!(DebugShutdown, 1, shutdown(a: u32));
 syscall_veneer!(DebugLog, 2, log(buffer: *const u8, buffer_len: usize));
@@ -164,8 +165,8 @@ syscall_veneer!(DebugNop, 0, nop());
 
 impl SysCallInterface for SysCall {
     #[inline(always)]
-    fn object_wait(handle: u32, signals: u32, deadline: u64) -> Result<()> {
-        SysCallReturnValue(unsafe { object_wait(handle, signals, deadline) }).to_result_unit()
+    fn object_wait(handle: u32, signals: u32, deadline: u64) -> Result<Signals> {
+        SysCallReturnValue(unsafe { object_wait(handle, signals, deadline) }).to_result_signals()
     }
 
     #[inline(always)]
@@ -197,6 +198,11 @@ impl SysCallInterface for SysCall {
     #[inline(always)]
     unsafe fn channel_respond(handle: u32, buffer: *const u8, buffer_len: usize) -> Result<()> {
         SysCallReturnValue(unsafe { channel_respond(handle, buffer, buffer_len) }).to_result_unit()
+    }
+
+    #[inline(always)]
+    fn interrupt_ack(handle: u32, signal_mask: Signals) -> Result<()> {
+        SysCallReturnValue(unsafe { interrupt_ack(handle, signal_mask) }).to_result_unit()
     }
 
     #[inline(always)]

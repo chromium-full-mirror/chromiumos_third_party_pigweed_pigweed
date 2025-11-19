@@ -17,6 +17,8 @@ const LOG_UART: bool = false;
 
 pub struct Uart {
     base_address: usize,
+    #[allow(dead_code)]
+    irq: u32,
 }
 
 impl regs::BaseAddress for Uart {
@@ -29,8 +31,14 @@ impl uart_16550_regs::Uart16550BaseAddress for Uart {}
 
 impl Uart {
     #[must_use]
-    pub const fn new(base_address: usize) -> Uart {
-        Self { base_address }
+    pub fn new(base_address: usize, irq: u32) -> Uart {
+        let instance = Self { base_address, irq };
+
+        let mut ier = uart_16550_regs::Ier;
+        // Enable the Received Data Available Interrupt.
+        ier.write(&instance, ier.read(&instance).with_erbfi(true));
+
+        instance
     }
 
     pub fn enable_loopback(&mut self) {
@@ -39,7 +47,7 @@ impl Uart {
         mcr.write(self, val);
         log_if::debug_if!(
             LOG_UART,
-            "set MCR to {:#04x},  should be {:#04x}",
+            "set MCR to {:#04x}, should be {:#04x}",
             mcr.read(self).0 as u8,
             val.0 as u8
         );

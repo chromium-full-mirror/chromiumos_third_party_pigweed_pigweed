@@ -46,10 +46,8 @@ impl<K: Kernel> KernelObject<K> for ChannelHandlerObject<K> {
         kernel: K,
         signal_mask: Signals,
         deadline: Instant<<K>::Clock>,
-    ) -> Result<()> {
-        self.base.wait_until(kernel, signal_mask, deadline).map(|_|
-                 //  wait result TBD
-            ())
+    ) -> Result<Signals> {
+        self.base.wait_until(kernel, signal_mask, deadline)
     }
 
     fn channel_read(
@@ -104,10 +102,8 @@ impl<K: Kernel> KernelObject<K> for ChannelInitiatorObject<K> {
         kernel: K,
         signal_mask: Signals,
         deadline: Instant<<K>::Clock>,
-    ) -> Result<()> {
-        self.base.wait_until(kernel, signal_mask, deadline).map(|_|
-                 //  wait result TBD
-            ())
+    ) -> Result<Signals> {
+        self.base.wait_until(kernel, signal_mask, deadline)
     }
 
     fn channel_transact(

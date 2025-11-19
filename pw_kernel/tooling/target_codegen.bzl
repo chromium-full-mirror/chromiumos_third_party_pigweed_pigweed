@@ -68,8 +68,10 @@ def target_codegen(
         deps = [],
         system_generator = "@pigweed//pw_kernel/tooling/system_generator:system_generator_bin",
         templates = {
+            "interrupts": "@pigweed//pw_kernel/tooling/system_generator/templates:interrupts.rs.tmpl",
             "object_channel_handler": "@pigweed//pw_kernel/tooling/system_generator/templates/objects:channel_handler.rs.tmpl",
             "object_channel_initiator": "@pigweed//pw_kernel/tooling/system_generator/templates/objects:channel_initiator.rs.tmpl",
+            "object_interrupt": "@pigweed//pw_kernel/tooling/system_generator/templates/objects:interrupt.rs.tmpl",
             "system": "@pigweed//pw_kernel/tooling/system_generator/templates:system.rs.tmpl",
         },
         **kwargs):
@@ -101,8 +103,10 @@ def target_codegen(
         srcs = [":" + codegen_target_name],
         edition = "2024",
         deps = deps + [arch] + [
-            "@pigweed//pw_kernel/kernel:kernel",
+            "@pigweed//pw_kernel/kernel",
+            "@pigweed//pw_kernel/lib/foreign_box",
             "@pigweed//pw_kernel/lib/memory_config",
+            "@pigweed//pw_kernel/syscall:syscall_defs",
             "@pigweed//pw_log/rust:pw_log",
         ],
         **kwargs
