@@ -68,11 +68,11 @@ def target_codegen(
         deps = [],
         system_generator = "@pigweed//pw_kernel/tooling/system_generator:system_generator_bin",
         templates = {
-            "interrupts": "@pigweed//pw_kernel/tooling/system_generator/templates:interrupts.rs.tmpl",
-            "object_channel_handler": "@pigweed//pw_kernel/tooling/system_generator/templates/objects:channel_handler.rs.tmpl",
-            "object_channel_initiator": "@pigweed//pw_kernel/tooling/system_generator/templates/objects:channel_initiator.rs.tmpl",
-            "object_interrupt": "@pigweed//pw_kernel/tooling/system_generator/templates/objects:interrupt.rs.tmpl",
-            "system": "@pigweed//pw_kernel/tooling/system_generator/templates:system.rs.tmpl",
+            "interrupts": "@pigweed//pw_kernel/tooling/system_generator/templates:interrupts.rs.jinja",
+            "object_channel_handler": "@pigweed//pw_kernel/tooling/system_generator/templates/objects:channel_handler.rs.jinja",
+            "object_channel_initiator": "@pigweed//pw_kernel/tooling/system_generator/templates/objects:channel_initiator.rs.jinja",
+            "object_interrupt": "@pigweed//pw_kernel/tooling/system_generator/templates/objects:interrupt.rs.jinja",
+            "system": "@pigweed//pw_kernel/tooling/system_generator/templates:system.rs.jinja",
         },
         **kwargs):
     """Generated code crate.

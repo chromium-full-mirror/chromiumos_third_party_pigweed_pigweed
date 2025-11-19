@@ -14,10 +14,10 @@
 
 exports_files(
     [
-        "app.rs.tmpl",
-        "armv8m_app.ld.tmpl",
-        "interrupts.rs.tmpl",
-        "riscv_app.ld.tmpl",
-        "system.rs.tmpl",
+        "app.rs.jinja",
+        "armv8m_app.ld.jinja",
+        "interrupts.rs.jinja",
+        "riscv_app.ld.jinja",
+        "system.rs.jinja",
     ],
 )

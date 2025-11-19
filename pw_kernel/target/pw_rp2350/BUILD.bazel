@@ -85,5 +85,5 @@ rust_library(
 
 filegroup(
     name = "linker_script_template",
-    srcs = ["target.ld.tmpl"],
+    srcs = ["target.ld.jinja"],
 )
