@@ -55,6 +55,21 @@ If your project already has a CMake library for FreeRTOS, set
 
 Bazel
 =====
+Rather than providing FreeRTOS build files in-tree, the source of truth for
+FreeRTOS in the Bazel ecosystem is `the BCR
+<https://github.com/bazelbuild/bazel-central-registry/tree/main/modules/freertos>`__
+
+This means that making changes to the BUILD files requires introductions of new
+parallel releases. For example, ``10.5.1.bcr.3`` introduces the third iteration
+of ``BUILD.bazel`` changes to the ``10.5.1`` release of FreeRTOS. Usually,
+getting these changes through is relatively easy so long as they retain
+backwards compatibility.
+
+`b/390721639 <https://pwbug.dev/390721639>`_ tracks improving this to be more
+scalable.
+
+Configuration
+-------------
 The FreeRTOS build is configured through `constraint_settings
 <https://bazel.build/reference/be/platforms-and-toolchains#constraint_setting>`_.
 The `platform <https://bazel.build/extending/platforms>`_ you are building for
@@ -62,7 +77,7 @@ must specify values for the following settings:
 
 *   ``@freertos//:port``, to set which FreeRTOS port to use. You can
     select a value from those defined in
-    ``third_party/freertos/freertos.BUILD.bazel`` (for example,
+    ``@freertos//:BUILD.bazel`` (for example,
     ``@freertos//:port_ARM_CM4F``).
 *   ``@freertos//:malloc``, to set which FreeRTOS malloc implementation to use.
     You can select a value from those defined in

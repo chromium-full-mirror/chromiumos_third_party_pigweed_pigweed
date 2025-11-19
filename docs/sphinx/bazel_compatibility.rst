@@ -540,7 +540,7 @@ Use the following pattern:
 
 .. code-block:: python
 
-   # //third_party/freertos/freertos.BUILD.bazel
+   # @freertos//BUILD.bazel
 
    cc_library(
      name = "freertos",
