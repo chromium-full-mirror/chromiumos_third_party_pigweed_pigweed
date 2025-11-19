@@ -372,6 +372,32 @@ class WorkflowsManagerTest(unittest.TestCase):
         with self.assertRaises(TypeError):
             manager.program_group('build my_build')
 
+    def test_program_group_build_dir(self):
+        """Test that build directories are correctly assigned in groups."""
+        manager = WorkflowsManager(
+            self.workflow_suite,
+            self.build_drivers,
+            self.working_dir,
+            self.base_out_dir,
+            self.project_root,
+        )
+        recipes = manager.program_group('my_group')
+        self.assertEqual(len(recipes), 2)
+
+        build_recipe = next(r for r in recipes if r.title == 'build my_build')
+        tool_recipe = next(
+            r for r in recipes if r.title == 'check analyzer_tool'
+        )
+
+        self.assertEqual(
+            build_recipe.steps[0].build_dir,
+            self.base_out_dir / 'build_config',
+        )
+        self.assertEqual(
+            tool_recipe.steps[0].build_dir,
+            self.base_out_dir / 'analyzer_config',
+        )
+
     def test_expand_action_simple(self):
         """Test simple variable expansion."""
         action = build_driver_pb2.Action(args=['hello ${planet}'])

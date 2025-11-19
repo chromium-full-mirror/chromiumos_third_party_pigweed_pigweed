@@ -244,15 +244,15 @@ class WorkflowsManager:
                 self._prepare_driver_request(request, sanitize=True)
             )
             for job_request, job_response in zip(request.jobs, response.jobs):
-                build_dir = self._build_dir(config)
                 fragment = (
                     job_request.tool
                     if job_request.WhichOneof('type') == 'tool'
                     else job_request.build
                 )
-                config = self._get_build_config(
+                request_config = self._get_build_config(
                     self._fragments_by_name[fragment.name]
                 )
+                build_dir = self._build_dir(request_config)
                 steps = []
                 self._postprocess_job_response(
                     job_response=job_response,
