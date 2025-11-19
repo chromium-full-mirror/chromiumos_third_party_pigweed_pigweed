@@ -111,6 +111,25 @@ Learn more
 
       You can use a Pigweed-provided dispatcher or roll your own.
 
+   .. grid-item-card:: :octicon:`container` Futures
+      :link: module-pw_async2-futures
+      :link-type: ref
+      :class-item: sales-pitch-cta-secondary
+
+      Futures are the basic async primitive in ``pw_async2``. Learn about
+      future ownership, lifetimes, polling, composability, and more.
+
+.. grid:: 2
+
+   .. grid-item-card:: :octicon:`inbox` Channels
+      :link: module-pw_async2-channels
+      :link-type: ref
+      :class-item: sales-pitch-cta-secondary
+
+      Channels are the primary mechanism for inter-task communication in
+      ``pw_async2``. Learn about channel creation, handles, sending and
+      receiving, lifetimes, allocation, and more.
+
    .. grid-item-card:: :octicon:`pencil` Coroutines
       :link: module-pw_async2-coro
       :link-type: ref
@@ -123,7 +142,7 @@ Learn more
    :hidden:
    :maxdepth: 1
 
-   Informed poll <informed_poll>
+   informed_poll
    codelab/docs
    quickstart
    guides
@@ -131,3 +150,4 @@ Learn more
    code_size
    coroutines
    futures
+   channels
