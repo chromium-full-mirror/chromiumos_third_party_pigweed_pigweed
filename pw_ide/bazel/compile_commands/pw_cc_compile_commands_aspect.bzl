@@ -182,7 +182,7 @@ def _get_one_compile_command(ctx, src, action):
     Returns:
         A single compile commands struct, or None.
     """
-    if not src.extension in _ALL_COMPILE_EXTS:
+    if src.extension not in _ALL_COMPILE_EXTS:
         return None
 
     # Don't generate compile commands for arbitrary inputs that aren't
