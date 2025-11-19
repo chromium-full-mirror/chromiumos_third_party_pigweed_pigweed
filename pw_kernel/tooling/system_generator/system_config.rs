@@ -173,6 +173,10 @@ impl<A: ArchConfigInterface> SystemConfig<A> {
     }
 
     pub fn calculate_and_validate(&mut self) -> Result<()> {
+        // Before generic calculations and validations are done, let the Arch
+        // specific interface do its own validation and fixups.
+        self.arch.calculate_and_validate_config(&mut self.base)?;
+
         // Generate `ordered_object_names` fields.
         for (_, app_config) in &mut self.base.apps {
             app_config.process.ordered_object_names = app_config

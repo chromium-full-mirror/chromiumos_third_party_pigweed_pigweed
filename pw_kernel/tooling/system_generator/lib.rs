@@ -71,6 +71,10 @@ pub struct AppLinkerScriptArgs {
 pub trait ArchConfigInterface {
     fn get_arch_crate_name(&self) -> &'static str;
     fn get_start_fn_address(&self, flash_start_address: u64) -> u64;
+    fn calculate_and_validate_config(
+        &mut self,
+        config: &mut system_config::BaseConfig,
+    ) -> Result<()>;
 }
 
 pub fn parse_config<A: ArchConfigInterface + DeserializeOwned>(
@@ -78,9 +82,8 @@ pub fn parse_config<A: ArchConfigInterface + DeserializeOwned>(
 ) -> Result<system_config::SystemConfig<A>> {
     let json5_str =
         fs::read_to_string(&cli.common_args.config).context("Failed to read config file")?;
-    let mut config: SystemConfig<A> =
+    let config: SystemConfig<A> =
         serde_json5::from_str(&json5_str).context("Failed to parse config file")?;
-    config.calculate_and_validate()?;
     Ok(config)
 }
 
@@ -96,6 +99,13 @@ impl ArchConfigInterface for system_config::Armv8MConfig {
         // On Armv8M, the +1 is to denote thumb mode.
         flash_start_address + 1
     }
+
+    fn calculate_and_validate_config(
+        &mut self,
+        _config: &mut system_config::BaseConfig,
+    ) -> Result<()> {
+        Ok(())
+    }
 }
 
 impl ArchConfigInterface for system_config::RiscVConfig {
@@ -105,6 +115,13 @@ impl ArchConfigInterface for system_config::RiscVConfig {
 
     fn get_start_fn_address(&self, flash_start_address: u64) -> u64 {
         flash_start_address
+    }
+
+    fn calculate_and_validate_config(
+        &mut self,
+        _config: &mut system_config::BaseConfig,
+    ) -> Result<()> {
+        Ok(())
     }
 }
 
@@ -130,6 +147,9 @@ impl<'a, A: ArchConfigInterface + Serialize> SystemGenerator<'a, A> {
 
         instance.populate_addresses();
         instance.populate_interrupt_table()?;
+
+        // Calculate and validate config after the populations above.
+        instance.config.calculate_and_validate()?;
 
         Ok(instance)
     }

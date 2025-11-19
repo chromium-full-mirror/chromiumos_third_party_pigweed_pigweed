@@ -42,6 +42,16 @@ impl ArchConfigInterface for ArchConfig {
             ArchConfig::RiscV(config) => config.get_start_fn_address(flash_start_address),
         }
     }
+
+    fn calculate_and_validate_config(
+        &mut self,
+        config: &mut system_config::BaseConfig,
+    ) -> Result<()> {
+        match self {
+            ArchConfig::Armv8M(arch_config) => arch_config.calculate_and_validate_config(config),
+            ArchConfig::RiscV(arch_config) => arch_config.calculate_and_validate_config(config),
+        }
+    }
 }
 
 fn main() -> Result<()> {
