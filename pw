@@ -47,8 +47,12 @@ else
   declare -r _PW_WORKFLOWS_QUIET
 fi
 
+# Note: ${_PW_WORKFLOWS_QUIET} below needs to remain unquoted. This
+# removes it as an argument to bazelisk. Otherwise an empty string
+# agument is passed in as the bazel command.
+
 bazelisk \
-  "${_PW_WORKFLOWS_QUIET}" \
+  ${_PW_WORKFLOWS_QUIET} \
   --output_base="${_PW_WORKFLOWS_OUT_DIR}" \
   run \
   --symlink_prefix="${_PW_WORKFLOWS_OUT_DIR}/bazel-" \
