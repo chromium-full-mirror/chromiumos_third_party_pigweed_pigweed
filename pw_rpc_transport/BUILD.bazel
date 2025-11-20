@@ -55,12 +55,15 @@ cc_library(
 
 cc_library(
     name = "test_loopback_service_registry",
+    testonly = True,
     hdrs = ["public/pw_rpc_transport/test_loopback_service_registry.h"],
     features = ["-conversion_warnings"],
     strip_include_prefix = "public",
     deps = [
         ":egress_ingress",
         ":service_registry",
+        "//pw_allocator:testing",
+        "//pw_containers:dynamic_vector",
         "//pw_work_queue",
         "//pw_work_queue:test_thread_header",
     ],
@@ -142,9 +145,11 @@ pw_cc_test(
         ":rpc_transport",
         ":service_registry",
         ":test_protos_pwpb_rpc",
+        "//pw_allocator:testing",
         "//pw_assert:check",
         "//pw_bytes",
         "//pw_chrono:system_clock",
+        "//pw_containers:dynamic_vector",
         "//pw_rpc",
         "//pw_rpc:client_server",
         "//pw_status",
@@ -182,7 +187,9 @@ pw_cc_test(
     features = ["-conversion_warnings"],
     deps = [
         ":hdlc_framing",
+        "//pw_allocator:testing",
         "//pw_bytes",
+        "//pw_containers:dynamic_vector",
         "//pw_status",
     ],
 )
@@ -209,7 +216,9 @@ pw_cc_test(
     features = ["-conversion_warnings"],
     deps = [
         ":simple_framing",
+        "//pw_allocator:testing",
         "//pw_bytes",
+        "//pw_containers:dynamic_vector",
         "//pw_log",
         "//pw_status",
     ],
@@ -260,8 +269,10 @@ pw_cc_test(
         ":service_registry",
         ":simple_framing",
         ":test_protos_pwpb_rpc",
+        "//pw_allocator:testing",
         "//pw_assert:check",
         "//pw_bytes",
+        "//pw_containers:dynamic_vector",
         "//pw_metric:metric",
         "//pw_rpc",
         "//pw_rpc:client_server",
@@ -341,7 +352,9 @@ pw_cc_test(
     target_compatible_with = incompatible_with_mcu(),
     deps = [
         ":socket_rpc_transport",
+        "//pw_allocator:testing",
         "//pw_bytes",
+        "//pw_containers:dynamic_vector",
         "//pw_log",
         "//pw_span",
         "//pw_status",
@@ -362,7 +375,9 @@ pw_cc_test(
     deps = [
         ":stream_rpc_dispatcher",
         ":stream_rpc_dispatcher_logging_metric_tracker",
+        "//pw_allocator:testing",
         "//pw_bytes",
+        "//pw_containers:dynamic_vector",
         "//pw_log",
         "//pw_status",
         "//pw_stream",

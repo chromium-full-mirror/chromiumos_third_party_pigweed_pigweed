@@ -18,7 +18,9 @@
 #include <array>
 #include <random>
 
+#include "pw_allocator/testing.h"
 #include "pw_bytes/span.h"
+#include "pw_containers/dynamic_vector.h"
 #include "pw_log/log.h"
 #include "pw_status/status.h"
 #include "pw_unit_test/framework.h"
@@ -63,14 +65,14 @@ void MakePacket(ByteSpan dst_buffer) {
   std::shuffle(dst_buffer.begin(), dst_buffer.end(), rg);
 }
 
-void CopyFrame(RpcFrame frame, std::vector<std::byte>& dst) {
+void CopyFrame(RpcFrame frame, pw::DynamicVector<std::byte>& dst) {
   std::copy(frame.header.begin(), frame.header.end(), std::back_inserter(dst));
   std::copy(
       frame.payload.begin(), frame.payload.end(), std::back_inserter(dst));
 }
 
 template <typename Seq1, typename Seq2>
-inline bool SequenceEqual(Seq1 seq1, Seq2 seq2) {
+inline bool SequenceEqual(const Seq1& seq1, const Seq2& seq2) {
   return std::equal(seq1.begin(), seq1.end(), seq2.begin(), seq2.end());
 }
 
@@ -88,11 +90,13 @@ TEST(SimpleRpcFrameEncodeDecodeTest, EncodeThenDecode) {
                 static_cast<int>(packet_size),
                 static_cast<int>(max_frame_size));
 
-    std::vector<std::byte> src(packet_size);
+    pw::allocator::test::AllocatorForTest<2048> allocator;
+    pw::DynamicVector<std::byte> src(allocator);
+    src.resize(packet_size);
     MakePacket(src);
 
-    std::vector<std::byte> encoded;
-    std::vector<std::byte> decoded;
+    pw::DynamicVector<std::byte> encoded(allocator);
+    pw::DynamicVector<std::byte> decoded(allocator);
 
     SimpleRpcPacketEncoder<kMaxPacketSize> encoder;
 
@@ -126,11 +130,13 @@ TEST(SimpleRpcFrameEncodeDecodeTest, OneByteAtTimeDecoding) {
                 static_cast<int>(packet_size),
                 static_cast<int>(max_frame_size));
 
-    std::vector<std::byte> src(packet_size);
+    pw::allocator::test::AllocatorForTest<2048> allocator;
+    pw::DynamicVector<std::byte> src(allocator);
+    src.resize(packet_size);
     MakePacket(src);
 
-    std::vector<std::byte> encoded;
-    std::vector<std::byte> decoded;
+    pw::DynamicVector<std::byte> encoded(allocator);
+    pw::DynamicVector<std::byte> decoded(allocator);
 
     SimpleRpcPacketEncoder<kMaxPacketSize> encoder;
 
@@ -166,19 +172,24 @@ TEST(SimpleRpcFrameTest, MissingFirstFrame) {
   constexpr size_t kPacketSize = 77;
   constexpr size_t kMaxFrameSize = 16;
 
-  std::vector<std::byte> src1(kPacketSize);
+  pw::allocator::test::AllocatorForTest<2048> allocator;
+  pw::DynamicVector<std::byte> src1(allocator);
+  src1.resize(kPacketSize);
   MakePacket(src1);
 
-  std::vector<std::byte> src2(kPacketSize);
+  pw::DynamicVector<std::byte> src2(allocator);
+  src2.resize(kPacketSize);
   MakePacket(src2);
 
-  std::vector<std::byte> decoded;
+  pw::DynamicVector<std::byte> decoded(allocator);
 
   SimpleRpcPacketEncoder<kMaxPacketSize> encoder;
   struct {
     size_t frame_counter = 0;
-    std::vector<std::byte> encoded;
+    pw::DynamicVector<std::byte>* encoded;
   } state;
+  pw::DynamicVector<std::byte> encoded_vec(allocator);
+  state.encoded = &encoded_vec;
 
   ASSERT_EQ(encoder.Encode(src1,
                            kMaxFrameSize,
@@ -186,7 +197,7 @@ TEST(SimpleRpcFrameTest, MissingFirstFrame) {
                              state.frame_counter++;
                              if (state.frame_counter > 1) {
                                // Skip the first frame.
-                               CopyFrame(frame, state.encoded);
+                               CopyFrame(frame, *state.encoded);
                              }
                              return OkStatus();
                            }),
@@ -195,14 +206,14 @@ TEST(SimpleRpcFrameTest, MissingFirstFrame) {
   ASSERT_EQ(encoder.Encode(src2,
                            kMaxFrameSize,
                            [&state](RpcFrame& frame) {
-                             CopyFrame(frame, state.encoded);
+                             CopyFrame(frame, *state.encoded);
                              return OkStatus();
                            }),
             OkStatus());
 
   SimpleRpcPacketDecoder<kMaxPacketSize> decoder;
 
-  ASSERT_EQ(decoder.Decode(state.encoded,
+  ASSERT_EQ(decoder.Decode(*state.encoded,
                            [&decoded](ConstByteSpan packet) {
                              std::copy(packet.begin(),
                                        packet.end(),
@@ -221,22 +232,28 @@ TEST(SimpleRpcFrameTest, MissingInternalFrame) {
   constexpr size_t kPacketSize = 77;
   constexpr size_t kMaxFrameSize = 16;
 
-  std::vector<std::byte> src1(kPacketSize);
+  pw::allocator::test::AllocatorForTest<2048> allocator;
+  pw::DynamicVector<std::byte> src1(allocator);
+  src1.resize(kPacketSize);
   MakePacket(src1);
 
-  std::vector<std::byte> src2(kPacketSize);
+  pw::DynamicVector<std::byte> src2(allocator);
+  src2.resize(kPacketSize);
   MakePacket(src2);
 
-  std::vector<std::byte> src3(kPacketSize);
+  pw::DynamicVector<std::byte> src3(allocator);
+  src3.resize(kPacketSize);
   MakePacket(src3);
 
-  std::vector<std::byte> decoded;
+  pw::DynamicVector<std::byte> decoded(allocator);
 
   SimpleRpcPacketEncoder<kMaxPacketSize> encoder;
   struct {
     size_t frame_counter = 0;
-    std::vector<std::byte> encoded;
+    pw::DynamicVector<std::byte>* encoded;
   } encode_state;
+  pw::DynamicVector<std::byte> encoded_vec(allocator);
+  encode_state.encoded = &encoded_vec;
 
   ASSERT_EQ(encoder.Encode(src1,
                            kMaxFrameSize,
@@ -244,7 +261,7 @@ TEST(SimpleRpcFrameTest, MissingInternalFrame) {
                              encode_state.frame_counter++;
                              if (encode_state.frame_counter != 2) {
                                // Skip the second frame.
-                               CopyFrame(frame, encode_state.encoded);
+                               CopyFrame(frame, *encode_state.encoded);
                              }
                              return OkStatus();
                            }),
@@ -253,7 +270,7 @@ TEST(SimpleRpcFrameTest, MissingInternalFrame) {
   ASSERT_EQ(encoder.Encode(src2,
                            kMaxFrameSize,
                            [&encode_state](RpcFrame& frame) {
-                             CopyFrame(frame, encode_state.encoded);
+                             CopyFrame(frame, *encode_state.encoded);
                              return OkStatus();
                            }),
             OkStatus());
@@ -261,7 +278,7 @@ TEST(SimpleRpcFrameTest, MissingInternalFrame) {
   ASSERT_EQ(encoder.Encode(src3,
                            kMaxFrameSize,
                            [&encode_state](RpcFrame& frame) {
-                             CopyFrame(frame, encode_state.encoded);
+                             CopyFrame(frame, *encode_state.encoded);
                              return OkStatus();
                            }),
             OkStatus());
@@ -275,13 +292,14 @@ TEST(SimpleRpcFrameTest, MissingInternalFrame) {
   // bytes that look as the valid header. So we eventually receive the third
   // packet and it is correct.
   struct {
-    std::vector<std::byte> decoded1;
-    std::vector<std::byte> decoded2;
+    pw::DynamicVector<std::byte> decoded1;
+    pw::DynamicVector<std::byte> decoded2;
     size_t packet_counter = 0;
-  } decode_state;
+  } decode_state = {.decoded1 = pw::DynamicVector<std::byte>(allocator),
+                    .decoded2 = pw::DynamicVector<std::byte>(allocator)};
 
   ASSERT_EQ(
-      decoder.Decode(encode_state.encoded,
+      decoder.Decode(*encode_state.encoded,
                      [&decode_state](ConstByteSpan packet) {
                        decode_state.packet_counter++;
                        if (decode_state.packet_counter == 1) {
@@ -341,14 +359,17 @@ TEST(SimpleRpcFrameTest, EncoderBufferLargerThanDecoderBuffer) {
   constexpr size_t kEncoderMaxPacketSize = 256;
   constexpr size_t kDecoderMaxPacketSize = 128;
 
-  std::vector<std::byte> src1(kLargePacketSize);
+  pw::allocator::test::AllocatorForTest<2048> allocator;
+  pw::DynamicVector<std::byte> src1(allocator);
+  src1.resize(kLargePacketSize);
   MakePacket(src1);
 
-  std::vector<std::byte> src2(kSmallPacketSize);
+  pw::DynamicVector<std::byte> src2(allocator);
+  src2.resize(kSmallPacketSize);
   MakePacket(src1);
 
-  std::vector<std::byte> encoded;
-  std::vector<std::byte> decoded;
+  pw::DynamicVector<std::byte> encoded(allocator);
+  pw::DynamicVector<std::byte> decoded(allocator);
 
   SimpleRpcPacketEncoder<kEncoderMaxPacketSize> encoder;
 

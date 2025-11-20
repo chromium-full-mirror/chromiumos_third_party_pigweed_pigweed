@@ -18,7 +18,9 @@
 #include <array>
 #include <vector>
 
+#include "pw_allocator/testing.h"
 #include "pw_bytes/span.h"
+#include "pw_containers/dynamic_vector.h"
 #include "pw_status/status.h"
 #include "pw_unit_test/framework.h"
 
@@ -160,7 +162,8 @@ TEST(HdlcRpcFrame, OneByteAtTimeDecoding) {
 
   HdlcRpcPacketEncoder<kMaxPacketSize> encoder;
   std::array<std::byte, kPacketSize> packet{};
-  std::vector<std::byte> encoded;
+  pw::allocator::test::AllocatorForTest<2048> allocator;
+  pw::DynamicVector<std::byte> encoded(allocator);
 
   std::fill(packet.begin(), packet.end(), std::byte{0x42});
   ASSERT_EQ(encoder.Encode(packet,

@@ -14,8 +14,10 @@
 
 #include "pw_rpc_transport/local_rpc_egress.h"
 
+#include "pw_allocator/testing.h"
 #include "pw_assert/check.h"
 #include "pw_chrono/system_clock.h"
+#include "pw_containers/dynamic_vector.h"
 #include "pw_rpc/client_server.h"
 #include "pw_rpc/packet_meta.h"
 #include "pw_rpc_transport/internal/test.rpc.pwpb.h"
@@ -93,9 +95,10 @@ void LocalRpcEgressTest(
           .CreateClient<pw_rpc_transport::testing::pw_rpc::pwpb::TestService>(
               kChannelId);
 
-  std::vector<rpc::PwpbUnaryReceiver<
+  pw::allocator::test::AllocatorForTest<4096> allocator;
+  pw::DynamicVector<rpc::PwpbUnaryReceiver<
       pw_rpc_transport::testing::pwpb::EchoMessage::Message>>
-      receivers;
+      receivers(allocator);
 
   struct State {
     // Stash the receivers to keep the calls alive.

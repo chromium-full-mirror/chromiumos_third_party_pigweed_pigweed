@@ -44,6 +44,8 @@ pw_add_library(pw_rpc_transport.test_loopback_service_registry INTERFACE
   PUBLIC_INCLUDES
     public
   PUBLIC_DEPS
+    pw_allocator.testing
+    pw_containers.dynamic_vector
     pw_rpc_transport.egress_ingress
     pw_rpc_transport.service_registry
     pw_work_queue
@@ -119,8 +121,10 @@ pw_add_test(pw_rpc_transport.local_rpc_egress_test
     pw_rpc_transport.rpc_transport
     pw_rpc_transport.service_registry
     pw_rpc_transport.test_protos.pwpb_rpc
+    pw_allocator.testing
     pw_bytes
     pw_chrono.system_clock
+    pw_containers.dynamic_vector
     pw_rpc.client_server
     pw_status
     pw_sync.counting_semaphore
@@ -153,7 +157,9 @@ pw_add_test(pw_rpc_transport.hdlc_framing_test
     hdlc_framing_test.cc
   PRIVATE_DEPS
     pw_rpc_transport.hdlc_framing
+    pw_allocator.testing
     pw_bytes
+    pw_containers.dynamic_vector
     pw_status
   GROUPS
     modules
@@ -181,7 +187,9 @@ pw_add_test(pw_rpc_transport.simple_framing_test
     simple_framing_test.cc
   PRIVATE_DEPS
     pw_rpc_transport.simple_framing
+    pw_allocator.testing
     pw_bytes
+    pw_containers.dynamic_vector
     pw_log
     pw_status
   GROUPS
@@ -221,7 +229,9 @@ pw_add_test(pw_rpc_transport.egress_ingress_test
     pw_rpc_transport.egress_ingress_logging_metric_tracker
     pw_rpc_transport.service_registry
     pw_rpc_transport.test_protos.pwpb_rpc
+    pw_allocator.testing
     pw_bytes
+    pw_containers.dynamic_vector
     pw_metric
     pw_status
     pw_sync.thread_notification

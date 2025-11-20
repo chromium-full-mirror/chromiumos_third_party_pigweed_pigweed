@@ -60,10 +60,13 @@ pw_source_set("service_registry") {
 }
 
 pw_source_set("test_loopback_service_registry") {
+  testonly = pw_unit_test_TESTONLY
   public = [ "public/pw_rpc_transport/test_loopback_service_registry.h" ]
   public_deps = [
     ":egress_ingress",
     ":service_registry",
+    "$dir_pw_allocator:testing",
+    "$dir_pw_containers:dynamic_vector",
     "$dir_pw_work_queue:pw_work_queue",
     "$dir_pw_work_queue:test_thread",
   ]
@@ -134,8 +137,10 @@ pw_test("local_rpc_egress_test") {
     ":rpc_transport",
     ":service_registry",
     ":test_protos.pwpb_rpc",
+    "$dir_pw_allocator:testing",
     "$dir_pw_bytes",
     "$dir_pw_chrono:system_clock",
+    "$dir_pw_containers:dynamic_vector",
     "$dir_pw_rpc:client_server",
     "$dir_pw_status",
     "$dir_pw_sync:counting_semaphore",
@@ -165,7 +170,9 @@ pw_test("hdlc_framing_test") {
   sources = [ "hdlc_framing_test.cc" ]
   deps = [
     ":hdlc_framing",
+    "$dir_pw_allocator:testing",
     "$dir_pw_bytes",
+    "$dir_pw_containers:dynamic_vector",
     "$dir_pw_status",
   ]
 }
@@ -187,7 +194,9 @@ pw_test("simple_framing_test") {
   sources = [ "simple_framing_test.cc" ]
   deps = [
     ":simple_framing",
+    "$dir_pw_allocator:testing",
     "$dir_pw_bytes",
+    "$dir_pw_containers:dynamic_vector",
     "$dir_pw_log",
     "$dir_pw_status",
   ]
@@ -224,7 +233,9 @@ pw_test("egress_ingress_test") {
     ":egress_ingress_logging_metric_tracker",
     ":service_registry",
     ":test_protos.pwpb_rpc",
+    "$dir_pw_allocator:testing",
     "$dir_pw_bytes",
+    "$dir_pw_containers:dynamic_vector",
     "$dir_pw_metric",
     "$dir_pw_status",
     "$dir_pw_sync:thread_notification",
@@ -289,7 +300,9 @@ pw_test("socket_rpc_transport_test") {
               host_os != "win" && pw_sync_CONDITION_VARIABLE_BACKEND != ""
   deps = [
     ":socket_rpc_transport",
+    "$dir_pw_allocator:testing",
     "$dir_pw_bytes",
+    "$dir_pw_containers:dynamic_vector",
     "$dir_pw_log",
     "$dir_pw_status",
     "$dir_pw_sync:thread_notification",
@@ -305,7 +318,9 @@ pw_test("stream_rpc_dispatcher_test") {
   deps = [
     ":stream_rpc_dispatcher",
     ":stream_rpc_dispatcher_logging_metric_tracker",
+    "$dir_pw_allocator:testing",
     "$dir_pw_bytes",
+    "$dir_pw_containers:dynamic_vector",
     "$dir_pw_log",
     "$dir_pw_status",
     "$dir_pw_sync:mutex",
