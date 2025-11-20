@@ -169,6 +169,7 @@ pw_cc_test(
         "//pw_allocator:testing",
         "//pw_async2:pend_func_task",
         "//pw_async2:testing",
+        "//pw_async2:value_future",
     ],
 )
 

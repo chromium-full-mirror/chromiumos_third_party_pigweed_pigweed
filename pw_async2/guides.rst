@@ -506,6 +506,8 @@ hardware and the high-level, cooperative multitasking model of ``pw_async2``.
 
 Full source code for this example: :cs:`pw_async2/examples/interrupt.cc`
 
+.. _module-pw_async2-guides-unit-testing:
+
 ------------
 Unit testing
 ------------
@@ -556,6 +558,8 @@ The example below runs a task multiple times to test waiting for a
    :language: c++
    :start-after: pw_async2-multi-step-test
    :end-before: pw_async2-multi-step-test
+
+Full source code for this example: :cs:`pw_async2/examples/unit_test.cc`
 
 .. _module-pw_async2-guides-debugging:
 

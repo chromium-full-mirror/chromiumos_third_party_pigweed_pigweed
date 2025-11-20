@@ -107,6 +107,7 @@ pw_add_test(pw_async2.examples.unit_test
     pw_allocator.testing
     pw_async2.dispatcher
     pw_async2.pend_func_task
+    pw_async2.value_future
 )
 
 pw_add_test(pw_async2.examples.custom_future
