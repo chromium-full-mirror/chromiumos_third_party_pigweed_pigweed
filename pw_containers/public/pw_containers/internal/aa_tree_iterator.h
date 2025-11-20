@@ -36,18 +36,12 @@ class AATreeIterator {
   using iterator_category = std::bidirectional_iterator_tag;
 
   constexpr AATreeIterator() = default;
-  constexpr AATreeIterator(const AATreeIterator& other) { *this = other; }
-
-  constexpr AATreeIterator& operator=(const AATreeIterator& other) {
-    root_ = other.root_;
-    item_ = other.item_;
-    return *this;
-  }
+  constexpr AATreeIterator(const AATreeIterator&) = default;
+  constexpr AATreeIterator& operator=(const AATreeIterator&) = default;
 
   template <typename Item>
-  constexpr AATreeIterator(const AATreeIterator<Item>& other) {
-    *this = other;
-  }
+  constexpr AATreeIterator(const AATreeIterator<Item>& other)
+      : root_(other.root_), item_(other.item_) {}
 
   template <typename Item>
   constexpr AATreeIterator& operator=(const AATreeIterator<Item>& other) {
@@ -127,7 +121,7 @@ class AATreeIterator {
   constexpr AATreeIterator(AATreeItem** root, AATreeItem* item)
       : root_(root), item_(item) {}
 
-  T* downcast() { return static_cast<T*>(item_); }
+  T* downcast() const { return static_cast<T*>(item_); }
 
   AATreeItem** root_ = nullptr;
   mutable AATreeItem* item_ = nullptr;

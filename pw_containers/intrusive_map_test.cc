@@ -575,6 +575,36 @@ TEST_F(IntrusiveMapTest, Erase_One_ByItem) {
   }
 }
 
+TEST_F(IntrusiveMapTest, Erase_One_ByItem_IteratorCopy) {
+  // This test explicitly checks that the iterator returned by erase(T&) can be
+  // copy constructed and assigned. This is to ensure that the fix for a static
+  // analysis warning (which was caused by a delegating copy constructor) works
+  // as intended and the returned iterator is valid.
+  auto iter = map_.erase(pairs_[0]);
+
+  // Copy construct
+  IntrusiveMap::iterator iter_copy(iter);
+  EXPECT_EQ(iter_copy, iter);
+
+  // Copy assign
+  IntrusiveMap::iterator iter_assign;
+  iter_assign = iter;
+  EXPECT_EQ(iter_assign, iter);
+
+  // Verify it points to the next item.
+  // The map is sorted by key. The keys in `pairs_` are:
+  // 10, 15, 20, 25, 30, 35, 40, 45, 50, 55.
+  //
+  // `pairs_[0]` has key 30.
+  // The next key in the sorted sequence is 35.
+
+  EXPECT_EQ(iter->key(), 35U);
+  EXPECT_EQ(iter_copy->key(), 35U);
+  EXPECT_EQ(iter_assign->key(), 35U);
+
+  map_.insert(pairs_[0]);
+}
+
 TEST_F(IntrusiveMapTest, Erase_One_ByKey) {
   for (size_t i = 0; i < kNumPairs; ++i) {
     EXPECT_EQ(map_.size(), kNumPairs);
