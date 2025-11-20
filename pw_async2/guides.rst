@@ -506,6 +506,16 @@ hardware and the high-level, cooperative multitasking model of ``pw_async2``.
 
 Full source code for this example: :cs:`pw_async2/examples/interrupt.cc`
 
+----------------------
+Writing custom futures
+----------------------
+``pw_async2`` provides utilities like ``ValueFuture`` for common asynchronous
+patterns. However, you may want to implement a custom future if your operation
+has complex logic where ``Pend()`` would benefit from reaching deeper into the
+underlying system.
+
+See :ref:`module-pw_async2-futures-implementing` for a detailed example.
+
 .. _module-pw_async2-guides-unit-testing:
 
 ------------

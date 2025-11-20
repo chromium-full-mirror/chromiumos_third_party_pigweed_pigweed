@@ -183,6 +183,8 @@ in one of the following providers:
 Listable futures take their provider as a constructor argument and automatically
 manage their presence in the list.
 
+.. _module-pw_async2-futures-implementing:
+
 ---------------------
 Implementing a future
 ---------------------
