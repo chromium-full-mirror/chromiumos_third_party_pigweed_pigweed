@@ -825,6 +825,7 @@ filegroup(
         "public/pw_async2/task.h",
         "public/pw_async2/time_provider.h",
         "public/pw_async2/try.h",
+        "public/pw_async2/value_future.h",
         "public/pw_async2/waker.h",
         "public/pw_async2/waker_queue.h",
     ],
