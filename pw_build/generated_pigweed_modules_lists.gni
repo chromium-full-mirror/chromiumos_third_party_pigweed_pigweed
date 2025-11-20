@@ -42,7 +42,6 @@ declare_args() {
   dir_pw_assert_zephyr = get_path_info("../pw_assert_zephyr", "abspath")
   dir_pw_async = get_path_info("../pw_async", "abspath")
   dir_pw_async2 = get_path_info("../pw_async2", "abspath")
-  dir_pw_async2_epoll = get_path_info("../pw_async2_epoll", "abspath")
   dir_pw_async_basic = get_path_info("../pw_async_basic", "abspath")
   dir_pw_async_fuchsia = get_path_info("../pw_async_fuchsia", "abspath")
   dir_pw_atomic = get_path_info("../pw_atomic", "abspath")
@@ -250,7 +249,6 @@ declare_args() {
     dir_pw_assert_zephyr,
     dir_pw_async,
     dir_pw_async2,
-    dir_pw_async2_epoll,
     dir_pw_async_basic,
     dir_pw_async_fuchsia,
     dir_pw_atomic,
@@ -439,7 +437,6 @@ declare_args() {
     "$dir_pw_assert_zephyr:tests",
     "$dir_pw_async:tests",
     "$dir_pw_async2:tests",
-    "$dir_pw_async2_epoll:tests",
     "$dir_pw_async_basic:tests",
     "$dir_pw_async_fuchsia:tests",
     "$dir_pw_atomic:tests",
@@ -628,7 +625,6 @@ declare_args() {
     "$dir_pw_assert_zephyr:docs",
     "$dir_pw_async:docs",
     "$dir_pw_async2:docs",
-    "$dir_pw_async2_epoll:docs",
     "$dir_pw_async_basic:docs",
     "$dir_pw_async_fuchsia:docs",
     "$dir_pw_atomic:docs",

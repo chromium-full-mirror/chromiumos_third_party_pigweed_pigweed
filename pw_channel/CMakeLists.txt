@@ -135,7 +135,7 @@ pw_add_library(pw_channel.epoll_channel STATIC
   SOURCES
     epoll_channel.cc
   PUBLIC_DEPS
-    pw_async2_epoll
+    pw_async2.epoll_dispatcher
     pw_channel
     pw_multibuf.allocator
     pw_multibuf.allocator_async
@@ -151,7 +151,7 @@ pw_add_test(pw_channel.epoll_channel_test
   SOURCES
     epoll_channel_test.cc
   PRIVATE_DEPS
-    pw_async2_epoll
+    pw_async2.epoll_dispatcher
     pw_channel.epoll_channel
     pw_multibuf.allocator_async
     pw_multibuf.testing

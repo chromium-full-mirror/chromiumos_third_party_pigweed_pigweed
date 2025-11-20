@@ -180,7 +180,6 @@ sphinx_docs_library(
         "//pw_assert_zephyr:docs",
         "//pw_async:docs",
         "//pw_async2:docs",
-        "//pw_async2_epoll:docs",
         "//pw_async_basic:docs",
         "//pw_async_fuchsia:docs",
         "//pw_atomic:docs",

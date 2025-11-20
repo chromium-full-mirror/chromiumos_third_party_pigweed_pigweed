@@ -13,7 +13,7 @@
 // the License.
 #pragma once
 
-#include "pw_async2_epoll/dispatcher.h"
+#include "pw_async2/epoll_dispatcher.h"
 
 namespace pw::async2::backend {
 

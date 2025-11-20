@@ -118,6 +118,7 @@ pw_source_set("epoll_channel") {
   sources = [ "epoll_channel.cc" ]
   public_deps = [
     ":pw_channel",
+    "$dir_pw_async2:epoll_dispatcher",
     "$dir_pw_multibuf:allocator",
     "$dir_pw_multibuf:allocator_async",
     "$dir_pw_sync:mutex",
@@ -137,7 +138,7 @@ pw_test("epoll_channel_test") {
     "$dir_pw_thread_stl:thread",
   ]
   enable_if = pw_async2_DISPATCHER_FOR_TEST_BACKEND ==
-              "$dir_pw_async2_epoll:dispatcher_backend"
+              "$dir_pw_async2:epoll_dispatcher_for_test"
 }
 
 if (pw_build_EXECUTABLE_TARGET_TYPE == "pico_executable") {

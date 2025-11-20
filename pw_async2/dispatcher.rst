@@ -14,14 +14,8 @@ Pigweed provides two :cc:`Dispatcher <pw::async2::Dispatcher>` implementations:
 
 * :cc:`pw::async2::BasicDispatcher` is a simple thread-notification-based
   :cc:`RunnableDispatcher <pw::async2::RunnableDispatcher>` implementation.
-* :ref:`module-pw_async2_epoll` is a :cc:`RunnableDispatcher
+* :cc:`pw::async2::EpollDispatcher` is a :cc:`RunnableDispatcher
   <pw::async2::RunnableDispatcher>` backed by Linux's `epoll`_ notification
   system.
 
 .. _epoll: https://man7.org/linux/man-pages/man7/epoll.7.html
-
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-
-   Linux epoll <../pw_async2_epoll/docs>

@@ -12,7 +12,7 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 
-#include "pw_async2_epoll/dispatcher.h"
+#include "pw_async2/epoll_dispatcher.h"
 
 #include <fcntl.h>
 #include <sys/epoll.h>

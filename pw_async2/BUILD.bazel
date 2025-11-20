@@ -153,6 +153,32 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "epoll_dispatcher",
+    srcs = ["epoll_dispatcher.cc"],
+    hdrs = ["public/pw_async2/epoll_dispatcher.h"],
+    implementation_deps = [
+        "//pw_assert:check",
+        "//pw_log",
+    ],
+    strip_include_prefix = "public",
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = [
+        ":dispatcher",
+        "//pw_assert:assert",
+        "//pw_status",
+    ],
+)
+
+cc_library(
+    name = "epoll_dispatcher_for_test",
+    hdrs = [
+        "epoll_dispatcher_for_test_public_overrides/pw_async2_backend/native_dispatcher_for_test.h",
+    ],
+    strip_include_prefix = "epoll_dispatcher_for_test_public_overrides",
+    deps = [":epoll_dispatcher"],
+)
+
 label_flag(
     name = "dispatcher_for_test_backend",
     build_setting_default = ":dispatcher_for_test_default_backend",
@@ -161,7 +187,7 @@ label_flag(
 alias(
     name = "dispatcher_for_test_default_backend",
     actual = select({
-        "@platforms//os:linux": "//pw_async2_epoll:dispatcher_for_test",
+        "@platforms//os:linux": ":epoll_dispatcher_for_test",
         "//conditions:default": ":basic_dispatcher_for_test",
     }),
 )
@@ -781,6 +807,7 @@ filegroup(
         "public/pw_async2/dispatcher.h",
         "public/pw_async2/dispatcher_for_test.h",
         "public/pw_async2/enqueue_heap_func.h",
+        "public/pw_async2/epoll_dispatcher.h",
         "public/pw_async2/future.h",
         "public/pw_async2/internal/config.h",
         "public/pw_async2/join.h",

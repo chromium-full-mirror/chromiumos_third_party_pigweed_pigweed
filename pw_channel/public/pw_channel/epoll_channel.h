@@ -17,8 +17,8 @@
 #include <optional>
 
 #include "pw_async2/dispatcher.h"
+#include "pw_async2/epoll_dispatcher.h"
 #include "pw_async2/poll.h"
-#include "pw_async2_epoll/dispatcher.h"
 #include "pw_channel/channel.h"
 #include "pw_multibuf/allocator.h"
 #include "pw_multibuf/allocator_async.h"

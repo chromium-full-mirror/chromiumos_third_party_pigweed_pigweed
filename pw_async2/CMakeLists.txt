@@ -125,6 +125,31 @@ pw_add_library(pw_async2.basic_dispatcher_for_test INTERFACE
     dispatcher_for_test_public_overrides
 )
 
+pw_add_library(pw_async2.epoll_dispatcher STATIC
+  HEADERS
+    public/pw_async2/epoll_dispatcher.h
+  SOURCES
+    epoll_dispatcher.cc
+  PUBLIC_INCLUDES
+    public
+  PUBLIC_DEPS
+    pw_assert
+    pw_async2.dispatcher
+    pw_async2.poll
+    pw_status
+  PRIVATE_DEPS
+    pw_log
+)
+
+pw_add_library(pw_async2.epoll_dispatcher_for_test INTERFACE
+  HEADERS
+    epoll_dispatcher_for_test_public_overrides/pw_async2_backend/native_dispatcher_for_test.h
+  PUBLIC_DEPS
+    pw_async2.epoll_dispatcher
+  PUBLIC_INCLUDES
+    epoll_dispatcher_for_test_public_overrides
+)
+
 pw_add_library(pw_async2.pendable INTERFACE
   HEADERS
     public/pw_async2/pendable.h
