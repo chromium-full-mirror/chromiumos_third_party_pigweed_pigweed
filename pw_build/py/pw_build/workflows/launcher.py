@@ -30,8 +30,12 @@ from pw_build.workflows.describe import Describe
 from pw_build.workflows.manager import WorkflowsManager
 from pw_cli import multitool, argument_types
 from pw_config_loader import find_config
-import toml
 import yaml
+
+try:
+    import tomllib  # type: ignore
+except ModuleNotFoundError:
+    import toml as tomllib  # type: ignore
 
 _LOG = logging.getLogger(__name__)
 _PROJECT_BUILDER_LOGGER = logging.getLogger(f'{_LOG.name}.project_builder')
@@ -202,7 +206,7 @@ class WorkflowsCli(multitool.MultitoolCli):
 
     @staticmethod
     def _load_proto_toml(config: Path) -> workflows_pb2.WorkflowSuite:
-        toml_msg = toml.loads(config.read_text())
+        toml_msg = tomllib.loads(config.read_text())
         msg = workflows_pb2.WorkflowSuite()
         json_format.ParseDict(toml_msg, msg)
         return msg
