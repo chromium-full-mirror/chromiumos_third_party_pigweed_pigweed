@@ -15,71 +15,30 @@
 #pragma once
 
 #include "pw_bluetooth_proxy/internal/basic_l2cap_channel_internal.h"
+#include "pw_bluetooth_proxy/internal/generic_l2cap_channel.h"
 
 namespace pw::bluetooth::proxy {
 
-class BasicL2capChannel final {
+class BasicL2capChannel final : public internal::GenericL2capChannel<
+                                    internal::BasicL2capChannelInternal> {
+ private:
+  using Base =
+      internal::GenericL2capChannel<internal::BasicL2capChannelInternal>;
+
  public:
-  BasicL2capChannel(const BasicL2capChannel& other) = delete;
-  BasicL2capChannel& operator=(const BasicL2capChannel& other) = delete;
-  BasicL2capChannel(BasicL2capChannel&&) = default;
-  BasicL2capChannel& operator=(BasicL2capChannel&& other) = default;
-  ~BasicL2capChannel() = default;
-
-  /// Send a payload to the remote peer.
-  ///
-  /// @param[in] payload The client payload to be sent. Payload will be
-  /// destroyed once its data has been used.
-  ///
-  /// @returns A `StatusWithMultiBuf` with one of the statuses below. If status
-  /// is not @OK then payload is also returned in `StatusWithMultiBuf`.
-  /// * @OK: Packet was successfully queued for send.
-  /// * @UNAVAILABLE: Channel could not acquire the resources to queue
-  ///   the send at this time (transient error). If an `event_fn` has been
-  ///   provided it will be called with `L2capChannelEvent::kWriteAvailable`
-  ///   when there is queue space available again.
-  /// * @INVALID_ARGUMENT: Payload is too large.
-  /// * @FAILED_PRECONDITION: Channel is not `State::kRunning`.
-  /// * @UNIMPLEMENTED: Channel does not support `Write(MultiBuf)`.
-  StatusWithMultiBuf Write(FlatConstMultiBuf&& payload);
-
-  /// Determine if channel is ready to accept one or more Write payloads.
-  ///
-  /// @returns
-  /// * @OK: Channel is ready to accept one or more `Write` payloads.
-  /// * @UNAVAILABLE: Channel does not yet have the resources to queue a Write
-  ///   at this time (transient error). If an `event_fn` has been provided it
-  ///   will be called with `L2capChannelEvent::kWriteAvailable` when there is
-  ///   queue space available again.
-  /// * @FAILED_PRECONDITION: Channel is not `State::kRunning`.
-  Status IsWriteAvailable();
-
-  static constexpr size_t QueueCapacity() {
-    return internal::BasicL2capChannelInternal::QueueCapacity();
-  }
-
-  L2capChannel::State state() const;
-
-  uint16_t local_cid() const;
-
-  uint16_t remote_cid() const;
-
-  uint16_t connection_handle() const;
-
-  AclTransportType transport() const;
-
   // Close the channel in internal tests. DO NOT USE.
-  void CloseForTesting();
+  void CloseForTesting() { internal().Close(); }
 
   // Returns the internal channel. DO NOT USE.
-  internal::BasicL2capChannelInternal& InternalForTesting();
+  internal::BasicL2capChannelInternal& InternalForTesting() {
+    return internal();
+  }
 
  private:
   friend class L2capChannelManager;
 
-  BasicL2capChannel(internal::BasicL2capChannelInternal&& internal);
-
-  internal::BasicL2capChannelInternal internal_;
+  BasicL2capChannel(internal::BasicL2capChannelInternal&& internal)
+      : Base(std::move(internal)) {}
 };
 
 }  // namespace pw::bluetooth::proxy

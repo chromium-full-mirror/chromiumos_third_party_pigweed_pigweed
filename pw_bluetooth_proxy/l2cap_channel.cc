@@ -38,8 +38,8 @@ void L2capChannel::MoveFields(L2capChannel& other) {
   transport_ = other.transport();
   local_cid_ = other.local_cid();
   remote_cid_ = other.remote_cid();
-  // TODO: https://pwbug.dev/450060983 - Moving these functions outside of a
-  // mutex is unsafe.
+  // TODO: https://pwbug.dev/380504851 - These moves are unsafe outside of a
+  // mutex.
   payload_from_controller_fn_ = std::move(other.payload_from_controller_fn_);
   payload_from_host_fn_ = std::move(other.payload_from_host_fn_);
   rx_multibuf_allocator_ = other.rx_multibuf_allocator_;

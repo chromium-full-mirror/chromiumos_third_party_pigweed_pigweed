@@ -36,14 +36,11 @@ def pw_bluetooth_proxy_library(name, **kwargs):
         # LINT.IfChange
         srcs = [
             "acl_data_channel.cc",
-            "basic_l2cap_channel.cc",
             "basic_l2cap_channel_internal.cc",
-            "gatt_notify_channel.cc",
             "gatt_notify_channel_internal.cc",
             "gatt_notify_tx_engine.cc",
             "l2cap_channel.cc",
             "l2cap_channel_manager.cc",
-            "l2cap_coc.cc",
             "l2cap_coc_internal.cc",
             "l2cap_signaling_channel.cc",
             "l2cap_status_tracker.cc",
@@ -70,6 +67,7 @@ def pw_bluetooth_proxy_library(name, **kwargs):
             "public/pw_bluetooth_proxy/internal/basic_l2cap_channel_internal.h",
             "public/pw_bluetooth_proxy/internal/l2cap_logical_link.h",
             "public/pw_bluetooth_proxy/internal/gatt_notify_channel_internal.h",
+            "public/pw_bluetooth_proxy/internal/generic_l2cap_channel.h",
             "public/pw_bluetooth_proxy/internal/hci_transport.h",
             "public/pw_bluetooth_proxy/internal/l2cap_channel.h",
             "public/pw_bluetooth_proxy/internal/l2cap_channel_manager.h",
