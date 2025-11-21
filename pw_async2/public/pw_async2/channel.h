@@ -46,18 +46,6 @@ class ReserveSendFuture;
 template <typename T>
 class SendReservation;
 
-template <typename T>
-class MpmcChannelHandle;
-
-template <typename T>
-class MpscChannelHandle;
-
-template <typename T>
-class SpmcChannelHandle;
-
-template <typename T>
-class SpscChannelHandle;
-
 template <typename T, uint16_t kCapacity>
 class ChannelStorage;
 
@@ -81,7 +69,7 @@ class Channel {
 
   /// Returns true if the channel is closed. A closed channel cannot create new
   /// senders or receivers, and cannot be re-opened.
-  [[nodiscard]] bool closed() const {
+  [[nodiscard]] bool closed() const PW_LOCKS_EXCLUDED(lock_) {
     std::lock_guard lock(lock_);
     return closed_;
   }
@@ -93,7 +81,7 @@ class Channel {
   explicit Channel(containers::Storage<kAlignment, kCapacity>& storage)
       : deque_(storage) {}
 
-  uint16_t ref_count() const {
+  uint16_t ref_count() const PW_LOCKS_EXCLUDED(lock_) {
     std::lock_guard lock(lock_);
     return ref_count_;
   }
@@ -108,7 +96,7 @@ class Channel {
   friend SendReservation<T>;
   friend Receiver<T>;
 
-  void Destroy() {
+  void Destroy() PW_LOCKS_EXCLUDED(lock_) {
     Deallocator* deallocator = nullptr;
     {
       std::lock_guard lock(lock_);
@@ -121,7 +109,7 @@ class Channel {
     }
   }
 
-  void Close() {
+  void Close() PW_LOCKS_EXCLUDED(lock_) {
     std::lock_guard lock(lock_);
     CloseLocked();
   }
@@ -140,7 +128,7 @@ class Channel {
   }
 
   /// Creates a sender for this channel.
-  Sender<T> CreateSender() {
+  Sender<T> CreateSender() PW_LOCKS_EXCLUDED(lock_) {
     if (closed()) {
       return Sender<T>(nullptr);
     }
@@ -148,7 +136,7 @@ class Channel {
   }
 
   /// Creates a receiver for this channel.
-  Receiver<T> CreateReceiver() {
+  Receiver<T> CreateReceiver() PW_LOCKS_EXCLUDED(lock_) {
     if (closed()) {
       return Receiver<T>(nullptr);
     }
@@ -206,12 +194,12 @@ class Channel {
     prioritize_reserve_ = !prioritize_reserve_;
   }
 
-  bool full() { return remaining_capacity() == 0; }
+  bool full() PW_LOCKS_EXCLUDED(lock_) { return remaining_capacity() == 0; }
   bool full_locked() const PW_EXCLUSIVE_LOCKS_REQUIRED(lock_) {
     return remaining_capacity_locked() == 0;
   }
 
-  uint16_t remaining_capacity() {
+  uint16_t remaining_capacity() PW_LOCKS_EXCLUDED(lock_) {
     std::lock_guard lock(lock_);
     return remaining_capacity_locked();
   }
@@ -225,7 +213,7 @@ class Channel {
     return deque_.capacity();
   }
 
-  bool empty() {
+  bool empty() PW_LOCKS_EXCLUDED(lock_) {
     std::lock_guard lock(lock_);
     return deque_.empty();
   }
@@ -240,7 +228,7 @@ class Channel {
     PushAndWake(std::move(value));
   }
 
-  bool TryPush(const T& value) {
+  bool TryPush(const T& value) PW_LOCKS_EXCLUDED(lock_) {
     std::lock_guard lock(lock_);
     if (closed_ || remaining_capacity_locked() == 0) {
       return false;
@@ -249,7 +237,7 @@ class Channel {
     return true;
   }
 
-  bool TryPush(T&& value) {
+  bool TryPush(T&& value) PW_LOCKS_EXCLUDED(lock_) {
     std::lock_guard lock(lock_);
     if (closed_ || remaining_capacity_locked() == 0) {
       return false;
@@ -258,7 +246,7 @@ class Channel {
     return true;
   }
 
-  std::optional<T> TryPop() {
+  std::optional<T> TryPop() PW_LOCKS_EXCLUDED(lock_) {
     std::lock_guard lock(lock_);
     if (deque_.empty()) {
       return std::nullopt;
@@ -266,7 +254,7 @@ class Channel {
     return PopAndWake();
   }
 
-  bool Reserve() {
+  bool Reserve() PW_LOCKS_EXCLUDED(lock_) {
     std::lock_guard lock(lock_);
     if (closed_ || remaining_capacity_locked() == 0) {
       return false;
@@ -275,7 +263,7 @@ class Channel {
     return true;
   }
 
-  void DropReservation() {
+  void DropReservation() PW_LOCKS_EXCLUDED(lock_) {
     std::lock_guard lock(lock_);
     PW_ASSERT(reservations_ > 0);
     reservations_--;
@@ -285,7 +273,7 @@ class Channel {
   }
 
   template <typename... Args>
-  void CommitReservation(Args&&... args) {
+  void CommitReservation(Args&&... args) PW_LOCKS_EXCLUDED(lock_) {
     std::lock_guard lock(lock_);
     PW_ASSERT(reservations_ > 0);
     reservations_--;
@@ -294,17 +282,17 @@ class Channel {
     }
   }
 
-  void add_receiver() {
+  void add_receiver() PW_LOCKS_EXCLUDED(lock_) {
     std::lock_guard lock(lock_);
     add_object(receiver_count_);
   }
 
-  void add_sender() {
+  void add_sender() PW_LOCKS_EXCLUDED(lock_) {
     std::lock_guard lock(lock_);
     add_object(sender_count_);
   }
 
-  void add_handle() {
+  void add_handle() PW_LOCKS_EXCLUDED(lock_) {
     std::lock_guard lock(lock_);
     add_object(handle_count_);
   }
@@ -316,17 +304,17 @@ class Channel {
     PW_ASSERT(CheckedAdd(ref_count_, 1, ref_count_));
   }
 
-  void remove_sender() {
+  void remove_sender() PW_LOCKS_EXCLUDED(lock_) {
     std::lock_guard lock(lock_);
     remove_object(sender_count_);
   }
 
-  void remove_receiver() {
+  void remove_receiver() PW_LOCKS_EXCLUDED(lock_) {
     std::lock_guard lock(lock_);
     remove_object(receiver_count_);
   }
 
-  void remove_handle() {
+  void remove_handle() PW_LOCKS_EXCLUDED(lock_) {
     std::lock_guard lock(lock_);
     remove_object(handle_count_);
   }
@@ -347,12 +335,12 @@ class Channel {
     }
   }
 
-  void add_ref() {
+  void add_ref() PW_LOCKS_EXCLUDED(lock_) {
     std::lock_guard lock(lock_);
     ref_count_++;
   }
 
-  void remove_ref() {
+  void remove_ref() PW_LOCKS_EXCLUDED(lock_) {
     bool destroy;
     {
       std::lock_guard lock(lock_);
