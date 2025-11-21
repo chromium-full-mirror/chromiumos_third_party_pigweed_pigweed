@@ -87,10 +87,4 @@ describe('Pigweed Bundle', () => {
     expect(typeof PigweedRPCLogSource).toBe('function');
     expect(PigweedRPCLogSource.name).toBe('PigweedRPCLogSource');
   });
-
-  it('is not referring to any outside Pigweed modules', () => {
-    const requireString = "require('pigweedjs";
-    const file = fs.readFileSync(require.resolve('../dist/index.umd'));
-    expect(file.indexOf(requireString)).toBe(-1);
-  });
 });

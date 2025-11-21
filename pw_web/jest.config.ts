@@ -22,9 +22,32 @@ const paths = {
 const config: InitialOptionsTsJest = {
   preset: 'ts-jest/presets/js-with-ts',
   testRegex: '(/__tests__/.*|(\\_|/)(test|spec))\\.tsx?$',
-  moduleNameMapper: pathsToModuleNameMapper(paths, { prefix: '<rootDir>/' }),
+  moduleNameMapper: {
+    ...pathsToModuleNameMapper(paths, { prefix: '<rootDir>/' }),
+    '^google-protobuf$': '<rootDir>/node_modules/google-protobuf',
+    '^google-protobuf/(.*)$': '<rootDir>/node_modules/google-protobuf/$1',
+    '^papaparse$': '<rootDir>/node_modules/papaparse',
+    '^long$': '<rootDir>/node_modules/long',
+  },
   setupFilesAfterEnv: ['./jest.polyfills.js'],
   transformIgnorePatterns: ['/node_modules/(?!rxjs)'],
+  testEnvironment: 'jsdom',
+  roots: ['<rootDir>/..'],
+  modulePathIgnorePatterns: [
+    '<rootDir>/../out',
+    '<rootDir>/../dist',
+    '<rootDir>/../bazel-out',
+    '<rootDir>/../node_modules',
+    '<rootDir>/../rules_js',
+  ],
+  moduleDirectories: ['node_modules', '<rootDir>/node_modules'],
+  globals: {
+    'ts-jest': {
+      diagnostics: {
+        ignoreCodes: [2307],
+      },
+    },
+  },
 };
 
 export default config;

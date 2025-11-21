@@ -13,11 +13,30 @@
 // the License.
 
 import { ReadableStream, WritableStream } from 'stream/web';
+import {
+  TextEncoder as NodeTextEncoder,
+  TextDecoder as NodeTextDecoder,
+} from 'util';
 
 Object.defineProperties(globalThis, {
   ReadableStream: { value: ReadableStream },
   WritableStream: { value: WritableStream },
 });
+
+class WrappedTextEncoder extends NodeTextEncoder {
+  encode(input) {
+    const result = super.encode(input);
+    return new Uint8Array(result);
+  }
+}
+
+if (typeof globalThis.TextEncoder === 'undefined') {
+  globalThis.TextEncoder = WrappedTextEncoder;
+}
+
+if (typeof globalThis.TextDecoder === 'undefined') {
+  globalThis.TextDecoder = NodeTextDecoder;
+}
 
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
