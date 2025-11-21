@@ -85,6 +85,13 @@ internal_algorithm::ContainerIter<C> Find(C& c, T&& value) {
   return std::find(std::begin(c), std::end(c), std::forward<T>(value));
 }
 
+// Container-based version of the <algorithm> `std::ranges::contains()` C++23
+// function to search a container for a value.
+template <typename C, typename T>
+bool Contains(const C& c, T&& value) {
+  return Find(c, std::forward<T>(value)) != std::end(c);
+}
+
 /// Container-based version of the <algorithm> `std::find_if()` function to find
 /// the first element in a container matching the given condition.
 template <typename C, typename Pred>

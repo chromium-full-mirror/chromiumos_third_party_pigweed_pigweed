@@ -99,6 +99,11 @@ TEST_F(NonMutatingTest, FindReturnsCorrectType) {
 
 TEST_F(NonMutatingTest, FindIf) { pw::containers::FindIf(span_, Predicate); }
 
+TEST_F(NonMutatingTest, Contains) {
+  EXPECT_TRUE(pw::containers::Contains(vector_, 3));
+  EXPECT_FALSE(pw::containers::Contains(vector_, 4));
+}
+
 TEST_F(NonMutatingTest, FindIfNot) {
   pw::containers::FindIfNot(span_, Predicate);
 }
