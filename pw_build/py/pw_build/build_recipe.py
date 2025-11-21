@@ -416,7 +416,7 @@ class BuildRecipeStatus:
 
 
 @dataclass
-class BuildRecipe:
+class BuildRecipe:  # pylint: disable=too-many-instance-attributes
     """Dataclass to store a list of BuildCommands.
 
     Example usage:
@@ -444,9 +444,14 @@ class BuildRecipe:
         build_dir: Output directory for this BuildRecipe. On init this out dir
             is set for all included steps.
         steps: List of BuildCommands to run.
-        title: Custom title. The build_dir is used if this is ommited.
+        title: Custom title. The build_dir is used if this is omitted. Each
+            build recipe name must be unique.
         auto_create_build_dir: Auto create the build directory and all necessary
             parent directories before running any build commands.
+        clean_globs: Glob strings used to match files that should be deleted
+            when removing build outputs.
+        dependencies: list of build recipe names that this BuildRecipe depends
+            on
     """
 
     build_dir: Path
@@ -455,6 +460,7 @@ class BuildRecipe:
     enabled: bool = True
     auto_create_build_dir: bool = True
     clean_globs: list[str] = field(default_factory=list)
+    dependencies: list[str] = field(default_factory=list)
 
     def __hash__(self):
         return hash((self.build_dir, self.title, len(self.steps)))

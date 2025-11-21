@@ -361,17 +361,6 @@ pw_py_test(
 )
 
 pw_py_test(
-    name = "project_builder_test",
-    size = "small",
-    srcs = [
-        "project_builder_test.py",
-    ],
-    deps = [
-        ":pw_project_builder",
-    ],
-)
-
-pw_py_test(
     name = "python_runner_test",
     size = "small",
     srcs = [
@@ -425,6 +414,18 @@ pw_py_test(
     size = "small",
     srcs = [
         "build_recipe_test.py",
+    ],
+    deps = [
+        ":pw_project_builder",
+        "@pigweed_python_packages//parameterized",
+    ],
+)
+
+pw_py_test(
+    name = "project_builder_test",
+    size = "small",
+    srcs = [
+        "project_builder_test.py",
     ],
     deps = [
         ":pw_project_builder",

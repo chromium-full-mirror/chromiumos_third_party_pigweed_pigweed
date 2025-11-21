@@ -43,7 +43,10 @@ from __future__ import annotations
 
 import argparse
 import concurrent.futures
+from dataclasses import dataclass
 import glob
+from graphlib import TopologicalSorter, CycleError
+from collections import Counter, OrderedDict
 import os
 import logging
 from pathlib import Path
@@ -56,16 +59,16 @@ import time
 from typing import (
     Callable,
     Generator,
+    Iterator,
+    NamedTuple,
     NoReturn,
     Sequence,
-    NamedTuple,
 )
 
 from prompt_toolkit.patch_stdout import StdoutProxy
 
 import pw_cli.env
 import pw_cli.log
-
 from pw_build.build_recipe import BuildRecipe, create_build_recipes
 from pw_build.project_builder_argparse import add_project_builder_arguments
 from pw_build.project_builder_context import get_project_builder_context
@@ -110,6 +113,11 @@ ASCII_CHARSET = ProjectBuilderCharset(
     _COLOR.green('OK  '),
     _COLOR.red('FAIL'),
     _COLOR.yellow('... '),
+)
+PLAIN_TEXT_CHARSET = ProjectBuilderCharset(
+    'OK  ',
+    'FAIL',
+    '... ',
 )
 EMOJI_CHARSET = ProjectBuilderCharset('✔️ ', '❌', '⏱️ ')
 
@@ -445,6 +453,110 @@ class DispatchingFormatter(logging.Formatter):
         return formatter.format(record)
 
 
+@dataclass
+class RecipeFutureStatus:
+    """Container to associate a future with a recipe and completion status."""
+
+    future: concurrent.futures.Future
+    recipe: BuildRecipe
+    is_done: bool = False
+
+
+class _ParallelRecipeRunner:
+    """Run recipes in parallel with a topological sorted order."""
+
+    def __init__(
+        self,
+        workers: int,
+        build_recipes: Sequence[BuildRecipe],
+        run_order: list[str],
+        topological_sorter: TopologicalSorter,
+        run_recipe_func: Callable[[int, BuildRecipe, dict], bool],
+        env: dict[str, str],
+        cleanup_func: Callable[[], None],
+    ):
+        self.workers = workers
+        self.build_recipe_by_name: dict[str, BuildRecipe] = {
+            r.display_name: r for r in build_recipes
+        }
+        self.build_recipe_index: dict[str, int] = {
+            name: i for i, name in enumerate(run_order, start=1)
+        }
+        self.topological_sorter = topological_sorter
+        self.run_recipe_func = run_recipe_func
+        self.env = env
+        self.cleanup_func = cleanup_func
+
+        self.future_status: list[RecipeFutureStatus] = []
+
+    def start(self) -> None:
+        self.topological_sorter.prepare()
+
+        with concurrent.futures.ThreadPoolExecutor(
+            max_workers=self.workers
+        ) as executor:
+            self._loop_until_tasks_finish(executor)
+
+    def _loop_until_tasks_finish(self, executor) -> None:
+        # While tasks remain to be run.
+        while self.topological_sorter.is_active():
+            self._schedule_ready_tasks(executor)
+            self._check_for_completed_tasks()
+
+    def _schedule_ready_tasks(self, executor) -> None:
+        # Get ready to run recipe names.
+        ready_recipes = self.topological_sorter.get_ready()
+        # Schedule any available recipes to run.
+        for recipe_name in ready_recipes:
+            recipe = self.build_recipe_by_name[recipe_name]
+            self.future_status.append(
+                RecipeFutureStatus(
+                    future=executor.submit(
+                        self.run_recipe_func,
+                        self.build_recipe_index[recipe_name],
+                        recipe,
+                        self.env,
+                    ),
+                    recipe=recipe,
+                )
+            )
+
+    def _check_for_completed_tasks(self) -> None:
+        # concurrent.futures.as_completed() will wait on tasks to complete so
+        # this must be wrapped in a try block to capture ctrl-c interrupts.
+        try:
+            # Wait for completed recipes and mark them as done.
+            for this_future in concurrent.futures.as_completed(
+                (status.future for status in self.future_status),
+                # Set a short timeout so we don't need to wait for
+                # all futures to complete. This will be run again until all
+                # futures are done due to the while loop in
+                # _loop_until_tasks_finish().
+                timeout=0.5,
+            ):
+                # Get the completed recipe.
+                current_status: RecipeFutureStatus
+                for status in self.future_status:
+                    if status.future == this_future:
+                        current_status = status
+                        break
+                recipe_name = current_status.recipe.display_name
+
+                # Set the is_done flag and mark completed in the
+                # topological_sorter.
+                if not current_status.is_done:
+                    current_status.is_done = True
+                    self.topological_sorter.done(recipe_name)
+        except concurrent.futures.TimeoutError:
+            # No futures are finished yet.
+            pass
+        # Ctrl-C on Unix generates KeyboardInterrupt
+        # Ctrl-Z on Windows generates EOFError
+        except (KeyboardInterrupt, EOFError):
+            self.cleanup_func()
+            _exit_due_to_interrupt()
+
+
 class ProjectBuilder:  # pylint: disable=too-many-instance-attributes
     """Pigweed Project Builder
 
@@ -485,7 +597,8 @@ class ProjectBuilder:  # pylint: disable=too-many-instance-attributes
         )
 
     Args:
-        build_recipes: List of build recipes.
+        build_recipes: List of build recipes. Each build recipe title must be
+            unique.
         jobs: The number of jobs bazel, make, and ninja should use by passing
             ``-j`` to each.
         banners: Print the project banner at the start of each build.
@@ -552,11 +665,17 @@ class ProjectBuilder:  # pylint: disable=too-many-instance-attributes
         source_path: Path | None = None,
     ):
         self.charset: ProjectBuilderCharset = charset
+        if not colors:
+            self.charset = PLAIN_TEXT_CHARSET
         self.abort_callback = abort_callback
         # Function used to run subprocesses
         self.execute_command = execute_command
         self.banners = banners
         self.build_recipes = build_recipes
+
+        self._check_unique_recipe_names()
+        self._check_build_recipe_cycles()
+
         self.max_name_width = max(
             [len(str(step.display_name)) for step in self.build_recipes]
         )
@@ -670,6 +789,99 @@ class ProjectBuilder:  # pylint: disable=too-many-instance-attributes
         # If source_path was set change to that directory before building.
         if self.source_path:
             os.chdir(self.source_path)
+
+    def _check_unique_recipe_names(self) -> None:
+        """Checks if all build_recipes have unique display names."""
+        counts = Counter(recipe.display_name for recipe in self.build_recipes)
+
+        duplicates = [name for name, count in counts.items() if count > 1]
+        if duplicates:
+            self.abort_callback(
+                f'Duplicate build recipe names found: {", ".join(duplicates)}'
+            )
+
+    def _get_topological_sorter(self) -> TopologicalSorter:
+        ts: TopologicalSorter = TopologicalSorter()
+        for recipe in self.build_recipes:
+            ts.add(recipe.display_name, *recipe.dependencies)
+        return ts
+
+    def _get_recipe_execution_order(self) -> list[str]:
+        ts = self._get_topological_sorter()
+        return list(ts.static_order())
+
+    def build_recipes_in_run_order(self) -> Iterator[BuildRecipe]:
+        ts_order = self._get_recipe_execution_order()
+        br_lookup = {r.display_name: r for r in self.build_recipes}
+
+        for name in ts_order:
+            yield br_lookup[name]
+
+    def build_recipes_sorted_by_name(self) -> Iterator[BuildRecipe]:
+        sorted_order = sorted(r.display_name for r in self.build_recipes)
+        br_lookup = {r.display_name: r for r in self.build_recipes}
+
+        for name in sorted_order:
+            yield br_lookup[name]
+
+    def _check_build_recipe_cycles(self) -> None:
+        ts = self._get_topological_sorter()
+
+        try:
+            ts.prepare()
+        except CycleError as exception:
+            nodes_in_cycle = exception.args[1]
+            self.abort_callback(
+                'Build recipe dependency cycle found: '
+                + ' -> '.join(nodes_in_cycle)
+            )
+
+    def recipe_graph(self) -> list[str]:
+        """Returns a tree printout of BuildRecipes and their dependencies."""
+        ts_order = self._get_recipe_execution_order()
+
+        class Node:
+            def __init__(self, value, children=None):
+                self.value = value
+                self.children = children if children is not None else []
+
+            def add_child(self, child_node):
+                self.children.append(child_node)
+
+        root_node_title = 'BuildRecipe Order'
+        root_node = Node(root_node_title)
+        deps_lookup = {
+            r.display_name: r.dependencies for r in self.build_recipes
+        }
+        node_lookup = OrderedDict()
+
+        # Add all nodes
+        for name in ts_order:
+            node_lookup[name] = Node(name)
+
+        # Add children
+        for name in ts_order:
+            parents = deps_lookup[name]
+            for p in parents:
+                node_lookup[p].add_child(node_lookup[name])
+            if not parents:
+                root_node.add_child(node_lookup[name])
+
+        def generate_tree_ascii(
+            node, indent='', leaf_node=True
+        ) -> Iterator[str]:
+            tree_ascii_text = '└── ' if leaf_node else '├── '
+            yield f'{indent}{tree_ascii_text}{node.value}'
+
+            new_indent = indent + ('    ' if leaf_node else '│   ')
+            for i, child in enumerate(node.children):
+                yield from generate_tree_ascii(
+                    child, new_indent, i == len(node.children) - 1
+                )
+
+        # Return the recipe graph removing the leading root node ascii.
+        tree_ascii = list(line[4:] for line in generate_tree_ascii(root_node))
+        return tree_ascii[1:]
 
     def _create_per_build_logfiles(self) -> None:
         """Create separate log files per build.
@@ -785,7 +997,7 @@ class ProjectBuilder:  # pylint: disable=too-many-instance-attributes
     def run_build(
         self,
         cfg: BuildRecipe,
-        env: dict,
+        env: dict[str, str],
         index_message: str | None = '',
     ) -> bool:
         """Run a single build config."""
@@ -906,17 +1118,21 @@ class ProjectBuilder:  # pylint: disable=too-many-instance-attributes
         build_descriptions = []
         build_status = []
 
-        for cfg in self:
+        for i, cfg in enumerate(self.build_recipes_in_run_order(), start=1):
+            # Build display name followed by target names
             description = [str(cfg.display_name).ljust(self.max_name_width)]
             description.append(' '.join(cfg.targets()))
             build_descriptions.append('  '.join(description))
 
+            # Build run order number followed by status
+            status_text = f'#{str(i).ljust(2)} '
             if cfg.status.passed():
-                build_status.append(self.charset.slug_ok)
+                status_text += self.charset.slug_ok
             elif cfg.status.failed():
-                build_status.append(self.charset.slug_fail)
+                status_text += self.charset.slug_fail
             else:
-                build_status.append(self.charset.slug_building)
+                status_text += self.charset.slug_building
+            build_status.append(status_text)
 
         if not cancelled:
             logger.info(' ╔════════════════════════════════════')
@@ -953,14 +1169,20 @@ class ProjectBuilder:  # pylint: disable=too-many-instance-attributes
 
         BUILDER_CONTEXT.mark_progress_started(cfg)
 
+        targets = cfg.targets()
         build_start_msg = [
             index_message,
             self.color.cyan('Starting ==>'),
             self.color.blue('Recipe:'),
             str(cfg.display_name),
-            self.color.blue('Targets:'),
-            str(' '.join(cfg.targets())),
         ]
+        if targets:
+            build_start_msg.extend(
+                [
+                    self.color.blue('Targets:'),
+                    str(' '.join(targets)),
+                ]
+            )
 
         if cfg.logfile:
             build_start_msg.extend(
@@ -1025,7 +1247,25 @@ class ProjectBuilder:  # pylint: disable=too-many-instance-attributes
         ):
             cfg.status.log_entire_recipe_logfile()
 
-    def run_recipe(self, index: int, cfg: BuildRecipe, env) -> bool:
+    def run_recipe(
+        self,
+        index: int,
+        cfg: BuildRecipe,
+        env: dict[str, str],
+    ) -> bool:
+        """Execute a single recipe.
+
+        This handles start and finish logging
+
+        Args:
+            index: Integer number denoting the recipe number in the entire
+                project builder run.
+            cfg: The BuildRecipe instance to execute.
+            env: Environment variables to apply for all commands.
+
+        Returns:
+            False for a failed build, True for success.
+        """
         if BUILDER_CONTEXT.interrupted():
             return False
         if not cfg.enabled:
@@ -1044,6 +1284,52 @@ class ProjectBuilder:  # pylint: disable=too-many-instance-attributes
 
         return result
 
+    def builds_finished_cleanup(self) -> None:
+        """Print pass fail status and shut down progress bars."""
+        if not self.should_use_progress_bars():
+            self.print_build_summary()
+        self.print_pass_fail_banner()
+        self.flush_log_handlers()
+        BUILDER_CONTEXT.set_idle()
+        BUILDER_CONTEXT.exit_progress()
+
+    def _run_recipes_in_serial(
+        self,
+        env: dict[str, str],
+    ) -> None:
+        try:
+            if self.should_use_progress_bars():
+                BUILDER_CONTEXT.add_progress_bars()
+            for i, recipe in enumerate(
+                self.build_recipes_in_run_order(), start=1
+            ):
+                self.run_recipe(i, recipe, env)
+        # Ctrl-C on Unix generates KeyboardInterrupt
+        # Ctrl-Z on Windows generates EOFError
+        except (KeyboardInterrupt, EOFError):
+            self.builds_finished_cleanup()
+            _exit_due_to_interrupt()
+
+    def _run_recipes_in_parallel(
+        self,
+        workers: int,
+        env: dict[str, str],
+    ) -> None:
+        runner = _ParallelRecipeRunner(
+            workers=workers,
+            build_recipes=self.build_recipes,
+            run_order=self._get_recipe_execution_order(),
+            topological_sorter=self._get_topological_sorter(),
+            run_recipe_func=self.run_recipe,
+            env=env,
+            cleanup_func=self.builds_finished_cleanup,
+        )
+
+        if self.should_use_progress_bars():
+            BUILDER_CONTEXT.add_progress_bars()
+
+        runner.start()
+
     def run_builds(self, workers: int = 1) -> int:
         """Execute all build recipe steps.
 
@@ -1052,10 +1338,11 @@ class ProjectBuilder:  # pylint: disable=too-many-instance-attributes
                 parallel. Defaults to 1 or no parallel execution.
 
         Returns:
-        1 for a failed build, 0 for success.
+            1 for a failed build, 0 for success.
         """
         num_builds = len(self.build_recipes)
         self.root_logger.info('Starting build with %d directories', num_builds)
+
         if self.default_logfile:
             self.root_logger.info(
                 '%s %s',
@@ -1070,6 +1357,10 @@ class ProjectBuilder:  # pylint: disable=too-many-instance-attributes
             self.print_build_summary()
         self.print_pass_fail_banner()
 
+        self.root_logger.info('Dependency overview:')
+        for l in self.recipe_graph():
+            self.root_logger.info(l)
+
         if workers > 1 and not self.separate_build_file_logging:
             self.root_logger.warning(
                 self.color.yellow(
@@ -1081,56 +1372,17 @@ class ProjectBuilder:  # pylint: disable=too-many-instance-attributes
         BUILDER_CONTEXT.set_project_builder(self)
         BUILDER_CONTEXT.set_building()
 
-        def _cleanup() -> None:
-            if not self.should_use_progress_bars():
-                self.print_build_summary()
-            self.print_pass_fail_banner()
-            self.flush_log_handlers()
-            BUILDER_CONTEXT.set_idle()
-            BUILDER_CONTEXT.exit_progress()
-
         if workers == 1:
-            # TODO(tonymd): Try to remove this special case. Using
-            # ThreadPoolExecutor when running in serial (workers==1) currently
-            # breaks Ctrl-C handling. Build processes keep running.
-            try:
-                if self.should_use_progress_bars():
-                    BUILDER_CONTEXT.add_progress_bars()
-                for i, cfg in enumerate(self.build_recipes, start=1):
-                    self.run_recipe(i, cfg, env)
-            # Ctrl-C on Unix generates KeyboardInterrupt
-            # Ctrl-Z on Windows generates EOFError
-            except (KeyboardInterrupt, EOFError):
-                _exit_due_to_interrupt()
-            finally:
-                _cleanup()
-
+            self._run_recipes_in_serial(env)
         else:
-            with concurrent.futures.ThreadPoolExecutor(
-                max_workers=workers
-            ) as executor:
-                futures = []
-                for i, cfg in enumerate(self.build_recipes, start=1):
-                    futures.append(
-                        executor.submit(self.run_recipe, i, cfg, env)
-                    )
+            self._run_recipes_in_parallel(workers, env)
 
-                try:
-                    if self.should_use_progress_bars():
-                        BUILDER_CONTEXT.add_progress_bars()
-                    for future in concurrent.futures.as_completed(futures):
-                        future.result()
-                # Ctrl-C on Unix generates KeyboardInterrupt
-                # Ctrl-Z on Windows generates EOFError
-                except (KeyboardInterrupt, EOFError):
-                    _exit_due_to_interrupt()
-                finally:
-                    _cleanup()
-
+        self.builds_finished_cleanup()
         self.flush_log_handlers()
         return BUILDER_CONTEXT.exit_code()
 
     def clean_builds(self):
+        """Delete all recipe build outputs as defined by recipe.clean_globs."""
         for recipe in self.build_recipes:
             for glob_pattern in recipe.clean_globs:
                 for match in glob.iglob(
