@@ -151,3 +151,4 @@ Learn more
    coroutines
    futures
    channels
+   tasks

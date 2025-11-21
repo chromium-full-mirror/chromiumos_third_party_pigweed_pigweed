@@ -91,9 +91,9 @@ As with the non-coroutine case, ``pw_async2`` provides the
 :cc:`OnceSender <pw::async2::OnceSender>` and :cc:`OnceReceiver
 <pw::async2::OnceReceiver>` helpers for sending and receiving a one-time value.
 
-As :cc:`OnceReceiver <pw::async2::OnceReceiver>` satisfies the
-:ref:`module-pw_async2-guides-pendable-function` requirement, this means your
-coroutine can just ``co_await`` the receiver instance to obtain the value.
+As :cc:`OnceReceiver <pw::async2::OnceReceiver>` satisfies the ``Pend()``
+interface. This means your coroutine can just ``co_await`` the receiver instance
+to obtain the value.
 
 .. literalinclude:: examples/once_send_recv_test.cc
    :language: cpp

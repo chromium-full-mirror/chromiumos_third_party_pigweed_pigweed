@@ -188,9 +188,11 @@ manage their presence in the list.
 ---------------------
 Implementing a future
 ---------------------
-While ``pw_async2`` provides a suite of common futures and combinators, you
-may sometimes need to implement a custom leaf future to represent a specific
-asynchronous operation (e.g., waiting for a hardware interrupt).
+``pw_async2`` provides a suite of common futures like ``ValueFuture`` for
+common asynchronous patterns. However, you may want to implement a custom leaf
+future if your operation has complex logic where ``Pend()`` would benefit from
+reaching deeper into the underlying system, e.g. waiting for a hardware
+interrupt.
 
 The primary tool for this is the :cc:`ListableFutureWithWaker` base class.
 
@@ -367,3 +369,24 @@ completing the task re-running, the tuple stores all of their results.
 
            co_return pw::OkStatus();
          }
+
+.. _module-pw_async2-guides-primitives-wakers:
+
+Setting up wakers
+=================
+You can set up a waker to a non-empty value using one of four macros we provide:
+
+- :cc:`PW_ASYNC_STORE_WAKER` and :cc:`PW_ASYNC_CLONE_WAKER`
+
+  The first creates a waker for a given context. The second clones an
+  existing waker, allowing the original and/or the clone to wake the task.
+
+  This pair of macros ensure a single task will be woken. They will assert if
+  a waker for a different task is created (or cloned) when the destination
+  waker already is set up for some task.
+
+- :cc:`PW_ASYNC_TRY_STORE_WAKER` and :cc:`PW_ASYNC_TRY_CLONE_WAKER`
+
+  This is an alternative to `PW_ASYNC_STORE_WAKER`, and returns ``false``
+  instead of crashing. This lets the pendable to signal to the caller that the
+  ``Pend()`` operation failed, so it can be handled in some other way.

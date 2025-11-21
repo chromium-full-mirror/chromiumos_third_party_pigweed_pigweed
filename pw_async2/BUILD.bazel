@@ -781,6 +781,7 @@ sphinx_docs_library(
         "informed_poll.rst",
         "public/pw_async2/coro.h",
         "quickstart.rst",
+        "tasks.rst",
         "//pw_async2/codelab:docs",
         "//pw_async2/examples:channel.cc",
         "//pw_async2/examples:custom_future.cc",
