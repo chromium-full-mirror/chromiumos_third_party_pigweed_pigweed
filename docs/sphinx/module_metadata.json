@@ -227,7 +227,7 @@
   },
   "pw_channel": {
     "tagline": "Async, zero-copy API for sending and receiving bytes or datagrams",
-    "status": "experimental",
+    "status": "deprecated",
     "languages": [
       "C++"
     ]

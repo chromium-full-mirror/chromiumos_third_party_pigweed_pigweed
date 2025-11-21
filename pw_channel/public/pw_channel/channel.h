@@ -51,6 +51,10 @@ namespace pw::channel {
 ///
 /// To implement a `Channel`, inherit from `ChannelImpl` with the specified
 /// properties.
+///
+/// @deprecated `Channel` has not been updated for pw_async2 futures or the new
+/// `pw::MultiBuf`. It will be updated and renamed to avoid conflicts with
+/// `pw::async2::Channel`s.
 template <DataType kDataType, Property... kProperties>
 class Channel {
  public:

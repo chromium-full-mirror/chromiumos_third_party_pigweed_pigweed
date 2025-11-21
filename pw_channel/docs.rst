@@ -3,6 +3,20 @@
 ==========
 pw_channel
 ==========
+.. admonition:: ``pw_channel`` is deprecated
+   :class: warning
+
+   Due to changes in :ref:`module-pw_async2` and :ref:`module-pw_multibuf`,
+   ``pw_channel`` in its current state is deprecated. Do not use it for new
+   code.
+
+   A new module that provides the functionality of ``pw_channel`` with the new
+   :cc:`pw::MultiBuf` and ``pw_async2`` futures will be created to replace
+   ``pw_channel``.
+
+   Note that :ref:`pw_async2 Channels <module-pw_async2-channels>` are not
+   related to ``pw_channel``.
+
 .. pigweed-module::
    :name: pw_channel
 
