@@ -139,6 +139,11 @@ def _parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        '--compile-command-groups',
+        type=Path,
+        help='Path to a JSON file with compile command patterns.',
+    )
+    parser.add_argument(
         '--verbose',
         '-v',
         action='store_true',
@@ -191,6 +196,64 @@ def _run_bazel(
     )
 
 
+def _run_bazel_build_for_fragments(
+    build_args: list[str],
+    verbose: bool,
+    execution_root: Path,
+) -> set[Path]:
+    """Runs a bazel build with aspects and returns fragment paths."""
+    # We use a temporary directory as the symlink prefix so we can parse the
+    # output and find resulting files.
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        bep_path = Path(tmp_dir) / 'compile_command_bep.json'
+        command = list(build_args)
+        command.extend(
+            (
+                '--show_result=0',
+                f'--aspects={_COMPILE_COMMANDS_ASPECT}',
+                f'--output_groups={_COMPILE_COMMANDS_OUTPUT_GROUP}',
+                # This also makes all paths resolve as absolute.
+                '--experimental_convenience_symlinks=ignore',
+                f'--build_event_json_file={bep_path}',
+            )
+        )
+
+        try:
+            _run_bazel(
+                command,
+                cwd=os.environ['BUILD_WORKING_DIRECTORY'],
+                capture_output=not verbose,
+            )
+        except subprocess.CalledProcessError as e:
+            _LOG.fatal('Failed to generate compile commands fragments: %s', e)
+            return set()
+
+        fragments = set()
+        for line in bep_path.read_text().splitlines():
+            event = json.loads(line)
+            for file in event.get('namedSetOfFiles', {}).get('files', []):
+                file_path = file.get('name', '')
+                file_path_prefix = file.get('pathPrefix', [])
+
+                if not file_path.endswith(_FRAGMENT_SUFFIX):
+                    continue
+
+                if not file_path or not file_path_prefix:
+                    # This should never happen.
+                    _LOG.warning(
+                        'Malformed file entry missing `name` and/or '
+                        '`pathPrefix`: %s',
+                        file,
+                    )
+                    continue
+
+                artifact_path = execution_root.joinpath(
+                    *file_path_prefix
+                ).joinpath(file_path)
+                fragments.add(artifact_path.resolve())
+        return fragments
+
+
 def _build_and_collect_fragments(
     forwarded_args: list[str],
     verbose: bool,
@@ -219,58 +282,77 @@ def _build_and_collect_fragments(
         return
 
     _LOG.info('⏳ Generating compile commands...')
-    # We use a temporary directory as the symlink prefix so we can parse the
-    # output and find resulting files.
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        bep_path = Path(tmp_dir) / 'compile_command_bep.json'
-        command = list(forwarded_args)
-        command[subcommand_index] = 'build'
-        command.extend(
-            (
-                '--show_result=0',
-                f'--aspects={_COMPILE_COMMANDS_ASPECT}',
-                f'--output_groups={_COMPILE_COMMANDS_OUTPUT_GROUP}',
-                # This also makes all paths resolve as absolute.
-                '--experimental_convenience_symlinks=ignore',
-                f'--build_event_json_file={bep_path}',
-            )
-        )
+    build_args = list(forwarded_args)
+    build_args[subcommand_index] = 'build'
+    yield from _run_bazel_build_for_fragments(
+        build_args, verbose, execution_root
+    )
 
+
+def _build_and_collect_fragments_from_groups(
+    groups_file: Path,
+    verbose: bool,
+    execution_root: Path,
+) -> Iterator[Path]:
+    """Collects fragments using patterns from a JSON file."""
+    # When running interactively, passing a local file will cause this to fail
+    # since the path isn't relative to the sandbox. This is intentional, as
+    # the JSON format isn't intended to be user-facing.
+    with open(groups_file, 'r') as f:
         try:
-            _run_bazel(
-                command,
-                cwd=os.environ['BUILD_WORKING_DIRECTORY'],
-                capture_output=not verbose,
-            )
-        except subprocess.CalledProcessError as e:
-            _LOG.fatal('Failed to generate compile commands fragments: %s', e)
+            patterns = json.load(f)
+        except json.JSONDecodeError:
+            _LOG.error("Could not parse %s, skipping.", groups_file)
             return
 
-        fragments = set()
-        for line in bep_path.read_text().splitlines():
-            event = json.loads(line)
-            for file in event.get('namedSetOfFiles', {}).get('files', []):
-                file_path = file.get('name', '')
-                file_path_prefix = file.get('pathPrefix', [])
+    known_fragments: dict[Path, int] = {}
+    has_errors = False
+    compile_commands_patterns = patterns.get('compile_commands_patterns', [])
+    total_groups = len(compile_commands_patterns)
 
-                if not file_path.endswith(_FRAGMENT_SUFFIX):
-                    continue
+    for i, group in enumerate(compile_commands_patterns):
+        platform = group.get('platform')
+        targets = group.get('target_patterns')
 
-                if not file_path or not file_path_prefix:
-                    # This should never happen.
-                    _LOG.warning(
-                        'Malformed file entry missing `name` and/or '
-                        '`pathPrefix`: %s',
-                        file,
+        if not platform or not targets:
+            _LOG.warning("Skipping invalid compile command group: %s", group)
+            continue
+
+        _LOG.info(
+            '⏳ Generating compile commands for group %d/%d (%s)...',
+            i + 1,
+            total_groups,
+            platform,
+        )
+        build_args = ['build', '--platforms', platform, *targets]
+        group_fragments = _run_bazel_build_for_fragments(
+            build_args, verbose, execution_root
+        )
+
+        # Multiple builds may generate the same fragments. It's possible that
+        # you can end up with multiple conflicting definitions of the same
+        # compile commands fragment due to how transitions work. This catches
+        # cases where the content diverges, and raises errors to signal what
+        # went wrong.
+        for fragment in group_fragments:
+            content_hash = hash(fragment.read_text())
+            if fragment in known_fragments:
+                if known_fragments[fragment] != content_hash:
+                    _LOG.error(
+                        'Fragment file %s was generated by multiple groups '
+                        'with different content. This can happen if different '
+                        'bazel flags produce different compile commands for '
+                        'the same file.',
+                        fragment,
                     )
-                    continue
+                    has_errors = True
+            else:
+                known_fragments[fragment] = content_hash
 
-                artifact_path = execution_root.joinpath(
-                    *file_path_prefix
-                ).joinpath(file_path)
-                fragments.add(artifact_path.resolve())
+    if has_errors:
+        return
 
-        yield from fragments
+    yield from known_fragments.keys()
 
 
 def _collect_fragments_via_glob(bazel_output_path: Path) -> Iterator[Path]:
@@ -284,9 +366,16 @@ def _collect_fragments(
     execution_root: Path,
     forwarded_args: list[str],
     verbose: bool,
+    compile_command_groups: Path | None = None,
 ) -> Iterator[Path]:
     """Dispatches to the correct fragment collection method."""
-    if forwarded_args:
+    if compile_command_groups:
+        yield from _build_and_collect_fragments_from_groups(
+            compile_command_groups,
+            verbose,
+            execution_root,
+        )
+    elif forwarded_args:
         yield from _build_and_collect_fragments(
             forwarded_args,
             verbose,
@@ -347,6 +436,74 @@ def _get_bazel_path_info(key: str, cwd: str) -> Path | None:
     return Path(output_str)
 
 
+def _load_commands_for_platform(
+    fragments: list[Path], platform: str
+) -> list[dict] | None:
+    """Load compile commands fragments for a single platform.
+
+    Ingests each compile commands fragment JSON file, and merges the compile
+    commands into a single database.
+
+    Args:
+        fragments: A list of paths to fragment files.
+        platform: The name of the platform being processed, for logging.
+
+    Returns:
+        A list of compile commands objects as produced by the compile commands
+        aspect. Returns None if conflicting entries are identified.
+    """
+    commands_by_file: dict[tuple[str, str], dict] = {}
+    for fragment_path in fragments:
+        with open(fragment_path, "r") as f:
+            try:
+                fragment_commands = json.load(f)
+            except json.JSONDecodeError:
+                _LOG.error("Could not parse %s, skipping.", fragment_path)
+                continue
+
+            for command_dict in fragment_commands:
+                # TODO: https://pwbug.dev/446688765 - Support headers, either by
+                # extracting them from the fragments before they hit the compile
+                # commands database, or by enumerating them in separate files.
+                if command_dict['file'].endswith('.h'):
+                    continue
+
+                # Different compiled files may occur multiple times. This
+                # can be because of PIC/non-PIC variants of a library, or
+                # because a source file is used in multiple build targets
+                # (e.g. two cc_library targets with different flags/names).
+                # To differentiate, we key based on the outputs, which
+                # reliably will tell us whether or not definitions truly
+                # collide.
+                command_tuple = (
+                    command_dict['file'],
+                    str(command_dict.get('outputs', [])),
+                )
+                if command_tuple in commands_by_file:
+                    existing_cmd = commands_by_file[command_tuple]
+                    if tuple(existing_cmd['arguments']) != tuple(
+                        command_dict['arguments']
+                    ):
+                        _LOG.error(
+                            'Conflict for file %s in platform %s',
+                            command_dict['file'],
+                            platform,
+                        )
+                        _LOG.error(
+                            'Existing command: %s',
+                            shlex.join(existing_cmd['arguments']),
+                        )
+                        _LOG.error(
+                            'New command: %s',
+                            shlex.join(command_dict['arguments']),
+                        )
+                        return None
+                else:
+                    commands_by_file[command_tuple] = command_dict
+
+    return list(commands_by_file.values())
+
+
 def main() -> int:
     """Script entry point."""
     args = _parse_args()
@@ -390,6 +547,7 @@ def main() -> int:
             execution_root_path,
             args.bazel_args,
             args.verbose,
+            args.compile_command_groups,
         )
     )
 
@@ -434,13 +592,9 @@ def main() -> int:
 
     for platform, fragments in fragments_by_platform.items():
         _LOG.debug("Processing platform: %s...", platform)
-        all_commands = []
-        for fragment_path in fragments:
-            with open(fragment_path, "r") as f:
-                try:
-                    all_commands.extend(json.load(f))
-                except json.JSONDecodeError:
-                    _LOG.error("Could not parse %s, skipping.", fragment_path)
+        all_commands = _load_commands_for_platform(fragments, platform)
+        if all_commands is None:
+            return 1
 
         platform_dir = output_dir / platform
         platform_dir.mkdir(exist_ok=True)

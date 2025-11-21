@@ -50,6 +50,11 @@ _INCLUDE_PREFIXES = (
 _TEST_CPP_TARGET = (
     '//pw_ide/bazel/compile_commands/test:test_compile_commands_outputs'
 )
+
+_TEST_COMPILE_COMMANDS_GENERATOR = (
+    '//pw_ide/bazel/compile_commands/test:test_compile_commands_generator'
+)
+
 # pylint: enable=line-too-long
 
 
@@ -541,6 +546,35 @@ class CompileCommandsViaGlobTest(CompileCommandsTestBase):
         update_result = subprocess.run(
             [cls.updater_path, f'--out-dir={cls.temp_dir.name}'],
             capture_output=True,
+            text=True,
+            check=False,
+        )
+        if update_result.returncode != 0:
+            raise RuntimeError(
+                'update_compile_commands failed: ' f'{update_result.stderr}'
+            )
+
+        cls._load_databases()
+
+
+class CompileCommandsViaGroupsTest(CompileCommandsTestBase):
+    """Tests compile commands generated via command groups."""
+
+    @classmethod
+    def setUpClass(cls):
+        super(CompileCommandsViaGroupsTest, cls).setUpClass()
+
+        # Run the compile commands generator target.
+        update_result = subprocess.run(
+            [
+                'bazel',
+                'run',
+                _TEST_COMPILE_COMMANDS_GENERATOR,
+                '--',
+                f'--out-dir={cls.temp_dir.name}',
+            ],
+            capture_output=True,
+            cwd=cls.project_root,
             text=True,
             check=False,
         )

@@ -542,6 +542,86 @@ class MergerTest(fake_filesystem_unittest.TestCase):
         self.assertEqual(len(data), 1)
         self.assertEqual(data[0]['file'], 'a.cc')
 
+    def test_merge_conflict_with_outputs_key(self):
+        """Tests that a conflict is detected for the same file and output."""
+        _create_fragment(
+            self.fs,
+            self.output_path,
+            'target1',
+            'k8-fastbuild',
+            [
+                {
+                    'file': 'a.cc',
+                    'directory': '__WORKSPACE_ROOT__',
+                    'arguments': ['c', '-DVERSION=1'],
+                    'outputs': ['a.o'],
+                }
+            ],
+        )
+        _create_fragment(
+            self.fs,
+            self.output_path,
+            'target2',
+            'k8-fastbuild',
+            [
+                {
+                    'file': 'a.cc',
+                    'directory': '__WORKSPACE_ROOT__',
+                    'arguments': ['c', '-DVERSION=2'],
+                    'outputs': ['a.o'],
+                }
+            ],
+        )
+
+        with io.StringIO() as buf, redirect_stderr(buf):
+            self.assertEqual(merger.main(), 1)
+            self.assertIn('Conflict for file a.cc', buf.getvalue())
+            self.assertIn('-DVERSION=1', buf.getvalue())
+            self.assertIn('-DVERSION=2', buf.getvalue())
+
+    def test_no_conflict_with_different_outputs_key(self):
+        """Tests no conflict is detected for the same file, different output."""
+        _create_fragment(
+            self.fs,
+            self.output_path,
+            'target1',
+            'k8-fastbuild',
+            [
+                {
+                    'file': 'a.cc',
+                    'directory': '__WORKSPACE_ROOT__',
+                    'arguments': ['c', '-DVERSION=1'],
+                    'outputs': ['a.v1.o'],
+                }
+            ],
+        )
+        _create_fragment(
+            self.fs,
+            self.output_path,
+            'target2',
+            'k8-fastbuild',
+            [
+                {
+                    'file': 'a.cc',
+                    'directory': '__WORKSPACE_ROOT__',
+                    'arguments': ['c', '-DVERSION=2'],
+                    'outputs': ['a.v2.o'],
+                }
+            ],
+        )
+
+        self.assertEqual(merger.main(), 0)
+        merged_path = (
+            self.workspace_root
+            / '.compile_commands'
+            / 'k8-fastbuild'
+            / 'compile_commands.json'
+        )
+        self.assertTrue(merged_path.exists())
+        with open(merged_path, 'r') as f:
+            data = json.load(f)
+        self.assertEqual(len(data), 2)
+
 
 if __name__ == '__main__':
     unittest.main()

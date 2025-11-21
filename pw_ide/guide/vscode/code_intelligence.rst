@@ -27,19 +27,72 @@ command. See below for build system-specific details.
 
    .. tab-item:: Bazel
 
-      Pigweed IDE uses Bazel queries to discover your project's build targets
-      and generate ``clangd``-compatible compilation databases for each of them.
-      By default, a file watcher monitors Bazel build files and automatically
-      updates compilation databases in the background. So in most cases, no
-      manual action needs to be taken.
+      Pigweed IDE can generate ``clangd``-compatible compilation databases for
+      your project's build targets in two ways: automatic discovery or fixed
+      generation.
 
-      .. note::
+      **Automatic Target Discovery**
 
-         Previous versions of the Pigweed extension required manually declaring
-         Bazel targets to use for code intelligence in a
-         ``refresh_compile_commands`` invocation in the top level
-         ``BUILD.bazel`` file. This is no longer necessary, and the
-         ``refresh_compile_commands`` Bazel function is no longer present.
+      By default, the Pigweed plugin wraps ``bazelisk`` invocations to enable a
+      post-build action that generates compile commands that covers the incoming
+      Bazel command. This is the recommended approach as it ensures code
+      intelligence is always fresh.
+
+      **Fixed Compile Command Generation**
+
+      To ensure a consistent set of compilation databases, you can use the
+      ``pw_compile_commands_generator`` rule in your top-level ``BUILD.bazel``
+      file. This provides a declarative way to define and group build targets
+      for which to generate compile commands. ``pw_compile_commands_generator``
+      targets must be run via ``bazel run`` to generate updated compile commands
+      databases.
+
+      While this method provides wider code intelligence coverage than what a
+      user may be building at a given moment, it's not the preferred method as
+      it can allow code intelligence to get stale quickly. However, it may be
+      desirable for projects with very well-defined layouts that lend well
+      to manual tuning.
+
+      Example configuration:
+
+      .. code-block:: bazel
+
+         load(
+             "@pigweed//pw_ide/bazel/compile_commands:pw_compile_commands_generator.bzl",
+             "pw_compile_commands_generator",
+         )
+
+         # Creates a set of compile command databases that merges
+         # all of the databases produced by its deps.
+         pw_compile_commands_generator(
+             name = "update_compile_commands",
+             deps = [
+                 ":update_host_compile_commands",
+                 ":update_rp2040_compile_commands",
+             ],
+         )
+
+         pw_compile_commands_generator(
+             name = "update_host_compile_commands",
+             platform = "@bazel_tools//tools:host_platform",
+             target_patterns = [
+                 "//...",
+             ],
+         )
+
+         pw_compile_commands_generator(
+             name = "update_rp2040_compile_commands",
+             platform = "//targets/rp2040",
+             target_patterns = [
+                 "//...",
+             ],
+         )
+
+      Example usage:
+
+      .. code-block:: console
+
+         $ bazel run //:update_compile_commands
 
    .. tab-item:: GN
 

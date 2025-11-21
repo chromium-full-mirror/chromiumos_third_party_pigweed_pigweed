@@ -16,6 +16,7 @@ load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_platform//platform_data:defs.bzl", "platform_data")
 load("//pw_ide/bazel/compile_commands:pw_cc_compile_commands_aspect.bzl", "pw_cc_compile_commands_fragments")
+load("//pw_ide/bazel/compile_commands:pw_compile_commands_generator.bzl", "pw_compile_commands_generator")
 
 package(
     default_testonly = True,
@@ -123,4 +124,36 @@ pw_cc_compile_commands_fragments(
         ":test_compile_commands_outputs",
     ],
     visibility = ["//pw_ide/py:__subpackages__"],
+)
+
+pw_compile_commands_generator(
+    name = "test_compile_commands_generator",
+    tags = ["manual"],
+    visibility = ["//pw_ide/py:__subpackages__"],
+    deps = [
+        ":test_device_compile_commands",
+        ":test_host_compile_commands",
+    ],
+)
+
+pw_compile_commands_generator(
+    name = "test_host_compile_commands",
+    platform = "@bazel_tools//tools:host_platform",
+    tags = ["manual"],
+    target_patterns = [
+        "//pw_ide/bazel/compile_commands/test/...",
+        "//pw_ide/bazel/compile_commands/test:test_compile_commands_outputs",
+        "//pw_ide/bazel/compile_commands/test:external_dep_library",
+    ],
+)
+
+pw_compile_commands_generator(
+    name = "test_device_compile_commands",
+    platform = "//targets/rp2040",
+    tags = ["manual"],
+    target_patterns = [
+        "//pw_ide/bazel/compile_commands/test/...",
+        "//pw_ide/bazel/compile_commands/test:test_compile_commands_outputs",
+        "//pw_ide/bazel/compile_commands/test:external_dep_library",
+    ],
 )

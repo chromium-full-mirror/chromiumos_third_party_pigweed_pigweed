@@ -43,7 +43,9 @@ when you open :ref:`Pigweed projects<module-pw_ide-design-projects>`:
 * The Bazel extension will discover all of the targets in your project
 
 * The Pigweed extension will generate `compilation databases <https://clangd.llvm.org/design/compile-commands>`_
-  for the build target & toolchain combinations in your project
+  for the build target & toolchain combinations in your project. This is done
+  automatically by default for Bazel projects, but can be configured for fixed
+  generation patterns.
 
 You can now select a target group from the status bar item at the bottom
 of your window or by running the ``Pigweed: Select Code Analysis Target``
