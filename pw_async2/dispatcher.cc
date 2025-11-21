@@ -64,28 +64,13 @@ Task* Dispatcher::PopTaskToRunLocked() {
   return &task;
 }
 
-Task* Dispatcher::PopTaskToRun(State& result) {
-  std::lock_guard lock(internal::lock());
-
-  Task* task = PopTaskToRunLocked();
-  if (task != nullptr) {
-    result = State::kReadyTasks;
-  } else if (!sleeping_.empty()) {
-    result = State::kNoReadyTasks;
-  } else {
-    PW_LOG_DEBUG("Dispatcher has no registered tasks");
-    result = State::kNoTasks;
-  }
-  return task;
-}
-
 bool Dispatcher::PopAndRunAllReadyTasks() {
-  State result;
+  bool has_posted_tasks;
   Task* task;
-  while ((task = PopTaskToRun(result)) != nullptr) {
+  while ((task = PopTaskToRun(has_posted_tasks)) != nullptr) {
     RunTask(*task);
   }
-  return result != State::kNoTasks;
+  return has_posted_tasks;
 }
 
 Dispatcher::RunTaskResult Dispatcher::RunTask(Task& task) {

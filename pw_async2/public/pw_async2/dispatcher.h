@@ -80,7 +80,9 @@ class Dispatcher {
 
   /// Pops and runs tasks until there are no tasks ready to run.
   ///
-  /// May be called by dispatcher implementations to run tasks.
+  /// This function may be called by dispatcher implementations to run tasks.
+  /// This is a high-level function that runs all ready tasks without logging or
+  /// metrics. For more control, use `PopTaskToRun` and `RunTask`.
   ///
   /// @retval true The dispatcher has posted tasks, but they are sleeping.
   /// @retval false The dispatcher has no posted tasks.
@@ -95,26 +97,25 @@ class Dispatcher {
     return PopTaskToRunLocked();
   }
 
-  /// Current state of the `Dispatcher`'s tasks.
-  enum class State {
-    /// No tasks are posted to the dispatcher. None have been posted or all ran
-    /// to completion.
-    kNoTasks,
-
-    /// There are tasks sleeping, but no tasks are ready to run.
-    kNoReadyTasks,
-
-    /// There are tasks ready to run.
-    kReadyTasks,
-  };
-
-  /// `PopTaskToRun` overload that optionally reports the `Dispatcher::State`.
-  /// This allows callers to distinguish between there being no woken tasks and
-  /// no tasks at all.
+  /// `PopTaskToRun` overload that optionally reports the whether the
+  /// `Dispatcher` has registered tasks. This allows callers to distinguish
+  /// between there being no woken tasks and no posted tasks at all.
   ///
   /// Like the no-argument overload, `PopTaskToRun` MUST be called repeatedly
   /// until it returns `nullptr`.
-  Task* PopTaskToRun(State& result) PW_LOCKS_EXCLUDED(internal::lock());
+  ///
+  /// @param[out] has_posted_tasks Set to `true` if the dispatcher has at least
+  ///     one task posted, potentially including the task that was popped. Set
+  ///     to `false` if the dispatcher has no posted tasks.
+  /// @returns A pointer to a task that is ready to run, or `nullptr` if there
+  ///     are no ready tasks.
+  Task* PopTaskToRun(bool& has_posted_tasks)
+      PW_LOCKS_EXCLUDED(internal::lock()) {
+    std::lock_guard lock(internal::lock());
+    Task* task = PopTaskToRunLocked();
+    has_posted_tasks = task != nullptr || !sleeping_.empty();
+    return task;
+  }
 
   /// Pop a single task to run. Each call to `PopSingleTaskForThisWake` can
   /// result in up to one `DoWake()` call, so use `PopTaskToRun` or

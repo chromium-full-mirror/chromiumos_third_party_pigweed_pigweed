@@ -21,15 +21,15 @@ namespace pw::async2 {
 template <>
 bool DispatcherForTestFacade<
     backend::NativeDispatcherForTest>::DoRunUntilStalled() {
-  State state;
+  bool has_posted_tasks;
   Task* task;
-  while ((task = PopTaskToRun(state)) != nullptr) {
+  while ((task = PopTaskToRun(has_posted_tasks)) != nullptr) {
     tasks_polled_ += 1;
     if (RunTask(*task) == RunTaskResult::kCompleted) {
       tasks_completed_ += 1;
     }
   }
-  return state != State::kNoTasks;
+  return has_posted_tasks;
 }
 
 template <>
