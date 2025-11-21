@@ -721,6 +721,11 @@ class Receiver {
       return Status::FailedPrecondition();
     }
 
+    Result<T> available = TryReceive();
+    if (available.ok()) {
+      return available;
+    }
+
     std::optional<T> result;
     sync::TimedThreadNotification notification;
 
@@ -736,7 +741,7 @@ class Receiver {
       if (!result.has_value()) {
         return Status::FailedPrecondition();
       }
-      return result.value();
+      return Result<T>(std::move(result.value()));
     }
 
     if (!notification.try_acquire_for(timeout)) {
@@ -747,7 +752,7 @@ class Receiver {
     if (!result.has_value()) {
       return Status::FailedPrecondition();
     }
-    return result.value();
+    return Result<T>(std::move(result.value()));
   }
 
   /// Reads a value from the channel, blocking until it is available.

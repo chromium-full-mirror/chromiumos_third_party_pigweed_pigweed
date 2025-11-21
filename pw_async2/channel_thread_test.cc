@@ -40,9 +40,10 @@ using pw::async2::Waker;
 
 using namespace std::chrono_literals;
 
-class SenderTask : public Task {
+template <typename T>
+class BasicSenderTask : public Task {
  public:
-  SenderTask(Sender<int> sender, int start, int end)
+  BasicSenderTask(Sender<T> sender, int start, int end)
       : Task(PW_ASYNC_TASK_NAME("SenderTask")),
         sender_(std::move(sender)),
         next_(start),
@@ -52,7 +53,7 @@ class SenderTask : public Task {
   Poll<> DoPend(Context& cx) override {
     while (next_ <= end_) {
       if (!future_.has_value()) {
-        future_.emplace(sender_.Send(next_));
+        future_.emplace(sender_.Send(T(next_)));
       }
 
       PW_TRY_READY_ASSIGN(bool sent, future_->Pend(cx));
@@ -68,11 +69,13 @@ class SenderTask : public Task {
     return Ready();
   }
 
-  Sender<int> sender_;
-  std::optional<SendFuture<int>> future_;
+  Sender<T> sender_;
+  std::optional<SendFuture<T>> future_;
   int next_;
   int end_;
 };
+
+using SenderTask = BasicSenderTask<int>;
 
 class ReceiverTask : public Task {
  public:
@@ -325,6 +328,45 @@ TEST(Channel, BlockingReceive) {
   receiver_thread.join();
 
   EXPECT_EQ(receiver_context.receive_count, 10u);
+}
+
+struct MoveOnly {
+  int n = 0;
+  constexpr MoveOnly() = default;
+  constexpr explicit MoveOnly(int n_) : n(n_) {}
+  MoveOnly(const MoveOnly&) = delete;
+  MoveOnly& operator=(const MoveOnly&) = delete;
+  MoveOnly(MoveOnly&&) = default;
+  MoveOnly& operator=(MoveOnly&&) = default;
+};
+
+TEST(Channel, BlockingReceive_MoveOnly) {
+  DispatcherForTest dispatcher;
+
+  ChannelStorage<MoveOnly, 2> storage;
+  auto [channel, sender, receiver] = CreateSpscChannel(storage);
+  channel.Release();
+
+  struct {
+    DispatcherForTest& dispatcher;
+    Receiver<MoveOnly>& receiver;
+  } context{dispatcher, receiver};
+
+  pw::thread::test::TestThreadContext thread_context;
+  pw::Thread receiver_thread(thread_context.options(), [&context]() {
+    for (int i = 1; i <= 4; ++i) {
+      auto received = context.receiver.BlockingReceive(context.dispatcher);
+      PW_TEST_ASSERT_OK(received.status());
+      EXPECT_EQ(received->n, i);
+    }
+  });
+
+  BasicSenderTask<MoveOnly> sender_task(std::move(sender), 1, 4);
+  dispatcher.Post(sender_task);
+
+  dispatcher.AllowBlocking();
+  dispatcher.RunToCompletion();
+  receiver_thread.join();
 }
 
 TEST(Channel, BlockingReceive_Timeout) {
