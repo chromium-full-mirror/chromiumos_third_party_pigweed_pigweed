@@ -286,6 +286,8 @@ the same namespace as the custom type. For example:
 
 .. code-block:: cpp
 
+   #include "pw_string/string_builder.h"
+
    namespace my_project {
 
    struct MyType {
@@ -293,7 +295,8 @@ the same namespace as the custom type. For example:
      const char* bar;
    };
 
-   pw::StringBuilder& operator<<(pw::StringBuilder& sb, const MyType& value) {
+   inline pw::StringBuilder& operator<<(pw::StringBuilder& sb,
+                                        const MyType& value) {
      return sb << "MyType(" << value.foo << ", " << value.bar << ')';
    }
 
