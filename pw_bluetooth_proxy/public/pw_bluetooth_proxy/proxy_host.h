@@ -186,14 +186,20 @@ class ProxyHost {
   /// @param[in] transport                  Logical link transport type.
   ///
   /// @param[in] payload_from_controller_fn Read callback to be invoked on Rx
-  ///                                       SDUs. Return value of passed-in
-  ///                                       multibuf indicates the packet should
-  ///                                       be forwarded on to host.
+  ///                                       SDUs. If a multibuf is returned by
+  ///                                       the callback, it is copied into the
+  ///                                       payload to be forwarded to the host.
+  ///                                       Optional null return indicates
+  ///                                       packet was handled and no forwarding
+  ///                                       is required.
   ///
   /// @param[in] payload_from_host_fn       Read callback to be invoked on Tx
-  ///                                       SDUs. Return value of passed-in
-  ///                                       multibuf indicates the packet should
-  ///                                       be forwarded on to the controller.
+  ///                                       SDUs. If a multibuf is returned by
+  ///                                       the callback, it is copied into the
+  ///                                       payload to be forwarded to the
+  ///                                       controller. Optional null return
+  ///                                       indicates packet was handled and no
+  ///                                       forwarding is required.
   ///
   /// @param[in] event_fn                   Handle asynchronous events such as
   ///                                       errors encountered by the channel.

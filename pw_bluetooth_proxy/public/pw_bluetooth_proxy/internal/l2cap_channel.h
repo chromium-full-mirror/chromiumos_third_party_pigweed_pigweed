@@ -280,9 +280,11 @@ class L2capChannel : public IntrusiveForwardList<L2capChannel>::Item {
   //-------
 
   // Returns false if payload should be forwarded to controller instead.
+  // Allows client to modify the payload to be forwarded.
   virtual bool SendPayloadFromHostToClient(pw::span<uint8_t> payload);
 
   // Returns false if payload should be forwarded to host instead.
+  // Allows client to modify the payload to be forwarded.
   virtual bool SendPayloadFromControllerToClient(pw::span<uint8_t> payload);
 
   constexpr MultiBufAllocator* rx_multibuf_allocator() const {
@@ -296,6 +298,7 @@ class L2capChannel : public IntrusiveForwardList<L2capChannel>::Item {
   static constexpr size_t kQueueCapacity = 5;
 
   // Returns false if payload should be forwarded to host instead.
+  // Allows client to modify the payload to be forwarded.
   bool SendPayloadToClient(pw::span<uint8_t> payload,
                            OptionalPayloadReceiveCallback& callback);
 

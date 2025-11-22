@@ -16,6 +16,7 @@
 
 #include <mutex>
 #include <optional>
+#include <span>
 
 #include "lib/stdcompat/utility.h"
 #include "pw_assert/check.h"
@@ -421,12 +422,17 @@ bool L2capChannel::SendPayloadToClient(
   FlatMultiBufInstance buffer = std::move(result.value());
   MultiBufAdapter::Copy(buffer, 0, as_bytes(payload));
 
-  std::optional<FlatConstMultiBufInstance> client_multibuf =
-      callback(std::move(MultiBufAdapter::Unwrap(buffer)));
-  // If client returned multibuf to us, we drop it and indicate to caller that
-  // packet should be forwarded. In the future when whole path is operating
-  // with multibuf's, we could pass it back up to container to be forwarded.
-  return !client_multibuf.has_value();
+  // If client returned multibuf to us, we copy it to the payload and indicate
+  // to the caller that packet should be forwarded.
+  // In the future when whole path is operating with multibuf's, we could pass
+  // it back up to container to be forwarded and avoid the two copies of
+  // payload.
+  auto client_multibuf = callback(std::move(MultiBufAdapter::Unwrap(buffer)));
+  if (client_multibuf.has_value()) {
+    MultiBufAdapter::Copy(as_writable_bytes(payload), client_multibuf.value());
+    return false;
+  }
+  return true;
 }
 
 pw::Status L2capChannel::StartRecombinationBuf(Direction direction,
