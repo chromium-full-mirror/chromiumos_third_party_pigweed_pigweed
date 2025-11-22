@@ -451,3 +451,15 @@ struct AbortCommand:
   $next [+1]  bits:
     0     [+2]       UInt             rfa
     2     [+6]       Seid             acp_seid
+
+# Cf 8.17 DelayReport
+
+struct DelayReportCommand:
+  -- Cf 8.17.1 AVDTP_DELAYREPORT_CMD
+  [requires: signaling_header.header.message_type == MessageType.COMMAND && signaling_header.signal_identifier == SignalIdentifierCode.AVDTP_DELAYREPORT]
+  0     [+2]         SignalingHeader  signaling_header
+  $next [+1]  bits:
+    0     [+2]       UInt             rfa
+    2     [+6]       Seid             acp_seid
+
+  $next [+2]         UInt             delay_value [byte_order: "BigEndian"]
