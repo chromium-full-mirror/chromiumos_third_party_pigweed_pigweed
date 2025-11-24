@@ -1,5 +1,6 @@
 .. _module-pw_build-cmake:
 
+=====
 CMake
 =====
 .. pigweed-module-subpage::
@@ -34,6 +35,7 @@ build system.
 
       pw build -r default_cmake --watch
 
+---------------
 CMake functions
 ---------------
 CMake convenience functions are defined in ``pw_build/pigweed.cmake``.
@@ -73,6 +75,7 @@ functions.
 Special libraries that do not fit well with these functions are created with the
 standard CMake functions, such as ``add_library`` and ``target_link_libraries``.
 
+--------------------
 Facades and backends
 --------------------
 The CMake build uses CMake cache variables for configuring
@@ -123,6 +126,7 @@ error message like the following:
      pw_build/pigweed.cmake:238:EVAL:1 (_pw_target_link_targets_deferred_check)
      CMakeLists.txt:DEFERRED
 
+---------------
 Toolchain setup
 ---------------
 In CMake, the toolchain is configured by setting CMake variables, as described
@@ -139,6 +143,7 @@ compilation warnings to compile backends exposed to Pigweed code (such as
 ``pw_log``) that cannot compile with Pigweed's flags. If desired, Projects can
 access these warnings by depending on ``pw_build.warnings``.
 
+---------------------
 Third party libraries
 ---------------------
 The CMake build includes third-party libraries similarly to the GN build. A
@@ -174,6 +179,7 @@ is recommended to set these in one of the following ways:
 
 .. _module-pw_build-existing-cmake-project:
 
+------------------------------------------
 Use Pigweed from an existing CMake project
 ------------------------------------------
 To use Pigweed libraries form a CMake-based project, simply include the Pigweed
@@ -199,6 +205,7 @@ If desired, modules can be included individually.
    - :bdg-ref-primary-line:`module-pw_protobuf_compiler-cmake`
    - :bdg-ref-primary-line:`module-pw_unit_test-cmake`
 
+---------------------------------
 Optional sandboxing for C++ and C
 ---------------------------------
 Libraries declared with ``pw_add_library`` / ``pw_add_library_generic`` can
