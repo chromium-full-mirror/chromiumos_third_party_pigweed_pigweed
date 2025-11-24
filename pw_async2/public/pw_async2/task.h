@@ -78,16 +78,14 @@ class Task : public IntrusiveList<Task>::Item {
 
   /// The task must not be registered with a `Dispatcher` upon destruction.
   /// Tasks are deregistered automatically upon completion or `Dispatcher`
-  /// destruction.
-  ///
-  /// This is necessary to ensure that neither the `Dispatcher` nor `Waker`
-  /// reference the `Task` object after destruction.
+  /// destruction. This is necessary to ensure that neither the `Dispatcher` nor
+  /// `Waker` reference the `Task` object after destruction.
   ///
   /// The `Task` destructor cannot perform this deregistration. Other threads
   /// may be polling the task, and since the subclass destructor runs first,
   /// subclass state accessed by `Pend` would be invalidated before the base
   /// destructor could deregister the task.
-  virtual ~Task() = default;
+  virtual ~Task();
 
   /// A public interface for `DoPend`.
   ///

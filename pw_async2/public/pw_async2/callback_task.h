@@ -41,7 +41,7 @@ using CallbackType = std::conditional_t<
 /// `Ready` and can be cleaned up afterwards.
 template <typename FutureType,
           typename Func = internal::CallbackType<FutureType>>
-class FutureCallbackTask : public Task {
+class FutureCallbackTask final : public Task {
  public:
   using value_type = typename FutureType::value_type;
 
@@ -50,6 +50,8 @@ class FutureCallbackTask : public Task {
 
   FutureCallbackTask(FutureType&& future, Func&& callback)
       : future_(std::move(future)), callback_(std::move(callback)) {}
+
+  ~FutureCallbackTask() override { Deregister(); }
 
  private:
   Poll<> DoPend(Context& cx) final {

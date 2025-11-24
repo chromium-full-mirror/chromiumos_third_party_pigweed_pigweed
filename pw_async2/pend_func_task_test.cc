@@ -109,4 +109,13 @@ TEST(PendFuncTask, TestTemplateDeductionAndSize) {
   static_assert(sizeof(decltype(d)::CallableType) == sizeof(&ReturnsReady));
 }
 
+TEST(PendFuncTask, DeregistersInDestructor) {
+  DispatcherForTest dispatcher;
+  {
+    PendFuncTask task([](Context&) { return Pending(); });
+    dispatcher.Post(task);
+  }
+  EXPECT_FALSE(dispatcher.RunUntilStalled());
+}
+
 }  // namespace

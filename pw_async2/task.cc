@@ -27,6 +27,15 @@
 
 namespace pw::async2 {
 
+Task::~Task() {
+  PW_DCHECK_INT_EQ(
+      state_,
+      State::kUnposted,
+      "Tasks must be deregistered before they are destroyed; "
+      "the " PW_LOG_TOKEN_FMT() " task is still posted to a dispatcher",
+      name_);
+}
+
 void Task::RemoveAllWakersLocked() {
   while (!wakers_.empty()) {
     Waker& waker = wakers_.front();

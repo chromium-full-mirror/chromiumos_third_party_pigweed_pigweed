@@ -27,14 +27,16 @@ namespace pw::async2 {
 ///
 /// The resulting ``Task`` will implement ``Pend`` by invoking ``func``.
 template <typename Func = Function<Poll<>(Context&)> >
-class PendFuncTask : public Task {
+class PendFuncTask final : public Task {
  public:
   using CallableType = Func;
 
   /// Create a new ``Task`` which delegates ``Pend`` to ``func``.
   ///
   /// See class docs for more details.
-  PendFuncTask(Func&& func) : func_(std::forward<Func>(func)) {}
+  explicit PendFuncTask(Func&& func) : func_(std::forward<Func>(func)) {}
+
+  ~PendFuncTask() override { Deregister(); }
 
  private:
   Poll<> DoPend(Context& cx) final { return func_(cx); }

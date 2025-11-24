@@ -239,23 +239,6 @@ pw_add_test(pw_async2.callback_task_test
     pw_function
 )
 
-pw_add_library(pw_async2.pendable_as_task INTERFACE
-  HEADERS
-    public/pw_async2/pendable_as_task.h
-  PUBLIC_DEPS
-    pw_async2.dispatcher
-  PUBLIC_INCLUDES
-    public
-)
-
-pw_add_test(pw_async2.pendable_as_task_test
-  SOURCES
-    pendable_as_task_test.cc
-  PRIVATE_DEPS
-    pw_async2.pendable_as_task
-    pw_async2.testing
-)
-
 pw_add_library(pw_async2.waker_queue STATIC
   HEADERS
     public/pw_async2/waker_queue.h

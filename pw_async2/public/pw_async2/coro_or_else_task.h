@@ -23,12 +23,14 @@ namespace pw::async2 {
 
 /// A ``Task`` that delegates to a provided ``Coro<Status>>`` and executes
 /// an ``or_else`` handler function on failure.
-class CoroOrElseTask : public Task {
+class CoroOrElseTask final : public Task {
  public:
   /// Create a new ``Task`` which runs ``coro``, invoking ``or_else`` on
   /// any non-OK status.
   CoroOrElseTask(Coro<Status>&& coro, pw::Function<void(Status)>&& or_else)
       : coro_(std::move(coro)), or_else_(std::move(or_else)) {}
+
+  ~CoroOrElseTask() override { Deregister(); }
 
   /// *Non-atomically* sets `coro`.
   ///
