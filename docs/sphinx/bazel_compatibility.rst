@@ -886,7 +886,6 @@ ones, but all seen in the wild:
 *  A set of representing individual boards:
 
    * ``@pigweed//pw_build/constraints/board:mimxrt595_evk``
-   * ``@pigweed//pw_build/constraints/board:stm32f429i-disc1``
 
 *  A pair of constraint values associated with a single module:
 
