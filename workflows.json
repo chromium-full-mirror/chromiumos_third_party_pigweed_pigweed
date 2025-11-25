@@ -105,7 +105,9 @@
         ]
       },
       "targets": [
-        "//pw_status/..."
+        "//pw_status/...",
+        "//pw_rust/examples/embedded_hello:hello",
+        "//pw_rust/examples/tokenized_logging"
       ]
     },
     {
