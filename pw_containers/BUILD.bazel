@@ -904,6 +904,7 @@ sphinx_docs_library(
         "multiple_containers.rst",
         "queues.rst",
         "sets.rst",
+        "storage_test.cc",
         "utilities.rst",
         "vectors.rst",
         ":lists_size_report",

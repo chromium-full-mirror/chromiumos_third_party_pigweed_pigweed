@@ -203,15 +203,14 @@ class Deque : public containers::internal::GenericDeque<
 template <typename T,
           size_t kInlineCapacity = containers::kExternalStorage,
           typename S = typename Deque<T>::size_type>
-class FixedDeque final
-    : private containers::internal::ArrayStorage<T, kInlineCapacity>,
-      public Deque<T, S> {
+class FixedDeque final : private containers::StorageBaseFor<T, kInlineCapacity>,
+                         public Deque<T, S> {
  public:
   /// Constructs an empty `FixedDeque` with internal, statically allocated
   /// storage.
   constexpr FixedDeque()
-      : containers::internal::ArrayStorage<T, kInlineCapacity>{},
-        Deque<T, S>(this->storage_array) {}
+      : containers::StorageBaseFor<T, kInlineCapacity>{},
+        Deque<T, S>(this->storage()) {}
 
   FixedDeque(const FixedDeque&) = delete;
   FixedDeque& operator=(const FixedDeque&) = delete;

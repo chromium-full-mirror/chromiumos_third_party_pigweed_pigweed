@@ -95,15 +95,14 @@ class Queue : public containers::internal::GenericQueue<Queue<T, SizeType>,
 template <typename T,
           size_t kInlineCapacity = containers::kExternalStorage,
           typename SizeType = typename Queue<T>::size_type>
-class FixedQueue final
-    : private containers::internal::ArrayStorage<T, kInlineCapacity>,
-      public Queue<T, SizeType> {
+class FixedQueue final : private containers::StorageBaseFor<T, kInlineCapacity>,
+                         public Queue<T, SizeType> {
  public:
   /// Constructs an empty `FixedQueue` with internal, statically allocated
   /// storage.
   constexpr FixedQueue()
-      : containers::internal::ArrayStorage<T, kInlineCapacity>{},
-        Queue<T, SizeType>(this->storage_array) {}
+      : containers::StorageBaseFor<T, kInlineCapacity>{},
+        Queue<T, SizeType>(this->storage()) {}
 
   FixedQueue(const FixedQueue&) = delete;
   FixedQueue& operator=(const FixedQueue&) = delete;

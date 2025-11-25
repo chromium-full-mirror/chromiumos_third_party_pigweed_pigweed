@@ -14,6 +14,7 @@
 #pragma once
 
 #include <array>
+#include <cstddef>
 
 #include "pw_containers/algorithm.h"
 
@@ -26,14 +27,16 @@ namespace pw::containers {
 /// `Storage` provides aligned external storage for containers such as
 /// `pw::Deque`, avoiding the need for alignment checks.
 ///
-/// Note that `sizeof(Storage)` may be larger than `kSizeBytes` due to padding
-/// for alignment.
+/// Use `StorageFor` to declare `Storage` for objects of a particular type.
+///
+/// @note `sizeof(Storage)` may be larger than `kSizeBytes` due to padding for
+/// alignment.
 ///
 /// @tparam kAlignment How to align the storage; must be valid for use as
 ///     `alignas(kAlignment)`.
 /// @tparam kSizeBytes Storage size.
 template <size_t kAlignment, size_t kSizeBytes>
-class Storage {
+class Storage final {
  public:
   using value_type = std::byte;
   using size_type = size_t;
@@ -75,17 +78,25 @@ using StorageFor = Storage<alignof(T), sizeof(T) * kCount>;
 /// Reserved capacity value for container specializations with external storage.
 inline constexpr size_t kExternalStorage = static_cast<size_t>(-1);
 
-/// @}
+/// `StorageBase` is intended to serve as a base class when combining a
+/// non-owning container with its storage using inheritance. The storage must be
+/// in a base class before the container base so that the storage outlives the
+/// container using it.
+template <size_t kAlignment, size_t kSizeBytes>
+class StorageBase {
+ protected:
+  constexpr StorageBase() = default;
 
-namespace internal {
+  Storage<kAlignment, kSizeBytes>& storage() { return storage_; }
+  const Storage<kAlignment, kSizeBytes>& storage() const { return storage_; }
 
-// Storage wrappers to be used as bases when implementing a container that
-// combines a non-owning container with its buffer. These types have to be the
-// first base so the storage outlives the container using it.
-template <typename T, size_t kCapacity>
-struct ArrayStorage {
-  StorageFor<T, kCapacity> storage_array;
+ private:
+  Storage<kAlignment, kSizeBytes> storage_;
 };
 
-}  // namespace internal
+/// Declares `StorageBase` for `kCount` items of type `T` in a `std::byte`
+/// array.
+template <typename T, size_t kCount = 1>
+using StorageBaseFor = StorageBase<alignof(T), sizeof(T) * kCount>;
+
 }  // namespace pw::containers

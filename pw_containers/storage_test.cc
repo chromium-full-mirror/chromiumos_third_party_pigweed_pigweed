@@ -14,6 +14,7 @@
 
 #include "pw_containers/storage.h"
 
+#include <cstddef>
 #include <cstdint>
 
 #include "pw_unit_test/constexpr.h"
@@ -78,5 +79,37 @@ PW_CONSTEXPR_TEST(Storage, Fill, {
     PW_TEST_EXPECT_EQ(storage.data()[i], std::byte{0xAB});
   }
 });
+
+/// DOCSTAG: [pw_containers-storage-base-example]
+template <typename T>
+class ExampleContainer {
+ public:
+  ExampleContainer(std::byte* storage, size_t capacity_bytes)
+      : storage_(storage), capacity_bytes_(capacity_bytes) {}
+
+  T* data() { return reinterpret_cast<T*>(storage_); }
+  size_t capacity_bytes() const { return capacity_bytes_; }
+
+ private:
+  std::byte* storage_;
+  size_t capacity_bytes_;
+};
+
+// The Storage must be the first base so it outlives ExampleContainer.
+template <typename T, size_t kCapacity>
+class ExampleContainerWithStorage
+    : private pw::containers::StorageBaseFor<T, kCapacity>,
+      public ExampleContainer<T> {
+ public:
+  ExampleContainerWithStorage()
+      : ExampleContainer<T>(this->storage().data(), this->storage().size()) {}
+};
+/// DOCSTAG: [pw_containers-storage-base-example]
+
+TEST(StorageBase, Example) {
+  ExampleContainerWithStorage<int, 10> container;
+  EXPECT_NE(container.data(), nullptr);
+  EXPECT_EQ(container.capacity_bytes(), sizeof(int) * 10);
+}
 
 }  // namespace

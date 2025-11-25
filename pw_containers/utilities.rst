@@ -69,6 +69,26 @@ Example
    :start-at: #include
    :end-at: }  // namespace example
 
+-----------------------
+pw::containers::Storage
+-----------------------
+:cs:`pw_containers/public/pw_containers/storage.h` provides
+:cc:`pw::containers::Storage`, an aligned storage utility. :cc:`Storage
+<pw::containers::Storage>` is an easier-to-use replacement for
+``std::aligned_storage`` that avoids aliasing. The
+:cc:`pw::containers::StorageFor` alias makes it simple to declare storage for 1
+or more objects of a particular type.
+
+In certain inheritance scenarios, the storage must be a base class instead of a
+member. Classes can inherit from :cc:`StorageBase <pw::containers::StorageBase>`
+:cc:`StorageBaseFor <pw::containers::StorageBaseFor>` to have aligned storage as
+a base class. For example:
+
+.. literalinclude:: storage_test.cc
+   :language: cpp
+   :start-after: pw_containers-storage-base-example
+   :end-before: pw_containers-storage-base-example
+
 ---------------
 C++20 polyfills
 ---------------

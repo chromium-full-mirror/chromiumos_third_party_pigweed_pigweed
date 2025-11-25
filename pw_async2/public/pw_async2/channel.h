@@ -594,10 +594,10 @@ class SpscChannelHandle : private internal::ChannelHandle<T> {
 ///
 /// `ChannelStorage` must outlive the channel in which it is used.
 template <typename T, uint16_t kCapacity>
-class ChannelStorage : private containers::internal::ArrayStorage<T, kCapacity>,
+class ChannelStorage : private containers::StorageBaseFor<T, kCapacity>,
                        public internal::Channel<T> {
  public:
-  ChannelStorage() : internal::Channel<T>(this->storage_array) {}
+  ChannelStorage() : internal::Channel<T>(this->storage()) {}
 
   /// Returns true if this channel storage is in use.
   /// If `false`, the storage can either be reused or safely destroyed.
