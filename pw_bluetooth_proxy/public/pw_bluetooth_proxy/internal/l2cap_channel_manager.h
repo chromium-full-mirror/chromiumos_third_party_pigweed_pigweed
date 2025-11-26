@@ -25,6 +25,7 @@
 #include "pw_bluetooth_proxy/internal/l2cap_logical_link.h"
 #include "pw_bluetooth_proxy/internal/l2cap_status_tracker.h"
 #include "pw_bluetooth_proxy/internal/locked_l2cap_channel.h"
+#include "pw_bluetooth_proxy/internal/proxy_allocator.h"
 #include "pw_bluetooth_proxy/l2cap_channel_common.h"
 #include "pw_bluetooth_proxy/l2cap_coc.h"
 #include "pw_containers/intrusive_map.h"
@@ -209,16 +210,8 @@ class L2capChannelManager {
   // Reference to the ACL data channel owned by the proxy.
   AclDataChannel& acl_data_channel_;
 
-  // TODO: https://pwbug.dev/369849508 - Fully migrate to client-provided
-  // allocator and remove internal allocator.
-  static constexpr uint16_t kH4PoolSize = 13000;
-  std::array<std::byte, kH4PoolSize> storage_region_;
-  pw::allocator::BestFitAllocator<> internal_allocator_{storage_region_};
-  pw::allocator::SynchronizedAllocator<sync::Mutex>
-      synchronized_internal_allocator_{internal_allocator_};
-  // allocator_ is set to client-provided allocator if not null, otherwise it
-  // is synchronized_internal_allocator_.
-  pw::Allocator& allocator_;
+  // Allocator for links and channels.
+  internal::ProxyAllocator allocator_;
 
   // Enforce mutual exclusion of all operations on channels.
   // This is ACQUIRED_BEFORE AclDataChannel::credit_mutex_ which is annotated

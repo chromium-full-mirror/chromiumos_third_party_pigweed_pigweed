@@ -27,3 +27,13 @@
 /// Sets the version of MultiBuf used by pw_bluetooth_proxy.
 #define PW_BLUETOOTH_PROXY_MULTIBUF PW_BLUETOOTH_PROXY_MULTIBUF_V1
 #endif  // PW_BLUETOOTH_PROXY_MULTIBUF
+
+#ifndef PW_BLUETOOTH_PROXY_INTERNAL_ALLOCATOR_SIZE
+/// Sets the size of the internally provided memory region. If the proxy
+/// container provides an allocator, the internal allocator is not used and this
+/// should be set to 0.
+///
+/// TODO: https://pwbug.dev/369849508 - Fully migrate to container-provided
+/// allocator and remove internal allocator.
+#define PW_BLUETOOTH_PROXY_INTERNAL_ALLOCATOR_SIZE 13000
+#endif  // PW_BLUETOOTH_PROXY_INTERNAL_ALLOCATOR_SIZE

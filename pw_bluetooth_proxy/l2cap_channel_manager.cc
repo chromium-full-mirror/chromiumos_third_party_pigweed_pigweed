@@ -33,7 +33,7 @@ namespace pw::bluetooth::proxy {
 L2capChannelManager::L2capChannelManager(AclDataChannel& acl_data_channel,
                                          pw::Allocator* allocator)
     : acl_data_channel_(acl_data_channel),
-      allocator_(allocator ? *allocator : synchronized_internal_allocator_),
+      allocator_(allocator),
       lrd_channel_(channels_.end()),
       round_robin_terminus_(channels_.end()) {}
 

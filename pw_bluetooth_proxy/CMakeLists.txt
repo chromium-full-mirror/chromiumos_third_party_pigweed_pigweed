@@ -33,8 +33,6 @@ pw_add_library(pw_bluetooth_proxy STATIC
     public/pw_bluetooth_proxy/h4_packet.h
     public/pw_bluetooth_proxy/internal/acl_data_channel.h
     public/pw_bluetooth_proxy/internal/basic_l2cap_channel_internal.h
-    public/pw_bluetooth_proxy/internal/rx_engine.h
-    public/pw_bluetooth_proxy/internal/tx_engine.h
     public/pw_bluetooth_proxy/internal/basic_mode_tx_engine.h
     public/pw_bluetooth_proxy/internal/basic_mode_rx_engine.h
     public/pw_bluetooth_proxy/internal/credit_based_flow_control_tx_engine.h
@@ -52,7 +50,11 @@ pw_add_library(pw_bluetooth_proxy STATIC
     public/pw_bluetooth_proxy/internal/l2cap_logical_link.h
     public/pw_bluetooth_proxy/internal/locked_l2cap_channel.h
     public/pw_bluetooth_proxy/internal/logical_transport.h
+    public/pw_bluetooth_proxy/internal/multibuf.h
+    public/pw_bluetooth_proxy/internal/proxy_allocator.h
     public/pw_bluetooth_proxy/internal/recombiner.h
+    public/pw_bluetooth_proxy/internal/rx_engine.h
+    public/pw_bluetooth_proxy/internal/tx_engine.h
     public/pw_bluetooth_proxy/l2cap_channel_common.h
     public/pw_bluetooth_proxy/l2cap_coc.h
     public/pw_bluetooth_proxy/l2cap_coc_config.h
