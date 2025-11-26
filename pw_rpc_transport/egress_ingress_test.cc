@@ -14,6 +14,7 @@
 
 #include "pw_rpc_transport/egress_ingress.h"
 
+#include <array>
 #include <cinttypes>
 
 #include "pw_allocator/testing.h"
@@ -309,7 +310,8 @@ TEST(RpcEgressIngressTest, HdlcFramingRoundtrip) {
 TEST(RpcEgressIngressTest, MalformedRpcPacket) {
   constexpr uint32_t kTestChannel = 1;
   constexpr size_t kMtu = 33;
-  std::vector<std::byte> kMalformedPacket = {std::byte{0x42}, std::byte{0x74}};
+  constexpr std::array<std::byte, 2> kMalformedPacket = {std::byte{0x42},
+                                                         std::byte{0x74}};
 
   TestTransport transport(kMtu);
   SimpleRpcEgress<kMaxPacketSize> egress("test", transport);
