@@ -202,7 +202,13 @@ class Changelog:
         end_year = self._year + 1 if self._month == 12 else self._year
         end_month = 1 if self._month == 12 else self._month + 1
         end = datetime.strptime(
-            "{}-{}-01T00:00:00".format(end_year, end_month), spec
+            "{}-{}-01T00:00:00".format(end_year, end_month),
+            spec,
+            # Tip: Use the following end date to speed up development.
+            # Processing only the first 5 days rather than an entire month of
+            # commits lets you run through the end-to-end changelog automation
+            # much faster.
+            # "{}-{}-05T00:00:00".format(self._year, self._month), spec
         )
         shas = self._repo.commits(start, end)
         commit_year = start.strftime("%Y")
@@ -257,13 +263,6 @@ class Changelog:
 
         def triage(commit):
             """Analyze a single commit for newsworthyness."""
-            if commit.newsworthy is not None:
-                print(
-                    "[INFO] Already triaged: \"{}\" ({})\n".format(
-                        commit.title, commit.sha
-                    )
-                )
-                return
 
             class Response(TypedDict):
                 newsworthy: bool
@@ -280,7 +279,6 @@ class Changelog:
             commit.newsworthy = results["newsworthy"]
             commit.reason = results["reason"]
             commit.summary = results["summary"]
-            commit.save()
             print("[INFO] \"{}\" ({})".format(commit.title, commit.sha))
             print("[INFO] Newsworthy: {}".format(commit.newsworthy))
             print("[INFO] Reason: {}".format(commit.reason))
@@ -330,7 +328,6 @@ class Changelog:
             candidate = str(results["sha"])
             if candidate is None:
                 target.parent = False
-                target.save()
                 return
             # Verify that the target is related to the proposed parent by having
             # Gemini compare their commit messages and diffs.
@@ -339,7 +336,6 @@ class Changelog:
             parent = find_commit(candidate, ancestors)
             if parent is None:
                 target.parent = False
-                target.save()
                 return
             a = "".join("{}\n{}\n".format(target.message, target.diff))
             b = "".join("{}\n{}\n".format(parent.message, parent.diff))
@@ -355,7 +351,6 @@ class Changelog:
                 parent.children.append(target.sha)
             else:
                 target.parent = False
-            target.save()
             print("[INFO] Target: \"{}\" ({})".format(target.title, target.sha))
             print("[INFO] Parent: \"{}\" ({})".format(parent.title, parent.sha))
             print("[INFO] Related: {}".format(results["related"]))
@@ -425,13 +420,6 @@ class Changelog:
         """
 
         def draft(story: Story) -> None:
-            if story.title is not None:
-                print(
-                    "[INFO] Already drafted: \"{}\" ({})\n".format(
-                        story.title, story.sha
-                    )
-                )
-                return
             template_str = load_template(story.templates / Path("draft.tmpl"))
             template = Template(template_str)
             context = ""
@@ -468,7 +456,6 @@ class Changelog:
             story.title = copyedit_results["title"]
             story.body = copyedit_results["body"]
             story.highlight = copyedit_results["highlight"]
-            story.save()
             print("[INFO] {}".format(story.title))
             print("[INFO] {}".format(story.body))
             print("[INFO] {}".format(story.highlight))
@@ -526,13 +513,6 @@ class Changelog:
         with criteria (sort.tmpl) outlining what stories we consider most
         interesting. The stories are published in the final doc in this order.
         """
-        done = True
-        for story in stories:
-            if story.position is None:
-                done = False
-        if done:
-            print("[INFO] Skipping sort stage")
-            return sorted(stories, key=lambda story: story.position or 0)
         hallucinations: list[str] = []
         # Don't proceed until all stories have been assigned a position
         while len([story for story in stories if story.position is None]) > 0:
@@ -570,7 +550,6 @@ class Changelog:
                     continue
                 if story_found.position is None:
                     story_found.position = index
-                story_found.save()
         return sorted(stories, key=lambda story: story.position or 0)
 
     def _write(self, stories):
