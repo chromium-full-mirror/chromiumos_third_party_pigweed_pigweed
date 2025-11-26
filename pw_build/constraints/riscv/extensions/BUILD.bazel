@@ -22,22 +22,27 @@ licenses(["notice"])
 # toolchains. These can be used in the platform to define the
 # capabilities of the architecture.
 
+# Atomic instructions.
 boolean_constraint_value(
     name = "A",
 )
 
+# Compressed instructions.
 boolean_constraint_value(
     name = "C",
 )
 
+# Base integer instruction set.
 boolean_constraint_value(
     name = "I",
 )
 
+# Integer multiplication and division instructions.
 boolean_constraint_value(
     name = "M",
 )
 
+# Physical Memory protection instructions.
 boolean_constraint_value(
     name = "Smepmp",
 )

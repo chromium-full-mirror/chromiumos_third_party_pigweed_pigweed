@@ -1,8 +1,8 @@
 .. _docs-bazel-compatibility:
 
-==================================
-Bazel build compatibility patterns
-==================================
+==========================================
+Pigweed Bazel build compatibility patterns
+==========================================
 This document describes the Bazel patterns Pigweed uses to express that a build
 target is compatible with a platform. The main motivation is to enable
 maintainable :ref:`wildcard builds <docs-bazel-compatibility-why-wildcard>` of

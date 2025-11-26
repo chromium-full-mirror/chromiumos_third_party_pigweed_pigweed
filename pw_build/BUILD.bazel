@@ -440,6 +440,9 @@ sphinx_docs_library(
     srcs = [
         "CMakeLists.txt",
         "bazel.rst",
+        "bazel_constraints.rst",
+        "bazel_helpers.rst",
+        "bazel_rules.rst",
         "cmake.rst",
         "docs.rst",
         "gn.rst",

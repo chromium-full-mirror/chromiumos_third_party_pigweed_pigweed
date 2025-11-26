@@ -13,9 +13,10 @@ repository that exposes these crates to Bazel.
 Getting started
 ---------------
 Crates are split by whether they use ``std`` or ``no_std``. By default,
-platforms are otherwise assumed to use ``std``. Embedded platforms typically
-need to add ``@pigweed//pw_build/constraints/rust:no_std`` to their platform's
-``constraint_values``:
+platforms are assumed to use ``std``. Embedded platforms typically need to add
+``@pigweed//pw_build/constraints/rust:no_std`` from Pigweed's :ref:`Rust Bazel
+constraints <module-pw_build-bazel_constraints-rust>` to the
+``constraint_values`` attribute of the ``platform``.
 
 .. code-block:: py
 
