@@ -14,7 +14,6 @@
 """Provides data related to a single Git commit."""
 
 from pathlib import Path
-import json
 
 
 class Commit:  # pylint: disable=too-many-instance-attributes

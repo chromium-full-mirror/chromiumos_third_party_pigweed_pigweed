@@ -14,7 +14,6 @@
 """A group of related commits that constitute a newsworthy story."""
 
 from pathlib import Path
-import json
 
 from commit import Commit
 
