@@ -116,6 +116,16 @@ pw_add_library(pw_async2.basic_dispatcher INTERFACE
     public
 )
 
+pw_add_library(pw_async2.notified_dispatcher INTERFACE
+  HEADERS
+    public/pw_async2/notified_dispatcher.h
+  PUBLIC_DEPS
+    pw_async2.dispatcher
+    pw_sync.thread_notification
+  PUBLIC_INCLUDES
+    public
+)
+
 pw_add_library(pw_async2.basic_dispatcher_for_test INTERFACE
   HEADERS
     dispatcher_for_test_public_overrides/pw_async2_backend/native_dispatcher_for_test.h

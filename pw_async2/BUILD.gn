@@ -118,6 +118,15 @@ pw_source_set("basic_dispatcher") {
   ]
 }
 
+pw_source_set("notified_dispatcher") {
+  public_configs = [ ":public_include_path" ]
+  public = [ "public/pw_async2/notified_dispatcher.h" ]
+  public_deps = [
+    ":dispatcher",
+    "$dir_pw_sync:thread_notification",
+  ]
+}
+
 pw_source_set("testing") {
   public_configs = [ ":public_include_path" ]
   public = [ "public/pw_async2/dispatcher_for_test.h" ]

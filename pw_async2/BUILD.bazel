@@ -120,6 +120,16 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "notified_dispatcher",
+    hdrs = ["public/pw_async2/notified_dispatcher.h"],
+    strip_include_prefix = "public",
+    deps = [
+        ":dispatcher",
+        "//pw_sync:thread_notification",
+    ],
+)
+
 label_flag(
     name = "config_override",
     build_setting_default = "//pw_build:default_module_config",
@@ -791,6 +801,7 @@ filegroup(
         "public/pw_async2/future.h",
         "public/pw_async2/internal/config.h",
         "public/pw_async2/join.h",
+        "public/pw_async2/notified_dispatcher.h",
         "public/pw_async2/once_sender.h",
         "public/pw_async2/owned_task.h",
         "public/pw_async2/pend_func_awaitable.h",
