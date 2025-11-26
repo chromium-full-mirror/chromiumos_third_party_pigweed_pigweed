@@ -20,3 +20,6 @@
 [deprecated-builtins]
 # TODO: https://pwbug.dev/434779927 - Can be removed after abseil is updated.
 src:*/absl/meta/type_traits.h
+
+[undef]
+src:*/google/protobuf/port_def.inc
