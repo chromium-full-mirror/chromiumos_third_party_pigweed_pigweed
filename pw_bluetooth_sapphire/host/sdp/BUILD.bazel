@@ -79,6 +79,10 @@ pw_cc_test(
         "service_discoverer_test.cc",
         "service_record_test.cc",
     ],
+    copts = [
+        # TODO: https://pwbug.dev/464024322 - Fix warnings.
+        "-Wno-shadow",
+    ],
     features = ["-conversion_warnings"],
     test_main = "//pw_bluetooth_sapphire/host/testing:gtest_main",
     deps = [

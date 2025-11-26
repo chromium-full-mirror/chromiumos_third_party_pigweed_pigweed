@@ -146,6 +146,10 @@ pw_cc_test(
         "weak_self_test.cc",
         "windowed_inspect_numeric_property_test.cc",
     ],
+    copts = [
+        # TODO: https://pwbug.dev/464024322 - Fix warnings.
+        "-Wno-shadow",
+    ],
     features = ["-conversion_warnings"],
     test_main = "//pw_bluetooth_sapphire/host/testing:gtest_main",
     deps = [

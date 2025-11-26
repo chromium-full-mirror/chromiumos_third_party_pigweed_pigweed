@@ -53,6 +53,10 @@ pw_cc_test(
         "sco_connection_manager_test.cc",
         "sco_connection_test.cc",
     ],
+    copts = [
+        # TODO: https://pwbug.dev/464024322 - Fix warnings.
+        "-Wno-shadow",
+    ],
     test_main = "//pw_bluetooth_sapphire/host/testing:gtest_main",
     deps = [
         ":sco",

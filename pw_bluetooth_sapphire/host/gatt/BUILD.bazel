@@ -106,6 +106,10 @@ cc_library(
         "public/pw_bluetooth_sapphire/internal/host/gatt/fake_layer.h",
         "public/pw_bluetooth_sapphire/internal/host/gatt/mock_server.h",
     ],
+    copts = [
+        # TODO: https://pwbug.dev/464024322 - Fix warnings.
+        "-Wno-shadow",
+    ],
     features = ["-conversion_warnings"],
     implementation_deps = [
         "//pw_bluetooth_sapphire/host/common",
@@ -130,6 +134,10 @@ pw_cc_test(
         "local_service_manager_test.cc",
         "remote_service_manager_test.cc",
         "server_test.cc",
+    ],
+    copts = [
+        # TODO: https://pwbug.dev/464024322 - Fix warnings.
+        "-Wno-shadow",
     ],
     features = ["-conversion_warnings"],
     test_main = "//pw_bluetooth_sapphire/host/testing:gtest_main",

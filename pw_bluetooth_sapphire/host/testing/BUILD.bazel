@@ -123,6 +123,8 @@ cc_library(
     ],
     copts = [
         "-Wno-unused-parameter",
+        # TODO: https://pwbug.dev/464024322 - Fix warnings.
+        "-Wno-shadow",
     ],
     implementation_deps = [
         ":gtest_helpers",
@@ -162,6 +164,8 @@ cc_library(
     ],
     copts = [
         "-Wno-unused-parameter",
+        # TODO: https://pwbug.dev/464024322 - Fix warnings.
+        "-Wno-shadow",
     ],
     features = ["-conversion_warnings"],
     implementation_deps = [
@@ -243,6 +247,10 @@ pw_cc_test(
         "fake_signaling_server_test.cc",
         "inspect_util_test.cc",
         "parse_args_test.cc",
+    ],
+    copts = [
+        # TODO: https://pwbug.dev/464024322 - Fix warnings.
+        "-Wno-shadow",
     ],
     features = ["-conversion_warnings"],
     test_main = "//pw_bluetooth_sapphire/host/testing:gtest_main",
