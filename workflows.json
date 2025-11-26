@@ -59,6 +59,42 @@
       ]
     },
     {
+      "name": "python_pylint",
+      "build_config": {
+        "name": "python_pylint_config",
+        "description": "pylint",
+        "build_type": "bazel",
+        "args": [
+          "--config=pylint"
+        ],
+        "driver_options": {
+          "@type": "pw.build.proto.BazelDriverOptions",
+          "no_test": true
+        }
+      },
+      "targets": [
+        "//..."
+      ]
+    },
+    {
+      "name": "python_mypy",
+      "build_config": {
+        "name": "python_mypy_config",
+        "description": "mypy",
+        "build_type": "bazel",
+        "args": [
+          "--config=mypy"
+        ],
+        "driver_options": {
+          "@type": "pw.build.proto.BazelDriverOptions",
+          "no_test": true
+        }
+      },
+      "targets": [
+        "//..."
+      ]
+    },
+    {
       "name": "build_rp2040_tests",
       "build_config": {
         "name": "pico_rp2040",
@@ -591,6 +627,14 @@
         "rpc_callback",
         "grpc",
         "docs"
+      ]
+    },
+    {
+      "name": "python_checks",
+      "description": "Python pylint and mypy",
+      "builds": [
+        "python_pylint",
+        "python_mypy"
       ]
     },
     {
