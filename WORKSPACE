@@ -24,7 +24,7 @@ git_repository(
     name = "fuchsia_infra",
     # ROLL: Warning: this entry is automatically updated by
     # ROLL: https://cr-buildbucket.appspot.com/builder/pigweed/tools.roll/fuchsia-infra-bazel-rules-roller
-    commit = "5a0e3c6524c5b21574e119fb46320f840b8e60c7",
+    commit = "a65d990ce692cbcd5d39d06ffd623f2e70841564",
     remote = "https://fuchsia.googlesource.com/fuchsia-infra-bazel-rules",
 )
 
