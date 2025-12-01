@@ -180,6 +180,7 @@ config("rust_edition_2024") {
   rustflags = [ "--edition=2024" ]
 }
 
+# LINT.IfChange(strict_warnings)
 config("strict_warnings") {
   cflags = [
     "-Wall",
@@ -197,6 +198,9 @@ config("strict_warnings") {
   cflags_cc = [ "-Wnon-virtual-dtor" ]
 }
 
+# LINT.ThenChange(//pw_toolchain/cc/args/BUILD.bazel:strict_warnings,CMakeLists.txt:strict_warnings)
+
+# LINT.IfChange(clang_thread_safety_warnings)
 # Thread safety warnings are only supported by Clang.
 config("clang_thread_safety_warnings") {
   cflags = [
@@ -206,6 +210,9 @@ config("clang_thread_safety_warnings") {
   defines = [ "_LIBCPP_ENABLE_THREAD_SAFETY_ANNOTATIONS=1" ]
 }
 
+# LINT.ThenChange(//pw_toolchain/cc/args/BUILD.bazel:clang_thread_safety_warnings)
+
+# LINT.IfChange(extra_strict_warnings)
 # This config contains warnings that we don't necessarily recommend projects
 # enable, but are enabled for upstream Pigweed for maximum project
 # compatibility.
@@ -217,6 +224,9 @@ config("extra_strict_warnings") {
   cflags_c = [ "-Wstrict-prototypes" ]
 }
 
+# LINT.ThenChange(//pw_toolchain/cc/args/BUILD.bazel:extra_strict_warnings,CMakeLists.txt:extra_strict_warnings)
+
+# LINT.IfChange(internal_strict_warnings)
 # This config contains warnings that are enabled for upstream Pigweed.
 # This config MUST NOT be used downstream to allow for warnings to be
 # added in the future without breaking downstream.
@@ -267,6 +277,9 @@ config("pedantic_warnings") {
   ]
 }
 
+# LINT.ThenChange(//pw_toolchain/cc/args/BUILD.bazel:internal_strict_warnings,CMakeLists.txt:internal_strict_warnings)
+
+# LINT.IfChange(conversion_warnings)
 # Numeric conversion warnings.
 #
 # Originally Pigweed didn't enable this, but we ultimately decided to turn it
@@ -279,6 +292,8 @@ config("conversion_warnings") {
     cflags = [ "-Wconversion" ]
   }
 }
+
+# LINT.ThenChange(//pw_toolchain/cc/args/BUILD.bazel:conversion_warnings)
 
 config("cpp14") {
   cflags_cc = [ "-std=c++14" ]

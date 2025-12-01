@@ -52,6 +52,7 @@ pw_add_library_generic(pw_build.reduced_size INTERFACE
     $<$<COMPILE_LANGUAGE:CXX>:-fno-rtti>
 )
 
+# LINT.IfChange(strict_warnings)
 # Define the standard Pigweed compile options.
 #
 # The pw_build.warnings library is used by upstream Pigweed targets to add
@@ -100,14 +101,18 @@ if(NOT ZEPHYR_PIGWEED_MODULE_DIR)
   # Only include these flags if we're not building with Zephyr.
   set(extra_strict_warnings_cond "-Wredundant-decls")
 endif()
+# LINT.ThenChange(//pw_toolchain/cc/args/BUILD.bazel:strict_warnings,//pw_toolchain/cc/args/BUILD.gn:strict_warnings)
 
+# LINT.IfChange(extra_strict_warnings)
 pw_add_library_generic(pw_build.extra_strict_warnings INTERFACE
   PUBLIC_COMPILE_OPTIONS
     "-Wshadow"
     ${extra_strict_warnings_cond}
     $<$<COMPILE_LANGUAGE:C>:-Wstrict-prototypes>
 )
+# LINT.ThenChange(//pw_toolchain/cc/args/BUILD.bazel:extra_strict_warnings,//pw_toolchain/cc/args/BUILD.gn:extra_strict_warnings)
 
+# LINT.IfChange(internal_strict_warnings)
 pw_add_library_generic(pw_build.pedantic_warnings INTERFACE
   PUBLIC_COMPILE_OPTIONS
     # Enable -Wpedantic, but disable a few warnings.
@@ -138,6 +143,7 @@ pw_add_library_generic(pw_build.pedantic_warnings INTERFACE
     # TODO: b/356689444 - Remove no-unknown-warning-option after Clang roll.
     "-Wno-unknown-warning-option"
 )
+# LINT.ThenChange(//pw_toolchain/cc/args/BUILD.bazel:internal_strict_warnings,//pw_toolchain/cc/args/BUILD.gn:internal_strict_warnings)
 
 pw_add_library_generic(pw_build.cpp17 INTERFACE
   PUBLIC_COMPILE_OPTIONS
