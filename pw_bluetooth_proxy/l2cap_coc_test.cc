@@ -584,7 +584,7 @@ TEST_F(L2capCocWriteTest, MultithreadedWrite) {
   for (unsigned int i = 0; i < kNumThreads; ++i) {
     // TODO: https://pwbug.dev/422222575 -  Move channel close and dtor inside
     // each thread once we have proper channel lifecycle locking.
-    captures[i].channel.CloseForTesting();
+    captures[i].channel.Close();
   }
 
   {
@@ -1840,7 +1840,7 @@ TEST_F(L2capCocQueueTest, H4BufferReleaseTriggersQueueDrain) {
   EXPECT_EQ(capture.sends_called, num_writes);
 
   // Free all buffers before the allocator is destroyed.
-  channel.CloseForTesting();
+  channel.Close();
   capture.packet_store.clear();
 }
 

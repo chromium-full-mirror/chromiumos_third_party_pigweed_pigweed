@@ -53,7 +53,7 @@ class L2capCoc final
   void StopForTesting() { internal().Stop(); }
 
   // Close the channel in internal tests. DO NOT USE.
-  void CloseForTesting() { internal().Close(); }
+  void Close() { internal().Close(); }
 
  private:
   friend class L2capChannelManager;
