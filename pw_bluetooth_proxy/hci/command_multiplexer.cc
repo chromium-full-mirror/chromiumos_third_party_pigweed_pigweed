@@ -14,7 +14,9 @@
 
 #include "pw_bluetooth_proxy/hci/command_multiplexer.h"
 
+#include "lib/stdcompat/utility.h"
 #include "pw_assert/check.h"
+#include "pw_bluetooth/hci_events.emb.h"
 #include "pw_bluetooth/hci_h4.emb.h"
 #include "pw_log/log.h"
 #include "pw_multibuf/multibuf_v2.h"
@@ -198,8 +200,75 @@ void CommandMultiplexer::HandleH4FromHost(MultiBuf::Instance&& h4_packet) {
 
 void CommandMultiplexer::HandleH4FromController(
     MultiBuf::Instance&& h4_packet) {
-  MultiBuf::Instance _(std::move(h4_packet));
-  // Not implemented.
+  MultiBuf::Instance buf = std::move(h4_packet);
+  if (buf->empty()) {
+    PW_LOG_WARN("Ignoring empty H4 packet from controller.");
+    return;
+  }
+
+  // Only intercept event packets from controller.
+  if (*buf->begin() != std::byte(emboss::H4PacketType::EVENT)) {
+    send_to_host_fn_(std::move(buf));
+    return;
+  }
+
+  std::array<std::byte, kMaxEventHeaderSize> header_buf;
+  auto bytes = buf->Get(header_buf, /*offset=*/sizeof(emboss::H4PacketType));
+
+  emboss::EventHeaderView view(
+      static_cast<const uint8_t*>(static_cast<const void*>(bytes.data())),
+      bytes.size());
+  if (!view.Ok()) {
+    // View is malformed, don't intercept.
+    send_to_host_fn_(std::move(buf));
+    return;
+  }
+
+  std::lock_guard lock(mutex_);
+
+  auto event_code = EventCodeValue(view.event_code().Read());
+  auto iter = FindEventInterceptor(event_code, bytes);
+
+  if (iter == event_interceptors_.end()) {
+    send_to_host_fn_(std::move(buf));
+    return;
+  }
+
+  auto& handler = iter->handler();
+  if (!handler) {
+    // Interceptor doesn't have a handler.
+    send_to_host_fn_(std::move(buf));
+    return;
+  }
+
+  EventInterceptorReturn result = handler(EventPacket{std::move(buf)});
+
+  static_assert(std::variant_size_v<decltype(result.action)> == 2,
+                "Unhandled variant members.");
+  if (auto* action = std::get_if<RemoveThisInterceptor>(&result.action)) {
+    if (!action->id.is_valid()) {
+      // Ignoring RemoveThisInterceptor action for invalid ID.
+      return;
+    }
+    auto interceptors_iter = interceptors_.find(action->id.value());
+
+    // Should be impossible to fail this check from type safety, failing
+    // would require forging or reusing an ID.
+    PW_CHECK(interceptors_iter != interceptors_.end());
+
+    // Ensure the action didn't provide a different interceptor's ID.
+    auto downcast = interceptors_iter->Downcast();
+    PW_CHECK(std::holds_alternative<EventInterceptorWrapper*>(downcast));
+    PW_CHECK(&std::get<EventInterceptorWrapper*>(downcast)->state() == &*iter);
+
+    RemoveInterceptor(interceptors_iter);
+  } else {
+    // Only other valid action is to continue, so no need to do anything.
+  }
+
+  if (result.event.has_value()) {
+    send_to_host_fn_(std::move(result.event->buffer));
+  }
 }
 
 expected<void, FailureWithBuffer> CommandMultiplexer::SendCommand(
@@ -222,6 +291,20 @@ expected<void, FailureWithBuffer> CommandMultiplexer::SendEvent(
 
 Result<EventInterceptor> CommandMultiplexer::RegisterEventInterceptor(
     EventCodeVariant event_code, EventHandler&& handler) {
+  static_assert(std::variant_size_v<EventCodeVariant> == 5,
+                "Event code may need special casing.");
+  if (auto* event = std::get_if<emboss::EventCode>(&event_code)) {
+    switch (cpp23::to_underlying(*event)) {
+      case cpp23::to_underlying(emboss::EventCode::LE_META_EVENT):
+      case cpp23::to_underlying(emboss::EventCode::VENDOR_DEBUG):
+      case cpp23::to_underlying(emboss::EventCode::COMMAND_STATUS):
+      case cpp23::to_underlying(emboss::EventCode::COMMAND_COMPLETE):
+        return Status::InvalidArgument();
+      default:
+        break;
+    }
+  }
+
   std::lock_guard lock(mutex_);
   if (event_interceptors_.find(event_code) != event_interceptors_.end()) {
     return Status::AlreadyExists();
@@ -292,6 +375,84 @@ CommandMultiplexer::AllocateInterceptorId() {
       [&](InterceptorId::ValueType candidate) PW_NO_LOCK_SAFETY_ANALYSIS {
         return interceptors_.find(candidate) != interceptors_.end();
       });
+}
+
+CommandMultiplexer::EventInterceptorMap::iterator
+CommandMultiplexer::FindEventInterceptor(EventCodeValue event,
+                                         ConstByteSpan span) {
+  static_assert(std::variant_size_v<EventCodeVariant> == 5,
+                "Event code variant may need special casing.");
+  switch (event) {
+    case cpp23::to_underlying(emboss::EventCode::COMMAND_COMPLETE):
+      return FindCommandComplete(span);
+    case cpp23::to_underlying(emboss::EventCode::COMMAND_STATUS):
+      return FindCommandStatus(span);
+    case cpp23::to_underlying(emboss::EventCode::LE_META_EVENT):
+      return FindLeMetaEvent(span);
+    case cpp23::to_underlying(emboss::EventCode::VENDOR_DEBUG):
+      return FindVendorDebug(span);
+    default:
+      return event_interceptors_.find(emboss::EventCode{event});
+  }
+}
+
+CommandMultiplexer::EventInterceptorMap::iterator
+CommandMultiplexer::FindCommandComplete(ConstByteSpan span) {
+  emboss::CommandCompleteEventView view(
+      static_cast<const uint8_t*>(static_cast<const void*>(span.data())),
+      span.size());
+
+  if (!view.Ok()) {
+    // View is malformed, don't intercept.
+    return event_interceptors_.end();
+  }
+
+  auto subevent_code = view.command_opcode().Read();
+  return event_interceptors_.find(CommandCompleteOpcode{subevent_code});
+}
+
+CommandMultiplexer::EventInterceptorMap::iterator
+CommandMultiplexer::FindCommandStatus(ConstByteSpan span) {
+  emboss::CommandStatusEventView view(
+      static_cast<const uint8_t*>(static_cast<const void*>(span.data())),
+      span.size());
+
+  if (!view.Ok()) {
+    // View is malformed, don't intercept.
+    return event_interceptors_.end();
+  }
+
+  auto subevent_code = view.command_opcode_enum().Read();
+  return event_interceptors_.find(CommandStatusOpcode{subevent_code});
+}
+
+CommandMultiplexer::EventInterceptorMap::iterator
+CommandMultiplexer::FindLeMetaEvent(ConstByteSpan span) {
+  emboss::LEMetaEventView view(
+      static_cast<const uint8_t*>(static_cast<const void*>(span.data())),
+      span.size());
+
+  if (!view.Ok()) {
+    return event_interceptors_.end();
+  }
+
+  auto subevent_code = view.subevent_code_enum().Read();
+  return event_interceptors_.find(subevent_code);
+}
+
+CommandMultiplexer::EventInterceptorMap::iterator
+CommandMultiplexer::FindVendorDebug(ConstByteSpan span) {
+  emboss::VendorDebugEventView view(
+      static_cast<const uint8_t*>(static_cast<const void*>(span.data())),
+      span.size());
+
+  if (!view.Ok()) {
+    // View is malformed, don't intercept.
+    return event_interceptors_.end();
+  }
+
+  auto subevent_code = view.subevent_code().Read();
+  return event_interceptors_.find(VendorDebugSubEventCode{subevent_code});
 }
 
 void CommandMultiplexer::RemoveInterceptor(InterceptorMap::iterator iterator) {

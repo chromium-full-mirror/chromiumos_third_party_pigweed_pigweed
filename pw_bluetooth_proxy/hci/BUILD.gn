@@ -34,6 +34,7 @@ pw_source_set("command_multiplexer") {
     "$dir_pw_async2:time_provider",
     "$dir_pw_bluetooth:emboss_hci_commands",
     "$dir_pw_bluetooth:emboss_hci_common",
+    "$dir_pw_bluetooth:emboss_hci_events",
     "$dir_pw_bluetooth:emboss_hci_h4",
     "$dir_pw_chrono:system_clock",
     "$dir_pw_chrono:system_timer",

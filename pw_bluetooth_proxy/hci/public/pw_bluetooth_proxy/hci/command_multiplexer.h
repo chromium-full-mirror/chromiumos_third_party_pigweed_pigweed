@@ -19,6 +19,7 @@
 #include "pw_async2/poll.h"
 #include "pw_async2/time_provider.h"
 #include "pw_bluetooth/hci_common.emb.h"
+#include "pw_bluetooth/hci_events.emb.h"
 #include "pw_bluetooth_proxy/hci/internal/type_safe_ids.h"
 #include "pw_chrono/system_clock.h"
 #include "pw_chrono/system_timer.h"
@@ -84,12 +85,36 @@ enum class VendorDebugSubEventCode : uint8_t {};
 // The Opcode to intercept for Command Complete events (event code 0x0E).
 //
 // See Core Specification v6.1, Vol 4, Part E, Section 7.7.14.
-enum class CommandCompleteOpcode : uint16_t {};
+class CommandCompleteOpcode {
+  using Self = CommandCompleteOpcode;
+
+ public:
+  pw::bluetooth::emboss::OpCode code;
+
+  bool operator<(Self right) const { return code < right.code; }
+  bool operator>(Self right) const { return code > right.code; }
+  bool operator<=(Self right) const { return code <= right.code; }
+  bool operator>=(Self right) const { return code >= right.code; }
+  bool operator==(Self right) const { return code == right.code; }
+  bool operator!=(Self right) const { return code != right.code; }
+};
 
 // The Opcode to intercept for Command Status events (event code 0x0F).
 //
 // See Core Specification v6.1, Vol 4, Part E, Section 7.7.15.
-enum class CommandStatusOpcode : uint16_t {};
+class CommandStatusOpcode {
+  using Self = CommandStatusOpcode;
+
+ public:
+  pw::bluetooth::emboss::OpCode code;
+
+  bool operator<(Self right) const { return code < right.code; }
+  bool operator>(Self right) const { return code > right.code; }
+  bool operator<=(Self right) const { return code <= right.code; }
+  bool operator>=(Self right) const { return code >= right.code; }
+  bool operator==(Self right) const { return code == right.code; }
+  bool operator!=(Self right) const { return code != right.code; }
+};
 
 class CommandMultiplexer final {
  public:
@@ -323,6 +348,15 @@ class CommandMultiplexer final {
       pw::bluetooth::emboss::OpCode op_code, CommandHandler&& handler);
 
  private:
+  static_assert(std::variant_size_v<EventCodeVariant> == 5,
+                "Event code may not be handled in max header size.");
+  static constexpr size_t kMaxEventHeaderSize =
+      std::max({emboss::EventHeader::IntrinsicSizeInBytes(),
+                emboss::VendorDebugEvent::IntrinsicSizeInBytes(),
+                emboss::CommandCompleteEvent::IntrinsicSizeInBytes(),
+                emboss::CommandStatusEvent::IntrinsicSizeInBytes()});
+  using EventCodeValue = std::underlying_type_t<emboss::EventCode>;
+
   void UnregisterInterceptor(InterceptorId id);
   std::optional<InterceptorId> AllocateInterceptorId()
       PW_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
@@ -346,6 +380,18 @@ class CommandMultiplexer final {
       pw::IntrusiveMap<EventCodeVariant, EventInterceptorState>;
   using CommandInterceptorMap =
       pw::IntrusiveMap<pw::bluetooth::emboss::OpCode, CommandInterceptorState>;
+
+  EventInterceptorMap::iterator FindEventInterceptor(EventCodeValue event,
+                                                     ConstByteSpan span)
+      PW_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
+  EventInterceptorMap::iterator FindCommandComplete(ConstByteSpan span)
+      PW_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
+  EventInterceptorMap::iterator FindCommandStatus(ConstByteSpan span)
+      PW_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
+  EventInterceptorMap::iterator FindLeMetaEvent(ConstByteSpan span)
+      PW_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
+  EventInterceptorMap::iterator FindVendorDebug(ConstByteSpan span)
+      PW_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
   void RemoveInterceptor(InterceptorMap::iterator iterator)
       PW_EXCLUSIVE_LOCKS_REQUIRED(mutex_);

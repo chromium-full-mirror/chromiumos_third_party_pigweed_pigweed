@@ -41,6 +41,7 @@ cc_library(
         "//pw_async2:time_provider",
         "//pw_bluetooth:emboss_hci_commands",
         "//pw_bluetooth:emboss_hci_common",
+        "//pw_bluetooth:emboss_hci_events",
         "//pw_bluetooth:emboss_hci_h4",
         "//pw_chrono:system_clock",
         "//pw_chrono:system_timer",

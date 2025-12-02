@@ -30,6 +30,7 @@ pw_add_library(pw_bluetooth_proxy.hci_command_multiplexer STATIC
     public/pw_bluetooth_proxy/hci/internal/type_safe_ids.h
   PUBLIC_DEPS
     pw_bluetooth.emboss_hci_commands
+    pw_bluetooth.emboss_hci_events
     pw_bluetooth.emboss_hci_h4
     pw_containers.flat_map
     pw_function
