@@ -95,6 +95,13 @@ class CommandMultiplexerTest : public ::testing::Test {
     Allocator& allocator() { return test_.allocator(); }
     async2::DispatcherForTest& dispatcher() { return test_.dispatcher(); }
 
+    pw::DynamicDeque<MultiBuf::Instance>& packets_to_host() {
+      return test_.packets_to_host();
+    }
+    pw::DynamicDeque<MultiBuf::Instance>& packets_to_controller() {
+      return test_.packets_to_controller();
+    }
+
    private:
     Accessor(CommandMultiplexerTest& test, CommandMultiplexer& hci_cmd_mux)
         : test_(test), hci_cmd_mux_(hci_cmd_mux) {}
@@ -134,6 +141,13 @@ class CommandMultiplexerTest : public ::testing::Test {
 
   Accessor accessor_timer() { return Accessor(*this, hci_cmd_mux_timer()); }
 
+  pw::DynamicDeque<MultiBuf::Instance>& packets_to_host() {
+    return packets_to_host_;
+  }
+  pw::DynamicDeque<MultiBuf::Instance>& packets_to_controller() {
+    return packets_to_controller_;
+  }
+
  private:
   void OnTimeout() {}
 
@@ -153,7 +167,7 @@ class CommandMultiplexerTest : public ::testing::Test {
 
   async2::DispatcherForTest dispatcher_{};
   async2::SimulatedTimeProvider<chrono::SystemClock> time_provider_{};
-  pw::allocator::test::AllocatorForTest<208> allocator_{};
+  pw::allocator::test::AllocatorForTest<216> allocator_{};
 
   pw::DynamicDeque<MultiBuf::Instance> packets_to_host_{allocator_};
   pw::DynamicDeque<MultiBuf::Instance> packets_to_controller_{allocator_};
@@ -315,6 +329,250 @@ TEST_F(CommandMultiplexerTest, RegisterCommandInterceptorAsync) {
 }
 TEST_F(CommandMultiplexerTest, RegisterCommandInterceptorTimer) {
   TestRegisterCommandInterceptor(accessor_timer());
+}
+
+void TestInterceptCommands(Accessor test) {
+  {
+    std::array<std::byte, 4> reset_packet_bytes{
+        // Packet type (command)
+        std::byte(0x01),
+        // OpCode (Reset)
+        std::byte(0x03),
+        std::byte(0x0C),
+        // Parameter size
+        std::byte(0x00),
+    };
+
+    MultiBuf::Instance buf(test.allocator());
+    buf->Insert(buf->end(), reset_packet_bytes);
+    test.hci_cmd_mux().HandleH4FromHost(std::move(buf));
+
+    // Forwards packets if no interceptor.
+    ASSERT_EQ(test.packets_to_controller().size(), 1u);
+    std::array<std::byte, 4> out;
+    test.packets_to_controller().front()->CopyTo(out);
+    EXPECT_EQ(reset_packet_bytes, out);
+    test.packets_to_controller().pop_front();
+  }
+
+  // Register an interceptor (takes buffer, continues intercepting)
+  std::optional<MultiBuf::Instance> intercepted;
+  auto result = test.hci_cmd_mux().RegisterCommandInterceptor(
+      emboss::OpCode::RESET,
+      [&](CommandPacket&& packet)
+          -> CommandMultiplexer::CommandInterceptorReturn {
+        intercepted = std::move(packet.buffer);
+        return {};
+      });
+  ASSERT_TRUE(result.ok());
+
+  {
+    std::array<std::byte, 4> reset_packet_bytes{
+        // Packet type (command)
+        std::byte(0x01),
+        // OpCode (Reset)
+        std::byte(0x03),
+        std::byte(0x0C),
+        // Parameter size
+        std::byte(0x00),
+    };
+
+    MultiBuf::Instance buf(test.allocator());
+    buf->Insert(buf->end(), reset_packet_bytes);
+    test.hci_cmd_mux().HandleH4FromHost(std::move(buf));
+
+    // Ensure not forwarded.
+    EXPECT_TRUE(test.packets_to_controller().empty());
+    ASSERT_TRUE(intercepted.has_value());
+    std::array<std::byte, 4> out;
+    intercepted.value()->CopyTo(out);
+    EXPECT_EQ(reset_packet_bytes, out);
+  }
+
+  // Clear the result, but keep interceptor active.
+  intercepted = std::nullopt;
+
+  // Ensure continuing to intercept.
+  {
+    std::array<std::byte, 4> reset_packet_bytes{
+        // Packet type (command)
+        std::byte(0x01),
+        // OpCode (Reset)
+        std::byte(0x03),
+        std::byte(0x0C),
+        // Parameter size
+        std::byte(0x00),
+    };
+
+    MultiBuf::Instance buf(test.allocator());
+    buf->Insert(buf->end(), reset_packet_bytes);
+    test.hci_cmd_mux().HandleH4FromHost(std::move(buf));
+
+    // Ensure not forwarded.
+    EXPECT_TRUE(test.packets_to_controller().empty());
+    ASSERT_TRUE(intercepted.has_value());
+    std::array<std::byte, 4> out;
+    intercepted.value()->CopyTo(out);
+    EXPECT_EQ(reset_packet_bytes, out);
+  }
+
+  // Unregister the interceptor manually.
+  result = Status::Cancelled();
+  intercepted = std::nullopt;
+
+  {
+    std::array<std::byte, 4> reset_packet_bytes{
+        // Packet type (command)
+        std::byte(0x01),
+        // OpCode (Reset)
+        std::byte(0x03),
+        std::byte(0x0C),
+        // Parameter size
+        std::byte(0x00),
+    };
+
+    MultiBuf::Instance buf(test.allocator());
+    buf->Insert(buf->end(), reset_packet_bytes);
+    test.hci_cmd_mux().HandleH4FromHost(std::move(buf));
+
+    // Forwards packets if no interceptor.
+    ASSERT_EQ(test.packets_to_controller().size(), 1u);
+    EXPECT_FALSE(intercepted.has_value());
+    std::array<std::byte, 4> out;
+    test.packets_to_controller().front()->CopyTo(out);
+    EXPECT_EQ(reset_packet_bytes, out);
+    test.packets_to_controller().pop_front();
+  }
+
+  // Register an interceptor (Does not take buffer, continues intercepting)
+  bool peeked = false;
+  result = test.hci_cmd_mux().RegisterCommandInterceptor(
+      emboss::OpCode::RESET,
+      [&](CommandPacket&& packet)
+          -> CommandMultiplexer::CommandInterceptorReturn {
+        peeked = true;
+        return {std::move(packet)};
+      });
+  ASSERT_TRUE(result.ok());
+
+  {
+    std::array<std::byte, 4> reset_packet_bytes{
+        // Packet type (command)
+        std::byte(0x01),
+        // OpCode (Reset)
+        std::byte(0x03),
+        std::byte(0x0C),
+        // Parameter size
+        std::byte(0x00),
+    };
+
+    MultiBuf::Instance buf(test.allocator());
+    buf->Insert(buf->end(), reset_packet_bytes);
+    test.hci_cmd_mux().HandleH4FromHost(std::move(buf));
+
+    // Forwards packets returned from interceptor.
+    ASSERT_EQ(test.packets_to_controller().size(), 1u);
+    EXPECT_TRUE(peeked);
+    std::array<std::byte, 4> out;
+    test.packets_to_controller().front()->CopyTo(out);
+    EXPECT_EQ(reset_packet_bytes, out);
+    test.packets_to_controller().pop_front();
+  }
+
+  peeked = false;
+
+  // Ensure continuing to intercept.
+  {
+    std::array<std::byte, 4> reset_packet_bytes{
+        // Packet type (command)
+        std::byte(0x01),
+        // OpCode (Reset)
+        std::byte(0x03),
+        std::byte(0x0C),
+        // Parameter size
+        std::byte(0x00),
+    };
+
+    MultiBuf::Instance buf(test.allocator());
+    buf->Insert(buf->end(), reset_packet_bytes);
+    test.hci_cmd_mux().HandleH4FromHost(std::move(buf));
+
+    // Forwards packets returned from interceptor.
+    ASSERT_EQ(test.packets_to_controller().size(), 1u);
+    EXPECT_TRUE(peeked);
+    std::array<std::byte, 4> out;
+    test.packets_to_controller().front()->CopyTo(out);
+    EXPECT_EQ(reset_packet_bytes, out);
+    test.packets_to_controller().pop_front();
+  }
+
+  // Replace with an interceptor that removes itself.
+  result = Status::Cancelled();
+  result = test.hci_cmd_mux().RegisterCommandInterceptor(
+      emboss::OpCode::RESET,
+      [&](CommandPacket&& packet)
+          -> CommandMultiplexer::CommandInterceptorReturn {
+        intercepted = std::move(packet.buffer);
+        return {.action = CommandMultiplexer::RemoveThisInterceptor{
+                    std::move(result.value().id())}};
+      });
+
+  {
+    std::array<std::byte, 4> reset_packet_bytes{
+        // Packet type (command)
+        std::byte(0x01),
+        // OpCode (Reset)
+        std::byte(0x03),
+        std::byte(0x0C),
+        // Parameter size
+        std::byte(0x00),
+    };
+
+    MultiBuf::Instance buf(test.allocator());
+    buf->Insert(buf->end(), reset_packet_bytes);
+    test.hci_cmd_mux().HandleH4FromHost(std::move(buf));
+
+    // Ensure not forwarded.
+    EXPECT_TRUE(test.packets_to_controller().empty());
+    ASSERT_TRUE(intercepted.has_value());
+    std::array<std::byte, 4> out;
+    intercepted.value()->CopyTo(out);
+    EXPECT_EQ(reset_packet_bytes, out);
+  }
+
+  intercepted = std::nullopt;
+
+  // Ensure the next one is not intercepted.
+  {
+    std::array<std::byte, 4> reset_packet_bytes{
+        // Packet type (command)
+        std::byte(0x01),
+        // OpCode (Reset)
+        std::byte(0x03),
+        std::byte(0x0C),
+        // Parameter size
+        std::byte(0x00),
+    };
+
+    MultiBuf::Instance buf(test.allocator());
+    buf->Insert(buf->end(), reset_packet_bytes);
+    test.hci_cmd_mux().HandleH4FromHost(std::move(buf));
+
+    // Forwards packets if no interceptor.
+    ASSERT_EQ(test.packets_to_controller().size(), 1u);
+    EXPECT_FALSE(intercepted.has_value());
+    std::array<std::byte, 4> out;
+    test.packets_to_controller().front()->CopyTo(out);
+    EXPECT_EQ(reset_packet_bytes, out);
+    test.packets_to_controller().pop_front();
+  }
+}
+
+TEST_F(CommandMultiplexerTest, InterceptCommandsAsync) {
+  TestInterceptCommands(accessor_async2());
+}
+TEST_F(CommandMultiplexerTest, InterceptCommandsTimer) {
+  TestInterceptCommands(accessor_timer());
 }
 
 }  // namespace

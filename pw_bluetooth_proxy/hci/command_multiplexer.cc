@@ -15,6 +15,10 @@
 #include "pw_bluetooth_proxy/hci/command_multiplexer.h"
 
 #include "pw_assert/check.h"
+#include "pw_bluetooth/hci_h4.emb.h"
+#include "pw_log/log.h"
+#include "pw_multibuf/multibuf_v2.h"
+#include "pw_sync/lock_annotations.h"
 
 namespace pw::bluetooth::proxy::hci {
 
@@ -95,23 +99,23 @@ class CommandMultiplexer::CommandInterceptorWrapper
 
 CommandMultiplexer::CommandMultiplexer(
     Allocator& allocator,
-    [[maybe_unused]] Function<void(MultiBuf::Instance&& h4_packet)>&&
-        send_to_host_fn,
-    [[maybe_unused]] Function<void(MultiBuf::Instance&& h4_packet)>&&
-        send_to_controller_fn,
+    Function<void(MultiBuf::Instance&& h4_packet)>&& send_to_host_fn,
+    Function<void(MultiBuf::Instance&& h4_packet)>&& send_to_controller_fn,
     [[maybe_unused]] async2::TimeProvider<chrono::SystemClock>& time_provider,
     [[maybe_unused]] chrono::SystemClock::duration command_timeout)
-    : allocator_(allocator) {}
+    : allocator_(allocator),
+      send_to_host_fn_(std::move(send_to_host_fn)),
+      send_to_controller_fn_(std::move(send_to_controller_fn)) {}
 
 CommandMultiplexer::CommandMultiplexer(
     Allocator& allocator,
-    [[maybe_unused]] Function<void(MultiBuf::Instance&& h4_packet)>&&
-        send_to_host_fn,
-    [[maybe_unused]] Function<void(MultiBuf::Instance&& h4_packet)>&&
-        send_to_controller_fn,
+    Function<void(MultiBuf::Instance&& h4_packet)>&& send_to_host_fn,
+    Function<void(MultiBuf::Instance&& h4_packet)>&& send_to_controller_fn,
     [[maybe_unused]] Function<void()> timeout_fn,
     [[maybe_unused]] chrono::SystemClock::duration command_timeout)
-    : allocator_(allocator) {}
+    : allocator_(allocator),
+      send_to_host_fn_(std::move(send_to_host_fn)),
+      send_to_controller_fn_(std::move(send_to_controller_fn)) {}
 
 Result<async2::Poll<>> CommandMultiplexer::PendCommandTimeout(
     [[maybe_unused]] async2::Context& cx) {
@@ -120,8 +124,76 @@ Result<async2::Poll<>> CommandMultiplexer::PendCommandTimeout(
 }
 
 void CommandMultiplexer::HandleH4FromHost(MultiBuf::Instance&& h4_packet) {
-  MultiBuf::Instance _(std::move(h4_packet));
-  // Not implemented.
+  MultiBuf::Instance buf = std::move(h4_packet);
+  if (buf->empty()) {
+    PW_LOG_WARN("Ignoring empty H4 packet from host.");
+    return;
+  }
+
+  // Only intercept command packets from host.
+  if (*buf->begin() != std::byte(emboss::H4PacketType::COMMAND)) {
+    send_to_controller_fn_(std::move(buf));
+    return;
+  }
+
+  std::array<std::byte,
+             emboss::CommandHeaderView::IntrinsicSizeInBytes().Read()>
+      header_buf;
+  auto bytes = buf->Get(header_buf, /*offset=*/sizeof(emboss::H4PacketType));
+
+  emboss::CommandHeaderView view(
+      static_cast<const uint8_t*>(static_cast<const void*>(bytes.data())),
+      bytes.size());
+  if (!view.Ok()) {
+    // View is malformed, don't intercept.
+    SendToControllerOrQueue(std::move(buf));
+    return;
+  }
+
+  std::lock_guard lock(mutex_);
+  auto iter = command_interceptors_.find(view.opcode().Read());
+  if (iter == command_interceptors_.end()) {
+    // No registered interceptors.
+    SendToControllerOrQueue(std::move(buf));
+    return;
+  }
+
+  auto& handler = iter->handler();
+  if (!handler) {
+    // Interceptor doesn't have a handler.
+    SendToControllerOrQueue(std::move(buf));
+    return;
+  }
+
+  CommandInterceptorReturn result = handler(CommandPacket{std::move(buf)});
+
+  static_assert(std::variant_size_v<decltype(result.action)> == 2,
+                "Unhandled variant members.");
+  if (auto* action = std::get_if<RemoveThisInterceptor>(&result.action)) {
+    if (!action->id.is_valid()) {
+      // Ignoring RemoveThisInterceptor action for invalid ID.
+      return;
+    }
+    auto interceptors_iter = interceptors_.find(action->id.value());
+
+    // Should be impossible to fail this check from type safety, failing
+    // would require forging or reusing an ID.
+    PW_CHECK(interceptors_iter != interceptors_.end());
+
+    // Ensure the action didn't provide a different interceptor's ID.
+    auto downcast = interceptors_iter->Downcast();
+    PW_CHECK(std::holds_alternative<CommandInterceptorWrapper*>(downcast));
+    PW_CHECK(&std::get<CommandInterceptorWrapper*>(downcast)->state() ==
+             &*iter);
+
+    RemoveInterceptor(interceptors_iter);
+  }
+
+  // Only other action is continue.
+
+  if (result.command.has_value()) {
+    SendToControllerOrQueue(std::move(result.command->buffer));
+  }
 }
 
 void CommandMultiplexer::HandleH4FromController(
@@ -208,20 +280,7 @@ void CommandMultiplexer::UnregisterInterceptor(InterceptorId id) {
   // require forging or reusing an ID.
   PW_CHECK(iter != interceptors_.end());
 
-  auto downcast = iter->Downcast();
-  static_assert(std::variant_size_v<decltype(downcast)> == 2,
-                "Unhandled variant members.");
-  if (auto** event = std::get_if<EventInterceptorWrapper*>(&downcast)) {
-    event_interceptors_.erase((*event)->state().key());
-  } else if (auto** cmd = std::get_if<CommandInterceptorWrapper*>(&downcast)) {
-    command_interceptors_.erase((*cmd)->state().key());
-  } else {
-    PW_UNREACHABLE;
-  }
-
-  auto& interceptor = *iter;
-  interceptors_.erase(iter);
-  allocator_.Delete(&interceptor);
+  RemoveInterceptor(iter);
 }
 
 std::optional<CommandMultiplexer::InterceptorId>
@@ -233,6 +292,28 @@ CommandMultiplexer::AllocateInterceptorId() {
       [&](InterceptorId::ValueType candidate) PW_NO_LOCK_SAFETY_ANALYSIS {
         return interceptors_.find(candidate) != interceptors_.end();
       });
+}
+
+void CommandMultiplexer::RemoveInterceptor(InterceptorMap::iterator iterator) {
+  auto downcast = iterator->Downcast();
+  static_assert(std::variant_size_v<decltype(downcast)> == 2,
+                "Unhandled variant members.");
+  if (auto** event = std::get_if<EventInterceptorWrapper*>(&downcast)) {
+    event_interceptors_.erase((*event)->state().key());
+  } else if (auto** cmd = std::get_if<CommandInterceptorWrapper*>(&downcast)) {
+    command_interceptors_.erase((*cmd)->state().key());
+  } else {
+    PW_UNREACHABLE;
+  }
+
+  auto& interceptor = *iterator;
+  interceptors_.erase(iterator);
+  allocator_.Delete(&interceptor);
+}
+
+void CommandMultiplexer::SendToControllerOrQueue(MultiBuf::Instance&& buf) {
+  // Queuing not yet supported.
+  send_to_controller_fn_(std::move(buf));
 }
 
 }  // namespace pw::bluetooth::proxy::hci

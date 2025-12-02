@@ -102,13 +102,13 @@ class CommandMultiplexer final {
   struct ContinueIntercepting {};
   // InterceptorAction: Remove this interceptor, this invalidates the
   // InterceptorId, so it must be supplied in the response.
-  struct RemoveInterceptor {
+  struct RemoveThisInterceptor {
     InterceptorId id;
   };
   // This return value enables handler functions to safely and conveniently
   // remove the interceptor from within the function.
   using InterceptorAction =
-      std::variant<ContinueIntercepting, RemoveInterceptor>;
+      std::variant<ContinueIntercepting, RemoveThisInterceptor>;
 
   // The return type of CommandHandler.
   struct CommandInterceptorReturn {
@@ -347,6 +347,10 @@ class CommandMultiplexer final {
   using CommandInterceptorMap =
       pw::IntrusiveMap<pw::bluetooth::emboss::OpCode, CommandInterceptorState>;
 
+  void RemoveInterceptor(InterceptorMap::iterator iterator)
+      PW_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
+  void SendToControllerOrQueue(MultiBuf::Instance&& buf);
+
   Allocator& allocator_;
   pw::sync::Mutex mutex_;
 
@@ -356,6 +360,9 @@ class CommandMultiplexer final {
   EventInterceptorMap event_interceptors_ PW_GUARDED_BY(mutex_);
   CommandInterceptorMap command_interceptors_ PW_GUARDED_BY(mutex_);
   IdentifierMint<InterceptorId::ValueType> id_mint_ PW_GUARDED_BY(mutex_);
+
+  Function<void(MultiBuf::Instance&& h4_packet)> send_to_host_fn_;
+  Function<void(MultiBuf::Instance&& h4_packet)> send_to_controller_fn_;
 };
 
 using EventInterceptor = CommandMultiplexer::EventInterceptor;

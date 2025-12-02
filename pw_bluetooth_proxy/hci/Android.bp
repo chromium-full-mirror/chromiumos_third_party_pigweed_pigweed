@@ -57,10 +57,14 @@ cc_library_static {
         "pw_bluetooth_emboss_util_include_dirs",
     ],
     generated_headers: [
+        "pw_bluetooth_generate_emboss_hci_commands",
         "pw_bluetooth_generate_emboss_hci_common",
+        "pw_bluetooth_generate_emboss_hci_h4",
     ],
     export_generated_headers: [
+        "pw_bluetooth_generate_emboss_hci_commands",
         "pw_bluetooth_generate_emboss_hci_common",
+        "pw_bluetooth_generate_emboss_hci_h4",
     ],
     // LINT.ThenChange(BUILD.gn, BUILD.bazel, CMakeLists.txt)
 }
