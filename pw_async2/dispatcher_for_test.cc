@@ -17,30 +17,76 @@
 #include "pw_assert/check.h"
 
 namespace pw::async2 {
+namespace {
+
+using DispatcherForTestImpl =
+    DispatcherForTestFacade<backend::NativeDispatcherForTest>;
+
+}  // namespace
 
 template <>
-bool DispatcherForTestFacade<
-    backend::NativeDispatcherForTest>::DoRunUntilStalled() {
+DispatcherForTestImpl::IdleTask::~IdleTask() {
+  PW_CHECK(!IsRegistered());
+}
+
+template <>
+DispatcherForTestImpl::~DispatcherForTestFacade() {
+  PW_CHECK_INT_EQ(blocking_until_released_.load(std::memory_order_relaxed), 0);
+}
+
+template <>
+Poll<> DispatcherForTestImpl::IdleTask::DoPend(Context& cx) {
+  if (should_complete_.load(std::memory_order_relaxed)) {
+    return Ready();
+  }
+  PW_ASYNC_STORE_WAKER(cx, waker_, "DispatcherForTest waiting for Release()");
+  return Pending();
+}
+
+template <>
+bool DispatcherForTestImpl::DoRunUntilStalled() {
   bool has_posted_tasks;
   Task* task;
   while ((task = PopTaskToRun(has_posted_tasks)) != nullptr) {
-    tasks_polled_ += 1;
+    tasks_polled_.fetch_add(1, std::memory_order_relaxed);
     if (RunTask(*task) == RunTaskResult::kCompleted) {
-      tasks_completed_ += 1;
+      tasks_completed_.fetch_add(1, std::memory_order_relaxed);
     }
   }
   return has_posted_tasks;
 }
 
 template <>
-void DispatcherForTestFacade<backend::NativeDispatcherForTest>::DoWake() {
-  wake_count_ += 1;
+void DispatcherForTestImpl::RunToCompletionUntilReleased() {
+  int prior = blocking_until_released_.fetch_add(1, std::memory_order_acquire);
+  PW_CHECK_INT_GE(prior, -1);
+  PW_CHECK_INT_LE(prior, 0);
+
+  bool orig_blocking_is_allowed_ = std::exchange(blocking_is_allowed_, true);
+
+  Post(idle_task_);
+  RunToCompletion();
+
+  idle_task_.Reset();
+  blocking_is_allowed_ = orig_blocking_is_allowed_;
+}
+
+template <>
+void DispatcherForTestImpl::Release() {
+  idle_task_.Complete();
+  int prior = blocking_until_released_.fetch_sub(1, std::memory_order_release);
+  PW_CHECK_INT_GE(prior, 0);
+  PW_CHECK_INT_LE(prior, 1);
+}
+
+template <>
+void DispatcherForTestImpl::DoWake() {
+  wake_count_.fetch_add(1, std::memory_order_relaxed);
   native().DoWake();
 }
 
 template <>
-void DispatcherForTestFacade<
-    backend::NativeDispatcherForTest>::DoWaitForWake() {
+void DispatcherForTestImpl::DoWaitForWake() {
   PW_CHECK(
       blocking_is_allowed_,
       "The DispatcherForTest attempted to block a thread to wait for a wake. "

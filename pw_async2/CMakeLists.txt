@@ -595,6 +595,18 @@ pw_add_test(pw_async2.task_test
     pw_thread.thread
 )
 
+pw_add_test(pw_async2.dispatcher_thread_test
+  SOURCES
+    dispatcher_thread_test.cc
+  PRIVATE_DEPS
+    pw_async2.dispatcher
+    pw_async2.testing
+    pw_sync.thread_notification
+    pw_thread.sleep
+    pw_thread.test_thread_context
+    pw_thread.thread
+)
+
 if("cxx_std_20" IN_LIST CMAKE_CXX_COMPILE_FEATURES)
   pw_add_test(pw_async2.channel_coro_test
     SOURCES

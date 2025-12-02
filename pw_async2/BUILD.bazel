@@ -234,6 +234,19 @@ pw_cc_test(
     ],
 )
 
+pw_cc_test(
+    name = "dispatcher_thread_test",
+    srcs = ["dispatcher_thread_test.cc"],
+    deps = [
+        ":dispatcher",
+        ":testing",
+        "//pw_sync:thread_notification",
+        "//pw_thread:sleep",
+        "//pw_thread:test_thread_context",
+        "//pw_thread:thread",
+    ],
+)
+
 cc_library(
     name = "pendable",
     hdrs = [

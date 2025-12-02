@@ -28,7 +28,6 @@ using pw::async2::ChannelStorage;
 using pw::async2::Context;
 using pw::async2::CreateSpscChannel;
 using pw::async2::DispatcherForTest;
-using pw::async2::Pending;
 using pw::async2::Poll;
 using pw::async2::Ready;
 using pw::async2::ReceiveFuture;
@@ -36,7 +35,6 @@ using pw::async2::Receiver;
 using pw::async2::Sender;
 using pw::async2::SendFuture;
 using pw::async2::Task;
-using pw::async2::Waker;
 
 using namespace std::chrono_literals;
 
@@ -113,29 +111,6 @@ class ReceiverTask : public Task {
   size_t disconnect_after_;
 };
 
-// Task which does nothing other than ensure that the dispatcher keeps running.
-class IdleTask : public Task {
- public:
-  IdleTask() : Task(PW_ASYNC_TASK_NAME("IdleTask")) {}
-
-  void Complete() {
-    should_complete_ = true;
-    std::move(waker_).Wake();
-  }
-
- private:
-  Poll<> DoPend(Context& cx) override {
-    if (should_complete_) {
-      return Ready();
-    }
-    PW_ASYNC_STORE_WAKER(cx, waker_, "IdleTask waiting");
-    return Pending();
-  }
-
-  Waker waker_;
-  std::atomic<bool> should_complete_ = false;
-};
-
 TEST(Channel, BlockingSend) {
   DispatcherForTest dispatcher;
 
@@ -163,14 +138,14 @@ TEST(Channel, BlockingSend) {
     }
 
     sender_context.sender.Disconnect();
+    sender_context.dispatcher.Release();
     EXPECT_EQ(last_status, pw::OkStatus());
   });
 
   ReceiverTask receiver_task(std::move(receiver));
   dispatcher.Post(receiver_task);
 
-  dispatcher.AllowBlocking();
-  dispatcher.RunToCompletion();
+  dispatcher.RunToCompletionUntilReleased();
   sender_thread.join();
 
   EXPECT_EQ(sender_context.send_count, 10u);
@@ -187,15 +162,11 @@ TEST(Channel, BlockingSend_ChannelCloses) {
   auto [channel, sender, receiver] = CreateSpscChannel(storage);
   channel.Release();
 
-  IdleTask idle_task;
-  dispatcher.Post(idle_task);
-
   struct {
     DispatcherForTest& dispatcher;
-    IdleTask& idle_task;
     Sender<int>& sender;
     size_t send_count;
-  } sender_context{dispatcher, idle_task, sender, 0};
+  } sender_context{dispatcher, sender, 0};
 
   // The sender will write values up until the receiver disconnects and the
   // channel closes, causing `BlockingSend` to return false.
@@ -214,7 +185,7 @@ TEST(Channel, BlockingSend_ChannelCloses) {
 
     EXPECT_EQ(last_status, pw::Status::FailedPrecondition());
     EXPECT_FALSE(sender_context.sender.is_open());
-    sender_context.idle_task.Complete();
+    sender_context.dispatcher.Release();
   });
 
   constexpr size_t kDisconnectAfter = 3;
@@ -222,8 +193,7 @@ TEST(Channel, BlockingSend_ChannelCloses) {
   ReceiverTask receiver_task(std::move(receiver), kDisconnectAfter);
   dispatcher.Post(receiver_task);
 
-  dispatcher.AllowBlocking();
-  dispatcher.RunToCompletion();
+  dispatcher.RunToCompletionUntilReleased();
   sender_thread.join();
 
   EXPECT_EQ(sender_context.send_count, kDisconnectAfter);
@@ -240,15 +210,11 @@ TEST(Channel, BlockingSend_Timeout) {
   auto [channel, sender, receiver] = CreateSpscChannel(storage);
   channel.Release();
 
-  IdleTask idle_task;
-  dispatcher.Post(idle_task);
-
   struct {
     DispatcherForTest& dispatcher;
-    IdleTask& idle_task;
     Sender<int>& sender;
     size_t send_count;
-  } sender_context{dispatcher, idle_task, sender, 0};
+  } sender_context{dispatcher, sender, 0};
 
   // No task is receiving, so the sender should write values up to the channel
   // capacity and then block, timing out and failing. The channel should remain
@@ -268,11 +234,10 @@ TEST(Channel, BlockingSend_Timeout) {
 
     EXPECT_EQ(last_status, pw::Status::DeadlineExceeded());
     EXPECT_TRUE(sender_context.sender.is_open());
-    sender_context.idle_task.Complete();
+    sender_context.dispatcher.Release();
   });
 
-  dispatcher.AllowBlocking();
-  dispatcher.RunToCompletion();
+  dispatcher.RunToCompletionUntilReleased();
   sender_thread.join();
 
   EXPECT_EQ(sender_context.send_count, 2u);
@@ -285,15 +250,11 @@ TEST(Channel, BlockingReceive) {
   auto [channel, sender, receiver] = CreateSpscChannel(storage);
   channel.Release();
 
-  IdleTask idle_task;
-  dispatcher.Post(idle_task);
-
   struct {
     DispatcherForTest& dispatcher;
-    IdleTask& idle_task;
     Receiver<int>& receiver;
     size_t receive_count;
-  } receiver_context{dispatcher, idle_task, receiver, 0};
+  } receiver_context{dispatcher, receiver, 0};
 
   // The receive thread should read values until the sender disconnects and the
   // channel closes.
@@ -317,14 +278,13 @@ TEST(Channel, BlockingReceive) {
 
     EXPECT_EQ(last_status, pw::Status::FailedPrecondition());
     EXPECT_FALSE(receiver_context.receiver.is_open());
-    receiver_context.idle_task.Complete();
+    receiver_context.dispatcher.Release();
   });
 
   SenderTask sender_task(std::move(sender), 0, 9);
   dispatcher.Post(sender_task);
 
-  dispatcher.AllowBlocking();
-  dispatcher.RunToCompletion();
+  dispatcher.RunToCompletionUntilReleased();
   receiver_thread.join();
 
   EXPECT_EQ(receiver_context.receive_count, 10u);
@@ -359,13 +319,13 @@ TEST(Channel, BlockingReceive_MoveOnly) {
       PW_TEST_ASSERT_OK(received.status());
       EXPECT_EQ(received->n, i);
     }
+    context.dispatcher.Release();
   });
 
   BasicSenderTask<MoveOnly> sender_task(std::move(sender), 1, 4);
   dispatcher.Post(sender_task);
 
-  dispatcher.AllowBlocking();
-  dispatcher.RunToCompletion();
+  dispatcher.RunToCompletionUntilReleased();
   receiver_thread.join();
 }
 
@@ -376,15 +336,11 @@ TEST(Channel, BlockingReceive_Timeout) {
   auto [channel, sender, receiver] = CreateSpscChannel(storage);
   channel.Release();
 
-  IdleTask idle_task;
-  dispatcher.Post(idle_task);
-
   struct {
     DispatcherForTest& dispatcher;
-    IdleTask& idle_task;
     Receiver<int>& receiver;
     size_t receive_count;
-  } receiver_context{dispatcher, idle_task, receiver, 0};
+  } receiver_context{dispatcher, receiver, 0};
 
   // Push some values into the channel upfront.
   EXPECT_TRUE(sender.TrySend(0));
@@ -410,11 +366,10 @@ TEST(Channel, BlockingReceive_Timeout) {
 
     EXPECT_EQ(last_status, pw::Status::DeadlineExceeded());
     EXPECT_TRUE(receiver_context.receiver.is_open());
-    receiver_context.idle_task.Complete();
+    receiver_context.dispatcher.Release();
   });
 
-  dispatcher.AllowBlocking();
-  dispatcher.RunToCompletion();
+  dispatcher.RunToCompletionUntilReleased();
   receiver_thread.join();
 
   EXPECT_EQ(receiver_context.receive_count, 2u);

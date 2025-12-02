@@ -13,7 +13,11 @@
 // the License.
 #pragma once
 
+#include <atomic>
+#include <utility>
+
 #include "pw_async2/runnable_dispatcher.h"
+#include "pw_async2/waker.h"
 
 namespace pw::async2 {
 namespace internal {
@@ -61,6 +65,8 @@ class DispatcherForTestFacade final : public RunnableDispatcher {
   DispatcherForTestFacade(DispatcherForTestFacade&&) = delete;
   DispatcherForTestFacade& operator=(DispatcherForTestFacade&&) = delete;
 
+  ~DispatcherForTestFacade() override;
+
   /// Whether to allow the dispatcher to block by calling `DoWaitForWake`.
   /// `RunToCompletion` may block the thread if there are no tasks ready to run.
   void AllowBlocking() { blocking_is_allowed_ = true; }
@@ -82,17 +88,61 @@ class DispatcherForTestFacade final : public RunnableDispatcher {
     return task.TakePoll();
   }
 
+  /// Runs the disptacher until all tasks have completed and
+  /// `DispatcherForTest::Release` has been called. This allows a test to wait
+  /// until a series of steps complete, independent of the tasks registered at a
+  /// particular time.
+  ///
+  /// `Release()` must be called exactly once per `RunToCompletionUntilReleased`
+  /// call on a different thread.
+  void RunToCompletionUntilReleased();
+
+  /// `Release()` allows a `RunToCompletionUntilReleased` call in a different
+  /// thread to complete. `Release()` must be called exactly once per
+  /// `RunToCompletionUntilReleased` call.
+  void Release();
+
   /// Returns the total number of times the dispatcher has called a task's
   /// ``Pend()`` method.
-  uint32_t tasks_polled() const { return tasks_polled_; }
+  uint32_t tasks_polled() const {
+    return tasks_polled_.load(std::memory_order_relaxed);
+  }
 
   /// Returns the total number of tasks the dispatcher has run to completion.
-  uint32_t tasks_completed() const { return tasks_completed_; }
+  uint32_t tasks_completed() const {
+    return tasks_completed_.load(std::memory_order_relaxed);
+  }
 
   /// Returns the total number of times the dispatcher has been woken.
-  uint32_t wake_count() const { return wake_count_; }
+  uint32_t wake_count() const {
+    return wake_count_.load(std::memory_order_relaxed);
+  }
 
  private:
+  // Task to keep the Dispatcher busy in RunToCompletionUntilReleased().
+  class IdleTask : public Task {
+   public:
+    IdleTask() : Task(PW_ASYNC_TASK_NAME("IdleTask")) {}
+
+    ~IdleTask() override;
+
+    void Complete() {
+      should_complete_.store(true, std::memory_order_relaxed);
+      std::move(waker_).Wake();
+    }
+
+    void Reset() {
+      PW_DASSERT(!IsRegistered());
+      should_complete_.store(false, std::memory_order_relaxed);
+    }
+
+   private:
+    Poll<> DoPend(Context& cx) override;
+
+    Waker waker_;
+    std::atomic<bool> should_complete_ = false;
+  };
+
   // These functions are implemented in dispatcher_for_test.cc for the
   // NativeDispatcherForTest specialization only.
   bool DoRunUntilStalled() override;
@@ -104,12 +154,14 @@ class DispatcherForTestFacade final : public RunnableDispatcher {
   RunnableDispatcher& native() { return native_; }
 
   Native native_;
+  IdleTask idle_task_;
   bool blocking_is_allowed_ = false;
+  std::atomic<int> blocking_until_released_ = false;
 
   // TODO: b/401049619 - Optionally provide metrics for production dispatchers.
-  uint32_t tasks_polled_ = 0u;
-  uint32_t tasks_completed_ = 0u;
-  uint32_t wake_count_ = 0u;
+  std::atomic<uint32_t> tasks_polled_ = 0u;
+  std::atomic<uint32_t> tasks_completed_ = 0u;
+  std::atomic<uint32_t> wake_count_ = 0u;
 };
 
 }  // namespace pw::async2
