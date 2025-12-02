@@ -19,6 +19,7 @@
 #include "pw_async2/poll.h"
 #include "pw_async2/time_provider.h"
 #include "pw_bluetooth/hci_common.emb.h"
+#include "pw_bluetooth_proxy/hci/internal/type_safe_ids.h"
 #include "pw_chrono/system_clock.h"
 #include "pw_chrono/system_timer.h"
 #include "pw_containers/dynamic_queue.h"
@@ -27,6 +28,7 @@
 #include "pw_multibuf/multibuf_v2.h"
 #include "pw_result/expected.h"
 #include "pw_result/result.h"
+#include "pw_sync/lock_annotations.h"
 #include "pw_sync/mutex.h"
 
 namespace pw::bluetooth::proxy::hci {
@@ -94,21 +96,26 @@ class CommandMultiplexer final {
   static constexpr chrono::SystemClock::duration kDefaultCommandTimeout =
       std::chrono::seconds(30);
 
+  using InterceptorId = Identifier<uint16_t>;
+
+  // InterceptorAction: Continue intercepting this.
+  struct ContinueIntercepting {};
+  // InterceptorAction: Remove this interceptor, this invalidates the
+  // InterceptorId, so it must be supplied in the response.
+  struct RemoveInterceptor {
+    InterceptorId id;
+  };
   // This return value enables handler functions to safely and conveniently
   // remove the interceptor from within the function.
-  enum class InterceptorAction {
-    // Continue intercepting this event.
-    kContinueIntercepting,
-    // Remove this interceptor.
-    kRemoveInterceptor,
-  };
+  using InterceptorAction =
+      std::variant<ContinueIntercepting, RemoveInterceptor>;
 
   // The return type of CommandHandler.
   struct CommandInterceptorReturn {
     // If a command is returned it will be sent to the controller. Return
     // nullopt to prevent the command from being propagated.
-    std::optional<CommandPacket> command;
-    InterceptorAction action;
+    std::optional<CommandPacket> command = std::nullopt;
+    InterceptorAction action = ContinueIntercepting{};
   };
 
   using CommandHandler =
@@ -118,8 +125,8 @@ class CommandMultiplexer final {
   struct EventInterceptorReturn {
     // If an event is returned it will be sent to the host. Return nullopt to
     // prevent the event from being propagated.
-    std::optional<EventPacket> event;
-    InterceptorAction action;
+    std::optional<EventPacket> event = std::nullopt;
+    InterceptorAction action = ContinueIntercepting{};
   };
 
   using EventHandler =
@@ -131,18 +138,56 @@ class CommandMultiplexer final {
                                         CommandCompleteOpcode,
                                         CommandStatusOpcode>;
 
-  using InterceptorId = uint16_t;
+  class EventInterceptor;
+  class CommandInterceptor;
+
+  // Common interceptor implementation.
+  class Interceptor {
+   public:
+    Interceptor() = delete;
+    Interceptor(const Interceptor&) = delete;
+    Interceptor(Interceptor&& other) = default;
+    Interceptor& operator=(const Interceptor&) = delete;
+    Interceptor& operator=(Interceptor&&) = default;
+
+    ~Interceptor() {
+      if (multiplexer_ && id_.is_valid()) {
+        multiplexer_->UnregisterInterceptor(std::move(id_));
+      }
+    }
+
+    InterceptorId& id() { return id_; }
+    const InterceptorId& id() const { return id_; }
+
+   private:
+    friend class EventInterceptor;
+    friend class CommandInterceptor;
+
+    explicit Interceptor(CommandMultiplexer& multiplexer, InterceptorId&& id)
+        : multiplexer_(&multiplexer), id_(std::move(id)) {}
+
+    CommandMultiplexer* multiplexer_;
+    InterceptorId id_;
+  };
 
   // Destroying the EventInterceptor object will unregister the interceptor.
   // Must not outlive the CommandMultiplexer that created it.
-  class EventInterceptor final {
-    // Not implemented.
+  class EventInterceptor final : public Interceptor {
+   private:
+    friend class CommandMultiplexer;
+    explicit EventInterceptor(CommandMultiplexer& multiplexer,
+                              InterceptorId&& id)
+        : Interceptor(multiplexer, std::move(id)) {}
   };
 
   // Destroying the CommandInterceptor object will unregister the interceptor.
   // Must not outlive the CommandMultiplexer that created it.
-  class CommandInterceptor final {
-    // Not implemented.
+  class CommandInterceptor final : public Interceptor {
+   private:
+    friend class CommandMultiplexer;
+    explicit CommandInterceptor(CommandMultiplexer& multiplexer,
+                                InterceptorId&& id)
+        : Interceptor(multiplexer, std::move(id)) {}
   };
 
   /// Creates a `CommandMultiplexer` that will process HCI command and event
@@ -276,6 +321,41 @@ class CommandMultiplexer final {
   /// * @ALREADY_EXISTS: An interceptor is already registered for the opcode.
   Result<CommandInterceptor> RegisterCommandInterceptor(
       pw::bluetooth::emboss::OpCode op_code, CommandHandler&& handler);
+
+ private:
+  void UnregisterInterceptor(InterceptorId id);
+  std::optional<InterceptorId> AllocateInterceptorId()
+      PW_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
+
+  // Because we use intrusive maps, we need to have a small type hierarchy,
+  // wrapping the actual state inside a separate type to ensure the types are
+  // inheritance-independent for the maps. Fortunately we can keep all of this
+  // private, and the implementation details in the .cc file so the complexity
+  // doesn't leak into client code.
+  //
+  // Once `DynamicMap` is supported, most of the complexity here goes away.
+  class InterceptorStateWrapper;
+  class EventInterceptorState;
+  class EventInterceptorWrapper;
+  class CommandInterceptorState;
+  class CommandInterceptorWrapper;
+
+  using InterceptorMap =
+      pw::IntrusiveMap<InterceptorId::ValueType, InterceptorStateWrapper>;
+  using EventInterceptorMap =
+      pw::IntrusiveMap<EventCodeVariant, EventInterceptorState>;
+  using CommandInterceptorMap =
+      pw::IntrusiveMap<pw::bluetooth::emboss::OpCode, CommandInterceptorState>;
+
+  Allocator& allocator_;
+  pw::sync::Mutex mutex_;
+
+  // Owning map, use DynamicMap if/when available, this would also let us unwrap
+  // the "Wrapper" classes above and use state directly.
+  InterceptorMap interceptors_ PW_GUARDED_BY(mutex_);
+  EventInterceptorMap event_interceptors_ PW_GUARDED_BY(mutex_);
+  CommandInterceptorMap command_interceptors_ PW_GUARDED_BY(mutex_);
+  IdentifierMint<InterceptorId::ValueType> id_mint_ PW_GUARDED_BY(mutex_);
 };
 
 using EventInterceptor = CommandMultiplexer::EventInterceptor;

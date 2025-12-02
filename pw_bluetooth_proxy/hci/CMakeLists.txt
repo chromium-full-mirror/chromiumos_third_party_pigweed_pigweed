@@ -27,6 +27,7 @@ pw_add_library(pw_bluetooth_proxy.hci_command_multiplexer STATIC
 # LINT.IfChange
   HEADERS
     public/pw_bluetooth_proxy/hci/command_multiplexer.h
+    public/pw_bluetooth_proxy/hci/internal/type_safe_ids.h
   PUBLIC_DEPS
     pw_bluetooth.emboss_hci_commands
     pw_containers.flat_map
@@ -35,6 +36,8 @@ pw_add_library(pw_bluetooth_proxy.hci_command_multiplexer STATIC
     pw_span
     pw_status
     pw_sync.mutex
+  PRIVATE_DEPS
+    pw_assert.check
   SOURCES
     command_multiplexer.cc
 # LINT.ThenChange(Android.bp, BUILD.bazel, BUILD.gn)
@@ -48,6 +51,7 @@ pw_add_test(pw_bluetooth_proxy.hci_command_multiplexer_test
     pw_async2.pend_func_task
     pw_async2.simulated_time_provider
     pw_async2.testing
+    pw_containers.vector
     pw_unit_test
   SOURCES
     command_multiplexer_test.cc

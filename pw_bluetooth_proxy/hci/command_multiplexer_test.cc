@@ -15,17 +15,68 @@
 #include "pw_bluetooth_proxy/hci/command_multiplexer.h"
 
 #include <chrono>
+#include <cstdint>
 
 #include "pw_allocator/testing.h"
 #include "pw_async2/dispatcher_for_test.h"
 #include "pw_async2/pend_func_task.h"
 #include "pw_async2/simulated_time_provider.h"
 #include "pw_chrono/system_clock.h"
+#include "pw_containers/vector.h"
 #include "pw_function/function.h"
 #include "pw_unit_test/framework.h"
 
 namespace pw::bluetooth::proxy::hci {
 namespace {
+
+TEST(IdentifierTest, UniqueIdentifier) {
+  using Int = uint8_t;
+  constexpr size_t kMax = std::numeric_limits<Int>::max();
+
+  IdentifierMint<uint8_t> mint;
+  pw::Vector<Identifier<Int>, kMax> ids;
+  for (size_t i = 0; i < kMax; ++i) {
+    auto new_id = mint.MintId([&](Int candidate) {
+      return std::find(ids.begin(), ids.end(), candidate) != ids.end();
+    });
+    ASSERT_TRUE(new_id.has_value());
+    ASSERT_TRUE(new_id->is_valid());
+
+    EXPECT_EQ(new_id->value(), i + 1);
+    EXPECT_EQ(std::find(ids.begin(), ids.end(), new_id->value()), ids.end());
+
+    ids.push_back(std::move(*new_id));
+    EXPECT_FALSE(new_id->is_valid());
+  }
+
+  {
+    // Allocation exhausted, should return std::nullopt.
+    auto result = mint.MintId([&](Int candidate) {
+      return std::find(ids.begin(), ids.end(), candidate) != ids.end();
+    });
+    EXPECT_FALSE(result.has_value());
+  }
+
+  ids.erase(std::remove(ids.begin(), ids.end(), 42), ids.end());
+
+  {
+    // Allocation opened up at 42, confirm allocation.
+    auto result = mint.MintId([&](Int candidate) {
+      return std::find(ids.begin(), ids.end(), candidate) != ids.end();
+    });
+    ASSERT_TRUE(result.has_value());
+    EXPECT_EQ(result->value(), 42);
+    ids.push_back(std::move(*result));
+  }
+
+  {
+    // Allocation exhausted again, should return std::nullopt.
+    auto result = mint.MintId([&](Int candidate) {
+      return std::find(ids.begin(), ids.end(), candidate) != ids.end();
+    });
+    EXPECT_FALSE(result.has_value());
+  }
+}
 
 class CommandMultiplexerTest : public ::testing::Test {
  public:
@@ -102,7 +153,7 @@ class CommandMultiplexerTest : public ::testing::Test {
 
   async2::DispatcherForTest dispatcher_{};
   async2::SimulatedTimeProvider<chrono::SystemClock> time_provider_{};
-  pw::allocator::test::AllocatorForTest<24> allocator_{};
+  pw::allocator::test::AllocatorForTest<208> allocator_{};
 
   pw::DynamicDeque<MultiBuf::Instance> packets_to_host_{allocator_};
   pw::DynamicDeque<MultiBuf::Instance> packets_to_controller_{allocator_};
@@ -179,11 +230,40 @@ TEST_F(CommandMultiplexerTest, SendEventTimer) {
 }
 
 void TestRegisterEventInterceptor(Accessor test) {
-  // Not yet implemented.
-  auto result = test.hci_cmd_mux().RegisterEventInterceptor(
+  // Register an interceptor.
+  auto result1 = test.hci_cmd_mux().RegisterEventInterceptor(
       emboss::EventCode::HARDWARE_ERROR, nullptr);
-  ASSERT_FALSE(result.ok());
-  EXPECT_EQ(result.status(), Status::Unimplemented());
+  EXPECT_TRUE(result1.ok());
+
+  // Register a second interceptor.
+  auto result2 = test.hci_cmd_mux().RegisterEventInterceptor(
+      emboss::EventCode::INQUIRY_COMPLETE, nullptr);
+  EXPECT_TRUE(result2.ok());
+
+  // Ensure we can't register to an already-existing interceptor.
+  auto result3 = test.hci_cmd_mux().RegisterEventInterceptor(
+      emboss::EventCode::HARDWARE_ERROR, nullptr);
+  ASSERT_FALSE(result3.ok());
+  EXPECT_EQ(result3.status(), Status::AlreadyExists());
+
+  // Reset result1, allowing us to register a different interceptor for the
+  // same code.
+  result1 = Status::Cancelled();
+  auto result4 = test.hci_cmd_mux().RegisterEventInterceptor(
+      emboss::EventCode::HARDWARE_ERROR, nullptr);
+  EXPECT_TRUE(result4.ok());
+
+  // Reset both active interceptors, clearing the maps.
+  result2 = Status::Cancelled();
+  result4 = Status::Cancelled();
+
+  // Now register two more interceptors to ensure clearing the maps worked.
+  auto result5 = test.hci_cmd_mux().RegisterEventInterceptor(
+      emboss::EventCode::HARDWARE_ERROR, nullptr);
+  EXPECT_TRUE(result5.ok());
+  auto result6 = test.hci_cmd_mux().RegisterEventInterceptor(
+      emboss::EventCode::INQUIRY_COMPLETE, nullptr);
+  EXPECT_TRUE(result6.ok());
 }
 
 TEST_F(CommandMultiplexerTest, RegisterEventInterceptorAsync) {
@@ -194,11 +274,40 @@ TEST_F(CommandMultiplexerTest, RegisterEventInterceptorTimer) {
 }
 
 void TestRegisterCommandInterceptor(Accessor test) {
-  // Not yet implemented.
-  auto result = test.hci_cmd_mux().RegisterCommandInterceptor(
+  // Register an interceptor.
+  auto result1 = test.hci_cmd_mux().RegisterCommandInterceptor(
       emboss::OpCode::INQUIRY, nullptr);
-  ASSERT_FALSE(result.ok());
-  EXPECT_EQ(result.status(), Status::Unimplemented());
+  EXPECT_TRUE(result1.ok());
+
+  // Register a second interceptor.
+  auto result2 = test.hci_cmd_mux().RegisterCommandInterceptor(
+      emboss::OpCode::DISCONNECT, nullptr);
+  EXPECT_TRUE(result2.ok());
+
+  // Ensure we can't register to an already-existing interceptor.
+  auto result3 = test.hci_cmd_mux().RegisterCommandInterceptor(
+      emboss::OpCode::INQUIRY, nullptr);
+  ASSERT_FALSE(result3.ok());
+  EXPECT_EQ(result3.status(), Status::AlreadyExists());
+
+  // Reset result1, allowing us to register a different interceptor for the
+  // same code.
+  result1 = Status::Cancelled();
+  auto result4 = test.hci_cmd_mux().RegisterCommandInterceptor(
+      emboss::OpCode::INQUIRY, nullptr);
+  EXPECT_TRUE(result4.ok());
+
+  // Reset both active interceptors, clearing the maps.
+  result2 = Status::Cancelled();
+  result4 = Status::Cancelled();
+
+  // Now register two more interceptors to ensure clearing the maps worked.
+  auto result5 = test.hci_cmd_mux().RegisterCommandInterceptor(
+      emboss::OpCode::INQUIRY, nullptr);
+  EXPECT_TRUE(result5.ok());
+  auto result6 = test.hci_cmd_mux().RegisterCommandInterceptor(
+      emboss::OpCode::DISCONNECT, nullptr);
+  EXPECT_TRUE(result6.ok());
 }
 
 TEST_F(CommandMultiplexerTest, RegisterCommandInterceptorAsync) {

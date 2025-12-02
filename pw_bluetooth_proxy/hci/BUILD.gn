@@ -23,9 +23,13 @@ config("public_include_path") {
 
 pw_source_set("command_multiplexer") {
   # LINT.IfChange
-  public = [ "public/pw_bluetooth_proxy/hci/command_multiplexer.h" ]
+  public = [
+    "public/pw_bluetooth_proxy/hci/command_multiplexer.h",
+    "public/pw_bluetooth_proxy/hci/internal/type_safe_ids.h",
+  ]
   public_configs = [ ":public_include_path" ]
   public_deps = [
+    "$dir_pw_assert:check",
     "$dir_pw_async2:poll",
     "$dir_pw_async2:time_provider",
     "$dir_pw_bluetooth:emboss_hci_common",
@@ -56,6 +60,7 @@ pw_test("command_multiplexer_test") {
     "$dir_pw_async2:pend_func_task",
     "$dir_pw_async2:simulated_time_provider",
     "$dir_pw_async2:testing",
+    "$dir_pw_containers:vector",
   ]
 
   # LINT.ThenChange(Android.bp, BUILD.bazel, CMakeLists.txt)

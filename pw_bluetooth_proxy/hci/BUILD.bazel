@@ -30,11 +30,13 @@ cc_library(
     ],
     hdrs = [
         "public/pw_bluetooth_proxy/hci/command_multiplexer.h",
+        "public/pw_bluetooth_proxy/hci/internal/type_safe_ids.h",
     ],
     strip_include_prefix = "public",
     deps = [
         "//pw_allocator",
         "//pw_assert:assert",
+        "//pw_assert:check",
         "//pw_async2:poll",
         "//pw_async2:time_provider",
         "//pw_bluetooth:emboss_hci_common",
@@ -71,6 +73,7 @@ pw_cc_test(
         "//pw_async2:simulated_time_provider",
         "//pw_async2:testing",
         "//pw_chrono:system_clock",
+        "//pw_containers:vector",
         "//pw_function",
     ],
     # LINT.ThenChange(Android.bp, BUILD.gn, CMakeLists.txt)
