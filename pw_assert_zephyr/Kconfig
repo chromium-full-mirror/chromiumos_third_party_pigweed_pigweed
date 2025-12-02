@@ -14,10 +14,10 @@
 
 menu "pw_assert"
 
-config PIGWEED_ASSERT
-    bool "Link pw_assert library"
+config PIGWEED_ASSERT_ZEPHYR
+    bool "Link pw_assert_zephyr library"
     select PIGWEED_PREPROCESSOR
+    default y
     help
       See :ref:`module-pw_assert` for module details.
-
 endmenu

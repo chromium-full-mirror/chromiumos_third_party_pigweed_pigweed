@@ -15,7 +15,7 @@ message to the Zephyr assert subsystem. Failed asserts will call:
 2) If and only if there's a message ``__ASSERT_MSG_INFO(message, ...)``
 3) ``__ASSERT_POST_ACTION()``
 
-To enable the assert module, set ``CONFIG_PIGWEED_ASSERT=y``. After that,
+To enable the assert module, set ``CONFIG_PIGWEED_ASSERT_ZEPHYR=y``. After that,
 Zephyr's assert configs can be used to control the behavior via CONFIG_ASSERT_
 and CONFIG_ASSERT_LEVEL_.
 

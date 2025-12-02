@@ -20,9 +20,9 @@ project(Pigweed)
 include(pw_build/pigweed.cmake)
 
 if(CONFIG_ZEPHYR_PIGWEED_MODULE)
-  pw_set_zephyr_backend_ifdef(CONFIG_PIGWEED_ASSERT
+  pw_set_zephyr_backend_ifdef(CONFIG_PIGWEED_ASSERT_ZEPHYR
       pw_assert.assert pw_assert_zephyr.assert pw_assert/backend.cmake)
-  pw_set_zephyr_backend_ifdef(CONFIG_PIGWEED_ASSERT
+  pw_set_zephyr_backend_ifdef(CONFIG_PIGWEED_ASSERT_ZEPHYR
       pw_assert.check pw_assert_zephyr.check pw_assert/backend.cmake)
   pw_set_zephyr_backend_ifdef(CONFIG_PIGWEED_CHRONO_SYSTEM_CLOCK
       pw_chrono.system_clock pw_chrono_zephyr.system_clock pw_chrono/backend.cmake)

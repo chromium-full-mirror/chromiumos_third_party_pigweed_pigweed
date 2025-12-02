@@ -40,7 +40,6 @@ config PIGWEED_RPC_CLIENT_SERVER
 
 config PIGWEED_RPC_COMMON
     bool "Link pw_rpc.common library"
-    select PIGWEED_ASSERT
     select PIGWEED_BYTES
     select PIGWEED_CONTAINERS
     select PIGWEED_FUNCTION
