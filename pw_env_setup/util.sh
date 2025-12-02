@@ -276,20 +276,24 @@ pw_google_checks() {
 pw_bootstrap() {
   _pw_hello "  BOOTSTRAP! Bootstrap may take a few minutes; please be patient.\n"
 
-  local _pw_alias_check=0
-  alias python > /dev/null 2> /dev/null || _pw_alias_check=$?
-  if [ "$_pw_alias_check" -eq 0 ]; then
-    pw_error "Error: 'python' is an alias"
-    pw_error_info "The shell has a 'python' alias set. This causes many obscure"
-    pw_error_info "Python-related issues both in and out of Pigweed. Please"
-    pw_error_info "remove the Python alias from your shell init file or at"
-    pw_error_info "least run the following command before bootstrapping"
-    pw_error_info "Pigweed."
-    pw_error_info
-    pw_error_info "  unalias python"
-    pw_error_info
-    return
-  fi
+  for cmd in python python3; do
+    # If an alias exists, `alias foo` will have an exit code of 0.
+    alias $cmd > /dev/null 2> /dev/null
+    local _pw_alias_check=$?
+    if [ "$_pw_alias_check" -eq 0 ]; then
+      pw_error "Error: '$cmd' is an alias"
+      pw_error_info "The shell has a '$cmd' alias set. This causes many obscure"
+      pw_error_info "Python-related issues both in and out of Pigweed. Please"
+      pw_error_info "remove the Python alias from your shell init file or at"
+      pw_error_info "least run the following command before bootstrapping"
+      pw_error_info "Pigweed."
+      pw_error_info
+      pw_error_info "  unalias $cmd"
+      pw_error_info
+      _PW_ENV_SETUP_STATUS="1"
+      return
+    fi
+  done
 
   pw_google_checks
 
@@ -305,6 +309,7 @@ pw_bootstrap() {
     pw_error_info "  Pigweed's bootstrap process requires a local system"
     pw_error_info "  Python. Please install Python on your system, add it to "
     pw_error_info "  your PATH and re-try running bootstrap."
+    _PW_ENV_SETUP_STATUS="1"
     return
   fi
 
@@ -314,6 +319,7 @@ pw_bootstrap() {
     pw_error_info "  The system Python is not Python 3. Please install Python 3"
     pw_error_info "  and rerun bootstrap. Note that you may need to open a new"
     pw_error_info "  terminal to see the newly installed Python."
+    _PW_ENV_SETUP_STATUS="1"
     return
   fi
 
