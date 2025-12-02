@@ -52,9 +52,13 @@ bool TimedMutex::try_lock_for(SystemClock::duration timeout) {
     timeout -= kMaxTimeoutMinusOne;
   }
 
-  // On a tick based kernel we cannot tell how far along we are on the current
-  // tick, ergo we add one whole tick to the final duration.
-  return k_mutex_lock(&native_handle(), K_TICKS(timeout.count() + 1)) == 0;
+  // Note that unlike many other RTOSes, for a duration timeout in ticks, the
+  // core kernel wait routine, z_add_timeout, for relative timeouts will always
+  // add +1 tick to the duration to ensure proper "wait for at least" behavior
+  // while in between a tick. This means that we do not need to add anything
+  // here and the kernel will guarantee we wait the proper number of ticks plus
+  // some time in the range of [1,2) extra ticks.
+  return k_mutex_lock(&native_handle(), K_TICKS(timeout.count())) == 0;
 }
 
 }  // namespace pw::sync

@@ -36,6 +36,12 @@ bool BinarySemaphore::try_acquire_for(chrono::SystemClock::duration timeout) {
   }
 #endif  // CONFIG_TIMEOUT_64BIT
 
+  // Note that unlike many other RTOSes, for a duration timeout in ticks, the
+  // core kernel wait routine, z_add_timeout, for relative timeouts will always
+  // add +1 tick to the duration to ensure proper "wait for at least" behavior
+  // while in between a tick. This means that we do not need to add anything
+  // here and the kernel will guarantee we wait the proper number of ticks plus
+  // some time in the range of [1,2) extra ticks.
   return k_sem_take(&native_type_, K_TICKS(timeout.count())) == 0;
 }
 
