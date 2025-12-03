@@ -182,7 +182,8 @@ impl<'a, A: ArchConfigInterface + Serialize> SystemGenerator<'a, A> {
             .config
             .base
             .apps
-            .get(app_name)
+            .iter()
+            .find(|a| a.name == *app_name)
             .ok_or_else(|| anyhow!("Unable to find app \"{app_name}\" in system manifest"))?;
         match template.render(app) {
             Ok(str) => Ok(str),
@@ -209,7 +210,7 @@ impl<'a, A: ArchConfigInterface + Serialize> SystemGenerator<'a, A> {
 
         self.config.base.arch_crate_name = self.config.arch.get_arch_crate_name();
 
-        for app in self.config.base.apps.values_mut() {
+        for app in self.config.base.apps.iter_mut() {
             app.flash_start_address = next_flash_start_address;
             next_flash_start_address = Self::align(
                 app.flash_start_address + app.flash_size_bytes,
@@ -231,8 +232,10 @@ impl<'a, A: ArchConfigInterface + Serialize> SystemGenerator<'a, A> {
 
     fn populate_interrupt_table(&mut self) -> Result<()> {
         // Add any interrupts handled by interrupt objects.
-        for (app_name, app) in &mut self.config.base.apps {
-            for (object_name, object) in &mut app.process.objects {
+        for app in &mut self.config.base.apps {
+            let app_name = &app.name;
+            for object in &mut app.process.objects {
+                let object_name = object.name().to_string();
                 let &mut Interrupt(ref mut interrupt_config) = object else {
                     continue;
                 };
@@ -256,9 +259,10 @@ impl<'a, A: ArchConfigInterface + Serialize> SystemGenerator<'a, A> {
                     ));
                 }
 
-                for (ref mut index, (irq_name, irq)) in
-                    (&interrupt_config.irqs).into_iter().enumerate()
-                {
+                for (index, irq_config) in interrupt_config.irqs.iter().enumerate() {
+                    let irq_name = &irq_config.name;
+                    let irq = irq_config.number;
+
                     if interrupt_table.table.contains_key(&*irq.to_string()) {
                         return Err(anyhow!(
                             "IRQ {}={} in app {} object {} already handled.",
@@ -275,22 +279,17 @@ impl<'a, A: ArchConfigInterface + Serialize> SystemGenerator<'a, A> {
 
                     interrupt_table
                         .ordered_table
-                        .insert(*irq, handler_name.clone());
+                        .insert(irq, handler_name.clone());
 
-                    interrupt_config.handlers.insert(*irq, handler_name.clone());
+                    interrupt_config.handlers.insert(irq, handler_name.clone());
 
                     interrupt_config.interrupt_signal_map.insert(
                         irq_name.to_string(),
                         std::format!(
                             "Signals::INTERRUPT_{}",
-                            (b'A' + u8::try_from(*index).unwrap()) as char
+                            (b'A' + u8::try_from(index).unwrap()) as char
                         ),
                     );
-
-                    interrupt_config
-                        .ordered_interrupt_names
-                        .push(irq_name.to_string());
-                    *index += 1;
                 }
             }
         }

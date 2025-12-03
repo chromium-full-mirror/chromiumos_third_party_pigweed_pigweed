@@ -36,26 +36,23 @@ pub fn start() {
 // The first is a `dyn KernelObject<K>` which is suitable for adding to a
 // processes object table.  The second is a `ChannelHandlerObject<K>` which
 // is suitable for creating a `ChannelInitiator` object
-{%- for app_name in apps %}
-    {%- set app = apps[app_name] %}
-    {%- for object_name in app.process.ordered_object_names %}
-    {%- set object = app.process.objects[object_name] %}
+{%- for app in apps %}
+    {%- for object in app.process.objects %}
         {% if object.type == "channel_handler" -%}
             #[allow(unused_variables)]
             let (
-                object_{{app_name}}_{{object_name | lower}},
-                object_{{app_name}}_{{object_name | lower}}_handler
+                object_{{app.name}}_{{object.name | lower}},
+                object_{{app.name}}_{{object.name | lower}}_handler
             ) = {% include "object_channel_handler" %};
         {%- endif -%}
         // Other objects declared later.
     {%- endfor -%}
 {%- endfor -%}
 
-{%- for app_name in apps %}
-    {%- set app = apps[app_name] %}
-    let start_fn_{{app_name}} = {{app.start_fn_address | hex}}_usize;
+{%- for app in apps %}
+    let start_fn_{{app.name}} = {{app.start_fn_address | hex}}_usize;
 
-    const MEMORY_CONFIG_{{app_name | upper }}: MemoryConfig = MemoryConfig::const_new(&[
+    const MEMORY_CONFIG_{{app.name | upper }}: MemoryConfig = MemoryConfig::const_new(&[
         memory_config::MemoryRegion::new(
             memory_config::MemoryRegionType::ReadOnlyExecutable,
             {{app.flash_start_address | hex}},
@@ -66,8 +63,7 @@ pub fn start() {
             {{app.ram_start_address | hex}},
             {{(app.ram_start_address + app.ram_size_bytes) | hex}},
         ),
-        {%- for mapping_name in app.process.ordered_memory_mapping_names %}
-        {%- set mapping = app.process.memory_mappings[mapping_name] -%}
+        {%- for mapping in app.process.memory_mappings %}
         memory_config::MemoryRegion::new(
             {% if mapping.type == "device" -%}
             memory_config::MemoryRegionType::Device,
@@ -78,13 +74,12 @@ pub fn start() {
         {%- endfor -%}
     ]);
 
-    {%- for object_name in app.process.ordered_object_names %}
-    {%- set object = app.process.objects[object_name] %}
+    {%- for object in app.process.objects %}
 
-        let object_{{app_name}}_{{object_name | lower}} =
+        let object_{{app.name}}_{{object.name | lower}} =
         {% if object.type == "channel_handler" -%}
                 // Reference to handler object already declared above.
-                object_{{app_name}}_{{object_name | lower}}
+                object_{{app.name}}_{{object.name | lower}}
         {% elif object.type == "channel_initiator" -%}
             {% include "object_channel_initiator" %}
         {% elif object.type == "interrupt" -%}
@@ -93,26 +88,26 @@ pub fn start() {
         ;
     {%- endfor %}
 
-    let object_table_{{app_name}}: ForeignBox<dyn ObjectTable<K>> = unsafe {
+    let object_table_{{app.name}}: ForeignBox<dyn ObjectTable<K>> = unsafe {
         static_foreign_box!(
             [ForeignRc<<K as kernel::Arch>::AtomicUsize, dyn KernelObject<K>>; {{app.process.objects | length}}],
             [
-            {%- for object_name in app.process.ordered_object_names %}
-                object_{{app_name}}_{{object_name | lower}},
+            {%- for object in app.process.objects %}
+                object_{{app.name}}_{{object.name | lower}},
             {%- endfor -%}
             ]
         )
     };
 
-    let process_{{app_name}} = unsafe { kernel::init_non_priv_process!(
+    let process_{{app.name}} = unsafe { kernel::init_non_priv_process!(
         "{{app.process.name}}",
-        MEMORY_CONFIG_{{app_name | upper}},
-        object_table_{{app_name}}
+        MEMORY_CONFIG_{{app.name | upper}},
+        object_table_{{app.name}}
     )};
 
 {%- for thread in app.process.threads -%}
 {% set thread_index = loop.index0 %}
-    let thread_{{app_name}}_{{thread_index}} = unsafe {
+    let thread_{{app.name}}_{{thread_index}} = unsafe {
         kernel::init_non_priv_thread!(
             "{{thread.name}}",
             {% if thread.priority -%}
@@ -120,13 +115,13 @@ pub fn start() {
             {%- else -%}
             kernel::Priority::DEFAULT_PRIORITY,
             {%- endif %}
-            process_{{app_name}},
-            start_fn_{{app_name}},
+            process_{{app.name}},
+            start_fn_{{app.name}},
             {{app.initial_sp | hex}},
             {{thread.stack_size_bytes}}
         )
     };
-    kernel::start_thread(arch::Arch, thread_{{app_name}}_{{thread_index}});
+    kernel::start_thread(arch::Arch, thread_{{app.name}}_{{thread_index}});
 {%- endfor -%}
 {%- endfor %}
 }

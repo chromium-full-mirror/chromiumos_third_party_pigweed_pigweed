@@ -12,10 +12,9 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use anyhow::{Result, anyhow};
-use hashlink::LinkedHashMap;
 use serde::{Deserialize, Serialize};
 
 use crate::ArchConfigInterface;
@@ -33,7 +32,7 @@ pub struct SystemConfig<A: ArchConfigInterface> {
 pub struct BaseConfig {
     pub kernel: KernelConfig,
     #[serde(default)]
-    pub apps: LinkedHashMap<String, AppConfig>,
+    pub apps: Vec<AppConfig>,
     #[serde(skip_deserializing)]
     pub arch_crate_name: &'static str,
 }
@@ -79,6 +78,7 @@ pub struct InterruptTableConfig {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct AppConfig {
+    pub name: String,
     pub flash_size_bytes: u64,
     pub ram_size_bytes: u64,
     pub process: ProcessConfig,
@@ -98,27 +98,14 @@ pub struct AppConfig {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct ProcessConfig {
-    name: String,
+    pub name: String,
 
     #[serde(default)]
-    memory_mappings: LinkedHashMap<String, MemoryMapping>,
+    pub memory_mappings: Vec<MemoryMapping>,
 
     #[serde(default)]
-    pub objects: LinkedHashMap<String, ObjectConfig>,
-    threads: Vec<ThreadConfig>,
-
-    // Internally the template engine (`minijinja`) does not preserve the order of
-    // associative containers.  Since ordering of objects in a processes object
-    // table is directly related to its handle, this Vec is used to allow templates
-    // to iterate over objects in order.  The same is true for memory mappings.
-    //
-    // `minijina` does have a `preserve-order` feature.  However, depending on
-    // this can be fragile when downstream users are using non-cargo build systems
-    // and managing their own third party deps.
-    #[serde(skip_deserializing)]
-    ordered_memory_mapping_names: Vec<String>,
-    #[serde(skip_deserializing)]
-    ordered_object_names: Vec<String>,
+    pub objects: Vec<ObjectConfig>,
+    pub threads: Vec<ThreadConfig>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -128,11 +115,13 @@ pub enum MemoryMappingType {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct MemoryMapping {
+    pub name: String,
     #[serde(rename = "type")]
-    ty: MemoryMappingType,
-    start_address: u64,
-    size_bytes: u64,
+    pub ty: MemoryMappingType,
+    pub start_address: u64,
+    pub size_bytes: u64,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -144,27 +133,47 @@ pub enum ObjectConfig {
     Interrupt(InterruptConfig),
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(deny_unknown_fields)]
-pub struct ChannelInitiatorConfig {
-    handler_app: String,
-    handler_object_name: String,
+impl ObjectConfig {
+    #[must_use]
+    pub fn name(&self) -> &str {
+        match self {
+            ObjectConfig::ChannelInitiator(c) => &c.name,
+            ObjectConfig::ChannelHandler(c) => &c.name,
+            ObjectConfig::Interrupt(c) => &c.name,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct ChannelHandlerConfig;
+pub struct ChannelInitiatorConfig {
+    pub name: String,
+    pub handler_app: String,
+    pub handler_object_name: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct ChannelHandlerConfig {
+    pub name: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct IrqConfig {
+    pub name: String,
+    pub number: u32,
+}
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct InterruptConfig {
-    pub irqs: LinkedHashMap<String, u32>,
+    pub name: String,
+    pub irqs: Vec<IrqConfig>,
     #[serde(skip_deserializing)]
     pub handlers: HashMap<u32, String>,
     #[serde(skip_deserializing)]
     pub object_ref_name: String,
-    #[serde(skip_deserializing)]
-    pub ordered_interrupt_names: Vec<String>,
     #[serde(skip_deserializing)]
     pub interrupt_signal_map: HashMap<String, String>,
 }
@@ -172,22 +181,35 @@ pub struct InterruptConfig {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct ThreadConfig {
-    name: String,
-    stack_size_bytes: u64,
-    priority: Option<String>,
+    pub name: String,
+    pub stack_size_bytes: u64,
+    pub priority: Option<String>,
 }
 
 impl<A: ArchConfigInterface> SystemConfig<A> {
     fn handler_exists(&self, app_name: &str, object_name: &str) -> bool {
-        let Some(app) = self.base.apps.get(app_name) else {
+        let Some(app) = self.base.apps.iter().find(|a| a.name == app_name) else {
             return false;
         };
 
-        let Some(object) = app.process.objects.get(object_name) else {
+        let Some(object) = app.process.objects.iter().find(|o| o.name() == object_name) else {
             return false;
         };
 
         matches!(object, ObjectConfig::ChannelHandler(_))
+    }
+
+    fn check_unique_names<'a, I>(items: I, context: &str) -> Result<()>
+    where
+        I: Iterator<Item = &'a str>,
+    {
+        let mut names = HashSet::new();
+        for name in items {
+            if !names.insert(name) {
+                return Err(anyhow!("Duplicate name \"{}\" found in {}", name, context));
+            }
+        }
+        Ok(())
     }
 
     pub fn calculate_and_validate(&mut self) -> Result<()> {
@@ -195,35 +217,43 @@ impl<A: ArchConfigInterface> SystemConfig<A> {
         // specific interface do its own validation and fixups.
         self.arch.calculate_and_validate_config(&mut self.base)?;
 
-        // Generate `ordered_object_names` fields.
-        for (_, app_config) in &mut self.base.apps {
-            app_config.process.ordered_object_names = app_config
-                .process
-                .objects
-                .iter()
-                .map(|(name, _)| name.clone())
-                .collect();
+        Self::check_unique_names(self.base.apps.iter().map(|a| a.name.as_str()), "apps")?;
 
-            app_config.process.ordered_memory_mapping_names = app_config
-                .process
-                .memory_mappings
-                .iter()
-                .map(|(name, _)| name.clone())
-                .collect();
-        }
+        for app_config in &self.base.apps {
+            Self::check_unique_names(
+                app_config
+                    .process
+                    .memory_mappings
+                    .iter()
+                    .map(|m| m.name.as_str()),
+                &format!("memory mappings for app {}", app_config.name),
+            )?;
+            Self::check_unique_names(
+                app_config.process.objects.iter().map(|o| o.name()),
+                &format!("objects for app {}", app_config.name),
+            )?;
+            Self::check_unique_names(
+                app_config.process.threads.iter().map(|t| t.name.as_str()),
+                &format!("threads for app {}", app_config.name),
+            )?;
 
-        // Check to make sure that channel objects are properly linked.
-        for (name, app_config) in &self.base.apps {
-            for (ident, object) in &app_config.process.objects {
-                let ObjectConfig::ChannelInitiator(initiator) = object else {
-                    continue;
-                };
-                let handler_app = &initiator.handler_app;
-                let handler_object_name = &initiator.handler_object_name;
-                if !self.handler_exists(handler_app, handler_object_name) {
-                    return Err(anyhow!(
-                        "Channel initiator \"{name}:{ident}\" references non-existent handler \"{handler_app}\":{handler_object_name}"
-                    ));
+            for object in &app_config.process.objects {
+                if let ObjectConfig::ChannelInitiator(initiator) = object {
+                    let handler_app = &initiator.handler_app;
+                    let handler_object_name = &initiator.handler_object_name;
+                    // Check to make sure that channel objects are properly linked.
+                    if !self.handler_exists(handler_app, handler_object_name) {
+                        return Err(anyhow!(
+                            "Channel initiator \"{app_name}:{initiator_name}\" references non-existent handler \"{handler_app}\":{handler_object_name}",
+                            app_name = app_config.name,
+                            initiator_name = initiator.name,
+                        ));
+                    }
+                } else if let ObjectConfig::Interrupt(interrupt_config) = object {
+                    Self::check_unique_names(
+                        interrupt_config.irqs.iter().map(|i| i.name.as_str()),
+                        &format!("irqs for interrupt object {}", interrupt_config.name),
+                    )?;
                 }
             }
         }

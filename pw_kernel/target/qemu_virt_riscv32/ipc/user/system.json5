@@ -24,19 +24,21 @@
             table: {}
         },
     },
-    apps: {
-        initiator: {
+    apps: [
+        {
+            name: "initiator",
             flash_size_bytes: 261120, // 255Kb
             ram_size_bytes: 65536,    // 64Kb
             process: {
                 name: "initiator process",
-                objects: {
-                    IPC: {
+                objects: [
+                    {
+                        name: "IPC",
                         type: "channel_initiator",
                         handler_app: "handler",
                         handler_object_name: "IPC",
                     }
-                },
+                ],
                 threads: [
                     {
                         name: "initiator thread",
@@ -45,16 +47,18 @@
                 ],
             },
         },
-        handler: {
+        {
+            name: "handler",
             flash_size_bytes: 261120, // 255Kb
             ram_size_bytes: 65536,    // 64Kb
             process: {
                 name: "handler process",
-                objects: {
-                    IPC: {
+                objects: [
+                    {
+                        name: "IPC",
                         type: "channel_handler",
                     },
-                },
+                ],
                 threads: [
                     {
                         name: "handler thread",
@@ -63,5 +67,5 @@
                 ],
             },
         },
-    },
+    ],
 }

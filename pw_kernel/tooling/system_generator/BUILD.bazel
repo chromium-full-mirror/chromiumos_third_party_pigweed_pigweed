@@ -29,7 +29,6 @@ rust_library(
     deps = [
         "@rust_crates//:anyhow",
         "@rust_crates//:clap",
-        "@rust_crates//:hashlink",
         "@rust_crates//:minijinja",
         "@rust_crates//:serde",
         "@rust_crates//:serde_json5",

@@ -24,9 +24,8 @@
         // if adding a helper function which takes the signal_mask_table as an
         // argument reduces code size.
         let signal_mask_table: [u32; {{ object.irqs | length }}] = [
-        {%- for irq_name in object.ordered_interrupt_names %}
-            {%- set irq = object.irqs[irq_name] -%}
-            {{irq}}{% if not loop.last %},{% endif %}
+        {%- for irq in object.irqs %}
+            {{irq.number}}{% if not loop.last %},{% endif %}
         {%- endfor -%}
         ];
 
@@ -50,9 +49,8 @@
 
     // Enable the interrupts for all interrupts handled by interrupt objects.
     let interrupt_controller = kernel.get_interrupt_controller().lock(kernel);
-    {%- for irq_name in object.irqs %}
-        {%- set irq = object.irqs[irq_name] %}
-    interrupt_controller.enable_interrupt({{irq}});
+    {%- for irq in object.irqs %}
+    interrupt_controller.enable_interrupt({{irq.number}});
     {%- endfor %}
     drop(interrupt_controller);
 

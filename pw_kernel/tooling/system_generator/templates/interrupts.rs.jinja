@@ -23,16 +23,13 @@ use kernel::object::InterruptObject;
 #[allow(unused_imports)]
 use syscall_defs::Signals;
 
-{% for app_name in apps %}
-    {%- set app = apps[app_name] -%}
-    {%- for object_name in app.process.ordered_object_names %}
-    {%- set object = app.process.objects[object_name] %}
+{% for app in apps %}
+    {%- for object in app.process.objects %}
         {%- if object.type == "interrupt" %}
 static {{object.object_ref_name}}: StaticContext<ForeignRc<<arch::Arch as kernel::Arch>::AtomicUsize, InterruptObject<arch::Arch>>> = StaticContext::new();
-            {%- for irq_name in object.irqs %}
-                {%- set irq = object.irqs[irq_name] %}
-                {%- set handler_name = object.handlers[irq] %}
-                {%- set mapped_signal = object.interrupt_signal_map[irq_name] %}
+            {%- for irq in object.irqs %}
+                {%- set handler_name = object.handlers[irq.number] %}
+                {%- set mapped_signal = object.interrupt_signal_map[irq.name] %}
 extern "C" fn {{handler_name}}() {
     if let Some(object) = unsafe { {{object.object_ref_name}}.get() } {
         object.interrupt(arch::Arch, {{mapped_signal}});
