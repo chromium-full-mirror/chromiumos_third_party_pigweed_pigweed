@@ -84,6 +84,11 @@ impl MpuRegion {
             }
         };
 
+        let start = region.start;
+        // MemoryRegion's end is exclusive and the MPU forces the lower 5 bits
+        // to be 0x1f.
+        let end = region.end - 1;
+
         // pw_cast::CastInto can't be used in const context usizes are explicitly
         // cast to u32s.
         #[expect(clippy::cast_possible_truncation)]
@@ -92,13 +97,13 @@ impl MpuRegion {
                 .with_xn(xn)
                 .with_sh(sh)
                 .with_ap(ap)
-                .with_base(region.start as u32),
+                .with_base(start as u32),
 
             rlar: RlarVal::const_default()
                 .with_en(true)
                 .with_attrindx(attr_index as u8)
                 .with_pxn(false)
-                .with_limit(region.end as u32),
+                .with_limit(end as u32),
         }
     }
 }

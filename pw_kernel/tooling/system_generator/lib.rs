@@ -103,8 +103,28 @@ impl ArchConfigInterface for system_config::Armv8MConfig {
 
     fn calculate_and_validate_config(
         &mut self,
-        _config: &mut system_config::BaseConfig,
+        config: &mut system_config::BaseConfig,
     ) -> Result<()> {
+        for app in &config.apps {
+            for mapping in &app.process.memory_mappings {
+                if mapping.start_address % 32 != 0 {
+                    return Err(anyhow!(
+                        "Unaligned memory mapping: application {}'s memory mapping {}'s start address ({:#10x}) must be aligned to 32 bytes",
+                        app.name,
+                        mapping.name,
+                        mapping.start_address,
+                    ));
+                }
+                if mapping.size_bytes % 32 != 0 {
+                    return Err(anyhow!(
+                        "Unaligned memory mapping: application {}'s memory mapping {}'s size ({}) must be aligned to 32 bytes",
+                        app.name,
+                        mapping.name,
+                        mapping.size_bytes,
+                    ));
+                }
+            }
+        }
         Ok(())
     }
 }
