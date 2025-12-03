@@ -111,6 +111,16 @@ class ReceiverTask : public Task {
   size_t disconnect_after_;
 };
 
+struct MoveOnly {
+  int n = 0;
+  constexpr MoveOnly() = default;
+  constexpr explicit MoveOnly(int n_) : n(n_) {}
+  MoveOnly(const MoveOnly&) = delete;
+  MoveOnly& operator=(const MoveOnly&) = delete;
+  MoveOnly(MoveOnly&&) = default;
+  MoveOnly& operator=(MoveOnly&&) = default;
+};
+
 TEST(Channel, BlockingSend) {
   DispatcherForTest dispatcher;
 
@@ -243,6 +253,52 @@ TEST(Channel, BlockingSend_Timeout) {
   EXPECT_EQ(sender_context.send_count, 2u);
 }
 
+TEST(Channel, BlockingSend_ReturnsImmediatelyIfSpaceAvailable) {
+  DispatcherForTest dispatcher;
+
+  ChannelStorage<int, 2> storage;
+  auto [channel, sender, receiver] = CreateSpscChannel(storage);
+  channel.Release();
+
+  // We never actually run the dispatcher, so the only way the sender
+  // can write a value is if there is space in the channel.
+
+  pw::Status sent =
+      sender.BlockingSend(dispatcher, 0, pw::chrono::SystemClock::duration(0));
+  ASSERT_EQ(sent, pw::OkStatus());
+
+  sent =
+      sender.BlockingSend(dispatcher, 1, pw::chrono::SystemClock::duration(0));
+  ASSERT_EQ(sent, pw::OkStatus());
+
+  sent =
+      sender.BlockingSend(dispatcher, 2, pw::chrono::SystemClock::duration(0));
+  ASSERT_EQ(sent, pw::Status::DeadlineExceeded());
+}
+
+TEST(Channel, BlockingSend_MoveOnly_ReturnsImmediatelyIfSpaceAvailable) {
+  DispatcherForTest dispatcher;
+
+  ChannelStorage<MoveOnly, 2> storage;
+  auto [channel, sender, receiver] = CreateSpscChannel(storage);
+  channel.Release();
+
+  // We never actually run the dispatcher, so the only way the sender
+  // can write a value is if there is space in the channel.
+
+  pw::Status sent = sender.BlockingSend(
+      dispatcher, MoveOnly(), pw::chrono::SystemClock::duration(0));
+  ASSERT_EQ(sent, pw::OkStatus());
+
+  sent = sender.BlockingSend(
+      dispatcher, MoveOnly(), pw::chrono::SystemClock::duration(0));
+  ASSERT_EQ(sent, pw::OkStatus());
+
+  sent = sender.BlockingSend(
+      dispatcher, MoveOnly(), pw::chrono::SystemClock::duration(0));
+  ASSERT_EQ(sent, pw::Status::DeadlineExceeded());
+}
+
 TEST(Channel, BlockingReceive) {
   DispatcherForTest dispatcher;
 
@@ -289,16 +345,6 @@ TEST(Channel, BlockingReceive) {
 
   EXPECT_EQ(receiver_context.receive_count, 10u);
 }
-
-struct MoveOnly {
-  int n = 0;
-  constexpr MoveOnly() = default;
-  constexpr explicit MoveOnly(int n_) : n(n_) {}
-  MoveOnly(const MoveOnly&) = delete;
-  MoveOnly& operator=(const MoveOnly&) = delete;
-  MoveOnly(MoveOnly&&) = default;
-  MoveOnly& operator=(MoveOnly&&) = default;
-};
 
 TEST(Channel, BlockingReceive_MoveOnly) {
   DispatcherForTest dispatcher;
@@ -373,6 +419,34 @@ TEST(Channel, BlockingReceive_Timeout) {
   receiver_thread.join();
 
   EXPECT_EQ(receiver_context.receive_count, 2u);
+}
+
+TEST(Channel, BlockingReceive_ReturnsExistingValueImmediately) {
+  DispatcherForTest dispatcher;
+
+  ChannelStorage<int, 2> storage;
+  auto [channel, sender, receiver] = CreateSpscChannel(storage);
+  channel.Release();
+
+  EXPECT_TRUE(sender.TrySend(0));
+  EXPECT_TRUE(sender.TrySend(1));
+
+  // We never actually run the dispatcher, so the only way the receiver
+  // can read a value is if it's already in the channel.
+
+  pw::Result<int> received = receiver.BlockingReceive(
+      dispatcher, pw::chrono::SystemClock::duration(0));
+  ASSERT_EQ(received.status(), pw::OkStatus());
+  EXPECT_EQ(*received, 0);
+
+  received = receiver.BlockingReceive(dispatcher,
+                                      pw::chrono::SystemClock::duration(0));
+  ASSERT_EQ(received.status(), pw::OkStatus());
+  EXPECT_EQ(*received, 1);
+
+  received = receiver.BlockingReceive(dispatcher,
+                                      pw::chrono::SystemClock::duration(0));
+  ASSERT_EQ(received.status(), pw::Status::DeadlineExceeded());
 }
 
 }  // namespace

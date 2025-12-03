@@ -1174,6 +1174,11 @@ class Sender {
     if (channel_ == nullptr) {
       return Status::FailedPrecondition();
     }
+
+    if (channel_->TryPush(value)) {
+      return OkStatus();
+    }
+
     return BlockingSend(dispatcher, SendFuture<T>(*channel_, value), timeout);
   }
 
@@ -1193,6 +1198,12 @@ class Sender {
     if (channel_ == nullptr) {
       return Status::FailedPrecondition();
     }
+
+    if (channel_->Reserve()) {
+      channel_->CommitReservation(std::move(value));
+      return OkStatus();
+    }
+
     return BlockingSend(
         dispatcher, SendFuture<T>(*channel_, std::move(value)), timeout);
   }
@@ -1255,6 +1266,10 @@ class Sender {
   Status BlockingSend(Dispatcher& dispatcher,
                       SendFuture<T>&& future,
                       chrono::SystemClock::duration timeout) {
+    if (channel_->closed()) {
+      return Status::FailedPrecondition();
+    }
+
     Status status;
     sync::TimedThreadNotification notification;
 
