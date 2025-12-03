@@ -278,8 +278,11 @@ pw_bootstrap() {
 
   for cmd in python python3; do
     # If an alias exists, `alias foo` will have an exit code of 0.
-    alias $cmd > /dev/null 2> /dev/null
-    local _pw_alias_check=$?
+    local _pw_alias_check=0
+    # Use a logical or operator here because in the good case alias will
+    # return a nonzero exit code, and we don't want that to cause the
+    # script to exit.
+    alias $cmd > /dev/null 2> /dev/null || _pw_alias_check=$?
     if [ "$_pw_alias_check" -eq 0 ]; then
       pw_error "Error: '$cmd' is an alias"
       pw_error_info "The shell has a '$cmd' alias set. This causes many obscure"
