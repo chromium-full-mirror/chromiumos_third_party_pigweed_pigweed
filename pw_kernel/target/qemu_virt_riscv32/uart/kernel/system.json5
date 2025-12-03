@@ -12,18 +12,18 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 {
-    arch: {
-        type: "riscv",
+  arch: {
+    type: "riscv",
+  },
+  kernel: {
+    flash_start_address: 0x80000000,
+    flash_size_bytes: 261120,
+    ram_start_address: 0x81000000,
+    ram_size_bytes: 65536,
+    interrupt_table: {
+      table: {
+        "10": "interrupt_handler_uart0",
+      }
     },
-    kernel: {
-        flash_start_address: 0x80000000,
-        flash_size_bytes: 261120,        // 255Kb
-        ram_start_address: 0x81000000,
-        ram_size_bytes: 65536,           // 64Kb
-        interrupt_table: {
-            table: {
-                "10": "interrupt_handler_uart0",
-            }
-        },
-    },
+  },
 }

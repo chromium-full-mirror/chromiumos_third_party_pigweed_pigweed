@@ -15,7 +15,7 @@ load("@rules_rust//rust:defs.bzl", "rust_binary")
 load("//pw_kernel/tooling:app_package.bzl", "app_package")
 
 rust_binary(
-    name = "interrupts",
+    name = "test_uart",
     srcs = [
         "main.rs",
     ],
@@ -23,7 +23,7 @@ rust_binary(
     tags = ["kernel"],
     visibility = ["//visibility:public"],
     deps = [
-        ":app_interrupts",
+        ":app_test_uart",
         "//pw_kernel/drivers/uart/uart_16550:uart_16550_user",
         "//pw_kernel/userspace",
         "//pw_log/rust:pw_log",
@@ -32,15 +32,15 @@ rust_binary(
 )
 
 app_package(
-    name = "app_interrupts",
-    app_name = "interrupts",
+    name = "app_test_uart",
+    app_name = "test_uart",
     edition = "2024",
     system_config = "//pw_kernel/target:system_config_file",
     tags = ["kernel"],
 )
 
 rust_binary(
-    name = "uart_listener",
+    name = "test_uart_listener",
     srcs = [
         "uart_listener.rs",
     ],
@@ -48,7 +48,7 @@ rust_binary(
     tags = ["kernel"],
     visibility = ["//visibility:public"],
     deps = [
-        ":app_uart_listener",
+        ":app_test_uart_listener",
         "//pw_kernel/drivers/uart/uart_16550:uart_16550_user",
         "//pw_kernel/lib/pw_assert",
         "//pw_kernel/syscall:syscall_user",
@@ -59,8 +59,8 @@ rust_binary(
 )
 
 app_package(
-    name = "app_uart_listener",
-    app_name = "uart_listener",
+    name = "app_test_uart_listener",
+    app_name = "test_uart_listener",
     edition = "2024",
     system_config = "//pw_kernel/target:system_config_file",
     tags = ["kernel"],

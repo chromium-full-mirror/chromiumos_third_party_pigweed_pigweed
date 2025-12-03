@@ -29,7 +29,7 @@ uart_16550_kernel::declare_uarts!(Arch, UARTS, [
     UART0: Uart0Config,
 ]);
 
-impl interrupts::TestUart for TargetUart {
+impl test_uart::TestUart for TargetUart {
     fn enable_loopback() {
         UART0.enable_loopback()
     }
@@ -44,12 +44,12 @@ impl interrupts::TestUart for TargetUart {
 }
 
 impl TargetInterface for Target {
-    const NAME: &'static str = "QEMU-VIRT-RISCV Kernelspace Interrupts";
+    const NAME: &'static str = "QEMU-VIRT-RISCV Kernel UART";
 
     fn main() -> ! {
         uart_16550_kernel::init(Arch, &UARTS);
 
-        let exit_status = match interrupts::main::<Arch, TargetUart>(Arch) {
+        let exit_status = match test_uart::main::<Arch, TargetUart>(Arch) {
             Ok(()) => EXIT_SUCCESS,
             Err(_e) => EXIT_FAILURE,
         };

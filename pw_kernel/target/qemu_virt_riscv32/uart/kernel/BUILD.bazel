@@ -20,7 +20,7 @@ load("//pw_kernel/tooling:target_linker_script.bzl", "target_linker_script")
 load("//pw_kernel/tooling/panic_detector:rust_binary_no_panics_test.bzl", "rust_binary_no_panics_test")
 
 system_image(
-    name = "interrupts",
+    name = "uart",
     kernel = ":target",
     platform = "//pw_kernel/target/qemu_virt_riscv32",
     system_config = ":system_config",
@@ -29,14 +29,14 @@ system_image(
 )
 
 system_image_test(
-    name = "interrupts_test",
-    image = ":interrupts",
+    name = "uart_test",
+    image = ":uart",
     target_compatible_with = TARGET_COMPATIBLE_WITH,
 )
 
 rust_binary_no_panics_test(
     name = "no_panics_test",
-    binary = ":interrupts",
+    binary = ":uart",
     tags = ["kernel"],
 )
 
@@ -78,7 +78,7 @@ rust_binary(
         "//pw_kernel/target:target_common",
         "//pw_kernel/target/qemu_virt_riscv32:config",
         "//pw_kernel/target/qemu_virt_riscv32:entry",
-        "//pw_kernel/tests/interrupts/kernel:interrupts",
+        "//pw_kernel/tests/uart/kernel:test_uart",
         "//pw_log/rust:pw_log",
         "//pw_status/rust:pw_status",
         "@rust_crates//:riscv-semihosting",

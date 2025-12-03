@@ -14,7 +14,7 @@
 #![no_main]
 #![no_std]
 
-use app_uart_listener::{handle, interrupts, mapping, signals};
+use app_test_uart_listener::{handle, interrupts, mapping, signals};
 use pw_status::{Error, Result};
 // TODO: once multiple target's are supported, feature flag the UART.
 use uart_16550_user::Uart;

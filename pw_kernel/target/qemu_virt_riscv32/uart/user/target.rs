@@ -21,7 +21,7 @@ use {console_backend as _, entry as _};
 pub struct Target {}
 
 impl TargetInterface for Target {
-    const NAME: &'static str = "QEMU-VIRT-RISCV Userspace Interrupts";
+    const NAME: &'static str = "QEMU-VIRT-RISCV User UART";
 
     fn main() -> ! {
         codegen::start();

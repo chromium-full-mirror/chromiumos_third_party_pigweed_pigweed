@@ -14,7 +14,7 @@
 #![no_main]
 #![no_std]
 
-use app_interrupts::{handle, mapping};
+use app_test_uart::{handle, mapping};
 use pw_status::{Error, Result, StatusCode};
 use uart_16550_user::Uart;
 use userspace::syscall::Signals;
