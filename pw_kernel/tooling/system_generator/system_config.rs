@@ -112,6 +112,8 @@ pub struct ProcessConfig {
 #[serde(rename_all = "snake_case")]
 pub enum MemoryMappingType {
     Device,
+    ReadOnlyExecutable,
+    ReadWriteData,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

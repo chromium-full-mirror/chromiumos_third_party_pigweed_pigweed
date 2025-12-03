@@ -26,9 +26,7 @@ use serde::de::DeserializeOwned;
 pub mod system_config;
 
 use system_config::ObjectConfig::Interrupt;
-use system_config::SystemConfig;
-
-use crate::system_config::InterruptTableConfig;
+use system_config::{InterruptTableConfig, MemoryMapping, MemoryMappingType, SystemConfig};
 
 #[derive(Debug, Parser)]
 pub struct Cli {
@@ -149,6 +147,8 @@ impl<'a, A: ArchConfigInterface + Serialize> SystemGenerator<'a, A> {
         }
 
         instance.populate_addresses();
+        // This must be called after populate_addresses.
+        instance.populate_memory_mappings();
         instance.populate_interrupt_table()?;
 
         // Calculate and validate config after the populations above.
@@ -227,6 +227,29 @@ impl<'a, A: ArchConfigInterface + Serialize> SystemGenerator<'a, A> {
                 .get_start_fn_address(app.flash_start_address);
 
             app.initial_sp = app.ram_start_address + app.ram_size_bytes;
+        }
+    }
+
+    fn populate_memory_mappings(&mut self) {
+        for app in self.config.base.apps.iter_mut() {
+            app.process.memory_mappings.insert(
+                0,
+                MemoryMapping {
+                    name: "flash".to_string(),
+                    ty: MemoryMappingType::ReadOnlyExecutable,
+                    start_address: app.flash_start_address,
+                    size_bytes: app.flash_size_bytes,
+                },
+            );
+            app.process.memory_mappings.insert(
+                1,
+                MemoryMapping {
+                    name: "ram".to_string(),
+                    ty: MemoryMappingType::ReadWriteData,
+                    start_address: app.ram_start_address,
+                    size_bytes: app.ram_size_bytes,
+                },
+            );
         }
     }
 
