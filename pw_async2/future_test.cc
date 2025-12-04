@@ -201,6 +201,59 @@ static_assert(!is_future_v<int>);
 static_assert(is_future_v<SimpleIntFuture>);
 static_assert(is_future_v<NotificationFuture>);
 
+class FakeFuture {
+ public:
+  using value_type = int;
+  Poll<int> Pend(Context& cx);
+  bool is_complete() const;
+};
+static_assert(is_future_v<FakeFuture>);
+
+class MissingValueType {
+ public:
+  Poll<int> Pend(Context& cx);
+  bool is_complete() const;
+};
+static_assert(!is_future_v<MissingValueType>);
+
+class MissingPend {
+ public:
+  using value_type = int;
+  bool is_complete() const;
+};
+static_assert(!is_future_v<MissingPend>);
+
+class MissingIsComplete {
+ public:
+  using value_type = int;
+  Poll<int> Pend(Context& cx);
+};
+static_assert(!is_future_v<MissingIsComplete>);
+
+class WrongPendSignature {
+ public:
+  using value_type = int;
+  Poll<int> Pend();  // Missing Context&
+  bool is_complete() const;
+};
+static_assert(!is_future_v<WrongPendSignature>);
+
+class WrongPendReturnType {
+ public:
+  using value_type = int;
+  void Pend(Context& cx);
+  bool is_complete() const;
+};
+static_assert(!is_future_v<WrongPendReturnType>);
+
+class ExtraArgPend {
+ public:
+  using value_type = int;
+  Poll<int> Pend(Context& cx, int extra = 0);
+  bool is_complete() const;
+};
+static_assert(!is_future_v<ExtraArgPend>);
+
 TEST(Future, Pend) {
   DispatcherForTest dispatcher;
   SimpleAsyncInt provider;

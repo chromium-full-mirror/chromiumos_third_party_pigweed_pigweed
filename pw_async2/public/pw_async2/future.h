@@ -92,17 +92,17 @@ class Future {
   const Derived& derived() const { return static_cast<const Derived&>(*this); }
 };
 
-namespace internal {
-
-template <typename D, typename V>
-std::true_type IsFuture(const volatile Future<D, V>*);
-
-std::false_type IsFuture(...);
-
-}  // namespace internal
+template <typename T, typename = void>
+struct is_future : std::false_type {};
 
 template <typename T>
-struct is_future : decltype(internal::IsFuture(std::declval<T*>())){};
+struct is_future<
+    T,
+    std::void_t<typename T::value_type,
+                decltype(std::declval<T&>().Pend(std::declval<Context&>())),
+                decltype(std::declval<const T&>().is_complete())>>
+    : std::is_convertible<decltype(&T::Pend),
+                          Poll<typename T::value_type> (T::*)(Context&)> {};
 
 template <typename T>
 constexpr bool is_future_v =
