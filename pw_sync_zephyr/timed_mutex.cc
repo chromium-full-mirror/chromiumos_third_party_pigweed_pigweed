@@ -36,6 +36,7 @@ bool TimedMutex::try_lock_for(SystemClock::duration timeout) {
     return try_lock();
   }
 
+#ifndef CONFIG_TIMEOUT_64BIT
   // In case the timeout is too long for us to express through the native
   // Zephyr API, we repeatedly wait with shorter durations. Note that on a
   // tick based kernel we cannot tell how far along we are on the current tick,
@@ -51,6 +52,7 @@ bool TimedMutex::try_lock_for(SystemClock::duration timeout) {
 
     timeout -= kMaxTimeoutMinusOne;
   }
+#endif  // CONFIG_TIMEOUT_64BIT
 
   // Note that unlike many other RTOSes, for a duration timeout in ticks, the
   // core kernel wait routine, z_add_timeout, for relative timeouts will always

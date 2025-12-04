@@ -37,18 +37,28 @@ inline void sleep_until(chrono::SystemClock::time_point wakeup_time) {
     return;
   }
 
+#ifdef CONFIG_TIMEOUT_64BIT
+  while (now < wakeup_time) {
+    k_sleep(K_TICKS((wakeup_time - now).count()));
+
+    // Check how much time has passed, the scheduler can wake us up early,
+    // e.g. by k_wakeup().
+    now = chrono::SystemClock::now();
+  }
+#else
   // The maximum amount of time we should sleep for in a single command.
   constexpr chrono::SystemClock::duration kMaxTimeoutMinusOne =
       pw::chrono::zephyr::kMaxTimeout - chrono::SystemClock::duration(1);
 
   while (now < wakeup_time) {
     // Sleep either the full remaining duration or the maximum timeout
-    k_sleep(Z_TIMEOUT_TICKS(
+    k_sleep(K_TICKS(
         std::min((wakeup_time - now).count(), kMaxTimeoutMinusOne.count())));
 
     // Check how much time has passed, the scheduler can wake us up early.
     now = chrono::SystemClock::now();
   }
+#endif  // CONFIG_TIMEOUT_64BIT
 }
 
 }  // namespace pw::this_thread
