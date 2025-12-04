@@ -23,6 +23,53 @@ there is minimal internal overhead.
 
 .. include:: size_report/full_size_report
 
+-------
+Futures
+-------
+:ref:`Futures <module-pw_async2-futures>` are the core abstraction in
+``pw_async2``, providing a standardized way of polling an asynchronous
+operation to completion.
+
+The design of futures has some implications for code size:
+
+* All futures are templated on the type of value they produce, which means that
+  the compiler must generate separate code for each type.
+
+* Additionally, futures use CRTP for compile-time polymorphism, so each concrete
+  future type is a distinct class and may duplicate common behavior.
+
+The following sections detail the code size of various future implementations
+and utilities.
+
+ValueFuture
+===========
+``ValueFuture`` is the simplest future type, used to return a single result from
+an asynchronous operation. Its implementation contains effectively the minimal
+code required for a future, making it a good baseline for understanding the size
+cost of a future in ``pw_async2``.
+
+The table below shows the size of ``ValueFuture``. The first row shows the base
+cost of using a single ``ValueFuture``. The second row adds another
+``ValueFuture`` with a different return type to demonstrate the incremental cost
+of template specialization. The third row shows the size of ``VoidFuture``
+(alias for ``ValueFuture<void>``), which is specialized to avoid storing a
+value.
+
+.. include:: size_report/value_future_table
+
+---------------------------
+OnceSender and OnceReceiver
+---------------------------
+The next table shows sizes of the pair of ``OnceSender`` and ``OnceReceiver``
+types, which allow for returning a delayed result from an async function,
+similar to a ``Future`` type in other languages. This type is templated on its
+stored value, causing specialization overhead for each type sent through the
+sender/receiver pair. The first row showcases the base cost of using a
+``OnceSender`` and ``OnceReceiver``; the second row adds another template
+specialization on top of this to demonstrate the incremental cost.
+
+.. include:: size_report/once_sender_size_report
+
 ----------------
 async2 utilities
 ----------------
@@ -43,16 +90,3 @@ Additionally, the table includes a comparison showing the code size difference
 between using the ``Select`` helper versus manually polling each pendable.
 
 .. include:: size_report/utilities_size_report
-
----------------------------
-OnceSender and OnceReceiver
----------------------------
-The next table shows sizes of the pair of ``OnceSender`` and ``OnceReceiver``
-types, which allow for returning a delayed result from an async function,
-similar to a ``Future`` type in other languages. This type is templated on its
-stored value, causing specialization overhead for each type sent through the
-sender/receiver pair. The first row showcases the base cost of using a
-``OnceSender`` and ``OnceReceiver``; the second row adds another template
-specialization on top of this to demonstrate the incremental cost.
-
-.. include:: size_report/once_sender_size_report

@@ -241,6 +241,54 @@ pw_cc_size_binary(
     ],
 )
 
+pw_cc_size_binary(
+    name = "value_future",
+    srcs = ["value_future.cc"],
+    defines = ["_PW_ASYNC2_SIZE_REPORT_VALUE_FUTURE=1"],
+    deps = [
+        ":size_report",
+        "//pw_assert:check",
+        "//pw_async2:basic_dispatcher",
+        "//pw_async2:dispatcher",
+        "//pw_async2:pend_func_task",
+        "//pw_async2:value_future",
+        "//pw_bloat:bloat_this_binary",
+    ],
+)
+
+pw_cc_size_binary(
+    name = "value_future_incremental",
+    srcs = ["value_future.cc"],
+    defines = [
+        "_PW_ASYNC2_SIZE_REPORT_VALUE_FUTURE=1",
+        "_PW_ASYNC2_SIZE_REPORT_VALUE_FUTURE_INCREMENTAL=1",
+    ],
+    deps = [
+        ":size_report",
+        "//pw_assert:check",
+        "//pw_async2:basic_dispatcher",
+        "//pw_async2:dispatcher",
+        "//pw_async2:pend_func_task",
+        "//pw_async2:value_future",
+        "//pw_bloat:bloat_this_binary",
+    ],
+)
+
+pw_cc_size_binary(
+    name = "void_future",
+    srcs = ["value_future.cc"],
+    defines = ["_PW_ASYNC2_SIZE_REPORT_VOID_FUTURE=1"],
+    deps = [
+        ":size_report",
+        "//pw_assert:check",
+        "//pw_async2:basic_dispatcher",
+        "//pw_async2:dispatcher",
+        "//pw_async2:pend_func_task",
+        "//pw_async2:value_future",
+        "//pw_bloat:bloat_this_binary",
+    ],
+)
+
 pw_size_diff(
     name = "full_size_report_row",
     base = ":empty_base",
@@ -338,5 +386,35 @@ pw_size_table(
         ":select_comparison_row",
         ":join_row",
         ":incremental_join_row",
+    ],
+)
+
+pw_size_diff(
+    name = "value_future_row",
+    base = ":async2_core",
+    label = "Size of ``ValueFuture``",
+    target = ":value_future",
+)
+
+pw_size_diff(
+    name = "incremental_value_future_row",
+    base = ":value_future",
+    label = "Cost of additional ``ValueFuture`` template specialization",
+    target = ":value_future_incremental",
+)
+
+pw_size_diff(
+    name = "void_future_row",
+    base = ":async2_core",
+    label = "Size of ``VoidFuture`` (``ValueFuture<void>``)",
+    target = ":void_future",
+)
+
+pw_size_table(
+    name = "value_future_table",
+    reports = [
+        ":value_future_row",
+        ":incremental_value_future_row",
+        ":void_future_row",
     ],
 )
