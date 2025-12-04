@@ -39,7 +39,7 @@ To use cloud features, you need to get set up with some cloud provider.
 #. Copy the provided snippet to ``//.bazelrc`` (the ``.bazelrc`` file in the root
    directory of your Sense repository).
 
-   .. figure:: https://storage.googleapis.com/pigweed-media/sense/buildbuddy_bazelrc_v1.png
+   .. figure:: https://www.gstatic.com/pigweed/sense/buildbuddy_bazelrc_v1.png
 
 #. Try :ref:`building the blinky app <showcase-sense-tutorial-build>` again to verify your
    BuildBuddy integration. While the build runs you should see an information log indicating
@@ -81,7 +81,7 @@ Let's go back to what we learned in :ref:`showcase-sense-tutorial-hosttests` and
          In **Bazel Build Targets** expand **//modules/blinky**, then right-click
          **:blinky_test (cc_test)**, then select **Test target**.
 
-         .. figure:: https://storage.googleapis.com/pigweed-media/sense/20240802/test_target_v2.png
+         .. figure:: https://www.gstatic.com/pigweed/sense/20240802/test_target_v2.png
             :alt: Selecting Test target
 
             Starting ``blinky_test``

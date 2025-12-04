@@ -44,7 +44,7 @@ project works. Explore Sense's Bazel targets now:
 
          The **Bazel Targets** section should look like this:
 
-         .. figure:: https://storage.googleapis.com/pigweed-media/sense/build_target_v1.png
+         .. figure:: https://www.gstatic.com/pigweed/sense/build_target_v1.png
 
          .. admonition:: Troubleshooting
 
@@ -66,7 +66,7 @@ project works. Explore Sense's Bazel targets now:
             If you cloned Sense to ``~/sense/``, then ``//`` would
             be located at ``~/sense/``.
 
-         .. figure:: https://storage.googleapis.com/pigweed-media/sense/blinky_targets_v1.png
+         .. figure:: https://www.gstatic.com/pigweed/sense/blinky_targets_v1.png
 
    .. tab-item:: CLI
       :sync: cli

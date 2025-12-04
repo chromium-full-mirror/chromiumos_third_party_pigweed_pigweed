@@ -164,7 +164,7 @@ Bootstrap the Pigweed environment
 
 Example:
 
-.. image:: https://storage.googleapis.com/pigweed-media/pw_env_setup_demo.gif
+.. image:: https://www.gstatic.com/pigweed/pw_env_setup_demo.gif
   :width: 800
   :alt: build example using pw watch
 
@@ -216,7 +216,7 @@ Watch
 
 Example:
 
-.. image:: https://storage.googleapis.com/pigweed-media/pw_watch_build_demo.gif
+.. image:: https://www.gstatic.com/pigweed/pw_watch_build_demo.gif
    :width: 800
    :alt: build example using pw watch
 
@@ -318,7 +318,7 @@ Run all tests
 -------------
 :ref:`pw watch <docs-contributing-build-gn-watch>` automatically runs tests. Example:
 
-.. image:: https://storage.googleapis.com/pigweed-media/pw_watch_test_demo.gif
+.. image:: https://www.gstatic.com/pigweed/pw_watch_test_demo.gif
   :width: 800
   :alt: example test failure using pw watch
 

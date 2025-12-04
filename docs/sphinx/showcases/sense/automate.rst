@@ -23,7 +23,7 @@ for easy sharing across your team. Try running a snippet now:
 
 #. In ``pw_console`` click **Edit** then click **Insert Repl Snippet**.
 
-   .. figure:: https://storage.googleapis.com/pigweed-media/sense/snippet_v2.png
+   .. figure:: https://www.gstatic.com/pigweed/sense/snippet_v2.png
 
 #. Select **Echo RPC** with your keyboard and then press :kbd:`Enter`.
    The command doesn't run yet. It only gets populated into **Python Repl**.
@@ -53,7 +53,7 @@ The following video is a demonstration of snippets:
 
    <video preload="metadata" style="width: 100%; height: auto;" controls>
      <source type="video/webm"
-             src="https://storage.googleapis.com/pigweed-media/airmaranth/snippets.webm#t=14.0"/>
+             src="https://www.gstatic.com/pigweed/airmaranth/snippets.webm#t=14.0"/>
    </video>
 
 .. _showcase-sense-tutorial-automate-scripts:

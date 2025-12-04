@@ -49,7 +49,7 @@ tests:
          In **Bazel Targets** expand **//modules/blinky**, then right-click
          **:blinky_test (cc_test)**, then select **Test target**.
 
-         .. figure:: https://storage.googleapis.com/pigweed-media/sense/20240802/test_target_v2.png
+         .. figure:: https://www.gstatic.com/pigweed/sense/20240802/test_target_v2.png
             :alt: Selecting Test target
 
             Starting ``blinky_test``

@@ -727,11 +727,11 @@ retries is hit.
 
 Server to client transfer (read)
 ================================
-.. image:: https://storage.googleapis.com/pigweed-media/pw_transfer/read.svg
+.. image:: https://www.gstatic.com/pigweed/pw_transfer/read.svg
 
 Client to server transfer (write)
 =================================
-.. image:: https://storage.googleapis.com/pigweed-media/pw_transfer/write.svg
+.. image:: https://www.gstatic.com/pigweed/pw_transfer/write.svg
 
 Protocol buffer definition
 ==========================

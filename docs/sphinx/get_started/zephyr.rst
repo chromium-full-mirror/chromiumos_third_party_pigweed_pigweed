@@ -13,7 +13,7 @@ ready to use Pigweed. You'll learn how to build and run the project's app on
 :ref:`module-pw_log` and :ref:`module-pw_string` to log messages and
 Zephyr's `GPIO Driver API`_ to blink an LED.
 
-.. figure:: https://storage.googleapis.com/pigweed-media/zephyr-quickstart-pw_ide.png
+.. figure:: https://www.gstatic.com/pigweed/zephyr-quickstart-pw_ide.png
    :alt: Editing the Zephyr quickstart project in VS Code
 
    The project's :ref:`module-pw_ide` integration provides code intelligence

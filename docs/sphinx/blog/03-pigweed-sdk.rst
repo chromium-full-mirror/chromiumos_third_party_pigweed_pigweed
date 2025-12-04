@@ -5,7 +5,7 @@ Pigweed Blog #3: Launching the Pigweed SDK with Raspberry Pi Pico 2 and RP2350 s
 ======================================================================================
 *Published on 2024-08-08 by The Pigweed Team*
 
-.. figure:: https://storage.googleapis.com/pigweed-media/sense/20240802/hero.png
+.. figure:: https://www.gstatic.com/pigweed/sense/20240802/hero.png
 
    Figure 1. :ref:`showcase-sense-product-concept`
 

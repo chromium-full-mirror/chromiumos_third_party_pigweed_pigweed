@@ -112,7 +112,7 @@ Exercise the sensors
       swab in rubbing alcohol and then hold the cotton swab close to
       the **BME688** sensor.
 
-      .. figure:: https://storage.googleapis.com/pigweed-media/sense/alcohol.jpg
+      .. figure:: https://www.gstatic.com/pigweed/sense/alcohol.jpg
 
 .. _showcase-sense-tutorial-factory-summary:
 

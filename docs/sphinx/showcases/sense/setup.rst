@@ -85,7 +85,7 @@ Set up the Sense project
          if you click **No, I don't trust the authors** but you won't be able to do
          much more than that.
 
-         .. figure:: https://storage.googleapis.com/pigweed-media/sense/trust.png
+         .. figure:: https://www.gstatic.com/pigweed/sense/trust.png
 
       #. If you see the **Do you want to install the recommended 'Pigweed' extension
          from pigweed for this repository?** popup click **Install**.
@@ -93,7 +93,7 @@ Set up the Sense project
          The Pigweed extension is basically the project's heart. Lots of
          things depend on this extension being installed.
 
-         .. figure:: https://storage.googleapis.com/pigweed-media/sense/install_pigweed_extension.png
+         .. figure:: https://www.gstatic.com/pigweed/sense/install_pigweed_extension.png
 
       #. Open the **Extensions** pane (:kbd:`Control+Shift+X` on Linux and Windows,
          :kbd:`Command+Shift+X` on macOS), open the **Pigweed** extension, and make
@@ -101,17 +101,17 @@ Set up the Sense project
          button next to **Uninstall**, then select **Install Specific Version**, and then select
          the latest version from the dropdown menu.
 
-         .. figure:: https://storage.googleapis.com/pigweed-media/sense/install_specific_version_v1.png
+         .. figure:: https://www.gstatic.com/pigweed/sense/install_specific_version_v1.png
 
          You should see a Pigweed icon in the **Activity Bar**. If you don't, try closing and re-opening
          VS Code.
 
-         .. figure:: https://storage.googleapis.com/pigweed-media/sense/extension_icon_v1.png
+         .. figure:: https://www.gstatic.com/pigweed/sense/extension_icon_v1.png
 
       #. If you see the popup that starts with **Pigweed recommends using Bazelisk to manage your
          Bazel environment** click **Default**.
 
-         .. figure:: https://storage.googleapis.com/pigweed-media/sense/recommended_bazelisk_settings.png
+         .. figure:: https://www.gstatic.com/pigweed/sense/recommended_bazelisk_settings.png
 
       #. If you see the popup that starts with **Buildifier was not found**,
          open the ``//.vscode/settings.json`` file **within the Sense repo**
@@ -130,7 +130,7 @@ Set up the Sense project
             If you cloned Sense to ``~/sense``, then ``//.vscode`` would
             be located at ``~/sense/.vscode``.
 
-         .. figure:: https://storage.googleapis.com/pigweed-media/sense/buildifier_not_found.png
+         .. figure:: https://www.gstatic.com/pigweed/sense/buildifier_not_found.png
 
          .. note::
 
@@ -221,7 +221,7 @@ up manually:
    that the executable is valid. If this works, then the Pigweed extension
    has already set up Buildifier correctly and no further work is needed.
 
-   .. figure:: https://storage.googleapis.com/pigweed-media/sense/buildifier_version_v1.png
+   .. figure:: https://www.gstatic.com/pigweed/sense/buildifier_version_v1.png
 
 #. Download the latest `Buildifier
    release <https://github.com/bazelbuild/buildtools/releases>`_.

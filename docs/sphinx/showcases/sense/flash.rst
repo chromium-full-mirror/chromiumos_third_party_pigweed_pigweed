@@ -38,7 +38,7 @@ in the tutorial require the full setup.
 
       By the end of the instructions your full setup will look similar to this:
 
-      .. figure:: https://storage.googleapis.com/pigweed-media/sense/full_setup_zoom_v1.jpg
+      .. figure:: https://www.gstatic.com/pigweed/sense/full_setup_zoom_v1.jpg
 
       **Update the Debug Probe firmware**
 
@@ -62,7 +62,7 @@ in the tutorial require the full setup.
             Make sure that the Pico's USB port lines up with the **USB**
             label on the Omnibus.
 
-      .. figure:: https://storage.googleapis.com/pigweed-media/sense/omnibus_v1.jpg
+      .. figure:: https://www.gstatic.com/pigweed/sense/omnibus_v1.jpg
 
       **Serial Wire Debug port setup**
 
@@ -83,7 +83,7 @@ in the tutorial require the full setup.
          If it's male, follow the instructions in the **Male** tab in the next step.
          If female, use the **Female** tab instructions.
 
-         .. figure:: https://storage.googleapis.com/pigweed-media/sense/swd_v1.jpg
+         .. figure:: https://www.gstatic.com/pigweed/sense/swd_v1.jpg
 
       #. Connect the SWD port on your Debug Probe to the SWD port
          on your Pico.
@@ -110,9 +110,9 @@ in the tutorial require the full setup.
 
                #. Connect the outer cable (SD) to the **SWDIO** pin on the Pico's debug port.
 
-               .. figure:: https://storage.googleapis.com/pigweed-media/sense/debug_male_v1.jpg
+               .. figure:: https://www.gstatic.com/pigweed/sense/debug_male_v1.jpg
 
-               .. figure:: https://storage.googleapis.com/pigweed-media/sense/debug_male_zoom_v2.jpg
+               .. figure:: https://www.gstatic.com/pigweed/sense/debug_male_zoom_v2.jpg
 
                   In these images the "inner" cable is the white cable, the red cable is the "middle"
                   cable, and the black cable is the "outer" cable.
@@ -124,7 +124,7 @@ in the tutorial require the full setup.
                   **DBUG** port on the Debug Probe using the `JST-SH`_
                   to JST-SH cable. JST-SH connectors only fit in one direction.
 
-               .. figure:: https://storage.googleapis.com/pigweed-media/sense/debug_v3.jpg
+               .. figure:: https://www.gstatic.com/pigweed/sense/debug_v3.jpg
 
       **UART setup**
 
@@ -137,9 +137,9 @@ in the tutorial require the full setup.
       #. Connect the middle cable (ground) to any of the pins labeled with a long dash (**—**)
          on **Deck 2**.
 
-      .. figure:: https://storage.googleapis.com/pigweed-media/sense/uart_v1.jpg
+      .. figure:: https://www.gstatic.com/pigweed/sense/uart_v1.jpg
 
-      .. figure:: https://storage.googleapis.com/pigweed-media/sense/uart_zoom_v1.jpg
+      .. figure:: https://www.gstatic.com/pigweed/sense/uart_zoom_v1.jpg
 
          In the previous 2 images the "inner cable" is the yellow cable, the "middle"
          cable is the black cable, and the "outer" cable is the orange cable.
@@ -169,7 +169,7 @@ in the tutorial require the full setup.
 
       You're done! Your setup should look similar to this:
 
-      .. figure:: https://storage.googleapis.com/pigweed-media/sense/full_setup_v1.jpg
+      .. figure:: https://www.gstatic.com/pigweed/sense/full_setup_v1.jpg
 
    .. tab-item:: Pico and Enviro+
 
@@ -180,9 +180,9 @@ in the tutorial require the full setup.
 
       #. While still holding down **BOOTSEL**, connect your Pico to a USB port on your development host.
 
-      .. figure:: https://storage.googleapis.com/pigweed-media/sense/basic_enviro_front_v1.jpg
+      .. figure:: https://www.gstatic.com/pigweed/sense/basic_enviro_front_v1.jpg
 
-      .. figure:: https://storage.googleapis.com/pigweed-media/sense/basic_enviro_back_v1.jpg
+      .. figure:: https://www.gstatic.com/pigweed/sense/basic_enviro_back_v1.jpg
 
    .. tab-item:: Pico only
 
@@ -191,7 +191,7 @@ in the tutorial require the full setup.
 
       #. While still holding down **BOOTSEL**, connect your Pico to a USB port on your development host.
 
-      .. figure:: https://storage.googleapis.com/pigweed-media/sense/basic_v1.jpg
+      .. figure:: https://www.gstatic.com/pigweed/sense/basic_v1.jpg
 
 .. _showcase-sense-tutorial-udev:
 
@@ -269,7 +269,7 @@ Flash an application binary to your Pico
 
          A successful flash looks similar to this:
 
-         .. figure:: https://storage.googleapis.com/pigweed-media/sense/20240802/flash.png
+         .. figure:: https://www.gstatic.com/pigweed/sense/20240802/flash.png
 
       .. tab-item:: CLI
          :sync: cli

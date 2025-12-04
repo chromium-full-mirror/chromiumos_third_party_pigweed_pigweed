@@ -88,7 +88,7 @@ Code coverage
 Unit test coverage data for C++ is computed by the ``coverage`` builder and
 displayed in Gerrit.
 
-.. image:: https://storage.googleapis.com/pigweed-media/gerrit_code_coverage.png
+.. image:: https://www.gstatic.com/pigweed/gerrit_code_coverage.png
    :width: 800
    :alt: Code coverage display in Gerrit
 

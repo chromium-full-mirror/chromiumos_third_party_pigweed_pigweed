@@ -35,7 +35,7 @@ used in your project.
       #. Start typing ``Pigweed: Select Code Analysis Target`` and press
          :kbd:`Enter` to start executing that command.
 
-         .. figure:: https://storage.googleapis.com/pigweed-media/sense/20240802/target.png
+         .. figure:: https://www.gstatic.com/pigweed/sense/20240802/target.png
 
          .. tip::
 
@@ -44,7 +44,7 @@ used in your project.
             the mouse cursor (bottom-left of image) is hovering over the GUI
             element for selecting code analysis targets.
 
-            .. figure:: https://storage.googleapis.com/pigweed-media/sense/20240802/select_target_status_bar.png
+            .. figure:: https://www.gstatic.com/pigweed/sense/20240802/select_target_status_bar.png
 
       #. Select the ``rp2040-fastbuild`` option.
 
@@ -65,12 +65,12 @@ used in your project.
 
       #. Open ``//apps/blinky/main.cc``.
 
-         .. figure:: https://storage.googleapis.com/pigweed-media/sense/blinky_main_v1.png
+         .. figure:: https://www.gstatic.com/pigweed/sense/blinky_main_v1.png
 
       #. Right-click the ``PW_LOG_INFO()`` invocation and select
          **Go to Definition**.
 
-         .. figure:: https://storage.googleapis.com/pigweed-media/sense/20240802/go_to_definition.png
+         .. figure:: https://www.gstatic.com/pigweed/sense/20240802/go_to_definition.png
             :alt: Selecting "Go to Definition" after right-clicking PW_LOG_INFO()
 
          This should take you to a file called ``log.h`` Your cursor should be

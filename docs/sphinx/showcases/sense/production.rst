@@ -158,7 +158,7 @@ The next video is an example of what you should see.
 
    <video preload="metadata" style="width: 100%; height: auto;" controls muted>
      <source type="video/webm"
-             src="https://storage.googleapis.com/pigweed-media/sense/20240802/production.mp4#t=0.5"/>
+             src="https://www.gstatic.com/pigweed/sense/20240802/production.mp4#t=0.5"/>
    </video>
 
 .. _showcase-sense-tutorial-prod-thresholds:

@@ -124,13 +124,13 @@ Selecting a target group for code intelligence
 The currently-selected code intelligence target group is displayed in the
 Visual Studio Code status bar:
 
-.. figure:: https://storage.googleapis.com/pigweed-media/vsc-status-bar-target.png
+.. figure:: https://www.gstatic.com/pigweed/vsc-status-bar-target.png
    :alt: Visual Studio Code screenshot showing the target status bar item
 
 You can click the status bar item to select a new target group from a dropdown
 list at the top of the screen.
 
-.. figure:: https://storage.googleapis.com/pigweed-media/vsc-dropdown-select-target.png
+.. figure:: https://www.gstatic.com/pigweed/vsc-dropdown-select-target.png
    :alt: Visual Studio Code screenshot showing the target selector
 
 ------------------------------------
@@ -147,13 +147,13 @@ bar icon change to look like this while the refresh process is running, and
 during that time, you can click on the status bar item to open the output window
 and monitor progress.
 
-.. figure:: https://storage.googleapis.com/pigweed-media/vsc-status-bar-refreshing.png
+.. figure:: https://www.gstatic.com/pigweed/vsc-status-bar-refreshing.png
    :alt: Visual Studio Code screenshot showing the target status bar item
          refreshing
 
 When the refresh process is complete, the status bar item will look like this:
 
-.. figure:: https://storage.googleapis.com/pigweed-media/vsc-status-bar-finished.png
+.. figure:: https://www.gstatic.com/pigweed/vsc-status-bar-finished.png
    :alt: Visual Studio Code screenshot showing the target status bar item in the
          finished state
 
@@ -167,7 +167,7 @@ When the refresh process is complete, the status bar item will look like this:
 No automatic process is perfect, and if an error occurs during the refresh
 process, that will be indicated with this icon in the status bar:
 
-.. figure:: https://storage.googleapis.com/pigweed-media/vsc-status-bar-fault.png
+.. figure:: https://www.gstatic.com/pigweed/vsc-status-bar-fault.png
    :alt: Visual Studio Code screenshot showing the target status bar item in an
          error state
 
@@ -226,7 +226,7 @@ prevent inaccurate and distracting information from appearing in the editor.
 You can see that ``clangd`` is disabled for those files when you see this icon
 in the status bar:
 
-.. figure:: https://storage.googleapis.com/pigweed-media/vsc-inactive-clangd-disabled.png
+.. figure:: https://www.gstatic.com/pigweed/vsc-inactive-clangd-disabled.png
    :alt: Visual Studio Code screenshot showing code intelligence disabled for
          inactive files
 
@@ -234,7 +234,7 @@ You can click the icon to *enable* ``clangd`` for all files, regardless of
 whether they are in the current target's build graph or not. That state will be
 indicated with this icon:
 
-.. figure:: https://storage.googleapis.com/pigweed-media/vsc-inactive-clangd-enabled.png
+.. figure:: https://www.gstatic.com/pigweed/vsc-inactive-clangd-enabled.png
    :alt: Visual Studio Code screenshot showing code intelligence enabled for
          inactive files
 
@@ -247,20 +247,20 @@ inactive and orphaned files to help you understand which files will not have
 code intelligence. These indicators will change as you change targets and as
 you change the build graph.
 
-.. figure:: https://storage.googleapis.com/pigweed-media/vsc-inactive-file-indicators.png
+.. figure:: https://www.gstatic.com/pigweed/vsc-inactive-file-indicators.png
    :alt: Visual Studio Code screenshot file indicators for inactive and
          orphaned files
    :figwidth: 250
 
 Inactive files are indicated like this:
 
-.. figure:: https://storage.googleapis.com/pigweed-media/vsc-inactive-file-indicators-inactive.png
+.. figure:: https://www.gstatic.com/pigweed/vsc-inactive-file-indicators-inactive.png
    :alt: Visual Studio Code screenshot file indicators for inactive files
    :figwidth: 250
 
 Orphaned files are indicated like this:
 
-.. figure:: https://storage.googleapis.com/pigweed-media/vsc-inactive-file-indicators-orphaned.png
+.. figure:: https://www.gstatic.com/pigweed/vsc-inactive-file-indicators-orphaned.png
    :alt: Visual Studio Code screenshot file indicators for orphaned files
    :figwidth: 250
 

@@ -40,9 +40,9 @@ Communicate with a simulated device
                network connections?** click **Allow**. The simulated device needs
                to connect to local ports.
 
-               .. figure:: https://storage.googleapis.com/pigweed-media/sense/accept_incoming_network_connections.png
+               .. figure:: https://www.gstatic.com/pigweed/sense/accept_incoming_network_connections.png
 
-            .. figure:: https://storage.googleapis.com/pigweed-media/sense/20240802/run_target.png
+            .. figure:: https://www.gstatic.com/pigweed/sense/20240802/run_target.png
 
             You should see output like this:
 
@@ -138,7 +138,7 @@ Communicate with a simulated device
 
    You should see ``pw_console`` start up like this:
 
-   .. figure:: https://storage.googleapis.com/pigweed-media/sense/20240802/simulator_console.png
+   .. figure:: https://www.gstatic.com/pigweed/sense/20240802/simulator_console.png
 
 #. Look at the **Device Logs** table (top-right pane). You should see the simulated device
    sending ``LED blinking`` messages every second.
@@ -283,7 +283,7 @@ accessible, and easy to make plugins for. Try it now:
 
    You should see the console open in your web browser:
 
-   .. figure:: https://storage.googleapis.com/pigweed-media/sense/webconsole_v2.png
+   .. figure:: https://www.gstatic.com/pigweed/sense/webconsole_v2.png
 
    The top-right table named **Device Logs** shows you logs coming from the
    simulated device. The bottom-right table named **Host Logs** shows you logs
@@ -300,7 +300,7 @@ accessible, and easy to make plugins for. Try it now:
 
       This REPL executes Python code.
 
-   .. figure:: https://storage.googleapis.com/pigweed-media/sense/20240802/webconsole_repl.png
+   .. figure:: https://www.gstatic.com/pigweed/sense/20240802/webconsole_repl.png
 
 #. Append ``"00:00"`` (note the double quotes) to the **Device Logs** search box so
    that the complete query becomes ``log_source:device "00:00"``.
@@ -318,7 +318,7 @@ accessible, and easy to make plugins for. Try it now:
 
    See :ref:`module-pw_web-log-viewer-filter` to learn more about filtering.
 
-   .. figure:: https://storage.googleapis.com/pigweed-media/sense/webconsole_filter_v2.png
+   .. figure:: https://www.gstatic.com/pigweed/sense/webconsole_filter_v2.png
 
 #. Close the browser tab running the web app, the terminal window or tab running the
    web console, and the terminal window or tab running the simulated device. You're

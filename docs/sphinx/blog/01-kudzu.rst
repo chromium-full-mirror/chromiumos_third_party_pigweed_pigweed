@@ -11,7 +11,7 @@ Pigweed Blog #1: Kudzu
        "@type": "NewsArticle",
        "headline": "Kudzu: Pigweed's whimsical take on a development board",
        "image": [
-         "https://storage.googleapis.com/pigweed-media/kudzu-finished-photo-diagonal.jpg"
+         "https://www.gstatic.com/pigweed/kudzu-finished-photo-diagonal.jpg"
        ],
        "datePublished": "2023-10-12T19:27:00+08:00",
        "dateModified": "2023-10-12T19:27:00+08:00",
@@ -39,8 +39,8 @@ Pigweed Blog #1: Kudzu
    to be a helpful example of a complex Pigweed integration.
 
 .. card::
-    :img-background: https://storage.googleapis.com/pigweed-media/kudzu-finished-photo-diagonal.jpg
-    :link: https://storage.googleapis.com/pigweed-media/kudzu-finished-photo-diagonal.jpg
+    :img-background: https://www.gstatic.com/pigweed/kudzu-finished-photo-diagonal.jpg
+    :link: https://www.gstatic.com/pigweed/kudzu-finished-photo-diagonal.jpg
     :img-alt: A single Kudzu badge face-up on a table viewed at a diagonal.
 
 ----------------------------
@@ -163,8 +163,8 @@ library of symbols and footprint which is supplemented by community-maintained
 open source libraries.
 
 .. card::
-   :img-top: https://storage.googleapis.com/pigweed-media/kudzu-schematic.png
-   :link: https://storage.googleapis.com/pigweed-media/kudzu-schematic.png
+   :img-top: https://www.gstatic.com/pigweed/kudzu-schematic.png
+   :link: https://www.gstatic.com/pigweed/kudzu-schematic.png
    :img-alt: A screenshot of Kudzu's schematic.
    :text-align: center
 
@@ -178,8 +178,8 @@ three problems with your board, you're not done looking". The three problems
 we found in order from least to most crushing are:
 
 .. card::
-   :img-top: https://storage.googleapis.com/pigweed-media/kudzu-display-connector.jpeg
-   :link: https://storage.googleapis.com/pigweed-media/kudzu-display-connector.jpeg
+   :img-top: https://www.gstatic.com/pigweed/kudzu-display-connector.jpeg
+   :link: https://www.gstatic.com/pigweed/kudzu-display-connector.jpeg
    :img-alt: The reworked display connector with many bodge wires.
    :text-align: center
 
@@ -209,8 +209,8 @@ the evening preparing for a build party. On Tuesday, with some
 and get them in team members' hands on Wednesday.
 
 .. card::
-   :img-top: https://storage.googleapis.com/pigweed-media/kudzu-pnp.jpg
-   :link: https://storage.googleapis.com/pigweed-media/kudzu-pnp.jpg
+   :img-top: https://www.gstatic.com/pigweed/kudzu-pnp.jpg
+   :link: https://www.gstatic.com/pigweed/kudzu-pnp.jpg
    :img-alt: A photo of the Opulo LumenPnP
    :text-align: center
 
@@ -226,30 +226,30 @@ Photos
 .. grid:: 1 1 2 2
 
    .. grid-item-card::
-      :img-background: https://storage.googleapis.com/pigweed-media/kudzu-finished-photo-diagonal.jpg
-      :link: https://storage.googleapis.com/pigweed-media/kudzu-finished-photo-diagonal.jpg
+      :img-background: https://www.gstatic.com/pigweed/kudzu-finished-photo-diagonal.jpg
+      :link: https://www.gstatic.com/pigweed/kudzu-finished-photo-diagonal.jpg
       :img-alt: A single Kudzu badge face-up on a table viewed at a diagonal.
 
    .. grid-item-card::
-      :img-background: https://storage.googleapis.com/pigweed-media/kudzu-finished-photo-back.jpg
-      :link: https://storage.googleapis.com/pigweed-media/kudzu-finished-photo-back.jpg
+      :img-background: https://www.gstatic.com/pigweed/kudzu-finished-photo-back.jpg
+      :link: https://www.gstatic.com/pigweed/kudzu-finished-photo-back.jpg
       :img-alt: A single Kudzu badge face-down on a table viewed at a diagonal.
 
 .. grid:: 1 1 2 2
 
    .. grid-item-card::
-      :img-background: https://storage.googleapis.com/pigweed-media/kudzu-finished-photo-top-down.jpg
-      :link: https://storage.googleapis.com/pigweed-media/kudzu-finished-photo-top-down.jpg
+      :img-background: https://www.gstatic.com/pigweed/kudzu-finished-photo-top-down.jpg
+      :link: https://www.gstatic.com/pigweed/kudzu-finished-photo-top-down.jpg
       :img-alt: A single Kudzu badge face-up on a table viewed from above.
 
    .. grid-item-card::
-      :img-background: https://storage.googleapis.com/pigweed-media/kudzu-finished-photo-front-standing.jpg
-      :link: https://storage.googleapis.com/pigweed-media/kudzu-finished-photo-front-standing.jpg
+      :img-background: https://www.gstatic.com/pigweed/kudzu-finished-photo-front-standing.jpg
+      :link: https://www.gstatic.com/pigweed/kudzu-finished-photo-front-standing.jpg
       :img-alt: A single Kudzu badge standing up on a table viewed from the front.
 
 .. card::
-   :img-top: https://storage.googleapis.com/pigweed-media/kudzu-badges.jpg
-   :link: https://storage.googleapis.com/pigweed-media/kudzu-badges.jpg
+   :img-top: https://www.gstatic.com/pigweed/kudzu-badges.jpg
+   :link: https://www.gstatic.com/pigweed/kudzu-badges.jpg
    :img-alt: A photo of 6 of the Kudzu badges
    :text-align: center
 

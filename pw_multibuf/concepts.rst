@@ -58,7 +58,7 @@ represents the primary contribution to memory overhead for the type.
            E4["entry4"]
        end
 
-.. figure:: https://storage.googleapis.com/pigweed-media/pw_multibuf/entries.png
+.. figure:: https://www.gstatic.com/pigweed/pw_multibuf/entries.png
    :alt: MultiBufs have an internal deque of entries
 
 .. _module-pw_multibuf-concepts-chunks:
@@ -89,7 +89,7 @@ conceptually smiliar to a ``ByteSpan`` instance.
        E3-->base2
        E4-->view2
 
-.. figure:: https://storage.googleapis.com/pigweed-media/pw_multibuf/chunks.png
+.. figure:: https://www.gstatic.com/pigweed/pw_multibuf/chunks.png
    :alt: Entries store memory addresses and views into those regions
 
 .. _module-pw_multibuf-concepts-layers:
@@ -140,7 +140,7 @@ MultiBuf instance to a larger view that encompasses an IP packet.
        E7-->layer2.1
        E8-->layer2.2
 
-.. figure:: https://storage.googleapis.com/pigweed-media/pw_multibuf/layers.png
+.. figure:: https://www.gstatic.com/pigweed/pw_multibuf/layers.png
    :alt: Layers add additional entries specifying narrower views of memory
 
 .. _module-pw_multibuf-concepts-fragments:
@@ -180,7 +180,7 @@ messages back into lower level ones, e.g. a segment back into multiple packets.
        view3["frame3"]
        view4["frame4"]
 
-.. figure:: https://storage.googleapis.com/pigweed-media/pw_multibuf/fragments.png
+.. figure:: https://www.gstatic.com/pigweed/pw_multibuf/fragments.png
    :alt: Fragments group chunks together at different levels
 
 .. _module-pw_multibuf-concepts-ownership:

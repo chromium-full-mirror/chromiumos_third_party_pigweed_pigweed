@@ -62,11 +62,11 @@ monitoring and controlling your Pico over the web now.
       or Mozilla Firefox** because `those browsers don't support`_ the Web
       Serial API.
 
-   .. figure:: https://storage.googleapis.com/pigweed-media/sense/20240802/webapp_splash.png
+   .. figure:: https://www.gstatic.com/pigweed/sense/20240802/webapp_splash.png
 
 #. Click **Connect** and then select **Pico**.
 
-   .. figure:: https://storage.googleapis.com/pigweed-media/sense/20240802/webapp_connect.png
+   .. figure:: https://www.gstatic.com/pigweed/sense/20240802/webapp_connect.png
 
    .. note::
 
@@ -82,7 +82,7 @@ monitoring and controlling your Pico over the web now.
    revisit this web app when your Pico is running the ``production`` app and you
    will see more information on the web app.
 
-   .. figure:: https://storage.googleapis.com/pigweed-media/sense/20240802/webapp_home.png
+   .. figure:: https://www.gstatic.com/pigweed/sense/20240802/webapp_home.png
 
 #. Close the browser tab running the web app.
 
