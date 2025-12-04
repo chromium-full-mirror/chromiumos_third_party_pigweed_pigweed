@@ -343,6 +343,16 @@ pw_source_set("libc_allocator") {
   sources = [ "libc_allocator.cc" ]
 }
 
+pw_source_set("freertos_allocator") {
+  public_configs = [ ":public_include_path" ]
+  public = [ "public/pw_allocator/freertos_allocator.h" ]
+  public_deps = [
+    ":pw_allocator",
+    "$pw_external_freertos",
+  ]
+  sources = [ "freertos_allocator.cc" ]
+}
+
 pw_source_set("null_allocator") {
   public_configs = [ ":public_include_path" ]
   public = [ "public/pw_allocator/null_allocator.h" ]

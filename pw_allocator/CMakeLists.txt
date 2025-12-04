@@ -378,6 +378,19 @@ pw_add_library(pw_allocator.libc_allocator STATIC
     pw_allocator
 )
 
+pw_add_library(pw_allocator.freertos_allocator STATIC
+  HEADERS
+    public/pw_allocator/freertos_allocator.h
+  PUBLIC_INCLUDES
+    public
+  PUBLIC_DEPS
+    pw_allocator
+  SOURCES
+    freertos_allocator.cc
+  PRIVATE_DEPS
+    pw_third_party.freertos
+)
+
 pw_add_library(pw_allocator.null_allocator STATIC
   SOURCES
     null_allocator.cc
