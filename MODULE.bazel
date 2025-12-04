@@ -382,7 +382,7 @@ cipd_repository(
     name = "qemu",
     build_file = "//third_party/qemu:qemu.BUILD",
     path = "fuchsia/third_party/qemu/${platform}",
-    tag = "git_revision:aa90f1161bb17a4863e16ec2f75104cff0752d4e",
+    tag = "git_revision:1da8f3a3c53b604edfe0d55e475102640490549e",
 )
 
 # Vendored libraries
