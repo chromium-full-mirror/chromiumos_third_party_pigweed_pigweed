@@ -76,7 +76,7 @@
   },
   "pw_async2": {
     "tagline": "Cooperative async tasks for embedded",
-    "status": "experimental",
+    "status": "unstable",
     "languages": [
       "C++17"
     ]
