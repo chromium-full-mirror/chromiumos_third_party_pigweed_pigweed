@@ -1418,8 +1418,10 @@ struct Foo {};
 
 class BadItem : public IntrusiveForwardList<Foo>::Item {};
 
-[[maybe_unused]] IntrusiveForwardList<BadItem>
-    derived_from_incompatible_item_type;
+[[maybe_unused]] void IncompatibleItem() {
+  IntrusiveForwardList<BadItem> derived_from_incompatible_item_type;
+  (void)derived_from_incompatible_item_type.front();
+}
 
 #elif PW_NC_TEST(DoesNotInheritFromItem)
 PW_NC_EXPECT(
@@ -1428,7 +1430,10 @@ PW_NC_EXPECT(
 
 struct NotAnItem {};
 
-[[maybe_unused]] IntrusiveForwardList<NotAnItem> list;
+[[maybe_unused]] void DoesNotInheritFrom() {
+  IntrusiveForwardList<NotAnItem> list;
+  (void)list.front();
+}
 
 #endif  // PW_NC_TEST
 
