@@ -42,8 +42,14 @@ fit for you:
 .. _Debug Probe: https://www.raspberrypi.com/products/debug-probe/
 .. _Omnibus: https://shop.pimoroni.com/products/pico-omnibus
 
-* **macOS or Linux development host**: Windows isn't supported with this particular
-  tutorial yet.
+* **macOS or Linux development host**: Windows isn't supported with this
+  particular tutorial yet.
+
+  .. admonition:: macOS Tahoe regression affecting USB flashing
+    :class: important
+
+    If you are using macOS 26 (Tahoe), note that flashing using Bazel targets
+    via USB is currently broken. See https://pwbug.dev/466448963 for details
 
 * **Hardware setups** (all of the following setups are supported):
 
