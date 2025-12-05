@@ -105,6 +105,24 @@ impl ArchConfigInterface for system_config::Armv8MConfig {
         &mut self,
         config: &mut system_config::BaseConfig,
     ) -> Result<()> {
+        for app in &mut config.apps {
+            // Add a ReadOnlyExecutable mapping for the kernel's code into userspace
+            // to allow the cortex_m's `svc_return` to drop privaldge and still
+            // be executable.
+            //
+            // TODO: https://pwbug.dev/465500606 - Isolate `svc_return` into its own section
+            // to allow selectively mapping it into userspace instead of the whole kernel.
+            app.process.memory_mappings.insert(
+                0,
+                MemoryMapping {
+                    name: "kernel_code".to_string(),
+                    ty: MemoryMappingType::ReadOnlyExecutable,
+                    start_address: config.kernel.flash_start_address,
+                    size_bytes: config.kernel.flash_size_bytes,
+                },
+            );
+        }
+
         for app in &config.apps {
             for mapping in &app.process.memory_mappings {
                 if mapping.start_address % 32 != 0 {

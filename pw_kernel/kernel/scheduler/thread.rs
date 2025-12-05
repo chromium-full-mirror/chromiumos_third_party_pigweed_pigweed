@@ -619,8 +619,10 @@ impl<K: Kernel> Thread<K> {
         }
     }
 
-    /// A simple ID for debugging purposes, currently the pointer to the thread
-    /// structure itself.
+    /// A simple ID for debugging purposes
+    ///
+    /// Currently this is a pointer to the architecture specific thread state
+    /// allowing it to match debugging output from the architecture implementation.
     ///
     /// # Safety
     ///
@@ -629,7 +631,7 @@ impl<K: Kernel> Thread<K> {
     /// provenance.
     #[must_use]
     pub fn id(&self) -> usize {
-        core::ptr::from_ref(self).addr()
+        self.arch_thread_state.get().addr()
     }
 
     // An ID that can not be assigned to any thread in the system.

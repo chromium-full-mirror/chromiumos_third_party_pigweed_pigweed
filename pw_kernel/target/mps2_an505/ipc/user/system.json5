@@ -19,15 +19,15 @@
     },
     kernel: {
         flash_start_address: 0x10000800,
-        flash_size_bytes: 261120,        // 255Kb
+        flash_size_bytes: 261120, // 255Kb
         ram_start_address: 0x38000000,
-        ram_size_bytes: 65536,           // 64Kb
+        ram_size_bytes: 65536, // 64Kb
     },
     apps: [
         {
             name: "initiator",
             flash_size_bytes: 261120, // 255Kb
-            ram_size_bytes: 65536,    // 64Kb
+            ram_size_bytes: 65536, // 64Kb
             process: {
                 name: "initiator process",
                 objects: [
@@ -49,7 +49,7 @@
         {
             name: "handler",
             flash_size_bytes: 261120, // 255Kb
-            ram_size_bytes: 65536,    // 64Kb
+            ram_size_bytes: 65536, // 64Kb
             process: {
                 name: "handler process",
                 objects: [
