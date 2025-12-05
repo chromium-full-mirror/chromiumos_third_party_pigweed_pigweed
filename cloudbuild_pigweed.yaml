@@ -1,0 +1,59 @@
+# Copyright 2025 The ChromiumOS Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+steps:
+
+- name: 'gcr.io/cloud-builders/git'
+  id: 'src-prep'
+  entrypoint: 'bash'
+  args:
+  - '-c'
+  - |
+    set -x
+    rm -rf /workspace
+    mkdir /workspace
+    cd /workspace
+    git clone https://chromium.googlesource.com/chromiumos/third_party/hdctools .
+    git fetch https://chromium.googlesource.com/chromiumos/third_party/hdctools main
+    git checkout -b buildbranch FETCH_HEAD
+    git branch --set-upstream-to=origin/$BRANCH_NAME buildbranch
+    git config --global user.email "someone@example.com"
+    git rebase
+
+- name: 'gcr.io/kaniko-project/executor:latest'
+  id: 'build'
+  args:
+  - --destination=us-docker.pkg.dev/$PROJECT_ID/servod/servod:pigweed_$COMMIT_SHA
+  - --cache=true
+  - --cache-ttl=96h
+  - --build-arg=PIGWEED_BRANCH=$COMMIT_SHA
+  - -f=/workspace/servo/dockerfiles/Dockerfile
+  waitFor: ['src-prep']
+
+- name: 'gcr.io/kaniko-project/executor:latest'
+  id: 'test-build'
+  args:
+  - --destination=us-docker.pkg.dev/$PROJECT_ID/servod/servodtest:pigweed_$COMMIT_SHA
+  - --cache=true
+  - --cache-ttl=96h
+  - --build-arg=PIGWEED_BRANCH=$COMMIT_SHA
+  - --build-arg=BASE_IMG=us-docker.pkg.dev/$PROJECT_ID/servod/servod:pigweed_$COMMIT_SHA
+  - -f=/workspace/servo/dockerfiles/Dockerfile.test
+  waitFor: ['build']
+
+- name: 'us-docker.pkg.dev/$PROJECT_ID/servod/servodtest:pigweed_$COMMIT_SHA'
+  id: 'test-python'
+  entrypoint: pytest
+  env:
+    - PYTHONPATH=/workspace/
+  args:
+    - -n=logical
+    - --forked
+    - /workspace/
+  waitFor: ['test-build']
+
+options:
+  machineType: 'N1_HIGHCPU_32'
+
+timeout: 3600s
