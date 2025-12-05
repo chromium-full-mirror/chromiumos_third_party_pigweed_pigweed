@@ -95,6 +95,7 @@ pw_compile_commands_generator(
     name = "update_compile_commands",
     deps = [
         ":update_host_compile_commands",
+        ":update_host_googletest_compile_commands",
         ":update_rp2040_compile_commands",
         ":update_rp2350_compile_commands",
     ],
@@ -103,6 +104,14 @@ pw_compile_commands_generator(
 pw_compile_commands_generator(
     name = "update_host_compile_commands",
     platform = "@bazel_tools//tools:host_platform",
+    target_patterns = [
+        "//...",
+    ],
+)
+
+pw_compile_commands_generator(
+    name = "update_host_googletest_compile_commands",
+    platform = "//targets/host:host_googletest",
     target_patterns = [
         "//...",
     ],
