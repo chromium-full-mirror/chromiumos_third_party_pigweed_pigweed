@@ -213,16 +213,13 @@ build --workspace_status_command=pw_build_info/git_workspace_status_command.sh
 # linux-amd64. This is the only platform that the Fuchsia SDK supports.
 common --enable_platform_specific_config
 
+# Import `--config=fuchsia` scoped pigweed backends.
+import %workspace%/pw_bluetooth_sapphire/fuchsia/backends.bazelrc
+
 # TODO: https://pwbug.dev/382533028 - The Fuchsia SDK doesn't work with these
 # flags yet. Unfortunately, this needs to be switched for all build types since
 # it's required for things to load properly in pw_bluetooth_sapphire.
 common --noincompatible_disallow_empty_glob
-
-# Configs for Fuchsia.
-# Disable the Fuchsia SDK unless building under the Fuchsia config. This flag
-# is flipped to True when the Fuchsia platform is being built.
-common --@rules_fuchsia//fuchsia/flags:fuchsia_targets_enabled=false
-common:fuchsia --platforms=//targets/fuchsia:fuchsia_host
 
 # Configs for RP2xxx platforms.
 build:rp2040 --platforms=@pigweed//targets/rp2040
