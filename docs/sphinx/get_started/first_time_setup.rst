@@ -44,6 +44,8 @@ Pigweed:
 
          xcode-select --install
          sudo spctl --master-disable  # Turn off Gatekeeper
+         # Some Python distributions may require SSL cert setup:
+         sh -c 'pyv=$(python3 -c "import sys; v=sys.version_info; print(\"{0}.{1}\".format(v[0], v[1]))"); /Applications/Python\ $pyv/Install\ Certificates.command'
 
       .. inclusive-language: enable
 
@@ -130,7 +132,7 @@ Install prerequisites
 
       .. code-block:: sh
 
-         pyv=`python3 -c "import sys; v=sys.version_info; print('{0}.{1}'.format(v[0], v[1]))"`; /Applications/Python\ $pyv/Install\ Certificates.command
+         sh -c 'pyv=$(python3 -c "import sys; v=sys.version_info; print(\"{0}.{1}\".format(v[0], v[1]))"); /Applications/Python\ $pyv/Install\ Certificates.command'
 
    .. tab-item:: Windows
       :sync: windows
