@@ -28,6 +28,8 @@
 
 namespace pw::async2 {
 
+/// @submodule{pw_async2,channels}
+
 template <typename T>
 class Receiver;
 
@@ -52,333 +54,152 @@ class ChannelStorage;
 namespace internal {
 
 template <typename T>
-class ChannelHandle;
+class Channel;
 
-template <typename T>
-class Channel {
+class BaseChannelFuture;
+
+// Internal generic channel type. BaseChannel is not exposed to users. Its
+// public interface is for internal consumption.
+class PW_LOCKABLE("pw::async2::internal::BaseChannel") BaseChannel {
  public:
-  static Channel* Allocated(Allocator& alloc, uint16_t capacity) {
-    FixedDeque<T> deque = FixedDeque<T>::TryAllocate(alloc, capacity);
-    if (deque.capacity() == 0) {
-      return nullptr;
-    }
-    return alloc.New<Channel<T>>(std::move(deque));
+  static constexpr chrono::SystemClock::duration kWaitForever =
+      chrono::SystemClock::duration::max();
+
+  // Acquires the channel's lock.
+  void lock() PW_EXCLUSIVE_LOCK_FUNCTION() { lock_.lock(); }
+
+  // Releases the channel's lock.
+  void unlock() PW_UNLOCK_FUNCTION() { lock_.unlock(); }
+
+  [[nodiscard]] bool is_open() PW_LOCKS_EXCLUDED(*this) {
+    std::lock_guard lock(*this);
+    return is_open_locked();
   }
 
-  ~Channel() { PW_ASSERT(ref_count_ == 0); }
-
-  /// Returns true if the channel is closed. A closed channel cannot create new
-  /// senders or receivers, and cannot be re-opened.
-  [[nodiscard]] bool closed() const PW_LOCKS_EXCLUDED(lock_) {
-    std::lock_guard lock(lock_);
-    return closed_;
+  bool is_open_locked() const PW_EXCLUSIVE_LOCKS_REQUIRED(*this) {
+    return !closed_;
   }
 
- protected:
-  explicit Channel(FixedDeque<T>&& deque) : deque_(std::move(deque)) {}
-
-  template <size_t kAlignment, size_t kCapacity>
-  explicit Channel(containers::Storage<kAlignment, kCapacity>& storage)
-      : deque_(storage) {}
-
-  uint16_t ref_count() const PW_LOCKS_EXCLUDED(lock_) {
-    std::lock_guard lock(lock_);
-    return ref_count_;
+  [[nodiscard]] bool active_locked() const PW_EXCLUSIVE_LOCKS_REQUIRED(*this) {
+    return ref_count_ != 0;
   }
 
- private:
-  friend Allocator;
-  friend ChannelHandle<T>;
-  friend SendFuture<T>;
-  friend ReserveSendFuture<T>;
-  friend ReceiveFuture<T>;
-  friend Sender<T>;
-  friend SendReservation<T>;
-  friend Receiver<T>;
+  // Removes a reference to this channel and destroys the channel if needed.
+  void RemoveRefAndDestroyIfUnreferenced() PW_UNLOCK_FUNCTION();
 
-  void Destroy() PW_LOCKS_EXCLUDED(lock_) {
-    Deallocator* deallocator = nullptr;
-    {
-      std::lock_guard lock(lock_);
-      deallocator = deque_.deallocator();
-    }
-
-    if (deallocator != nullptr) {
-      std::destroy_at(this);
-      deallocator->Deallocate(this);
-    }
-  }
-
-  void Close() PW_LOCKS_EXCLUDED(lock_) {
-    std::lock_guard lock(lock_);
+  void Close() PW_LOCKS_EXCLUDED(*this) {
+    std::lock_guard lock(*this);
     CloseLocked();
   }
 
-  void CloseLocked() PW_EXCLUSIVE_LOCKS_REQUIRED(lock_) {
-    closed_ = true;
-    while (auto send_future = send_futures_.Pop()) {
-      send_future->get().Wake();
-    }
-    while (auto reserve_send_future = reserve_send_futures_.Pop()) {
-      reserve_send_future->get().Wake();
-    }
-    while (auto receive_future = receive_futures_.Pop()) {
-      receive_future->get().Wake();
-    }
+  // Adds a SendFuture or ReserveSendFuture to the list of pending futures.
+  void add_send_future(BaseChannelFuture& future)
+      PW_EXCLUSIVE_LOCKS_REQUIRED(*this) {
+    send_futures_.push_front(future);
   }
 
-  /// Creates a sender for this channel.
-  Sender<T> CreateSender() PW_LOCKS_EXCLUDED(lock_) {
-    if (closed()) {
-      return Sender<T>(nullptr);
-    }
-    return Sender<T>(this);
+  // Adds a ReceiveFuture to the list of pending futures.
+  void add_receive_future(BaseChannelFuture& future)
+      PW_EXCLUSIVE_LOCKS_REQUIRED(*this) {
+    receive_futures_.push_front(future);
   }
 
-  /// Creates a receiver for this channel.
-  Receiver<T> CreateReceiver() PW_LOCKS_EXCLUDED(lock_) {
-    if (closed()) {
-      return Receiver<T>(nullptr);
-    }
-    return Receiver<T>(this);
-  }
+  void DropReservationAndRemoveRef() PW_LOCKS_EXCLUDED(*this);
 
-  void PushAndWake(T&& value) PW_EXCLUSIVE_LOCKS_REQUIRED(lock_) {
-    deque_.push_back(std::move(value));
-    WakeOneReceiver();
-  }
-
-  void PushAndWake(const T& value) PW_EXCLUSIVE_LOCKS_REQUIRED(lock_) {
-    deque_.push_back(value);
-    WakeOneReceiver();
-  }
-
-  template <typename... Args>
-  void EmplaceAndWake(Args&&... args) PW_EXCLUSIVE_LOCKS_REQUIRED(lock_) {
-    deque_.emplace_back(std::forward<Args>(args)...);
-    WakeOneReceiver();
-  }
-
-  void WakeOneReceiver() PW_EXCLUSIVE_LOCKS_REQUIRED(lock_) {
-    if (auto future = receive_futures_.Pop()) {
-      future->get().Wake();
-    }
-  }
-
-  T PopAndWake() PW_EXCLUSIVE_LOCKS_REQUIRED(lock_) {
-    PW_ASSERT(!deque_.empty());
-
-    T value = std::move(deque_.front());
-    deque_.pop_front();
-
-    WakeOneSender();
-    return value;
-  }
-
-  void WakeOneSender() PW_EXCLUSIVE_LOCKS_REQUIRED(lock_) {
-    // TODO: b/456507134 - Store both future types in the same list.
-    if (prioritize_reserve_) {
-      if (auto reserve_future = reserve_send_futures_.Pop()) {
-        reserve_future->get().Wake();
-      } else if (auto send_future = send_futures_.Pop()) {
-        send_future->get().Wake();
-      }
-    } else {
-      if (auto send_future = send_futures_.Pop()) {
-        send_future->get().Wake();
-      } else if (auto reserve_future = reserve_send_futures_.Pop()) {
-        reserve_future->get().Wake();
-      }
-    }
-
-    prioritize_reserve_ = !prioritize_reserve_;
-  }
-
-  bool full() PW_LOCKS_EXCLUDED(lock_) { return remaining_capacity() == 0; }
-  bool full_locked() const PW_EXCLUSIVE_LOCKS_REQUIRED(lock_) {
-    return remaining_capacity_locked() == 0;
-  }
-
-  uint16_t remaining_capacity() PW_LOCKS_EXCLUDED(lock_) {
-    std::lock_guard lock(lock_);
-    return remaining_capacity_locked();
-  }
-  uint16_t remaining_capacity_locked() const
-      PW_EXCLUSIVE_LOCKS_REQUIRED(lock_) {
-    return deque_.capacity() - deque_.size() - reservations_;
-  }
-
-  uint16_t capacity() const PW_NO_LOCK_SAFETY_ANALYSIS {
-    // SAFETY: The capacity of `deque_` cannot change.
-    return deque_.capacity();
-  }
-
-  bool empty() PW_LOCKS_EXCLUDED(lock_) {
-    std::lock_guard lock(lock_);
-    return deque_.empty();
-  }
-
-  void Push(const T& value) PW_EXCLUSIVE_LOCKS_REQUIRED(lock_) {
-    PW_ASSERT(!closed_);
-    PushAndWake(value);
-  }
-
-  void Push(T&& value) PW_EXCLUSIVE_LOCKS_REQUIRED(lock_) {
-    PW_ASSERT(!closed_);
-    PushAndWake(std::move(value));
-  }
-
-  bool TryPush(const T& value) PW_LOCKS_EXCLUDED(lock_) {
-    std::lock_guard lock(lock_);
-    if (closed_ || remaining_capacity_locked() == 0) {
-      return false;
-    }
-    PushAndWake(value);
-    return true;
-  }
-
-  bool TryPush(T&& value) PW_LOCKS_EXCLUDED(lock_) {
-    std::lock_guard lock(lock_);
-    if (closed_ || remaining_capacity_locked() == 0) {
-      return false;
-    }
-    PushAndWake(std::move(value));
-    return true;
-  }
-
-  std::optional<T> TryPop() PW_LOCKS_EXCLUDED(lock_) {
-    std::lock_guard lock(lock_);
-    if (deque_.empty()) {
-      return std::nullopt;
-    }
-    return PopAndWake();
-  }
-
-  bool Reserve() PW_LOCKS_EXCLUDED(lock_) {
-    std::lock_guard lock(lock_);
-    if (closed_ || remaining_capacity_locked() == 0) {
-      return false;
-    }
-    reservations_++;
-    return true;
-  }
-
-  void DropReservation() PW_LOCKS_EXCLUDED(lock_) {
-    std::lock_guard lock(lock_);
-    PW_ASSERT(reservations_ > 0);
-    reservations_--;
-    if (!closed_) {
-      WakeOneSender();
-    }
-  }
-
-  template <typename... Args>
-  void CommitReservation(Args&&... args) PW_LOCKS_EXCLUDED(lock_) {
-    std::lock_guard lock(lock_);
-    PW_ASSERT(reservations_ > 0);
-    reservations_--;
-    if (!closed_) {
-      EmplaceAndWake(std::forward<Args>(args)...);
-    }
-  }
-
-  void add_receiver() PW_LOCKS_EXCLUDED(lock_) {
-    std::lock_guard lock(lock_);
+  void add_receiver() PW_EXCLUSIVE_LOCKS_REQUIRED(*this) {
     add_object(receiver_count_);
   }
 
-  void add_sender() PW_LOCKS_EXCLUDED(lock_) {
-    std::lock_guard lock(lock_);
+  void add_sender() PW_EXCLUSIVE_LOCKS_REQUIRED(*this) {
     add_object(sender_count_);
   }
 
-  void add_handle() PW_LOCKS_EXCLUDED(lock_) {
-    std::lock_guard lock(lock_);
+  void add_handle() PW_EXCLUSIVE_LOCKS_REQUIRED(*this) {
     add_object(handle_count_);
   }
 
-  void add_object(uint8_t& counter) PW_EXCLUSIVE_LOCKS_REQUIRED(lock_) {
-    if (!closed_) {
-      PW_ASSERT(CheckedAdd(counter, 1, counter));
+  void add_reservation() PW_EXCLUSIVE_LOCKS_REQUIRED(*this) {
+    reservations_ += 1;
+  }
+
+  void remove_reservation() PW_EXCLUSIVE_LOCKS_REQUIRED(*this) {
+    PW_DASSERT(reservations_ > 0);
+    reservations_ -= 1;
+  }
+
+  void remove_sender() PW_LOCKS_EXCLUDED(*this) {
+    remove_object(&sender_count_);
+  }
+
+  void remove_receiver() PW_LOCKS_EXCLUDED(*this) {
+    remove_object(&receiver_count_);
+  }
+
+  void remove_handle() PW_LOCKS_EXCLUDED(*this) {
+    remove_object(&handle_count_);
+  }
+
+  void add_ref() PW_EXCLUSIVE_LOCKS_REQUIRED(*this) {
+    PW_ASSERT(CheckedIncrement(ref_count_, 1));
+  }
+
+ protected:
+  constexpr BaseChannel() = default;
+
+  ~BaseChannel();
+
+  void WakeOneReceiver() PW_EXCLUSIVE_LOCKS_REQUIRED(*this) {
+    PopAndWakeOneIfAvailable(receive_futures_);
+  }
+
+  void WakeOneSender() PW_EXCLUSIVE_LOCKS_REQUIRED(*this) {
+    PopAndWakeOneIfAvailable(send_futures_);
+  }
+
+  uint16_t reservations() const PW_EXCLUSIVE_LOCKS_REQUIRED(*this) {
+    return reservations_;
+  }
+
+ private:
+  static void PopAndWakeAll(IntrusiveForwardList<BaseChannelFuture>& futures);
+
+  static void PopAndWakeOneIfAvailable(
+      IntrusiveForwardList<BaseChannelFuture>& futures);
+
+  static void PopAndWakeOne(IntrusiveForwardList<BaseChannelFuture>& futures);
+
+  void add_object(uint8_t& counter) PW_EXCLUSIVE_LOCKS_REQUIRED(*this) {
+    if (is_open_locked()) {
+      PW_ASSERT(CheckedIncrement(counter, 1));
     }
-    PW_ASSERT(CheckedAdd(ref_count_, 1, ref_count_));
+    add_ref();
   }
 
-  void remove_sender() PW_LOCKS_EXCLUDED(lock_) {
-    std::lock_guard lock(lock_);
-    remove_object(sender_count_);
+  // Takes a pointer since otherwise Clang's thread safety analysis complains
+  // about taking a reference without the lock held.
+  void remove_object(uint8_t* counter) PW_LOCKS_EXCLUDED(*this);
+
+  // Returns true if the channel should be closed following a reference
+  // decrement.
+  //
+  // Handles can create new senders and receivers, so as long as one exists, the
+  // channel should remain open. Without active handles, the channel closes when
+  // either end fully hangs up.
+  bool should_close() const PW_EXCLUSIVE_LOCKS_REQUIRED(*this) {
+    return handle_count_ == 0 && (sender_count_ == 0 || receiver_count_ == 0);
   }
 
-  void remove_receiver() PW_LOCKS_EXCLUDED(lock_) {
-    std::lock_guard lock(lock_);
-    remove_object(receiver_count_);
-  }
+  void CloseLocked() PW_EXCLUSIVE_LOCKS_REQUIRED(*this);
 
-  void remove_handle() PW_LOCKS_EXCLUDED(lock_) {
-    std::lock_guard lock(lock_);
-    remove_object(handle_count_);
-  }
+  // Destroys the channel if it is dynamically allocated.
+  virtual void Destroy() {}
 
-  void remove_object(uint8_t& counter) PW_UNLOCK_FUNCTION(lock_) {
-    if (!closed_) {
-      PW_ASSERT(counter > 0);
-      counter--;
-      if (should_close()) {
-        CloseLocked();
-      }
-    }
-    bool destroy = decrement_ref_locked();
-    lock_.unlock();
+  IntrusiveForwardList<BaseChannelFuture> send_futures_ PW_GUARDED_BY(*this);
+  IntrusiveForwardList<BaseChannelFuture> receive_futures_ PW_GUARDED_BY(*this);
 
-    if (destroy) {
-      Destroy();
-    }
-  }
-
-  void add_ref() PW_LOCKS_EXCLUDED(lock_) {
-    std::lock_guard lock(lock_);
-    ref_count_++;
-  }
-
-  void remove_ref() PW_LOCKS_EXCLUDED(lock_) {
-    bool destroy;
-    {
-      std::lock_guard lock(lock_);
-      destroy = decrement_ref_locked();
-    }
-    if (destroy) {
-      Destroy();
-    }
-  }
-
-  bool decrement_ref_locked() PW_EXCLUSIVE_LOCKS_REQUIRED(lock_) {
-    ref_count_--;
-    return ref_count_ == 0;
-  }
-
-  /// Returns true if the channel should be closed following a reference
-  /// decrement.
-  ///
-  /// Handles can create new senders and receivers, so as long as one exists,
-  /// the channel should remain open. Without active handles, the channel
-  /// closes when either end fully hangs up.
-  bool should_close() const PW_EXCLUSIVE_LOCKS_REQUIRED(lock_) {
-    if (handle_count_ > 0) {
-      return false;
-    }
-    return sender_count_ == 0 || receiver_count_ == 0;
-  }
-
-  // ListFutureProvider is internally synchronized.
-  ListFutureProvider<SendFuture<T>> send_futures_;
-  ListFutureProvider<ReserveSendFuture<T>> reserve_send_futures_;
-  ListFutureProvider<ReceiveFuture<T>> receive_futures_;
-
+  uint16_t reservations_ PW_GUARDED_BY(*this) = 0;
+  bool closed_ PW_GUARDED_BY(*this) = false;
   mutable sync::InterruptSpinLock lock_;
-  FixedDeque<T> deque_ PW_GUARDED_BY(lock_);
-  uint16_t reservations_ PW_GUARDED_BY(lock_) = 0;
-  bool closed_ PW_GUARDED_BY(lock_) = false;
-  bool prioritize_reserve_ PW_GUARDED_BY(lock_) = true;
 
   // Channels are reference counted in two ways:
   //
@@ -389,10 +210,268 @@ class Channel {
   // - Overall object reference count, including senders, receivers, futures,
   //   and channel handles. Once this reaches zero, the channel is destroyed.
   //
-  uint8_t sender_count_ PW_GUARDED_BY(lock_) = 0;
-  uint8_t receiver_count_ PW_GUARDED_BY(lock_) = 0;
-  uint8_t handle_count_ PW_GUARDED_BY(lock_) = 0;
-  uint16_t ref_count_ PW_GUARDED_BY(lock_) = 0;
+  uint8_t sender_count_ PW_GUARDED_BY(*this) = 0;
+  uint8_t receiver_count_ PW_GUARDED_BY(*this) = 0;
+  uint8_t handle_count_ PW_GUARDED_BY(*this) = 0;
+  uint16_t ref_count_ PW_GUARDED_BY(*this) = 0;
+};
+
+class BaseChannelFuture : public IntrusiveForwardList<BaseChannelFuture>::Item {
+ public:
+  BaseChannelFuture(const BaseChannelFuture&) = delete;
+  BaseChannelFuture& operator=(const BaseChannelFuture&) = delete;
+
+  // Derived classes call MoveAssignFrom to move rather than use the operator.
+  BaseChannelFuture& operator=(BaseChannelFuture&&) = delete;
+
+  /// True if the future has returned `Ready()`.
+  [[nodiscard]] bool is_complete() const { return completed_; }
+
+  // Internal API for the channel to wake the future.
+  void Wake() { std::move(waker_).Wake(); }
+
+ protected:
+  // Creates a new future, storing nullptr if `channel` is nullptr or if the
+  // channel is closed.
+  explicit BaseChannelFuture(BaseChannel* channel) PW_LOCKS_EXCLUDED(*channel);
+
+  enum AllowClosed { kAllowClosed };
+
+  // Creates a new future, but does NOT check if the channel is open.
+  BaseChannelFuture(BaseChannel* channel, AllowClosed)
+      PW_LOCKS_EXCLUDED(*channel) {
+    StoreAndAddRefIfNonnull(channel);
+  }
+
+  BaseChannelFuture(BaseChannelFuture&& other)
+      PW_LOCKS_EXCLUDED(*channel_, *other.channel_)
+      : channel_(other.channel_) {
+    MoveFrom(other);
+  }
+
+  BaseChannelFuture& MoveAssignFrom(BaseChannelFuture& other)
+      PW_LOCKS_EXCLUDED(*channel_, *other.channel_);
+
+  // Unlists this future and removes a reference from the channel.
+  void RemoveFromChannel() PW_LOCKS_EXCLUDED(*channel_);
+
+  bool StoreWakerForReceiveIfOpen(Context& cx) PW_UNLOCK_FUNCTION(*channel_);
+
+  void StoreWakerForSend(Context& cx) PW_UNLOCK_FUNCTION(*channel_);
+
+  void StoreWakerForReserveSend(Context& cx) PW_UNLOCK_FUNCTION(*channel_);
+
+  void MarkCompleted() { completed_ = true; }
+
+  void Complete() PW_UNLOCK_FUNCTION(*channel_) {
+    channel_->RemoveRefAndDestroyIfUnreferenced();
+    channel_ = nullptr;
+  }
+
+  BaseChannel* base_channel() PW_LOCK_RETURNED(channel_) { return channel_; }
+
+ private:
+  void StoreAndAddRefIfNonnull(BaseChannel* channel)
+      PW_LOCKS_EXCLUDED(*channel);
+
+  void MoveFrom(BaseChannelFuture& other) PW_LOCKS_EXCLUDED(*other.channel_);
+
+  BaseChannel* channel_;
+  Waker waker_;
+
+  bool completed_ = false;
+};
+
+// Adds Pend function and is_complete flag to BaseChannelFuture.
+template <typename Derived, typename T, typename FutureValue>
+class ChannelFuture : public BaseChannelFuture {
+ public:
+  using value_type = FutureValue;
+
+  Poll<value_type> Pend(Context& cx) PW_LOCKS_EXCLUDED(*this->channel()) {
+    PW_ASSERT(!is_complete());
+    Poll<value_type> result = static_cast<Derived&>(*this).DoPend(cx);
+    if (result.IsReady()) {
+      MarkCompleted();
+    }
+    return result;
+  }
+
+ protected:
+  explicit ChannelFuture(Channel<T>* channel) : BaseChannelFuture(channel) {}
+
+  ChannelFuture(Channel<T>* channel, AllowClosed)
+      : BaseChannelFuture(channel, kAllowClosed) {}
+
+  ChannelFuture(ChannelFuture&& other) : BaseChannelFuture(std::move(other)) {}
+
+  Channel<T>* channel() PW_LOCK_RETURNED(this->base_channel()) {
+    return static_cast<Channel<T>*>(base_channel());
+  }
+
+ private:
+  using BaseChannelFuture::base_channel;
+  using BaseChannelFuture::MarkCompleted;
+  using BaseChannelFuture::Wake;
+};
+
+// Like BaseChannel, Channel is an internal class that is not exposed to users.
+// Its public interface is for internal consumption.
+template <typename T>
+class Channel : public BaseChannel {
+ public:
+  Sender<T> CreateSender() PW_LOCKS_EXCLUDED(*this) {
+    {
+      std::lock_guard guard(*this);
+      if (is_open_locked()) {
+        return Sender<T>(*this);
+      }
+    }
+    return Sender<T>();
+  }
+
+  Receiver<T> CreateReceiver() PW_LOCKS_EXCLUDED(*this) {
+    {
+      std::lock_guard guard(*this);
+      if (is_open_locked()) {
+        return Receiver<T>(*this);
+      }
+    }
+    return Receiver<T>();
+  }
+
+  void PushAndWake(T&& value) PW_EXCLUSIVE_LOCKS_REQUIRED(*this) {
+    deque_.push_back(std::move(value));
+    WakeOneReceiver();
+  }
+
+  void PushAndWake(const T& value) PW_EXCLUSIVE_LOCKS_REQUIRED(*this) {
+    deque_.push_back(value);
+    WakeOneReceiver();
+  }
+
+  template <typename... Args>
+  void EmplaceAndWake(Args&&... args) PW_EXCLUSIVE_LOCKS_REQUIRED(*this) {
+    deque_.emplace_back(std::forward<Args>(args)...);
+    WakeOneReceiver();
+  }
+
+  T PopAndWake() PW_EXCLUSIVE_LOCKS_REQUIRED(*this) {
+    T value = std::move(deque_.front());
+    deque_.pop_front();
+
+    WakeOneSender();
+    return value;
+  }
+
+  bool full() const PW_EXCLUSIVE_LOCKS_REQUIRED(*this) {
+    return remaining_capacity_locked() == 0;
+  }
+
+  uint16_t remaining_capacity() PW_LOCKS_EXCLUDED(*this) {
+    std::lock_guard guard(*this);
+    return remaining_capacity_locked();
+  }
+
+  uint16_t remaining_capacity_locked() const
+      PW_EXCLUSIVE_LOCKS_REQUIRED(*this) {
+    return deque_.capacity() - deque_.size() - reservations();
+  }
+
+  uint16_t capacity() const PW_NO_LOCK_SAFETY_ANALYSIS {
+    // SAFETY: The capacity of `deque_` cannot change.
+    return deque_.capacity();
+  }
+
+  [[nodiscard]] bool empty() PW_EXCLUSIVE_LOCKS_REQUIRED(*this) {
+    return deque_.empty();
+  }
+
+  template <typename U>
+  Status TrySend(U&& value) PW_LOCKS_EXCLUDED(*this) {
+    std::lock_guard guard(*this);
+    if (!is_open_locked()) {
+      return Status::FailedPrecondition();
+    }
+    if (full()) {
+      return Status::Unavailable();
+    }
+    PushAndWake(std::forward<U>(value));
+    return OkStatus();
+  }
+
+  Result<T> TryReceive() PW_LOCKS_EXCLUDED(*this) {
+    std::lock_guard guard(*this);
+    if (deque_.empty()) {
+      return is_open_locked() ? Status::Unavailable()
+                              : Status::FailedPrecondition();
+    }
+    return Result(PopAndWake());
+  }
+
+  Result<SendReservation<T>> TryReserveSend() PW_LOCKS_EXCLUDED(*this) {
+    std::lock_guard guard(*this);
+    if (!is_open_locked()) {
+      return Status::FailedPrecondition();
+    }
+    if (full()) {
+      return Status::Unavailable();
+    }
+    add_reservation();
+    return SendReservation<T>(*this);
+  }
+
+  template <typename... Args>
+  void CommitReservationAndRemoveRef(Args&&... args) PW_LOCKS_EXCLUDED(*this) {
+    lock();
+    remove_reservation();
+    if (is_open_locked()) {
+      EmplaceAndWake(std::forward<Args>(args)...);
+    }
+    RemoveRefAndDestroyIfUnreferenced();
+  }
+
+ protected:
+  constexpr explicit Channel(FixedDeque<T>&& deque)
+      : deque_(std::move(deque)) {}
+
+  template <size_t kAlignment, size_t kCapacity>
+  explicit Channel(containers::Storage<kAlignment, kCapacity>& storage)
+      : deque_(storage) {}
+
+  ~Channel() = default;
+
+  Deallocator* deallocator() const PW_NO_LOCK_SAFETY_ANALYSIS {
+    // SAFETY: deque_.deallocator() cannot change.
+    return deque_.deallocator();
+  }
+
+ private:
+  FixedDeque<T> deque_ PW_GUARDED_BY(*this);
+};
+
+template <typename T>
+class DynamicChannel final : public Channel<T> {
+ public:
+  static Channel<T>* Allocate(Allocator& alloc, uint16_t capacity) {
+    FixedDeque<T> deque = FixedDeque<T>::TryAllocate(alloc, capacity);
+    if (deque.capacity() == 0) {
+      return nullptr;
+    }
+    return alloc.New<DynamicChannel<T>>(std::move(deque));
+  }
+
+  explicit DynamicChannel(FixedDeque<T>&& deque)
+      : Channel<T>(std::move(deque)) {}
+
+ private:
+  ~DynamicChannel() = default;
+
+  void Destroy() final PW_LOCKS_EXCLUDED(*this) {
+    Deallocator* const deallocator = this->deallocator();
+    this->~DynamicChannel();
+    deallocator->Deallocate(this);
+  }
 };
 
 /// A handle to a channel, used to create senders and receivers.
@@ -439,7 +518,7 @@ class ChannelHandle {
   ~ChannelHandle() { Release(); }
 
   [[nodiscard]] bool is_open() const {
-    return channel_ != nullptr && !channel_->closed();
+    return channel_ != nullptr && channel_->is_open();
   }
 
   /// Creates a new sender for the channel, increasing the active sender count.
@@ -479,10 +558,10 @@ class ChannelHandle {
   }
 
  protected:
-  explicit ChannelHandle(internal::Channel<T>* channel) : channel_(channel) {
-    if (channel_ != nullptr) {
-      channel_->add_handle();
-    }
+  explicit ChannelHandle(internal::Channel<T>& channel)
+      PW_EXCLUSIVE_LOCKS_REQUIRED(channel)
+      : channel_(&channel) {
+    channel_->add_handle();
   }
 
  private:
@@ -504,7 +583,7 @@ class MpmcChannelHandle : private internal::ChannelHandle<T> {
   using internal::ChannelHandle<T>::Release;
 
  private:
-  explicit MpmcChannelHandle(internal::Channel<T>* channel)
+  explicit MpmcChannelHandle(internal::Channel<T>& channel)
       : internal::ChannelHandle<T>(channel) {}
 
   template <typename U>
@@ -528,7 +607,7 @@ class MpscChannelHandle : private internal::ChannelHandle<T> {
   using internal::ChannelHandle<T>::Release;
 
  private:
-  explicit MpscChannelHandle(internal::Channel<T>* channel)
+  explicit MpscChannelHandle(internal::Channel<T>& channel)
       : internal::ChannelHandle<T>(channel) {}
 
   template <typename U>
@@ -552,7 +631,7 @@ class SpmcChannelHandle : private internal::ChannelHandle<T> {
   using internal::ChannelHandle<T>::Release;
 
  private:
-  explicit SpmcChannelHandle(internal::Channel<T>* channel)
+  explicit SpmcChannelHandle(internal::Channel<T>& channel)
       : internal::ChannelHandle<T>(channel) {}
 
   template <typename U>
@@ -575,7 +654,7 @@ class SpscChannelHandle : private internal::ChannelHandle<T> {
   using internal::ChannelHandle<T>::Release;
 
  private:
-  explicit SpscChannelHandle(internal::Channel<T>* channel)
+  explicit SpscChannelHandle(internal::Channel<T>& channel)
       : internal::ChannelHandle<T>(channel) {}
 
   template <typename U>
@@ -590,90 +669,89 @@ class SpscChannelHandle : private internal::ChannelHandle<T> {
 /// Fixed capacity storage for an asynchronous channel which supports multiple
 /// producers and multiple consumers.
 ///
-/// `ChannelStorage` is used to create a channel vi
-///
 /// `ChannelStorage` must outlive the channel in which it is used.
 template <typename T, uint16_t kCapacity>
-class ChannelStorage : private containers::StorageBaseFor<T, kCapacity>,
-                       public internal::Channel<T> {
+class ChannelStorage final : private containers::StorageBaseFor<T, kCapacity>,
+                             private internal::Channel<T> {
  public:
+  template <typename U, uint16_t kCap>
+  friend std::tuple<SpscChannelHandle<U>, Sender<U>, Receiver<U>>
+  CreateSpscChannel(ChannelStorage<U, kCap>& storage);
+
+  template <typename U, uint16_t kCap>
+  friend std::tuple<MpscChannelHandle<U>, Receiver<U>> CreateMpscChannel(
+      ChannelStorage<U, kCap>& storage);
+
+  template <typename U, uint16_t kCap>
+  friend std::tuple<SpmcChannelHandle<U>, Sender<U>> CreateSpmcChannel(
+      ChannelStorage<U, kCap>& storage);
+
+  template <typename U, uint16_t kCap>
+  friend MpmcChannelHandle<U> CreateMpmcChannel(
+      ChannelStorage<U, kCap>& storage);
+
   ChannelStorage() : internal::Channel<T>(this->storage()) {}
+
+  ~ChannelStorage() = default;
 
   /// Returns true if this channel storage is in use.
   /// If `false`, the storage can either be reused or safely destroyed.
-  [[nodiscard]] bool active() const { return this->ref_count() != 0; }
+  [[nodiscard]] bool active() const PW_LOCKS_EXCLUDED(*this) {
+    std::lock_guard lock(*this);
+    return this->active_locked();
+  }
 
- private:
-  using internal::Channel<T>::Allocated;
+  constexpr uint16_t capacity() const { return kCapacity; }
 };
 
 template <typename T>
-class [[nodiscard]] ReceiveFuture
-    : public ListableFutureWithWaker<ReceiveFuture<T>, std::optional<T>> {
+class [[nodiscard]] ReceiveFuture final
+    : public internal::ChannelFuture<ReceiveFuture<T>, T, std::optional<T>> {
+ private:
+  using Base = internal::ChannelFuture<ReceiveFuture, T, std::optional<T>>;
+
  public:
+  constexpr ReceiveFuture() = default;
+
   ReceiveFuture(ReceiveFuture&& other)
-      : Base(Base::kMovedFrom),
-        channel_(std::exchange(other.channel_, nullptr)) {
-    Base::MoveFrom(other);
+      PW_LOCKS_EXCLUDED(*this->channel(), *other.channel())
+      : Base(std::move(other)) {}
+
+  ReceiveFuture& operator=(ReceiveFuture&& other)
+      PW_LOCKS_EXCLUDED(*this->channel(), *other.channel()) {
+    // NOLINTNEXTLINE(misc-unconventional-assign-operator)
+    return static_cast<ReceiveFuture&>(this->MoveAssignFrom(other));
   }
 
-  ReceiveFuture& operator=(ReceiveFuture&& other) {
-    if (this == &other) {
-      return *this;
-    }
-    if (channel_ != nullptr) {
-      channel_->remove_ref();
-    }
-    channel_ = std::exchange(other.channel_, nullptr);
-    Base::MoveFrom(other);
-    return *this;
+  ~ReceiveFuture() PW_LOCKS_EXCLUDED(*this->channel()) {
+    this->RemoveFromChannel();
   }
-
-  ~ReceiveFuture() { reset(); }
 
  private:
-  using Base = ListableFutureWithWaker<ReceiveFuture<T>, std::optional<T>>;
   friend Base;
   friend internal::Channel<T>;
   friend Receiver<T>;
 
-  static constexpr const char kWaitReason[] = "Receiver::Receive";
+  explicit ReceiveFuture(internal::Channel<T>* channel)
+      PW_LOCKS_EXCLUDED(*channel)
+      : Base(channel, this->kAllowClosed) {}
 
-  explicit ReceiveFuture(internal::Channel<T>& channel)
-      : Base(channel.receive_futures_), channel_(&channel) {
-    channel_->add_ref();
-  }
-
-  ReceiveFuture() : Base(Base::kReadyForCompletion), channel_(nullptr) {}
-
-  Poll<std::optional<T>> DoPend(Context&) {
-    if (channel_ == nullptr) {
+  PollOptional<T> DoPend(Context& cx) PW_LOCKS_EXCLUDED(*this->channel()) {
+    if (this->channel() == nullptr) {
       return Ready<std::optional<T>>(std::nullopt);
     }
 
-    std::optional<T> value = channel_->TryPop();
-    if (!value.has_value()) {
-      if (channel_->closed()) {
-        reset();
-        return Ready<std::optional<T>>(std::nullopt);
-      }
-      return Pending();
+    this->channel()->lock();
+    if (this->channel()->empty()) {
+      return this->StoreWakerForReceiveIfOpen(cx)
+                 ? Pending()
+                 : Ready<std::optional<T>>(std::nullopt);
     }
 
-    reset();
-    return Ready(std::move(value));
+    auto result = Ready(this->channel()->PopAndWake());
+    this->Complete();
+    return result;
   }
-
-  void reset() {
-    if (channel_ != nullptr) {
-      channel_->remove_ref();
-      channel_ = nullptr;
-    }
-  }
-
-  using Base::Wake;
-
-  internal::Channel<T>* channel_;
 };
 
 /// A receiver which reads values from an asynchronous channel.
@@ -714,45 +792,46 @@ class Receiver {
   ///
   /// This operation blocks the running thread until it is complete. It must
   /// not be called from an async context, or it will likely deadlock.
-  Result<T> BlockingReceive(
-      Dispatcher& dispatcher,
-      chrono::SystemClock::duration timeout = kWaitForever) {
+  Result<T> BlockingReceive(Dispatcher& dispatcher,
+                            chrono::SystemClock::duration timeout =
+                                internal::Channel<T>::kWaitForever)
+      PW_LOCKS_EXCLUDED(*channel_) {
     if (channel_ == nullptr) {
       return Status::FailedPrecondition();
     }
 
-    Result<T> available = TryReceive();
-    if (available.ok()) {
-      return available;
+    // Return immediately if a value is available or the channel is closed.
+    if (Result<T> result = channel_->TryReceive();
+        result.ok() || result.status().IsFailedPrecondition()) {
+      return result;
     }
 
     std::optional<T> result;
     sync::TimedThreadNotification notification;
 
-    FutureCallbackTask task(ReceiveFuture<T>(*channel_),
-                            [&result, &notification](std::optional<T> value) {
-                              result = std::move(value);
+    FutureCallbackTask task(ReceiveFuture<T>(channel_),
+                            [&result, &notification](std::optional<T>&& val) {
+                              result = std::move(val);
                               notification.release();
                             });
     dispatcher.Post(task);
 
-    if (timeout == kWaitForever) {
+    if (timeout == internal::Channel<T>::kWaitForever) {
       notification.acquire();
       if (!result.has_value()) {
         return Status::FailedPrecondition();
       }
-      return Result<T>(std::move(result.value()));
+      return Result<T>(std::move(*result));
     }
 
     if (!notification.try_acquire_for(timeout)) {
-      task.Deregister();
       return Status::DeadlineExceeded();
     }
 
     if (!result.has_value()) {
       return Status::FailedPrecondition();
     }
-    return Result<T>(std::move(result.value()));
+    return Result<T>(std::move(*result));
   }
 
   /// Reads a value from the channel, blocking until it is available.
@@ -762,11 +841,8 @@ class Receiver {
   ///
   /// If there are multiple receivers for a channel, each of them compete for
   /// exclusive values.
-  ReceiveFuture<T> Receive() {
-    if (channel_ == nullptr) {
-      return ReceiveFuture<T>();
-    }
-    return ReceiveFuture<T>(*channel_);
+  ReceiveFuture<T> Receive() PW_LOCKS_EXCLUDED(*channel_) {
+    return ReceiveFuture<T>(channel_);
   }
 
   /// Reads a value from the channel if one is available.
@@ -779,14 +855,7 @@ class Receiver {
     if (channel_ == nullptr) {
       return Status::FailedPrecondition();
     }
-    std::optional<T> value = channel_->TryPop();
-    if (value.has_value()) {
-      return std::move(*value);
-    }
-    if (channel_->closed()) {
-      return Status::FailedPrecondition();
-    }
-    return Status::Unavailable();
+    return channel_->TryReceive();
   }
 
   /// Removes this receiver from its channel, preventing the receiver from
@@ -802,13 +871,10 @@ class Receiver {
 
   /// Returns true if the channel is open.
   [[nodiscard]] bool is_open() const {
-    return channel_ != nullptr && !channel_->closed();
+    return channel_ != nullptr && channel_->is_open();
   }
 
  private:
-  static constexpr chrono::SystemClock::duration kWaitForever =
-      chrono::SystemClock::duration::max();
-
   template <typename U>
   friend class internal::Channel;
 
@@ -828,100 +894,70 @@ class Receiver {
   friend std::tuple<SpscChannelHandle<U>, Sender<U>, Receiver<U>>
   CreateSpscChannel(ChannelStorage<U, kCapacity>& storage);
 
-  explicit Receiver(internal::Channel<T>* channel) : channel_(channel) {
-    if (channel_ != nullptr) {
-      channel_->add_receiver();
-    }
+  explicit Receiver(internal::Channel<T>& channel)
+      PW_EXCLUSIVE_LOCKS_REQUIRED(channel)
+      : channel_(&channel) {
+    channel_->add_receiver();
   }
 
   internal::Channel<T>* channel_;
 };
 
 template <typename T>
-class [[nodiscard]] SendFuture
-    : public ListableFutureWithWaker<SendFuture<T>, bool> {
+class [[nodiscard]] SendFuture final
+    : public internal::ChannelFuture<SendFuture<T>, T, bool> {
+ private:
+  using Base = internal::ChannelFuture<SendFuture, T, bool>;
+
  public:
-  SendFuture(SendFuture&& other)
-      : Base(Base::kMovedFrom),
-        channel_(std::exchange(other.channel_, nullptr)),
-        value_(std::move(other.value_)) {
-    Base::MoveFrom(other);
-  }
+  SendFuture(SendFuture&& other) PW_LOCKS_EXCLUDED(*other.channel())
+      : Base(static_cast<Base&&>(other)), value_(std::move(other.value_)) {}
 
-  SendFuture& operator=(SendFuture&& other) {
-    if (this == &other) {
-      return *this;
-    }
-    if (channel_ != nullptr) {
-      channel_->remove_ref();
-    }
-    channel_ = std::exchange(other.channel_, nullptr);
+  SendFuture& operator=(SendFuture&& other)
+      PW_LOCKS_EXCLUDED(*this->channel(), *other.channel()) {
     value_ = std::move(other.value_);
-    Base::MoveFrom(other);
-    return *this;
+    // NOLINTNEXTLINE(misc-unconventional-assign-operator)
+    return static_cast<SendFuture&>(this->MoveAssignFrom(other));
   }
 
-  ~SendFuture() { reset(); }
+  ~SendFuture() PW_LOCKS_EXCLUDED(*this->channel()) {
+    this->RemoveFromChannel();
+  }
 
  private:
-  using Base = ListableFutureWithWaker<SendFuture<T>, bool>;
   friend Base;
   friend internal::Channel<T>;
   friend Sender<T>;
 
-  static constexpr const char kWaitReason[] = "Sender::Send";
+  SendFuture(internal::Channel<T>* channel, const T& value)
+      PW_LOCKS_EXCLUDED(*channel)
+      : Base(channel), value_(value) {}
 
-  SendFuture(internal::Channel<T>& channel, const T& value)
-      : Base(channel.send_futures_), channel_(&channel), value_(value) {
-    channel_->add_ref();
-  }
+  SendFuture(internal::Channel<T>* channel, T&& value)
+      PW_LOCKS_EXCLUDED(*channel)
+      : Base(channel), value_(std::move(value)) {}
 
-  SendFuture(internal::Channel<T>& channel, T&& value)
-      : Base(channel.send_futures_),
-        channel_(&channel),
-        value_(std::move(value)) {
-    channel_->add_ref();
-  }
-
-  enum ClosedState { kClosed };
-
-  SendFuture(ClosedState, const T& value)
-      : Base(Base::kReadyForCompletion), channel_(nullptr), value_(value) {}
-
-  SendFuture(ClosedState, T&& value)
-      : Base(Base::kReadyForCompletion),
-        channel_(nullptr),
-        value_(std::move(value)) {}
-
-  Poll<bool> DoPend(async2::Context&) {
-    if (channel_ == nullptr || channel_->closed()) {
-      reset();
+  Poll<bool> DoPend(Context& cx) PW_LOCKS_EXCLUDED(*this->channel()) {
+    if (this->channel() == nullptr) {
       return Ready(false);
     }
 
-    {
-      std::lock_guard lock(channel_->lock_);
-      if (channel_->full_locked()) {
-        return Pending();
-      }
-
-      channel_->Push(std::move(value_));
+    this->channel()->lock();
+    if (!this->channel()->is_open_locked()) {
+      this->Complete();
+      return Ready(false);
     }
 
-    reset();
+    if (this->channel()->full()) {
+      this->StoreWakerForSend(cx);
+      return Pending();
+    }
+
+    this->channel()->PushAndWake(std::move(value_));
+    this->Complete();
     return Ready(true);
   }
 
-  void reset() {
-    if (channel_ != nullptr) {
-      channel_->remove_ref();
-      channel_ = nullptr;
-    }
-  }
-
-  using Base::Wake;
-
-  internal::Channel<T>* channel_;
   T value_;
 };
 
@@ -955,25 +991,26 @@ class SendReservation {
   template <typename... Args>
   void Commit(Args&&... args) {
     PW_ASSERT(channel_ != nullptr);
-    channel_->CommitReservation(std::forward<Args>(args)...);
-    channel_->remove_ref();
+    channel_->CommitReservationAndRemoveRef(std::forward<Args>(args)...);
     channel_ = nullptr;
   }
 
   /// Releases the reservation, making the space available for other senders.
   void Cancel() {
     if (channel_ != nullptr) {
-      channel_->DropReservation();
-      channel_->remove_ref();
+      channel_->DropReservationAndRemoveRef();
       channel_ = nullptr;
     }
   }
 
  private:
+  friend internal::Channel<T>;
   friend class ReserveSendFuture<T>;
   friend class Sender<T>;
 
-  explicit SendReservation(internal::Channel<T>& channel) : channel_(&channel) {
+  explicit SendReservation(internal::Channel<T>& channel)
+      PW_EXCLUSIVE_LOCKS_REQUIRED(channel)
+      : channel_(&channel) {
     channel_->add_ref();
   }
 
@@ -981,71 +1018,57 @@ class SendReservation {
 };
 
 template <typename T>
-class [[nodiscard]] ReserveSendFuture
-    : public ListableFutureWithWaker<ReserveSendFuture<T>,
+class [[nodiscard]] ReserveSendFuture final
+    : public internal::ChannelFuture<ReserveSendFuture<T>,
+                                     T,
                                      std::optional<SendReservation<T>>> {
+ private:
+  using Base = internal::
+      ChannelFuture<ReserveSendFuture, T, std::optional<SendReservation<T>>>;
+
  public:
-  ReserveSendFuture(ReserveSendFuture&& other)
-      : Base(Base::kMovedFrom),
-        channel_(std::exchange(other.channel_, nullptr)) {
-    Base::MoveFrom(other);
-  }
+  ReserveSendFuture(ReserveSendFuture&& other) : Base(std::move(other)) {}
 
   ReserveSendFuture& operator=(ReserveSendFuture&& other) {
-    if (channel_ != nullptr) {
-      channel_->remove_ref();
-    }
-    channel_ = std::exchange(other.channel_, nullptr);
-    Base::MoveFrom(other);
-    return *this;
+    // NOLINTNEXTLINE(misc-unconventional-assign-operator)
+    return static_cast<ReserveSendFuture&>(this->MoveAssignFrom(other));
   }
 
-  ~ReserveSendFuture() { reset(); }
+  ~ReserveSendFuture() PW_LOCKS_EXCLUDED(*this->channel()) {
+    this->RemoveFromChannel();
+  }
 
  private:
-  using Base = ListableFutureWithWaker<ReserveSendFuture<T>,
-                                       std::optional<SendReservation<T>>>;
   friend Base;
   friend internal::Channel<T>;
   friend Sender<T>;
 
-  static constexpr const char kWaitReason[] = "Sender::ReserveSend";
-
   explicit ReserveSendFuture(internal::Channel<T>* channel)
-      : Base(channel->reserve_send_futures_), channel_(channel) {
-    channel_->add_ref();
-  }
+      PW_LOCKS_EXCLUDED(*channel)
+      : Base(channel) {}
 
-  enum ClosedState { kClosed };
-
-  explicit ReserveSendFuture(ClosedState)
-      : Base(Base::kReadyForCompletion), channel_(nullptr) {}
-
-  Poll<std::optional<SendReservation<T>>> DoPend(async2::Context&) {
-    if (channel_ == nullptr || channel_->closed()) {
-      reset();
+  PollOptional<SendReservation<T>> DoPend(Context& cx)
+      PW_LOCKS_EXCLUDED(*this->channel()) {
+    if (this->channel() == nullptr) {
       return Ready<std::optional<SendReservation<T>>>(std::nullopt);
     }
 
-    if (!channel_->Reserve()) {
+    this->channel()->lock();
+    if (!this->channel()->is_open_locked()) {
+      this->Complete();
+      return Ready<std::optional<SendReservation<T>>>(std::nullopt);
+    }
+
+    if (this->channel()->remaining_capacity_locked() == 0) {
+      this->StoreWakerForReserveSend(cx);
       return Pending();
     }
 
-    SendReservation<T> reservation(*channel_);
-    reset();
+    this->channel()->add_reservation();
+    SendReservation<T> reservation(*this->channel());
+    this->Complete();
     return reservation;
   }
-
-  void reset() {
-    if (channel_ != nullptr) {
-      channel_->remove_ref();
-      channel_ = nullptr;
-    }
-  }
-
-  using Base::Wake;
-
-  internal::Channel<T>* channel_;
 };
 
 /// A sender which writes values to an asynchronous channel.
@@ -1085,127 +1108,81 @@ class Sender {
   /// Note that a value being sent successfully does not guarantee that it
   /// will be read. If all corresponding receivers disconnect, any values
   /// still buffered in the channel are lost.
-  SendFuture<T> Send(const T& value) {
-    if (channel_ == nullptr) {
-      return SendFuture<T>(SendFuture<T>::kClosed, value);
-    }
-    return SendFuture<T>(*channel_, value);
-  }
-
-  /// Sends `value` through the channel, blocking until there is space.
-  ///
-  /// Returns a `Future<bool>` which resolves to `true` if the value was
-  /// successfully sent to the channel, or `false` if the channel is closed.
-  ///
-  /// Note that a value being sent successfully does not guarantee that it
-  /// will be read. If all corresponding receivers disconnect, any values
-  /// still buffered in the channel are lost.
-  SendFuture<T> Send(T&& value) {
-    if (channel_ == nullptr) {
-      return SendFuture<T>(SendFuture<T>::kClosed, std::move(value));
-    }
-    return SendFuture<T>(*channel_, std::move(value));
+  template <typename U>
+  SendFuture<T> Send(U&& value) {
+    return SendFuture<T>(channel_, std::forward<U>(value));
   }
 
   /// Returns a `Future<std::optional<SendReservation>>` which resolves to a
-  /// `SendReservation` which can be used to write `count` values directly
-  /// into the channel when space is available.
+  /// `SendReservation` which can be used to write a value directly into the
+  /// channel when space is available.
   ///
   /// If the channel is closed, the future resolves to `nullopt`.
-  ReserveSendFuture<T> ReserveSend() {
-    if (channel_ == nullptr) {
-      return ReserveSendFuture<T>(ReserveSendFuture<T>::kClosed);
-    }
-    return ReserveSendFuture<T>(channel_);
-  }
+  ReserveSendFuture<T> ReserveSend() { return ReserveSendFuture<T>(channel_); }
 
   /// Synchronously attempts to reserve a slot in the channel.
   ///
-  /// Returns a `SendReservation` if space is available.
-  /// Returns `std::nullopt` if the channel is full or closed.
+  /// This operation is thread-safe and may be called from outside of an async
+  /// context.
+  ///
+  /// @returns
+  /// * @OK: A `SendReservation` was successfully created.
+  /// * @FAILED_PRECONDITION: The channel is closed.
+  /// * @UNAVAILABLE: The channel is full.
+  Result<SendReservation<T>> TryReserveSend() {
+    if (channel_ == nullptr) {
+      return Status::FailedPrecondition();
+    }
+    return channel_->TryReserveSend();
+  }
+
+  /// Synchronously attempts to send `value` if there is space in the channel.
   ///
   /// This operation is thread-safe and may be called from outside of an async
   /// context.
-  std::optional<SendReservation<T>> TryReserveSend() {
+  ///
+  /// @returns
+  /// * @OK: The value was successfully sent to the channel.
+  /// * @FAILED_PRECONDITION: The channel is closed.
+  /// * @UNAVAILABLE: The channel is full.
+  Status TrySend(const T& value) {
     if (channel_ == nullptr) {
-      return std::nullopt;
+      return Status::FailedPrecondition();
     }
-    if (!channel_->Reserve()) {
-      return std::nullopt;
-    }
-    return SendReservation<T>(*channel_);
+    return channel_->TrySend(value);
   }
 
-  /// Synchronously attempts to send `value` if there is space in the channel.
-  /// Returns `true` if successful.
-  /// This operation is thread-safe and may be called from outside of an async
-  /// context.
-  bool TrySend(const T& value) {
+  /// @copydoc TrySend
+  Status TrySend(T&& value) {
     if (channel_ == nullptr) {
-      return false;
+      return Status::FailedPrecondition();
     }
-    return channel_->TryPush(value);
-  }
-
-  /// Synchronously attempts to send `value` if there is space in the channel.
-  /// Returns `true` if successful.
-  /// This operation is thread-safe and may be called from outside of an async
-  /// context.
-  bool TrySend(T&& value) {
-    if (channel_ == nullptr) {
-      return false;
-    }
-    return channel_->TryPush(std::move(value));
+    return channel_->TrySend(std::move(value));
   }
 
   /// Synchronously attempts to send `value` to the channel, blocking until
   /// space is available or the channel is closed.
   ///
+  /// This operation blocks the running thread until it is complete. It must
+  /// not be called from an async context, or it will likely deadlock.
+  ///
   /// @returns
   /// * @OK: The value was successfully sent to the channel.
   /// * @FAILED_PRECONDITION: The channel is closed.
   /// * @DEADLINE_EXCEEDED: The operation timed out.
-  ///
-  /// This operation blocks the running thread until it is complete. It must
-  /// not be called from an async context, or it will likely deadlock.
   Status BlockingSend(Dispatcher& dispatcher,
                       const T& value,
-                      chrono::SystemClock::duration timeout = kWaitForever) {
-    if (channel_ == nullptr) {
-      return Status::FailedPrecondition();
-    }
-
-    if (channel_->TryPush(value)) {
-      return OkStatus();
-    }
-
-    return BlockingSend(dispatcher, SendFuture<T>(*channel_, value), timeout);
+                      chrono::SystemClock::duration timeout =
+                          internal::Channel<T>::kWaitForever) {
+    return BlockingSendMoveOrCopy(dispatcher, value, timeout);
   }
 
-  /// Synchronously attempts to send `value` to the channel, blocking until
-  /// space is available or the channel is closed.
-  ///
-  /// @returns
-  /// * @OK: The value was successfully sent to the channel.
-  /// * @FAILED_PRECONDITION: The channel is closed.
-  /// * @DEADLINE_EXCEEDED: The operation timed out.
-  ///
-  /// This operation blocks the running thread until it is complete. It must
-  /// not be called from an async context, or it will likely deadlock.
+  /// @copydoc BlockingSend
   Status BlockingSend(Dispatcher& dispatcher,
                       T&& value,
-                      chrono::SystemClock::duration timeout = kWaitForever) {
-    if (channel_ == nullptr) {
-      return Status::FailedPrecondition();
-    }
-
-    if (channel_->Reserve()) {
-      channel_->CommitReservation(std::move(value));
-      return OkStatus();
-    }
-
-    return BlockingSend(
-        dispatcher, SendFuture<T>(*channel_, std::move(value)), timeout);
+                      chrono::SystemClock::duration timeout =
+                          internal::Channel<T>::kWaitForever) {
+    return BlockingSendMoveOrCopy(dispatcher, std::move(value), timeout);
   }
 
   /// Removes this sender from its channel, preventing it from writing further
@@ -1231,13 +1208,10 @@ class Sender {
 
   /// Returns true if the channel is open.
   [[nodiscard]] bool is_open() const {
-    return channel_ != nullptr && !channel_->closed();
+    return channel_ != nullptr && channel_->is_open();
   }
 
  private:
-  static constexpr chrono::SystemClock::duration kWaitForever =
-      chrono::SystemClock::duration::max();
-
   template <typename U>
   friend class internal::Channel;
 
@@ -1257,19 +1231,36 @@ class Sender {
   friend std::tuple<SpscChannelHandle<U>, Sender<U>, Receiver<U>>
   CreateSpscChannel(ChannelStorage<U, kCapacity>& storage);
 
-  explicit Sender(internal::Channel<T>* channel) : channel_(channel) {
-    if (channel_ != nullptr) {
-      channel_->add_sender();
-    }
+  explicit Sender(internal::Channel<T>& channel)
+      PW_EXCLUSIVE_LOCKS_REQUIRED(channel)
+      : channel_(&channel) {
+    channel_->add_sender();
   }
 
-  Status BlockingSend(Dispatcher& dispatcher,
-                      SendFuture<T>&& future,
-                      chrono::SystemClock::duration timeout) {
-    if (channel_->closed()) {
+  template <typename U>
+  Status BlockingSendMoveOrCopy(Dispatcher& dispatcher,
+                                U&& value,
+                                chrono::SystemClock::duration timeout)
+      PW_LOCKS_EXCLUDED(*channel_) {
+    if (channel_ == nullptr) {
       return Status::FailedPrecondition();
     }
 
+    if (Status status = channel_->TrySend(std::forward<U>(value));
+        status.ok() || status.IsFailedPrecondition()) {
+      return status;
+    }
+
+    return BlockingSendFuture(
+        dispatcher,  // NOLINTNEXTLINE(bugprone-use-after-move)
+        SendFuture<T>(channel_, std::forward<U>(value)),
+        timeout);
+  }
+
+  Status BlockingSendFuture(Dispatcher& dispatcher,
+                            SendFuture<T>&& future,
+                            chrono::SystemClock::duration timeout)
+      PW_LOCKS_EXCLUDED(*channel_) {
     Status status;
     sync::TimedThreadNotification notification;
 
@@ -1280,7 +1271,7 @@ class Sender {
         });
     dispatcher.Post(task);
 
-    if (timeout == kWaitForever) {
+    if (timeout == internal::Channel<T>::kWaitForever) {
       notification.acquire();
       return status;
     }
@@ -1311,11 +1302,12 @@ class Sender {
 template <typename T>
 std::optional<MpmcChannelHandle<T>> CreateMpmcChannel(Allocator& alloc,
                                                       uint16_t capacity) {
-  auto channel = internal::Channel<T>::Allocated(alloc, capacity);
+  auto channel = internal::DynamicChannel<T>::Allocate(alloc, capacity);
   if (channel == nullptr) {
     return std::nullopt;
   }
-  return MpmcChannelHandle<T>(channel);
+  std::lock_guard lock(*channel);
+  return MpmcChannelHandle<T>(*channel);
 }
 
 /// Creates a multi-producer, multi-consumer channel with provided static
@@ -1331,8 +1323,9 @@ std::optional<MpmcChannelHandle<T>> CreateMpmcChannel(Allocator& alloc,
 /// The provided storage must outlive the channel.
 template <typename T, uint16_t kCapacity>
 MpmcChannelHandle<T> CreateMpmcChannel(ChannelStorage<T, kCapacity>& storage) {
-  PW_ASSERT(!storage.active());
-  return MpmcChannelHandle<T>(&storage);
+  std::lock_guard lock(static_cast<internal::Channel<T>&>(storage));
+  PW_DASSERT(!storage.active_locked());
+  return MpmcChannelHandle<T>(storage);
 }
 
 /// Creates a dynamically allocated multi-producer, single-consumer channel
@@ -1351,11 +1344,12 @@ MpmcChannelHandle<T> CreateMpmcChannel(ChannelStorage<T, kCapacity>& storage) {
 template <typename T>
 std::optional<std::tuple<MpscChannelHandle<T>, Receiver<T>>> CreateMpscChannel(
     Allocator& alloc, uint16_t capacity) {
-  auto channel = internal::Channel<T>::Allocated(alloc, capacity);
+  auto channel = internal::DynamicChannel<T>::Allocate(alloc, capacity);
   if (channel == nullptr) {
     return std::nullopt;
   }
-  return std::make_tuple(MpscChannelHandle<T>(channel), Receiver<T>(channel));
+  std::lock_guard lock(*channel);
+  return std::make_tuple(MpscChannelHandle<T>(*channel), Receiver<T>(*channel));
 }
 
 /// Creates a multi-producer, single-consumer channel with provided static
@@ -1372,8 +1366,9 @@ std::optional<std::tuple<MpscChannelHandle<T>, Receiver<T>>> CreateMpscChannel(
 template <typename T, uint16_t kCapacity>
 std::tuple<MpscChannelHandle<T>, Receiver<T>> CreateMpscChannel(
     ChannelStorage<T, kCapacity>& storage) {
-  PW_ASSERT(!storage.active());
-  return std::make_tuple(MpscChannelHandle<T>(&storage), Receiver<T>(&storage));
+  std::lock_guard lock(static_cast<internal::Channel<T>&>(storage));
+  PW_DASSERT(!storage.active_locked());
+  return std::make_tuple(MpscChannelHandle<T>(storage), Receiver<T>(storage));
 }
 
 /// Creates a dynamically allocated single-producer, multi-consumer channel
@@ -1392,11 +1387,12 @@ std::tuple<MpscChannelHandle<T>, Receiver<T>> CreateMpscChannel(
 template <typename T>
 std::optional<std::tuple<SpmcChannelHandle<T>, Sender<T>>> CreateSpmcChannel(
     Allocator& alloc, uint16_t capacity) {
-  auto channel = internal::Channel<T>::Allocated(alloc, capacity);
+  auto channel = internal::DynamicChannel<T>::Allocate(alloc, capacity);
   if (channel == nullptr) {
     return std::nullopt;
   }
-  return std::make_tuple(SpmcChannelHandle<T>(channel), Sender<T>(channel));
+  std::lock_guard lock(*channel);
+  return std::make_tuple(SpmcChannelHandle<T>(*channel), Sender<T>(*channel));
 }
 
 /// Creates a single-producer, multi-consumer channel with provided static
@@ -1413,8 +1409,9 @@ std::optional<std::tuple<SpmcChannelHandle<T>, Sender<T>>> CreateSpmcChannel(
 template <typename T, uint16_t kCapacity>
 std::tuple<SpmcChannelHandle<T>, Sender<T>> CreateSpmcChannel(
     ChannelStorage<T, kCapacity>& storage) {
-  PW_ASSERT(!storage.active());
-  return std::make_tuple(SpmcChannelHandle<T>(&storage), Sender<T>(&storage));
+  std::lock_guard lock(static_cast<internal::Channel<T>&>(storage));
+  PW_DASSERT(!storage.active_locked());
+  return std::make_tuple(SpmcChannelHandle<T>(storage), Sender<T>(storage));
 }
 
 /// Creates a dynamically allocated single-producer, single-consumer channel
@@ -1433,12 +1430,14 @@ std::tuple<SpmcChannelHandle<T>, Sender<T>> CreateSpmcChannel(
 template <typename T>
 std::optional<std::tuple<SpscChannelHandle<T>, Sender<T>, Receiver<T>>>
 CreateSpscChannel(Allocator& alloc, uint16_t capacity) {
-  auto channel = internal::Channel<T>::Allocated(alloc, capacity);
+  auto channel = internal::DynamicChannel<T>::Allocate(alloc, capacity);
   if (channel == nullptr) {
     return std::nullopt;
   }
-  return std::make_tuple(
-      SpscChannelHandle<T>(channel), Sender<T>(channel), Receiver<T>(channel));
+  std::lock_guard lock(*channel);
+  return std::make_tuple(SpscChannelHandle<T>(*channel),
+                         Sender<T>(*channel),
+                         Receiver<T>(*channel));
 }
 
 /// Creates a single-producer, single-consumer channel with provided static
@@ -1455,10 +1454,20 @@ CreateSpscChannel(Allocator& alloc, uint16_t capacity) {
 template <typename T, uint16_t kCapacity>
 std::tuple<SpscChannelHandle<T>, Sender<T>, Receiver<T>> CreateSpscChannel(
     ChannelStorage<T, kCapacity>& storage) {
-  PW_ASSERT(!storage.active());
-  return std::make_tuple(SpscChannelHandle<T>(&storage),
-                         Sender<T>(&storage),
-                         Receiver<T>(&storage));
+  std::lock_guard lock(static_cast<internal::Channel<T>&>(storage));
+  PW_DASSERT(!storage.active_locked());
+  return std::make_tuple(
+      SpscChannelHandle<T>(storage), Sender<T>(storage), Receiver<T>(storage));
 }
 
+namespace internal {
+
+inline void BaseChannel::PopAndWakeOne(
+    IntrusiveForwardList<BaseChannelFuture>& futures) {
+  BaseChannelFuture& future = futures.front();
+  futures.pop_front();
+  future.Wake();
+}
+
+}  // namespace internal
 }  // namespace pw::async2

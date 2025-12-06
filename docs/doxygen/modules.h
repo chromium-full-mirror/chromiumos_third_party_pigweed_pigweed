@@ -131,6 +131,7 @@
 /// [Code size analysis](../../pw_async2/code_size.html) |
 /// [Coroutines](../../pw_async2/coroutines.html) |
 /// [Dispatcher](../../pw_async2/dispatcher.html) |
+/// [Channels](../../pw_async2/channels.html)
 /// @endmaindocs
 
 /// @defgroup pw_async2_adapters Pendable adapters
@@ -157,6 +158,10 @@
 /// @defgroup pw_async2_coroutines Coroutines
 /// @ingroup pw_async2
 /// @brief C++20 coroutine support. Learn more: [Coroutines](../../pw_async2/coroutines.html)
+
+/// @defgroup pw_async2_channels Channels
+/// @ingroup pw_async2
+/// @brief Send objects between tasks or threads. Learn more: [Channels](../../pw_async2/channels.html)
 
 /// @defgroup pw_async2_pendables Built-in pendables
 /// @ingroup pw_async2

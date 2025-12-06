@@ -558,11 +558,13 @@ pw_test("cancellable_task_test") {
 pw_source_set("channel") {
   public_configs = [ ":public_include_path" ]
   public = [ "public/pw_async2/channel.h" ]
+  sources = [ "channel.cc" ]
   public_deps = [
     ":callback_task",
     ":dispatcher",
     ":poll",
     "$dir_pw_allocator",
+    "$dir_pw_assert",
     "$dir_pw_containers:deque",
     "$dir_pw_numeric:checked_arithmetic",
     "$dir_pw_sync:interrupt_spin_lock",

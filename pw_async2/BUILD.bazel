@@ -699,9 +699,9 @@ pw_cc_test(
 
 cc_library(
     name = "channel",
-    hdrs = [
-        "public/pw_async2/channel.h",
-    ],
+    srcs = ["channel.cc"],
+    hdrs = ["public/pw_async2/channel.h"],
+    implementation_deps = ["//pw_assert:check"],
     strip_include_prefix = "public",
     deps = [
         ":callback_task",
@@ -710,7 +710,9 @@ cc_library(
         "//pw_allocator",
         "//pw_containers:deque",
         "//pw_numeric:checked_arithmetic",
+        "//pw_result",
         "//pw_sync:interrupt_spin_lock",
+        "//pw_sync:lock_annotations",
         "//pw_sync:timed_thread_notification",
     ],
 )
@@ -735,12 +737,6 @@ pw_cc_test(
     name = "channel_thread_test",
     srcs = [
         "channel_thread_test.cc",
-    ],
-    # b/458819597 - Enable sanitizers after fixing race conditions.
-    tags = [
-        "noasan",
-        "nomsan",
-        "notsan",
     ],
     deps = [
         ":channel",

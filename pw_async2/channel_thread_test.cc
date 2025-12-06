@@ -206,7 +206,11 @@ TEST(Channel, BlockingSend_ChannelCloses) {
   dispatcher.RunToCompletionUntilReleased();
   sender_thread.join();
 
-  EXPECT_EQ(sender_context.send_count, kDisconnectAfter);
+  // Depending on timing, sender_thread could fill back up the channel before
+  // the receiver_task has a chance to disconnect.
+  EXPECT_GE(sender_context.send_count, kDisconnectAfter);
+  EXPECT_LE(sender_context.send_count, kDisconnectAfter + storage.capacity());
+
   ASSERT_EQ(receiver_task.received().size(), kDisconnectAfter);
   for (size_t i = 0; i < kDisconnectAfter; ++i) {
     EXPECT_EQ(receiver_task.received()[i], static_cast<int>(i));
@@ -389,8 +393,8 @@ TEST(Channel, BlockingReceive_Timeout) {
   } receiver_context{dispatcher, receiver, 0};
 
   // Push some values into the channel upfront.
-  EXPECT_TRUE(sender.TrySend(0));
-  EXPECT_TRUE(sender.TrySend(1));
+  PW_TEST_EXPECT_OK(sender.TrySend(0));
+  PW_TEST_EXPECT_OK(sender.TrySend(1));
 
   // There is no sender actively writing values, so the receive thread should
   // first drain the two existing values, then timeout trying to read more.
@@ -428,11 +432,12 @@ TEST(Channel, BlockingReceive_ReturnsExistingValueImmediately) {
   auto [channel, sender, receiver] = CreateSpscChannel(storage);
   channel.Release();
 
-  EXPECT_TRUE(sender.TrySend(0));
-  EXPECT_TRUE(sender.TrySend(1));
+  PW_TEST_ASSERT_OK(sender.TrySend(0));
+  PW_TEST_ASSERT_OK(sender.TrySend(1));
 
   // We never actually run the dispatcher, so the only way the receiver
-  // can read a value is if it's already in the channel.
+  // can read a value is if it's already in the channel. This approach is NOT
+  // recommended in general; use TryReceive() for non-blocking operations.
 
   pw::Result<int> received = receiver.BlockingReceive(
       dispatcher, pw::chrono::SystemClock::duration(0));

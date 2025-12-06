@@ -541,10 +541,13 @@ pw_add_test(pw_async2.cancellable_task_test
     pw_function
 )
 
-pw_add_library(pw_async2.channel INTERFACE
+pw_add_library(pw_async2.channel STATIC
   HEADERS
     public/pw_async2/channel.h
+  SOURCES
+    channel.cc
   PUBLIC_DEPS
+    pw_assert
     pw_async2.callback_task
     pw_async2.dispatcher
     pw_async2.poll

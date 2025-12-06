@@ -374,7 +374,7 @@ If you need to write to a channel from a non-async context, such as a
 separate thread or an interrupt handler, you can use ``TrySend``.
 
 - :cc:`Sender::TrySend`: Attempts to send the value immediately. Returns
-  ``true`` if successful, or ``false`` if the channel is full or closed.
+  a :cc:`pw::Status` indicating success.
 
 - :cc:`Sender::TryReserveSend`: Attempts to reserve a slot in the channel
   immediately. Returns a ``std::optional<SendReservation<T>>`` which contains

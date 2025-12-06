@@ -281,18 +281,18 @@ TEST(StaticChannel, NonAsyncTrySend) {
 
   dispatcher.Post(receiver_task);
 
-  EXPECT_TRUE(sender.TrySend(1));
-  EXPECT_TRUE(sender.TrySend(2));
-  EXPECT_FALSE(sender.TrySend(3));
+  PW_TEST_EXPECT_OK(sender.TrySend(1));
+  PW_TEST_EXPECT_OK(sender.TrySend(2));
+  EXPECT_EQ(sender.TrySend(3), pw::Status::Unavailable());
   EXPECT_TRUE(dispatcher.RunUntilStalled());
 
-  EXPECT_TRUE(sender.TrySend(3));
-  EXPECT_TRUE(sender.TrySend(4));
-  EXPECT_FALSE(sender.TrySend(5));
+  PW_TEST_EXPECT_OK(sender.TrySend(3));
+  PW_TEST_EXPECT_OK(sender.TrySend(4));
+  EXPECT_EQ(sender.TrySend(5), pw::Status::Unavailable());
   EXPECT_TRUE(dispatcher.RunUntilStalled());
 
-  EXPECT_TRUE(sender.TrySend(5));
-  EXPECT_TRUE(sender.TrySend(6));
+  PW_TEST_EXPECT_OK(sender.TrySend(5));
+  PW_TEST_EXPECT_OK(sender.TrySend(6));
   sender.Disconnect();
   dispatcher.RunToCompletion();
 
@@ -308,13 +308,13 @@ TEST(StaticChannel, TryReserveSend) {
   channel.Release();
 
   auto r1 = sender.TryReserveSend();
-  EXPECT_TRUE(r1.has_value());
+  PW_TEST_EXPECT_OK(r1);
   EXPECT_EQ(sender.remaining_capacity(), 1u);
   auto r2 = sender.TryReserveSend();
-  EXPECT_TRUE(r2.has_value());
+  PW_TEST_EXPECT_OK(r2);
   EXPECT_EQ(sender.remaining_capacity(), 0u);
   auto r3 = sender.TryReserveSend();
-  EXPECT_FALSE(r3.has_value());
+  EXPECT_EQ(r3.status(), pw::Status::Unavailable());
   EXPECT_EQ(sender.remaining_capacity(), 0u);
 
   r1->Commit(1);
@@ -325,13 +325,13 @@ TEST(StaticChannel, TryReserveSend) {
   ASSERT_TRUE(result.ok());
   EXPECT_EQ(*result, 1);
   auto r4 = sender.TryReserveSend();
-  ASSERT_TRUE(r4.has_value());
+  PW_TEST_ASSERT_OK(r4);
 
   // Disconnect receiver to close the channel.
   receiver.Disconnect();
 
   auto r5 = sender.TryReserveSend();
-  ASSERT_FALSE(r5.has_value());
+  ASSERT_EQ(r5.status(), pw::Status::FailedPrecondition());
 }
 
 TEST(StaticChannel, TryReceive) {
@@ -345,7 +345,7 @@ TEST(StaticChannel, TryReceive) {
   auto result = receiver.TryReceive();
   EXPECT_TRUE(result.status().IsUnavailable());
 
-  EXPECT_TRUE(sender.TrySend(1));
+  PW_TEST_EXPECT_OK(sender.TrySend(1));
   result = receiver.TryReceive();
   ASSERT_TRUE(result.ok());
   EXPECT_EQ(*result, 1);
@@ -597,7 +597,7 @@ TEST(StaticChannel, RemainingCapacity) {
   EXPECT_EQ(sender.remaining_capacity(), 2u);
   EXPECT_EQ(sender.capacity(), 2u);
 
-  EXPECT_TRUE(sender.TrySend(1));
+  PW_TEST_EXPECT_OK(sender.TrySend(1));
   EXPECT_EQ(sender.remaining_capacity(), 1u);
   EXPECT_EQ(sender.capacity(), 2u);
 
@@ -722,7 +722,7 @@ TEST(DynamicChannel, RemainingCapacity) {
   EXPECT_EQ(sender.remaining_capacity(), 2u);
   EXPECT_EQ(sender.capacity(), 2u);
 
-  EXPECT_TRUE(sender.TrySend(1));
+  PW_TEST_EXPECT_OK(sender.TrySend(1));
   EXPECT_EQ(sender.remaining_capacity(), 1u);
   EXPECT_EQ(sender.capacity(), 2u);
 
