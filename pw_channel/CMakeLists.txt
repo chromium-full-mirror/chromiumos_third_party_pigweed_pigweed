@@ -15,9 +15,10 @@
 include($ENV{PW_ROOT}/pw_build/pigweed.cmake)
 include($ENV{PW_ROOT}/pw_async2/backend.cmake)
 
-pw_add_library(pw_channel STATIC
+pw_add_library(pw_channel INTERFACE
   HEADERS
     public/pw_channel/channel.h
+    public/pw_channel/internal/channel_specializations.h
   PUBLIC_DEPS
     pw_assert
     pw_async2.dispatcher
@@ -33,8 +34,6 @@ pw_add_library(pw_channel STATIC
     pw_toolchain._sibling_cast
   PUBLIC_INCLUDES
     public
-  SOURCES
-    public/pw_channel/internal/channel_specializations.h
 )
 
 pw_add_library(pw_channel.packet_channel INTERFACE
