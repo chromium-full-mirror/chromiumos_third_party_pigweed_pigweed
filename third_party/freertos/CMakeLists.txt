@@ -133,20 +133,22 @@ pw_add_library(pw_third_party.freertos.arm_cm4f STATIC
     pw_third_party.freertos.disable_warnings
 )
 
-# ARM CM33F port of FreeRTOS.
-pw_add_library(pw_third_party.freertos.arm_cm33f STATIC
-  HEADERS
-    ${dir_pw_third_party_freertos}/portable/GCC/ARM_CM33F/portmacro.h
-  PUBLIC_DEPS
-    ${pw_third_party_freertos_CONFIG}
-  PUBLIC_INCLUDES
-    ${dir_pw_third_party_freertos}/include
-    ${dir_pw_third_party_freertos}/portable/GCC/ARM_CM33F
-  SOURCES
-    ${dir_pw_third_party_freertos}/portable/GCC/ARM_CM33F/port.c
-  PRIVATE_DEPS
-    pw_third_party.freertos.disable_warnings
-)
+if(IS_DIRECTORY ${dir_pw_third_party_freertos}/portable/GCC/ARM_CM33F)
+  # ARM CM33F port of FreeRTOS.
+  pw_add_library(pw_third_party.freertos.arm_cm33f STATIC
+    HEADERS
+      ${dir_pw_third_party_freertos}/portable/GCC/ARM_CM33F/portmacro.h
+    PUBLIC_DEPS
+      ${pw_third_party_freertos_CONFIG}
+    PUBLIC_INCLUDES
+      ${dir_pw_third_party_freertos}/include
+      ${dir_pw_third_party_freertos}/portable/GCC/ARM_CM33F
+    SOURCES
+      ${dir_pw_third_party_freertos}/portable/GCC/ARM_CM33F/port.c
+    PRIVATE_DEPS
+      pw_third_party.freertos.disable_warnings
+  )
+endif()
 
 pw_add_library(pw_third_party.freertos.config_assert INTERFACE
   HEADERS
