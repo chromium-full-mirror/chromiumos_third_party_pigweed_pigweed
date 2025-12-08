@@ -22,17 +22,17 @@
 
 namespace {
 
+using ::pw::async2::CallbackTask;
 using ::pw::async2::DispatcherForTest;
-using ::pw::async2::FutureCallbackTask;
 using ::pw::async2::ValueFuture;
 using ::pw::async2::ValueProvider;
 
-TEST(FutureCallbackTask, PendsFutureUntilReady) {
+TEST(CallbackTask, PendsFutureUntilReady) {
   ValueProvider<char> provider;
   char result = '\0';
 
-  FutureCallbackTask<ValueFuture<char>> task(provider.Get(),
-                                             [&result](char c) { result = c; });
+  CallbackTask<ValueFuture<char>> task([&result](char c) { result = c; },
+                                       provider.Get());
 
   DispatcherForTest dispatcher;
   dispatcher.Post(task);
@@ -47,11 +47,11 @@ TEST(FutureCallbackTask, PendsFutureUntilReady) {
   EXPECT_FALSE(task.IsRegistered());
 }
 
-TEST(FutureCallbackTask, ImmediatelyReturnsReady) {
+TEST(CallbackTask, ImmediatelyReturnsReady) {
   char result = '\0';
 
-  FutureCallbackTask<ValueFuture<char>> task(ValueFuture<char>::Resolved('b'),
-                                             [&result](char c) { result = c; });
+  CallbackTask<ValueFuture<char>> task([&result](char c) { result = c; },
+                                       ValueFuture<char>::Resolved('b'));
 
   DispatcherForTest dispatcher;
   dispatcher.Post(task);
@@ -61,13 +61,13 @@ TEST(FutureCallbackTask, ImmediatelyReturnsReady) {
   EXPECT_FALSE(task.IsRegistered());
 }
 
-TEST(FutureCallbackTask, VoidFuture) {
+TEST(CallbackTask, VoidFuture) {
   ValueProvider<void> provider;
 
   bool completed = false;
 
-  FutureCallbackTask<ValueFuture<void>> task(
-      provider.Get(), [&completed]() { completed = true; });
+  CallbackTask<ValueFuture<void>> task([&completed]() { completed = true; },
+                                       provider.Get());
 
   DispatcherForTest dispatcher;
   dispatcher.Post(task);
@@ -78,6 +78,40 @@ TEST(FutureCallbackTask, VoidFuture) {
 
   dispatcher.RunToCompletion();
   EXPECT_TRUE(completed);
+
+  EXPECT_FALSE(task.IsRegistered());
+}
+
+class TestFuture {
+ public:
+  using value_type = int;
+
+  TestFuture(int number_one, int number_two)
+      : number_one_(number_one), number_two_(number_two) {}
+
+  pw::async2::Poll<value_type> Pend(pw::async2::Context&) {
+    PW_ASSERT(!completed_);
+    completed_ = true;
+    return number_one_ + number_two_;
+  }
+
+  bool is_complete() const { return completed_; }
+
+ private:
+  int number_one_;
+  int number_two_;
+  bool completed_ = false;
+};
+
+TEST(CallbackTask, Emplace) {
+  int result = 0;
+  auto task = CallbackTask<TestFuture>::Emplace(
+      [&result](int c) { result = c; }, 40, 2);
+
+  DispatcherForTest dispatcher;
+  dispatcher.Post(task);
+  dispatcher.RunToCompletion();
+  EXPECT_EQ(result, 42);
 
   EXPECT_FALSE(task.IsRegistered());
 }

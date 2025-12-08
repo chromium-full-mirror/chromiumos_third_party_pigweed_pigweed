@@ -28,8 +28,8 @@ Pigweed provides the following concrete subclasses of ``Task``:
 
 * :cc:`CoroOrElseTask <pw::async2::CoroOrElseTask>`: Delegates to a
   provided coroutine and executes an ``or_else`` handler function on failure.
-* :cc:`FutureCallbackTask <pw::async2::FutureCallbackTask>`: Invokes a callback
-  after a future is ready. See :ref:`module-pw_async2-tasks-callbacks`.
+* :cc:`CallbackTask <pw::async2::CallbackTask>`: Invokes a callback after a
+  future is ready. See :ref:`module-pw_async2-tasks-callbacks`.
 * :cc:`OwnedTask <pw::async2::OwnedTask>`: Gives ownership to the dispatcher
   when the task is :cc:`posted <pw::async2::Dispatcher::Post>`. The task must
   implement :cc:`DoDestroy() <pw::async2::OwnedTask::DoDestroy>`, which the
@@ -48,9 +48,9 @@ Callbacks
 In a system gradually or partially adopting ``pw_async2``, there are often
 cases where existing code needs to run asynchronous operations built with
 ``pw_async2``.  To facilitate this, ``pw_async2`` provides
-:cc:`FutureCallbackTask <pw::async2::FutureCallbackTask>`. This task invokes a
-:ref:`future <module-pw_async2-futures>`, forwarding its result to a provided
-callback on completion.
+:cc:`CallbackTask <pw::async2::CallbackTask>`. This task invokes a :ref:`future
+<module-pw_async2-futures>`, forwarding its result to a provided callback on
+completion.
 
 .. _module-pw_async2-tasks-callbacks-example:
 
@@ -71,13 +71,15 @@ Example
 
    // Non-async2 code.
    void ReadAndPrintAsyncValue() {
-     pw::async2::FutureCallbackTask task(ReadValue(), [](pw::Result<int> result) {
-       if (result.ok()) {
-         PW_LOG_INFO("Read value: %d", result.value());
-       } else {
-         PW_LOG_ERROR("Failed to read value: %s", result.status().str());
-       }
-     });
+     pw::async2::CallbackTask task(
+         [](pw::Result<int> result) {
+           if (result.ok()) {
+             PW_LOG_INFO("Read value: %d", result.value());
+           } else {
+             PW_LOG_ERROR("Failed to read value: %s", result.status().str());
+           }
+         },
+         ReadValue());
 
      PostTaskToDispatcher(task);
 
@@ -91,16 +93,16 @@ Example
 
 Considerations for callback-based integration
 =============================================
-While the ``FutureCallbackTask`` helper is convenient, each instance of it is a
+While the ``CallbackTask`` helper is convenient, each instance of it is a
 distinct ``Task`` in the system which will compete for execution with other
 tasks running on the dispatcher.
 
 If an asynchronous part of the system needs to expose a robust, primary API
 based on callbacks to non-``pw_async2`` code, a more integrated solution is
-recommended. Instead of using standalone ``FutureCallbackTask`` objects, the
-``Task`` that manages the operation should natively support registering and
-managing a list of callbacks. This provides a clearer and more efficient
-interface for external consumers.
+recommended. Instead of using standalone ``CallbackTask`` objects, the ``Task``
+that manages the operation should natively support registering and managing a
+list of callbacks. This provides a clearer and more efficient interface for
+external consumers.
 
 .. _module-pw_async2-tasks-memory:
 

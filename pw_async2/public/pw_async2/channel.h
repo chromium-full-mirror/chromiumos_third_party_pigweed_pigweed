@@ -716,6 +716,8 @@ class [[nodiscard]] ReceiveFuture final
   friend Base;
   friend internal::Channel<T>;
   friend Receiver<T>;
+  template <typename, typename>
+  friend class CallbackTask;
 
   explicit ReceiveFuture(internal::Channel<T>* channel)
       PW_LOCKS_EXCLUDED(*channel)
@@ -794,11 +796,12 @@ class Receiver {
     std::optional<T> result;
     sync::TimedThreadNotification notification;
 
-    FutureCallbackTask task(ReceiveFuture<T>(channel_),
-                            [&result, &notification](std::optional<T>&& val) {
-                              result = std::move(val);
-                              notification.release();
-                            });
+    CallbackTask task = CallbackTask<ReceiveFuture<T>>::Emplace(
+        [&result, &notification](std::optional<T>&& val) {
+          result = std::move(val);
+          notification.release();
+        },
+        channel_);
     dispatcher.Post(task);
 
     if (timeout == internal::Channel<T>::kWaitForever) {
@@ -1249,11 +1252,12 @@ class Sender {
     Status status;
     sync::TimedThreadNotification notification;
 
-    FutureCallbackTask task(
-        std::move(future), [&status, &notification](bool result) {
+    CallbackTask task(
+        [&status, &notification](bool result) {
           status = result ? OkStatus() : Status::FailedPrecondition();
           notification.release();
-        });
+        },
+        std::move(future));
     dispatcher.Post(task);
 
     if (timeout == internal::Channel<T>::kWaitForever) {
