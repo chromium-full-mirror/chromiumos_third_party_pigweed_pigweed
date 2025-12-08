@@ -93,6 +93,43 @@ pw_cc_blob_library(
 )
 
 cc_library(
+    name = "websocket_frame_protocol",
+    srcs = [
+        "cc/websocket_frame_protocol.cc",
+    ],
+    hdrs = [
+        "cc/websocket_frame_protocol.h",
+    ],
+    implementation_deps = [
+        "//pw_assert:check",
+        "//pw_bytes:bit",
+        "//pw_log",
+        "//pw_status",
+    ],
+    strip_include_prefix = "cc/",
+    deps = [
+        "//pw_bytes",
+        "//pw_result",
+        "//pw_span",
+    ],
+)
+
+pw_cc_test(
+    name = "websocket_frame_protocol_test",
+    srcs = ["cc/websocket_frame_protocol_test.cc"],
+    deps = [
+        ":websocket_frame_protocol",
+        "//pw_bytes",
+        "//pw_fuzzer:fuzztest",
+        "//pw_hex_dump:log_bytes",
+        "//pw_log",
+        "//pw_result",
+        "//pw_span",
+        "//pw_status",
+    ],
+)
+
+cc_library(
     name = "websocket_http_upgrade",
     srcs = [
         "cc/websocket_http_upgrade.cc",
