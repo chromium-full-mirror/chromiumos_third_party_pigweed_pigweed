@@ -509,6 +509,21 @@ class _ParallelRecipeRunner:
         # Schedule any available recipes to run.
         for recipe_name in ready_recipes:
             recipe = self.build_recipe_by_name[recipe_name]
+
+            failed_dependencies = [
+                dep
+                for dep in recipe.dependencies
+                if self.build_recipe_by_name[dep].status.failed()
+            ]
+            if failed_dependencies:
+                recipe.log.error(
+                    "Aborting due to failed dependencies: %s",
+                    ", ".join(failed_dependencies),
+                )
+                recipe.status.set_failed()
+                self.topological_sorter.done(recipe_name)
+                continue
+
             self.future_status.append(
                 RecipeFutureStatus(
                     future=executor.submit(
@@ -1297,12 +1312,26 @@ class ProjectBuilder:  # pylint: disable=too-many-instance-attributes
         self,
         env: dict[str, str],
     ) -> None:
+        recipe_map = {r.display_name: r for r in self.build_recipes}
         try:
             if self.should_use_progress_bars():
                 BUILDER_CONTEXT.add_progress_bars()
             for i, recipe in enumerate(
                 self.build_recipes_in_run_order(), start=1
             ):
+                failed_dependencies = [
+                    dep
+                    for dep in recipe.dependencies
+                    if recipe_map[dep].status.failed()
+                ]
+                if failed_dependencies:
+                    recipe.log.error(
+                        "Aborting due to failed dependencies: %s",
+                        ", ".join(failed_dependencies),
+                    )
+                    recipe.status.set_failed()
+                    continue
+
                 self.run_recipe(i, recipe, env)
         # Ctrl-C on Unix generates KeyboardInterrupt
         # Ctrl-Z on Windows generates EOFError

@@ -16,6 +16,7 @@
 from graphlib import CycleError
 import logging
 from pathlib import Path
+import re
 import unittest
 from unittest.mock import patch, MagicMock
 
@@ -190,14 +191,14 @@ _COMMAND_PWD = ['pwd']
 _COMMAND_DATE = ['date']
 
 
-def _create_mock_build_command_process():
+def _create_mock_build_command_process(return_code=0):
     mock_process = MagicMock()
-    mock_process.returncode = 0
+    mock_process.returncode = return_code
     mock_enter = MagicMock()
-    mock_enter.poll.return_value = 0
+    mock_enter.poll.return_value = return_code
     mock_enter.stdout = []
     mock_enter.stderr = []
-    mock_enter.returncode = 0
+    mock_enter.returncode = return_code
     mock_process.__enter__.return_value = mock_enter
     return mock_process
 
@@ -591,6 +592,131 @@ class TestProjectBuilder(unittest.TestCase):
         ]
         for log in expected_logs:
             self.assertIn(log, result_logs)
+
+
+class TestProjectBuilderFailurePropagation(unittest.TestCase):
+    """Tests for ProjectBuilder failures."""
+
+    @patch('subprocess.Popen')
+    def test_serial_failure_propagation(self, mock_popen) -> None:
+        """Test dependency failure propagation in serial."""
+        # Recipe 1 fails
+        recipe1 = BuildRecipe(
+            build_dir=Path('out/builddir1'),
+            title='build1',
+            steps=[
+                BuildCommand(command=_COMMAND_PWD),
+            ],
+        )
+        # Recipe 2 depends on Recipe 1
+        recipe2 = BuildRecipe(
+            build_dir=Path('out/builddir1'),
+            title='build1-dep1',
+            steps=[
+                BuildCommand(command=_COMMAND_DATE),
+            ],
+            dependencies=['build1'],
+        )
+
+        build_recipes = [
+            recipe2,
+            recipe1,
+        ]
+
+        build_logger = logging.getLogger('pbrun.serial_fail')
+        build_logger.propagate = False
+
+        # Mock Popen to fail for the first run recipe (build1)
+        mock_popen.return_value = _create_mock_build_command_process(
+            return_code=1
+        )
+
+        mock_abort = MagicMock()
+        pb = ProjectBuilder(
+            build_recipes=build_recipes,
+            source_path=Path.cwd(),
+            abort_callback=mock_abort,
+            root_logger=build_logger,
+            execute_command=execute_command_with_logging,
+            colors=False,
+        )
+
+        with self.assertLogs(build_logger, level='DEBUG') as logs:
+            pb.run_builds(workers=1)
+
+        prefix = re.compile(r"^(INFO|ERROR):pbrun.serial_fail:")
+        result_logs = [prefix.sub('', line).rstrip() for line in logs.output]
+
+        # Check that build1 failed
+        self.assertTrue(recipe1.status.failed())
+        # Check that build1-dep1 failed (propagated)
+        self.assertTrue(recipe2.status.failed())
+
+        # Verify build1 ran
+        self.assertIn('[1/2] Starting ==> Recipe: build1', result_logs)
+        self.assertIn('[1/2] Finished ==> Recipe: build1 (FAIL)', result_logs)
+
+        # Verify build1-dep1 did NOT run (no starting log)
+        self.assertNotIn('[2/2] Starting ==> Recipe: build1-dep1', result_logs)
+
+    @patch('subprocess.Popen')
+    def test_parallel_failure_propagation(self, mock_popen) -> None:
+        """Test dependency failure propagation in parallel."""
+        # Recipe 1 fails
+        recipe1 = BuildRecipe(
+            build_dir=Path('out/builddir1'),
+            title='build1',
+            steps=[
+                BuildCommand(command=_COMMAND_PWD),
+            ],
+        )
+        # Recipe 2 depends on Recipe 1
+        recipe2 = BuildRecipe(
+            build_dir=Path('out/builddir1'),
+            title='build1-dep1',
+            steps=[
+                BuildCommand(command=_COMMAND_DATE),
+            ],
+            dependencies=['build1'],
+        )
+
+        build_recipes = [recipe2, recipe1]
+
+        build_logger = logging.getLogger('pbrun.parallel_fail')
+        build_logger.propagate = False
+
+        # Mock Popen to fail for the first run recipe (build1)
+        mock_popen.return_value = _create_mock_build_command_process(
+            return_code=1
+        )
+
+        mock_abort = MagicMock()
+        pb = ProjectBuilder(
+            build_recipes=build_recipes,
+            source_path=Path.cwd(),
+            abort_callback=mock_abort,
+            root_logger=build_logger,
+            execute_command=execute_command_with_logging,
+            colors=False,
+        )
+
+        with self.assertLogs(build_logger, level='DEBUG') as logs:
+            pb.run_builds(workers=2)
+
+        prefix = re.compile(r"^(INFO|ERROR):pbrun.parallel_fail:")
+        result_logs = [prefix.sub('', line).rstrip() for line in logs.output]
+
+        # Check that build1 failed
+        self.assertTrue(recipe1.status.failed())
+        # Check that build1-dep1 failed (propagated)
+        self.assertTrue(recipe2.status.failed())
+
+        # Verify build1 ran
+        self.assertIn('[1/2] Starting ==> Recipe: build1', result_logs)
+        self.assertIn('[1/2] Finished ==> Recipe: build1 (FAIL)', result_logs)
+
+        # Verify build1-dep1 did NOT run
+        self.assertNotIn('[2/2] Starting ==> Recipe: build1-dep1', result_logs)
 
 
 if __name__ == '__main__':
