@@ -479,70 +479,30 @@ class DynamicChannel final : public Channel<T> {
 /// After all desired senders and receivers are created, the handle should be
 /// released. The channel will remain allocated and open as long as at least
 /// one sender and one receiver are alive.
-template <typename T>
-class ChannelHandle {
+class BaseChannelHandle {
  public:
-  constexpr ChannelHandle() : channel_(nullptr) {}
+  constexpr BaseChannelHandle() : channel_(nullptr) {}
 
-  ChannelHandle(const ChannelHandle& other) : channel_(other.channel_) {
-    if (channel_ != nullptr) {
-      channel_->add_handle();
-    }
-  }
+  BaseChannelHandle(const BaseChannelHandle& other) PW_LOCKS_EXCLUDED(channel_);
 
-  ChannelHandle& operator=(const ChannelHandle& other) {
-    if (channel_ != nullptr) {
-      channel_->remove_handle();
-    }
-    channel_ = other.channel_;
-    if (channel_ != nullptr) {
-      channel_->add_handle();
-    }
-    return *this;
-  }
+  BaseChannelHandle& operator=(const BaseChannelHandle& other)
+      PW_LOCKS_EXCLUDED(channel_);
 
-  ChannelHandle(ChannelHandle&& other) noexcept
+  BaseChannelHandle(BaseChannelHandle&& other) noexcept
       : channel_(std::exchange(other.channel_, nullptr)) {}
 
-  ChannelHandle& operator=(ChannelHandle&& other) noexcept {
-    if (this == &other) {
-      return *this;
-    }
-    if (channel_ != nullptr) {
-      channel_->remove_handle();
-    }
-    channel_ = std::exchange(other.channel_, nullptr);
-    return *this;
-  }
+  BaseChannelHandle& operator=(BaseChannelHandle&& other) noexcept
+      PW_LOCKS_EXCLUDED(channel_);
 
-  ~ChannelHandle() { Release(); }
+  ~BaseChannelHandle() PW_LOCKS_EXCLUDED(channel_) { Release(); }
 
-  [[nodiscard]] bool is_open() const {
+  [[nodiscard]] bool is_open() const PW_LOCKS_EXCLUDED(channel_) {
     return channel_ != nullptr && channel_->is_open();
-  }
-
-  /// Creates a new sender for the channel, increasing the active sender count.
-  /// Cannot be called following `Release`.
-  Sender<T> CreateSender() {
-    PW_ASSERT(channel_ != nullptr);
-    return channel_->CreateSender();
-  }
-
-  /// Creates a new receiver for the channel, increasing the active receiver
-  /// count.
-  /// Cannot be called following `Release`.
-  Receiver<T> CreateReceiver() {
-    PW_ASSERT(channel_ != nullptr);
-    return channel_->CreateReceiver();
   }
 
   /// Forces the channel to close, even if there are still active senders or
   /// receivers.
-  void Close() {
-    if (channel_ != nullptr) {
-      channel_->Close();
-    }
-  }
+  void Close() PW_LOCKS_EXCLUDED(channel_);
 
   /// Drops the handle to the channel, preventing creation of new senders and
   /// receivers.
@@ -550,29 +510,54 @@ class ChannelHandle {
   /// This function should always be called when the handle is no longer
   /// needed. Holding onto an unreleased handle can prevent the channel from
   /// being closed (and deallocated if the channel is dynamic).
-  void Release() {
-    if (channel_ != nullptr) {
-      channel_->remove_handle();
-      channel_ = nullptr;
-    }
+  void Release() PW_LOCKS_EXCLUDED(channel_);
+
+  constexpr BaseChannel* base_channel() const PW_LOCK_RETURNED(channel_) {
+    return channel_;
   }
 
  protected:
-  explicit ChannelHandle(internal::Channel<T>& channel)
+  explicit BaseChannelHandle(BaseChannel& channel)
       PW_EXCLUSIVE_LOCKS_REQUIRED(channel)
       : channel_(&channel) {
     channel_->add_handle();
   }
 
  private:
-  internal::Channel<T>* channel_;
+  BaseChannel* channel_;
+};
+
+/// Channel handle for a particular type `T`.
+template <typename T>
+class ChannelHandle : public BaseChannelHandle {
+ public:
+  constexpr ChannelHandle() = default;
+
+  /// Creates a new sender for the channel, increasing the active sender count.
+  /// Cannot be called following `Release`.
+  Sender<T> CreateSender() {
+    PW_ASSERT(base_channel() != nullptr);
+    return static_cast<Channel<T>*>(base_channel())->CreateSender();
+  }
+
+  /// Creates a new receiver for the channel, increasing the active receiver
+  /// count. Cannot be called following `Release`.
+  Receiver<T> CreateReceiver() {
+    PW_ASSERT(base_channel() != nullptr);
+    return static_cast<Channel<T>*>(base_channel())->CreateReceiver();
+  }
+
+ protected:
+  explicit ChannelHandle(internal::Channel<T>& channel)
+      PW_EXCLUSIVE_LOCKS_REQUIRED(channel)
+      : BaseChannelHandle(channel) {}
 };
 
 }  // namespace internal
 
 /// A handle to a multi-producer, multi-consumer channel.
 template <typename T>
-class MpmcChannelHandle : private internal::ChannelHandle<T> {
+class MpmcChannelHandle final : private internal::ChannelHandle<T> {
  public:
   constexpr MpmcChannelHandle() = default;
 
@@ -597,7 +582,7 @@ class MpmcChannelHandle : private internal::ChannelHandle<T> {
 
 /// A handle to a multi-producer, single-consumer channel.
 template <typename T>
-class MpscChannelHandle : private internal::ChannelHandle<T> {
+class MpscChannelHandle final : private internal::ChannelHandle<T> {
  public:
   constexpr MpscChannelHandle() = default;
 
@@ -621,7 +606,7 @@ class MpscChannelHandle : private internal::ChannelHandle<T> {
 
 /// A handle to a single-producer, multi-consumer channel.
 template <typename T>
-class SpmcChannelHandle : private internal::ChannelHandle<T> {
+class SpmcChannelHandle final : private internal::ChannelHandle<T> {
  public:
   constexpr SpmcChannelHandle() = default;
 
@@ -645,7 +630,7 @@ class SpmcChannelHandle : private internal::ChannelHandle<T> {
 
 /// A handle to a single-producer, single-consumer channel.
 template <typename T>
-class SpscChannelHandle : private internal::ChannelHandle<T> {
+class SpscChannelHandle final : private internal::ChannelHandle<T> {
  public:
   constexpr SpscChannelHandle() = default;
 

@@ -144,4 +144,50 @@ void BaseChannelFuture::StoreWakerForReserveSend(Context& cx) {
   channel_->unlock();
 }
 
+BaseChannelHandle::BaseChannelHandle(const BaseChannelHandle& other)
+    : channel_(other.channel_) {
+  if (channel_ != nullptr) {
+    std::lock_guard lock(*channel_);
+    channel_->add_handle();
+  }
+}
+
+BaseChannelHandle& BaseChannelHandle::operator=(
+    const BaseChannelHandle& other) {
+  if (channel_ != nullptr) {
+    channel_->remove_handle();
+  }
+  channel_ = other.channel_;
+  if (channel_ != nullptr) {
+    std::lock_guard lock(*channel_);
+    channel_->add_handle();
+  }
+  return *this;
+}
+
+BaseChannelHandle& BaseChannelHandle::operator=(
+    BaseChannelHandle&& other) noexcept {
+  if (this == &other) {
+    return *this;
+  }
+  if (channel_ != nullptr) {
+    channel_->remove_handle();
+  }
+  channel_ = std::exchange(other.channel_, nullptr);
+  return *this;
+}
+
+void BaseChannelHandle::Close() {
+  if (channel_ != nullptr) {
+    channel_->Close();
+  }
+}
+
+void BaseChannelHandle::Release() {
+  if (channel_ != nullptr) {
+    channel_->remove_handle();
+    channel_ = nullptr;
+  }
+}
+
 }  // namespace pw::async2::internal
