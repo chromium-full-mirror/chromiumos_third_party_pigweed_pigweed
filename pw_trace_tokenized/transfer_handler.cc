@@ -35,7 +35,10 @@ TraceBufferReader& GetTraceBufferReader() { return trace_buffer_reader; }
 size_t TraceBufferReader::MoveFromBlockCache(ByteSpan dest) {
   size_t len = std::min(dest.size(), block_cache_.size());
   if (len != 0) {
-    pw::copy(block_cache_.begin(), block_cache_.begin() + len, dest.begin());
+    pw::copy(block_cache_.begin(),
+             block_cache_.begin() +
+                 static_cast<span<std::byte>::difference_type>(len),
+             dest.begin());
     block_cache_ = block_cache_.subspan(len);
   }
   return len;
