@@ -50,8 +50,6 @@ pw_add_library(pw_bluetooth_proxy STATIC
     public/pw_bluetooth_proxy/internal/l2cap_logical_link.h
     public/pw_bluetooth_proxy/internal/locked_l2cap_channel.h
     public/pw_bluetooth_proxy/internal/logical_transport.h
-    public/pw_bluetooth_proxy/internal/multibuf.h
-    public/pw_bluetooth_proxy/internal/proxy_allocator.h
     public/pw_bluetooth_proxy/internal/recombiner.h
     public/pw_bluetooth_proxy/internal/rx_engine.h
     public/pw_bluetooth_proxy/internal/tx_engine.h
@@ -78,6 +76,7 @@ pw_add_library(pw_bluetooth_proxy STATIC
     pw_containers.vector
     pw_function
     pw_bluetooth_proxy.multibuf
+    pw_bluetooth_proxy.proxy_allocator
     pw_result
     pw_span
     pw_status
@@ -157,6 +156,21 @@ pw_add_library(pw_bluetooth_proxy.multibuf STATIC
 
 )
 
+pw_add_library(pw_bluetooth_proxy.proxy_allocator INTERFACE
+
+# LINT.IfChange
+  HEADERS
+    public/pw_bluetooth_proxy/internal/proxy_allocator.h
+  PUBLIC_DEPS
+    pw_allocator.best_fit
+    pw_allocator.synchronized_allocator
+    pw_assert
+    pw_bluetooth_proxy.config
+    pw_sync.mutex
+# LINT.ThenChange(Android.bp, bt-proxy.bzl, BUILD.gn)
+
+)
+
 # Tests
 
 pw_add_test(pw_bluetooth_proxy.pw_bluetooth_proxy_test
@@ -175,7 +189,6 @@ pw_add_test(pw_bluetooth_proxy.pw_bluetooth_proxy_test
     pw_bluetooth.emboss_hci_events
     pw_bluetooth.emboss_hci_h4
     pw_bluetooth.emboss_util
-    pw_bluetooth_proxy.multibuf
     pw_containers.flat_map
     pw_containers.to_array
     pw_multibuf.simple_allocator
