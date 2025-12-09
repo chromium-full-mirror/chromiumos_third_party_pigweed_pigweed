@@ -127,20 +127,26 @@ bool BaseChannelFuture::StoreWakerForReceiveIfOpen(Context& cx) {
   }
 
   PW_ASYNC_STORE_WAKER(cx, waker_, "Receiver::Receive");
-  channel_->add_receive_future(*this);
+  if (unlisted()) {
+    channel_->add_receive_future(*this);
+  }
   channel_->unlock();
   return true;
 }
 
 void BaseChannelFuture::StoreWakerForSend(Context& cx) {
   PW_ASYNC_STORE_WAKER(cx, waker_, "Sender::Send");
-  channel_->add_send_future(*this);
+  if (unlisted()) {
+    channel_->add_send_future(*this);
+  }
   channel_->unlock();
 }
 
 void BaseChannelFuture::StoreWakerForReserveSend(Context& cx) {
   PW_ASYNC_STORE_WAKER(cx, waker_, "Sender::ReserveSend");
-  channel_->add_send_future(*this);
+  if (unlisted()) {
+    channel_->add_send_future(*this);
+  }
   channel_->unlock();
 }
 

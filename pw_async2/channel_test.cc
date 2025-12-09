@@ -680,6 +680,81 @@ TEST(StaticChannel, MoveOnly) {
   dispatcher.RunToCompletion();
 }
 
+TEST(StaticChannel, CanPollReceiveFuturesTwice) {
+  DispatcherForTest dispatcher;
+  ChannelStorage<int, 2> storage;
+  auto [channel, channel_sender, channel_receiver] = CreateSpscChannel(storage);
+  channel.Release();
+
+  PendFuncTask poll_task(
+      [receiver = std::move(channel_receiver)](Context& cx) mutable -> Poll<> {
+        auto future = receiver.Receive();
+        EXPECT_EQ(future.Pend(cx), Pending());
+        // As long as the value is Pending(), Pend() should be safe to call
+        // repeatedly.
+        EXPECT_EQ(future.Pend(cx), Pending());
+
+        receiver.Disconnect();
+        return Ready();
+      });
+
+  dispatcher.Post(poll_task);
+  dispatcher.RunToCompletion();
+}
+
+TEST(StaticChannel, CanPollSendFuturesTwice) {
+  DispatcherForTest dispatcher;
+  ChannelStorage<int, 2> storage;
+  auto [channel, channel_sender, channel_receiver] = CreateSpscChannel(storage);
+  channel.Release();
+
+  ASSERT_TRUE(channel_sender.TrySend(1).ok());
+  ASSERT_TRUE(channel_sender.TrySend(2).ok());
+
+  PendFuncTask poll_task(
+      [sender = std::move(channel_sender)](Context& cx) mutable -> Poll<> {
+        auto future = sender.Send(3);
+        EXPECT_EQ(future.Pend(cx), Pending());
+        // As long as the value is Pending(), Pend() should be safe to call
+        // repeatedly.
+        EXPECT_EQ(future.Pend(cx), Pending());
+
+        sender.Disconnect();
+        return Ready();
+      });
+
+  dispatcher.Post(poll_task);
+  dispatcher.RunToCompletion();
+}
+
+TEST(StaticChannel, CanPollReserveSendFutureTwice) {
+  DispatcherForTest dispatcher;
+  ChannelStorage<int, 2> storage;
+  auto channel = CreateMpmcChannel(storage);
+
+  Sender<int> channel_sender = channel.CreateSender();
+  Receiver<int> channel_receiver = channel.CreateReceiver();
+  channel.Release();
+
+  ASSERT_TRUE(channel_sender.TrySend(1).ok());
+  ASSERT_TRUE(channel_sender.TrySend(2).ok());
+
+  PendFuncTask poll_task(
+      [sender = std::move(channel_sender)](Context& cx) mutable -> Poll<> {
+        auto future = sender.ReserveSend();
+        EXPECT_EQ(future.Pend(cx), Pending());
+        // As long as the value is Pending(), Pend() should be safe to call
+        // repeatedly.
+        EXPECT_EQ(future.Pend(cx), Pending());
+
+        sender.Disconnect();
+        return Ready();
+      });
+
+  dispatcher.Post(poll_task);
+  dispatcher.RunToCompletion();
+}
+
 TEST(DynamicChannel, ForwardsDataAndAutomaticallyDeallocates) {
   pw::allocator::test::AllocatorForTest<1024> alloc;
   DispatcherForTest dispatcher;
