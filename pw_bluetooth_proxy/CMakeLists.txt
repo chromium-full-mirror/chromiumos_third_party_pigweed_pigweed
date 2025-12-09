@@ -83,17 +83,22 @@ pw_add_library(pw_bluetooth_proxy STATIC
     pw_status
     pw_sync.lock_annotations
     pw_sync.mutex
+    pw_sync.thread_notification
   SOURCES
     acl_data_channel.cc
+    basic_l2cap_channel.cc
     basic_l2cap_channel_internal.cc
     basic_mode_tx_engine.cc
     basic_mode_rx_engine.cc
     credit_based_flow_control_tx_engine.cc
     credit_based_flow_control_rx_engine.cc
+    gatt_notify_channel.cc
     gatt_notify_channel_internal.cc
     gatt_notify_tx_engine.cc
+    generic_l2cap_channel.cc
     l2cap_channel_manager.cc
     l2cap_channel.cc
+    l2cap_coc.cc
     l2cap_coc_internal.cc
     l2cap_signaling_channel.cc
     l2cap_status_tracker.cc

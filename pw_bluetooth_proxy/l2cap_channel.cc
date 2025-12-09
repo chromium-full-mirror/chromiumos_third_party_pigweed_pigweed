@@ -23,6 +23,7 @@
 #include "pw_bluetooth/hci_data.emb.h"
 #include "pw_bluetooth/hci_h4.emb.h"
 #include "pw_bluetooth/l2cap_frames.emb.h"
+#include "pw_bluetooth_proxy/internal/generic_l2cap_channel.h"
 #include "pw_bluetooth_proxy/internal/l2cap_channel_manager.h"
 #include "pw_bluetooth_proxy/l2cap_channel_common.h"
 #include "pw_log/log.h"
@@ -31,73 +32,68 @@
 #include "pw_status/try.h"
 
 namespace pw::bluetooth::proxy {
+namespace internal {
 
-// TODO: https://pwbug.dev/380504851 - Add tests for move operators.
-void L2capChannel::MoveFields(L2capChannel& other) {
-  state_ = other.state();
-  connection_handle_ = other.connection_handle();
-  transport_ = other.transport();
-  local_cid_ = other.local_cid();
-  remote_cid_ = other.remote_cid();
-  // TODO: https://pwbug.dev/380504851 - These moves are unsafe outside of a
-  // mutex.
-  payload_from_controller_fn_ = std::move(other.payload_from_controller_fn_);
-  payload_from_host_fn_ = std::move(other.payload_from_host_fn_);
-  rx_multibuf_allocator_ = other.rx_multibuf_allocator_;
-
-  std::lock_guard lock(mutex_);
-  event_fn_ = std::move(other.event_fn_);
-
-  std::lock_guard tx_lock(tx_mutex_);
-  std::lock_guard other_tx_lock(other.tx_mutex_);
-  payload_queue_ = std::move(other.payload_queue_);
-  notify_on_dequeue_ = other.notify_on_dequeue_;
-  other.Undefine();
-  l2cap_channel_manager_.MoveChannelRegistration(other, *this);
+BorrowedL2capChannel::BorrowedL2capChannel(L2capChannel& channel)
+    : channel_(&channel) {
+  std::lock_guard lock(channel_->mutex_);
+  ++channel_->num_borrows_;
+  PW_CHECK_UINT_NE(channel_->num_borrows_, 0);
 }
 
-L2capChannel::L2capChannel(L2capChannel&& other)
-    : l2cap_channel_manager_(other.l2cap_channel_manager_) {
-  MoveFields(other);
-}
-
-L2capChannel& L2capChannel::operator=(L2capChannel&& other) {
+BorrowedL2capChannel& BorrowedL2capChannel::operator=(
+    BorrowedL2capChannel&& other) {
   if (this != &other) {
-    MoveFields(other);
+    std::swap(channel_, other.channel_);
   }
   return *this;
 }
 
-L2capChannel::~L2capChannel() {
-  // Don't log dtor of moved-from channels.
-  if (state_ != State::kUndefined) {
-    PW_LOG_INFO(
-        "btproxy: L2capChannel dtor - transport_: %u, connection_handle_ : "
-        "%#x, local_cid_: %#x, remote_cid_: %#x, state_: %u",
-        cpp23::to_underlying(transport_),
-        connection_handle_,
-        local_cid_,
-        remote_cid_,
-        cpp23::to_underlying(state_));
+BorrowedL2capChannel::~BorrowedL2capChannel() {
+  if (channel_ == nullptr) {
+    return;
   }
-
-  // Channel objects may outlive `ProxyHost`, but they are closed on
-  // `ProxyHost` dtor, so this check will prevent a crash from trying to access
-  // a destructed `L2capChannelManager`.
-  if (state_ != State::kClosed) {
-    // Note, DeregisterChannel locks channels_mutex_. This is used to block
-    // channels being destroyed during Tx.
-    // TODO: https://pwbug.dev/422222575 - Update comment after we no longer
-    // use channels_mutex_ to block ChannelProxy dtor.
-    // TODO: https://pwbug.dev/422222575 - Deregister should be handled before
-    // l2cap dtor. Current code leaves partially destroyed channel in the
-    // channels_ list.
-    l2cap_channel_manager_.DeregisterChannel(*this);
-    ClearQueue();
+  std::lock_guard lock(channel_->mutex_);
+  PW_CHECK_UINT_NE(channel_->num_borrows_, 0);
+  if (--channel_->num_borrows_ == 0) {
+    channel_->notification_.release();
   }
 }
 
+}  // namespace internal
+
+sync::Mutex L2capChannel::static_mutex_;
+
+L2capChannel::~L2capChannel() {
+  // Block until there are no outstanding borrows. Callers (namely
+  // L2capChannelManager) MUST NOT be holding the `static_mutex_` when this
+  // destructor is called.
+  std::unique_lock lock(mutex_);
+  while (num_borrows_ != 0) {
+    lock.unlock();
+    notification_.acquire();
+    lock.lock();
+  }
+
+  PW_LOG_INFO(
+      "btproxy: L2capChannel dtor - transport_: %u, connection_handle_ : "
+      "%#x, local_cid_: %#x, remote_cid_: %#x, state_: %u",
+      cpp23::to_underlying(transport_),
+      connection_handle_,
+      local_cid_,
+      remote_cid_,
+      cpp23::to_underlying(state_));
+
+  // Most channels are explicitly closed, with the exception of the signaling
+  // channels. Ensure those that are not are deregistered before destruction.
+  if (state_ != State::kClosed) {
+    l2cap_channel_manager_.DeregisterChannel(*this);
+  }
+  payload_queue_.clear();
+}
+
 void L2capChannel::Stop() {
+  std::lock_guard lock(mutex_);
   PW_LOG_INFO(
       "btproxy: L2capChannel::Stop - transport_: %u, connection_handle_: %#x, "
       "local_cid_: %#x, remote_cid_: %#x, previous state_: %u",
@@ -107,63 +103,69 @@ void L2capChannel::Stop() {
       remote_cid_,
       cpp23::to_underlying(state_));
 
-  PW_CHECK(state_ != State::kUndefined && state_ != State::kClosed);
-
+  PW_CHECK(state_ != State::kNew && state_ != State::kClosed);
   state_ = State::kStopped;
-  ClearQueue();
+  payload_queue_.clear();
 }
 
-void L2capChannel::Close() {
-  l2cap_channel_manager_.DeregisterChannel(*this);
-  InternalClose();
-}
+void L2capChannel::Close(L2capChannelEvent event) {
+  {
+    std::lock_guard lock(mutex_);
+    PW_LOG_INFO(
+        "btproxy: L2capChannel::Close - transport_: %u, "
+        "connection_handle_: %#x, local_cid_: %#x, remote_cid_: %#x, previous "
+        "state_: %u",
+        cpp23::to_underlying(transport_),
+        connection_handle_,
+        local_cid_,
+        remote_cid_,
+        cpp23::to_underlying(state_));
 
-void L2capChannel::InternalClose(L2capChannelEvent event) {
-  PW_LOG_INFO(
-      "btproxy: L2capChannel::Close - transport_: %u, "
-      "connection_handle_: %#x, local_cid_: %#x, remote_cid_: %#x, previous "
-      "state_: %u",
-      cpp23::to_underlying(transport_),
-      connection_handle_,
-      local_cid_,
-      remote_cid_,
-      cpp23::to_underlying(state_));
-
-  PW_CHECK(state_ != State::kUndefined);
-  if (state_ == State::kClosed) {
-    return;
+    PW_CHECK(state_ != State::kNew);
+    if (state_ == State::kClosed) {
+      return;
+    }
+    state_ = State::kClosed;
+    payload_queue_.clear();
   }
-  state_ = State::kClosed;
 
-  ClearQueue();
-  DoClose();
   SendEvent(event);
-}
 
-void L2capChannel::Undefine() { state_ = State::kUndefined; }
+  {
+    std::lock_guard lock(L2capChannel::mutex());
+    if (!client_.has_value() || *client_ == nullptr) {
+      return;
+    }
+    (*client_)->channel_ = nullptr;
+    client_ = nullptr;
+  }
+}
 
 StatusWithMultiBuf L2capChannel::Write(FlatConstMultiBuf&& payload) {
-  Status status = DoCheckWriteParameter(payload);
-  if (!status.ok()) {
-    return {status, std::move(payload)};
-  }
-  StatusWithMultiBuf result = WriteLocked(std::move(payload));
-  l2cap_channel_manager_.DrainChannelQueuesIfNewTx();
+  StatusWithMultiBuf result = WriteDuringRx(std::move(payload));
+  DrainChannelQueuesIfNewTx();
   return result;
 }
 
-StatusWithMultiBuf L2capChannel::WriteLocked(FlatConstMultiBuf&& payload) {
-  if (state() != State::kRunning) {
+StatusWithMultiBuf L2capChannel::WriteDuringRx(FlatConstMultiBuf&& payload) {
+  std::lock_guard lock(mutex_);
+  if (state_ != L2capChannel::State::kRunning) {
     PW_LOG_WARN(
-        "btproxy: L2capChannel::WriteLocked called when not running. "
+        "btproxy: L2capChannel::Write called when not running. "
         "local_cid: %#x, remote_cid: %#x, state: %u",
-        local_cid(),
-        remote_cid(),
-        cpp23::to_underlying(state()));
+        local_cid_,
+        remote_cid_,
+        cpp23::to_underlying(state_));
     return {Status::FailedPrecondition(), std::move(payload)};
   }
 
-  return QueuePayload(std::move(payload));
+  if (payload_queue_.full()) {
+    notify_on_dequeue_ = true;
+    return {Status::Unavailable(), std::move(payload)};
+  }
+  payload_queue_.push(std::move(payload));
+  ReportNewTxPacketsOrCredits();
+  return {OkStatus(), std::nullopt};
 }
 
 Status L2capChannel::IsWriteAvailable() {
@@ -171,7 +173,7 @@ Status L2capChannel::IsWriteAvailable() {
     return Status::FailedPrecondition();
   }
 
-  std::lock_guard lock(tx_mutex_);
+  std::lock_guard lock(mutex_);
 
   if (payload_queue_.full()) {
     notify_on_dequeue_ = true;
@@ -186,47 +188,35 @@ std::optional<H4PacketWithH4> L2capChannel::DequeuePacket() {
   std::optional<H4PacketWithH4> packet;
   bool should_notify = false;
   {
-    std::lock_guard lock(tx_mutex_);
-    packet = GenerateNextTxPacket();
-    if (packet) {
+    // Get a payload.
+    std::lock_guard lock(mutex_);
+    if (state_ != L2capChannel::State::kRunning) {
+      payload_queue_.clear();
+    }
+    if (payload_queue_.empty()) {
+      return std::nullopt;
+    }
+    const FlatConstMultiBuf& payload = payload_queue_.front();
+
+    // Create a packet from the payload.
+    bool keep_payload = false;
+    packet = GenerateNextTxPacket(payload, keep_payload);
+
+    // If no additional packets can be created from the payload, remove it.
+    if (!keep_payload) {
+      payload_queue_.pop();
       should_notify = notify_on_dequeue_;
       notify_on_dequeue_ = false;
     }
   }
 
+  // Notify the client if there is now room in the queue.
   if (should_notify) {
     SendEvent(L2capChannelEvent::kWriteAvailable);
   }
 
   return packet;
 }
-
-StatusWithMultiBuf L2capChannel::QueuePayload(FlatConstMultiBuf&& buf) {
-  PW_CHECK(state() == State::kRunning);
-
-  {
-    std::lock_guard lock(tx_mutex_);
-    if (payload_queue_.full()) {
-      notify_on_dequeue_ = true;
-      return {Status::Unavailable(), std::move(buf)};
-    }
-    payload_queue_.push(std::move(buf));
-  }
-
-  ReportNewTxPacketsOrCredits();
-  return {OkStatus(), std::nullopt};
-}
-
-void L2capChannel::PopFrontPayload() {
-  PW_CHECK(!payload_queue_.empty());
-  payload_queue_.pop();
-}
-
-const FlatConstMultiBuf& L2capChannel::GetFrontPayload() const {
-  return payload_queue_.front();
-}
-
-bool L2capChannel::PayloadQueueEmpty() const { return payload_queue_.empty(); }
 
 bool L2capChannel::HandlePduFromController(pw::span<uint8_t> l2cap_pdu) {
   if (state() != State::kRunning) {
@@ -240,6 +230,11 @@ bool L2capChannel::HandlePduFromController(pw::span<uint8_t> l2cap_pdu) {
     return true;
   }
   return DoHandlePduFromController(l2cap_pdu);
+}
+
+L2capChannel::State L2capChannel::state() const {
+  std::lock_guard lock(mutex_);
+  return state_;
 }
 
 L2capChannel::L2capChannel(
@@ -271,16 +266,19 @@ L2capChannel::L2capChannel(
 }
 
 void L2capChannel::Init() {
-  state_ = State::kRunning;
+  {
+    std::lock_guard lock(mutex_);
+    state_ = State::kRunning;
+    PW_LOG_INFO(
+        "btproxy: L2capChannel initialized: "
+        "transport_: %u, connection_handle_ : %u, "
+        "local_cid_ : %#x, remote_cid_: %#x",
+        cpp23::to_underlying(transport_),
+        connection_handle_,
+        local_cid_,
+        remote_cid_);
+  }
   l2cap_channel_manager_.RegisterChannel(*this);
-  PW_LOG_INFO(
-      "btproxy: L2capChannel initialized: "
-      "transport_: %u, connection_handle_ : %u, "
-      "local_cid_ : %#x, remote_cid_: %#x",
-      cpp23::to_underlying(transport_),
-      connection_handle_,
-      local_cid_,
-      remote_cid_);
 }
 
 bool L2capChannel::AreValidParameters(uint16_t connection_handle,
@@ -368,13 +366,8 @@ void L2capChannel::ReportNewTxPacketsOrCredits() {
   l2cap_channel_manager_.ReportNewTxPacketsOrCredits();
 }
 
-void L2capChannel::DrainChannelQueuesIfNewTx() PW_LOCKS_EXCLUDED(tx_mutex_) {
+void L2capChannel::DrainChannelQueuesIfNewTx() {
   l2cap_channel_manager_.DrainChannelQueuesIfNewTx();
-}
-
-void L2capChannel::ClearQueue() {
-  std::lock_guard lock(tx_mutex_);
-  payload_queue_.clear();
 }
 
 //-------
@@ -391,7 +384,7 @@ bool L2capChannel::SendPayloadFromControllerToClient(
 }
 
 bool L2capChannel::SendPayloadToClient(
-    pw::span<uint8_t> payload, OptionalPayloadReceiveCallback& callback) {
+    pw::span<uint8_t> payload, const OptionalPayloadReceiveCallback& callback) {
   if (!callback) {
     return false;
   }
@@ -467,6 +460,13 @@ void L2capChannel::EndRecombinationBuf(Direction direction) {
 }
 
 void L2capChannel::SendEvent(L2capChannelEvent event) {
+  {
+    std::lock_guard lock(static_mutex_);
+    if (!client_.has_value() || *client_ == nullptr) {
+      return;
+    }
+  }
+
   // We don't log kWriteAvailable since they happen often. Optimally we would
   // just debug log them also, but one of our downstreams logs all levels.
   if (event != L2capChannelEvent::kWriteAvailable) {
@@ -478,13 +478,19 @@ void L2capChannel::SendEvent(L2capChannelEvent event) {
         cpp23::to_underlying(event));
   }
 
-  // TODO: https://pwbug.dev/401346239 - This will deadlock if the client's
-  // event callback does anything that causes another event to be sent. This
-  // seems unlikely given the current set of events.
-  std::lock_guard lock(mutex_);
   if (event_fn_) {
     event_fn_(event);
   }
+}
+
+bool L2capChannel::IsStale() const {
+  std::lock_guard lock(static_mutex_);
+  return client_.has_value() && *client_ == nullptr;
+}
+
+bool L2capChannel::PayloadQueueEmpty() const {
+  std::lock_guard lock(mutex_);
+  return payload_queue_.empty();
 }
 
 }  // namespace pw::bluetooth::proxy

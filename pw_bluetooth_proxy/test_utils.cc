@@ -572,6 +572,11 @@ void SendAclContinuingFrag(ProxyHost& proxy,
   proxy.HandleH4HciFromController(std::move(h4_packet));
 }
 
+L2capChannel::State GetState(const internal::GenericL2capChannel& channel) {
+  auto* l2cap = channel.InternalForTesting();
+  return l2cap == nullptr ? L2capChannel::State::kClosed : l2cap->state();
+}
+
 pw::Result<L2capCoc> ProxyHostTest::BuildCocWithResult(ProxyHost& proxy,
                                                        CocParameters params) {
   return proxy.AcquireL2capCoc(

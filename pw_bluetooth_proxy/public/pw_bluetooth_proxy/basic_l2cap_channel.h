@@ -11,7 +11,6 @@
 // WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 // License for the specific language governing permissions and limitations under
 // the License.
-
 #pragma once
 
 #include "pw_bluetooth_proxy/internal/basic_l2cap_channel_internal.h"
@@ -19,26 +18,20 @@
 
 namespace pw::bluetooth::proxy {
 
-class BasicL2capChannel final : public internal::GenericL2capChannel<
-                                    internal::BasicL2capChannelInternal> {
- private:
-  using Base =
-      internal::GenericL2capChannel<internal::BasicL2capChannelInternal>;
-
+class BasicL2capChannel final : public internal::GenericL2capChannel {
  public:
-  // Close the channel in internal tests. DO NOT USE.
-  void CloseForTesting() { internal().Close(); }
-
-  // Returns the internal channel. DO NOT USE.
-  internal::BasicL2capChannelInternal& InternalForTesting() {
-    return internal();
-  }
+  BasicL2capChannel(BasicL2capChannel&& other) = default;
+  BasicL2capChannel& operator=(BasicL2capChannel&& other) = default;
 
  private:
   friend class L2capChannelManager;
 
-  BasicL2capChannel(internal::BasicL2capChannelInternal&& internal)
-      : Base(std::move(internal)) {}
+  explicit BasicL2capChannel(internal::BasicL2capChannelInternal& channel);
+
+  /// @copydoc internal::GenericL2capChannel::DoCheckWriteParameter
+  Status DoCheckWriteParameter(const FlatConstMultiBuf& payload) override;
+
+  uint16_t max_l2cap_payload_size_ = 0;
 };
 
 }  // namespace pw::bluetooth::proxy

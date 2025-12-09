@@ -267,6 +267,9 @@ void SendAclContinuingFrag(ProxyHost& proxy,
                            uint16_t handle,
                            pw::span<const uint8_t> payload);
 
+//  Returns the state of the given channel.
+L2capChannel::State GetState(const internal::GenericL2capChannel& channel);
+
 // TODO: https://pwbug.dev/382783733 - Migrate to L2capChannelEvent callback.
 struct CocParameters {
   uint16_t handle = 123;

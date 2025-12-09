@@ -18,8 +18,6 @@
 
 #include "pw_assert/check.h"
 #include "pw_bluetooth/emboss_util.h"
-#include "pw_bluetooth/hci_data.emb.h"
-#include "pw_bluetooth/l2cap_frames.emb.h"
 #include "pw_bluetooth_proxy/h4_packet.h"
 #include "pw_bluetooth_proxy/internal/l2cap_channel.h"
 #include "pw_bluetooth_proxy/internal/l2cap_channel_manager.h"
@@ -37,78 +35,23 @@ const float kRxCreditReplenishThreshold = 0.30;
 
 }  // namespace
 
-L2capCocInternal::L2capCocInternal(L2capCocInternal&& other)
-    : L2capChannel(static_cast<L2capChannel&&>(other)),
-      rx_mtu_(other.rx_mtu_),
-      rx_mps_(other.rx_mps_),
-      tx_mtu_(other.tx_mtu_),
-      tx_mps_(other.tx_mps_),
-      receive_fn_(std::move(other.receive_fn_)) {
-  {
-    std::lock_guard lock(tx_mutex_);
-    std::lock_guard other_lock(other.tx_mutex_);
-    tx_credits_ = other.tx_credits_;
-  }
-  {
-    std::lock_guard lock(rx_mutex_);
-    std::lock_guard other_lock(other.rx_mutex_);
-    rx_sdu_ = std::move(other.rx_sdu_);
-    rx_sdu_offset_ = other.rx_sdu_offset_;
-    rx_sdu_bytes_remaining_ = other.rx_sdu_bytes_remaining_;
-    rx_remaining_credits_ = other.rx_remaining_credits_;
-    rx_total_credits_ = other.rx_total_credits_;
-  }
-}
-
-Status L2capCocInternal::DoCheckWriteParameter(
-    const FlatConstMultiBuf& payload) {
-  if (payload.size() > tx_mtu_) {
-    PW_LOG_ERROR(
-        "Payload (%zu bytes) exceeds MTU (%d bytes). So will not process. "
-        "local_cid: %#x, remote_cid: %#x, state: %u",
-        payload.size(),
-        tx_mtu_,
-        local_cid(),
-        remote_cid(),
-        cpp23::to_underlying(state()));
-    return Status::InvalidArgument();
-  }
-  return pw::OkStatus();
-}
-
-pw::Result<L2capCocInternal> L2capCocInternal::Create(
-    MultiBufAllocator& rx_multibuf_allocator,
-    L2capChannelManager& l2cap_channel_manager,
+bool L2capCocInternal::AreValidParameters(
     uint16_t connection_handle,
     ConnectionOrientedChannelConfig rx_config,
-    ConnectionOrientedChannelConfig tx_config,
-    ChannelEventCallback&& event_fn,
-    Function<void(FlatConstMultiBuf&& payload)>&& receive_fn) {
-  if (!AreValidParameters(/*connection_handle=*/connection_handle,
-                          /*local_cid=*/rx_config.cid,
-                          /*remote_cid=*/tx_config.cid)) {
-    return pw::Status::InvalidArgument();
+    ConnectionOrientedChannelConfig tx_config) {
+  if (!L2capChannel::AreValidParameters(
+          connection_handle, rx_config.cid, tx_config.cid)) {
+    return false;
   }
-
   if (tx_config.mps < emboss::L2capLeCreditBasedConnectionReq::min_mps() ||
       tx_config.mps > emboss::L2capLeCreditBasedConnectionReq::max_mps()) {
     PW_LOG_ERROR(
         "Tx MPS (%d octets) invalid. L2CAP implementations shall support a "
         "minimum MPS of 23 octets and may support an MPS up to 65533 octets.",
         tx_config.mps);
-    return pw::Status::InvalidArgument();
+    return false;
   }
-
-  L2capCocInternal channel(/*rx_multibuf_allocator=*/rx_multibuf_allocator,
-                           /*l2cap_channel_manager=*/l2cap_channel_manager,
-                           /*connection_handle=*/connection_handle,
-                           /*rx_config=*/rx_config,
-                           /*tx_config=*/tx_config,
-                           /*event_fn=*/std::move(event_fn),
-                           /*receive_fn=*/std::move(receive_fn));
-
-  channel.Init();
-  return channel;
+  return true;
 }
 
 pw::Status L2capCocInternal::ReplenishRxCredits(
@@ -328,12 +271,7 @@ L2capCocInternal::L2capCocInternal(
       tx_credits_);
 }
 
-L2capCocInternal::~L2capCocInternal() {
-  // Don't log dtor of moved-from channels.
-  if (state() != State::kUndefined) {
-    PW_LOG_INFO("btproxy: L2capCoc dtor");
-  }
-}
+L2capCocInternal::~L2capCocInternal() { PW_LOG_INFO("btproxy: L2capCoc dtor"); }
 
 std::optional<uint16_t> L2capCocInternal::MaxBasicL2capPayloadSize() const {
   std::optional<uint16_t> max_basic_l2cap_payload_size =
@@ -344,19 +282,16 @@ std::optional<uint16_t> L2capCocInternal::MaxBasicL2capPayloadSize() const {
   return std::min(*max_basic_l2cap_payload_size, tx_mps_);
 }
 
-std::optional<H4PacketWithH4> L2capCocInternal::GenerateNextTxPacket() {
+std::optional<H4PacketWithH4> L2capCocInternal::GenerateNextTxPacket(
+    const FlatConstMultiBuf& sdu, bool& keep_payload) {
+  keep_payload = true;
   std::lock_guard lock(tx_mutex_);
-  constexpr uint8_t kSduLengthFieldSize =
-      emboss::FirstKFrame::MinSizeInBytes() -
-      emboss::BasicL2capHeader::IntrinsicSizeInBytes();
   std::optional<uint16_t> max_basic_payload_size = MaxBasicL2capPayloadSize();
-  if (state() != State::kRunning || PayloadQueueEmpty() || tx_credits_ == 0 ||
-      !max_basic_payload_size ||
+  if (tx_credits_ == 0 || !max_basic_payload_size ||
       *max_basic_payload_size <= kSduLengthFieldSize) {
     return std::nullopt;
   }
 
-  const FlatConstMultiBuf& sdu = GetFrontPayload();
   // Number of client SDU bytes to be encoded in this segment.
   uint16_t sdu_bytes_in_segment;
   // Size of PDU payload for this L2CAP frame.
@@ -416,7 +351,6 @@ std::optional<H4PacketWithH4> L2capCocInternal::GenerateNextTxPacket() {
   if (tx_sdu_offset_ == sdu.size()) {
     // This segment was the final (or only) PDU of the SDU payload. So all
     // content has been copied from the front payload so it can be released.
-    PopFrontPayload();
     tx_sdu_offset_ = 0;
     is_continuing_segment_ = false;
   } else {
@@ -424,6 +358,7 @@ std::optional<H4PacketWithH4> L2capCocInternal::GenerateNextTxPacket() {
   }
 
   --tx_credits_;
+  keep_payload = is_continuing_segment_;
   return h4_packet;
 }
 

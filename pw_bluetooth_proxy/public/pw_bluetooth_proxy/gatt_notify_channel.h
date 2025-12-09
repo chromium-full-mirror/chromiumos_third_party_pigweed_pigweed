@@ -22,21 +22,23 @@ namespace pw::bluetooth::proxy {
 
 /// `GattNotifyChannel` supports sending GATT characteristic notifications to a
 /// remote peer.
-class GattNotifyChannel final : public internal::GenericL2capChannel<
-                                    internal::GattNotifyChannelInternal> {
- private:
-  using Base =
-      internal::GenericL2capChannel<internal::GattNotifyChannelInternal>;
-
+class GattNotifyChannel final : public internal::GenericL2capChannel {
  public:
-  uint16_t attribute_handle() const { return internal().attribute_handle(); }
+  GattNotifyChannel(GattNotifyChannel&& other) = default;
+  GattNotifyChannel& operator=(GattNotifyChannel&& other) = default;
+
+  uint16_t attribute_handle() const { return attribute_handle_; }
 
  private:
   friend class L2capChannelManager;
 
-  constexpr explicit GattNotifyChannel(
-      internal::GattNotifyChannelInternal&& internal)
-      : Base(std::move(internal)) {}
+  explicit GattNotifyChannel(internal::GattNotifyChannelInternal& channel);
+
+  /// @copydoc internal::GenericL2capChannel::DoCheckWriteParameter
+  Status DoCheckWriteParameter(const FlatConstMultiBuf& payload) override;
+
+  uint16_t attribute_handle_;
+  uint16_t max_attribute_size_ = 0;
 };
 
 }  // namespace pw::bluetooth::proxy

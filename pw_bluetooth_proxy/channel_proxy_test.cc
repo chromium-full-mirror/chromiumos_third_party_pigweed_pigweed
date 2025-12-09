@@ -47,9 +47,9 @@ struct OneOfEachChannel {
         gatt_{std::move(gatt)} {}
 
   bool AllChannelsClosed() const {
-    return basic_.state() == L2capChannel::State::kClosed &&
-           coc_.state() == L2capChannel::State::kClosed &&
-           gatt_.state() == L2capChannel::State::kClosed;
+    return GetState(basic_) == L2capChannel::State::kClosed &&
+           GetState(coc_) == L2capChannel::State::kClosed &&
+           GetState(gatt_) == L2capChannel::State::kClosed;
   }
 
   static const size_t kNumChannels = 3;
@@ -142,9 +142,11 @@ TEST_F(ChannelProxyTest, ChannelsStopOnProxyDestruction) {
       BuildOneOfEachChannel(proxy.value(), shared_event_fn, kConnectionHandle);
 
   // Channel already closed before Proxy destruction should not be affected.
-  close_first_channel.CloseForTesting();
+  EXPECT_NE(GetState(close_first_channel), L2capChannel::State::kClosed);
+
+  close_first_channel.Close();
   EXPECT_EQ(events_received, 1ul);
-  EXPECT_EQ(close_first_channel.state(), L2capChannel::State::kClosed);
+  EXPECT_EQ(GetState(close_first_channel), L2capChannel::State::kClosed);
 
   // Proxy dtor should result in close event for each of
   // the previously still open channels (and they should now be closed).
@@ -153,7 +155,7 @@ TEST_F(ChannelProxyTest, ChannelsStopOnProxyDestruction) {
   EXPECT_TRUE(channel_struct.AllChannelsClosed());
 
   // And first channel should remain closed of course.
-  EXPECT_EQ(close_first_channel.state(), L2capChannel::State::kClosed);
+  EXPECT_EQ(GetState(close_first_channel), L2capChannel::State::kClosed);
 }
 
 // Test that each channel type properly send a close event when it is closed
@@ -199,9 +201,9 @@ TEST_F(ChannelProxyTest, ChannelsCloseOnReset) {
       BuildOneOfEachChannel(proxy, shared_event_fn);
 
   // Channel already closed before Proxy reset should not be affected.
-  close_first_channel.CloseForTesting();
+  close_first_channel.Close();
   EXPECT_EQ(events_received, 1ul);
-  EXPECT_EQ(close_first_channel.state(), L2capChannel::State::kClosed);
+  EXPECT_EQ(GetState(close_first_channel), L2capChannel::State::kClosed);
 
   // Proxy reset should result in close event for each of
   // the previously still open channels (and they should now be closed).
@@ -210,7 +212,7 @@ TEST_F(ChannelProxyTest, ChannelsCloseOnReset) {
   EXPECT_TRUE(channel_struct.AllChannelsClosed());
 
   // And first channel should remain closed of course.
-  EXPECT_EQ(close_first_channel.state(), L2capChannel::State::kClosed);
+  EXPECT_EQ(GetState(close_first_channel), L2capChannel::State::kClosed);
 }
 
 }  // namespace

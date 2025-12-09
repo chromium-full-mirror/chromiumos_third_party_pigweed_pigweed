@@ -24,25 +24,23 @@ namespace pw::bluetooth::proxy::internal {
 /// notifications to a remote peer.
 class GattNotifyChannelInternal final : public L2capChannel {
  public:
-  static pw::Result<GattNotifyChannelInternal> Create(
-      L2capChannelManager& l2cap_channel_manager,
-      uint16_t connection_handle,
-      uint16_t attribute_handle,
-      ChannelEventCallback&& event_fn);
+  [[nodiscard]] static bool AreValidParameters(uint16_t connection_handle,
+                                               uint16_t attribute_handle);
 
+  explicit GattNotifyChannelInternal(L2capChannelManager& l2cap_channel_manager,
+                                     uint16_t connection_handle,
+                                     uint16_t attribute_handle,
+                                     ChannelEventCallback&& event_fn);
+
+  // Internal channels are not copyable or movable.
   GattNotifyChannelInternal(const GattNotifyChannelInternal& other) = delete;
   GattNotifyChannelInternal& operator=(const GattNotifyChannelInternal& other) =
       delete;
-  GattNotifyChannelInternal(GattNotifyChannelInternal&&) = default;
-  GattNotifyChannelInternal& operator=(GattNotifyChannelInternal&& other) =
-      default;
+
   ~GattNotifyChannelInternal() override;
 
   /// Return the attribute handle of this GattNotify channel.
   uint16_t attribute_handle() const { return attribute_handle_; }
-
-  /// Check if the passed Write parameter is acceptable.
-  Status DoCheckWriteParameter(const FlatConstMultiBuf& payload) override;
 
  private:
   bool DoHandlePduFromController(pw::span<uint8_t>) override {
@@ -55,15 +53,8 @@ class GattNotifyChannelInternal final : public L2capChannel {
     return false;
   }
 
-  void DoClose() override {}
-
-  [[nodiscard]] std::optional<H4PacketWithH4> GenerateNextTxPacket()
-      PW_EXCLUSIVE_LOCKS_REQUIRED(l2cap_tx_mutex()) override;
-
-  explicit GattNotifyChannelInternal(L2capChannelManager& l2cap_channel_manager,
-                                     uint16_t connection_handle,
-                                     uint16_t attribute_handle,
-                                     ChannelEventCallback&& event_fn);
+  std::optional<H4PacketWithH4> GenerateNextTxPacket(
+      const FlatConstMultiBuf& attribute_value, bool& keep_payload) override;
 
   uint16_t attribute_handle_;
 };

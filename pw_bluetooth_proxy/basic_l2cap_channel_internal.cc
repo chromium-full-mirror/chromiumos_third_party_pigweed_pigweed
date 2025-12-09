@@ -25,82 +25,9 @@
 
 namespace pw::bluetooth::proxy::internal {
 
-pw::Result<BasicL2capChannelInternal> BasicL2capChannelInternal::Create(
-    L2capChannelManager& l2cap_channel_manager,
-    MultiBufAllocator* rx_multibuf_allocator,
-    uint16_t connection_handle,
-    AclTransportType transport,
-    uint16_t local_cid,
-    uint16_t remote_cid,
-    OptionalPayloadReceiveCallback&& payload_from_controller_fn,
-    OptionalPayloadReceiveCallback&& payload_from_host_fn,
-    ChannelEventCallback&& event_fn) {
-  if (!AreValidParameters(/*connection_handle=*/connection_handle,
-                          /*local_cid=*/local_cid,
-                          /*remote_cid=*/remote_cid)) {
-    return pw::Status::InvalidArgument();
-  }
-
-  BasicL2capChannelInternal channel(
-      l2cap_channel_manager,
-      rx_multibuf_allocator,
-      /*connection_handle=*/connection_handle,
-      /*transport=*/transport,
-      /*local_cid=*/local_cid,
-      /*remote_cid=*/remote_cid,
-      /*payload_from_controller_fn=*/std::move(payload_from_controller_fn),
-      /*payload_from_host_fn=*/std::move(payload_from_host_fn),
-      /*event_fn=*/std::move(event_fn),
-      nullptr,
-      nullptr);
-  channel.Init();
-  return channel;
-}
-
-BasicL2capChannelInternal::BasicL2capChannelInternal(
-    BasicL2capChannelInternal&& other)
-    : L2capChannel(static_cast<L2capChannel&&>(other)) {
-  Move(std::move(other));
-}
-
-BasicL2capChannelInternal& BasicL2capChannelInternal::operator=(
-    BasicL2capChannelInternal&& other) {
-  L2capChannel::operator=(static_cast<L2capChannel&&>(other));
-  Move(std::move(other));
-  return *this;
-}
-
-void BasicL2capChannelInternal::Move(BasicL2capChannelInternal&& other) {
-  std::lock_guard lock(mutex_);
-  std::lock_guard other_lock(other.mutex_);
-  payload_span_from_controller_fn_ =
-      std::exchange(other.payload_span_from_controller_fn_, nullptr);
-  payload_span_from_host_fn_ =
-      std::exchange(other.payload_span_from_host_fn_, nullptr);
-}
-
-Status BasicL2capChannelInternal::DoCheckWriteParameter(
-    const FlatConstMultiBuf& payload) {
-  std::optional<uint16_t> max_l2cap_length = MaxL2capPayloadSize();
-  if (!max_l2cap_length) {
-    return Status::FailedPrecondition();
-  }
-  if (payload.size() > max_l2cap_length) {
-    PW_LOG_WARN("Payload (%zu bytes) is too large. So will not process.",
-                payload.size());
-    return Status::InvalidArgument();
-  }
-  return OkStatus();
-}
-
-std::optional<H4PacketWithH4>
-BasicL2capChannelInternal::GenerateNextTxPacket() {
-  if (state() != State::kRunning || PayloadQueueEmpty()) {
-    return std::nullopt;
-  }
-
-  const FlatConstMultiBuf& payload = GetFrontPayload();
-
+std::optional<H4PacketWithH4> BasicL2capChannelInternal::GenerateNextTxPacket(
+    const FlatConstMultiBuf& payload, bool& keep_payload) {
+  keep_payload = true;
   pw::Result<H4PacketWithH4> result = PopulateTxL2capPacket(payload.size());
   if (!result.ok()) {
     return std::nullopt;
@@ -121,8 +48,7 @@ BasicL2capChannelInternal::GenerateNextTxPacket() {
   PW_CHECK(bframe.Ok());
 
   // All content has been copied from the front payload, so release it.
-  PopFrontPayload();
-
+  keep_payload = false;
   return h4_packet;
 }
 
@@ -155,10 +81,7 @@ BasicL2capChannelInternal::BasicL2capChannelInternal(
 }
 
 BasicL2capChannelInternal::~BasicL2capChannelInternal() {
-  // Don't log dtor of moved-from channels.
-  if (state() != State::kUndefined) {
-    PW_LOG_INFO("btproxy: BasicL2capChannelInternal dtor");
-  }
+  PW_LOG_INFO("btproxy: BasicL2capChannelInternal dtor");
 }
 
 bool BasicL2capChannelInternal::DoHandlePduFromController(

@@ -26,15 +26,19 @@ cc_library_static {
     // LINT.IfChange
     srcs: [
         "acl_data_channel.cc",
+        "basic_l2cap_channel.cc",
         "basic_l2cap_channel_internal.cc",
         "basic_mode_tx_engine.cc",
         "basic_mode_rx_engine.cc",
         "credit_based_flow_control_tx_engine.cc",
         "credit_based_flow_control_rx_engine.cc",
+        "gatt_notify_channel.cc",
         "gatt_notify_channel_internal.cc",
         "gatt_notify_tx_engine.cc",
+        "generic_l2cap_channel.cc",
         "l2cap_channel.cc",
         "l2cap_channel_manager.cc",
+        "l2cap_coc.cc",
         "l2cap_coc_internal.cc",
         "l2cap_signaling_channel.cc",
         "l2cap_status_tracker.cc",
@@ -57,6 +61,7 @@ cc_library_static {
         "pw_span",
         "pw_span_cast",
         "pw_status",
+        "pw_sync",
     ],
     export_static_lib_headers: [
         "pw_allocator",
@@ -67,6 +72,7 @@ cc_library_static {
         "pw_result",
         "pw_span",
         "pw_status",
+        "pw_sync",
     ],
     header_libs: [
         "emboss_runtime_headers",

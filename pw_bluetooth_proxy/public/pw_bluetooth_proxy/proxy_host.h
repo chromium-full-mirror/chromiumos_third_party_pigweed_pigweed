@@ -135,24 +135,28 @@ class ProxyHost {
   /// Returns an L2CAP connection-oriented channel that supports writing to and
   /// reading from a remote peer.
   ///
-  /// @param[in] rx_multibuf_allocator
-  ///                               Provides the allocator the channel will use
-  ///                               for its Rx buffers (for both queueing and
-  ///                               returning to the client).
+  /// @param[in] rx_multibuf_allocator  Provides the allocator the channel will
+  ///                                   use for its Rx buffers (for both
+  ///                                   queueing and returning to the client).
   ///
-  /// @param[in] connection_handle  The connection handle of the remote peer.
+  /// @param[in] connection_handle      The connection handle of the remote
+  ///                                   peer.
   ///
-  /// @param[in] rx_config          Parameters applying to reading packets. See
-  ///                               `l2cap_coc.h` for details.
+  /// @param[in] rx_config              Parameters applying to reading packets.
+  ///                                   See `l2cap_coc.h` for details.
   ///
-  /// @param[in] tx_config          Parameters applying to writing packets. See
-  ///                               `l2cap_coc.h` for details.
+  /// @param[in] tx_config              Parameters applying to writing packets.
+  ///                                   See `l2cap_coc.h` for details.
   ///
-  /// @param[in] receive_fn         Read callback to be invoked on Rx SDUs.
+  /// @param[in] receive_fn             Read callback to be invoked on Rx SDUs.
   ///
-  /// @param[in] event_fn          Handle asynchronous events such as errors and
-  ///                              flow control events encountered by the
-  ///                              channel. See `l2cap_channel_common.h`.
+  /// @param[in] event_fn               Handle asynchronous events such as
+  ///                                   errors and flow control events
+  ///                                   encountered by the channel. See
+  ///                                   `l2cap_channel_common.h`.
+  ///                                   Must outlive the channel and remain
+  ///                                   valid until the channel destructor
+  ///                                   returns.
   ///
   /// @returns @Result{the channel}
   /// * @INVALID_ARGUMENT: Arguments are invalid. Check the logs.
@@ -202,8 +206,12 @@ class ProxyHost {
   ///                                       forwarding is required.
   ///
   /// @param[in] event_fn                   Handle asynchronous events such as
-  ///                                       errors encountered by the channel.
-  ///                                       See `l2cap_channel_common.h`.
+  ///                                       errors and flow control events
+  ///                                       encountered by the channel. See
+  ///                                       `l2cap_channel_common.h`.
+  ///                                       Must outlive the channel and remain
+  ///                                       valid until the channel destructor
+  ///                                       returns.
   ///
   /// @returns @Result{the channel}
   /// * @INVALID_ARGUMENT: Arguments are invalid. Check the logs.
@@ -222,15 +230,17 @@ class ProxyHost {
   /// Returns a GATT Notify channel channel that supports sending notifications
   /// to a particular connection handle and attribute.
   ///
-  /// @param[in] connection_handle The connection handle of the peer to notify.
-  /// Maximum valid connection handle is 0x0EFF.
+  /// @param[in] connection_handle  The connection handle of the peer to notify.
+  ///                               Maximum valid connection handle is 0x0EFF.
   ///
-  /// @param[in] attribute_handle  The attribute handle the notify should be
-  /// sent on. Cannot be 0.
+  /// @param[in] attribute_handle   The attribute handle the notify should be
+  ///                               sent on. Cannot be 0.
   ///
-  /// @param[in] event_fn          Handle asynchronous events such as errors and
-  ///                              flow control events encountered by the
-  ///                              channel. See `l2cap_channel_common.h`.
+  /// @param[in] event_fn           Handle asynchronous events such as errors
+  ///                               and flow control events encountered by the
+  ///                               channel. See `l2cap_channel_common.h`. Must
+  ///                               outlive the channel and remain valid until
+  ///                               the channel destructor returns.
   ///
   /// @returns @Result{the channel}
   /// * @INVALID_ARGUMENT: Arguments are invalid. Check the logs.

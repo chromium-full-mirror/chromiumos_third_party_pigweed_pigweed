@@ -29,10 +29,42 @@
 #include "pw_status/try.h"
 #include "pw_sync/lock_annotations.h"
 #include "pw_sync/mutex.h"
+#include "pw_sync/thread_notification.h"
 
 namespace pw::bluetooth::proxy {
 
+class L2capChannel;
 class L2capChannelManager;
+
+namespace internal {
+
+class GenericL2capChannel;
+
+/// RAII helper type that guarantees an L2capChannel will not be destroyed as
+/// long as an instance of this type remains in scope.
+class BorrowedL2capChannel {
+ public:
+  constexpr BorrowedL2capChannel() = default;
+
+  BorrowedL2capChannel(BorrowedL2capChannel&& other) {
+    *this = std::move(other);
+  }
+  BorrowedL2capChannel& operator=(BorrowedL2capChannel&& other);
+
+  ~BorrowedL2capChannel();
+
+  L2capChannel* operator->() { return channel_; }
+  L2capChannel& operator*() { return *channel_; }
+
+ private:
+  friend class GenericL2capChannel;
+
+  BorrowedL2capChannel(L2capChannel& channel);
+
+  L2capChannel* channel_ = nullptr;
+};
+
+}  // namespace internal
 
 // Base class for peer-to-peer L2CAP-based channels.
 //
@@ -40,9 +72,11 @@ class L2capChannelManager;
 // flags, handles, etc. should be provided at construction to derived channels.
 class L2capChannel : public IntrusiveForwardList<L2capChannel>::Item {
  public:
+  static constexpr uint16_t kMaxValidConnectionHandle = 0x0EFF;
+
   enum class State {
-    // Channel is new or has been moved from.
-    kUndefined,
+    // Channel is new.
+    kNew,
     kRunning,
     // Channel is stopped, but the L2CAP connection has not been closed.
     kStopped,
@@ -50,13 +84,7 @@ class L2capChannel : public IntrusiveForwardList<L2capChannel>::Item {
     // HCI_Disconnection_Complete event, L2CAP_DISCONNECTION_RSP packet, or
     // HCI_Reset Command packet; or `ProxyHost` dtor has been called.
     kClosed,
-
   };
-
-  L2capChannel(const L2capChannel& other) = delete;
-  L2capChannel& operator=(const L2capChannel& other) = delete;
-  L2capChannel(L2capChannel&& other);
-  L2capChannel& operator=(L2capChannel&& other);
 
   virtual ~L2capChannel();
 
@@ -82,15 +110,6 @@ class L2capChannel : public IntrusiveForwardList<L2capChannel>::Item {
   //   - Container is responsible for closing L2CAP connection & destructing
   //     the channel object to free its resources.
   void Stop();
-
-  // Deregister the channel and enter `State::kClosed`. Closing a channel has
-  // the same effects as stopping the channel and triggers
-  // `L2capChannelEvent::kChannelClosedByOther`.
-  //
-  // Deregistered channels are not managed by the proxy, so any traffic
-  // addressed to/from them passes through `ProxyHost` unaffected. (Rx packets
-  // do not trigger `kRxWhileStopped` events.)
-  void Close();
 
   //-------------
   //  Tx (public)
@@ -119,12 +138,10 @@ class L2capChannel : public IntrusiveForwardList<L2capChannel>::Item {
   // ClientChannel.
   StatusWithMultiBuf Write(FlatConstMultiBuf&& payload);
 
-  // Channels that need to send a payload during handling a received packet
-  // directly (for instance to replenish credits) should use this function which
-  // does not take the L2capChannelManager channels lock.
-  inline StatusWithMultiBuf WriteDuringRx(FlatConstMultiBuf&& payload) {
-    return WriteLocked(std::move(payload));
-  }
+  /// Channels that need to send a payload during handling a received packet
+  /// directly (for instance to replenish credits) should use this function
+  /// which does not take the L2capChannelManager channels lock.
+  StatusWithMultiBuf WriteDuringRx(FlatConstMultiBuf&& payload);
 
   /// Determine if channel is ready to accept one or more Write payloads.
   ///
@@ -142,6 +159,12 @@ class L2capChannel : public IntrusiveForwardList<L2capChannel>::Item {
 
   // Max number of Tx L2CAP packets that can be waiting to send.
   static constexpr size_t QueueCapacity() { return kQueueCapacity; }
+
+  // Returns the maximum size supported for Tx L2CAP PDU payloads with a Basic
+  // header.
+  //
+  // Returns std::nullopt if the ACL data packet length is not yet known.
+  std::optional<uint16_t> MaxL2capPayloadSize() const;
 
   //-------------
   //  Rx (public)
@@ -167,7 +190,7 @@ class L2capChannel : public IntrusiveForwardList<L2capChannel>::Item {
   //  Accessors:
   //--------------
 
-  State state() const { return state_; }
+  State state() const;
 
   uint16_t local_cid() const { return local_cid_; }
 
@@ -178,6 +201,7 @@ class L2capChannel : public IntrusiveForwardList<L2capChannel>::Item {
   AclTransportType transport() const { return transport_; }
 
  protected:
+  friend class internal::GenericL2capChannel;
   friend class L2capChannelManager;
 
   //----------------------
@@ -206,24 +230,13 @@ class L2capChannel : public IntrusiveForwardList<L2capChannel>::Item {
   //-------------------
 
   // Send `event` to client if an event callback was provided.
-  void SendEvent(L2capChannelEvent event) PW_LOCKS_EXCLUDED(mutex_);
+  void SendEvent(L2capChannelEvent event) PW_LOCKS_EXCLUDED(static_mutex_);
 
-  // Called on channel closure, i.e. when the ACL connection or L2CAP connection
-  // is being dropped. Derived channels should override this to clean up state
-  // that is being invalidated, such as dangling references to the channel's
-  // underlying `AclConnection`.
-  virtual void DoClose() = 0;
-
-  // Enter `State::kClosed` without deregistering. This has all the same effects
-  // as stopping the channel and triggers `event`. No-op if channel is already
-  // `State::kClosed`.
-  void InternalClose(
-      L2capChannelEvent event = L2capChannelEvent::kChannelClosedByOther);
-
-  // For derived channels to use in lock annotations.
-  const sync::Mutex& l2cap_tx_mutex() const PW_LOCK_RETURNED(tx_mutex_) {
-    return tx_mutex_;
-  }
+  // Enter `State::kClosed` and disconnects the client. This has all the same
+  // effects as stopping the channel and triggers `event`. No-op if channel is
+  // already `State::kClosed`.
+  void Close(L2capChannelEvent event = L2capChannelEvent::kChannelClosedByOther)
+      PW_LOCKS_EXCLUDED(static_mutex_);
 
   L2capChannelManager& channel_manager() const {
     return l2cap_channel_manager_;
@@ -233,22 +246,6 @@ class L2capChannel : public IntrusiveForwardList<L2capChannel>::Item {
   //  Tx (protected)
   //----------------
 
-  /// Check if the passed Write parameter is acceptable.
-  virtual Status DoCheckWriteParameter(const FlatConstMultiBuf& payload) = 0;
-
-  // Write payload to queue but don't drain the queue as this would require
-  // taking L2capChannelManager channel_mutex_ lock.
-  StatusWithMultiBuf WriteLocked(FlatConstMultiBuf&& payload);
-
-  // Pop front buffer (which will release its memory). Queue must be nonempty.
-  void PopFrontPayload() PW_EXCLUSIVE_LOCKS_REQUIRED(tx_mutex_);
-
-  // Returns a reference to the front buffer. Queue must be nonempty.
-  const FlatConstMultiBuf& GetFrontPayload() const
-      PW_EXCLUSIVE_LOCKS_REQUIRED(tx_mutex_);
-
-  bool PayloadQueueEmpty() const PW_EXCLUSIVE_LOCKS_REQUIRED(tx_mutex_);
-
   // Reserve an L2CAP over ACL over H4 packet, with those three headers
   // populated for an L2CAP PDU payload of `data_length` bytes addressed to
   // `connection_handle_`.
@@ -257,12 +254,6 @@ class L2capChannel : public IntrusiveForwardList<L2capChannel>::Item {
   // Returns PW_STATUS_UNAVAILABLE if all buffers are currently occupied.
   pw::Result<H4PacketWithH4> PopulateTxL2capPacket(uint16_t data_length);
 
-  // Returns the maximum size supported for Tx L2CAP PDU payloads with a Basic
-  // header.
-  //
-  // Returns std::nullopt if the ACL data packet length is not yet known.
-  std::optional<uint16_t> MaxL2capPayloadSize() const;
-
   // Alert `L2capChannelManager` that queued packets may be ready to send.
   void ReportNewTxPacketsOrCredits();
 
@@ -270,10 +261,10 @@ class L2capChannel : public IntrusiveForwardList<L2capChannel>::Item {
   // packets. When calling this method, ensure no locks are held that are
   // also acquired in `Dequeue()` overrides, and that the channels lock is
   // not held either.
-  void DrainChannelQueuesIfNewTx() PW_LOCKS_EXCLUDED(tx_mutex_);
+  void DrainChannelQueuesIfNewTx() PW_LOCKS_EXCLUDED(mutex_);
 
   // Remove all packets from queue.
-  void ClearQueue();
+  void ClearQueue() PW_LOCKS_EXCLUDED(mutex_);
 
   //-------
   //  Rx (protected)
@@ -292,7 +283,7 @@ class L2capChannel : public IntrusiveForwardList<L2capChannel>::Item {
   }
 
  private:
-  static constexpr uint16_t kMaxValidConnectionHandle = 0x0EFF;
+  friend class internal::BorrowedL2capChannel;
 
   // TODO: https://pwbug.dev/349700888 - Make capacity configurable.
   static constexpr size_t kQueueCapacity = 5;
@@ -300,14 +291,7 @@ class L2capChannel : public IntrusiveForwardList<L2capChannel>::Item {
   // Returns false if payload should be forwarded to host instead.
   // Allows client to modify the payload to be forwarded.
   bool SendPayloadToClient(pw::span<uint8_t> payload,
-                           OptionalPayloadReceiveCallback& callback);
-
-  // Enter `State::kUndefined`, indicating that the channel has been moved from
-  // and is no longer a valid object.
-  void Undefine();
-
-  // Helper for move constructor and move assignment.
-  void MoveFields(L2capChannel& other) PW_LOCKS_EXCLUDED(tx_mutex_);
+                           const OptionalPayloadReceiveCallback& callback);
 
   // Reserve an L2CAP packet over ACL over H4 packet.
   pw::Result<H4PacketWithH4> PopulateL2capPacket(uint16_t data_length);
@@ -316,32 +300,22 @@ class L2capChannel : public IntrusiveForwardList<L2capChannel>::Item {
   //  Tx (private)
   //--------------
 
-  // Queue a client `buf` for sending and `ReportNewTxPacketsOrCredits()`.
-  //
-  // Returns PW_STATUS_UNAVAILABLE if queue is full (transient error).
-  // Returns PW_STATUS_FAILED_PRECONDITION if channel is not `State::kRunning`.
-  StatusWithMultiBuf QueuePayload(FlatConstMultiBuf&& buf)
-      PW_LOCKS_EXCLUDED(tx_mutex_);
-
   // Return the next Tx H4 based on the client's queued payloads. If the
   // returned PDU will complete the transmission of a payload, that payload
   // should be popped from the queue. If no payloads are queued, return
   // std::nullopt.
   // Subclasses should override to generate correct H4 packet from their
   // payload.
-  virtual std::optional<H4PacketWithH4> GenerateNextTxPacket()
-      PW_EXCLUSIVE_LOCKS_REQUIRED(tx_mutex_) = 0;
-
-  // Mutex for guarding tx state.
-  sync::Mutex tx_mutex_;
+  virtual std::optional<H4PacketWithH4> GenerateNextTxPacket(
+      const FlatConstMultiBuf& attribute_value, bool& keep_payload) = 0;
 
   // Stores client Tx payload buffers.
   InlineQueue<FlatConstMultiBufInstance, kQueueCapacity> payload_queue_
-      PW_GUARDED_BY(tx_mutex_);
+      PW_GUARDED_BY(mutex_);
 
   // True if the last queue attempt didn't have space. Will be cleared on
   // successful dequeue.
-  bool notify_on_dequeue_ PW_GUARDED_BY(tx_mutex_) = false;
+  bool notify_on_dequeue_ PW_GUARDED_BY(mutex_) = false;
 
   //--------------
   //  Rx (private)
@@ -415,37 +389,63 @@ class L2capChannel : public IntrusiveForwardList<L2capChannel>::Item {
   // Destroy the recombination MultiBuf.
   void EndRecombinationBuf(Direction direction);
 
+  //-------------
+  // Link - private, used by friends only
+  //-------------
+
+  // Static lock used to guard channel registrations by the channel manager and
+  // disconnections by the client channels.
+  static constexpr sync::Mutex& mutex() PW_LOCK_RETURNED(static_mutex_) {
+    return static_mutex_;
+  }
+
+  // Returns whether this object is stale, that is, whether it is an acquired
+  // channel whose client has disconnected.
+  [[nodiscard]] bool IsStale() const PW_LOCKS_EXCLUDED(static_mutex_);
+
+  // Returns whether this object has no more pending payloads.
+  [[nodiscard]] bool PayloadQueueEmpty() const PW_LOCKS_EXCLUDED(static_mutex_);
+
+  // Like `Close`, but requires holding the lock and does not send an event to
+  // the clients.
+  void CloseLocked() PW_EXCLUSIVE_LOCKS_REQUIRED(static_mutex_);
+
   //--------------
   //  Data members
   //--------------
 
-  inline static sync::Mutex mutex_ PW_ACQUIRED_BEFORE(tx_mutex_);
+  /// Mutex for guarding internal and client channel pointers to each other.
+  /// This mutex is shared between all internal and client channel objects.
+  static sync::Mutex static_mutex_ PW_ACQUIRED_BEFORE(mutex_);
+
+  // Mutex for guarding state.
+  mutable sync::Mutex mutex_ PW_ACQUIRED_AFTER(static_mutex_);
 
   L2capChannelManager& l2cap_channel_manager_;
 
-  State state_ = State::kUndefined;
+  State state_ PW_GUARDED_BY(mutex_) = State::kNew;
 
   // ACL connection handle.
-  uint16_t connection_handle_;
+  const uint16_t connection_handle_;
 
-  AclTransportType transport_;
+  const AclTransportType transport_;
 
   // L2CAP channel ID of local endpoint.
-  uint16_t local_cid_;
+  const uint16_t local_cid_;
 
   // L2CAP channel ID of remote endpoint.
-  uint16_t remote_cid_;
+  const uint16_t remote_cid_;
 
   // Notify clients of asynchronous events encountered such as errors.
-  ChannelEventCallback event_fn_ PW_GUARDED_BY(mutex_);
+  const ChannelEventCallback event_fn_;
 
   // Optional client-provided allocator for MultiBufs.
   MultiBufAllocator* rx_multibuf_allocator_ = nullptr;
 
   // Client-provided controller read callback.
-  OptionalPayloadReceiveCallback payload_from_controller_fn_;
+  const OptionalPayloadReceiveCallback payload_from_controller_fn_;
   // Client-provided host read callback.
-  OptionalPayloadReceiveCallback payload_from_host_fn_;
+  const OptionalPayloadReceiveCallback payload_from_host_fn_;
 
   // Recombination MultiBufs used by Recombiner to store in-progress
   // payloads when they are being recombined.
@@ -453,6 +453,18 @@ class L2capChannel : public IntrusiveForwardList<L2capChannel>::Item {
   // allocator and also properly destroyed with the channel.
   std::array<std::optional<MultiBufInstance>, kNumDirections>
       recombination_mbufs_{};
+
+  // Holds a pointer to the acquired client channel. Channels that are not
+  // acquired, e.g. signaling channels, will not have a value. Channels that
+  // have been disconnected will have a null value.
+  std::optional<internal::GenericL2capChannel*> client_
+      PW_GUARDED_BY(static_mutex_);
+
+  /// The number of outstanding `BorrowedL2capChannel` objects for this object.
+  uint8_t num_borrows_ PW_GUARDED_BY(mutex_) = 0;
+
+  /// Used to unblock the destructor when the number of borrows drops to zero.
+  sync::ThreadNotification notification_;
 };
 
 }  // namespace pw::bluetooth::proxy

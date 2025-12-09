@@ -1440,6 +1440,7 @@ TEST_F(DisconnectionCompleteTest, DisconnectionReclaimsCredits) {
         proxy, handle, emboss::StatusCode::SUCCESS));
     GattNotifyChannel channel =
         BuildGattNotifyChannel(proxy, {.handle = handle});
+
     FlatMultiBufInstance mbuf_inst = MultiBufFromArray(attribute_value);
     FlatMultiBuf& mbuf = MultiBufAdapter::Unwrap(mbuf_inst);
     PW_TEST_EXPECT_OK(channel.Write(std::move(mbuf)).status);
@@ -1612,7 +1613,7 @@ TEST_F(DisconnectionCompleteTest, DisconnectionErasesAclConnection) {
   int sends_called = 0;
   pw::Function<void(H4PacketWithH4 && packet)> send_to_controller_fn(
       [&sends_called](H4PacketWithH4&&) { ++sends_called; });
-  pw::allocator::test::AllocatorForTest<18000> allocator;
+  pw::allocator::test::AllocatorForTest<32768> allocator;
   ProxyHost proxy = ProxyHost(std::move(send_to_host_fn),
                               std::move(send_to_controller_fn),
                               /*le_acl_credits_to_reserve=*/1,
@@ -1900,10 +1901,12 @@ TEST_F(MultiSendTest, CanOccupyAllThenReuseEachBuffer) {
         capture.in_flight_packets.push_back(std::move(packet));
       });
 
+  allocator::test::AllocatorForTest<4096> allocator;
   ProxyHost proxy = ProxyHost(std::move(send_to_host_fn),
                               std::move(send_to_controller_fn),
                               /*le_acl_credits_to_reserve=*/kAclCredits,
-                              /*br_edr_acl_credits_to_reserve=*/0);
+                              /*br_edr_acl_credits_to_reserve=*/0,
+                              &allocator);
   PW_TEST_EXPECT_OK(SendLeReadBufferResponseFromController(proxy, kAclCredits));
   PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
       proxy, kConnectionHandle, emboss::StatusCode::SUCCESS));
@@ -2052,7 +2055,7 @@ TEST_F(MultiSendTest, CanSendOverManyDifferentConnections) {
         ++capture.sends_called;
       });
 
-  pw::allocator::test::AllocatorForTest<18000> allocator;
+  pw::allocator::test::AllocatorForTest<32768> allocator;
   ProxyHost proxy = ProxyHost(std::move(send_to_host_fn),
                               std::move(send_to_controller_fn),
                               ProxyHost::GetMaxNumAclConnections(),
@@ -2085,7 +2088,7 @@ TEST_F(MultiSendTest, AttemptToCreateOverMaxConnectionsFails) {
   pw::Function<void(H4PacketWithH4 && packet)> send_to_controller_fn(
       []([[maybe_unused]] H4PacketWithH4&& packet) {});
 
-  pw::allocator::test::AllocatorForTest<18000> allocator;
+  pw::allocator::test::AllocatorForTest<32768> allocator;
   ProxyHost proxy = ProxyHost(std::move(send_to_host_fn),
                               std::move(send_to_controller_fn),
                               /*le_acl_credits_to_reserve=*/kSends,
@@ -2694,7 +2697,7 @@ TEST_F(BasicL2capChannelTest, MultithreadedWrite) {
     const uint16_t kTestHandle = 0xaa;  // 170
     const uint16_t kExpectedAclDataTotalLength =
         emboss::BasicL2capHeader::IntrinsicSizeInBytes() + kExpectedPduLength;
-    pw::sync::Mutex sends_by_channel_mutex;
+    sync::Mutex sends_by_channel_mutex;
     std::array<unsigned int, kNumThreads> sends_by_channel
         PW_GUARDED_BY(sends_by_channel_mutex){};
   } capture;
@@ -2742,11 +2745,13 @@ TEST_F(BasicL2capChannelTest, MultithreadedWrite) {
         }
       });
 
+  allocator::test::AllocatorForTest<65536> allocator;
   ProxyHost proxy =
       ProxyHost(std::move(send_to_host_fn),
                 std::move(send_to_controller_fn),
                 /*le_acl_credits_to_reserve=*/kNumThreads * kPacketsPerThread,
-                /*br_edr_acl_credits_to_reserve=*/0);
+                /*br_edr_acl_credits_to_reserve=*/0,
+                &allocator);
   PW_TEST_EXPECT_OK(SendLeReadBufferResponseFromController(
       proxy, kNumThreads * kPacketsPerThread));
   PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
@@ -2805,7 +2810,7 @@ TEST_F(BasicL2capChannelTest, MultithreadedWrite) {
   for (unsigned int i = 0; i < kNumThreads; ++i) {
     // TODO: https://pwbug.dev/422222575 -  Move channel close and dtor inside
     // each thread once we have proper channel lifecycle locking.
-    captures[i].channel.CloseForTesting();
+    captures[i].channel.Close();
   }
 
   {
@@ -3983,6 +3988,7 @@ TEST_F(ProxyHostConnectionEventTest,
                                                     .local_cid = kStartingCid,
                                                     .remote_cid = kStartingCid,
                                                     .event_fn = event_fn});
+
   // chan2 is on a different connection so should not be closed
   BasicL2capChannel chan2 =
       BuildBasicL2capChannel(proxy,
@@ -3990,6 +3996,7 @@ TEST_F(ProxyHostConnectionEventTest,
                               .local_cid = kStartingCid + 1,
                               .remote_cid = kStartingCid + 1,
                               .event_fn = event_fn});
+
   BasicL2capChannel chan3 =
       BuildBasicL2capChannel(proxy,
                              {.handle = kConnectionHandle,
@@ -3997,16 +4004,16 @@ TEST_F(ProxyHostConnectionEventTest,
                               .remote_cid = kStartingCid + 2,
                               .event_fn = event_fn});
 
-  EXPECT_EQ(chan1.state(), L2capChannel::State::kRunning);
-  EXPECT_EQ(chan2.state(), L2capChannel::State::kRunning);
-  EXPECT_EQ(chan3.state(), L2capChannel::State::kRunning);
+  EXPECT_EQ(GetState(chan1), L2capChannel::State::kRunning);
+  EXPECT_EQ(GetState(chan2), L2capChannel::State::kRunning);
+  EXPECT_EQ(GetState(chan3), L2capChannel::State::kRunning);
 
   PW_TEST_EXPECT_OK(SendDisconnectionCompleteEvent(proxy, kConnectionHandle));
 
   EXPECT_EQ(events_received, 2);
-  EXPECT_EQ(chan1.state(), L2capChannel::State::kClosed);
-  EXPECT_EQ(chan2.state(), L2capChannel::State::kRunning);
-  EXPECT_EQ(chan3.state(), L2capChannel::State::kClosed);
+  EXPECT_EQ(GetState(chan1), L2capChannel::State::kClosed);
+  EXPECT_EQ(GetState(chan2), L2capChannel::State::kRunning);
+  EXPECT_EQ(GetState(chan3), L2capChannel::State::kClosed);
 
   // Confirm L2CAP_DISCONNECTION_RSP packet does not result in another event.
   PW_TEST_EXPECT_OK(SendL2capDisconnectRsp(proxy,
@@ -4044,12 +4051,14 @@ TEST_F(ProxyHostConnectionEventTest,
                               .local_cid = kStartingDestinationCid,
                               .remote_cid = kStartingSourceCid,
                               .event_fn = event_fn});
+
   BasicL2capChannel chan2 =
       BuildBasicL2capChannel(proxy,
                              {.handle = kConnectionHandle,
                               .local_cid = kStartingDestinationCid + 1,
                               .remote_cid = kStartingSourceCid + 1,
                               .event_fn = event_fn});
+
   BasicL2capChannel chan3 =
       BuildBasicL2capChannel(proxy,
                              {.handle = kConnectionHandle,
@@ -4057,9 +4066,9 @@ TEST_F(ProxyHostConnectionEventTest,
                               .remote_cid = kStartingSourceCid + 2,
                               .event_fn = event_fn});
 
-  EXPECT_EQ(chan1.state(), L2capChannel::State::kRunning);
-  EXPECT_EQ(chan2.state(), L2capChannel::State::kRunning);
-  EXPECT_EQ(chan3.state(), L2capChannel::State::kRunning);
+  EXPECT_EQ(GetState(chan1), L2capChannel::State::kRunning);
+  EXPECT_EQ(GetState(chan2), L2capChannel::State::kRunning);
+  EXPECT_EQ(GetState(chan3), L2capChannel::State::kRunning);
 
   // Close chan1's & chan2's underlying L2CAP connections.
   PW_TEST_EXPECT_OK(
@@ -4078,13 +4087,13 @@ TEST_F(ProxyHostConnectionEventTest,
                              /*destination_cid=*/kStartingDestinationCid + 2));
 
   EXPECT_EQ(events_received, 2);
-  EXPECT_EQ(chan1.state(), L2capChannel::State::kClosed);
-  EXPECT_EQ(chan2.state(), L2capChannel::State::kRunning);
-  EXPECT_EQ(chan3.state(), L2capChannel::State::kClosed);
+  EXPECT_EQ(GetState(chan1), L2capChannel::State::kClosed);
+  EXPECT_EQ(GetState(chan2), L2capChannel::State::kRunning);
+  EXPECT_EQ(GetState(chan3), L2capChannel::State::kClosed);
 
   // Confirm HCI disconnection only closes remaining channel.
   PW_TEST_EXPECT_OK(SendDisconnectionCompleteEvent(proxy, kConnectionHandle));
-  EXPECT_EQ(chan2.state(), L2capChannel::State::kClosed);
+  EXPECT_EQ(GetState(chan2), L2capChannel::State::kClosed);
   EXPECT_EQ(events_received, 3);
 }
 
@@ -4112,12 +4121,14 @@ TEST_F(ProxyHostConnectionEventTest,
                                                     .local_cid = kStartingCid,
                                                     .remote_cid = kStartingCid,
                                                     .event_fn = event_fn});
+
   BasicL2capChannel chan2 =
       BuildBasicL2capChannel(proxy,
                              {.handle = kConnectionHandle,
                               .local_cid = kStartingCid + 1,
                               .remote_cid = kStartingCid + 1,
                               .event_fn = event_fn});
+
   BasicL2capChannel chan3 =
       BuildBasicL2capChannel(proxy,
                              {.handle = kConnectionHandle,
@@ -4125,9 +4136,9 @@ TEST_F(ProxyHostConnectionEventTest,
                               .remote_cid = kStartingCid + 2,
                               .event_fn = event_fn});
 
-  EXPECT_EQ(chan1.state(), L2capChannel::State::kRunning);
-  EXPECT_EQ(chan2.state(), L2capChannel::State::kRunning);
-  EXPECT_EQ(chan3.state(), L2capChannel::State::kRunning);
+  EXPECT_EQ(GetState(chan1), L2capChannel::State::kRunning);
+  EXPECT_EQ(GetState(chan2), L2capChannel::State::kRunning);
+  EXPECT_EQ(GetState(chan3), L2capChannel::State::kRunning);
 
   // Close chan1's & chan2's underlying L2CAP connections.
   PW_TEST_EXPECT_OK(SendL2capDisconnectRsp(proxy,
@@ -4144,13 +4155,13 @@ TEST_F(ProxyHostConnectionEventTest,
                                            kStartingCid + 2));
 
   EXPECT_EQ(events_received, 2);
-  EXPECT_EQ(chan1.state(), L2capChannel::State::kClosed);
-  EXPECT_EQ(chan2.state(), L2capChannel::State::kRunning);
-  EXPECT_EQ(chan3.state(), L2capChannel::State::kClosed);
+  EXPECT_EQ(GetState(chan1), L2capChannel::State::kClosed);
+  EXPECT_EQ(GetState(chan2), L2capChannel::State::kRunning);
+  EXPECT_EQ(GetState(chan3), L2capChannel::State::kClosed);
 
   // Confirm HCI disconnection only closes remaining channel.
   PW_TEST_EXPECT_OK(SendDisconnectionCompleteEvent(proxy, kConnectionHandle));
-  EXPECT_EQ(chan2.state(), L2capChannel::State::kClosed);
+  EXPECT_EQ(GetState(chan2), L2capChannel::State::kClosed);
   EXPECT_EQ(events_received, 3);
 }
 
@@ -4867,7 +4878,7 @@ TEST_F(AclFragTest,
 
 TEST_F(ProxyHostTest, ClientProvidedAllocatorUsedForH4) {
   std::array<uint8_t, 100> payload = {};
-  pw::allocator::test::AllocatorForTest<1800> allocator;
+  pw::allocator::test::AllocatorForTest<4096> allocator;
 
   struct {
     int sends_called = 0;

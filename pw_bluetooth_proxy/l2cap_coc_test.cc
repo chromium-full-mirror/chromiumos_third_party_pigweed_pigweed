@@ -16,6 +16,7 @@
 #include <mutex>
 
 #include "pw_allocator/libc_allocator.h"
+#include "pw_allocator/testing.h"
 #include "pw_assert/check.h"
 #include "pw_bluetooth_proxy/h4_packet.h"
 #include "pw_bluetooth_proxy/internal/multibuf.h"
@@ -59,6 +60,33 @@ TEST_F(L2capCocTest, CannotCreateChannelWithInvalidArgs) {
   // Remote CID invalid (0).
   EXPECT_EQ(BuildCocWithResult(proxy, CocParameters{.remote_cid = 0}).status(),
             PW_STATUS_INVALID_ARGUMENT);
+}
+
+TEST_F(L2capCocTest, CanDeleteChannelInEventCallback) {
+  pw::Function<void(H4PacketWithHci && packet)>&& send_to_host_fn(
+      []([[maybe_unused]] H4PacketWithHci&& packet) {});
+  pw::Function<void(H4PacketWithH4 && packet)> send_to_controller_fn(
+      []([[maybe_unused]] H4PacketWithH4&& packet) {});
+  ProxyHost proxy = ProxyHost(std::move(send_to_host_fn),
+                              std::move(send_to_controller_fn),
+                              /*le_acl_credits_to_reserve=*/1,
+                              /*br_edr_acl_credits_to_reserve=*/0);
+  // Allow proxy to reserve 1 credit.
+  PW_TEST_EXPECT_OK(SendLeReadBufferResponseFromController(proxy, 1));
+  PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
+      proxy, kConnectionHandle, emboss::StatusCode::SUCCESS));
+
+  std::optional<L2capCoc> channel;
+  channel = BuildCoc(
+      proxy,
+      CocParameters{
+          .handle = kConnectionHandle,
+          .tx_credits = 1,
+          .event_fn = [&channel]([[maybe_unused]] L2capChannelEvent event) {
+            channel.reset();
+          }});
+  channel->Close();
+  EXPECT_FALSE(channel.has_value());
 }
 
 // ########## L2capCocWriteTest
@@ -177,7 +205,7 @@ TEST_F(L2capCocWriteTest, ErrorOnWriteToStoppedChannel) {
                       FAIL();
                     }});
 
-  channel.StopForTesting();
+  channel.Stop();
   EXPECT_EQ(channel.IsWriteAvailable(), PW_STATUS_FAILED_PRECONDITION);
   FlatMultiBufInstance empty = MakeEmptyMultiBuf();
   EXPECT_EQ(channel.Write(std::move(MultiBufAdapter::Unwrap(empty))).status,
@@ -422,23 +450,17 @@ TEST_F(L2capCocWriteTest, MultipleWritesMultipleChannels) {
   PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
       proxy, kConnectionHandle, emboss::StatusCode::SUCCESS));
 
-  uint16_t remote_cid = 123;
-  std::array<L2capCoc, kNumChannels> channels{
-      BuildCoc(proxy, CocParameters{.remote_cid = remote_cid}),
-      BuildCoc(
-          proxy,
-          CocParameters{.remote_cid = static_cast<uint16_t>(remote_cid + 1)}),
-      BuildCoc(
-          proxy,
-          CocParameters{.remote_cid = static_cast<uint16_t>(remote_cid + 2)}),
-      BuildCoc(
-          proxy,
-          CocParameters{.remote_cid = static_cast<uint16_t>(remote_cid + 3)}),
-      BuildCoc(
-          proxy,
-          CocParameters{.remote_cid = static_cast<uint16_t>(remote_cid + 4)}),
-  };
-
+  uint16_t local_cid = 123;
+  uint16_t remote_cid = 456;
+  Vector<L2capCoc, kNumChannels> channels;
+  for (uint16_t i = 0; i < kNumChannels; ++i) {
+    channels.emplace_back(
+        BuildCoc(proxy,
+                 CocParameters{
+                     .local_cid = static_cast<uint16_t>(local_cid + i),
+                     .remote_cid = static_cast<uint16_t>(remote_cid + i),
+                 }));
+  }
   for (int i = 0; i < kNumChannels; ++i) {
     FlatMultiBufInstance mbuf_inst = MultiBufFromSpan(span(capture.payload));
     FlatMultiBuf& mbuf = MultiBufAdapter::Unwrap(mbuf_inst);
@@ -458,7 +480,8 @@ TEST_F(L2capCocWriteTest, MultipleWritesMultipleChannels) {
 // packets are sent towards controller in the correct order per channel.
 // This test be run repetitively with googletest by using:
 // clang-format off
-// bazelisk --config=googletest //pw_bluetooth_proxy:pw_bluetooth_proxy_test -- --gtest_filter=L2capCocWriteTest.MultithreadedWrite --gtest_repeat=1000
+// bazelisk --config=googletest //pw_bluetooth_proxy:pw_bluetooth_proxy_test --
+//   --gtest_filter=L2capCocWriteTest.MultithreadedWrite --gtest_repeat=1000
 // clang-format on
 // TODO: https://pwbug.dev/441841355 - Update test to send larger packets and
 // verify segment order is correct.
@@ -524,11 +547,13 @@ TEST_F(L2capCocWriteTest, MultithreadedWrite) {
         }
       });
 
+  allocator::test::AllocatorForTest<65536> allocator;
   ProxyHost proxy =
       ProxyHost(std::move(send_to_host_fn),
                 std::move(send_to_controller_fn),
                 /*le_acl_credits_to_reserve=*/kNumThreads * kPacketsPerThread,
-                /*br_edr_acl_credits_to_reserve=*/0);
+                /*br_edr_acl_credits_to_reserve=*/0,
+                &allocator);
   PW_TEST_EXPECT_OK(SendLeReadBufferResponseFromController(
       proxy, kNumThreads * kPacketsPerThread));
   PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
@@ -859,7 +884,7 @@ TEST_F(L2capCocReadTest, ErrorOnRxToStoppedChannel) {
   kframe.channel_id().Write(local_cid);
   kframe.sdu_length().Write(0);
 
-  channel.StopForTesting();
+  channel.Stop();
   for (int i = 0; i < num_invalid_rx; ++i) {
     H4PacketWithHci h4_packet{emboss::H4PacketType::ACL_DATA, hci_arr};
     proxy.HandleH4HciFromController(std::move(h4_packet));
@@ -1108,7 +1133,7 @@ TEST_F(L2capCocReadTest, NoReadOnStoppedChannel) {
   kframe.pdu_length().Write(kSduLengthFieldSize);
   kframe.channel_id().Write(local_cid);
 
-  channel.StopForTesting();
+  channel.Stop();
   proxy.HandleH4HciFromController(std::move(h4_packet));
 }
 
@@ -1234,6 +1259,7 @@ TEST_F(L2capCocReadTest, MultipleReadsMultipleChannels) {
 
   constexpr int kNumChannels = 5;
   uint16_t local_cid = 123;
+  uint16_t remote_cid = 456;
   auto receive_fn = [&capture](FlatConstMultiBuf&& payload) {
     ++capture.sends_called;
     ASSERT_FALSE(payload.empty());
@@ -1245,28 +1271,15 @@ TEST_F(L2capCocReadTest, MultipleReadsMultipleChannels) {
                            expected_sdu.begin(),
                            expected_sdu.end()));
   };
-  std::array<L2capCoc, kNumChannels> channels{
-      BuildCoc(proxy,
-               CocParameters{.handle = kConnectionHandle,
-                             .local_cid = local_cid,
-                             .receive_fn = receive_fn}),
-      BuildCoc(proxy,
-               CocParameters{.handle = kConnectionHandle,
-                             .local_cid = static_cast<uint16_t>(local_cid + 1),
-                             .receive_fn = receive_fn}),
-      BuildCoc(proxy,
-               CocParameters{.handle = kConnectionHandle,
-                             .local_cid = static_cast<uint16_t>(local_cid + 2),
-                             .receive_fn = receive_fn}),
-      BuildCoc(proxy,
-               CocParameters{.handle = kConnectionHandle,
-                             .local_cid = static_cast<uint16_t>(local_cid + 3),
-                             .receive_fn = receive_fn}),
-      BuildCoc(proxy,
-               CocParameters{.handle = kConnectionHandle,
-                             .local_cid = static_cast<uint16_t>(local_cid + 4),
-                             .receive_fn = receive_fn}),
-  };
+  Vector<L2capCoc, kNumChannels> channels;
+  for (uint16_t i = 0; i < kNumChannels; ++i) {
+    channels.emplace_back(BuildCoc(
+        proxy,
+        CocParameters{.handle = kConnectionHandle,
+                      .local_cid = static_cast<uint16_t>(local_cid + i),
+                      .remote_cid = static_cast<uint16_t>(remote_cid + i),
+                      .receive_fn = receive_fn}));
+  }
 
   std::array<uint8_t, kFirstKFrameOverAclMinSize + capture.payload.size()>
       hci_arr;
@@ -1320,6 +1333,7 @@ TEST_F(L2capCocReadTest, ChannelStoppageDoNotAffectOtherChannels) {
 
   constexpr int kNumChannels = 5;
   uint16_t local_cid = 123;
+  uint16_t remote_cid = 456;
   auto receive_fn = [&capture](FlatConstMultiBuf&& payload) {
     ++capture.sends_called;
     ASSERT_FALSE(payload.empty());
@@ -1331,32 +1345,19 @@ TEST_F(L2capCocReadTest, ChannelStoppageDoNotAffectOtherChannels) {
                            expected_sdu.begin(),
                            expected_sdu.end()));
   };
-  std::array<L2capCoc, kNumChannels> channels{
-      BuildCoc(proxy,
-               CocParameters{.handle = kConnectionHandle,
-                             .local_cid = local_cid,
-                             .receive_fn = receive_fn}),
-      BuildCoc(proxy,
-               CocParameters{.handle = kConnectionHandle,
-                             .local_cid = static_cast<uint16_t>(local_cid + 1),
-                             .receive_fn = receive_fn}),
-      BuildCoc(proxy,
-               CocParameters{.handle = kConnectionHandle,
-                             .local_cid = static_cast<uint16_t>(local_cid + 2),
-                             .receive_fn = receive_fn}),
-      BuildCoc(proxy,
-               CocParameters{.handle = kConnectionHandle,
-                             .local_cid = static_cast<uint16_t>(local_cid + 3),
-                             .receive_fn = receive_fn}),
-      BuildCoc(proxy,
-               CocParameters{.handle = kConnectionHandle,
-                             .local_cid = static_cast<uint16_t>(local_cid + 4),
-                             .receive_fn = receive_fn}),
-  };
+  Vector<L2capCoc, kNumChannels> channels;
+  for (uint16_t i = 0; i < kNumChannels; ++i) {
+    channels.emplace_back(BuildCoc(
+        proxy,
+        CocParameters{.handle = kConnectionHandle,
+                      .local_cid = static_cast<uint16_t>(local_cid + i),
+                      .remote_cid = static_cast<uint16_t>(remote_cid + i),
+                      .receive_fn = receive_fn}));
+  }
 
   // Stop the 2nd and 4th of the 5 channels.
-  channels[1].StopForTesting();
-  channels[3].StopForTesting();
+  channels[1].Stop();
+  channels[3].Stop();
 
   std::array<uint8_t, kFirstKFrameOverAclMinSize + capture.payload.size()>
       hci_arr;
@@ -1732,18 +1733,23 @@ TEST_F(L2capCocQueueTest, RemovingLrdChannelDoesNotInvalidateRoundRobin) {
   PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
       proxy, kConnectionHandle, emboss::StatusCode::SUCCESS));
 
-  std::array<uint16_t, 3> remote_cids = {1, 2, 3};
+  std::array<uint16_t, 3> local_cids = {101, 102, 103};
+  std::array<uint16_t, 3> remote_cids = {104, 105, 106};
+
   L2capCoc chan_left = BuildCoc(proxy,
                                 CocParameters{.handle = kConnectionHandle,
+                                              .local_cid = local_cids[0],
                                               .remote_cid = remote_cids[0],
                                               .tx_credits = 1});
   std::optional<L2capCoc> chan_middle =
       BuildCoc(proxy,
                CocParameters{.handle = kConnectionHandle,
+                             .local_cid = local_cids[1],
                              .remote_cid = remote_cids[1],
                              .tx_credits = L2capCoc::QueueCapacity() + 1});
   L2capCoc chan_right = BuildCoc(proxy,
                                  CocParameters{.handle = kConnectionHandle,
+                                               .local_cid = local_cids[2],
                                                .remote_cid = remote_cids[2],
                                                .tx_credits = 1});
 
@@ -1795,10 +1801,12 @@ TEST_F(L2capCocQueueTest, H4BufferReleaseTriggersQueueDrain) {
         ++capture.sends_called;
         capture.packet_store.push_back(std::move(packet));
       });
+  allocator::test::AllocatorForTest<4096> allocator;
   ProxyHost proxy(std::move(send_to_host_fn),
                   std::move(send_to_controller_fn),
                   /*le_acl_credits_to_reserve=*/kAclLeCredits,
-                  /*br_edr_acl_credits_to_reserve=*/0);
+                  /*br_edr_acl_credits_to_reserve=*/0,
+                  &allocator);
   PW_TEST_EXPECT_OK(
       SendLeReadBufferResponseFromController(proxy, kAclLeCredits));
   EXPECT_EQ(proxy.GetNumFreeLeAclPackets(), kAclLeCredits);
@@ -1820,6 +1828,7 @@ TEST_F(L2capCocQueueTest, H4BufferReleaseTriggersQueueDrain) {
   size_t num_writes = 0;
   do {
     FlatMultiBufInstance mbuf = MultiBufFromSpan(span(payload));
+    PW_TEST_EXPECT_OK(channel.IsWriteAvailable());
     PW_TEST_EXPECT_OK(
         channel.Write(std::move(MultiBufAdapter::Unwrap(mbuf))).status);
     ++num_writes;
@@ -1833,6 +1842,7 @@ TEST_F(L2capCocQueueTest, H4BufferReleaseTriggersQueueDrain) {
   // Destroying an H4 packet will send the next packet in the destructor, so we
   // need to first extract the packet from the vector to avoid appending to
   // the vector during pop_back.
+  ASSERT_FALSE(capture.packet_store.empty());
   std::optional<H4PacketWithH4> packet = std::move(capture.packet_store.back());
   capture.packet_store.pop_back();
   // Release a buffer. Queued packet should then send.

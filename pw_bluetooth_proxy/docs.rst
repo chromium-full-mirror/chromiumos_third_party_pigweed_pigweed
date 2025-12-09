@@ -104,6 +104,14 @@ default, the v1 MultiBuf API is in use. When migrating to the v2 API, set the
 value of the :cc:`PW_BLUETOOTH_PROXY_MULTIBUF` option to
 :cc:`PW_BLUETOOTH_PROXY_MULTIBUF_V2`.
 
+The :cc:`pw::bluetooth::proxy::ProxyHost` can use a provided allocator or
+provide an internal one. To use an internal allocator, set the value of
+:cc:`PW_BLUETOOTH_PROXY_INTERNAL_ALLOCATOR_SIZE` to a non-zero value and omit
+the ``allocator`` parameter from the ``ProxyHost`` constructor invocation. When
+providing an allocator, it is recommended to set the value of
+:cc:`PW_BLUETOOTH_PROXY_INTERNAL_ALLOCATOR_SIZE` to zero to avoiding reserving
+space that will not be used.
+
 .. _module-pw_bluetooth_proxy-reference:
 
 -------------

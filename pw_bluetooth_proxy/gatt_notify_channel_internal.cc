@@ -22,14 +22,9 @@
 
 namespace pw::bluetooth::proxy::internal {
 
-std::optional<H4PacketWithH4>
-GattNotifyChannelInternal::GenerateNextTxPacket() {
-  if (state() != State::kRunning || PayloadQueueEmpty()) {
-    return std::nullopt;
-  }
-
-  const FlatConstMultiBuf& attribute_value = GetFrontPayload();
-
+std::optional<H4PacketWithH4> GattNotifyChannelInternal::GenerateNextTxPacket(
+    const FlatConstMultiBuf& attribute_value, bool& keep_payload) {
+  keep_payload = true;
   std::optional<uint16_t> max_l2cap_payload_size = MaxL2capPayloadSize();
   // This should have been caught during Write.
   PW_CHECK(max_l2cap_payload_size);
@@ -73,59 +68,25 @@ GattNotifyChannelInternal::GenerateNextTxPacket() {
   PW_CHECK(att_notify->Ok());
 
   // All content has been copied from the front payload, so release it.
-  PopFrontPayload();
-
+  keep_payload = false;
   return h4_packet;
 }
 
-Status GattNotifyChannelInternal::DoCheckWriteParameter(
-    const FlatConstMultiBuf& payload) {
-  std::optional<uint16_t> max_l2cap_payload_size = MaxL2capPayloadSize();
-  if (!max_l2cap_payload_size) {
-    PW_LOG_WARN("Tried to write before LE_Read_Buffer_Size processed.");
-    return Status::FailedPrecondition();
-  }
-  if (*max_l2cap_payload_size <= emboss::AttHandleValueNtf::MinSizeInBytes()) {
-    PW_LOG_ERROR("LE ACL data packet size limit does not support writing.");
-    return Status::FailedPrecondition();
-  }
-  const uint16_t max_attribute_size =
-      *max_l2cap_payload_size - emboss::AttHandleValueNtf::MinSizeInBytes();
-  if (payload.size() > max_attribute_size) {
-    PW_LOG_WARN("Attribute too large (%zu > %d). So will not process.",
-                payload.size(),
-                max_attribute_size);
-    return pw::Status::InvalidArgument();
-  }
-
-  return pw::OkStatus();
-}
-
-pw::Result<GattNotifyChannelInternal> GattNotifyChannelInternal::Create(
-    L2capChannelManager& l2cap_channel_manager,
-    uint16_t connection_handle,
-    uint16_t attribute_handle,
-    ChannelEventCallback&& event_fn) {
-  if (!AreValidParameters(
-          /*connection_handle=*/connection_handle,
-          /*local_cid=*/
-          static_cast<uint16_t>(emboss::L2capFixedCid::LE_U_ATTRIBUTE_PROTOCOL),
-          /*remote_cid=*/
-          static_cast<uint16_t>(
-              emboss::L2capFixedCid::LE_U_ATTRIBUTE_PROTOCOL))) {
-    return pw::Status::InvalidArgument();
+bool GattNotifyChannelInternal::AreValidParameters(uint16_t connection_handle,
+                                                   uint16_t attribute_handle) {
+  constexpr auto local_cid =
+      static_cast<uint16_t>(emboss::L2capFixedCid::LE_U_ATTRIBUTE_PROTOCOL);
+  constexpr auto remote_cid =
+      static_cast<uint16_t>(emboss::L2capFixedCid::LE_U_ATTRIBUTE_PROTOCOL);
+  if (!L2capChannel::AreValidParameters(
+          connection_handle, local_cid, remote_cid)) {
+    return false;
   }
   if (attribute_handle == 0) {
     PW_LOG_ERROR("Attribute handle cannot be 0.");
-    return pw::Status::InvalidArgument();
+    return false;
   }
-  GattNotifyChannelInternal channel(
-      /*l2cap_channel_manager=*/l2cap_channel_manager,
-      /*connection_handle=*/connection_handle,
-      /*attribute_handle=*/attribute_handle,
-      std::move(event_fn));
-  channel.Init();
-  return channel;
+  return true;
 }
 
 GattNotifyChannelInternal::GattNotifyChannelInternal(

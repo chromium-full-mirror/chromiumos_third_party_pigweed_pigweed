@@ -29,12 +29,17 @@
 #include "pw_bluetooth_proxy/l2cap_channel_common.h"
 #include "pw_bluetooth_proxy/l2cap_coc.h"
 #include "pw_containers/intrusive_map.h"
+#include "pw_function/function.h"
 #include "pw_sync/lock_annotations.h"
+#include "pw_sync/mutex.h"
+#include "pw_sync/thread_notification.h"
 
 // This include is not used but a downstream project transitively depends on it.
 #include "pw_containers/flat_map.h"
 
 namespace pw::bluetooth::proxy {
+
+class L2capChannelManager;
 
 // `L2capChannelManager` mediates between `ProxyHost` and the L2CAP-based
 // channels held by clients of `ProxyHost`, such as L2CAP connection-oriented
@@ -61,7 +66,8 @@ class L2capChannelManager {
       ConnectionOrientedChannelConfig rx_config,
       ConnectionOrientedChannelConfig tx_config,
       Function<void(FlatConstMultiBuf&& payload)>&& receive_fn,
-      ChannelEventCallback&& event_fn);
+      ChannelEventCallback&& event_fn)
+      PW_LOCKS_EXCLUDED(links_mutex_, channels_mutex_);
 
   pw::Result<BasicL2capChannel> AcquireBasicL2capChannel(
       MultiBufAllocator& rx_multibuf_allocator,
@@ -71,12 +77,14 @@ class L2capChannelManager {
       AclTransportType transport,
       OptionalPayloadReceiveCallback&& payload_from_controller_fn,
       OptionalPayloadReceiveCallback&& payload_from_host_fn,
-      ChannelEventCallback&& event_fn);
+      ChannelEventCallback&& event_fn)
+      PW_LOCKS_EXCLUDED(links_mutex_, channels_mutex_);
 
   pw::Result<GattNotifyChannel> AcquireGattNotifyChannel(
       uint16_t connection_handle,
       uint16_t attribute_handle,
-      ChannelEventCallback&& event_fn);
+      ChannelEventCallback&& event_fn)
+      PW_LOCKS_EXCLUDED(links_mutex_, channels_mutex_);
 
   // Start proxying L2CAP packets addressed to `channel` arriving from
   // the controller and allow `channel` to send & queue Tx L2CAP packets.
@@ -88,14 +96,9 @@ class L2capChannelManager {
   void DeregisterChannel(L2capChannel& channel)
       PW_LOCKS_EXCLUDED(channels_mutex_);
 
-  // Atomically replace from channel with to channel in the channels collection.
-  // Used to support channel move semantics.
-  void MoveChannelRegistration(L2capChannel& from, L2capChannel& to)
-      PW_LOCKS_EXCLUDED(channels_mutex_);
-
   // Deregister and close all channels then propagate `event` to clients.
   void DeregisterAndCloseChannels(L2capChannelEvent event)
-      PW_LOCKS_EXCLUDED(channels_mutex_);
+      PW_LOCKS_EXCLUDED(links_mutex_, channels_mutex_);
 
   // Get an `H4PacketWithH4` backed by a buffer able to hold `size` bytes of
   // data.
@@ -105,7 +108,7 @@ class L2capChannelManager {
 
   // Report that new tx packets have been queued or new tx credits have been
   // received since the last DrainChannelQueuesIfNewTx.
-  void ReportNewTxPacketsOrCredits();
+  void ReportNewTxPacketsOrCredits() PW_LOCKS_EXCLUDED(drain_status_mutex_);
 
   // Send L2CAP packets queued in registered channels. Since this function takes
   // the channels_mutex_ lock, it can't be directly called while handling a
@@ -119,18 +122,20 @@ class L2capChannelManager {
   void ForceDrainChannelQueues() PW_LOCKS_EXCLUDED(channels_mutex_);
 
   std::optional<LockedL2capChannel> FindChannelByLocalCid(
-      uint16_t connection_handle, uint16_t local_cid);
+      uint16_t connection_handle, uint16_t local_cid)
+      PW_LOCKS_EXCLUDED(channels_mutex_);
 
   std::optional<LockedL2capChannel> FindChannelByRemoteCid(
-      uint16_t connection_handle, uint16_t remote_cid);
+      uint16_t connection_handle, uint16_t remote_cid)
+      PW_LOCKS_EXCLUDED(channels_mutex_);
 
-  // Must be called with channels_mutex_ held.
   L2capChannel* FindChannelByLocalCidLocked(uint16_t connection_handle,
-                                            uint16_t local_cid);
+                                            uint16_t local_cid)
+      PW_EXCLUSIVE_LOCKS_REQUIRED(channels_mutex_);
 
-  // Must be called with channels_mutex_ held.
   L2capChannel* FindChannelByRemoteCidLocked(uint16_t connection_handle,
-                                             uint16_t remote_cid);
+                                             uint16_t remote_cid)
+      PW_EXCLUSIVE_LOCKS_REQUIRED(channels_mutex_);
 
   // Register for notifications of connection and disconnection for a
   // particular L2cap service identified by its PSM.
@@ -146,7 +151,8 @@ class L2capChannelManager {
   void HandleConfigurationChanged(const L2capChannelConfigurationInfo& info);
 
   // Called when an ACL connection is disconnected.
-  void HandleAclDisconnectionComplete(uint16_t connection_handle);
+  void HandleAclDisconnectionComplete(uint16_t connection_handle)
+      PW_LOCKS_EXCLUDED(channels_mutex_, links_mutex_);
 
   // Called when a l2cap channel connection is disconnected.
   //
@@ -159,7 +165,7 @@ class L2capChannelManager {
 
   // Deliver any pending connection events. Should not be called while holding
   // channels_mutex_.
-  void DeliverPendingEvents();
+  void DeliverPendingEvents() PW_LOCKS_EXCLUDED(channels_mutex_);
 
   // Register a logical link with the L2CAP layer.
   //
@@ -191,6 +197,9 @@ class L2capChannelManager {
   }
 
  private:
+  using L2capChannelPredicate = pw::Function<bool(L2capChannel&)>;
+  using L2capChannelIterator = IntrusiveForwardList<L2capChannel>::iterator;
+
   // Circularly advance `it`, wrapping around to front if `it` reaches the
   // end.
   void Advance(IntrusiveForwardList<L2capChannel>::iterator& it)
@@ -204,6 +213,18 @@ class L2capChannelManager {
   // packets queued in `channel`, if `channel` is currently registered.
   void DeregisterChannelLocked(L2capChannel& channel)
       PW_EXCLUSIVE_LOCKS_REQUIRED(channels_mutex_);
+
+  // Remove the channel following `before` from the list of registered channels.
+  L2capChannel& EraseChannelAfter(const L2capChannelIterator& before)
+      PW_EXCLUSIVE_LOCKS_REQUIRED(channels_mutex_);
+
+  // Removes and closes all channels for which the given predicate function
+  // returns true.
+  void RemoveAndCloseChannelIf(L2capChannelPredicate predicate)
+      PW_EXCLUSIVE_LOCKS_REQUIRED(channels_mutex_);
+
+  // Deletes any channels that have been observed to be stale.
+  void DeleteStaleChannels() PW_LOCKS_EXCLUDED(channels_mutex_);
 
   void ResetLogicalLinksLocked() PW_EXCLUSIVE_LOCKS_REQUIRED(links_mutex_);
 
@@ -221,8 +242,12 @@ class L2capChannelManager {
   // List of registered L2CAP channels.
   IntrusiveForwardList<L2capChannel> channels_ PW_GUARDED_BY(channels_mutex_);
 
-  // Iterator to "least recently drained" channel.
-  IntrusiveForwardList<L2capChannel>::iterator lrd_channel_
+  // List of stale L2CAP channels awaiting deletion.
+  IntrusiveForwardList<L2capChannel> stale_ PW_GUARDED_BY(channels_mutex_);
+
+  // Iterator to "most recently drained" channel. This immediately precedes the
+  // "least recently drained" channel.
+  IntrusiveForwardList<L2capChannel>::iterator mrd_channel_
       PW_GUARDED_BY(channels_mutex_);
 
   // Iterator to final channel to be visited in ongoing round robin.
