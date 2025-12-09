@@ -627,6 +627,7 @@
       ],
       "builds": [
         "all_host",
+        "all_host_cpp20",
         "lm3s6965evb",
         "jni",
         "rust_nightly",
