@@ -586,6 +586,22 @@ pw_add_test(pw_async2.channel_thread_test
     pw_thread.thread
 )
 
+if((NOT "${pw_unit_test_BACKEND}" STREQUAL "") AND
+   (NOT "${pw_unit_test_BACKEND}" STREQUAL "pw_unit_test:light"))
+pw_add_test(pw_async2.channel_typed_test
+  SOURCES
+    channel_typed_test.cc
+  PRIVATE_DEPS
+    pw_async2.channel
+    pw_async2.dispatcher
+    pw_async2.pend_func_task
+    pw_async2.poll
+    pw_async2.testing
+    pw_allocator.testing
+    pw_containers.vector
+)
+endif()
+
 pw_add_test(pw_async2.task_test
   SOURCES
     task_test.cc

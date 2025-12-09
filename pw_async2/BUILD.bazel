@@ -750,6 +750,24 @@ pw_cc_test(
 )
 
 pw_cc_test(
+    name = "channel_typed_test",
+    srcs = ["channel_typed_test.cc"],
+    target_compatible_with = select({
+        "//pw_unit_test:backend_is_googletest": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
+    deps = [
+        ":channel",
+        ":dispatcher",
+        ":pend_func_task",
+        ":poll",
+        ":testing",
+        "//pw_allocator:testing",
+        "//pw_containers:vector",
+    ],
+)
+
+pw_cc_test(
     name = "channel_coro_test",
     srcs = [
         "channel_coro_test.cc",

@@ -601,6 +601,22 @@ pw_test("channel_thread_test") {
   ]
 }
 
+pw_test("channel_typed_test") {
+  enable_if = pw_async2_DISPATCHER_FOR_TEST_BACKEND != "" &&
+              pw_unit_test_BACKEND != "" &&
+              pw_unit_test_BACKEND != "$dir_pw_unit_test:light"
+  sources = [ "channel_typed_test.cc" ]
+  deps = [
+    ":channel",
+    ":dispatcher",
+    ":pend_func_task",
+    ":poll",
+    ":testing",
+    "$dir_pw_allocator:testing",
+    "$dir_pw_containers:vector",
+  ]
+}
+
 pw_test("task_test") {
   enable_if = pw_async2_DISPATCHER_FOR_TEST_BACKEND != "" &&
               pw_thread_TEST_THREAD_CONTEXT_BACKEND != ""
