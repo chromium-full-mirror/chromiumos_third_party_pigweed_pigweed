@@ -39,8 +39,11 @@ void Dispatcher::Post(Task& task) {
   {
     std::lock_guard lock(internal::lock());
     task.PostTo(*this);
+    // To prevent duplicate wakes, request only if this is the first woken task.
+    if (woken_.empty()) {
+      set_wants_wake();
+    }
     woken_.push_back(task);
-    set_wants_wake();
   }
   // Unlike in `WakeTask`, here we know that the `Dispatcher` will not be
   // destroyed out from under our feet because we're in a method being called on
