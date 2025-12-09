@@ -110,7 +110,10 @@ class GenericVarLenEntryQueueBase {
 
   /// Moves entries to be contiguous and start from the beginning of the buffer.
   static void Dering(ByteSpan bytes, size_t head) {
-    std::rotate(bytes.begin(), bytes.begin() + head, bytes.end());
+    std::rotate(
+        bytes.begin(),
+        bytes.begin() + static_cast<span<std::byte>::difference_type>(head),
+        bytes.end());
   }
 
  private:
@@ -463,9 +466,15 @@ constexpr void GenericVarLenEntryQueueBase::CopyAndWrap(ConstByteSpan data,
   if (first_chunk >= data.size()) {
     first_chunk = data.size();
   } else {  // Copy 2nd chunk from the beginning of the buffer (may be 0 bytes).
-    pw::copy(data.begin() + first_chunk, data.end(), bytes.begin());
+    pw::copy(data.begin() +
+                 static_cast<span<std::byte>::difference_type>(first_chunk),
+             data.end(),
+             bytes.begin());
   }
-  pw::copy(data.begin(), data.begin() + first_chunk, bytes.begin() + tail);
+  pw::copy(
+      data.begin(),
+      data.begin() + static_cast<span<std::byte>::difference_type>(first_chunk),
+      bytes.begin() + static_cast<span<std::byte>::difference_type>(tail));
   IncrementWithWrap(tail, data.size(), bytes.size());
 }
 
