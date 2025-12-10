@@ -26,6 +26,17 @@
 #include "pw_thread/sleep.h"
 
 namespace pw::async2 {
+namespace {
+
+void YieldToAnyThread() {
+  // Sleep to yield the CPU in case work must be completed in a lower priority
+  // priority thread to make progress. Depending on the RTOS, yield may not
+  // allow lower priority threads to be scheduled.
+  // TODO: b/456506369 - Switch to pw::this_thread::yield when it is updated.
+  this_thread::sleep_for(chrono::SystemClock::duration(1));
+}
+
+}  // namespace
 
 Task::~Task() {
   PW_DCHECK_INT_EQ(
@@ -64,11 +75,7 @@ bool Task::IsRegistered() const {
 
 void Task::Deregister() {
   while (!TryDeregister()) {
-    // Sleep between attempts in case the task is running in a lower priority
-    // priority thread. Depending on the RTOS, yield may not allow lower
-    // priority threads to be scheduled.
-    // TODO: b/456506369 - Switch to pw::this_thread::yield when it is updated.
-    this_thread::sleep_for(chrono::SystemClock::duration(1));
+    YieldToAnyThread();
   }
 }
 
@@ -106,6 +113,18 @@ bool Task::TryDeregister() {
   }
   dispatcher_ = nullptr;
   return true;
+}
+
+void Task::Join() {
+  while (true) {
+    {
+      std::lock_guard lock(internal::lock());
+      if (state_ == State::kUnposted) {
+        return;
+      }
+    }
+    YieldToAnyThread();
+  }
 }
 
 // Called by the dispatcher to run this task.

@@ -609,6 +609,7 @@ pw_add_test(pw_async2.task_test
     pw_async2.dispatcher
     pw_async2.testing
     pw_sync.binary_semaphore
+    pw_sync.mutex
     pw_thread.sleep
     pw_thread.test_thread_context
     pw_thread.thread

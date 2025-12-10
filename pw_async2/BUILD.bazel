@@ -228,6 +228,7 @@ pw_cc_test(
         ":dispatcher",
         ":testing",
         "//pw_sync:binary_semaphore",
+        "//pw_sync:mutex",
         "//pw_thread:sleep",
         "//pw_thread:test_thread_context",
         "//pw_thread:thread",

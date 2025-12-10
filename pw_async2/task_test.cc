@@ -16,6 +16,7 @@
 
 #include "pw_async2/dispatcher_for_test.h"
 #include "pw_sync/binary_semaphore.h"
+#include "pw_sync/mutex.h"
 #include "pw_thread/sleep.h"
 #include "pw_thread/test_thread_context.h"
 #include "pw_thread/thread.h"
@@ -31,6 +32,7 @@ using pw::async2::Pending;
 using pw::async2::Poll;
 using pw::async2::Ready;
 using pw::async2::Task;
+using pw::async2::Waker;
 
 class BlockingTask : public Task {
  public:
@@ -54,6 +56,35 @@ class BlockingTask : public Task {
   pw::sync::BinarySemaphore wait_for_deregister_;
 
   Poll<> result_to_return_ = Pending();
+};
+
+class SleepingTask : public Task {
+ public:
+  SleepingTask() : Task(PW_ASYNC_TASK_NAME("SleepingTask")) {}
+
+  Poll<> DoPend(Context& cx) override {
+    std::lock_guard lock(lock_);
+    if (should_complete_) {
+      return Ready();
+    }
+    PW_ASYNC_STORE_WAKER(cx, waker_, "SleepingTask is sleeping");
+    sleeping_.release();
+    return Pending();
+  }
+
+  void WaitUntilSleeping() { sleeping_.acquire(); }
+
+  void Wake() {
+    std::lock_guard lock(lock_);
+    should_complete_ = true;
+    std::move(waker_).Wake();
+  }
+
+ private:
+  pw::sync::BinarySemaphore sleeping_;
+  pw::sync::Mutex lock_;
+  bool should_complete_ = false;
+  Waker waker_;
 };
 
 TEST(Task, IsRegistered) {
@@ -109,6 +140,55 @@ TEST(Task, DeregisterRunningTask_TaskReturnsPending) {
 
 TEST(Task, DeregisterRunningTask_TaskReturnsReady) {
   DeregisterWhileRunning(Ready());
+}
+
+TEST(Task, Join_RunningTask) {
+  DispatcherForTest dispatcher;
+  BlockingTask task(Ready());
+  dispatcher.Post(task);
+
+  pw::thread::test::TestThreadContext context;
+  pw::Thread dispatcher_thread(context.options(),
+                               [&dispatcher] { dispatcher.RunToCompletion(); });
+
+  task.WaitUntilRunning();
+
+  pw::thread::test::TestThreadContext unblock_context;
+  pw::Thread unblock_thread(unblock_context.options(), [&task]() {
+    pw::this_thread::sleep_for(10ms);
+    task.Unblock();
+  });
+
+  task.Join();
+  EXPECT_FALSE(task.IsRegistered());
+
+  unblock_thread.join();
+  dispatcher_thread.join();
+}
+
+TEST(Task, Join_SleepingTask) {
+  DispatcherForTest dispatcher;
+  dispatcher.AllowBlocking();
+  SleepingTask task;
+  dispatcher.Post(task);
+
+  pw::thread::test::TestThreadContext context;
+  pw::Thread dispatcher_thread(context.options(),
+                               [&dispatcher] { dispatcher.RunToCompletion(); });
+
+  task.WaitUntilSleeping();
+
+  pw::thread::test::TestThreadContext wake_context;
+  pw::Thread wake_thread(wake_context.options(), [&task]() {
+    pw::this_thread::sleep_for(10ms);
+    task.Wake();
+  });
+
+  task.Join();
+  EXPECT_FALSE(task.IsRegistered());
+
+  wake_thread.join();
+  dispatcher_thread.join();
 }
 
 }  // namespace

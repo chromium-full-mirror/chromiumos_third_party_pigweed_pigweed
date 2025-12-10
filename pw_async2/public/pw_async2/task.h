@@ -124,6 +124,12 @@ class Task : public IntrusiveList<Task>::Item {
   /// of the dispatcher associated with this `Task`.
   void Deregister() PW_LOCKS_EXCLUDED(internal::lock());
 
+  /// Blocks this thread until the task finishes running.
+  ///
+  /// @pre The task must be posted to a `Dispatcher` that runs in a different
+  /// thread.
+  void Join() PW_LOCKS_EXCLUDED(internal::lock());
+
  private:
   friend class Dispatcher;
   friend class OwnedTask;
