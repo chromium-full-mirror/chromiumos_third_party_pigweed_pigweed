@@ -32,6 +32,11 @@ class McuxpressoInitiator final : public Initiator {
     uint32_t flexcomm_address;
     clock_name_t clock_name;
     uint32_t baud_rate_bps;
+
+    // Automatically restart the I2C interface when a transaction has timed
+    // out. This usually indicates the host interface has become stuck and
+    // will require a restart.
+    bool auto_restart_interface = false;
   };
 
   McuxpressoInitiator(const Config& config,
@@ -58,6 +63,10 @@ class McuxpressoInitiator final : public Initiator {
   ~McuxpressoInitiator() final;
 
  private:
+  void EnableLocked() PW_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
+  void DisableLocked() PW_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
+  void ResetLocked() PW_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
+
   Status DoTransferFor(span<const Message> messages,
                        chrono::SystemClock::duration timeout) override
       PW_LOCKS_EXCLUDED(mutex_);

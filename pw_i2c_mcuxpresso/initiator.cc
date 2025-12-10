@@ -49,7 +49,10 @@ Status HalStatusToPwStatus(status_t status) {
 // inclusive-language: disable
 void McuxpressoInitiator::Enable() {
   std::lock_guard lock(mutex_);
+  EnableLocked();
+}
 
+void McuxpressoInitiator::EnableLocked() {
   // Acquire the clock_tree element. Note that this function only requires the
   // IP clock and not the functional clock. However, ClockMcuxpressoClockIp
   // only provides the combined element, so that's what we use here.
@@ -71,7 +74,10 @@ void McuxpressoInitiator::Enable() {
 
 void McuxpressoInitiator::Disable() {
   std::lock_guard lock(mutex_);
+  DisableLocked();
+}
 
+void McuxpressoInitiator::DisableLocked() {
   // Acquire the clock_tree element. Note that this function only requires the
   // IP clock and not the functional clock. However, ClockMcuxpressoClockIp
   // only provides the combined element, so that's what we use here.
@@ -81,6 +87,12 @@ void McuxpressoInitiator::Disable() {
 
   I2C_MasterDeinit(base_);
   enabled_ = false;
+}
+
+void McuxpressoInitiator::ResetLocked() {
+  PW_LOG_WARN("Resetting I2C interface");
+  DisableLocked();
+  EnableLocked();
 }
 
 McuxpressoInitiator::~McuxpressoInitiator() { Disable(); }
@@ -162,7 +174,29 @@ Status McuxpressoInitiator::DoTransferFor(
         // Cast GetData() here because GetMutableData() is for Writes only.
         .data = const_cast<std::byte*>(msg.GetData().data()),
         .dataSize = msg.GetData().size()};
-    PW_TRY(InitiateNonBlockingTransferUntil(deadline, &transfer));
+    auto status = InitiateNonBlockingTransferUntil(deadline, &transfer);
+
+    if (!status.ok()) {
+      if (status.IsDeadlineExceeded()) {
+        if (config_.auto_restart_interface) {
+          // If we've exceeded our deadline, that means our transaction
+          // request never received a callback, indicating a stuck I2C
+          // interface (or a device that stretched the clock beyond the
+          // deadline).
+
+          // Unfortunately, we have observed on RT595 platforms that the I2C
+          // interface can get stuck and fail to transmit at all, with no
+          // indication in the status registers that anything is wrong,
+          // requiring a full reset.
+          ResetLocked();
+        }
+
+        return Status::DeadlineExceeded();
+      } else {
+        // All other error statuses we return to the caller
+        return status;
+      }
+    }
   }
 
   return pw::OkStatus();
