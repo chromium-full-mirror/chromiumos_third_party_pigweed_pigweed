@@ -122,7 +122,7 @@ class Dispatcher {
   /// `PopAndRunAllReadyTasks` to run multiple tasks.
   Task* PopSingleTaskForThisWake() PW_LOCKS_EXCLUDED(internal::lock()) {
     std::lock_guard lock(internal::lock());
-    set_wants_wake();
+    SetWantsWake();
     return PopTaskToRunLocked();
   }
 
@@ -173,7 +173,7 @@ class Dispatcher {
   virtual void DoWake() PW_LOCKS_EXCLUDED(internal::lock()) = 0;
 
   void Wake() {
-    if (wanted_wake()) {
+    if (wants_wake_.exchange(false, std::memory_order_relaxed)) {
       DoWake();
     }
   }
@@ -211,19 +211,15 @@ class Dispatcher {
   // task or multiple tasks are posted before the dipsatcher runs.
   //
   // Must be called while the lock is held to prevent missed wakes.
-  void set_wants_wake() PW_EXCLUSIVE_LOCKS_REQUIRED(internal::lock()) {
+  void SetWantsWake() PW_EXCLUSIVE_LOCKS_REQUIRED(internal::lock()) {
     wants_wake_.store(true, std::memory_order_relaxed);
-  }
-
-  [[nodiscard]] bool wanted_wake() PW_NO_LOCK_SAFETY_ANALYSIS {
-    return wants_wake_.exchange(false, std::memory_order_relaxed);
   }
 
   IntrusiveList<Task> woken_ PW_GUARDED_BY(internal::lock());
   IntrusiveList<Task> sleeping_ PW_GUARDED_BY(internal::lock());
 
   // Latches wake requests to avoid duplicate DoWake calls.
-  std::atomic<bool> wants_wake_ PW_GUARDED_BY(internal::lock()) = false;
+  std::atomic<bool> wants_wake_ = false;
 };
 
 /// @}

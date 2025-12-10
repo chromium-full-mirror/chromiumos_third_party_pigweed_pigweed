@@ -251,5 +251,66 @@ TEST(DispatcherForTest, UnscheduleAllowsRepost) {
   EXPECT_EQ(dispatcher.tasks_polled(), 2u);
 }
 
+class WakeCounter final : public pw::async2::Dispatcher {
+ public:
+  int wake_count() const { return wake_count_; }
+
+  using pw::async2::Dispatcher::PopAndRunAllReadyTasks;
+
+ private:
+  void DoWake() override { wake_count_ += 1; }
+
+  int wake_count_ = 0;
+};
+
+TEST(Dispatcher, PostOnlyWakesOnce) {
+  MockTask task1, task2, task3;
+  WakeCounter dispatcher;
+  dispatcher.Post(task1);
+  dispatcher.Post(task2);
+  dispatcher.Post(task3);
+
+  EXPECT_EQ(dispatcher.wake_count(), 1);
+}
+
+TEST(Dispatcher, WakingMultipleTasksOnlyWakesOnce) {
+  MockTask task1, task2, task3;
+  WakeCounter dispatcher;
+  dispatcher.Post(task1);
+  dispatcher.Post(task2);
+  dispatcher.Post(task3);
+
+  dispatcher.PopAndRunAllReadyTasks();
+
+  EXPECT_EQ(dispatcher.wake_count(), 1);
+
+  std::move(task1.last_waker).Wake();
+  EXPECT_EQ(dispatcher.wake_count(), 2);
+
+  std::move(task2.last_waker).Wake();
+  EXPECT_EQ(dispatcher.wake_count(), 2);
+
+  std::move(task3.last_waker).Wake();
+  EXPECT_EQ(dispatcher.wake_count(), 2);
+}
+
+TEST(Dispatcher, WakingMultipleTasksAndPostingOnlyWakesOnce) {
+  MockTask task1, task2, task3;
+  WakeCounter dispatcher;
+  dispatcher.Post(task1);
+  dispatcher.Post(task2);
+
+  dispatcher.PopAndRunAllReadyTasks();
+
+  EXPECT_EQ(dispatcher.wake_count(), 1);
+
+  std::move(task1.last_waker).Wake();
+  EXPECT_EQ(dispatcher.wake_count(), 2);
+
+  std::move(task2.last_waker).Wake();
+  dispatcher.Post(task3);
+  EXPECT_EQ(dispatcher.wake_count(), 2);
+}
+
 }  // namespace
 }  // namespace pw::async2

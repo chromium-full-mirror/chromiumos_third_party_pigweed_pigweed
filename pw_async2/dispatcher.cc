@@ -41,7 +41,7 @@ void Dispatcher::Post(Task& task) {
     task.PostTo(*this);
     // To prevent duplicate wakes, request only if this is the first woken task.
     if (woken_.empty()) {
-      set_wants_wake();
+      SetWantsWake();
     }
     woken_.push_back(task);
   }
@@ -55,7 +55,7 @@ Task* Dispatcher::PopTaskToRunLocked() {
   if (woken_.empty()) {
     // There are no tasks ready to run, but the dispatcher should be woken when
     // tasks become ready or new tasks are posted.
-    set_wants_wake();
+    SetWantsWake();
     PW_LOG_DEBUG("Dispatcher has no woken tasks to run");
     return nullptr;
   }
