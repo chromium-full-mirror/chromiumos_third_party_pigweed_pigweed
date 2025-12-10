@@ -111,6 +111,14 @@ Pigweed is modular: you can use as much or as little of it as you need.
       as a dependency, start using Pigweed modules, and set up static and
       runtime analysis.
 
+   .. grid-item-card:: :octicon:`code-square` CMake
+      :link: docs-cmake-integration
+      :link-type: ref
+      :class-item: sales-pitch-cta-secondary
+
+      Learn how to use Pigweed in an existing CMake project: add Pigweed
+      as a dependency, configure backends, and use modules.
+
    .. grid-item-card:: :octicon:`list-ordered` GitHub Actions
       :link: docs-github-actions
       :link-type: ref
@@ -128,6 +136,7 @@ Pigweed is modular: you can use as much or as little of it as you need.
    Install Bazel <install_bazel>
    Bazel quickstart <bazel>
    Bazel integration <bazel_integration/index>
+   CMake integration <cmake_integration/index>
    Static and runtime analysis <analysis>
    GitHub Actions <github_actions>
    Zephyr quickstart <zephyr>
