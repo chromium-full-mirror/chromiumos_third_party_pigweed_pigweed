@@ -176,6 +176,11 @@ void A2dpOffloadManager::RequestStopA2dpOffload(
     hci::ResultCallback<> callback) {
   PW_DCHECK(cmd_channel_.is_alive());
 
+  if (!IsChannelOffloaded(local_id, link_handle)) {
+    callback(fit::success());
+    return;
+  }
+
   switch (a2dp_offload_status_) {
     case A2dpOffloadStatus::kStopped: {
       bt_log(DEBUG,
@@ -186,9 +191,9 @@ void A2dpOffloadManager::RequestStopA2dpOffload(
       return;
     }
     case A2dpOffloadStatus::kStopping: {
-      bt_log(WARN,
+      bt_log(INFO,
              "l2cap",
-             "A2DP offload is currently stopping (status: %hhu)",
+             "A2DP offload stop while stopping (status: %hhu)",
              static_cast<unsigned char>(a2dp_offload_status_));
       callback(ToResult(HostError::kInProgress));
       return;
@@ -196,11 +201,6 @@ void A2dpOffloadManager::RequestStopA2dpOffload(
     case A2dpOffloadStatus::kStarting:
     case A2dpOffloadStatus::kStarted:
       break;
-  }
-
-  if (!IsChannelOffloaded(local_id, link_handle)) {
-    callback(fit::success());
-    return;
   }
 
   // Wait until offloading status is |kStarted| before sending stop command
@@ -265,20 +265,23 @@ bool A2dpOffloadManager::IsChannelOffloaded(
 
   // Same channel that requested start A2DP offloading must request stop
   // offloading
-  if (id != offloaded_channel_id_ || link_handle != offloaded_link_handle_) {
-    bt_log(WARN,
+  if (id != *offloaded_channel_id_ || link_handle != *offloaded_link_handle_) {
+    bt_log(DEBUG,
            "l2cap",
-           "Offloaded channel must request stop offloading; offloaded channel "
-           "(handle: %#.4x, local id: %#.4x)",
+           "Offloaded channel (handle: %#.4x, local id: %#.4x) does not match "
+           "(handle: %#.4x, id: %#.4x)",
            *offloaded_link_handle_,
-           *offloaded_channel_id_);
+           *offloaded_channel_id_,
+           link_handle,
+           id);
     return false;
   }
 
   return id == *offloaded_channel_id_ &&
          link_handle == *offloaded_link_handle_ &&
          (a2dp_offload_status_ == A2dpOffloadStatus::kStarted ||
-          a2dp_offload_status_ == A2dpOffloadStatus::kStarting);
+          a2dp_offload_status_ == A2dpOffloadStatus::kStarting ||
+          a2dp_offload_status_ == A2dpOffloadStatus::kStopping);
 }
 
 }  // namespace bt::l2cap
