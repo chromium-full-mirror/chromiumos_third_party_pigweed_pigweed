@@ -228,6 +228,7 @@ endfunction()
 #
 #   SOURCES - source files for this library
 #   HEADERS - header files for this library
+#   GENERATED_HEADERS - headers that will be generated when the target is built
 #   PUBLIC_DEPS - public pw_target_link_targets arguments
 #   PRIVATE_DEPS - private pw_target_link_targets arguments
 #   PUBLIC_INCLUDES - public target_include_directories argument
@@ -259,6 +260,7 @@ function(pw_add_library_generic NAME TYPE)
       SANDBOX
     MULTI_VALUE_ARGS
       ${multi_value_args}
+      GENERATED_HEADERS
       PRIVATE_COMPILE_OPTIONS_DEPS_BEFORE
   )
 
@@ -295,7 +297,7 @@ function(pw_add_library_generic NAME TYPE)
   endif()
 
   if(arg_SANDBOX)
-    foreach(path IN LISTS arg_HEADERS arg_SOURCES)
+    foreach(path IN LISTS arg_GENERATED_HEADERS arg_HEADERS arg_SOURCES)
       # Skip sandboxing absolute paths for now.
       cmake_path(IS_ABSOLUTE path is_absolute)
       if(is_absolute)
@@ -321,6 +323,7 @@ function(pw_add_library_generic NAME TYPE)
       list(TRANSFORM arg_PUBLIC_INCLUDES PREPEND "${sandbox_dir}/")
     endif()
   endif()
+  list(APPEND arg_HEADERS ${arg_GENERATED_HEADERS})
 
   if("${TYPE}" STREQUAL "INTERFACE")
     if(NOT "${arg_SOURCES}" STREQUAL "")
