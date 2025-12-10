@@ -13,8 +13,6 @@
 # the License.
 """Build rules to generate fixed compile command patterns."""
 
-load("@bazel_skylib//rules:native_binary.bzl", "native_binary")
-
 _CompileCommandsTargetPatternsInfo = provider(
     "A set of target patterns used for compile command collection for a single platform",
     fields = {
@@ -107,7 +105,7 @@ def _target_patterns_to_json(compile_commands_patterns):
         "compile_commands_patterns": output_patterns,
     }, indent = "  ")
 
-def _pw_compile_commands_groups_impl(ctx):
+def _pw_compile_commands_generator_impl(ctx):
     disallowed_patterns = [
         pat
         for pat in ctx.attr.target_patterns
@@ -123,25 +121,43 @@ def _pw_compile_commands_groups_impl(ctx):
     compile_commands_patterns = _collect_target_patterns(ctx)
     compile_command_config_json = _target_patterns_to_json(compile_commands_patterns)
 
-    target_patterns_file = ctx.actions.declare_file(
-        ctx.label.name + "_target_patterns.json",
-    )
+    target_patterns_file = ctx.outputs.config_out
     ctx.actions.write(
         output = target_patterns_file,
         content = compile_command_config_json,
     )
+
+    out = ctx.actions.declare_file(ctx.attr.name + ".exe")
+    ctx.actions.symlink(
+        target_file = ctx.executable._updater,
+        output = out,
+        is_executable = True,
+    )
+    runfiles = ctx.runfiles(
+        files = [target_patterns_file],
+    )
+
+    runfiles = runfiles.merge(ctx.attr._updater[DefaultInfo].default_runfiles)
+
     return [
-        DefaultInfo(files = depset([target_patterns_file])),
+        DefaultInfo(
+            executable = out,
+            files = depset([target_patterns_file]),
+            runfiles = runfiles,
+        ),
         compile_commands_patterns,
     ]
 
 _pw_compile_commands_groups = rule(
-    implementation = _pw_compile_commands_groups_impl,
+    implementation = _pw_compile_commands_generator_impl,
     attrs = {
+        "config_out": attr.output(mandatory = True),
         "deps": attr.label_list(),
         "platform": attr.string(),
         "target_patterns": attr.string_list(),
+        "_updater": attr.label(default = Label("//pw_ide/bazel:update_compile_commands"), executable = True, cfg = "target"),
     },
+    executable = True,
 )
 
 def pw_compile_commands_generator(name, target_patterns = None, deps = [], platform = None, **kwargs):
@@ -159,29 +175,17 @@ def pw_compile_commands_generator(name, target_patterns = None, deps = [], platf
       platform: The platform to use to evaluate the provided `target_patterns`.
       **kwargs: Extra arguments to pass to the underlying `native_binary` rule.
     """
-    patterns_target_name = name + "_patterns"
     _pw_compile_commands_groups(
-        name = patterns_target_name,
-        deps = [
-            str(dep) + "_patterns"
-            for dep in deps
-        ],
+        name = name,
+        deps = deps,
         target_patterns = target_patterns,
+        config_out = "{}_target_patterns.json".format(name),
+        args = [
+            "--compile-command-groups",
+            "$(rootpath :{}_target_patterns.json)".format(name),
+        ],
         # Don't follow aliases, they technically mean different things from
         # a configuration perspective.
         platform = str(native.package_relative_label(platform)) if platform else None,
-        **kwargs
-    )
-
-    native_binary(
-        name = name,
-        src = Label("//pw_ide/bazel:update_compile_commands"),
-        data = [
-            ":{}".format(patterns_target_name),
-        ],
-        args = [
-            "--compile-command-groups",
-            "$(rootpath :{})".format(patterns_target_name),
-        ],
         **kwargs
     )
