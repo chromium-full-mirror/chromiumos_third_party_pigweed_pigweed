@@ -169,7 +169,7 @@ Talk to us
    modules
    Contributing <contributing/index>
    concepts/index
-   build_system
+   build/index
    targets
    Toolchain <toolchain>
    size_optimizations

@@ -1,8 +1,8 @@
-.. _docs-build-system:
+.. _docs-build-systems-overview:
 
-=============
-Build systems
-=============
+======================
+Build systems overview
+======================
 Building software for embedded devices is a complex process. Projects often have
 custom toolchains, target different hardware platforms, and require additional
 configuration and post-processing of artifacts.
@@ -1015,10 +1015,3 @@ you just specify the ``--config`` on the command line:
 .. code-block:: console
 
    bazelisk build --config=m4 //:time_is_relative
-
-.. toctree::
-   :hidden:
-
-   self
-   bazel_compatibility
-   python_build

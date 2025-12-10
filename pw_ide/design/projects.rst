@@ -6,8 +6,9 @@ Projects
 .. pigweed-module-subpage::
    :name: pw_ide
 
-Pigweed projects support :ref:`multiple build systems<docs-build-system>` and
-two methods of providing toolchains and a hermetic developer environment:
+Pigweed projects support :ref:`multiple build systems
+<docs-build-systems-overview>` and two methods of providing toolchains and a
+hermetic developer environment:
 
 * **Bazel**, in which Bazel is the build system, Bazel manages development
   environment dependencies, and the ``bazel`` (or ``bazelisk``) command is the

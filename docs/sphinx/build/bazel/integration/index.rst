@@ -41,7 +41,7 @@ Pigweed uses Bazel 8 features like platform-based flags, and so not all of
 Pigweed works with Bazel 7. We strongly recommend mirroring Pigweed's current
 Bazel version pin:
 
-.. literalinclude:: ../../.bazelversion
+.. literalinclude:: ../../../.bazelversion
    :language: text
 
 .. toctree::

@@ -8,7 +8,7 @@ Pigweed's GN Python Build
    - :bdg-ref-primary-line:`module-pw_build-python` for detailed template usage.
    - :bdg-ref-primary-line:`module-pw_build` for other GN templates available
      within Pigweed.
-   - :bdg-ref-primary-line:`docs-build-system` for a high level guide and
+   - :bdg-ref-primary-line:`docs-build-systems-overview` for a high level guide and
      background information on Pigweed's build system as a whole.
 
 Pigweed uses a custom GN-based build system to manage its Python code. The
@@ -219,7 +219,7 @@ adds ``-c`` lines for constraint files.
    The pip documentation on the `Requirements File Format
    <https://pip.pypa.io/en/stable/reference/requirements-file-format/#requirements-file-format>`_
 
-.. literalinclude:: pw_build/py/gn_tests/BUILD.gn
+.. literalinclude:: ../../pw_build/py/gn_tests/BUILD.gn
    :start-after: [downstream-project-venv]
    :end-before: [downstream-project-venv]
 
@@ -408,7 +408,7 @@ This will invoke `pip download
 platform, architecture and Python version. This can take a significant amount of
 time to complete. The current set of combinations is shown below:
 
-.. literalinclude:: pw_build/py/pw_build/generate_python_wheel_cache.py
+.. literalinclude:: ../../pw_build/py/pw_build/generate_python_wheel_cache.py
    :start-after: [wheel-platform-args]
    :end-before: [wheel-platform-args]
 
@@ -569,7 +569,7 @@ on the structure of Python packages.
        There are some additional gn args to control how pip installations are
        performed during the build.
 
-       .. literalinclude:: pw_build/python_gn_args.gni
+       .. literalinclude:: ../../pw_build/python_gn_args.gni
           :start-after: [default-pip-gn-args]
           :end-before: [default-pip-gn-args]
 
@@ -791,7 +791,7 @@ The default set of analysis tools to run can be set globally via a GN arg
 ``pw_build_PYTHON_STATIC_ANALYSIS_TOOLS``. By default this is set to include the
 below tools:
 
-.. literalinclude:: pw_build/python.gni
+.. literalinclude:: ../../pw_build/python.gni
    :start-after: [python-static-analysis-tools]
    :end-before: [python-static-analysis-tools]
 
@@ -799,7 +799,7 @@ In addition to user specified ``mypy_ini`` files some arguments are always
 passed to ``mypy`` by default. They can be seen in this excerpt of
 ``//pw_build/python.gni`` below:
 
-.. literalinclude:: pw_build/python.gni
+.. literalinclude:: ../../pw_build/python.gni
    :start-after: [default-mypy-args]
    :end-before: [default-mypy-args]
 

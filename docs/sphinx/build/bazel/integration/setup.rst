@@ -56,7 +56,7 @@ improve cache performance, disambiguate Python imports, etc. These flags are
 listed below.  Unfortunately there's no way to automatically import them, see
 :bug:`353750350`.
 
-.. literalinclude:: ../../pw_build/pigweed.bazelrc
+.. literalinclude:: ../../../pw_build/pigweed.bazelrc
 
 Set the recommended Bazel flags
 ===============================
@@ -65,7 +65,7 @@ Bazel's usability. Turn these on, selectively tuning them to your needs.
 Unfortunately there's no way to automatically import them, see
 :bug:`353750350`.
 
-.. literalinclude:: ../../pw_build/pigweed_recommended.bazelrc
+.. literalinclude:: ../../../pw_build/pigweed_recommended.bazelrc
 
 Next steps
 ==========
