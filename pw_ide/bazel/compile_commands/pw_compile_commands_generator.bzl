@@ -28,6 +28,35 @@ _CompileCommandsGroupInfo = provider(
     },
 )
 
+def _resolve_target_pattern(target_pattern):
+    """Converts a string that may contain wildcards to its canonical form."""
+    is_subtracted = target_pattern.startswith("-")
+    target_pattern = target_pattern.lstrip("-")
+    if not target_pattern.endswith("..."):
+        return "{}{}".format(
+            "-" if is_subtracted else "",
+            native.package_relative_label(target_pattern),
+        )
+
+    # Three cases to handle:
+    #   ...
+    #   //...
+    #   //foo_package/...
+    wildcard_token = "..." if target_pattern.endswith("//...") or target_pattern == "..." else "/..."
+    absolute_pattern = target_pattern.replace(
+        wildcard_token,
+        ":_pw_internal_fake_target_name",
+    )
+    absolute_pattern = str(native.package_relative_label(absolute_pattern))
+    absolute_pattern = absolute_pattern.replace(
+        ":_pw_internal_fake_target_name",
+        wildcard_token,
+    )
+    return "{}{}".format(
+        "-" if is_subtracted else "",
+        absolute_pattern,
+    )
+
 def _collect_target_patterns(ctx):
     """Builds a _CompileCommandsGroupInfo from the current context.
 
@@ -106,18 +135,6 @@ def _target_patterns_to_json(compile_commands_patterns):
     }, indent = "  ")
 
 def _pw_compile_commands_generator_impl(ctx):
-    disallowed_patterns = [
-        pat
-        for pat in ctx.attr.target_patterns
-        if not pat.startswith("//")
-    ]
-    if disallowed_patterns:
-        fail(
-            "Currently, only absolute patterns are allowed. " +
-            "The following patterns are NOT absolute: " +
-            str(disallowed_patterns),
-        )
-
     compile_commands_patterns = _collect_target_patterns(ctx)
     compile_command_config_json = _target_patterns_to_json(compile_commands_patterns)
 
@@ -148,11 +165,11 @@ def _pw_compile_commands_generator_impl(ctx):
         compile_commands_patterns,
     ]
 
-_pw_compile_commands_groups = rule(
+_pw_compile_commands_generator = rule(
     implementation = _pw_compile_commands_generator_impl,
     attrs = {
         "config_out": attr.output(mandatory = True),
-        "deps": attr.label_list(),
+        "deps": attr.label_list(providers = [_CompileCommandsGroupInfo]),
         "platform": attr.string(),
         "target_patterns": attr.string_list(),
         "_updater": attr.label(default = Label("//pw_ide/bazel:update_compile_commands"), executable = True, cfg = "target"),
@@ -160,7 +177,7 @@ _pw_compile_commands_groups = rule(
     executable = True,
 )
 
-def pw_compile_commands_generator(name, target_patterns = None, deps = [], platform = None, **kwargs):
+def pw_compile_commands_generator(name, target_patterns = [], deps = [], platform = None, **kwargs):
     """A rule that can be used to build a compile command database.
 
     This rule can be `bazel run` to generate a compile command database at
@@ -175,10 +192,13 @@ def pw_compile_commands_generator(name, target_patterns = None, deps = [], platf
       platform: The platform to use to evaluate the provided `target_patterns`.
       **kwargs: Extra arguments to pass to the underlying `native_binary` rule.
     """
-    _pw_compile_commands_groups(
+    _pw_compile_commands_generator(
         name = name,
         deps = deps,
-        target_patterns = target_patterns,
+        target_patterns = [
+            _resolve_target_pattern(pattern)
+            for pattern in target_patterns
+        ],
         config_out = "{}_target_patterns.json".format(name),
         args = [
             "--compile-command-groups",

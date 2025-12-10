@@ -153,7 +153,8 @@ pw_compile_commands_generator(
     tags = ["manual"],
     target_patterns = [
         "//pw_ide/bazel/compile_commands/test/...",
-        "//pw_ide/bazel/compile_commands/test:test_compile_commands_outputs",
-        "//pw_ide/bazel/compile_commands/test:external_dep_library",
+        "...",
+        ":test_compile_commands_outputs",
+        ":external_dep_library",
     ],
 )
