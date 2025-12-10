@@ -205,6 +205,7 @@ cc_library(
     target_compatible_with = incompatible_with_mcu(),
     visibility = ["//visibility:private"],
     deps = [
+        "//pw_assert:assert",
         "//pw_sync:interrupt_spin_lock.facade",
         "//pw_sync:yield_core",
     ],
