@@ -72,7 +72,7 @@ pw_add_library(pw_bluetooth_proxy STATIC
     pw_bluetooth.emboss_l2cap_frames
     pw_containers.flat_map
     pw_containers.inline_queue
-    pw_containers.intrusive_forward_list
+    pw_containers.intrusive_map
     pw_containers.vector
     pw_function
     pw_bluetooth_proxy.multibuf

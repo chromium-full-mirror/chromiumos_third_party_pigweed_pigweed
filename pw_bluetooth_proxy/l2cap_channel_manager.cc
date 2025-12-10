@@ -34,18 +34,20 @@ L2capChannelManager::L2capChannelManager(AclDataChannel& acl_data_channel,
                                          pw::Allocator* allocator)
     : acl_data_channel_(acl_data_channel),
       allocator_(allocator),
-      mrd_channel_(channels_.before_begin()),
-      round_robin_terminus_(channels_.end()) {}
+      lrd_channel_(channels_by_local_cid_.end()),
+      round_robin_terminus_(channels_by_local_cid_.end()) {}
 
 L2capChannelManager::~L2capChannelManager() {
   std::lock_guard lock(links_mutex_);
   ResetLogicalLinksLocked();
   {
     std::lock_guard channels_lock(channels_mutex_);
-    while (!channels_.empty()) {
-      L2capChannel& front = channels_.front();
-      channels_.pop_front();
-      stale_.push_front(front);
+    channels_by_remote_cid_.clear();
+    for (auto iter = channels_by_local_cid_.begin();
+         iter != channels_by_local_cid_.end();) {
+      L2capChannel& channel = **iter;
+      iter = channels_by_local_cid_.erase(iter);
+      stale_.insert(channel.local_handle());
     }
   }
   DeleteStaleChannels();
@@ -162,15 +164,34 @@ pw::Result<GattNotifyChannel> L2capChannelManager::AcquireGattNotifyChannel(
 
 void L2capChannelManager::RegisterChannel(L2capChannel& channel) {
   std::lock_guard lock(channels_mutex_);
-  RegisterChannelLocked(channel);
+  // TODO: https://pwbug.dev/383371663 - Return error to caller.
+  PW_CHECK_OK(RegisterChannelLocked(channel));
 }
 
-void L2capChannelManager::RegisterChannelLocked(L2capChannel& channel) {
-  // Insert new channels after `mrd_channel_`.
-  // TODO: https://pwbug.dev/383371663 - Ensure channel with local_cid doesn't
-  // already exist.
-  mrd_channel_ = channels_.insert_after(mrd_channel_, channel);
-  round_robin_terminus_ = mrd_channel_;
+Status L2capChannelManager::RegisterChannelLocked(L2capChannel& channel) {
+  auto result = channels_by_local_cid_.insert(channel.local_handle());
+  if (!result.second) {
+    L2capChannel& previous = **(result.first);
+    if (!previous.IsStale()) {
+      PW_LOG_WARN(
+          "Attempt to register channel that matches an existing channel: %#x "
+          "(local CID: %#x, remote CID: %#x)",
+          channel.connection_handle(),
+          channel.local_cid(),
+          channel.remote_cid());
+      return Status::AlreadyExists();
+    }
+    DeregisterChannelLocked(previous);
+    previous.Close();
+    allocator_.Delete(&previous);
+    result = channels_by_local_cid_.insert(channel.local_handle());
+  }
+  PW_CHECK(result.second);
+  PW_CHECK(channels_by_remote_cid_.insert(channel.remote_handle()).second);
+  if (lrd_channel_ == channels_by_local_cid_.end()) {
+    lrd_channel_ = channels_by_local_cid_.begin();
+  }
+  return OkStatus();
 }
 
 void L2capChannelManager::DeregisterChannel(L2capChannel& channel) {
@@ -179,14 +200,19 @@ void L2capChannelManager::DeregisterChannel(L2capChannel& channel) {
 }
 
 void L2capChannelManager::DeregisterChannelLocked(L2capChannel& channel) {
-  auto before_it = channels_.before_begin();
-  for (auto it = channels_.begin(); it != channels_.end();) {
-    if (&channel == &(*it)) {
-      EraseChannelAfter(before_it);
-      break;
-    }
-    before_it = it;
-    ++it;
+  if (lrd_channel_ != channels_by_local_cid_.end() &&
+      lrd_channel_->get() == &channel) {
+    Advance(lrd_channel_);
+  }
+  if (round_robin_terminus_ != channels_by_local_cid_.end() &&
+      round_robin_terminus_->get() == &channel) {
+    Advance(round_robin_terminus_);
+  }
+  channels_by_local_cid_.erase(channel.local_handle());
+  channels_by_remote_cid_.erase(channel.remote_handle());
+  if (channels_by_local_cid_.empty()) {
+    lrd_channel_ = channels_by_local_cid_.end();
+    round_robin_terminus_ = channels_by_local_cid_.end();
   }
 }
 
@@ -195,28 +221,31 @@ void L2capChannelManager::DeregisterAndCloseChannels(L2capChannelEvent event) {
   ResetLogicalLinksLocked();
   {
     std::lock_guard channels_lock(channels_mutex_);
-    while (!channels_.empty()) {
-      L2capChannel& front = channels_.front();
-      channels_.pop_front();
-      front.Close(event);
-      stale_.push_front(front);
+    channels_by_remote_cid_.clear();
+    for (auto iter = channels_by_local_cid_.begin();
+         iter != channels_by_local_cid_.end();) {
+      L2capChannel& channel = **iter;
+      iter = channels_by_local_cid_.erase(iter);
+      channel.Close(event);
+      stale_.insert(channel.local_handle());
     }
-    mrd_channel_ = channels_.before_begin();
-    round_robin_terminus_ = channels_.end();
+
+    lrd_channel_ = channels_by_local_cid_.end();
+    round_robin_terminus_ = channels_by_local_cid_.end();
   }
   DeleteStaleChannels();
 }
 
 void L2capChannelManager::DeleteStaleChannels() {
-  IntrusiveForwardList<L2capChannel> stale;
+  IntrusiveMap<uint32_t, L2capChannel::Handle> stale;
   {
     std::lock_guard channels_lock(channels_mutex_);
-    stale = std::move(stale_);
+    stale.swap(stale_);
   }
-  while (!stale.empty()) {
-    L2capChannel& front = stale.front();
-    stale.pop_front();
-    allocator_.Delete(&front);
+  for (auto iter = stale.begin(); iter != stale.end();) {
+    L2capChannel& channel = **iter;
+    iter = stale.erase(iter);
+    allocator_.Delete(&channel);
   }
 }
 
@@ -275,7 +304,6 @@ void L2capChannelManager::DrainChannelQueuesIfNewTx() {
                           std::optional<AclDataChannel::SendCredit>,
                           2>
       credits({{{AclTransportType::kBrEdr, {}}, {AclTransportType::kLe, {}}}});
-  IntrusiveForwardList<L2capChannel>::iterator lrd_channel;
   for (;;) {
     std::optional<H4PacketWithH4> packet;
     std::optional<AclDataChannel::SendCredit> packet_credit{};
@@ -290,12 +318,14 @@ void L2capChannelManager::DrainChannelQueuesIfNewTx() {
         credits.at(transport) = acl_data_channel_.ReserveSendCredit(transport);
       }
     }
+
+    L2capChannel* channel = nullptr;
     {
       DeleteStaleChannels();
       std::lock_guard lock(channels_mutex_);
 
       // Container is empty, nothing to do.
-      if (channels_.empty()) {
+      if (lrd_channel_ == channels_by_local_cid_.end()) {
         // No channels, no drain needed.
         std::lock_guard drain_lock(drain_status_mutex_);
         drain_needed_ = false;
@@ -303,27 +333,25 @@ void L2capChannelManager::DrainChannelQueuesIfNewTx() {
         return;
       }
 
-      // If terminus is unset, use the most recently drained container.
-      if (round_robin_terminus_ == channels_.end()) {
-        round_robin_terminus_ = mrd_channel_;
+      // If terminus is unset, use the least recently drained container.
+      if (round_robin_terminus_ == channels_by_local_cid_.end()) {
+        round_robin_terminus_ = lrd_channel_;
       }
-
-      // Least recently drained channel follows most recently drained channel.
-      lrd_channel = mrd_channel_;
-      Advance(lrd_channel);
 
       // If we have a credit for the channel's type, attempt to dequeue
       // packet from channel.
+      channel = &**lrd_channel_;
       std::optional<AclDataChannel::SendCredit>& current_credit =
-          credits.at(lrd_channel->transport());
+          credits.at(channel->transport());
       if (current_credit.has_value()) {
-        packet = lrd_channel->DequeuePacket();
+        packet = channel->DequeuePacket();
       }
+
       if (packet) {
         // We were able to dequeue a packet. So also take the current credit
         // to use when sending the packet below.
         packet_credit = std::exchange(current_credit, std::nullopt);
-        round_robin_terminus_ = channels_.end();
+        round_robin_terminus_ = channels_by_local_cid_.end();
       }
     }  // std::lock_guard lock(channels_mutex_);
 
@@ -343,31 +371,33 @@ void L2capChannelManager::DrainChannelQueuesIfNewTx() {
     {
       std::lock_guard channels_lock(channels_mutex_);
 
-      if (lrd_channel->IsStale() && lrd_channel->PayloadQueueEmpty()) {
+      if (channel->IsStale() && channel->PayloadQueueEmpty()) {
         // The channel is stale and its queue is empty, so it can be removed.
-        L2capChannel& channel = EraseChannelAfter(mrd_channel_);
-        channel.Close();
-        stale_.push_front(channel);
+        DeregisterChannelLocked(*channel);
+        channel->Close();
+        stale_.insert(channel->local_handle());
         continue;
       }
 
-      // Keep iterating.
-      mrd_channel_ = lrd_channel;
+      // Always advance so next dequeue is from next channel.
+      Advance(lrd_channel_);
 
       std::lock_guard drain_lock(drain_status_mutex_);
+
       if (drain_needed_) {
         // Additional tx packets or resources have arrived, so reset terminus so
         // we attempt to dequeue all the channels again.
-        round_robin_terminus_ = channels_.end();
+        round_robin_terminus_ = channels_by_local_cid_.end();
         drain_needed_ = false;
         continue;
       }
-      if (mrd_channel_ != round_robin_terminus_) {
-        // Continue until most recently drained channel is the terminus, meaning
-        // we have failed to dequeue from all channels (so nothing left to
-        // send).
+
+      if (lrd_channel_ != round_robin_terminus_) {
+        // Continue until last drained channel is terminus, meaning we have
+        // failed to dequeue from all channels (so nothing left to send).
         continue;
       }
+
       drain_running_ = false;
       return;
     }  // lock_guard: channels_mutex_, drain_status_mutex_
@@ -401,33 +431,28 @@ std::optional<LockedL2capChannel> L2capChannelManager::FindChannelByRemoteCid(
 
 L2capChannel* L2capChannelManager::FindChannelByLocalCidLocked(
     uint16_t connection_handle, uint16_t local_cid) PW_NO_LOCK_SAFETY_ANALYSIS {
-  for (L2capChannel& channel : channels_) {
-    if (!channel.IsStale() &&
-        channel.connection_handle() == connection_handle &&
-        channel.local_cid() == local_cid) {
-      return &channel;
-    }
+  uint32_t key = L2capChannel::MakeKey(connection_handle, local_cid);
+  auto it = channels_by_local_cid_.find(key);
+  if (it == channels_by_local_cid_.end() || (*it)->IsStale()) {
+    return nullptr;
   }
-  return nullptr;
+  return it->get();
 }
 
 L2capChannel* L2capChannelManager::FindChannelByRemoteCidLocked(
     uint16_t connection_handle,
     uint16_t remote_cid) PW_NO_LOCK_SAFETY_ANALYSIS {
-  for (L2capChannel& channel : channels_) {
-    if (!channel.IsStale() &&
-        channel.connection_handle() == connection_handle &&
-        channel.remote_cid() == remote_cid) {
-      return &channel;
-    }
+  uint32_t key = L2capChannel::MakeKey(connection_handle, remote_cid);
+  auto it = channels_by_remote_cid_.find(key);
+  if (it == channels_by_remote_cid_.end() || (*it)->IsStale()) {
+    return nullptr;
   }
-  return nullptr;
+  return it->get();
 }
 
-void L2capChannelManager::Advance(
-    IntrusiveForwardList<L2capChannel>::iterator& it) {
-  if (++it == channels_.end()) {
-    it = channels_.begin();
+void L2capChannelManager::Advance(L2capChannelIterator& it) {
+  if (++it == channels_by_local_cid_.end()) {
+    it = channels_by_local_cid_.begin();
   }
 }
 
@@ -459,18 +484,25 @@ void L2capChannelManager::HandleAclDisconnectionComplete(
       connection_handle);
   {
     std::lock_guard links_lock(links_mutex_);
-    auto it = logical_links_.find(connection_handle);
-    if (it != logical_links_.end()) {
-      internal::L2capLogicalLinkInterface* link = &(*it);
-      logical_links_.erase(it);
+    auto link_it = logical_links_.find(connection_handle);
+    if (link_it != logical_links_.end()) {
+      internal::L2capLogicalLinkInterface* link = &(*link_it);
+      logical_links_.erase(link_it);
       allocator_.Delete(link);
     }
 
     std::lock_guard lock(channels_mutex_);
-    RemoveAndCloseChannelIf([connection_handle](L2capChannel& channel) -> bool {
-      return channel.connection_handle() == connection_handle &&
-             channel.state() == L2capChannel::State::kRunning;
-    });
+    uint32_t key = L2capChannel::MakeKey(connection_handle, 0);
+    auto channel_it = channels_by_local_cid_.lower_bound(key);
+    while (channel_it != channels_by_local_cid_.end()) {
+      L2capChannel& channel = **channel_it++;
+      if (channel.connection_handle() == connection_handle &&
+          channel.state() == L2capChannel::State::kRunning) {
+        DeregisterChannelLocked(channel);
+        channel.Close();
+        allocator_.Delete(&channel);
+      }
+    }
   }
   DeleteStaleChannels();
 
@@ -484,10 +516,15 @@ void L2capChannelManager::HandleDisconnectionCompleteLocked(
   // here since the call comes via signaling channel.
   // TODO: https://pwbug.dev/390511432 - Figure out way to add annotations to
   // enforce this invariant.
-  RemoveAndCloseChannelIf([&params](L2capChannel& channel) {
-    return channel.connection_handle() == params.connection_handle &&
-           channel.local_cid() == params.local_cid;
-  });
+  uint32_t key =
+      L2capChannel::MakeKey(params.connection_handle, params.local_cid);
+  auto it = channels_by_local_cid_.find(key);
+  if (it != channels_by_local_cid_.end()) {
+    L2capChannel& channel = **it;
+    DeregisterChannelLocked(channel);
+    channel.Close();
+    allocator_.Delete(&channel);
+  }
   status_tracker_.HandleDisconnectionComplete(params);
 }
 
@@ -525,47 +562,6 @@ Status L2capChannelManager::SendFlowControlCreditInd(
   }
   return iter->SendFlowControlCreditInd(
       channel_id, credits, multibuf_allocator);
-}
-
-L2capChannel& L2capChannelManager::EraseChannelAfter(
-    const L2capChannelIterator& before) {
-  PW_CHECK(!channels_.empty());
-  L2capChannelIterator iter = before;
-  Advance(iter);
-  if (iter == mrd_channel_) {
-    Advance(mrd_channel_);
-  }
-  if (iter == round_robin_terminus_) {
-    Advance(round_robin_terminus_);
-  }
-  L2capChannel& channel = *iter;
-  if (iter == channels_.begin()) {
-    // Do not use `before` as it is pointing to the last valid element.
-    iter = channels_.erase_after(channels_.before_begin());
-  } else {
-    iter = channels_.erase_after(before);
-  }
-  if (channels_.empty()) {
-    mrd_channel_ = channels_.before_begin();
-    round_robin_terminus_ = channels_.end();
-  }
-  return channel;
-}
-
-void L2capChannelManager::RemoveAndCloseChannelIf(
-    L2capChannelPredicate predicate) {
-  auto before_it = channels_.before_begin();
-  for (auto it = channels_.begin(); it != channels_.end(); ++it) {
-    L2capChannel& channel = *it;
-    if (predicate(channel)) {
-      EraseChannelAfter(before_it);
-      channel.Close();
-      stale_.push_front(channel);
-      it = before_it;
-    } else {
-      before_it = it;
-    }
-  }
 }
 
 void L2capChannelManager::ResetLogicalLinksLocked() {

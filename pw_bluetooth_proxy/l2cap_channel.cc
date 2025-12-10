@@ -79,9 +79,9 @@ L2capChannel::~L2capChannel() {
       "btproxy: L2capChannel dtor - transport_: %u, connection_handle_ : "
       "%#x, local_cid_: %#x, remote_cid_: %#x, state_: %u",
       cpp23::to_underlying(transport_),
-      connection_handle_,
-      local_cid_,
-      remote_cid_,
+      connection_handle(),
+      local_cid(),
+      remote_cid(),
       cpp23::to_underlying(state_));
 
   // Most channels are explicitly closed, with the exception of the signaling
@@ -98,9 +98,9 @@ void L2capChannel::Stop() {
       "btproxy: L2capChannel::Stop - transport_: %u, connection_handle_: %#x, "
       "local_cid_: %#x, remote_cid_: %#x, previous state_: %u",
       cpp23::to_underlying(transport_),
-      connection_handle_,
-      local_cid_,
-      remote_cid_,
+      connection_handle(),
+      local_cid(),
+      remote_cid(),
       cpp23::to_underlying(state_));
 
   PW_CHECK(state_ != State::kNew && state_ != State::kClosed);
@@ -116,9 +116,9 @@ void L2capChannel::Close(L2capChannelEvent event) {
         "connection_handle_: %#x, local_cid_: %#x, remote_cid_: %#x, previous "
         "state_: %u",
         cpp23::to_underlying(transport_),
-        connection_handle_,
-        local_cid_,
-        remote_cid_,
+        connection_handle(),
+        local_cid(),
+        remote_cid(),
         cpp23::to_underlying(state_));
 
     PW_CHECK(state_ != State::kNew);
@@ -153,8 +153,8 @@ StatusWithMultiBuf L2capChannel::WriteDuringRx(FlatConstMultiBuf&& payload) {
     PW_LOG_WARN(
         "btproxy: L2capChannel::Write called when not running. "
         "local_cid: %#x, remote_cid: %#x, state: %u",
-        local_cid_,
-        remote_cid_,
+        local_cid(),
+        remote_cid(),
         cpp23::to_underlying(state_));
     return {Status::FailedPrecondition(), std::move(payload)};
   }
@@ -248,10 +248,9 @@ L2capChannel::L2capChannel(
     OptionalPayloadReceiveCallback&& payload_from_host_fn,
     ChannelEventCallback&& event_fn)
     : l2cap_channel_manager_(l2cap_channel_manager),
-      connection_handle_(connection_handle),
       transport_(transport),
-      local_cid_(local_cid),
-      remote_cid_(remote_cid),
+      local_handle_(*this, MakeKey(connection_handle, local_cid)),
+      remote_handle_(*this, MakeKey(connection_handle, remote_cid)),
       event_fn_(std::move(event_fn)),
       rx_multibuf_allocator_(rx_multibuf_allocator),
       payload_from_controller_fn_(std::move(payload_from_controller_fn)),
@@ -260,9 +259,9 @@ L2capChannel::L2capChannel(
       "btproxy: L2capChannel ctor - transport_: %u, connection_handle_ : %u, "
       "local_cid_ : %#x, remote_cid_: %#x",
       cpp23::to_underlying(transport_),
-      connection_handle_,
-      local_cid_,
-      remote_cid_);
+      connection_handle,
+      local_cid,
+      remote_cid);
 }
 
 void L2capChannel::Init() {
@@ -274,9 +273,9 @@ void L2capChannel::Init() {
         "transport_: %u, connection_handle_ : %u, "
         "local_cid_ : %#x, remote_cid_: %#x",
         cpp23::to_underlying(transport_),
-        connection_handle_,
-        local_cid_,
-        remote_cid_);
+        connection_handle(),
+        local_cid(),
+        remote_cid());
   }
   l2cap_channel_manager_.RegisterChannel(*this);
 }
@@ -331,7 +330,7 @@ pw::Result<H4PacketWithH4> L2capChannel::PopulateL2capPacket(
   PW_TRY_ASSIGN(
       auto acl,
       MakeEmbossWriter<emboss::AclDataFrameWriter>(h4_packet.GetHciSpan()));
-  acl.header().handle().Write(connection_handle_);
+  acl.header().handle().Write(connection_handle());
   // TODO: https://pwbug.dev/360932103 - Support packet segmentation, so this
   // value will not always be FIRST_NON_FLUSHABLE.
   acl.header().packet_boundary_flag().Write(
@@ -345,7 +344,7 @@ pw::Result<H4PacketWithH4> L2capChannel::PopulateL2capPacket(
                     acl.payload().BackingStorage().data(),
                     emboss::BasicL2capHeader::IntrinsicSizeInBytes()));
   l2cap_header.pdu_length().Write(data_length);
-  l2cap_header.channel_id().Write(remote_cid_);
+  l2cap_header.channel_id().Write(remote_cid());
 
   return h4_packet;
 }
@@ -473,8 +472,8 @@ void L2capChannel::SendEvent(L2capChannelEvent event) {
     PW_LOG_INFO(
         "btproxy: L2capChannel::SendEvent -  connection: %#x, "
         "local_cid: %#x, event: %u,",
-        connection_handle_,
-        local_cid_,
+        connection_handle(),
+        local_cid(),
         cpp23::to_underlying(event));
   }
 

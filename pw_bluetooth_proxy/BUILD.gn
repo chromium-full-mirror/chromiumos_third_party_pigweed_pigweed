@@ -87,7 +87,7 @@ _pw_bluetooth_proxy_public_deps = [
   "$dir_pw_bytes",
   "$dir_pw_containers:flat_map",
   "$dir_pw_containers:inline_queue",
-  "$dir_pw_containers:intrusive_forward_list",
+  "$dir_pw_containers:intrusive_map",
   "$dir_pw_containers:vector",
   "$dir_pw_multibuf:allocator",
   "$dir_pw_multibuf:multibuf_v1",

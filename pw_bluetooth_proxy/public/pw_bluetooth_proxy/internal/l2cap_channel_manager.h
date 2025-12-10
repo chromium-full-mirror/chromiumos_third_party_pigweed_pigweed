@@ -198,29 +198,26 @@ class L2capChannelManager {
 
  private:
   using L2capChannelPredicate = pw::Function<bool(L2capChannel&)>;
-  using L2capChannelIterator = IntrusiveForwardList<L2capChannel>::iterator;
+  using L2capChannelIterator =
+      IntrusiveMap<uint32_t, L2capChannel::Handle>::iterator;
 
   // Circularly advance `it`, wrapping around to front if `it` reaches the
   // end.
-  void Advance(IntrusiveForwardList<L2capChannel>::iterator& it)
+  void Advance(L2capChannelIterator& it)
       PW_EXCLUSIVE_LOCKS_REQUIRED(channels_mutex_);
 
   // RegisterChannel with channels_mutex_ already acquired.
-  void RegisterChannelLocked(L2capChannel& channel)
+  //
+  // @returns
+  // * @OK: Channel was registered.
+  // * @ALREADY_EXISTS: An active channel with the same connection handle, local
+  // CID, and remote CID is already registered.
+  Status RegisterChannelLocked(L2capChannel& channel)
       PW_EXCLUSIVE_LOCKS_REQUIRED(channels_mutex_);
 
   // Stop proxying L2CAP packets addressed to `channel` and stop sending L2CAP
   // packets queued in `channel`, if `channel` is currently registered.
   void DeregisterChannelLocked(L2capChannel& channel)
-      PW_EXCLUSIVE_LOCKS_REQUIRED(channels_mutex_);
-
-  // Remove the channel following `before` from the list of registered channels.
-  L2capChannel& EraseChannelAfter(const L2capChannelIterator& before)
-      PW_EXCLUSIVE_LOCKS_REQUIRED(channels_mutex_);
-
-  // Removes and closes all channels for which the given predicate function
-  // returns true.
-  void RemoveAndCloseChannelIf(L2capChannelPredicate predicate)
       PW_EXCLUSIVE_LOCKS_REQUIRED(channels_mutex_);
 
   // Deletes any channels that have been observed to be stale.
@@ -240,19 +237,20 @@ class L2capChannelManager {
   sync::Mutex channels_mutex_;
 
   // List of registered L2CAP channels.
-  IntrusiveForwardList<L2capChannel> channels_ PW_GUARDED_BY(channels_mutex_);
-
-  // List of stale L2CAP channels awaiting deletion.
-  IntrusiveForwardList<L2capChannel> stale_ PW_GUARDED_BY(channels_mutex_);
-
-  // Iterator to "most recently drained" channel. This immediately precedes the
-  // "least recently drained" channel.
-  IntrusiveForwardList<L2capChannel>::iterator mrd_channel_
+  IntrusiveMap<uint32_t, L2capChannel::Handle> channels_by_local_cid_
       PW_GUARDED_BY(channels_mutex_);
+  IntrusiveMap<uint32_t, L2capChannel::Handle> channels_by_remote_cid_
+      PW_GUARDED_BY(channels_mutex_);
+
+  // Stale L2CAP channels awaiting deletion.
+  IntrusiveMap<uint32_t, L2capChannel::Handle> stale_
+      PW_GUARDED_BY(channels_mutex_);
+
+  // Iterator to "least recently drained" channel.
+  L2capChannelIterator lrd_channel_ PW_GUARDED_BY(channels_mutex_);
 
   // Iterator to final channel to be visited in ongoing round robin.
-  IntrusiveForwardList<L2capChannel>::iterator round_robin_terminus_
-      PW_GUARDED_BY(channels_mutex_);
+  L2capChannelIterator round_robin_terminus_ PW_GUARDED_BY(channels_mutex_);
 
   // Guard access to tx related state flags.
   sync::Mutex drain_status_mutex_ PW_ACQUIRED_AFTER(channels_mutex_);
