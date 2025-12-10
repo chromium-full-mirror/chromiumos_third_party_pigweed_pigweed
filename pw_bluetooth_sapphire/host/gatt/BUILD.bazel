@@ -147,6 +147,7 @@ pw_cc_test(
         "//pw_bluetooth_sapphire/host/att",
         "//pw_bluetooth_sapphire/host/common:uuid_string_util",
         "//pw_bluetooth_sapphire/host/l2cap:testing",
+        "//pw_bluetooth_sapphire/host/testing",
         "//pw_bluetooth_sapphire/host/testing:gtest_helpers",
         "//pw_bluetooth_sapphire/host/testing:test_helpers",
     ],

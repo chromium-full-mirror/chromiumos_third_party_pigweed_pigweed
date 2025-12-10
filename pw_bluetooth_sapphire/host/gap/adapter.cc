@@ -66,6 +66,7 @@ static constexpr const char* kInspectBrEdrConnectionManagerNodeName =
     "bredr_connection_manager";
 static constexpr const char* kInspectBrEdrDiscoveryManagerNodeName =
     "bredr_discovery_manager";
+static constexpr const char* kGattNodeName = "gatt";
 
 // All asynchronous callbacks are posted on the Loop on which this Adapter
 // instance is created.
@@ -1641,6 +1642,8 @@ void AdapterImpl::InitializeStep4() {
       wake_lease_provider_);
   le_connection_manager_->AttachInspect(
       adapter_node_, kInspectLowEnergyConnectionManagerNodeName);
+
+  gatt_->AttachInspect(adapter_node_, kGattNodeName);
 
   le_advertising_manager_ = std::make_unique<LowEnergyAdvertisingManager>(
       hci_le_advertiser_.get(), le_address_manager_.get());
