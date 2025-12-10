@@ -193,6 +193,18 @@
 #define PW_RPC_DYNAMIC_ALLOCATION 0
 #endif  // PW_RPC_DYNAMIC_ALLOCATION
 
+/// If set to 0, disables the ability to create RPC call objects directly on the
+/// stack using the regular client. This forces the use of DynamicClient, which
+/// allocates call objects on the heap. This can be useful in environments with
+/// limited stack space. Defaults to 1 (stack allocation allowed).
+#ifndef PW_RPC_ALLOW_INVOCATIONS_ON_STACK
+#define PW_RPC_ALLOW_INVOCATIONS_ON_STACK 1
+#endif  // PW_RPC_ALLOW_INVOCATIONS_ON_STACK
+
+static_assert(PW_RPC_ALLOW_INVOCATIONS_ON_STACK || PW_RPC_DYNAMIC_ALLOCATION,
+              "If PW_RPC_ALLOW_INVOCATIONS_ON_STACK is 0, "
+              "PW_RPC_DYNAMIC_ALLOCATION must be 1 to allow RPC calls.");
+
 #if defined(PW_RPC_DYNAMIC_CONTAINER) || \
     defined(PW_RPC_DYNAMIC_CONTAINER_INCLUDE)
 static_assert(
