@@ -61,7 +61,6 @@ cc_library_static {
         "pw_span",
         "pw_span_cast",
         "pw_status",
-        "pw_sync",
     ],
     export_static_lib_headers: [
         "pw_allocator",
@@ -72,12 +71,15 @@ cc_library_static {
         "pw_result",
         "pw_span",
         "pw_status",
-        "pw_sync",
     ],
     header_libs: [
         "emboss_runtime_headers",
         "fuchsia_sdk_lib_stdcompat",
         "pw_bluetooth_emboss_util_include_dirs",
+        "pw_sync",
+    ],
+    export_header_lib_headers: [
+        "pw_sync",
     ],
     generated_headers: [
         "pw_bluetooth_generate_emboss_att",
