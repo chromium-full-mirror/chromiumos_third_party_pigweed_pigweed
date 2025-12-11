@@ -76,3 +76,35 @@ cc_library_headers {
     name: "pw_thread_iteration",
     export_include_dirs: ["public"],
 }
+
+// Expose pw_thread/thread.proto
+filegroup {
+    name: "pw_thread_protos",
+    srcs: [
+        "pw_thread_protos/thread.proto",
+    ],
+}
+
+genrule {
+    name: "pw_thread_pwpb_proto_header",
+    defaults: ["pw_rpc_generate_pwpb_header_with_prefix_and_protobuf"],
+    srcs: [
+        ":pw_thread_protos",
+        ":pw_tokenizer_proto_options_proto",
+        ":libprotobuf-internal-protos",
+    ],
+    out: ["pw_thread_protos/thread.pwpb.h"],
+}
+
+genrule {
+    name: "pw_thread_pwpb_rpc_header",
+    defaults: ["pw_rpc_generate_rpc_pwpb_header_with_prefix_and_protobuf"],
+    srcs: [
+        ":pw_thread_protos",
+        ":pw_tokenizer_proto_options_proto",
+        ":libprotobuf-internal-protos",
+    ],
+    out: [
+        "pw_thread_protos/thread.rpc.pwpb.h",
+    ],
+}
