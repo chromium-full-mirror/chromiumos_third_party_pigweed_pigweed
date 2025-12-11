@@ -56,4 +56,5 @@ steps:
 options:
   machineType: 'N1_HIGHCPU_32'
 
-timeout: 6h
+timeout: 1h
+queueTtl: 6h
