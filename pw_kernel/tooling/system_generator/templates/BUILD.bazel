@@ -19,5 +19,6 @@ exports_files(
         "interrupts.rs.jinja",
         "riscv_app.ld.jinja",
         "system.rs.jinja",
+        "pigweed_linker_sections.ld.jinja",
     ],
 )
