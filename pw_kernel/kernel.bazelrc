@@ -49,7 +49,6 @@ build:k_lint --@rules_rust//rust/settings:clippy_flags="\
 -Dclippy::must_use_unit,\
 -Dclippy::obfuscated_if_else,\
 -Dclippy::perf,\
--Dclippy::print_stdout,\
 -Dclippy::return_self_not_must_use,\
 -Dclippy::std_instead_of_core,\
 -Dclippy::style,\
