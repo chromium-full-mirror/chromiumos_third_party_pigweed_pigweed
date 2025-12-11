@@ -149,6 +149,18 @@ alias(
 )
 
 alias(
+    name = "futures",
+    target_compatible_with = select({
+        "@pigweed//pw_build/constraints/rust:std": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
+    actual = select({
+        "@pigweed//pw_build/constraints/rust:std": "@crates_std//:futures",
+    }),
+    visibility = ["//visibility:public"],
+)
+
+alias(
     name = "hashlink",
     target_compatible_with = select({
         "@pigweed//pw_build/constraints/rust:std": [],
@@ -156,6 +168,18 @@ alias(
     }),
     actual = select({
         "@pigweed//pw_build/constraints/rust:std": "@crates_std//:hashlink",
+    }),
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "hex",
+    target_compatible_with = select({
+        "@pigweed//pw_build/constraints/rust:std": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
+    actual = select({
+        "@pigweed//pw_build/constraints/rust:std": "@crates_std//:hex",
     }),
     visibility = ["//visibility:public"],
 )
@@ -396,6 +420,42 @@ alias(
     }),
     actual = select({
         "@pigweed//pw_build/constraints/rust:std": "@crates_std//:syn",
+    }),
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "thiserror",
+    target_compatible_with = select({
+        "@pigweed//pw_build/constraints/rust:std": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
+    actual = select({
+        "@pigweed//pw_build/constraints/rust:std": "@crates_std//:thiserror",
+    }),
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "tokio",
+    target_compatible_with = select({
+        "@pigweed//pw_build/constraints/rust:std": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
+    actual = select({
+        "@pigweed//pw_build/constraints/rust:std": "@crates_std//:tokio",
+    }),
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "tokio-util",
+    target_compatible_with = select({
+        "@pigweed//pw_build/constraints/rust:std": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
+    actual = select({
+        "@pigweed//pw_build/constraints/rust:std": "@crates_std//:tokio-util",
     }),
     visibility = ["//visibility:public"],
 )
