@@ -219,6 +219,45 @@ pw_test("future_test") {
   negative_compilation_tests = true
 }
 
+pw_source_set("future_timeout") {
+  public_configs = [ ":public_include_path" ]
+  public = [ "public/pw_async2/future_timeout.h" ]
+  public_deps = [
+    ":channel",
+    ":dispatcher",
+    ":poll",
+    ":system_time_provider",
+    ":time_provider",
+    ":value_future",
+    "$dir_pigweed/third_party/fuchsia:stdcompat",
+    "$dir_pw_assert:assert",
+    "$dir_pw_chrono:system_clock",
+    dir_pw_function,
+    dir_pw_preprocessor,
+    dir_pw_status,
+  ]
+}
+
+pw_test("future_timeout_test") {
+  enable_if = pw_async2_DISPATCHER_FOR_TEST_BACKEND != ""
+  deps = [
+    ":channel",
+    ":dispatcher",
+    ":future_timeout",
+    ":pend_func_task",
+    ":poll",
+    ":simulated_time_provider",
+    ":testing",
+    ":value_future",
+    "$dir_pw_chrono:system_clock",
+    dir_pw_function,
+    dir_pw_result,
+    dir_pw_status,
+  ]
+  negative_compilation_tests = true
+  sources = [ "future_timeout_test.cc" ]
+}
+
 pw_source_set("value_future") {
   public_configs = [ ":public_include_path" ]
   public = [ "public/pw_async2/value_future.h" ]

@@ -86,6 +86,29 @@ pw_cc_test(
 )
 
 pw_cc_test(
+    name = "timeout_test",
+    srcs = ["timeout_test.cc"],
+    target_compatible_with = incompatible_with_mcu(),
+    deps = [
+        "//pw_allocator:libc_allocator",
+        "//pw_assert:check",
+        "//pw_async2:basic_dispatcher",
+        "//pw_async2:coro",
+        "//pw_async2:coro_or_else_task",
+        "//pw_async2:future_timeout",
+        "//pw_async2:pend_func_task",
+        "//pw_async2:pendable",
+        "//pw_async2:select",
+        "//pw_async2:system_time_provider",
+        "//pw_containers:vector",
+        "//pw_log",
+        "//pw_result",
+        "//pw_status",
+        "//pw_string",
+    ],
+)
+
+pw_cc_test(
     name = "inline_async_queue_with_coro_test",
     srcs = ["inline_async_queue_with_coro_test.cc"],
     target_compatible_with = incompatible_with_mcu(),

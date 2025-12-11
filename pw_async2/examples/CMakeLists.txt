@@ -47,6 +47,27 @@ if("cxx_std_20" IN_LIST CMAKE_CXX_COMPILE_FEATURES)
       pw_chrono.system_clock
   )
 
+  pw_add_test(pw_async2.examples.timeout_test
+    SOURCES
+      timeout_test.cc
+    PRIVATE_DEPS
+      pw_allocator.libc_allocator
+      pw_assert.check
+      pw_async2.basic_dispatcher
+      pw_async2.coro
+      pw_async2.coro_or_else_task
+      pw_async2.future_timeout
+      pw_async2.pend_func_task
+      pw_async2.pendable
+      pw_async2.select
+      pw_async2.system_time_provider
+      pw_containers.vector
+      pw_log
+      pw_result
+      pw_status
+      pw_string
+  )
+
   pw_add_test(pw_async2.examples.inline_async_queue_with_coro_test
     SOURCES
       inline_async_queue_with_coro_test.cc

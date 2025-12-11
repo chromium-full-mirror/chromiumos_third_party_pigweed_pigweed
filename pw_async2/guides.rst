@@ -246,6 +246,12 @@ then logs another message.
      pw::async2::TimeFuture<pw::chrono::SystemClock> future_;
    };
 
+.. _module-pw_async2-guides-timeouts:
+
+Timing out Futures
+==================
+See :ref:`module-pw_async2-futures-timeout`.
+
 .. _module-pw_async2-guides-combinators:
 
 -------------------------------------------

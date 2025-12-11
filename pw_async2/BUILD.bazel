@@ -285,6 +285,48 @@ pw_cc_test(
 )
 
 cc_library(
+    name = "future_timeout",
+    hdrs = [
+        "public/pw_async2/future_timeout.h",
+    ],
+    strip_include_prefix = "public",
+    deps = [
+        ":channel",
+        ":dispatcher",
+        ":poll",
+        ":system_time_provider",
+        ":time_provider",
+        ":value_future",
+        "//pw_assert:assert",
+        "//pw_chrono:system_clock",
+        "//pw_function",
+        "//pw_preprocessor",
+        "//pw_status",
+        "//third_party/fuchsia:stdcompat",
+    ],
+)
+
+pw_cc_test(
+    name = "future_timeout_test",
+    srcs = ["future_timeout_test.cc"],
+    has_nc_test = True,
+    deps = [
+        ":channel",
+        ":dispatcher",
+        ":future_timeout",
+        ":pend_func_task",
+        ":poll",
+        ":simulated_time_provider",
+        ":testing",
+        ":value_future",
+        "//pw_chrono:system_clock",
+        "//pw_function",
+        "//pw_result",
+        "//pw_status",
+    ],
+)
+
+cc_library(
     name = "value_future",
     hdrs = [
         "public/pw_async2/value_future.h",
@@ -828,6 +870,7 @@ filegroup(
         "public/pw_async2/enqueue_heap_func.h",
         "public/pw_async2/epoll_dispatcher.h",
         "public/pw_async2/future.h",
+        "public/pw_async2/future_timeout.h",
         "public/pw_async2/internal/config.h",
         "public/pw_async2/join.h",
         "public/pw_async2/notified_dispatcher.h",

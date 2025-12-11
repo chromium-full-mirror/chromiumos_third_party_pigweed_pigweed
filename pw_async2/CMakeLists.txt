@@ -190,6 +190,45 @@ pw_add_test(pw_async2.future_test
     pw_compilation_testing._pigweed_only_negative_compilation
 )
 
+pw_add_library(pw_async2.future_timeout INTERFACE
+  HEADERS
+    public/pw_async2/future_timeout.h
+  PUBLIC_DEPS
+    pw_assert.assert
+    pw_async2.channel
+    pw_async2.dispatcher
+    pw_async2.poll
+    pw_async2.system_time_provider
+    pw_async2.time_provider
+    pw_async2.value_future
+    pw_chrono.system_clock
+    pw_function
+    pw_preprocessor
+    pw_status
+    pw_third_party.fuchsia.stdcompat
+  PUBLIC_INCLUDES
+    public
+)
+
+pw_add_test(pw_async2.future_timeout_test
+  SOURCES
+    future_timeout_test.cc
+  PRIVATE_DEPS
+    pw_async2.channel
+    pw_async2.dispatcher
+    pw_async2.future_timeout
+    pw_async2.pend_func_task
+    pw_async2.poll
+    pw_async2.simulated_time_provider
+    pw_async2.testing
+    pw_async2.value_future
+    pw_chrono.system_clock
+    pw_compilation_testing._pigweed_only_negative_compilation
+    pw_function
+    pw_result
+    pw_status
+)
+
 pw_add_library(pw_async2.value_future INTERFACE
   HEADERS
     public/pw_async2/value_future.h
