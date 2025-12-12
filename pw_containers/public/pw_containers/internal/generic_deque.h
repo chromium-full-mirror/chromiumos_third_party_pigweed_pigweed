@@ -412,7 +412,9 @@ class GenericDeque : public GenericDequeBase<CountAndCapacityType> {
 
   constexpr void DestroyAll() {
     if constexpr (!std::is_trivially_destructible_v<value_type>) {
-      std::destroy(begin(), end());
+      auto [first, second] = contiguous_data();
+      std::destroy(first.begin(), first.end());
+      std::destroy(second.begin(), second.end());
     }
   }
 
