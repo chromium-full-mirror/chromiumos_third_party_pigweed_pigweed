@@ -57,7 +57,9 @@ class FormattingSuite:
 
         if 'BUILD_WORKING_DIRECTORY' in os.environ:
             os.chdir(os.environ['BUILD_WORKING_DIRECTORY'])
-        parser = argparse.ArgumentParser(description=__doc__)
+        parser = argparse.ArgumentParser(
+            prog='./pw format', description=__doc__
+        )
         cli_support.add_arguments(parser, default_to_fix=True)
         args = parser.parse_args()
         return 0 if self.format_files(**vars(args)) else 1

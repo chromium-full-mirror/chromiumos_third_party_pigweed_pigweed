@@ -128,7 +128,7 @@ class _WorkflowGroupPlugin(multitool.MultitoolPlugin):
 
     def run(self, plugin_args: Sequence[str]) -> int:
         parser = argparse.ArgumentParser(
-            prog=f'pw {self.name()}',
+            prog=f'./pw {self.name()}',
             description=self.help(),
         )
         step_choices = [

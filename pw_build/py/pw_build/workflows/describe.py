@@ -43,6 +43,7 @@ class Describe:
     def describe(self, plugin_args: Sequence[str]) -> str:
         """Extract some or part of a workflows config file."""
         parser = argparse.ArgumentParser(
+            prog='./pw describe',
             description=(
                 'Describes subsets or expanded views of the current '
                 'workflows configuration.'
