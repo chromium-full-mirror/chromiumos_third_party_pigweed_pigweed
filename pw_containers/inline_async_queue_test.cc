@@ -18,10 +18,13 @@
 #include "pw_async2/dispatcher_for_test.h"
 #include "pw_async2/pend_func_task.h"
 #include "pw_async2/try.h"
+#include "pw_preprocessor/compiler.h"
 #include "pw_status/status.h"
 #include "pw_unit_test/framework.h"
 
 namespace {
+
+PW_MODIFY_DIAGNOSTIC(ignored, "-Wdeprecated-declarations");
 
 using pw::async2::Context;
 using pw::async2::DispatcherForTest;

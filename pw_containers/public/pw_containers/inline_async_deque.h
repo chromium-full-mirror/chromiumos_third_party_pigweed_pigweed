@@ -22,7 +22,11 @@
 #include "pw_containers/inline_deque.h"
 #include "pw_containers/internal/async_count_and_capacity.h"
 #include "pw_containers/internal/raw_storage.h"
+#include "pw_preprocessor/compiler.h"
 #include "pw_toolchain/constexpr_tag.h"
+
+PW_MODIFY_DIAGNOSTICS_PUSH();
+PW_MODIFY_DIAGNOSTIC(ignored, "-Wdeprecated-declarations");
 
 namespace pw {
 
@@ -32,16 +36,21 @@ namespace pw {
 template <typename T, typename SizeType, size_t kCapacity>
 class BasicInlineAsyncDeque;
 
-/// Async wrapper around `pw::InlineDeque`.
+/// Deprecated async wrapper around `pw::InlineDeque`.
 ///
 /// This class mimics the structure of `BasicInlineDeque` to allow referring to
 /// an `InlineAsyncDeque` without an explicit maximum size.
 ///
 /// @warning `InlineAsyncDeque` is NOT thread safe. External synchronization is
 /// required to share an `InlineAsyncDeque` between threads.
+///
+/// @deprecated `InlineAsyncDeque` is deprecated. Use pw_async2 channels
+/// (pw_async2/channel.h) instead.
 template <typename T, size_t kCapacity = containers::internal::kGenericSized>
 using InlineAsyncDeque = BasicInlineAsyncDeque<T, uint16_t, kCapacity>;
 
+/// Deprecated async wrapper around `pw::BasicInlineDeque`.
+///
 /// `BasicInlineAsyncDeque` adds async `PendHasSpace` and `PendNotEmpty` methods
 /// to `BasicInlineDeque`.
 ///
@@ -53,10 +62,15 @@ using InlineAsyncDeque = BasicInlineAsyncDeque<T, uint16_t, kCapacity>;
 /// @warning `BasicInlineAsyncDeque` is NOT thread safe. External
 /// synchronization is required to share a `BasicInlineAsyncDeque` between
 /// threads.
+///
+/// @deprecated `BasicInlineAsyncDeque` is deprecated. Use pw_async2 channels
+/// (pw_async2/channel.h) instead.
 template <typename ValueType,
           typename SizeType,
           size_t kCapacity = containers::internal::kGenericSized>
-class BasicInlineAsyncDeque
+class [[deprecated(
+    "Use pw_async2 Channels instead "
+    "(pw_async2/channel.h)")]] BasicInlineAsyncDeque
     : public containers::internal::RawStorage<
           BasicInlineAsyncDeque<ValueType,
                                 SizeType,
@@ -271,3 +285,5 @@ class BasicInlineAsyncDeque<ValueType,
 };
 
 }  // namespace pw
+
+PW_MODIFY_DIAGNOSTICS_POP();

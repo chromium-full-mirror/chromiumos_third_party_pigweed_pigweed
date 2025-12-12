@@ -681,5 +681,3 @@ if("cxx_std_20" IN_LIST CMAKE_CXX_COMPILE_FEATURES)
       pw_containers.vector
   )
 endif()
-
-add_subdirectory(examples)

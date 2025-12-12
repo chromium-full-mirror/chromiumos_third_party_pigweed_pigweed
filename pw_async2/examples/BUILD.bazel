@@ -16,7 +16,6 @@ load("@rules_python//sphinxdocs:sphinx_docs_library.bzl", "sphinx_docs_library")
 load("//pw_build:compatibility.bzl", "incompatible_with_mcu", "minimum_cxx_20")
 load("//pw_build:pw_cc_binary.bzl", "pw_cc_binary")
 load("//pw_unit_test:pw_cc_test.bzl", "pw_cc_test")
-load("//pw_unit_test:pw_golden_test.bzl", "pw_golden_test")
 
 package(
     default_visibility = ["//visibility:public"],
@@ -109,50 +108,6 @@ pw_cc_test(
 )
 
 pw_cc_test(
-    name = "inline_async_queue_with_coro_test",
-    srcs = ["inline_async_queue_with_coro_test.cc"],
-    target_compatible_with = incompatible_with_mcu(),
-    deps = [
-        "//pw_allocator:libc_allocator",
-        "//pw_async2:basic_dispatcher",
-        "//pw_async2:coro",
-        "//pw_async2:coro_or_else_task",
-        "//pw_async2:pendable",
-        "//pw_containers:inline_async_queue",
-        "//pw_containers:vector",
-        "//pw_log",
-        "//pw_status",
-    ],
-)
-
-pw_cc_test(
-    name = "inline_async_queue_with_tasks_test",
-    srcs = ["inline_async_queue_with_tasks_test.cc"],
-    target_compatible_with = incompatible_with_mcu(),
-    deps = [
-        "//pw_async2:basic_dispatcher",
-        "//pw_containers:inline_async_queue",
-        "//pw_containers:vector",
-        "//pw_log",
-        "//pw_span",
-        "//pw_status",
-    ],
-)
-
-pw_golden_test(
-    name = "inline_async_queue_with_tasks_golden_test",
-    executable = ":inline_async_queue_with_tasks_test",
-    expected = ":inline_async_queue_with_tasks_golden_test.expected",
-
-    # Only tun the golden test with the light framework, so that the output is
-    # consistent for this golden test.
-    target_compatible_with = select({
-        "//pw_unit_test:backend_is_light": [],
-        "//conditions:default": ["@platforms//:incompatible"],
-    }),
-)
-
-pw_cc_test(
     name = "once_send_recv_test",
     srcs = ["once_send_recv_test.cc"],
     deps = [
@@ -218,8 +173,6 @@ sphinx_docs_library(
         "coro_blinky_loop.cc",
         "count.cc",
         "custom_future.cc",
-        "inline_async_queue_with_coro_test.cc",
-        "inline_async_queue_with_tasks_test.cc",
         "interrupt.cc",
         "once_send_recv_test.cc",
         "unit_test.cc",

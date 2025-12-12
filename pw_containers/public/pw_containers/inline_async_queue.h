@@ -22,6 +22,10 @@
 #include "pw_containers/inline_async_deque.h"
 #include "pw_containers/inline_queue.h"
 #include "pw_containers/internal/async_count_and_capacity.h"
+#include "pw_preprocessor/compiler.h"
+
+PW_MODIFY_DIAGNOSTICS_PUSH();
+PW_MODIFY_DIAGNOSTIC(ignored, "-Wdeprecated-declarations");
 
 namespace pw {
 
@@ -31,17 +35,22 @@ namespace pw {
 template <typename ValueType, typename SizeType, size_t kCapacity>
 class BasicInlineAsyncQueue;
 
-/// Async wrapper around `pw::InlineQueue`.
+/// Deprecated async wrapper around `pw::InlineQueue`.
 ///
 /// This class mimics the structure of `BasicInlineQueue` to allow referring to
 /// an `InlineAsyncQueue` without an explicit maximum size.
 ///
 /// @warning `InlineAsyncQueue` is NOT thread safe. External synchronization is
 /// required to share an `InlineAsyncQueue` between threads.
+///
+/// @deprecated `InlineAsyncQueue` is deprecated. Use pw_async2 channels
+/// (pw_async2/channel.h) instead.
 template <typename ValueType,
           size_t kCapacity = containers::internal::kGenericSized>
 using InlineAsyncQueue = BasicInlineAsyncQueue<ValueType, uint16_t, kCapacity>;
 
+/// Deprecated async wrapper around `pw::BasicInlineQueue`.
+///
 /// `BasicInlineAsyncQueue` adds async `PendHasSpace` and `PendNotEmpty` methods
 /// to `BasicInlineQueue`.
 ///
@@ -53,10 +62,14 @@ using InlineAsyncQueue = BasicInlineAsyncQueue<ValueType, uint16_t, kCapacity>;
 /// @warning `BasicInlineAsyncQueue` is NOT thread safe. External
 /// synchronization is required to share a `BasicInlineAsyncQueue` between
 /// threads.
+///
+/// @deprecated `BasicInlineAsyncQueue` is deprecated. Use pw_async2 channels
+/// (pw_async2/channel.h) instead.
 template <typename ValueType,
           typename SizeType,
           size_t kCapacity = containers::internal::kGenericSized>
-class BasicInlineAsyncQueue
+class [[deprecated("Use pw_async2 Channels instead (pw_async2/channel.h)")]]
+BasicInlineAsyncQueue
     : public BasicInlineAsyncQueue<ValueType,
                                    SizeType,
                                    containers::internal::kGenericSized> {
@@ -244,3 +257,5 @@ class BasicInlineAsyncQueue<ValueType,
 };
 
 }  // namespace pw
+
+PW_MODIFY_DIAGNOSTICS_POP();

@@ -280,6 +280,7 @@ pw_source_set("packet_proxy") {
     "$dir_pw_containers:inline_async_queue",
     dir_pw_allocator,
   ]
+  cflags = [ "-Wno-deprecated-declarations" ]
 }
 
 pw_test("packet_proxy_test") {
@@ -292,4 +293,5 @@ pw_test("packet_proxy_test") {
     "$dir_pw_async2:testing",
   ]
   enable_if = pw_async2_DISPATCHER_FOR_TEST_BACKEND != ""
+  cflags = [ "-Wno-deprecated-declarations" ]
 }

@@ -34,6 +34,7 @@ cc_library(
         "public/pw_multibuf/size_report/sender.h",
         "public/pw_multibuf/size_report/transfer.h",
     ],
+    copts = ["-Wno-deprecated-declarations"],
     strip_include_prefix = "public",
     deps = [
         "//pw_assert:assert",

@@ -104,6 +104,7 @@ pw_cc_test(
 pw_cc_test(
     name = "pseudo_encrypt",
     srcs = ["pseudo_encrypt.cc"],
+    copts = ["-Wno-deprecated-declarations"],
     deps = [
         ":protocol",
         "//pw_allocator",

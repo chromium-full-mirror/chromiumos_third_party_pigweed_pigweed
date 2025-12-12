@@ -319,6 +319,7 @@ cc_library(
         "public/pw_channel/packet_proxy.h",
         "public/pw_channel/packet_proxy_task.h",
     ],
+    copts = ["-Wno-deprecated-declarations"],
     implementation_deps = ["//pw_assert:check"],
     strip_include_prefix = "public",
     deps = [
@@ -341,6 +342,7 @@ cc_library(
 pw_cc_test(
     name = "packet_proxy_test",
     srcs = ["packet_proxy_test.cc"],
+    copts = ["-Wno-deprecated-declarations"],
     deps = [
         ":packet_proxy",
         ":test_packet_channel",

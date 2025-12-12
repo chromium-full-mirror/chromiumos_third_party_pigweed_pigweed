@@ -73,6 +73,7 @@ cc_library(
         "public/pw_bluetooth_proxy/comms2/l2cap_task.h",
         "public/pw_bluetooth_proxy/comms2/proxy.h",
     ],
+    copts = ["-Wno-deprecated-declarations"],
     implementation_deps = [
         "//pw_assert:check",
         "//pw_bluetooth:emboss_hci_commands",
@@ -94,6 +95,7 @@ cc_library(
 pw_cc_test(
     name = "proxy_test",
     srcs = ["proxy_test.cc"],
+    copts = ["-Wno-deprecated-declarations"],
     deps = [
         ":proxy",
         "//pw_allocator:testing",

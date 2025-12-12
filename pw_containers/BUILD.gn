@@ -186,6 +186,7 @@ pw_source_set("inline_async_queue") {
     ":inline_async_deque",
     ":inline_queue",
     ":queue_common",
+    dir_pw_preprocessor,
   ]
 }
 
@@ -556,6 +557,7 @@ pw_test("inline_async_deque_test") {
     "$dir_pw_async2:testing",
     "$dir_pw_async2:testing",
     "$dir_pw_status",
+    dir_pw_preprocessor,
   ]
 }
 

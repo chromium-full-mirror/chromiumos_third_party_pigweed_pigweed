@@ -141,6 +141,7 @@ pw_add_library(pw_containers.inline_async_deque INTERFACE
   PUBLIC_DEPS
     pw_containers.async_count_and_capacity
     pw_containers.inline_deque
+    pw_preprocessor
 )
 
 pw_add_library(pw_containers._queue_common INTERFACE
@@ -646,6 +647,7 @@ pw_add_test(pw_containers.inline_async_queue_test
     pw_async2.pend_func_task
     pw_async2.poll
     pw_async2.testing
+    pw_preprocessor
     pw_status
   GROUPS
     modules

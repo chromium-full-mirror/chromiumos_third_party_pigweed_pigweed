@@ -261,6 +261,7 @@ cc_library(
     deps = [
         ":async_count_and_capacity",
         ":inline_deque",
+        "//pw_preprocessor",
     ],
 )
 
@@ -304,6 +305,7 @@ cc_library(
         ":async_count_and_capacity",
         ":inline_async_deque",
         ":inline_queue",
+        "//pw_preprocessor",
     ],
 )
 
@@ -625,6 +627,7 @@ pw_cc_test(
         "//pw_async2:pend_func_task",
         "//pw_async2:poll",
         "//pw_async2:testing",
+        "//pw_preprocessor",
         "//pw_status",
     ],
 )
@@ -663,6 +666,7 @@ pw_cc_test(
         "//pw_async2:pend_func_task",
         "//pw_async2:poll",
         "//pw_async2:testing",
+        "//pw_preprocessor",
         "//pw_status",
     ],
 )
