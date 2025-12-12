@@ -34,6 +34,8 @@ use crate::sync::event::{Event, EventConfig, EventSignaler};
 
 /// The memory backing a thread's stack before it has been started.
 ///
+/// Stacks are aligned to 8 bytes for broad ABI compatibility.
+///
 /// After a thread has been started, ownership of its stack's memory is (from
 /// the Rust Abstract Machine (AM) perspective) relinquished, and so the type we
 /// use to represent that memory is irrelevant.
@@ -49,14 +51,19 @@ use crate::sync::event::{Event, EventConfig, EventSignaler};
 ///   provenance][provenance].
 ///
 /// [provenance]: https://github.com/rust-lang/unsafe-code-guidelines/issues/286#issuecomment-2837585644
-pub type StackStorage<const N: usize> = [MaybeUninit<u8>; N];
+#[repr(align(8))]
+pub struct StackStorage<const N: usize> {
+    pub stack: [MaybeUninit<u8>; N],
+}
 
 pub trait StackStorageExt {
     const ZEROED: Self;
 }
 
 impl<const N: usize> StackStorageExt for StackStorage<N> {
-    const ZEROED: StackStorage<N> = [MaybeUninit::new(0); N];
+    const ZEROED: StackStorage<N> = StackStorage {
+        stack: [MaybeUninit::new(0); N],
+    };
 }
 
 #[derive(Clone, Copy)]
@@ -783,7 +790,7 @@ macro_rules! init_thread {
                 $crate::arch::Arch,
                 // SAFETY: The caller promises that this function will be
                 // executed at most once.
-                Stack::from_slice(unsafe { static_mut_ref!(StackStorage<{ $stack_size }> = StackStorageExt::ZEROED)}),
+                Stack::from_slice(&unsafe { static_mut_ref!(StackStorage<{ $stack_size }> = StackStorageExt::ZEROED)}.stack),
                 $entry,
                 0
             );
@@ -866,23 +873,21 @@ macro_rules! init_non_priv_thread {
                 "Initializing non-privileged thread '{}'",
                 $name as &'static str
             );
-            unsafe {
-                if let Err(e) = thread.initialize_non_priv_thread(
-                    arch::Arch,
-                    // SAFETY: The caller promises that this function will be
-                    // executed at most once.
-                    Stack::from_slice(unsafe { static_mut_ref!(StackStorage<{ $kernel_stack_size }> = StackStorageExt::ZEROED)}),
-                    initial_sp,
-                    proc,
-                    entry,
-                    (0, 0, 0)
-                ) {
-                    $crate::macro_exports::pw_assert::panic!(
-                        "Error initializing thread: {}: {}",
-                        $name as &'static str,
-                        e as u32
-                    );
-                }
+            if let Err(e) = thread.initialize_non_priv_thread(
+                arch::Arch,
+                // SAFETY: The caller promises that this function will be
+                // executed at most once.
+                Stack::from_slice(&unsafe { static_mut_ref!(StackStorage<{ $kernel_stack_size }> = StackStorageExt::ZEROED)}.stack),
+                initial_sp,
+                proc,
+                entry,
+                (0, 0, 0)
+            ) {
+                $crate::macro_exports::pw_assert::panic!(
+                    "Error initializing thread: {}: {}",
+                    $name as &'static str,
+                    e as u32
+                );
             }
 
             thread
@@ -904,6 +909,6 @@ pub fn init_thread_in<K: Kernel, T: ThreadArg, const STACK_SIZE: usize>(
 ) -> ForeignBox<Thread<K>> {
     *thread = Thread::new(name, priority);
     let mut thread = ForeignBox::from(thread);
-    thread.initialize_kernel_thread(kernel, Stack::from_slice(&*stack), entry, arg);
+    thread.initialize_kernel_thread(kernel, Stack::from_slice(&stack.stack), entry, arg);
     thread
 }
