@@ -27,6 +27,7 @@ namespace {
 using pw::async2::ChannelStorage;
 using pw::async2::Context;
 using pw::async2::CreateSpscChannel;
+using pw::async2::Dispatcher;
 using pw::async2::DispatcherForTest;
 using pw::async2::Poll;
 using pw::async2::Ready;
@@ -452,6 +453,87 @@ TEST(Channel, BlockingReceive_ReturnsExistingValueImmediately) {
   received = receiver.BlockingReceive(dispatcher,
                                       pw::chrono::SystemClock::duration(0));
   ASSERT_EQ(received.status(), pw::Status::DeadlineExceeded());
+}
+
+TEST(Channel, BlockingSend_AlreadyClosed) {
+  DispatcherForTest dispatcher;
+  ChannelStorage<int, 2> storage;
+  auto [channel, sender, receiver] = CreateSpscChannel(storage);
+  channel.Release();
+
+  sender.Disconnect();
+
+  struct {
+    Sender<int>& sender;
+    Dispatcher& dispatcher;
+  } ctx{sender, dispatcher};
+
+  pw::thread::test::TestThreadContext context;
+  pw::Thread sender_thread(context.options(), [&ctx]() {
+    EXPECT_EQ(ctx.sender.BlockingSend(ctx.dispatcher, 1),
+              pw::Status::FailedPrecondition());
+  });
+
+  dispatcher.AllowBlocking();
+  dispatcher.RunToCompletion();
+  sender_thread.join();
+}
+
+TEST(Channel, BlockingReceive_AlreadyClosed) {
+  DispatcherForTest dispatcher;
+  ChannelStorage<int, 2> storage;
+  auto [channel, sender, receiver] = CreateSpscChannel(storage);
+  channel.Release();
+
+  receiver.Disconnect();
+
+  struct {
+    Receiver<int>& receiver;
+    Dispatcher& dispatcher;
+  } ctx{receiver, dispatcher};
+
+  pw::thread::test::TestThreadContext context;
+  pw::Thread receiver_thread(context.options(), [&ctx]() {
+    EXPECT_EQ(ctx.receiver.BlockingReceive(ctx.dispatcher).status(),
+              pw::Status::FailedPrecondition());
+  });
+
+  dispatcher.AllowBlocking();
+  dispatcher.RunToCompletion();
+  receiver_thread.join();
+}
+
+TEST(Channel, BlockingReceive_ClosedWithData) {
+  DispatcherForTest dispatcher;
+  ChannelStorage<int, 2> storage;
+  auto [channel, sender, receiver] = CreateSpscChannel(storage);
+  channel.Release();
+
+  PW_TEST_ASSERT_OK(sender.TrySend(1));
+  sender.Disconnect();
+
+  struct {
+    Receiver<int>& receiver;
+    Dispatcher& dispatcher;
+  } ctx{receiver, dispatcher};
+
+  pw::thread::test::TestThreadContext context;
+  pw::Thread receiver_thread(context.options(), [&ctx]() {
+    // Channel is closed, but receiver should still be able to read the data
+    EXPECT_FALSE(ctx.receiver.is_open());
+    auto result = ctx.receiver.BlockingReceive(ctx.dispatcher);
+    ASSERT_TRUE(result.ok());
+    EXPECT_EQ(*result, 1);
+
+    // Now the channel is empty and closed.
+    EXPECT_FALSE(ctx.receiver.is_open());
+    EXPECT_EQ(ctx.receiver.BlockingReceive(ctx.dispatcher).status(),
+              pw::Status::FailedPrecondition());
+  });
+
+  dispatcher.AllowBlocking();
+  dispatcher.RunToCompletion();
+  receiver_thread.join();
 }
 
 }  // namespace

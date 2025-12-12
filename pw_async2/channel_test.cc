@@ -841,4 +841,124 @@ TEST(ChannelHandles, DefaultConstruct) {
   EXPECT_FALSE(receiver.is_open());
 }
 
+TEST(StaticChannel, SendOnClosedReturnsFalse) {
+  DispatcherForTest dispatcher;
+  ChannelStorage<int, 2> storage;
+  auto channel = CreateMpmcChannel(storage);
+
+  Sender<int> sender = channel.CreateSender();
+  channel.Release();
+  sender.Disconnect();
+
+  EXPECT_FALSE(sender.is_open());
+  EXPECT_EQ(sender.TrySend(1), pw::Status::FailedPrecondition());
+  EXPECT_EQ(sender.TryReserveSend().status(), pw::Status::FailedPrecondition());
+
+  PendFuncTask task([&sender](Context& cx) -> Poll<> {
+    auto send_future = sender.Send(1);
+    PW_TRY_READY_ASSIGN(bool sent, send_future.Pend(cx));
+    EXPECT_FALSE(sent);
+
+    auto reserve_future = sender.ReserveSend();
+    PW_TRY_READY_ASSIGN(auto reservation, reserve_future.Pend(cx));
+    EXPECT_FALSE(reservation.has_value());
+
+    return Ready();
+  });
+
+  dispatcher.Post(task);
+  dispatcher.RunToCompletion();
+}
+
+TEST(StaticChannel, Receive_Closed) {
+  DispatcherForTest dispatcher;
+  ChannelStorage<int, 2> storage;
+  auto channel = CreateMpmcChannel(storage);
+
+  Receiver<int> receiver = channel.CreateReceiver();
+  channel.Release();
+  receiver.Disconnect();
+  ASSERT_FALSE(receiver.is_open());
+
+  EXPECT_EQ(receiver.TryReceive().status(), pw::Status::FailedPrecondition());
+
+  PendFuncTask task([&receiver](Context& cx) -> Poll<> {
+    auto receive_future = receiver.Receive();
+    PW_TRY_READY_ASSIGN(auto result, receive_future.Pend(cx));
+    EXPECT_FALSE(result.has_value());
+    return Ready();
+  });
+
+  dispatcher.Post(task);
+  dispatcher.RunToCompletion();
+}
+
+TEST(StaticChannel, TryReceive_ClosedWithData) {
+  DispatcherForTest dispatcher;
+  ChannelStorage<int, 2> storage;
+  auto channel = CreateMpmcChannel(storage);
+
+  Sender<int> sender = channel.CreateSender();
+  Receiver<int> receiver = channel.CreateReceiver();
+  channel.Release();
+
+  PW_TEST_ASSERT_OK(sender.TrySend(1));
+  sender.Disconnect();
+  ASSERT_FALSE(receiver.is_open());
+
+  auto result = receiver.TryReceive();
+  ASSERT_TRUE(result.ok());
+  EXPECT_EQ(*result, 1);
+
+  EXPECT_EQ(receiver.TryReceive().status(), pw::Status::FailedPrecondition());
+}
+
+TEST(StaticChannel, Receive_ClosedWithData) {
+  DispatcherForTest dispatcher;
+  ChannelStorage<int, 2> storage;
+  auto channel = CreateMpmcChannel(storage);
+
+  Sender<int> sender = channel.CreateSender();
+  Receiver<int> receiver = channel.CreateReceiver();
+  channel.Release();
+
+  PW_TEST_ASSERT_OK(sender.TrySend(1));
+  sender.Disconnect();
+  EXPECT_FALSE(channel.is_open());
+
+  PendFuncTask task([&receiver](Context& cx) -> Poll<> {
+    auto result = receiver.Receive().Pend(cx);
+    EXPECT_TRUE(result.IsReady());
+    EXPECT_TRUE(result->has_value());
+    EXPECT_EQ(*result, 1);
+
+    PW_TRY_READY_ASSIGN(result, receiver.Receive().Pend(cx));
+    EXPECT_TRUE(result.IsReady());
+    EXPECT_FALSE(result->has_value());
+
+    return Ready();
+  });
+
+  dispatcher.Post(task);
+  dispatcher.RunToCompletion();
+}
+
+TEST(StaticChannel, CreateSenderWhenClosed) {
+  ChannelStorage<int, 2> storage;
+  auto channel = CreateMpmcChannel(storage);
+  channel.Close();
+
+  Sender<int> sender = channel.CreateSender();
+  EXPECT_FALSE(sender.is_open());
+}
+
+TEST(StaticChannel, CreateReceiverWhenClosed) {
+  ChannelStorage<int, 2> storage;
+  auto channel = CreateMpmcChannel(storage);
+  channel.Close();
+
+  Receiver<int> receiver = channel.CreateReceiver();
+  EXPECT_FALSE(receiver.is_open());
+}
+
 }  // namespace
