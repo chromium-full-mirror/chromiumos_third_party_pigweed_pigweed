@@ -11,6 +11,7 @@
 # WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 # License for the specific language governing permissions and limitations under
 # the License.
+
 load("@rules_rust//rust:defs.bzl", "rust_library")
 load("//pw_kernel:flags.bzl", "KERNEL_TEST_DEPS", "KERNEL_TEST_RUSTC_FLAGS")
 
@@ -18,6 +19,7 @@ rust_library(
     name = "integration_tests",
     srcs = [
         "lib.rs",
+        "stack.rs",
         "sync.rs",
         "sync/spinlock.rs",
     ],
@@ -35,7 +37,10 @@ rust_library(
         "//conditions:default": ["@platforms//:incompatible"],
     }),
     visibility = ["//visibility:public"],
-    deps = ["//pw_kernel/kernel"] + KERNEL_TEST_DEPS + select({
+    deps = [
+        "//pw_kernel/kernel",
+        "//pw_kernel/lib/magic_values",
+    ] + KERNEL_TEST_DEPS + select({
         "@platforms//cpu:armv8-m": ["//pw_kernel/arch/arm_cortex_m:arch_arm_cortex_m"],
         "@platforms//cpu:riscv32": ["//pw_kernel/arch/riscv:arch_riscv"],
         "//conditions:default": [],

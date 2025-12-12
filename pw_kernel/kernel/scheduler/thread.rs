@@ -135,6 +135,29 @@ impl Stack {
     ) -> *const T {
         Self::aligned_stack_allocation_mut::<*mut T>(sp, alignment).cast()
     }
+
+    /// Initialize the stack for thread execution.
+    ///
+    /// Intitializes the stack to a know pattern to avoid leaking data between
+    /// thread invocations as well as to provide a signature for calculating
+    /// high water stack usage.
+    pub fn initialize(&self) {
+        let mut ptr = self.start as *mut u32;
+        let end = self.end as *mut u32;
+
+        pw_assert::assert!(ptr.is_aligned(), "Stack start is not aligned");
+        pw_assert::assert!(end.is_aligned(), "Stack end is not aligned");
+
+        while ptr < end {
+            // SAFETY: `ptr` is always aligned to 4 bytes and is contained within
+            // the specified stack memory region.  Additionally, only writes
+            // are performed for the MaybeUninit constraint is not violated.
+            unsafe {
+                ptr.write_volatile(magic_values::UNUSED_STACK_PATTERN);
+                ptr = ptr.add(1);
+            }
+        }
+    }
 }
 
 /// Runtime state of a Thread.

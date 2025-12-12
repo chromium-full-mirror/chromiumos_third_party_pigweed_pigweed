@@ -367,6 +367,8 @@ impl<K: Kernel> SpinLockGuard<'_, K, SchedulerState<K>> {
         let process = self.kernel_process.get();
         let args = (entry_point as usize, kernel.into_usize(), arg.into_usize());
 
+        kernel_stack.initialize();
+
         // SAFETY: The scheduler guarantees that a process' `memory_config`
         // remains valid while it has any child threads ensuring that the
         // `memory_config` is valid for the lifetime of the thread.
@@ -392,6 +394,8 @@ impl<K: Kernel> SpinLockGuard<'_, K, SchedulerState<K>> {
         pw_assert::assert!(thread.state == State::Joined);
         let process = self.kernel_process.get();
         let args = (entry_point as usize, kernel.into_usize(), arg.into_usize());
+
+        thread.stack.initialize();
 
         // SAFETY: The scheduler guarantees that a process' `memory_config`
         // remains valid while it has any child threads ensuring that the
@@ -425,6 +429,8 @@ impl<K: Kernel> SpinLockGuard<'_, K, SchedulerState<K>> {
         args: (usize, usize, usize),
     ) -> Result<()> {
         pw_assert::assert!(thread.state == State::New);
+
+        kernel_stack.initialize();
 
         // SAFETY: The scheduler guarantees that a process' `memory_config`
         // remains valid while it has any child threads ensuring that the
