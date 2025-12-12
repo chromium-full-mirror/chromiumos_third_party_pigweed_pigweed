@@ -25,8 +25,13 @@
 #include "pw_containers/internal/intrusive_list_item.h"
 #include "pw_containers/internal/intrusive_list_iterator.h"
 
+/// @module{pw_containers}
+/// @defgroup pw_containers_lists Lists
+/// @{
+
 namespace pw {
-namespace containers::internal {
+namespace containers {
+namespace internal {
 
 // Forward declaration for friending.
 //
@@ -38,12 +43,15 @@ namespace containers::internal {
 template <typename>
 class LegacyIntrusiveList;
 
-}  // namespace containers::internal
+}  // namespace internal
 
-/// @module{pw_containers}
+/// Inserts an element at the end of the forward list. Runs in O(n) time.
+template <typename T>
+void PushBackSlow(IntrusiveForwardList<T>& forward_list, T& item) {
+  forward_list.list().push_back(item);
+}
 
-/// @defgroup pw_containers_lists Lists
-/// @{
+}  // namespace containers
 
 /// A singly-list intrusive list.
 ///
@@ -230,11 +238,11 @@ class IntrusiveForwardList {
     return iterator(list().erase_after(first.item_, last.item_));
   }
 
-  /// Inserts the item at the start of the list.
-  void push_front(T& item) { list().insert_after(list().before_begin(), item); }
+  /// @copydoc internal::GenericIntrusiveList<ItemBase>::push_front
+  void push_front(T& item) { list().push_front(item); }
 
-  /// Removes the first item in the list. The list must not be empty.
-  void pop_front() { remove(front()); }
+  /// @copydoc internal::GenericIntrusiveList<ItemBase>::pop_front
+  void pop_front() { list().pop_front(); }
 
   /// Exchanges this list's items with the `other` list's items.
   ///
@@ -335,6 +343,8 @@ class IntrusiveForwardList {
  private:
   template <typename>
   friend class containers::internal::LegacyIntrusiveList;
+
+  friend void containers::PushBackSlow<T>(IntrusiveForwardList<T>&, T&);
 
   // Check that T is an Item in a function, since the class T will not be fully
   // defined when the IntrusiveList<T> class is instantiated.

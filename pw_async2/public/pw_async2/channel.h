@@ -95,13 +95,13 @@ class PW_LOCKABLE("pw::async2::internal::BaseChannel") BaseChannel {
   // Adds a SendFuture or ReserveSendFuture to the list of pending futures.
   void add_send_future(BaseChannelFuture& future)
       PW_EXCLUSIVE_LOCKS_REQUIRED(*this) {
-    send_futures_.push_front(future);
+    containers::PushBackSlow(send_futures_, future);
   }
 
   // Adds a ReceiveFuture to the list of pending futures.
   void add_receive_future(BaseChannelFuture& future)
       PW_EXCLUSIVE_LOCKS_REQUIRED(*this) {
-    receive_futures_.push_front(future);
+    containers::PushBackSlow(receive_futures_, future);
   }
 
   void DropReservationAndRemoveRef() PW_LOCKS_EXCLUDED(*this);

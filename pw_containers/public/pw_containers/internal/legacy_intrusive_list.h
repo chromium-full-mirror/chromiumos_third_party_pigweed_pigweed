@@ -75,9 +75,7 @@ class LegacyIntrusiveList : public IntrusiveForwardList<T> {
   /// Inserts an item at the end of the list.
   ///
   /// Runs in O(n) time.
-  void push_back(T& item) {
-    Base::list().insert_after(Base::list().before_end(), item);
-  }
+  void push_back(T& item) { Base::list().push_back(item); }
 };
 
 }  // namespace pw::containers::internal
