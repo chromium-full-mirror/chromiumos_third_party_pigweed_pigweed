@@ -199,6 +199,9 @@ class LogicalLink : public hci::AclDataChannel::ConnectionInterface {
   // return ACTIVE if autosniff is not enabled.
   pw::bluetooth::emboss::AclConnectionMode AutosniffMode() const;
 
+  std::unique_ptr<AutosniffSuppressInterest> AutosniffSuppress(
+      const char* reason);
+
   // Duration to wait without events before switching into sniff mode.
   static constexpr pw::chrono::SystemClock::duration kAutosniffTimeout =
       std::chrono::seconds(1);
@@ -370,6 +373,7 @@ class LogicalLink : public hci::AclDataChannel::ConnectionInterface {
   struct InspectProperties {
     inspect::Node node;
     inspect::Node channels_node;
+    inspect::Node sniff_node;
     inspect::StringProperty handle;
     inspect::StringProperty link_type;
   };

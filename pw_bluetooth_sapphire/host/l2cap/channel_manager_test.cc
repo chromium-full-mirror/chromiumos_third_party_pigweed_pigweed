@@ -26,9 +26,11 @@
 #include "pw_bluetooth_sapphire/internal/host/l2cap/channel.h"
 #include "pw_bluetooth_sapphire/internal/host/l2cap/channel_manager_mock_controller_test_fixture.h"
 #include "pw_bluetooth_sapphire/internal/host/l2cap/l2cap_defs.h"
+#include "pw_bluetooth_sapphire/internal/host/l2cap/logical_link.h"
 #include "pw_bluetooth_sapphire/internal/host/l2cap/test_packets.h"
 #include "pw_bluetooth_sapphire/internal/host/testing/gtest_helpers.h"
 #include "pw_bluetooth_sapphire/internal/host/testing/inspect.h"
+#include "pw_bluetooth_sapphire/internal/host/testing/inspect_util.h"
 #include "pw_bluetooth_sapphire/internal/host/testing/test_helpers.h"
 #include "pw_bluetooth_sapphire/internal/host/testing/test_packets.h"
 #include "pw_bluetooth_sapphire/internal/host/transport/acl_data_packet.h"
@@ -3678,6 +3680,10 @@ TEST_F(ChannelManagerMockAclChannelTest, InspectHierarchy) {
   ReceiveAclDataPacket(InboundConfigurationRequest(kPeerConfigRequestId));
   ReceiveAclDataPacket(InboundConfigurationResponse(config_req_id));
 
+  auto link = chanmgr()->LogicalLinkForTesting(kTestHandle1);
+  auto suppress1 = link->AutosniffSuppress("test1");
+  auto suppress2 = link->AutosniffSuppress("test2");
+
   auto signaling_chan_matcher = NodeMatches(AllOf(
       NameMatches("channel_0x2"),
       PropertyList(UnorderedElementsAre(StringIs("local_id", "0x0001"),
@@ -3690,6 +3696,11 @@ TEST_F(ChannelManagerMockAclChannelTest, InspectHierarchy) {
   auto channels_matcher = AllOf(NodeMatches(NameMatches("channels")),
                                 ChildrenMatch(UnorderedElementsAre(
                                     signaling_chan_matcher, dyn_chan_matcher)));
+  auto autosniff_matcher = NodeMatches(AllOf(
+      NameMatches("autosniff"),
+      PropertyList(UnorderedElementsAre(StringIs("sniff_mode", "ACTIVE"),
+                                        StringIs("suppress_0x4", "test1"),
+                                        StringIs("suppress_0x5", "test2")))));
   auto link_matcher = AllOf(
       NodeMatches(NameMatches("logical_links")),
       ChildrenMatch(ElementsAre(AllOf(
@@ -3702,7 +3713,8 @@ TEST_F(ChannelManagerMockAclChannelTest, InspectHierarchy) {
                          std::chrono::duration_cast<std::chrono::milliseconds>(
                              pw::chrono::SystemClock::duration::max())
                              .count()))))),
-          ChildrenMatch(ElementsAre(channels_matcher))))));
+          ChildrenMatch(
+              UnorderedElementsAre(autosniff_matcher, channels_matcher))))));
 
   auto l2cap_node_matcher = AllOf(
       NodeMatches(NameMatches("l2cap")),

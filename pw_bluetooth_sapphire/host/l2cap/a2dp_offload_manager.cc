@@ -127,6 +127,10 @@ void A2dpOffloadManager::StartA2dpOffload(
   }
   PW_MODIFY_DIAGNOSTICS_POP();
 
+  if (sniff_suppress_cb_) {
+    autosniff_suppress_ = sniff_suppress_cb_("A2DP Offload");
+  }
+
   (void)cmd_channel_->SendCommand(
       std::move(packet),
       [cb = std::move(callback),
@@ -248,6 +252,7 @@ void A2dpOffloadManager::RequestStopA2dpOffload(
         cb(event.ToResult());
 
         a2dp_offload_status_ = A2dpOffloadStatus::kStopped;
+        autosniff_suppress_.reset();
       });
 }
 

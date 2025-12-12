@@ -503,6 +503,8 @@ TEST_F(LogicalLinkTest, GoesIntoSniffModeWhenInactive) {
   // Run for at least the autosniff timeout + a bit.
   RunFor(LogicalLink::kAutosniffTimeout + std::chrono::milliseconds(1));
 
+  EXPECT_TRUE(test_device()->AllExpectedCommandPacketsSent());
+
   // ==== Stage 2: Send the link into sniff mode =====
 
   // Mock the event to go into sniff mode
@@ -568,6 +570,150 @@ TEST_F(LogicalLinkTest, GoesIntoSniffModeWhenInactive) {
             pw::bluetooth::emboss::AclConnectionMode::ACTIVE);
 
   // ==== Stage 5: Goes back into sniff mode after timer expiring again ====
+
+  // Run for at least the autosniff timeout + a bit.
+  EXPECT_CMD_PACKET_OUT(
+      test_device(), enter_sniff_cmd, &kEnterSniffCmdComplete);
+  RunFor(LogicalLink::kAutosniffTimeout + std::chrono::milliseconds(1));
+  RunUntilIdle();
+}
+
+TEST_F(LogicalLinkTest, SniffSuppression) {
+  ResetAndCreateNewLogicalLink(LinkType::kACL);
+
+  // Autosniff is enabled on ACL links.
+  ASSERT_TRUE(link()->AutosniffEnabled());
+
+  // ==== Stage 0: General setup =====
+  transport()->acl_data_channel()->SetDataRxHandler(
+      fit::bind_member<&LogicalLink::HandleRxPacket>(link()));
+
+  QueueAclConnectionRetVal cmd_ids;
+  cmd_ids.extended_features_id = 1;
+  cmd_ids.fixed_channels_supported_id = 2;
+  const auto kExtFeaturesRsp = l2cap::testing::AclExtFeaturesInfoRsp(
+      cmd_ids.extended_features_id, kConnHandle, kExtendedFeatures);
+  EXPECT_ACL_PACKET_OUT(test_device(),
+                        l2cap::testing::AclExtFeaturesInfoReq(
+                            cmd_ids.extended_features_id, kConnHandle),
+                        &kExtFeaturesRsp);
+
+  const auto kFixedChannelsRsp =
+      l2cap::testing::AclFixedChannelsSupportedInfoRsp(
+          cmd_ids.fixed_channels_supported_id,
+          kConnHandle,
+          kFixedChannelsSupportedBitSignaling);  // SM not supported
+
+  EXPECT_ACL_PACKET_OUT(test_device(),
+                        l2cap::testing::AclFixedChannelsSupportedInfoReq(
+                            cmd_ids.fixed_channels_supported_id, kConnHandle),
+                        &kFixedChannelsRsp);
+
+  RunUntilIdle();
+
+  // ==== Stage 1: Idle link leads to request sniff mode  =====
+  const auto kEnterSniffCmdComplete = bt::testing::CommandCompletePacket(
+      hci_spec::kSniffMode, pw::bluetooth::emboss::StatusCode::SUCCESS);
+
+  // Now we run for a bit to generate an idle autosniff trigger
+  const auto enter_sniff_cmd =
+      StaticByteBuffer(LowerBits(hci_spec::kSniffMode),
+                       UpperBits(hci_spec::kSniffMode),
+                       0x0a,  // parameter_total_size (10 byte payload)
+                       LowerBits(kConnHandle),
+                       UpperBits(kConnHandle),
+                       // Max interval (816)
+                       0x30,
+                       0x03,
+                       // Min interval (400)
+                       0x90,
+                       0x01,
+                       // sniff attempt (4)
+                       0x04,
+                       0x00,
+                       // Sniff timeout (1)
+                       0x01,
+                       0x00);
+
+  // ==== Stage 1: Idle link leads to request sniff mode  =====
+  // Autosniff code should trigger this command
+  EXPECT_CMD_PACKET_OUT(
+      test_device(), enter_sniff_cmd, &kEnterSniffCmdComplete);
+
+  // Run for at least the autosniff timeout + a bit.
+  RunFor(LogicalLink::kAutosniffTimeout + std::chrono::milliseconds(1));
+
+  // ==== Stage 2: Send the link into sniff mode =====
+
+  // Mock the event to go into sniff mode
+  auto into_sniff_event =
+      hci::EventPacket::New<pw::bluetooth::emboss::ModeChangeEventWriter>(
+          hci_spec::kModeChangeEventCode);
+  into_sniff_event.view_t().status().Write(
+      pw::bluetooth::emboss::StatusCode::SUCCESS);
+  into_sniff_event.view_t().connection_handle().Write(kConnHandle);
+  into_sniff_event.view_t().current_mode().Write(
+      pw::bluetooth::emboss::AclConnectionMode::SNIFF);
+
+  test_device()->SendCommandChannelPacket(into_sniff_event.data());
+
+  RunUntilIdle();
+
+  // Hopefully now we should be in sniff mode
+  ASSERT_EQ(link()->AutosniffMode(),
+            pw::bluetooth::emboss::AclConnectionMode::SNIFF);
+
+  bt_log(INFO, "logical_link_test", "Entered sniff mode while idle");
+
+  // Run any pending tasks.
+  RunUntilIdle();
+
+  // ==== Stage 3: Suppress sniff mode, which should disable sniff.
+  const auto kExitSniffCommandComplete = bt::testing::CommandCompletePacket(
+      hci_spec::kExitSniffMode, pw::bluetooth::emboss::StatusCode::SUCCESS);
+  // Autosniff code should send the following command
+  auto exit_sniff_cmd =
+      StaticByteBuffer(LowerBits(hci_spec::kExitSniffMode),
+                       UpperBits(hci_spec::kExitSniffMode),
+                       0x02,  // parameter_total_size (10 byte payload)
+                       LowerBits(kConnHandle),
+                       UpperBits(kConnHandle));
+  EXPECT_CMD_PACKET_OUT(
+      test_device(), exit_sniff_cmd, &kExitSniffCommandComplete);
+
+  auto suppression = link()->AutosniffSuppress("testing");
+
+  RunUntilIdle();
+
+  // ==== Stage 4: Switch link into ACTIVE mode ====
+
+  // Mock the mode change back into active.
+  auto into_active_event =
+      hci::EventPacket::New<pw::bluetooth::emboss::ModeChangeEventWriter>(
+          hci_spec::kModeChangeEventCode);
+  into_active_event.view_t().status().Write(
+      pw::bluetooth::emboss::StatusCode::SUCCESS);
+  into_active_event.view_t().connection_handle().Write(kConnHandle);
+  into_active_event.view_t().current_mode().Write(
+      pw::bluetooth::emboss::AclConnectionMode::ACTIVE);
+
+  test_device()->SendCommandChannelPacket(into_active_event.data());
+
+  RunUntilIdle();
+  // Should be back to active mode
+  ASSERT_EQ(link()->AutosniffMode(),
+            pw::bluetooth::emboss::AclConnectionMode::ACTIVE);
+
+  auto suppression2 = link()->AutosniffSuppress("second testing");
+
+  // ==== Stage 5: an idle link will NOT cause sniff to happen.
+  RunFor(LogicalLink::kAutosniffTimeout + std::chrono::milliseconds(1));
+
+  // ==== Stage 5a: Dropping one interest doesn't re-enable sniff
+  suppression.reset();
+
+  // ==== Stage 6: Back into sniff mode after last suppression
+  suppression2.reset();
 
   // Run for at least the autosniff timeout + a bit.
   EXPECT_CMD_PACKET_OUT(

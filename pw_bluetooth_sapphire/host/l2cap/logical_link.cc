@@ -42,6 +42,7 @@ namespace {
 const char* kInspectHandlePropertyName = "handle";
 const char* kInspectLinkTypePropertyName = "link_type";
 const char* kInspectChannelsNodeName = "channels";
+const char* kInspectAutosniffNodeName = "autosniff";
 const char* kInspectChannelNodePrefix = "channel_";
 const char* kInspectFlushTimeoutPropertyName = "flush_timeout_ms";
 
@@ -171,6 +172,8 @@ LogicalLink::LogicalLink(
 
     SendFixedChannelsSupportedInformationRequest();
   }
+  a2dp_offload_manager_.SetSniffSuppress(
+      fit::bind_member<&LogicalLink::AutosniffSuppress>(this));
 }
 
 LogicalLink::~LogicalLink() {
@@ -924,6 +927,9 @@ void LogicalLink::AttachInspect(inspect::Node& parent, std::string name) {
   inspect_properties_.channels_node =
       node.CreateChild(kInspectChannelsNodeName);
   flush_timeout_.AttachInspect(node, kInspectFlushTimeoutPropertyName);
+  if (autosniff_.has_value()) {
+    autosniff_->AttachInspect(node, kInspectAutosniffNodeName);
+  }
   inspect_properties_.node = std::move(node);
 
   for (auto& [_, chan] : channels_) {
@@ -1120,6 +1126,14 @@ void LogicalLink::OnRxFlowControlCreditInd(ChannelId remote_cid,
 }
 
 bool LogicalLink::AutosniffEnabled() const { return autosniff_.has_value(); }
+
+std::unique_ptr<AutosniffSuppressInterest> LogicalLink::AutosniffSuppress(
+    const char* reason) {
+  if (!autosniff_.has_value()) {
+    return nullptr;
+  }
+  return autosniff_->Suppress(reason);
+}
 
 pw::bluetooth::emboss::AclConnectionMode LogicalLink::AutosniffMode() const {
   if (autosniff_.has_value()) {
