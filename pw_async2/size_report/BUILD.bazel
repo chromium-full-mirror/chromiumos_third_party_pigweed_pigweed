@@ -418,3 +418,93 @@ pw_size_table(
         ":void_future_row",
     ],
 )
+
+CHANNEL_DEPS = [
+    ":size_report",
+    "//pw_async2:basic_dispatcher",
+    "//pw_async2:channel",
+    "//pw_async2:dispatcher",
+    "//pw_async2:pend_func_task",
+    "//pw_bloat:bloat_this_binary",
+]
+
+pw_cc_size_binary(
+    name = "channel_static_size_report",
+    srcs = ["channel_size_report.cc"],
+    defines = ["PW_ASYNC2_CHANNEL_SIZE_REPORT_STATIC_INT"],
+    deps = CHANNEL_DEPS,
+)
+
+pw_cc_size_binary(
+    name = "channel_static_unsigned_incremental",
+    srcs = ["channel_size_report.cc"],
+    defines = ["PW_ASYNC2_CHANNEL_SIZE_REPORT_STATIC_INT_AND_UINT"],
+    deps = CHANNEL_DEPS,
+)
+
+pw_cc_size_binary(
+    name = "channel_static_move_only_incremental",
+    srcs = ["channel_size_report.cc"],
+    defines = ["PW_ASYNC2_CHANNEL_SIZE_REPORT_STATIC_INT_AND_MOVE_ONLY"],
+    deps = CHANNEL_DEPS,
+)
+
+pw_cc_size_binary(
+    name = "channel_dynamic_size_report",
+    srcs = ["channel_size_report.cc"],
+    defines = ["PW_ASYNC2_CHANNEL_SIZE_REPORT_DYNAMIC_INT"],
+    deps = CHANNEL_DEPS,
+)
+
+pw_cc_size_binary(
+    name = "channel_dynamic_static_size_report",
+    srcs = ["channel_size_report.cc"],
+    defines = ["PW_ASYNC2_CHANNEL_SIZE_REPORT_DYNAMIC_STATIC_INT"],
+    deps = CHANNEL_DEPS,
+)
+
+pw_size_diff(
+    name = "channel_static_row",
+    base = ":async2_core",
+    label = "Size of static ``MpmcChannel``",
+    target = ":channel_static_size_report",
+)
+
+pw_size_diff(
+    name = "channel_static_unsigned_row",
+    base = ":channel_static_size_report",
+    label = "Cost of additional static ``MpmcChannel<unsigned>`` instantiation",
+    target = ":channel_static_unsigned_incremental",
+)
+
+pw_size_diff(
+    name = "channel_static_move_only_row",
+    base = ":channel_static_size_report",
+    label = "Cost of additional static ``MpmcChannel<MoveOnly>`` instantiation",
+    target = ":channel_static_move_only_incremental",
+)
+
+pw_size_diff(
+    name = "channel_dynamic_row",
+    base = ":async2_core",
+    label = "Size of dynamic ``MpmcChannel``",
+    target = ":channel_dynamic_size_report",
+)
+
+pw_size_diff(
+    name = "channel_dynamic_static_row",
+    base = ":channel_dynamic_size_report",
+    label = "Cost of static ``MpmcChannel`` when dynamic of same type is present",
+    target = ":channel_dynamic_static_size_report",
+)
+
+pw_size_table(
+    name = "channel_size_report",
+    reports = [
+        ":channel_static_row",
+        ":channel_static_unsigned_row",
+        ":channel_static_move_only_row",
+        ":channel_dynamic_row",
+        ":channel_dynamic_static_row",
+    ],
+)

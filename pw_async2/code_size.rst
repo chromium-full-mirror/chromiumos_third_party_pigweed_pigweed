@@ -90,3 +90,17 @@ Additionally, the table includes a comparison showing the code size difference
 between using the ``Select`` helper versus manually polling each pendable.
 
 .. include:: size_report/utilities_size_report
+
+.. _module-pw_async2-channels-size-report:
+
+-------
+Channel
+-------
+:ref:`pw_async2 channels <module-pw_async2-channels>` are the primary mechanism
+for communicating between async tasks and threads.
+
+The following size report shows the base cost of using static and dynamic
+channels, as well as the marginal cost of adding a new channel of a trivial or
+non-trivial type.
+
+.. include:: size_report/channel_size_report

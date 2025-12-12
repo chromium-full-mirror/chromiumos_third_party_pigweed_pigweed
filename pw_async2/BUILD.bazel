@@ -845,6 +845,7 @@ sphinx_docs_library(
         "//pw_async2/examples:channel.cc",
         "//pw_async2/examples:custom_future.cc",
         "//pw_async2/examples:docs",
+        "//pw_async2/size_report:channel_size_report",
         "//pw_async2/size_report:full_size_report",
         "//pw_async2/size_report:once_sender_size_report",
         "//pw_async2/size_report:utilities_size_report",

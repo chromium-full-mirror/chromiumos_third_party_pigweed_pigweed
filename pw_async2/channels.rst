@@ -7,7 +7,7 @@ Channels
    :name: pw_async2
 
 Channels are the primary mechanism for communicating between asynchronous tasks
-in ``pw_async2``. They provide a synchronized way to pass data between tasks.
+or threads in ``pw_async2``.
 
 A channel is a fixed-capacity queue that supports multiple senders and multiple
 receivers. Channels can be used between async tasks on the same dispatcher,
@@ -393,3 +393,9 @@ separate thread or an interrupt handler, you can use ``TrySend``.
   received or an optional timeout elapses. Returns a ``pw::Result<T>``
   containing either the value read or the error in case of timeout or channel
   closure.
+
+-----------
+Size report
+-----------
+See the :ref:`pw_async2 channels size report
+<module-pw_async2-channels-size-report>` for code size information.
