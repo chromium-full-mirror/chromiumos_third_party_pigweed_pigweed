@@ -486,6 +486,18 @@ inline constexpr OpCode kReadDataBlockSize = InformationalParamsOpCode(0x000A);
 inline constexpr OpCode kReadLocalSupportedControllerDelay =
     InformationalParamsOpCode(0x000F);
 
+// ======= Testing Commands =======
+// Core Spec v6.1 Vol 4, Part E, Section 7.6
+inline constexpr uint8_t kTestingCommandsOGF = 0x06;
+constexpr OpCode TestingCommandsOpCode(const uint16_t ocf) {
+  return DefineOpCode(kTestingCommandsOGF, ocf);
+}
+
+// ====================================================
+// Write Simple Pairing Debug Mode Command (v2.1 + EDR)
+inline constexpr OpCode kWriteSimplePairingDebugMode =
+    TestingCommandsOpCode(0x0004);
+
 // ======= Events =======
 // Core Spec v5.0 Vol 2, Part E, Section 7.7
 
