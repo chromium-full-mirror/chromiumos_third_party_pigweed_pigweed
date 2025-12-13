@@ -13,7 +13,7 @@
 // the License.
 #![no_std]
 
-pub use kernel_config::{CortexMKernelConfigInterface, KernelConfigInterface};
+pub use kernel_config::{CortexMKernelConfigInterface, KernelConfigInterface, NvicConfigInterface};
 
 pub struct KernelConfig;
 
@@ -25,4 +25,10 @@ impl CortexMKernelConfigInterface for KernelConfig {
 
 impl KernelConfigInterface for KernelConfig {
     const SYSTEM_CLOCK_HZ: u64 = KernelConfig::SYS_TICK_HZ as u64;
+}
+
+pub struct NvicConfig;
+
+impl NvicConfigInterface for NvicConfig {
+    const MAX_IRQS: u32 = 124;
 }

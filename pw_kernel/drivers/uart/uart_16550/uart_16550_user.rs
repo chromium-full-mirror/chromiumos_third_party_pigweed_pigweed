@@ -17,8 +17,6 @@ const LOG_UART: bool = false;
 
 pub struct Uart {
     base_address: usize,
-    #[allow(dead_code)]
-    irq: u32,
 }
 
 impl regs::BaseAddress for Uart {
@@ -31,8 +29,8 @@ impl uart_16550_regs::Uart16550BaseAddress for Uart {}
 
 impl Uart {
     #[must_use]
-    pub fn new(base_address: usize, irq: u32) -> Uart {
-        let instance = Self { base_address, irq };
+    pub fn new(base_address: usize) -> Uart {
+        let instance = Self { base_address };
 
         let mut ier = uart_16550_regs::Ier;
         // Enable the Received Data Available Interrupt.

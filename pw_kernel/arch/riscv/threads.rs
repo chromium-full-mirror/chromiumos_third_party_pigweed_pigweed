@@ -109,7 +109,11 @@ impl Arch for super::Arch {
     type BareSpinLock = BareSpinLock;
     type Clock = super::timer::Clock;
     #[cfg(not(feature = "disable_interrupts_atomic"))]
+    type AtomicBool = core::sync::atomic::AtomicBool;
+    #[cfg(not(feature = "disable_interrupts_atomic"))]
     type AtomicUsize = core::sync::atomic::AtomicUsize;
+    #[cfg(feature = "disable_interrupts_atomic")]
+    type AtomicBool = crate::disable_interrupts_atomic::AtomicBool;
     #[cfg(feature = "disable_interrupts_atomic")]
     type AtomicUsize = crate::disable_interrupts_atomic::AtomicUsize;
     type SyscallArgs<'a> = crate::exceptions::RiscVSyscallArgs<'a>;

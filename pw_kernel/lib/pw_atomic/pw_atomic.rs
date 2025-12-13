@@ -45,9 +45,26 @@ pub trait AtomicStore<T> {
     fn store(&self, val: T, order: Ordering);
 }
 
+pub trait AtomicCompareExchange<T> {
+    /// Stores a value into the atomic if the current value is the same as the [`current`] value.
+    ///
+    /// Behaves the same as [`core::atomic::AtomicUsize::compare_exchange()`].
+    fn compare_exchange(
+        &self,
+        current: T,
+        new: T,
+        success: Ordering,
+        failure: Ordering,
+    ) -> Result<T, T>;
+}
+
 pub trait AtomicNew<T> {
     /// Returns a new atomic with `val`
     fn new(val: T) -> Self;
+}
+
+pub trait AtomicFalse {
+    const FALSE: Self;
 }
 
 pub trait AtomicZero {
@@ -55,29 +72,19 @@ pub trait AtomicZero {
 }
 
 pub trait Atomic<T>:
-    AtomicNew<T> + AtomicLoad<T> + AtomicStore<T> + AtomicAdd<T> + AtomicSub<T> + Send + Sync
+    AtomicNew<T> + AtomicLoad<T> + AtomicStore<T> + AtomicCompareExchange<T> + Send + Sync
 {
 }
 
-pub trait AtomicUsize: Atomic<usize> + AtomicZero {}
+pub trait AtomicBool: Atomic<bool> + AtomicFalse {}
+
+pub trait AtomicUsize: Atomic<usize> + AtomicAdd<usize> + AtomicSub<usize> + AtomicZero {}
 
 #[cfg(feature = "builtin_impls")]
 mod builtin_impls {
     use super::*;
-    macro_rules! impl_for_type {
+    macro_rules! impl_for_scalar {
         ($atomic_type:ty, $primitive_type:ty) => {
-            impl AtomicAdd<$primitive_type> for $atomic_type {
-                fn fetch_add(&self, val: $primitive_type, ordering: Ordering) -> $primitive_type {
-                    self.fetch_add(val, ordering)
-                }
-            }
-
-            impl AtomicSub<$primitive_type> for $atomic_type {
-                fn fetch_sub(&self, val: $primitive_type, ordering: Ordering) -> $primitive_type {
-                    self.fetch_sub(val, ordering)
-                }
-            }
-
             impl AtomicLoad<$primitive_type> for $atomic_type {
                 fn load(&self, ordering: Ordering) -> $primitive_type {
                     self.load(ordering)
@@ -90,20 +97,56 @@ mod builtin_impls {
                 }
             }
 
+            impl AtomicCompareExchange<$primitive_type> for $atomic_type {
+                fn compare_exchange(
+                    &self,
+                    current: $primitive_type,
+                    new: $primitive_type,
+                    success: Ordering,
+                    failure: Ordering,
+                ) -> Result<$primitive_type, $primitive_type> {
+                    self.compare_exchange(current, new, success, failure)
+                }
+            }
+
             impl AtomicNew<$primitive_type> for $atomic_type {
                 fn new(val: $primitive_type) -> Self {
                     Self::new(val)
                 }
             }
 
-            impl AtomicZero for $atomic_type {
-                const ZERO: Self = Self::new(0);
-            }
-
             impl Atomic<$primitive_type> for $atomic_type {}
         };
     }
 
-    impl_for_type!(core::sync::atomic::AtomicUsize, usize);
+    macro_rules! impl_for_numeric {
+        ($atomic_type:ty, $primitive_type:ty) => {
+            impl_for_scalar!($atomic_type, $primitive_type);
+
+            impl AtomicAdd<$primitive_type> for $atomic_type {
+                fn fetch_add(&self, val: $primitive_type, ordering: Ordering) -> $primitive_type {
+                    self.fetch_add(val, ordering)
+                }
+            }
+
+            impl AtomicSub<$primitive_type> for $atomic_type {
+                fn fetch_sub(&self, val: $primitive_type, ordering: Ordering) -> $primitive_type {
+                    self.fetch_sub(val, ordering)
+                }
+            }
+
+            impl AtomicZero for $atomic_type {
+                const ZERO: Self = Self::new(0);
+            }
+        };
+    }
+
+    impl AtomicFalse for core::sync::atomic::AtomicBool {
+        const FALSE: Self = Self::new(false);
+    }
+    impl_for_scalar!(core::sync::atomic::AtomicBool, bool);
+    impl AtomicBool for core::sync::atomic::AtomicBool {}
+
+    impl_for_numeric!(core::sync::atomic::AtomicUsize, usize);
     impl AtomicUsize for core::sync::atomic::AtomicUsize {}
 }

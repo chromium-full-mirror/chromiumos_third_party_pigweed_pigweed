@@ -15,7 +15,10 @@
 use core::cell::UnsafeCell;
 use core::sync::atomic::Ordering;
 
-use pw_atomic::{Atomic, AtomicAdd, AtomicLoad, AtomicNew, AtomicStore, AtomicSub, AtomicZero};
+use pw_atomic::{
+    Atomic, AtomicAdd, AtomicCompareExchange, AtomicFalse, AtomicLoad, AtomicNew, AtomicStore,
+    AtomicSub, AtomicZero,
+};
 
 // TODO: once the interrupt controller work lands, make use of it here.
 unsafe fn disable_interrupts() -> usize {
@@ -28,8 +31,61 @@ unsafe fn enabled_interrupts(val: usize) {
     unsafe { core::arch::asm!("csrrw x0, mstatus, {val}", val = in(reg) val) };
 }
 
-macro_rules! impl_for_type {
+macro_rules! impl_for_scalar {
     ($atomic_type:ty, $primitive_type:ty) => {
+        impl AtomicLoad<$primitive_type> for $atomic_type {
+            fn load(&self, _ordering: Ordering) -> $primitive_type {
+                unsafe { *self.value.get() }
+            }
+        }
+
+        impl AtomicStore<$primitive_type> for $atomic_type {
+            fn store(&self, val: $primitive_type, _ordering: Ordering) {
+                unsafe {
+                    *self.value.get() = val;
+                }
+            }
+        }
+
+        impl AtomicCompareExchange<$primitive_type> for $atomic_type {
+            fn compare_exchange(
+                &self,
+                current: $primitive_type,
+                new: $primitive_type,
+                _success: Ordering,
+                _failure: Ordering,
+            ) -> Result<$primitive_type, $primitive_type> {
+                unsafe {
+                    let i = disable_interrupts();
+                    let ptr = self.value.get();
+                    if *ptr == current {
+                        *ptr = new;
+                        enabled_interrupts(i);
+                        Ok(current)
+                    } else {
+                        enabled_interrupts(i);
+                        Err(current)
+                    }
+                }
+            }
+        }
+
+        impl AtomicNew<$primitive_type> for $atomic_type {
+            fn new(val: $primitive_type) -> Self {
+                Self {
+                    value: UnsafeCell::new(val),
+                }
+            }
+        }
+
+        impl Atomic<$primitive_type> for $atomic_type {}
+    };
+}
+
+macro_rules! impl_for_numeric {
+    ($atomic_type:ty, $primitive_type:ty) => {
+        impl_for_scalar!($atomic_type, $primitive_type);
+
         impl AtomicAdd<$primitive_type> for $atomic_type {
             fn fetch_add(&self, val: $primitive_type, _ordering: Ordering) -> $primitive_type {
                 unsafe {
@@ -60,43 +116,41 @@ macro_rules! impl_for_type {
             }
         }
 
-        impl AtomicLoad<$primitive_type> for $atomic_type {
-            fn load(&self, _ordering: Ordering) -> $primitive_type {
-                unsafe { *self.value.get() }
-            }
-        }
-
-        impl AtomicStore<$primitive_type> for $atomic_type {
-            fn store(&self, val: $primitive_type, _ordering: Ordering) {
-                unsafe {
-                    *self.value.get() = val;
-                }
-            }
-        }
-
-        impl AtomicNew<$primitive_type> for $atomic_type {
-            fn new(val: $primitive_type) -> Self {
-                Self {
-                    value: UnsafeCell::new(val),
-                }
-            }
-        }
-
         impl AtomicZero for $atomic_type {
             const ZERO: Self = Self {
                 value: UnsafeCell::new(0),
             };
         }
-
-        impl Atomic<$primitive_type> for $atomic_type {}
     };
 }
+
+pub struct AtomicBool {
+    value: UnsafeCell<bool>,
+}
+
+impl AtomicBool {
+    pub const fn new(val: bool) -> Self {
+        Self {
+            value: UnsafeCell::new(val),
+        }
+    }
+}
+
+impl AtomicFalse for AtomicBool {
+    const FALSE: Self = Self::new(false);
+}
+impl_for_scalar!(AtomicBool, bool);
+impl pw_atomic::AtomicBool for AtomicBool {}
+
+// SAFETY: Atomicity is guaranteed by disabling interrupts on a UP system.
+// MP systems are not supported.
+unsafe impl Sync for AtomicBool {}
 
 pub struct AtomicUsize {
     value: UnsafeCell<usize>,
 }
 
-impl_for_type!(AtomicUsize, usize);
+impl_for_numeric!(AtomicUsize, usize);
 impl pw_atomic::AtomicUsize for AtomicUsize {}
 
 // SAFETY: Atomicity is guaranteed by disabling interrupts on a UP system.

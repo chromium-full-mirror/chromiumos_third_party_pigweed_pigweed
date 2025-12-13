@@ -14,38 +14,35 @@
 #![no_main]
 #![no_std]
 
-use app_test_uart_listener::{handle, mapping, signals};
+use core::sync::atomic::{AtomicU32, Ordering};
+
+use app_test_interrupt_listener::{handle, signals};
 use pw_status::{Error, Result};
-// TODO: once multiple target's are supported, feature flag the UART.
-use uart_16550_user::Uart;
 use userspace::syscall::Signals;
 use userspace::time::Instant;
 use userspace::{entry, syscall};
 
-fn handle_interrupt(uart: &mut Uart, interrupts: Signals) -> Result<()> {
-    if !interrupts.contains(signals::UART0) {
+static INTERRUPT_COUNT: AtomicU32 = AtomicU32::new(1);
+
+fn handle_interrupt(interrupts: Signals) -> Result<()> {
+    if !interrupts.contains(signals::TEST_IRQ) {
         pw_log::error!(
             "Interrupt on wrong signal. {} not in {}",
-            signals::UART0.bits() as u32,
+            signals::TEST_IRQ.bits() as u32,
             interrupts.bits() as u32
         );
         return Err(Error::FailedPrecondition);
     }
 
-    let value = uart.read();
-    if value.is_none() {
-        pw_log::error!("No data to read");
-        return Err(Error::FailedPrecondition);
-    }
-
-    let _ = syscall::interrupt_ack(handle::UART_INTERRUPTS, interrupts);
-
-    const SEND_BUF_LEN: usize = 1;
+    const SEND_BUF_LEN: usize = size_of::<u32>();
     const RECV_BUF_LEN: usize = 0;
     let mut send_buf = [0u8; SEND_BUF_LEN];
     let mut recv_buf = [0u8; RECV_BUF_LEN];
 
-    send_buf[0] = value.unwrap();
+    let count = INTERRUPT_COUNT.fetch_add(1, Ordering::SeqCst);
+    send_buf.copy_from_slice(&count.to_le_bytes());
+    let _ = syscall::interrupt_ack(handle::TEST_INTERRUPTS, interrupts);
+
     let len = match syscall::channel_transact(handle::IPC, &send_buf, &mut recv_buf, Instant::MAX) {
         Ok(val) => val,
         Err(err) => {
@@ -67,17 +64,15 @@ fn handle_interrupt(uart: &mut Uart, interrupts: Signals) -> Result<()> {
 
 #[entry]
 fn entry() -> ! {
-    let mut uart = Uart::new(mapping::UART0_START_ADDRESS);
-
     loop {
-        let res = match syscall::object_wait(handle::UART_INTERRUPTS, signals::UART0, Instant::MAX)
-        {
-            Ok(interrupts) => handle_interrupt(&mut uart, interrupts),
-            Err(err) => {
-                pw_log::error!("Failed to wait on interrupt");
-                Err(err)
-            }
-        };
+        let res =
+            match syscall::object_wait(handle::TEST_INTERRUPTS, signals::TEST_IRQ, Instant::MAX) {
+                Ok(interrupts) => handle_interrupt(interrupts),
+                Err(err) => {
+                    pw_log::error!("Failed to wait on interrupt");
+                    Err(err)
+                }
+            };
 
         if res.is_err() {
             let _ = syscall::debug_shutdown(res);

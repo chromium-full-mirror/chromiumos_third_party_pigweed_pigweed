@@ -111,6 +111,7 @@ impl Arch for crate::Arch {
     type ThreadState = ArchThreadState;
     type BareSpinLock = BareSpinLock;
     type Clock = super::timer::Clock;
+    type AtomicBool = core::sync::atomic::AtomicBool;
     type AtomicUsize = core::sync::atomic::AtomicUsize;
     type SyscallArgs<'a> = crate::syscall::CortexMSyscallArgs<'a>;
     type InterruptController = nvic::Nvic;
@@ -237,7 +238,7 @@ impl Arch for crate::Arch {
             // can preempt them.
             scb.set_priority(scb::SystemHandler::SysTick, 0b0111_1111);
 
-            // TODO: set all of the NVIC external irqs to medium as well
+            // External IRQ priorities are set by the interrupt controller.
 
             scb.enable(scb::Exception::MemoryManagement);
             // TODO: configure BASEPRI, FAULTMASK

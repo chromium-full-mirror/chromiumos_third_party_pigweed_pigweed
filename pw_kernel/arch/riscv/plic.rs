@@ -15,6 +15,8 @@
 use core::ptr;
 
 use kernel::interrupt_controller::{InterruptController, InterruptTableEntry};
+use kernel::scheduler::PreemptDisableGuard;
+use kernel::{Kernel, interrupt_controller};
 use kernel_config::{PlicConfig, PlicConfigInterface};
 use log_if::debug_if;
 use pw_log::info;
@@ -138,10 +140,10 @@ pub fn interrupt() {
         pw_assert::panic!("Unhandled interrupt: irq={}", irq as u32);
     };
 
-    handler();
+    unsafe { handler() };
 
-    // It is up to the interrupt handler to call interrupt_ack()
-    // to release the claim.
+    // It is up to the interrupt handler to call userspace_interrupt_ack()
+    // or kernel_interrupt_handler_exit() (kernel drivers) to release the claim.
 }
 
 pub struct Plic {}
@@ -167,7 +169,7 @@ impl InterruptController for Plic {
         // optionally change the priority).
         // Start at 1, as interrupt source 0 is reserved.
         for irq in 1..PlicConfig::MAX_IRQS {
-            self.disable_interrupt(irq);
+            Self::disable_interrupt(irq);
             set_interrupt_priority(irq, IRQ_PRIORITY);
         }
 
@@ -183,21 +185,74 @@ impl InterruptController for Plic {
         }
     }
 
-    fn enable_interrupt(&self, irq: u32) {
+    fn enable_interrupt(irq: u32) {
         debug_if!(LOG_INTERRUPTS, "Enable interrupt {}", irq as u32);
         set_interrupt_enable(irq, true);
     }
 
-    fn disable_interrupt(&self, irq: u32) {
+    fn disable_interrupt(irq: u32) {
         debug_if!(LOG_INTERRUPTS, "Disable interrupt {}", irq as u32);
         set_interrupt_enable(irq, false);
     }
 
-    fn interrupt_ack(irq: u32) {
-        debug_if!(LOG_INTERRUPTS, "Interrupt {} handler done", irq as u32);
+    fn userspace_interrupt_ack(irq: u32) {
+        debug_if!(
+            LOG_INTERRUPTS,
+            "Userspace interrupt {} handler ack",
+            irq as u32
+        );
         // Release the claim on the interrupt
         let mut icr = Icr;
         icr.write(&CONTEXT_0, IcrValue(irq));
+    }
+
+    fn userspace_interrupt_handler_enter<K: Kernel>(kernel: K, irq: u32) -> PreemptDisableGuard<K> {
+        debug_if!(
+            LOG_INTERRUPTS,
+            "Userspace interrupt {} handler enter",
+            irq as u32
+        );
+        // For the PLIC, the interrupt has already been claimed in the handler, so there
+        // is no need to mask the interrupt here.
+        PreemptDisableGuard::new(kernel)
+    }
+
+    fn userspace_interrupt_handler_exit<K: Kernel>(
+        kernel: K,
+        irq: u32,
+        preempt_guard: PreemptDisableGuard<K>,
+    ) {
+        debug_if!(
+            LOG_INTERRUPTS,
+            "Userspace interrupt {} handler exit",
+            irq as u32
+        );
+        interrupt_controller::handler_done(kernel, preempt_guard);
+    }
+
+    fn kernel_interrupt_handler_enter<K: Kernel>(kernel: K, irq: u32) -> PreemptDisableGuard<K> {
+        debug_if!(
+            LOG_INTERRUPTS,
+            "Kernel interrupt {} handler enter",
+            irq as u32
+        );
+        PreemptDisableGuard::new(kernel)
+    }
+
+    fn kernel_interrupt_handler_exit<K: Kernel>(
+        kernel: K,
+        irq: u32,
+        preempt_guard: PreemptDisableGuard<K>,
+    ) {
+        debug_if!(
+            LOG_INTERRUPTS,
+            "Kernel interrupt {} handler exit",
+            irq as u32
+        );
+        // Release the claim on the interrupt
+        let mut icr = Icr;
+        icr.write(&CONTEXT_0, IcrValue(irq));
+        interrupt_controller::handler_done(kernel, preempt_guard);
     }
 
     fn enable_interrupts() {
@@ -222,6 +277,10 @@ impl InterruptController for Plic {
             u8::from(mie) as u8
         );
         mie
+    }
+
+    fn trigger_interrupt(_irq: u32) {
+        pw_assert::panic!("trigger_interrupt not supported on the PLIC");
     }
 }
 

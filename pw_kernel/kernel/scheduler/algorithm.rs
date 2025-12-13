@@ -47,6 +47,7 @@ pub struct SchedulerAlgorithmThreadState {
 
 impl SchedulerAlgorithmThreadState {
     #[allow(clippy::new_without_default)]
+    #[must_use]
     pub const fn new(current_priority: Priority) -> Self {
         Self { current_priority }
     }
@@ -66,6 +67,7 @@ unsafe impl<K: Kernel> Send for SchedulerAlgorithm<K> {}
 
 impl<K: Kernel> SchedulerAlgorithm<K> {
     #[allow(clippy::new_without_default)]
+    #[must_use]
     pub const fn new() -> Self {
         // Initialize the array of ForeignLists. There are a few limitations
         // from running in a `const` context that make this more complicated

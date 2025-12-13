@@ -17,7 +17,7 @@ use {{ arch_crate_name }} as arch;
 #[allow(unused_imports)]
 use foreign_box::ForeignRc;
 #[allow(unused_imports)]
-use kernel::interrupt_controller::{StaticContext, InterruptTableEntry};
+use kernel::interrupt_controller::{StaticContext, InterruptController, InterruptTableEntry};
 #[allow(unused_imports)]
 use kernel::object::InterruptObject;
 #[allow(unused_imports)]
@@ -32,7 +32,9 @@ static {{object.object_ref_name}}: StaticContext<ForeignRc<<arch::Arch as kernel
                 {%- set mapped_signal = object.interrupt_signal_map[irq.name] %}
 extern "C" fn {{handler_name}}() {
     if let Some(object) = unsafe { {{object.object_ref_name}}.get() } {
+        let preempt_guard = <arch::Arch as kernel::Arch>::InterruptController::userspace_interrupt_handler_enter(arch::Arch, {{irq.number}});
         object.interrupt(arch::Arch, {{mapped_signal}});
+        <arch::Arch as kernel::Arch>::InterruptController::userspace_interrupt_handler_exit(arch::Arch, {{irq.number}}, preempt_guard);
     }
 }
             {% endfor %}
@@ -41,17 +43,16 @@ extern "C" fn {{handler_name}}() {
 {%- endfor %}
 
 {%- for irq in kernel.interrupt_table.table %}
-    {%- set handler_name = kernel.interrupt_table.table[irq] %}
-unsafe extern "C" { fn {{handler_name}}(); }
-
-// Safe wrapper to keep the interrupt table entires safe.
-#[inline(always)]
-extern "C" fn safe_{{handler_name}}() {
-    unsafe { {{handler_name}}(); }
-}
-
+unsafe extern "C" { fn interrupt_handler_{{irq}}(); }
 {%- endfor %}
 
+#[unsafe(no_mangle)]
+{% if kernel.interrupt_table.link_section -%}
+#[unsafe(link_section = "{{kernel.interrupt_table.link_section}}")]
+{% endif -%}
+// The interrupt table is a sparsely populated array, who's indexes correspond to the IRQ number of the handler.  The table size is the
+// highest IRQ number + 1.
+// On Cortex-M, the table starts after the exception entries in the vector table, as defined by the linker script.
 static PW_KERNEL_INTERRUPT_TABLE_ARRAY: [InterruptTableEntry; {{kernel.interrupt_table.table_size}}] = {
     #[allow(unused_mut)]
     let mut interrupt_table: [InterruptTableEntry; {{kernel.interrupt_table.table_size}}] = [None; {{kernel.interrupt_table.table_size}}];
@@ -64,3 +65,28 @@ static PW_KERNEL_INTERRUPT_TABLE_ARRAY: [InterruptTableEntry; {{kernel.interrupt
 
 #[unsafe(no_mangle)]
 pub static PW_KERNEL_INTERRUPT_TABLE: &[InterruptTableEntry] = &PW_KERNEL_INTERRUPT_TABLE_ARRAY;
+
+// A macro is used to define the interrupt handler wrappers in the target crate, rather than codegen
+// them directly.
+// This allows the wrappers to call handler implementations that are defined in the target crate.
+// Interrupt handler implementations are generic on the arch, so it's not possible to reference
+// them through extern's.
+#[macro_export]
+macro_rules! declare_kernel_interrupt_handlers {
+    () => {
+        #[allow(unused_imports)]
+        use {{ arch_crate_name }} as arch;
+        #[allow(unused_imports)]
+        use kernel::interrupt_controller::InterruptController;
+
+        {%- for irq in kernel.interrupt_table.table %}
+            {%- set handler_name = kernel.interrupt_table.table[irq] %}
+        #[unsafe(no_mangle)]
+        unsafe extern "C" fn interrupt_handler_{{irq}}() {
+            let preempt_guard = <arch::Arch as kernel::Arch>::InterruptController::kernel_interrupt_handler_enter(arch::Arch, {{irq}});
+            {{handler_name}}(arch::Arch);
+            <arch::Arch as kernel::Arch>::InterruptController::kernel_interrupt_handler_exit(arch::Arch, {{irq}}, preempt_guard);
+        }
+        {%- endfor %}
+    };
+}

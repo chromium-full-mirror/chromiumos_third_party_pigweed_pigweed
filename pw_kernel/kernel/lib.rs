@@ -13,7 +13,7 @@
 // the License.
 #![no_std]
 
-use pw_atomic::AtomicUsize;
+use pw_atomic::{AtomicBool, AtomicUsize};
 use pw_log::info;
 pub use time::{Duration, Instant};
 
@@ -41,6 +41,7 @@ pub trait Arch: 'static + Copy + thread::ThreadArg {
     type ThreadState: ThreadState;
     type BareSpinLock: BareSpinLock;
     type Clock: time::Clock;
+    type AtomicBool: AtomicBool;
     type AtomicUsize: AtomicUsize;
     type SyscallArgs<'a>: SyscallArgs<'a>;
     type InterruptController: InterruptController;

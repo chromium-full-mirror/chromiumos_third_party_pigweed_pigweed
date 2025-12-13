@@ -11,12 +11,21 @@
 // WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 // License for the specific language governing permissions and limitations under
 // the License.
-#![no_std]
-
-/// Configuration interface for the 16550 UART.
-pub trait UartConfigInterface {
-    /// Base address of the UART.
-    const BASE_ADDRESS: usize;
-    /// Interrupt number on which the UART is configured.
-    const IRQ: u32;
+{
+  arch: {
+    type: "armv8m",
+    vector_table_start_address: 0x10000000,
+    vector_table_size_bytes: 2048,
+  },
+  kernel: {
+    flash_start_address: 0x10000800,
+    flash_size_bytes: 261120,
+    ram_start_address: 0x38000000,
+    ram_size_bytes: 65536,
+    interrupt_table: {
+      table: {
+        "42": "test_interrupts::test_interrupt_handler",
+      }
+    },
+  },
 }

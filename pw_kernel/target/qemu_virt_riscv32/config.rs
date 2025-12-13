@@ -65,7 +65,7 @@ impl ClintTimerConfigInterface for TimerConfig {
 
 pub struct Uart0Config;
 
-impl uart_16550_config::UartConfigInterface for Uart0Config {
+impl kernel_uart::UartConfigInterface for Uart0Config {
     const BASE_ADDRESS: usize = 0x1000_0000;
     // TODO: this IRQ is duplicated in the interrupt_table config.
     // We should find a way to remove the duplication.

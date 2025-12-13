@@ -76,6 +76,7 @@ pub trait ArchConfigInterface {
         &mut self,
         config: &mut system_config::BaseConfig,
     ) -> Result<()>;
+    fn get_interrupt_table_link_section(&self) -> Option<String>;
 }
 
 pub fn parse_config<A: ArchConfigInterface + DeserializeOwned>(
@@ -145,6 +146,10 @@ impl ArchConfigInterface for system_config::Armv8MConfig {
         }
         Ok(())
     }
+
+    fn get_interrupt_table_link_section(&self) -> Option<String> {
+        Some(".vector_table.interrupts".to_string())
+    }
 }
 
 impl ArchConfigInterface for system_config::RiscVConfig {
@@ -161,6 +166,10 @@ impl ArchConfigInterface for system_config::RiscVConfig {
         _config: &mut system_config::BaseConfig,
     ) -> Result<()> {
         Ok(())
+    }
+
+    fn get_interrupt_table_link_section(&self) -> Option<String> {
+        None
     }
 }
 
@@ -363,12 +372,15 @@ impl<'a, A: ArchConfigInterface + Serialize> SystemGenerator<'a, A> {
 
         let interrupt_table = self.config.base.kernel.interrupt_table.as_mut().unwrap();
 
-        // Add any handlers defined in the config to the ordered list.
-        for (irq, handler) in &interrupt_table.table {
+        // Add any kernel interrupt handlers defined in the config to the ordered list.
+        for irq in interrupt_table.table.keys() {
             interrupt_table
                 .ordered_table
                 // Use the safe wrapper handler to keep the table elements safe.
-                .insert(irq.parse::<u32>().unwrap(), std::format!("safe_{handler}"));
+                .insert(
+                    irq.parse::<u32>().unwrap(),
+                    std::format!("interrupt_handler_{irq}"),
+                );
         }
 
         // Calculate the size of the interrupt table, which is the highest handled IRQ + 1
@@ -378,6 +390,8 @@ impl<'a, A: ArchConfigInterface + Serialize> SystemGenerator<'a, A> {
             .max()
             .map(|max_irq| max_irq + 1)
             .unwrap_or(0) as usize;
+
+        interrupt_table.link_section = self.config.arch.get_interrupt_table_link_section();
 
         Ok(())
     }

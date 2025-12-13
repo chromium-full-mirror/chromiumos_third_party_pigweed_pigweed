@@ -17,20 +17,20 @@ load("@rules_rust//rust:defs.bzl", "rust_library")
 package(default_visibility = ["//visibility:public"])
 
 TARGET_COMPATIBLE_WITH = select({
-    "@platforms//cpu:riscv32": [],
+    "@platforms//cpu:armv8-m": [],
     "//conditions:default": ["@platforms//:incompatible"],
 })
 
 rust_library(
-    name = "uart_16550_kernel",
+    name = "cmsdk_apb_uart_kernel",
     srcs = [
-        "uart_16550_kernel.rs",
+        "cmsdk_apb_uart_kernel.rs",
     ],
     edition = "2024",
     tags = ["kernel"],
     target_compatible_with = TARGET_COMPATIBLE_WITH,
     deps = [
-        ":uart_16550_regs",
+        ":cmsdk_apb_uart_regs",
         "//pw_kernel/kernel",
         "//pw_kernel/lib/circular_buffer",
         "//pw_kernel/lib/log_if",
@@ -41,28 +41,9 @@ rust_library(
 )
 
 rust_library(
-    name = "uart_16550_user",
+    name = "cmsdk_apb_uart_regs",
     srcs = [
-        "uart_16550_user.rs",
-    ],
-    edition = "2024",
-    proc_macro_deps = [
-        "@rust_crates//:paste",
-    ],
-    tags = ["kernel"],
-    target_compatible_with = TARGET_COMPATIBLE_WITH,
-    deps = [
-        ":uart_16550_regs",
-        "//pw_kernel/lib/log_if",
-        "//pw_kernel/lib/regs",
-        "//pw_log/rust:pw_log",
-    ],
-)
-
-rust_library(
-    name = "uart_16550_regs",
-    srcs = [
-        "uart_16550_regs.rs",
+        "cmsdk_apb_uart_regs.rs",
     ],
     edition = "2024",
     proc_macro_deps = [

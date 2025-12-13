@@ -13,16 +13,15 @@
 // the License.
 #![allow(dead_code)]
 
-const ISER_BASE: *mut u32 = 0xe000e100 as *mut u32;
-const ICER_BASE: *mut u32 = 0xe000e180 as *mut u32;
-const ISPR_BASE: *mut u32 = 0xe000e200 as *mut u32;
-const ICPR_BASE: *mut u32 = 0xe000e280 as *mut u32;
-const IABR_BASE: *mut u32 = 0xe000e300 as *mut u32;
-const IPR_BASE: *mut u32 = 0xe000e400 as *mut u32;
+const ISER_BASE: *mut u32 = 0xe000_e100 as *mut u32;
+const ICER_BASE: *mut u32 = 0xe000_e180 as *mut u32;
+const ISPR_BASE: *mut u32 = 0xe000_e200 as *mut u32;
+const ICPR_BASE: *mut u32 = 0xe000_e280 as *mut u32;
+const IABR_BASE: *mut u32 = 0xe000_e300 as *mut u32;
+const IPR_BASE: *mut u32 = 0xe000_e400 as *mut u32;
 
-const unsafe fn bit_reg_and_mask(index: usize, reg_base: *mut u32) -> (*mut u32, u32) {
-    // core::assert! used due to const context.
-    assert!(index < 32 * 16);
+unsafe fn bit_reg_and_mask(index: usize, reg_base: *mut u32) -> (*mut u32, u32) {
+    pw_assert::assert!(index < 32 * 16);
     let offset = index / 32;
     let mask = 1 << (index % 32);
     unsafe { (reg_base.add(offset), mask) }
@@ -144,7 +143,7 @@ impl Nvic {
         unsafe {
             let (reg, offset) = priority_reg_and_offset(index, IPR_BASE);
             let val = reg.read_volatile();
-            reg.write_volatile((val & (0xff << offset)) | ((u32::from(priority)) << offset))
+            reg.write_volatile((val & !(0xff << offset)) | ((u32::from(priority)) << offset))
         }
     }
 }

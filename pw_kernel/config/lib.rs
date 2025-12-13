@@ -36,6 +36,12 @@ pub trait CortexMKernelConfigInterface {
     const NUM_MPU_REGIONS: usize;
 }
 
+/// NVIC configuration.
+pub trait NvicConfigInterface {
+    /// The maximum number of interrupts the NVIC supports.
+    const MAX_IRQS: u32 = 480;
+}
+
 /// RISC-V specific configuration.
 // TODO: davidroth - Once Arch is out of tree, move this configuration also.
 pub trait RiscVKernelConfigInterface {

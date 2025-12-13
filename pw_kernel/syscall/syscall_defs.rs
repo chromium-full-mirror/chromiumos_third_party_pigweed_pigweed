@@ -255,6 +255,7 @@ pub enum SysCallId {
     DebugShutdown = 0xf001,
     DebugLog = 0xf002,
     DebugNop = 0xf003,
+    DebugTriggerInterrupt = 0xf004,
 }
 
 impl From<u16> for SysCallId {
@@ -551,4 +552,6 @@ pub trait SysCallInterface {
     unsafe fn debug_log(buffer: *const u8, buffer_len: usize) -> Result<()>;
 
     fn debug_nop() -> Result<()>;
+
+    fn debug_trigger_interrupt(irq: u32) -> Result<()>;
 }

@@ -21,6 +21,8 @@ use regs::*;
 pub struct Scb {
     /// CPUID Base Register
     pub cpu_id: CpuId,
+    /// Interrupt Control and State Register
+    pub icsr: Icsr,
     /// System Handler Control and State Register
     pub shcsr: Shcsr,
 }
@@ -29,6 +31,7 @@ impl Scb {
     pub(super) const fn new() -> Self {
         Self {
             cpu_id: CpuId,
+            icsr: Icsr,
             shcsr: Shcsr,
         }
     }
@@ -44,7 +47,20 @@ impl CpuIdVal {
     ro_int_field!(u32, implementer, 24, 31, u32, "implementer code");
 }
 
-ro_reg!(CpuId, CpuIdVal, u32, 0xe000ed00, "CPUID Base Register");
+ro_reg!(CpuId, CpuIdVal, u32, 0xe000_ed00, "CPUID Base Register");
+
+#[repr(transparent)]
+pub struct IcsrVal(u32);
+impl IcsrVal {
+    ro_int_field!(u32, vecactive, 0, 8, u32, "Vector active");
+}
+rw_reg!(
+    Icsr,
+    IcsrVal,
+    u32,
+    0xe000_ed04,
+    "SCB Interrupt Control and State Register"
+);
 
 #[repr(transparent)]
 pub struct ShcsrVal(u32);
@@ -99,6 +115,6 @@ rw_reg!(
     Shcsr,
     ShcsrVal,
     u32,
-    0xe000ed24,
+    0xe000_ed24,
     "SCB System Handler Control and State Register"
 );

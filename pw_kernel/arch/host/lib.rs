@@ -15,8 +15,8 @@
 #![no_std]
 
 use kernel::interrupt_controller::InterruptController;
-use kernel::scheduler::SchedulerState;
 use kernel::scheduler::thread::{Stack, ThreadState};
+use kernel::scheduler::{PreemptDisableGuard, SchedulerState};
 use kernel::sync::spinlock::SpinLockGuard;
 use kernel::{Arch, Kernel, KernelState};
 use memory_config::MemoryRegionType;
@@ -36,6 +36,7 @@ impl Arch for HostArch {
     type ThreadState = ArchThreadState;
     type BareSpinLock = spinlock::BareSpinLock;
     type Clock = Clock;
+    type AtomicBool = core::sync::atomic::AtomicBool;
     type AtomicUsize = core::sync::atomic::AtomicUsize;
     type SyscallArgs<'a> = HostSyscallArgs;
     type InterruptController = HostInterruptController;
@@ -151,16 +152,43 @@ impl InterruptController for HostInterruptController {
         pw_assert::panic!("Unimplemented: early_init");
     }
 
-    fn enable_interrupt(&self, _irq: u32) {
+    fn enable_interrupt(_irq: u32) {
         pw_assert::panic!("Unimplemented: enable_interrupt");
     }
 
-    fn disable_interrupt(&self, _irq: u32) {
+    fn disable_interrupt(_irq: u32) {
         pw_assert::panic!("Unimplemented: disable_interrupt");
     }
 
-    fn interrupt_ack(_irq: u32) {
-        pw_assert::panic!("Unimplemented: interrupt_ack");
+    fn userspace_interrupt_ack(_irq: u32) {
+        pw_assert::panic!("Unimplemented: userspace_interrupt_ack");
+    }
+
+    fn userspace_interrupt_handler_enter<K: Kernel>(
+        _kernel: K,
+        _irq: u32,
+    ) -> PreemptDisableGuard<K> {
+        pw_assert::panic!("Unimplemented: userspace_interrupt_handler_enter");
+    }
+
+    fn userspace_interrupt_handler_exit<K: Kernel>(
+        _kernel: K,
+        _irq: u32,
+        _preempt_guard: PreemptDisableGuard<K>,
+    ) {
+        pw_assert::panic!("Unimplemented: userspace_interrupt_handler_exit");
+    }
+
+    fn kernel_interrupt_handler_enter<K: Kernel>(_kernel: K, _irq: u32) -> PreemptDisableGuard<K> {
+        pw_assert::panic!("Unimplemented: kernel_interrupt_handler_enter");
+    }
+
+    fn kernel_interrupt_handler_exit<K: Kernel>(
+        _kernel: K,
+        _irq: u32,
+        _preempt_guard: PreemptDisableGuard<K>,
+    ) {
+        pw_assert::panic!("Unimplemented: kernel_interrupt_handler_exit");
     }
 
     fn enable_interrupts() {
@@ -173,5 +201,9 @@ impl InterruptController for HostInterruptController {
 
     fn interrupts_enabled() -> bool {
         pw_assert::panic!("Unimplemented: interrupts_enabled");
+    }
+
+    fn trigger_interrupt(_irq: u32) {
+        pw_assert::panic!("Unimplemented: trigger_interrupt");
     }
 }

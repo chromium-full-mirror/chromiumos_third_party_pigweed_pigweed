@@ -13,14 +13,20 @@
 // the License.
 
 use kernel::interrupt_controller::InterruptController;
+use kernel::scheduler::PreemptDisableGuard;
+use kernel::{Kernel, interrupt_controller};
+use kernel_config::{NvicConfig, NvicConfigInterface};
 use log_if::debug_if;
 use pw_log::info;
+
+use crate::regs;
 
 const LOG_INTERRUPTS: bool = false;
 
 pub struct Nvic {}
 
 impl Nvic {
+    #[must_use]
     pub const fn new() -> Self {
         Self {}
     }
@@ -29,18 +35,82 @@ impl Nvic {
 impl InterruptController for Nvic {
     fn early_init(&self) {
         info!("Initializing NVIC");
+        let nvic_regs = regs::Nvic {};
+        // Set all of the NVIC external IRQs to the same priority as SysTick.
+        for i in 0..NvicConfig::MAX_IRQS {
+            nvic_regs.set_priority(i as usize, 0b0100_0000);
+        }
     }
 
-    fn enable_interrupt(&self, _irq: u32) {
-        pw_assert::panic!("Unimplemented: enable_interrupt")
+    fn enable_interrupt(irq: u32) {
+        debug_if!(LOG_INTERRUPTS, "Enable interrupt {}", irq as u32);
+        let mut nvic_regs = regs::Nvic {};
+        nvic_regs.enable(irq as usize);
     }
 
-    fn disable_interrupt(&self, _irq: u32) {
-        pw_assert::panic!("Unimplemented: disable_interrupt")
+    fn disable_interrupt(irq: u32) {
+        debug_if!(LOG_INTERRUPTS, "Disable interrupt {}", irq as u32);
+        let mut nvic_regs = regs::Nvic {};
+        nvic_regs.disable(irq as usize);
     }
 
-    fn interrupt_ack(_irq: u32) {
-        pw_assert::panic!("Unimplemented: interrupt_ack");
+    fn userspace_interrupt_ack(irq: u32) {
+        debug_if!(
+            LOG_INTERRUPTS,
+            "Userspace interrupt {} handler ack",
+            irq as u32
+        );
+        // re-enable the interrupt to allow it to be triggered again.
+        Self::enable_interrupt(irq);
+    }
+
+    fn userspace_interrupt_handler_enter<K: Kernel>(kernel: K, irq: u32) -> PreemptDisableGuard<K> {
+        debug_if!(
+            LOG_INTERRUPTS,
+            "Userspace interrupt {} handler enter",
+            irq as u32
+        );
+        Self::disable_interrupt(irq);
+        PreemptDisableGuard::new(kernel)
+    }
+
+    fn userspace_interrupt_handler_exit<K: Kernel>(
+        kernel: K,
+        irq: u32,
+        preempt_guard: PreemptDisableGuard<K>,
+    ) {
+        debug_if!(
+            LOG_INTERRUPTS,
+            "Userspace interrupt {} handler exit",
+            irq as u32
+        );
+        interrupt_controller::handler_done(kernel, preempt_guard);
+    }
+
+    fn kernel_interrupt_handler_enter<K: Kernel>(kernel: K, irq: u32) -> PreemptDisableGuard<K> {
+        debug_if!(
+            LOG_INTERRUPTS,
+            "Kernel interrupt {} handler enter",
+            irq as u32
+        );
+        // No need to mask the interrupt, as the NVIC automatically masks
+        // the interrupt while the handler is running.
+        PreemptDisableGuard::new(kernel)
+    }
+
+    fn kernel_interrupt_handler_exit<K: Kernel>(
+        kernel: K,
+        irq: u32,
+        preempt_guard: PreemptDisableGuard<K>,
+    ) {
+        debug_if!(
+            LOG_INTERRUPTS,
+            "Kernel interrupt {} handler exit",
+            irq as u32
+        );
+        // No need to unmask the interrupt, as the NVIC will automatically
+        // unmask the interrupt when the handler exits.
+        interrupt_controller::handler_done(kernel, preempt_guard);
     }
 
     fn enable_interrupts() {
@@ -69,5 +139,11 @@ impl InterruptController for Nvic {
             basepri as u8,
         );
         primask.is_active() && (basepri == 0)
+    }
+
+    fn trigger_interrupt(irq: u32) {
+        debug_if!(LOG_INTERRUPTS, "Trigger interrupt {}", irq as u32);
+        let mut nvic_regs = regs::Nvic {};
+        nvic_regs.set_pending(irq as usize);
     }
 }

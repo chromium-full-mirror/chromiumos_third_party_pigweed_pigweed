@@ -13,7 +13,6 @@
 // the License.
 {
     use kernel::__private::foreign_box::{static_foreign_rc, upcast_foreign_rc};
-    use kernel::Arch;
     use kernel::interrupt_controller::InterruptController;
     use kernel::object::{KernelObject, InterruptObject};
 
@@ -26,7 +25,7 @@
         let signal_mask_table: [u32; {{ object.irqs | length }}] = [
         {%- for irq in object.irqs %}
             {{irq.number}}{% if not loop.last %},{% endif %}
-        {%- endfor -%}
+        {%- endfor %}
         ];
 
         // Depending on the number of IRQs an object is handling a find first set
@@ -36,7 +35,7 @@
             // IRQ signals start at bit 16.
             let interrupt_bit = 1 << (16 + index);
             if signal_mask.contains(Signals::from_bits_retain(interrupt_bit)) {
-                <K as kernel::Arch>::InterruptController::interrupt_ack(*irq);
+                <K as kernel::Arch>::InterruptController::userspace_interrupt_ack(*irq);
             }
         }
     }
@@ -48,11 +47,9 @@
     unsafe { {{object.object_ref_name}}.set(interrupt.clone()) };
 
     // Enable the interrupts for all interrupts handled by interrupt objects.
-    let interrupt_controller = kernel.get_interrupt_controller().lock(kernel);
     {%- for irq in object.irqs %}
-    interrupt_controller.enable_interrupt({{irq.number}});
+    <arch::Arch as kernel::Arch>::InterruptController::enable_interrupt({{irq.number}});
     {%- endfor %}
-    drop(interrupt_controller);
 
     // Upcast the concrete object into a dynamic one.
     upcast_foreign_rc!(interrupt => dyn KernelObject<K>)

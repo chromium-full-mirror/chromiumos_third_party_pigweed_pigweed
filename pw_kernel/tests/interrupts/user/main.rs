@@ -14,28 +14,33 @@
 #![no_main]
 #![no_std]
 
-use app_test_uart::{handle, mapping};
+use core::mem::size_of;
+
+use app_test_interrupts::handle;
 use pw_status::{Error, Result, StatusCode};
-use uart_16550_user::Uart;
 use userspace::syscall::Signals;
 use userspace::time::Instant;
 use userspace::{entry, syscall};
 
-fn read_expected_value(expected_value: u8) -> Result<()> {
-    // the UART listener responds on IPC with the value written to the UART.
+// TODO: once multiple target's are supported, feature flag the IRQ.
+const IRQ_NUMBER: u32 = 42;
+
+fn read_expected_value(expected_value: u32) -> Result<()> {
+    // the interrupt listener responds on IPC with the interrupt count.
     syscall::object_wait(handle::IPC, Signals::READABLE, Instant::MAX)?;
 
-    let mut buffer = [0u8; 1];
+    let mut buffer = [0u8; size_of::<u32>()];
     let len = syscall::channel_read(handle::IPC, 0, &mut buffer)?;
-    if len != 1 {
+    if len != buffer.len() {
         return Err(Error::OutOfRange);
     };
 
-    if buffer[0] != expected_value {
+    let received_value = u32::from_le_bytes(buffer);
+    if received_value != expected_value {
         pw_log::error!(
-            "UART read() wrong value {} (expected {})",
-            buffer[0] as u8,
-            expected_value as u8
+            "Interrupt count wrong value {} (expected {})",
+            received_value as u32,
+            expected_value as u32
         );
         return Err(Error::Internal);
     }
@@ -46,32 +51,15 @@ fn read_expected_value(expected_value: u8) -> Result<()> {
     Ok(())
 }
 
-fn test_uart_interrupts() -> Result<()> {
-    let mut uart = Uart::new(mapping::UART0_START_ADDRESS);
+fn test_interrupts() -> Result<()> {
+    syscall::debug_trigger_interrupt(IRQ_NUMBER)?;
+    read_expected_value(1)?;
 
-    // enable lo to support writing and then reading back the result.
-    uart.enable_loopback();
+    syscall::debug_trigger_interrupt(IRQ_NUMBER)?;
+    read_expected_value(2)?;
 
-    // drain UART buffer
-    while !uart.read().is_none() {}
-
-    uart.write(7);
-    read_expected_value(7)?;
-
-    if !uart.read().is_none() {
-        pw_log::error!("Buffer not empty after read");
-        return Err(Error::FailedPrecondition);
-    }
-
-    for i in 0..3u8 {
-        uart.write(i);
-        read_expected_value(i)?;
-    }
-
-    if !uart.read().is_none() {
-        pw_log::error!("Buffer not empty after multiple reads");
-        return Err(Error::FailedPrecondition);
-    }
+    syscall::debug_trigger_interrupt(IRQ_NUMBER)?;
+    read_expected_value(3)?;
 
     Ok(())
 }
@@ -79,7 +67,7 @@ fn test_uart_interrupts() -> Result<()> {
 #[entry]
 fn entry() -> ! {
     pw_log::info!("🔄 RUNNING");
-    let ret = test_uart_interrupts();
+    let ret = test_interrupts();
 
     // Log that an error occurred so that the app that caused the shutdown is logged.
     if ret.is_err() {

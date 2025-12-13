@@ -14,42 +14,22 @@
 #![no_std]
 #![no_main]
 
-use arch_riscv::Arch;
-use kernel_config::Uart0Config;
-use kernel_uart::UartConfigInterface;
-use pw_status::Result;
-use riscv_semihosting::debug::{EXIT_FAILURE, EXIT_SUCCESS, exit};
+use arch_arm_cortex_m::Arch;
+use cortex_m_semihosting::debug::{EXIT_FAILURE, EXIT_SUCCESS, exit};
 use target_common::{TargetInterface, declare_target};
 use {codegen as _, console_backend as _, entry as _};
 
 pub struct Target {}
-struct TargetUart {}
 
-kernel_uart::declare_uarts!(Arch, UARTS, uart_16550_kernel::Uart, [
-    UART0: Uart0Config,
-]);
-
-impl test_uart::TestUart for TargetUart {
-    fn enable_loopback() {
-        UART0.enable_loopback()
-    }
-
-    fn read() -> Result<Option<u8>> {
-        UART0.read(Arch)
-    }
-
-    fn write(byte: u8) -> Result<()> {
-        UART0.write(byte)
-    }
-}
+// make sure this IRQ matches the value
+// defined in the system.json5 file.
+const TEST_IRQ: u32 = 42;
 
 impl TargetInterface for Target {
-    const NAME: &'static str = "QEMU-VIRT-RISCV Kernel UART";
+    const NAME: &'static str = "MPS2-AN505 Kernel Interrupts";
 
     fn main() -> ! {
-        uart_16550_kernel::init(&UARTS);
-
-        let exit_status = match test_uart::main::<Arch, TargetUart>(Arch) {
+        let exit_status = match test_interrupts::main::<Arch>(TEST_IRQ) {
             Ok(()) => EXIT_SUCCESS,
             Err(_e) => EXIT_FAILURE,
         };

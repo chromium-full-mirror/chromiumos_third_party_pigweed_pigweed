@@ -73,4 +73,9 @@ impl SysCallInterface for SysCall {
     fn debug_nop() -> Result<()> {
         Err(pw_status::Error::Unimplemented)
     }
+
+    #[inline(always)]
+    fn debug_trigger_interrupt(_irq: u32) -> Result<()> {
+        Err(pw_status::Error::Unimplemented)
+    }
 }

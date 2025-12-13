@@ -21,6 +21,7 @@ use syscall_defs::{Signals, SysCallId, SysCallReturnValue};
 use time::{Clock, Instant};
 
 use crate::Kernel;
+use crate::interrupt_controller::InterruptController;
 use crate::object::{KernelObject, SyscallBuffer};
 
 const SYSCALL_DEBUG: bool = false;
@@ -210,6 +211,19 @@ fn handle_debug_log<'a, K: Kernel>(kernel: K, mut args: K::SyscallArgs<'a>) -> R
     console.write_all(buffer.as_slice()).map(|_| 0)
 }
 
+fn handle_debug_trigger_interrupt<'a, K: Kernel>(
+    _kernel: K,
+    mut args: K::SyscallArgs<'a>,
+) -> Result<u64> {
+    log_if::debug_if!(SYSCALL_DEBUG, "syscall: handling debug_trigger_interrupt");
+
+    let irq = args.next_u32()?;
+    K::InterruptController::trigger_interrupt(irq);
+
+    log_if::debug_if!(SYSCALL_DEBUG, "syscall: debug_trigger_interrupt complete");
+    Ok(0)
+}
+
 pub fn handle_syscall<'a, K: Kernel>(
     kernel: K,
     id: u16,
@@ -247,6 +261,7 @@ pub fn handle_syscall<'a, K: Kernel>(
         }
         SysCallId::DebugLog => handle_debug_log(kernel, args),
         SysCallId::DebugNop => Ok(0),
+        SysCallId::DebugTriggerInterrupt => handle_debug_trigger_interrupt(kernel, args),
         _ => {
             log_if::debug_if!(SYSCALL_DEBUG, "syscall: log");
             Err(Error::InvalidArgument)

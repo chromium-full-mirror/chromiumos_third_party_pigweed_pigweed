@@ -55,6 +55,7 @@ syscall_veneer!(DebugPutc, putc(a: u32));
 syscall_veneer!(DebugShutdown, shutdown(a: u32));
 syscall_veneer!(DebugLog, log(buffer: *const u8, buffer_len: usize));
 syscall_veneer!(DebugNop, nop());
+syscall_veneer!(DebugTriggerInterrupt, debug_trigger_interrupt(irq: u32));
 
 impl SysCallInterface for SysCall {
     #[inline(always)]
@@ -116,5 +117,10 @@ impl SysCallInterface for SysCall {
     #[inline(always)]
     fn debug_nop() -> Result<()> {
         SysCallReturnValue(unsafe { nop() }).to_result_unit()
+    }
+
+    #[inline(always)]
+    fn debug_trigger_interrupt(irq: u32) -> Result<()> {
+        SysCallReturnValue(unsafe { debug_trigger_interrupt(irq) }).to_result_unit()
     }
 }

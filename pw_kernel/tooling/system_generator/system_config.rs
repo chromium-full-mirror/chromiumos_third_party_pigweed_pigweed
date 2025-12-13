@@ -73,6 +73,8 @@ pub struct InterruptTableConfig {
     pub table_size: usize,
     #[serde(skip_deserializing)]
     pub ordered_table: BTreeMap<u32, String>,
+    #[serde(skip_deserializing)]
+    pub link_section: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

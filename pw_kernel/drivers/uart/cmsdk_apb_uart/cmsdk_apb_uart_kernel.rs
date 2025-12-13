@@ -19,9 +19,9 @@ use kernel::interrupt_controller::InterruptController;
 use kernel::sync::spinlock::SpinLock;
 use pw_status::Result;
 
-const LOG_UART: bool = false;
+const LOG_UART: bool = true;
 
-const BUFFER_SIZE: usize = 128;
+const BUFFER_SIZE: usize = 16;
 pub struct Uart<K: Kernel> {
     base_address: usize,
     irq: u32,
@@ -34,7 +34,7 @@ impl<K: Kernel> regs::BaseAddress for Uart<K> {
     }
 }
 
-impl<K: Kernel> uart_16550_regs::Uart16550BaseAddress for Uart<K> {}
+impl<K: Kernel> cmsdk_apb_uart_regs::CmsdkApbUartBaseAddress for Uart<K> {}
 
 impl<K: Kernel> Uart<K> {
     #[must_use]
@@ -46,12 +46,6 @@ impl<K: Kernel> Uart<K> {
         }
     }
 
-    pub fn enable_loopback(&self) {
-        log_if::debug_if!(LOG_UART, "enable loopback");
-        let mut mcr = uart_16550_regs::Mcr;
-        mcr.write(self, mcr.read(self).with_lo(true));
-    }
-
     pub fn read(&self, kernel: K) -> Result<Option<u8>> {
         log_if::debug_if!(LOG_UART, "uart read");
         Ok(self.read_buffer.lock(kernel).pop_front())
@@ -59,10 +53,13 @@ impl<K: Kernel> Uart<K> {
 
     pub fn write(&self, value: u8) -> Result<()> {
         log_if::debug_if!(LOG_UART, "uart write: {}", value as u8);
-        let lsr = uart_16550_regs::Lsr;
-        while !lsr.read(self).thre() {}
 
-        uart_16550_regs::Thr.write(self, uart_16550_regs::ThrValue(value));
+        let state_reg = cmsdk_apb_uart_regs::State;
+        while state_reg.read(self).tx_buffer_full() {}
+
+        let mut data_reg = cmsdk_apb_uart_regs::Data;
+        data_reg.write(self, cmsdk_apb_uart_regs::DataValue(value));
+
         log_if::debug_if!(LOG_UART, "done");
         Ok(())
     }
@@ -74,20 +71,45 @@ impl<K: Kernel> Uart<K> {
             self.base_address as usize
         );
 
-        let lsr = uart_16550_regs::Lsr;
-        while lsr.read(self).dr() {
-            let value = uart_16550_regs::Rbr.read(self);
-            log_if::debug_if!(LOG_UART, "data ready: {}", value.data() as u8);
-            let _ = self.read_buffer.lock(kernel).push_back(value.data());
+        let int_status_reg = cmsdk_apb_uart_regs::IntStatus;
+        let int_status = int_status_reg.read(self);
+
+        if int_status.rx_interrupt() {
+            log_if::debug_if!(LOG_UART, "RX interrupt");
+
+            let state_reg = cmsdk_apb_uart_regs::State;
+            while state_reg.read(self).rx_buffer_full() {
+                let data_reg = cmsdk_apb_uart_regs::Data;
+                let value = data_reg.read(self);
+                log_if::debug_if!(LOG_UART, "data ready: {}", value.data() as u8);
+                let _ = self.read_buffer.lock(kernel).push_back(value.data());
+            }
+            let mut int_clear_reg = cmsdk_apb_uart_regs::IntClear;
+            let int_clear = cmsdk_apb_uart_regs::IntClearValue(0).with_rx_interrupt(true);
+            int_clear_reg.write(self, int_clear);
+        }
+
+        if int_status.tx_interrupt() {
+            log_if::debug_if!(LOG_UART, "TX interrupt");
+
+            let mut int_clear_reg = cmsdk_apb_uart_regs::IntClear;
+            let int_clear = cmsdk_apb_uart_regs::IntClearValue(0).with_tx_interrupt(true);
+            int_clear_reg.write(self, int_clear);
         }
     }
 }
 
 pub fn init<K: Kernel>(uarts: &[&Uart<K>]) {
     for uart in uarts {
-        let mut ier = uart_16550_regs::Ier;
-        ier.write(*uart, ier.read(*uart).with_erbfi(true));
+        // Enable RX and TX
+        let mut ctrl_reg = cmsdk_apb_uart_regs::Ctrl;
+        let mut ctrl_value = ctrl_reg.read(*uart);
+        ctrl_value = ctrl_value.with_tx_enable(true);
+        ctrl_value = ctrl_value.with_tx_interrupt_enable(true);
+        ctrl_value = ctrl_value.with_rx_enable(true);
+        ctrl_value = ctrl_value.with_rx_interrupt_enable(true);
 
+        ctrl_reg.write(*uart, ctrl_value);
         K::InterruptController::enable_interrupt(uart.irq);
     }
 }

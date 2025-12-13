@@ -19,7 +19,9 @@ use core::sync::atomic::Ordering;
 use foreign_box::ForeignBox;
 use list::*;
 use memory_config::MemoryConfig as _;
-use pw_atomic::{AtomicAdd, AtomicLoad, AtomicSub, AtomicZero};
+use pw_atomic::{
+    AtomicAdd, AtomicCompareExchange, AtomicFalse, AtomicLoad, AtomicStore, AtomicSub, AtomicZero,
+};
 use pw_log::info;
 use pw_status::{Error, Result};
 use time::Instant;
@@ -53,6 +55,7 @@ macro_rules! wait_queue_debug {
 // generic on `arch` instead of `kernel` as it appears in the `arch` interface.
 pub struct ThreadLocalState<A: Arch> {
     pub(crate) preempt_disable_count: A::AtomicUsize,
+    pub(crate) needs_reschedule: A::AtomicBool,
 }
 
 impl<A: Arch> ThreadLocalState<A> {
@@ -60,6 +63,7 @@ impl<A: Arch> ThreadLocalState<A> {
     pub const fn new() -> Self {
         Self {
             preempt_disable_count: A::AtomicUsize::ZERO,
+            needs_reschedule: A::AtomicBool::FALSE,
         }
     }
 }
@@ -327,6 +331,10 @@ impl<K: Kernel> SpinLockGuard<'_, K, SchedulerState<K>> {
             let current_thread_id = self.reschedule_current_thread(reason);
             reschedule(kernel, self, current_thread_id)
         } else {
+            kernel
+                .thread_local_state()
+                .needs_reschedule
+                .store(true, Ordering::SeqCst);
             self
         }
     }
@@ -636,6 +644,22 @@ fn reschedule<K: Kernel>(
     let new_thread_state = new_thread.arch_thread_state.get();
     sched_state.set_current_thread(new_thread);
     unsafe { kernel.context_switch(sched_state, old_thread_state, new_thread_state) }
+}
+
+/// If try_reschedule() was called while preemption was disabled, try to
+/// reschedule again after the preempt guard is dropped.
+pub fn try_deferred_reschedule<K: Kernel>(kernel: K) {
+    if Ok(true)
+        == kernel
+            .thread_local_state()
+            .needs_reschedule
+            .compare_exchange(true, false, Ordering::SeqCst, Ordering::SeqCst)
+    {
+        kernel
+            .get_scheduler()
+            .lock(kernel)
+            .try_reschedule(kernel, RescheduleReason::Preempted);
+    }
 }
 
 #[allow(dead_code)]

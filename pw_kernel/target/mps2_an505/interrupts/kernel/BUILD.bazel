@@ -13,30 +13,30 @@
 # the License.
 
 load("@rules_rust//rust:defs.bzl", "rust_binary")
-load("//pw_kernel/target/qemu_virt_riscv32:defs.bzl", "TARGET_COMPATIBLE_WITH")
+load("//pw_kernel/target/mps2_an505:defs.bzl", "TARGET_COMPATIBLE_WITH")
 load("//pw_kernel/tooling:system_image.bzl", "system_image", "system_image_test")
 load("//pw_kernel/tooling:target_codegen.bzl", "target_codegen")
 load("//pw_kernel/tooling:target_linker_script.bzl", "target_linker_script")
 load("//pw_kernel/tooling/panic_detector:rust_binary_no_panics_test.bzl", "rust_binary_no_panics_test")
 
 system_image(
-    name = "uart",
+    name = "interrupts",
     kernel = ":target",
-    platform = "//pw_kernel/target/qemu_virt_riscv32",
+    platform = "//pw_kernel/target/mps2_an505",
     system_config = ":system_config",
     tags = ["kernel"],
     visibility = ["//visibility:public"],
 )
 
 system_image_test(
-    name = "uart_test",
-    image = ":uart",
+    name = "interrupts_test",
+    image = ":interrupts",
     target_compatible_with = TARGET_COMPATIBLE_WITH,
 )
 
 rust_binary_no_panics_test(
     name = "no_panics_test",
-    binary = ":uart",
+    binary = ":interrupts",
     tags = ["kernel"],
 )
 
@@ -47,7 +47,7 @@ filegroup(
 
 target_codegen(
     name = "codegen",
-    arch = "//pw_kernel/arch/riscv:arch_riscv",
+    arch = "//pw_kernel/arch/arm_cortex_m:arch_arm_cortex_m",
     system_config = ":system_config",
     target_compatible_with = TARGET_COMPATIBLE_WITH,
 )
@@ -56,7 +56,7 @@ target_linker_script(
     name = "linker_script",
     system_config = ":system_config",
     tags = ["kernel"],
-    template = "//pw_kernel/target/qemu_virt_riscv32:linker_script_template",
+    template = "//pw_kernel/target/mps2_an505:linker_script_template",
 )
 
 rust_binary(
@@ -70,17 +70,15 @@ rust_binary(
     deps = [
         ":codegen",
         ":linker_script",
-        "//pw_kernel/arch/riscv:arch_riscv",
-        "//pw_kernel/drivers/uart:kernel_uart",
-        "//pw_kernel/drivers/uart/uart_16550:uart_16550_kernel",
+        "//pw_kernel/arch/arm_cortex_m:arch_arm_cortex_m",
         "//pw_kernel/kernel",
         "//pw_kernel/subsys/console:console_backend",
         "//pw_kernel/target:target_common",
-        "//pw_kernel/target/qemu_virt_riscv32:config",
-        "//pw_kernel/target/qemu_virt_riscv32:entry",
-        "//pw_kernel/tests/uart/kernel:test_uart",
+        "//pw_kernel/target/mps2_an505:config",
+        "//pw_kernel/target/mps2_an505:entry",
+        "//pw_kernel/tests/interrupts/kernel:test_interrupts",
         "//pw_log/rust:pw_log",
         "//pw_status/rust:pw_status",
-        "@rust_crates//:riscv-semihosting",
+        "@rust_crates//:cortex-m-semihosting",
     ],
 )

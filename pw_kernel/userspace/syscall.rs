@@ -82,3 +82,8 @@ pub fn debug_log(buffer: &[u8]) -> Result<()> {
 pub fn debug_nop() -> Result<()> {
     SysCall::debug_nop()
 }
+
+#[inline(always)]
+pub fn debug_trigger_interrupt(irq: u32) -> Result<()> {
+    SysCall::debug_trigger_interrupt(irq)
+}

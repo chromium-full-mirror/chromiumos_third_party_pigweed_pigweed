@@ -32,6 +32,7 @@ pub struct Regs {
 }
 
 impl Regs {
+    #[must_use]
     pub const fn get() -> Self {
         Regs {
             mpu: Mpu::new(),
