@@ -17,6 +17,8 @@
 #include <cstdint>
 
 #include "pw_allocator/null_allocator.h"
+#include "pw_allocator/synchronized_allocator.h"
+#include "pw_allocator/testing.h"
 #include "pw_assert/check.h"
 #include "pw_bluetooth/emboss_util.h"
 #include "pw_bluetooth/hci_common.emb.h"
@@ -199,6 +201,46 @@ Status SendReadBufferResponseFromController(ProxyHost& proxy,
   EXPECT_TRUE(view.Ok());
 
   proxy.HandleH4HciFromController(std::move(h4_packet));
+  return OkStatus();
+}
+
+static constexpr size_t NumberOfCompletedPacketsSize(size_t num_connections) {
+  return emboss::NumberOfCompletedPacketsEvent::MinSizeInBytes() +
+         num_connections *
+             emboss::NumberOfCompletedPacketsEventData::IntrinsicSizeInBytes();
+}
+
+Status SendNumberOfCompletedPackets(
+    ProxyHost& proxy,
+    std::initializer_list<std::pair<uint16_t, uint16_t>>
+        packets_per_connection) {
+  constexpr const size_t kMaxConnections = 5;
+  PW_CHECK_UINT_LE(packets_per_connection.size(), kMaxConnections);
+
+  std::array<uint8_t, NumberOfCompletedPacketsSize(kMaxConnections)> hci_arr;
+  hci_arr.fill(0);
+  span<uint8_t> hci_span(
+      hci_arr.data(),
+      NumberOfCompletedPacketsSize(packets_per_connection.size()));
+  H4PacketWithHci nocp_event{emboss::H4PacketType::EVENT, hci_span};
+  PW_TRY_ASSIGN(auto view,
+                MakeEmbossWriter<emboss::NumberOfCompletedPacketsEventWriter>(
+                    nocp_event.GetHciSpan()));
+  view.header().event_code().Write(
+      emboss::EventCode::NUMBER_OF_COMPLETED_PACKETS);
+  view.header().parameter_total_size().Write(
+      nocp_event.GetHciSpan().size() -
+      emboss::EventHeader::IntrinsicSizeInBytes());
+  view.num_handles().Write(packets_per_connection.size());
+
+  size_t i = 0;
+  for (const auto& [handle, num_packets] : packets_per_connection) {
+    view.nocp_data()[i].connection_handle().Write(handle);
+    view.nocp_data()[i].num_completed_packets().Write(num_packets);
+    ++i;
+  }
+
+  proxy.HandleH4HciFromController(std::move(nocp_event));
   return OkStatus();
 }
 
@@ -576,6 +618,22 @@ L2capChannel::State GetState(const internal::GenericL2capChannel& channel) {
   auto* l2cap = channel.InternalForTesting();
   return l2cap == nullptr ? L2capChannel::State::kClosed : l2cap->state();
 }
+
+#if PW_BLUETOOTH_PROXY_INTERNAL_ALLOCATOR_SIZE == 0
+
+Allocator* ProxyHostTest::GetProxyHostAllocator() {
+  // This is static as it is too large to fit in the test fixture when using the
+  // "light" backend.
+  static allocator::test::AllocatorForTest<16384> alloc;
+  static allocator::SynchronizedAllocator<sync::Mutex> sync{alloc};
+  return &sync;
+}
+
+#else  // PW_BLUETOOTH_PROXY_INTERNAL_ALLOCATOR_SIZE != 0
+
+Allocator* ProxyHostTest::GetProxyHostAllocator() { return nullptr; }
+
+#endif  // PW_BLUETOOTH_PROXY_INTERNAL_ALLOCATOR_SIZE
 
 pw::Result<L2capCoc> ProxyHostTest::BuildCocWithResult(ProxyHost& proxy,
                                                        CocParameters params) {

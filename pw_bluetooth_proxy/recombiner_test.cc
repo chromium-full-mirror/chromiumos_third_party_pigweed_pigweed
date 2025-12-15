@@ -48,7 +48,9 @@ TEST_F(RecombinerTest, Start) {
   ProxyHost proxy_{[]([[maybe_unused]] H4PacketWithHci&& packet) {},
                    []([[maybe_unused]] H4PacketWithH4&& packet) {},
                    0,
-                   0};
+                   0,
+                   GetProxyHostAllocator()};
+  StartDispatcherOnCurrentThread(proxy_);
   PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
       proxy_, kConnectionHandle, emboss::StatusCode::SUCCESS));
   BasicL2capChannel channel =
@@ -71,7 +73,9 @@ TEST_F(RecombinerTest, GetLocalCid) {
   ProxyHost proxy_{[]([[maybe_unused]] H4PacketWithHci&& packet) {},
                    []([[maybe_unused]] H4PacketWithH4&& packet) {},
                    0,
-                   0};
+                   0,
+                   GetProxyHostAllocator()};
+  StartDispatcherOnCurrentThread(proxy_);
   PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
       proxy_, kConnectionHandle, emboss::StatusCode::SUCCESS));
   BasicL2capChannel channel = BuildBasicL2capChannel(
@@ -91,7 +95,9 @@ TEST_F(RecombinerTest, EndWithChannel) {
   ProxyHost proxy_{[]([[maybe_unused]] H4PacketWithHci&& packet) {},
                    []([[maybe_unused]] H4PacketWithH4&& packet) {},
                    0,
-                   0};
+                   0,
+                   GetProxyHostAllocator()};
+  StartDispatcherOnCurrentThread(proxy_);
   PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
       proxy_, kConnectionHandle, emboss::StatusCode::SUCCESS));
   BasicL2capChannel channel =
@@ -116,7 +122,9 @@ TEST_F(RecombinerTest, EndWithoutChannel) {
   ProxyHost proxy_{[]([[maybe_unused]] H4PacketWithHci&& packet) {},
                    []([[maybe_unused]] H4PacketWithH4&& packet) {},
                    0,
-                   0};
+                   0,
+                   GetProxyHostAllocator()};
+  StartDispatcherOnCurrentThread(proxy_);
   PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
       proxy_, kConnectionHandle, emboss::StatusCode::SUCCESS));
   Recombiner recombiner{Direction::kFromController};
@@ -145,7 +153,9 @@ TEST_F(RecombinerTest, WriteThenTake) {
   ProxyHost proxy_{[]([[maybe_unused]] H4PacketWithHci&& packet) {},
                    []([[maybe_unused]] H4PacketWithH4&& packet) {},
                    0,
-                   0};
+                   0,
+                   GetProxyHostAllocator()};
+  StartDispatcherOnCurrentThread(proxy_);
   PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
       proxy_, kConnectionHandle, emboss::StatusCode::SUCCESS));
   Direction kDirection = Direction::kFromController;
@@ -197,7 +207,9 @@ TEST_F(RecombinerTest, WriteCompleteWithoutChannel) {
   ProxyHost proxy_{[]([[maybe_unused]] H4PacketWithHci&& packet) {},
                    []([[maybe_unused]] H4PacketWithH4&& packet) {},
                    0,
-                   0};
+                   0,
+                   GetProxyHostAllocator()};
+  StartDispatcherOnCurrentThread(proxy_);
   PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
       proxy_, kConnectionHandle, emboss::StatusCode::SUCCESS));
   Recombiner recombiner{Direction::kFromController};
@@ -242,7 +254,9 @@ TEST_F(RecombinerTest, RecombinedPduIsLargerThanSpecified) {
   ProxyHost proxy_{[]([[maybe_unused]] H4PacketWithHci&& packet) {},
                    []([[maybe_unused]] H4PacketWithH4&& packet) {},
                    0,
-                   0};
+                   0,
+                   GetProxyHostAllocator()};
+  StartDispatcherOnCurrentThread(proxy_);
   PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
       proxy_, kConnectionHandle, emboss::StatusCode::SUCCESS));
   Recombiner recombiner{Direction::kFromController};
@@ -287,7 +301,9 @@ TEST_F(RecombinerTest, CanClaimExtraHeader) {
   ProxyHost proxy_{[]([[maybe_unused]] H4PacketWithHci&& packet) {},
                    []([[maybe_unused]] H4PacketWithH4&& packet) {},
                    0,
-                   0};
+                   0,
+                   GetProxyHostAllocator()};
+  StartDispatcherOnCurrentThread(proxy_);
   PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
       proxy_, kConnectionHandle, emboss::StatusCode::SUCCESS));
   Direction kDirection = Direction::kFromController;

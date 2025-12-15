@@ -200,12 +200,10 @@ pw_add_test(pw_bluetooth_proxy.pw_bluetooth_proxy_test
     pw_bluetooth.emboss_hci_events
     pw_bluetooth.emboss_hci_h4
     pw_bluetooth.emboss_util
-    pw_containers.flat_map
     pw_containers.to_array
     pw_multibuf.simple_allocator
     pw_span.cast
     pw_sync.mutex
-    pw_sync.no_lock
     pw_sync.thread_notification
     pw_third_party.fuchsia.stdcompat
     pw_thread.test_thread_context
@@ -225,6 +223,7 @@ pw_add_test(pw_bluetooth_proxy.pw_bluetooth_proxy_test
     proxy_host_test.cc
     recombiner_test.cc
     test_utils.cc
+    test_utils_sync.cc
     utils_test.cc
 # LINT.ThenChange(bt-proxy.bzl, BUILD.gn)
 

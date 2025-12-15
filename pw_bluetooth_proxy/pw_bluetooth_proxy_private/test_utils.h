@@ -27,6 +27,7 @@
 #include "pw_bluetooth/hci_h4.emb.h"
 #include "pw_bluetooth/l2cap_frames.emb.h"
 #include "pw_bluetooth_proxy/basic_l2cap_channel.h"
+#include "pw_bluetooth_proxy/config.h"
 #include "pw_bluetooth_proxy/direction.h"
 #include "pw_bluetooth_proxy/gatt_notify_channel.h"
 #include "pw_bluetooth_proxy/h4_packet.h"
@@ -35,11 +36,9 @@
 #include "pw_bluetooth_proxy/l2cap_channel_common.h"
 #include "pw_bluetooth_proxy/l2cap_coc.h"
 #include "pw_bluetooth_proxy/proxy_host.h"
-#include "pw_containers/flat_map.h"
 #include "pw_function/function.h"
 #include "pw_status/status.h"
 #include "pw_status/try.h"
-#include "pw_sync/no_lock.h"
 #include "pw_unit_test/framework.h"
 
 #if PW_BLUETOOTH_PROXY_MULTIBUF == PW_BLUETOOTH_PROXY_MULTIBUF_V1
@@ -50,13 +49,6 @@
 #endif  // PW_BLUETOOTH_PROXY_MULTIBUF
 
 namespace pw::bluetooth::proxy {
-
-// ########## Test Constants
-
-// Should align with L2capChannel::kQueueCapacity.
-// TODO: https://pwbug.dev/349700888 - Update uses once capacity is
-// configurable.
-inline constexpr size_t kTestL2capQueueCapacity = 5;
 
 // ########## Util functions
 
@@ -144,7 +136,6 @@ Result<EmbossT> CreateAndPopulateToHostEventWriter(
   EXPECT_TRUE(view.IsComplete());
   return view;
 }
-
 // Send an LE_Read_Buffer_Size (V2) CommandComplete event to `proxy` to request
 // the reservation of a number of LE ACL send credits.
 Status SendLeReadBufferResponseFromController(
@@ -159,39 +150,10 @@ Status SendReadBufferResponseFromController(
 
 // Send a Number_of_Completed_Packets event to `proxy` that reports each
 // {connection handle, number of completed packets} entry provided.
-template <size_t kNumConnections>
 Status SendNumberOfCompletedPackets(
     ProxyHost& proxy,
-    containers::FlatMap<uint16_t, uint16_t, kNumConnections>
-        packets_per_connection) {
-  std::array<
-      uint8_t,
-      emboss::NumberOfCompletedPacketsEvent::MinSizeInBytes() +
-          kNumConnections *
-              emboss::NumberOfCompletedPacketsEventData::IntrinsicSizeInBytes()>
-      hci_arr;
-  hci_arr.fill(0);
-  H4PacketWithHci nocp_event{emboss::H4PacketType::EVENT, hci_arr};
-  PW_TRY_ASSIGN(auto view,
-                MakeEmbossWriter<emboss::NumberOfCompletedPacketsEventWriter>(
-                    nocp_event.GetHciSpan()));
-  view.header().event_code().Write(
-      emboss::EventCode::NUMBER_OF_COMPLETED_PACKETS);
-  view.header().parameter_total_size().Write(
-      nocp_event.GetHciSpan().size() -
-      emboss::EventHeader::IntrinsicSizeInBytes());
-  view.num_handles().Write(kNumConnections);
-
-  size_t i = 0;
-  for (const auto& [handle, num_packets] : packets_per_connection) {
-    view.nocp_data()[i].connection_handle().Write(handle);
-    view.nocp_data()[i].num_completed_packets().Write(num_packets);
-    ++i;
-  }
-
-  proxy.HandleH4HciFromController(std::move(nocp_event));
-  return OkStatus();
-}
+    std::initializer_list<std::pair<uint16_t, uint16_t>>
+        packets_per_connection);
 
 // Send a Connection_Complete event to `proxy` indicating the provided
 // `handle` has disconnected.
@@ -338,6 +300,55 @@ class MultiBufAllocatorContext {
 
 class ProxyHostTest : public testing::Test {
  protected:
+  // Returns the number of payloads that can be dequeued without being sent.
+  // This is 0 in sync mode, and 1 in async mode.
+  static constexpr uint16_t NumBufferedPayloads() {
+    return PW_BLUETOOTH_PROXY_ASYNC == 0 ? 0 : 1;
+  }
+
+  Allocator* GetProxyHostAllocator();
+
+  //////////////////////////////////////////////////////////////////////////////
+  // Async support. In sync mode, these methods do nothing.
+
+  /// Sets up the dispatcher for the `proxy`.
+  ///
+  /// In async mode, this registers the dispatcher that will be used to process
+  /// events on the current thread. Either this method or
+  /// `StartDispatcherOnNewThread` must be called exactly once before using the
+  /// proxy in a test. If this method is used, the dispatcher must be manually
+  /// run using `RunDispatcher`.
+  ///
+  /// In sync mode, this is a no-op.
+  void StartDispatcherOnCurrentThread(ProxyHost& proxy);
+
+  /// Starts a dedicated thread to run the async task dispatcher.
+  ///
+  /// In async mode, this registers the dispatcher that will be used to run
+  /// tasks on a separate thread. Either this method or
+  /// `StartDispatcherOnCurrentThread` must be called exactly once before using
+  /// the proxy in a test.
+  ///
+  /// In sync mode, this is a no-op.
+  void StartDispatcherOnNewThread(ProxyHost& proxy);
+
+  /// Runs the dispatcher if in async mode.
+  ///
+  /// This processes any pending events.
+  ///
+  /// In sync mode, this is a no-op.
+  void RunDispatcher();
+
+  /// Stops the dispatcher thread.
+  ///
+  /// If omitted, the dispatcher thread will be joined on test destruction.
+  ///
+  /// In sync mode, this is a no-op.
+  void JoinDispatcherThread();
+
+  //////////////////////////////////////////////////////////////////////////////
+  // Channel acquisition.
+
   pw::Result<L2capCoc> BuildCocWithResult(ProxyHost& proxy,
                                           CocParameters params);
 
@@ -354,6 +365,9 @@ class ProxyHostTest : public testing::Test {
 
   GattNotifyChannel BuildGattNotifyChannel(ProxyHost& proxy,
                                            GattNotifyChannelParameters params);
+
+  //////////////////////////////////////////////////////////////////////////////
+  // MultiBuf utilities.
 
   template <typename T, size_t N>
   static FlatMultiBufInstance MultiBufFromSpan(span<T, N> buf,

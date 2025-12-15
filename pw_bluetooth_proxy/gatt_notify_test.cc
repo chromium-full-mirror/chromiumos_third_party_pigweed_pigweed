@@ -110,7 +110,9 @@ TEST_F(GattNotifyTest, GetAttributeHandle) {
   ProxyHost proxy = ProxyHost(std::move(send_to_host_fn),
                               std::move(send_to_controller_fn),
                               /*le_acl_credits_to_reserve=*/0,
-                              /*br_edr_acl_credits_to_reserve=*/0);
+                              /*br_edr_acl_credits_to_reserve=*/0,
+                              GetProxyHostAllocator());
+  StartDispatcherOnCurrentThread(proxy);
   PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
       proxy, kConnectionHandle, emboss::StatusCode::SUCCESS));
 
@@ -187,7 +189,9 @@ TEST_F(GattNotifyTest, Send1ByteAttribute) {
   ProxyHost proxy = ProxyHost(std::move(send_to_host_fn),
                               std::move(send_to_controller_fn),
                               /*le_acl_credits_to_reserve=*/1,
-                              /*br_edr_acl_credits_to_reserve=*/0);
+                              /*br_edr_acl_credits_to_reserve=*/0,
+                              GetProxyHostAllocator());
+  StartDispatcherOnCurrentThread(proxy);
   // Allow proxy to reserve 1 credit.
   PW_TEST_EXPECT_OK(SendLeReadBufferResponseFromController(proxy, 1));
   PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
@@ -199,6 +203,8 @@ TEST_F(GattNotifyTest, Send1ByteAttribute) {
   FlatMultiBufInstance mbuf_inst = MultiBufFromArray(capture.attribute_value);
   FlatMultiBuf& mbuf = MultiBufAdapter::Unwrap(mbuf_inst);
   PW_TEST_EXPECT_OK(channel.Write(std::move(mbuf)).status);
+  RunDispatcher();
+
   EXPECT_EQ(capture.sends_called, 1);
 }
 
@@ -271,7 +277,9 @@ TEST_F(GattNotifyTest, Send2ByteAttribute) {
   ProxyHost proxy = ProxyHost(std::move(send_to_host_fn),
                               std::move(send_to_controller_fn),
                               /*le_acl_credits_to_reserve=*/1,
-                              /*br_edr_acl_credits_to_reserve=*/0);
+                              /*br_edr_acl_credits_to_reserve=*/0,
+                              GetProxyHostAllocator());
+  StartDispatcherOnCurrentThread(proxy);
   // Allow proxy to reserve 1 credit.
   PW_TEST_EXPECT_OK(SendLeReadBufferResponseFromController(proxy, 1));
   PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
@@ -283,6 +291,8 @@ TEST_F(GattNotifyTest, Send2ByteAttribute) {
   FlatMultiBufInstance mbuf_inst = MultiBufFromArray(capture.attribute_value);
   FlatMultiBuf& mbuf = MultiBufAdapter::Unwrap(mbuf_inst);
   PW_TEST_EXPECT_OK(channel.Write(std::move(mbuf)).status);
+  RunDispatcher();
+
   EXPECT_EQ(capture.sends_called, 1);
 }
 
@@ -295,7 +305,9 @@ TEST_F(GattNotifyTest, ReturnsErrorIfAttributeTooLarge) {
   ProxyHost proxy = ProxyHost(std::move(send_to_host_fn),
                               std::move(send_to_controller_fn),
                               /*le_acl_credits_to_reserve=*/0,
-                              /*br_edr_acl_credits_to_reserve=*/0);
+                              /*br_edr_acl_credits_to_reserve=*/0,
+                              GetProxyHostAllocator());
+  StartDispatcherOnCurrentThread(proxy);
   const uint16_t kLeAclLength = 250;
   PW_TEST_EXPECT_OK(
       SendLeReadBufferResponseFromController(proxy, 0, kLeAclLength));
@@ -322,7 +334,9 @@ TEST_F(GattNotifyTest, ChannelIsNotConstructedIfParametersInvalid) {
   ProxyHost proxy = ProxyHost(std::move(send_to_host_fn),
                               std::move(send_to_controller_fn),
                               /*le_acl_credits_to_reserve=*/0,
-                              /*br_edr_acl_credits_to_reserve=*/0);
+                              /*br_edr_acl_credits_to_reserve=*/0,
+                              GetProxyHostAllocator());
+  StartDispatcherOnCurrentThread(proxy);
   PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
       proxy, kConnectionHandle, emboss::StatusCode::SUCCESS));
 
@@ -346,7 +360,9 @@ TEST_F(GattNotifyTest, PayloadIsReturnedOnError) {
   ProxyHost proxy = ProxyHost(std::move(send_to_host_fn),
                               std::move(send_to_controller_fn),
                               /*le_acl_credits_to_reserve=*/0,
-                              /*br_edr_acl_credits_to_reserve=*/0);
+                              /*br_edr_acl_credits_to_reserve=*/0,
+                              GetProxyHostAllocator());
+  StartDispatcherOnCurrentThread(proxy);
   PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
       proxy, kConnectionHandle, emboss::StatusCode::SUCCESS));
 

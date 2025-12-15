@@ -117,8 +117,9 @@ TEST_F(ChannelProxyTest, ChannelsStopOnProxyDestruction) {
   proxy.emplace(std::move(send_to_host_fn),
                 std::move(send_to_controller_fn),
                 /*le_acl_credits_to_reserve=*/0,
-                /*br_edr_acl_credits_to_reserve=*/0);
-
+                /*br_edr_acl_credits_to_reserve=*/0,
+                GetProxyHostAllocator());
+  StartDispatcherOnCurrentThread(*proxy);
   PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
       proxy.value(), kConnectionHandle, emboss::StatusCode::SUCCESS));
 
@@ -172,8 +173,9 @@ TEST_F(ChannelProxyTest, ChannelsCloseOnReset) {
   ProxyHost proxy = ProxyHost(std::move(send_to_host_fn),
                               std::move(send_to_controller_fn),
                               /*le_acl_credits_to_reserve=*/0,
-                              /*br_edr_acl_credits_to_reserve=*/0);
-
+                              /*br_edr_acl_credits_to_reserve=*/0,
+                              GetProxyHostAllocator());
+  StartDispatcherOnCurrentThread(proxy);
   PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
       proxy, kConnectionHandle, emboss::StatusCode::SUCCESS));
 
