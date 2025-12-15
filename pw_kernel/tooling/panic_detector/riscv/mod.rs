@@ -17,9 +17,6 @@
 //! Based on the RISC-V specification. See
 //! https://github.com/riscv/riscv-isa-manual/ for more information.
 
-// TODO: b/453686962 - disable lint until bitfield crate is fixed.
-#![allow(clippy::double_parens)]
-
 pub mod call_graph;
 mod compression;
 mod elf_mem;
