@@ -31,7 +31,6 @@ cc_library_static {
         "public",
     ],
     static_libs: [
-        "pw_assert",
         "pw_allocator",
         "pw_chrono",
         "pw_containers",
@@ -54,6 +53,7 @@ cc_library_static {
     header_libs: [
         "emboss_runtime_headers",
         "fuchsia_sdk_lib_stdcompat",
+        "pw_assert",
         "pw_bluetooth_emboss_util_include_dirs",
     ],
     generated_headers: [
