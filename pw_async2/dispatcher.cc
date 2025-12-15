@@ -12,8 +12,7 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 
-#define PW_LOG_MODULE_NAME PW_ASYNC2_CONFIG_LOG_MODULE_NAME
-#define PW_LOG_LEVEL PW_ASYNC2_CONFIG_LOG_LEVEL
+#define PW_LOG_MODULE_NAME "PW_ASYNC2"
 
 #include "pw_async2/dispatcher.h"
 

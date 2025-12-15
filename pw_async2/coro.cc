@@ -12,7 +12,7 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 
-#define PW_LOG_MODULE_NAME "PW_ASYNC"
+#define PW_LOG_MODULE_NAME "PW_ASYNC2"
 
 #include "pw_async2/coro.h"
 
