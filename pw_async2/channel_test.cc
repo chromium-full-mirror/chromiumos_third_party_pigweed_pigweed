@@ -23,6 +23,7 @@
 
 namespace {
 
+using pw::async2::ChannelHandle;
 using pw::async2::ChannelStorage;
 using pw::async2::Context;
 using pw::async2::CreateMpmcChannel;
@@ -30,6 +31,8 @@ using pw::async2::CreateMpscChannel;
 using pw::async2::CreateSpmcChannel;
 using pw::async2::CreateSpscChannel;
 using pw::async2::DispatcherForTest;
+using pw::async2::McChannelHandle;
+using pw::async2::MpChannelHandle;
 using pw::async2::MpmcChannelHandle;
 using pw::async2::MpscChannelHandle;
 using pw::async2::PendFuncTask;
@@ -959,6 +962,111 @@ TEST(StaticChannel, CreateReceiverWhenClosed) {
 
   Receiver<int> receiver = channel.CreateReceiver();
   EXPECT_FALSE(receiver.is_open());
+}
+
+TEST(ChannelHandles, MpChannelHandle_CopyAndMove) {
+  pw::allocator::test::AllocatorForTest<256> alloc;
+  auto channel_opt = CreateMpmcChannel<int>(alloc, 2);
+  ASSERT_TRUE(channel_opt.has_value());
+  MpmcChannelHandle<int>& handle = *channel_opt;
+
+  MpChannelHandle<int> mp1 = handle;
+  EXPECT_TRUE(mp1.is_open());
+
+  MpChannelHandle<int> mp2;
+  mp2 = handle;
+  EXPECT_TRUE(mp2.is_open());
+
+  MpChannelHandle<int> mp3 = std::move(handle);
+  EXPECT_TRUE(mp3.is_open());
+  EXPECT_FALSE(handle.is_open());  // NOLINT(bugprone-use-after-move)
+}
+
+TEST(ChannelHandles, McChannelHandle_CopyAndMove) {
+  pw::allocator::test::AllocatorForTest<256> alloc;
+  auto channel_opt = CreateMpmcChannel<int>(alloc, 2);
+  ASSERT_TRUE(channel_opt.has_value());
+  MpmcChannelHandle<int>& handle = *channel_opt;
+
+  McChannelHandle<int> mc1 = handle;
+  EXPECT_TRUE(mc1.is_open());
+
+  McChannelHandle<int> mc2;
+  mc2 = handle;
+  EXPECT_TRUE(mc2.is_open());
+
+  McChannelHandle<int> mc3 = std::move(handle);
+  EXPECT_FALSE(handle.is_open());  // NOLINT(bugprone-use-after-move)
+  EXPECT_TRUE(mc3.is_open());
+}
+
+TEST(ChannelHandles, MpscCopyToAsMpHandle) {
+  pw::allocator::test::AllocatorForTest<256> alloc;
+  auto [handle, receiver] = CreateMpscChannel<int>(alloc, 2).value();
+
+  MpChannelHandle<int> mp_handle = handle;
+  EXPECT_TRUE(handle.is_open());
+  EXPECT_TRUE(mp_handle.is_open());
+
+  mp_handle.Close();
+  EXPECT_FALSE(handle.is_open());
+  EXPECT_FALSE(mp_handle.is_open());
+}
+
+TEST(ChannelHandles, MpmcMoveToMpHandle) {
+  pw::allocator::test::AllocatorForTest<256> alloc;
+  MpmcChannelHandle<int> handle = CreateMpmcChannel<int>(alloc, 2).value();
+
+  MpChannelHandle<int> mp_handle = std::move(handle);
+  EXPECT_FALSE(handle.is_open());  // NOLINT(bugprone-use-after-move)
+  EXPECT_TRUE(mp_handle.is_open());
+}
+
+TEST(ChannelHandles, SpmcCopyToMcHandle) {
+  pw::allocator::test::AllocatorForTest<256> alloc;
+  auto [handle, sender] = CreateSpmcChannel<int>(alloc, 2).value();
+
+  McChannelHandle<int> mc_handle = handle;
+  EXPECT_TRUE(handle.is_open());
+  EXPECT_TRUE(mc_handle.is_open());
+
+  mc_handle.Close();
+  EXPECT_FALSE(handle.is_open());
+  EXPECT_FALSE(mc_handle.is_open());
+}
+
+TEST(ChannelHandles, MpmcMoveToMcHandle) {
+  pw::allocator::test::AllocatorForTest<256> alloc;
+  MpmcChannelHandle<int> handle = CreateMpmcChannel<int>(alloc, 2).value();
+
+  McChannelHandle<int> mc_handle = std::move(handle);
+  EXPECT_FALSE(handle.is_open());  // NOLINT(bugprone-use-after-move)
+  EXPECT_TRUE(mc_handle.is_open());
+}
+
+TEST(ChannelHandles, SpccCopyToChannelHandle) {
+  pw::allocator::test::AllocatorForTest<256> alloc;
+  MpmcChannelHandle<int> mpmc_handle = CreateMpmcChannel<int>(alloc, 2).value();
+
+  ChannelHandle<int> handle;
+  EXPECT_FALSE(handle.is_open());
+
+  handle = mpmc_handle;
+  EXPECT_TRUE(mpmc_handle.is_open());
+  EXPECT_TRUE(handle.is_open());
+
+  handle.Close();
+  EXPECT_FALSE(mpmc_handle.is_open());
+  EXPECT_FALSE(handle.is_open());
+}
+
+TEST(ChannelHandles, MpmcMoveToChannelHandle) {
+  pw::allocator::test::AllocatorForTest<256> alloc;
+  MpmcChannelHandle<int> mpmc_handle = CreateMpmcChannel<int>(alloc, 2).value();
+
+  ChannelHandle<int> handle = std::move(mpmc_handle);
+  EXPECT_FALSE(mpmc_handle.is_open());  // NOLINT(bugprone-use-after-move)
+  EXPECT_TRUE(handle.is_open());
 }
 
 }  // namespace

@@ -485,15 +485,6 @@ class BaseChannelHandle {
 
   BaseChannelHandle(const BaseChannelHandle& other) PW_LOCKS_EXCLUDED(channel_);
 
-  BaseChannelHandle& operator=(const BaseChannelHandle& other)
-      PW_LOCKS_EXCLUDED(channel_);
-
-  BaseChannelHandle(BaseChannelHandle&& other) noexcept
-      : channel_(std::exchange(other.channel_, nullptr)) {}
-
-  BaseChannelHandle& operator=(BaseChannelHandle&& other) noexcept
-      PW_LOCKS_EXCLUDED(channel_);
-
   ~BaseChannelHandle() PW_LOCKS_EXCLUDED(channel_) { Release(); }
 
   [[nodiscard]] bool is_open() const PW_LOCKS_EXCLUDED(channel_) {
@@ -512,10 +503,6 @@ class BaseChannelHandle {
   /// being closed (and deallocated if the channel is dynamic).
   void Release() PW_LOCKS_EXCLUDED(channel_);
 
-  constexpr BaseChannel* base_channel() const PW_LOCK_RETURNED(channel_) {
-    return channel_;
-  }
-
  protected:
   explicit BaseChannelHandle(BaseChannel& channel)
       PW_EXCLUSIVE_LOCKS_REQUIRED(channel)
@@ -523,53 +510,69 @@ class BaseChannelHandle {
     channel_->add_handle();
   }
 
+  BaseChannelHandle& operator=(const BaseChannelHandle& other)
+      PW_LOCKS_EXCLUDED(channel_);
+
+  BaseChannelHandle(BaseChannelHandle&& other) noexcept
+      : channel_(std::exchange(other.channel_, nullptr)) {}
+
+  BaseChannelHandle& operator=(BaseChannelHandle&& other) noexcept
+      PW_LOCKS_EXCLUDED(channel_);
+
+  constexpr BaseChannel* channel() const PW_LOCK_RETURNED(channel_) {
+    return channel_;
+  }
+
  private:
   BaseChannel* channel_;
 };
 
+}  // namespace internal
+
 /// Channel handle for a particular type `T`.
 template <typename T>
-class ChannelHandle : public BaseChannelHandle {
+class ChannelHandle : public internal::BaseChannelHandle {
  public:
   constexpr ChannelHandle() = default;
+
+  ChannelHandle(const ChannelHandle&) = default;
+  ChannelHandle& operator=(const ChannelHandle&) = default;
+
+  ChannelHandle(ChannelHandle&&) = default;
+  ChannelHandle& operator=(ChannelHandle&&) = default;
+
+ protected:
+  explicit ChannelHandle(internal::Channel<T>& channel)
+      PW_EXCLUSIVE_LOCKS_REQUIRED(channel)
+      : internal::BaseChannelHandle(channel) {}
 
   /// Creates a new sender for the channel, increasing the active sender count.
   /// Cannot be called following `Release`.
   Sender<T> CreateSender() {
-    PW_ASSERT(base_channel() != nullptr);
-    return static_cast<Channel<T>*>(base_channel())->CreateSender();
+    PW_ASSERT(channel() != nullptr);
+    return static_cast<internal::Channel<T>&>(*channel()).CreateSender();
   }
 
   /// Creates a new receiver for the channel, increasing the active receiver
   /// count. Cannot be called following `Release`.
   Receiver<T> CreateReceiver() {
-    PW_ASSERT(base_channel() != nullptr);
-    return static_cast<Channel<T>*>(base_channel())->CreateReceiver();
+    PW_ASSERT(channel() != nullptr);
+    return static_cast<internal::Channel<T>&>(*channel()).CreateReceiver();
   }
-
- protected:
-  explicit ChannelHandle(internal::Channel<T>& channel)
-      PW_EXCLUSIVE_LOCKS_REQUIRED(channel)
-      : BaseChannelHandle(channel) {}
 };
-
-}  // namespace internal
 
 /// A handle to a multi-producer, multi-consumer channel.
 template <typename T>
-class MpmcChannelHandle final : private internal::ChannelHandle<T> {
+class MpmcChannelHandle final : public ChannelHandle<T> {
  public:
   constexpr MpmcChannelHandle() = default;
 
-  using internal::ChannelHandle<T>::is_open;
-  using internal::ChannelHandle<T>::Close;
-  using internal::ChannelHandle<T>::CreateReceiver;
-  using internal::ChannelHandle<T>::CreateSender;
-  using internal::ChannelHandle<T>::Release;
+  using ChannelHandle<T>::CreateReceiver;
+  using ChannelHandle<T>::CreateSender;
 
  private:
   explicit MpmcChannelHandle(internal::Channel<T>& channel)
-      : internal::ChannelHandle<T>(channel) {}
+      : ChannelHandle<T>(channel) {}
 
   template <typename U>
   friend std::optional<MpmcChannelHandle<U>> CreateMpmcChannel(Allocator&,
@@ -582,18 +585,15 @@ class MpmcChannelHandle final : private internal::ChannelHandle<T> {
 
 /// A handle to a multi-producer, single-consumer channel.
 template <typename T>
-class MpscChannelHandle final : private internal::ChannelHandle<T> {
+class MpscChannelHandle final : public ChannelHandle<T> {
  public:
   constexpr MpscChannelHandle() = default;
 
-  using internal::ChannelHandle<T>::is_open;
-  using internal::ChannelHandle<T>::Close;
-  using internal::ChannelHandle<T>::CreateSender;
-  using internal::ChannelHandle<T>::Release;
+  using ChannelHandle<T>::CreateSender;
 
  private:
   explicit MpscChannelHandle(internal::Channel<T>& channel)
-      : internal::ChannelHandle<T>(channel) {}
+      : ChannelHandle<T>(channel) {}
 
   template <typename U>
   friend std::optional<std::tuple<MpscChannelHandle<U>, Receiver<U>>>
@@ -606,18 +606,15 @@ class MpscChannelHandle final : private internal::ChannelHandle<T> {
 
 /// A handle to a single-producer, multi-consumer channel.
 template <typename T>
-class SpmcChannelHandle final : private internal::ChannelHandle<T> {
+class SpmcChannelHandle final : public ChannelHandle<T> {
  public:
   constexpr SpmcChannelHandle() = default;
 
-  using internal::ChannelHandle<T>::is_open;
-  using internal::ChannelHandle<T>::Close;
-  using internal::ChannelHandle<T>::CreateReceiver;
-  using internal::ChannelHandle<T>::Release;
+  using ChannelHandle<T>::CreateReceiver;
 
  private:
   explicit SpmcChannelHandle(internal::Channel<T>& channel)
-      : internal::ChannelHandle<T>(channel) {}
+      : ChannelHandle<T>(channel) {}
 
   template <typename U>
   friend std::optional<std::tuple<SpmcChannelHandle<U>, Sender<U>>>
@@ -630,17 +627,13 @@ class SpmcChannelHandle final : private internal::ChannelHandle<T> {
 
 /// A handle to a single-producer, single-consumer channel.
 template <typename T>
-class SpscChannelHandle final : private internal::ChannelHandle<T> {
+class SpscChannelHandle final : public ChannelHandle<T> {
  public:
   constexpr SpscChannelHandle() = default;
 
-  using internal::ChannelHandle<T>::is_open;
-  using internal::ChannelHandle<T>::Close;
-  using internal::ChannelHandle<T>::Release;
-
  private:
   explicit SpscChannelHandle(internal::Channel<T>& channel)
-      : internal::ChannelHandle<T>(channel) {}
+      : ChannelHandle<T>(channel) {}
 
   template <typename U>
   friend std::optional<std::tuple<SpscChannelHandle<U>, Sender<U>, Receiver<U>>>
@@ -649,6 +642,92 @@ class SpscChannelHandle final : private internal::ChannelHandle<T> {
   template <typename U, uint16_t kCapacity>
   friend std::tuple<SpscChannelHandle<U>, Sender<U>, Receiver<U>>
   CreateSpscChannel(ChannelStorage<U, kCapacity>& storage);
+};
+
+/// Handle to a multi-producer channel, which may be either single or multi
+/// consumer. Created from either a `MpmcChannelHandle` or a
+/// `MpscChannelHandle`.
+template <typename T>
+class MpChannelHandle final : public ChannelHandle<T> {
+ public:
+  constexpr MpChannelHandle() = default;
+
+  MpChannelHandle(const MpmcChannelHandle<T>& other)
+      : ChannelHandle<T>(other) {}
+
+  MpChannelHandle& operator=(const MpmcChannelHandle<T>& other) {
+    ChannelHandle<T>::operator=(other);
+    return *this;
+  }
+
+  MpChannelHandle(MpmcChannelHandle<T>&& other)
+      : ChannelHandle<T>(std::move(other)) {}
+
+  MpChannelHandle& operator=(MpmcChannelHandle<T>&& other) {
+    ChannelHandle<T>::operator=(std::move(other));
+    return *this;
+  }
+
+  MpChannelHandle(const MpscChannelHandle<T>& other)
+      : ChannelHandle<T>(other) {}
+
+  MpChannelHandle& operator=(const MpscChannelHandle<T>& other) {
+    ChannelHandle<T>::operator=(other);
+    return *this;
+  }
+
+  MpChannelHandle(MpscChannelHandle<T>&& other)
+      : ChannelHandle<T>(std::move(other)) {}
+
+  MpChannelHandle& operator=(MpscChannelHandle<T>&& other) {
+    ChannelHandle<T>::operator=(std::move(other));
+    return *this;
+  }
+
+  using ChannelHandle<T>::CreateSender;
+};
+
+/// Handle to a multi-consumer channel, which may be either single or multi
+/// producer. Created from either a `MpmcChannelHandle` or a
+/// `SpmcChannelHandle`.
+template <typename T>
+class McChannelHandle final : public ChannelHandle<T> {
+ public:
+  constexpr McChannelHandle() = default;
+
+  McChannelHandle(const MpmcChannelHandle<T>& other)
+      : ChannelHandle<T>(other) {}
+
+  McChannelHandle& operator=(const MpmcChannelHandle<T>& other) {
+    ChannelHandle<T>::operator=(other);
+    return *this;
+  }
+
+  McChannelHandle(MpmcChannelHandle<T>&& other)
+      : ChannelHandle<T>(std::move(other)) {}
+
+  McChannelHandle& operator=(MpmcChannelHandle<T>&& other) {
+    ChannelHandle<T>::operator=(std::move(other));
+    return *this;
+  }
+
+  McChannelHandle(const SpmcChannelHandle<T>& other)
+      : ChannelHandle<T>(other) {}
+
+  McChannelHandle& operator=(const SpmcChannelHandle<T>& other) {
+    ChannelHandle<T>::operator=(other);
+    return *this;
+  }
+
+  McChannelHandle(SpmcChannelHandle<T>&& other)
+      : ChannelHandle<T>(std::move(other)) {}
+
+  McChannelHandle& operator=(SpmcChannelHandle<T>&& other) {
+    ChannelHandle<T>::operator=(std::move(other));
+    return *this;
+  }
+
+  using ChannelHandle<T>::CreateReceiver;
 };
 
 /// Fixed capacity storage for an asynchronous channel which supports multiple
