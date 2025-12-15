@@ -162,6 +162,9 @@ macro_rules! static_init_state {
             static mut BOOTSTRAP_STACK: Stack = Stack::ZEROED;
             static mut IDLE_STACK: Stack = Stack::ZEROED;
 
+            $crate::annotate_stack!("bootstrap", &raw const BOOTSTRAP_STACK, kernel_config::KernelConfig::KERNEL_STACK_SIZE_BYTES);
+            $crate::annotate_stack!("idle", &raw const IDLE_STACK, kernel_config::KernelConfig::KERNEL_STACK_SIZE_BYTES);
+
             $crate::InitKernelState {
                 bootstrap_thread: $crate::ThreadStorage {
                     thread: $crate::Thread::new("bootstrap", Priority::DEFAULT_PRIORITY),
@@ -173,7 +176,7 @@ macro_rules! static_init_state {
                     thread: $crate::Thread::new("idle", Priority::IDLE_PRIORITY),
                     // SAFETY: We're in a block used to initialize a `static`,
                     // which is only executed once.
-                    stack: unsafe { &mut IDLE_STACK },
+                    stack: unsafe { &mut IDLE_STACK},
                 },
             }
         };

@@ -49,4 +49,17 @@ SECTIONS
   {
     KEEP(*(.pw_tokenizer.entries.*))
   }
+  /*
+   * Static stack location annotations are stored in this section. Each entry
+   * contains the name of the thread, the address of the stack, and the size of
+   * the stack.
+   *
+   * The section contents are declared with KEEP so that they are not removed
+   * from the ELF. These are never emitted in the final binary or loaded into
+   * memory.
+   */
+  .pw_kernel.annotations.stack 0x0 (INFO) :
+  {
+    KEEP(*(.pw_kernel.annotations.stack.*))
+  }
 }

@@ -785,6 +785,42 @@ mod arg {
     }
 }
 
+#[macro_export]
+macro_rules! annotate_stack {
+    ($name:expr, $addr:expr, $size:expr) => {{
+        #[repr(C, packed(1))]
+        struct StackAnnotation {
+            name: &'static str,
+            addr: *const u8,
+            size: usize,
+        }
+
+        #[unsafe(link_section = ".pw_kernel.annotations.stack")]
+        #[used]
+        static mut _STACK_ANNOTATION: StackAnnotation = StackAnnotation {
+            name: $name,
+            addr: $addr as *const u8,
+            size: $size,
+        };
+    }};
+}
+
+#[macro_export]
+macro_rules! static_stack {
+    ($thread_name:expr, $stack_size:expr) => {{
+        use core::cell::UnsafeCell;
+        use core::mem::MaybeUninit;
+
+        use kernel::{StackStorage, StackStorageExt};
+
+        static mut __STATIC: UnsafeCell<MaybeUninit<StackStorage<$stack_size>>> =
+            UnsafeCell::new(core::mem::MaybeUninit::uninit());
+        $crate::annotate_stack!($thread_name, unsafe { __STATIC.get() }, $stack_size);
+
+        unsafe { (*__STATIC.get()).write(StackStorageExt::ZEROED) }
+    }};
+}
+
 /// Constructs a new [`Thread`] in global static storage.
 ///
 /// # Safety
@@ -809,11 +845,12 @@ macro_rules! init_thread {
             let mut thread = ForeignBox::from(thread);
 
             info!("Initializing thread '{}'", $name as &'static str);
+            let stack = $crate::static_stack!($name, $stack_size);
             thread.initialize_kernel_thread(
                 $crate::arch::Arch,
                 // SAFETY: The caller promises that this function will be
                 // executed at most once.
-                Stack::from_slice(&unsafe { static_mut_ref!(StackStorage<{ $stack_size }> = StackStorageExt::ZEROED)}.stack),
+                Stack::from_slice(&stack.stack),
                 $entry,
                 0
             );
@@ -872,6 +909,7 @@ macro_rules! init_non_priv_process {
 #[macro_export]
 macro_rules! init_non_priv_thread {
     ($name:literal, $priority:expr, $process:expr, $entry:expr, $initial_sp:expr, $kernel_stack_size:expr  $(,)?) => {{
+        use core::mem::MaybeUninit;
         use $crate::static_mut_ref;
         use $crate::__private::foreign_box::ForeignBox;
         use $crate::scheduler::thread::{Process, Stack, StackStorage, StackStorageExt, Thread};
@@ -896,11 +934,12 @@ macro_rules! init_non_priv_thread {
                 "Initializing non-privileged thread '{}'",
                 $name as &'static str
             );
+            let stack = $crate::static_stack!($name, $kernel_stack_size);
             if let Err(e) = thread.initialize_non_priv_thread(
                 arch::Arch,
                 // SAFETY: The caller promises that this function will be
                 // executed at most once.
-                Stack::from_slice(&unsafe { static_mut_ref!(StackStorage<{ $kernel_stack_size }> = StackStorageExt::ZEROED)}.stack),
+                Stack::from_slice(&stack.stack),
                 initial_sp,
                 proc,
                 entry,
