@@ -88,6 +88,11 @@ def _parse_args():
         action='store_true',
         help='image file to run',
     )
+    parser.add_argument(
+        '--qemu-args',
+        nargs='*',
+        help='Extra arguments to pass to qemu',
+    )
     return parser.parse_args()
 
 
@@ -160,6 +165,9 @@ def _main(args) -> int:
             "-semihosting-config",
             "enable=on,target=native",
         ]
+
+    if args.qemu_args:
+        qemu_args.extend(args.qemu_args)
 
     _LOG.info("Invoking QEMU: %s", qemu_args)
     with tempfile.NamedTemporaryFile() as f:
