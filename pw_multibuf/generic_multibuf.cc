@@ -317,6 +317,8 @@ void GenericMultiBuf::Clear() {
   }
 }
 
+void GenericMultiBuf::ShrinkToFit() { deque_.shrink_to_fit(); }
+
 bool GenericMultiBuf::TryReserveLayers(size_t num_layers, size_t num_chunks) {
   if (num_layers == 0 || num_chunks == 0) {
     return true;

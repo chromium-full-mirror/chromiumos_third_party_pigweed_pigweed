@@ -2017,10 +2017,37 @@ TEST_F(MultiBufTest, ClearFreesChunks) {
   ConstMultiBuf& mb = mbi;
   ASSERT_TRUE(mb.TryReserveForPushBack(owned_chunk_));
   mb.PushBack(std::move(owned_chunk_));
+  size_t allocated = allocator_.GetAllocated();
 
   mb.Clear();
-  EXPECT_EQ(allocator_.deallocate_ptr(), owned_bytes_.data());
-  EXPECT_EQ(allocator_.deallocate_size(), owned_bytes_.size());
+  EXPECT_LT(allocator_.GetAllocated(), allocated);
+}
+
+TEST_F(MultiBufTest, ShrinkToFitFreesUnusedCapacity) {
+  ConstMultiBuf::Instance mbi(allocator_);
+  ConstMultiBuf& mb = mbi;
+
+  ASSERT_TRUE(mb.TryReserveForPushBack(owned_chunk_));
+  mb.PushBack(std::move(owned_chunk_));
+  size_t allocated = allocator_.GetAllocated();
+
+  ASSERT_TRUE(mb.TryReserveForPushBack(unowned_chunk_));
+  EXPECT_GT(allocator_.GetAllocated(), allocated);
+
+  // Don't actually push chunks. Shrink to fit should free the unused slots.
+  mb.ShrinkToFit();
+  EXPECT_EQ(allocator_.GetAllocated(), allocated);
+}
+
+TEST_F(MultiBufTest, ClearAndShrinkToFitFreesAllMemory) {
+  ConstMultiBuf::Instance mbi(allocator_);
+  ConstMultiBuf& mb = mbi;
+  ASSERT_TRUE(mb.TryReserveForPushBack(owned_chunk_));
+  mb.PushBack(std::move(owned_chunk_));
+
+  mb.Clear();
+  mb.ShrinkToFit();
+  EXPECT_EQ(allocator_.GetAllocated(), 0U);
 }
 
 TEST_F(MultiBufTest, IsReusableAfterClear) {

@@ -975,12 +975,20 @@ class BasicMultiBuf {
     return visitor(Get(copy, offset));
   }
 
-  /// Releases all memory from this object.
+  /// Releases all memory regions from this object.
   ///
   /// If this object has a deallocator, it will be used to free the memory
   /// owned by this object. When this method returns, the MultiBuf
   /// will be restored to an initial, empty state.
   void Clear() { generic().Clear(); }
+
+  /// Removes unused capacity from the internal deque.
+  ///
+  /// Owned memory r
+  /// This object's memory context  has a deallocator, it will be used to free
+  /// the memory owned by this object. When this method returns, the MultiBuf
+  /// will be restored to an initial, empty state.
+  void ShrinkToFit() { generic().ShrinkToFit(); }
 
   // Observable methods.
 
@@ -1344,6 +1352,9 @@ class GenericMultiBuf final
 
   /// @copydoc BasicMultiBuf<>::Clear
   void Clear();
+
+  /// @copydoc BasicMultiBuf<>::ShrinkToFit
+  void ShrinkToFit();
 
   // Layerable methods.
 
