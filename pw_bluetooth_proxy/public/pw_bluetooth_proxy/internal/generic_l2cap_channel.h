@@ -16,12 +16,20 @@
 #include <cstddef>
 #include <cstdint>
 
-#include "pw_allocator/unique_ptr.h"
+#include "pw_bluetooth_proxy/config.h"
 #include "pw_bluetooth_proxy/internal/l2cap_channel.h"
 #include "pw_bluetooth_proxy/internal/logical_transport.h"
 #include "pw_bluetooth_proxy/internal/multibuf.h"
+#include "pw_bluetooth_proxy/internal/mutex.h"
 #include "pw_bluetooth_proxy/l2cap_channel_common.h"
 #include "pw_status/status.h"
+#include "pw_sync/lock_annotations.h"
+
+#if PW_BLUETOOTH_PROXY_ASYNC == 0
+#include "pw_bluetooth_proxy/internal/generic_l2cap_channel_sync.h"
+#else
+#error "PW_BLUETOOTH_PROXY_ASYNC is not supported in this build."
+#endif  // PW_BLUETOOTH_PROXY_ASYNC
 
 namespace pw::bluetooth::proxy {
 
@@ -39,10 +47,13 @@ class GenericL2capChannel {
   GenericL2capChannel(const GenericL2capChannel& other) = delete;
   GenericL2capChannel& operator=(const GenericL2capChannel& other) = delete;
 
-  GenericL2capChannel(GenericL2capChannel&& other) { *this = std::move(other); }
-  GenericL2capChannel& operator=(GenericL2capChannel&& other);
+  GenericL2capChannel(GenericL2capChannel&& other) = default;
+  GenericL2capChannel& operator=(GenericL2capChannel&& other) = default;
 
-  virtual ~GenericL2capChannel();
+  virtual ~GenericL2capChannel() = default;
+
+  /// Completes initialization of the connection to the internal channel.
+  Status Init() { return impl_.Init(); }
 
   /// Send a payload to the remote peer.
   ///
@@ -59,8 +70,7 @@ class GenericL2capChannel {
   /// * @INVALID_ARGUMENT: Payload is too large.
   /// * @FAILED_PRECONDITION: Channel is not `State::kRunning`.
   /// * @UNIMPLEMENTED: Channel does not support `Write(MultiBuf)`.
-  StatusWithMultiBuf Write(FlatConstMultiBuf&& payload)
-      PW_LOCKS_EXCLUDED(L2capChannel::mutex());
+  StatusWithMultiBuf Write(FlatConstMultiBuf&& payload);
 
   /// Determine if channel is ready to accept one or more Write payloads.
   ///
@@ -71,7 +81,7 @@ class GenericL2capChannel {
   ///   will be called with `L2capChannelEvent::kWriteAvailable` when there is
   ///   queue space available again.
   /// * @FAILED_PRECONDITION: Channel is not `State::kRunning`.
-  Status IsWriteAvailable() PW_LOCKS_EXCLUDED(L2capChannel::mutex());
+  Status IsWriteAvailable() { return impl_.IsWriteAvailable(); }
 
   static constexpr size_t QueueCapacity() {
     return L2capChannel::QueueCapacity();
@@ -88,7 +98,7 @@ class GenericL2capChannel {
   // Stop the channel.
   //
   // This typically is only used in internal tests.
-  void Stop() PW_LOCKS_EXCLUDED(L2capChannel::mutex());
+  void Stop() { return impl_.Stop(); }
 
   // Close the channel.
   //
@@ -96,11 +106,12 @@ class GenericL2capChannel {
   //
   // Unlike `L2capChannel::Close`, this will send an event to the client while
   // holding the lock to ensure the channel isn't concurrently removed.
-  void Close() PW_LOCKS_EXCLUDED(L2capChannel::mutex());
+  void Close() { return impl_.Close(); }
 
   /// Returns the internal channel. Unsafe; only meant for tests. DO NOT USE.
-  L2capChannel* InternalForTesting() const
-      PW_LOCKS_EXCLUDED(L2capChannel::mutex());
+  L2capChannel* InternalForTesting() const {
+    return impl_.InternalForTesting();
+  }
 
  protected:
   explicit GenericL2capChannel(L2capChannel& channel);
@@ -116,26 +127,18 @@ class GenericL2capChannel {
   /// * @UNAVAILABLE: Send could not be queued due to lack of memory in the
   ///   client-provided rx_multibuf_allocator (transient error).
   /// * @FAILED_PRECONDITION: Channel is not `State::kRunning`.
-  Status SendAdditionalRxCredits(uint16_t additional_rx_credits)
-      PW_LOCKS_EXCLUDED(L2capChannel::mutex());
+  Status SendAdditionalRxCredits(uint16_t additional_rx_credits) {
+    return impl_.SendAdditionalRxCredits(additional_rx_credits);
+  }
 
  private:
+  friend class GenericL2capChannelImpl;
+  friend class L2capChannelImpl;
   friend class pw::bluetooth::proxy::L2capChannel;
   friend class pw::bluetooth::proxy::L2capChannelManager;
 
   /// Check if the passed Write parameter is acceptable.
   virtual Status DoCheckWriteParameter(const FlatConstMultiBuf& payload) = 0;
-
-  /// Returns a borrowed L2CAP channel, which can be dereferenced to get the
-  /// L2CAP channel. The channel is guaranteed not to be destroyed as long as
-  /// the `BorrowedL2capChannel` is in scope.
-  ///
-  /// @returns
-  /// * @OK: Returns the channel.
-  /// * @FAILED_PRECONDITION: This object is not connected to an L2CAP channel.
-  Result<BorrowedL2capChannel> BorrowL2capChannel() const;
-
-  L2capChannel* channel_ PW_GUARDED_BY(L2capChannel::mutex()) = nullptr;
 
   // ACL connection handle.
   uint16_t connection_handle_ = 0;
@@ -147,6 +150,9 @@ class GenericL2capChannel {
 
   // L2CAP channel ID of remote endpoint.
   uint16_t remote_cid_ = 0;
+
+  // Implementation-specific details that may vary between sync and async modes.
+  mutable GenericL2capChannelImpl impl_;
 };
 
 }  // namespace internal

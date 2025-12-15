@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include "pw_async2/dispatcher.h"
 #include "pw_bluetooth_proxy/gatt_notify_channel.h"
 #include "pw_bluetooth_proxy/internal/acl_data_channel.h"
 #include "pw_bluetooth_proxy/internal/hci_transport.h"
@@ -22,7 +23,14 @@
 #include "pw_bluetooth_proxy/l2cap_channel_common.h"
 #include "pw_bluetooth_proxy/l2cap_coc.h"
 #include "pw_bluetooth_proxy/l2cap_status_delegate.h"
+#include "pw_function/function.h"
 #include "pw_status/status.h"
+
+#if PW_BLUETOOTH_PROXY_ASYNC == 0
+#include "pw_bluetooth_proxy/internal/proxy_host_sync.h"
+#else
+#error "PW_BLUETOOTH_PROXY_ASYNC is not supported in this build."
+#endif  // PW_BLUETOOTH_PROXY_ASYNC
 
 /// Lightweight proxy for augmenting Bluetooth functionality
 namespace pw::bluetooth::proxy {
@@ -75,6 +83,9 @@ class ProxyHost {
   ///
   /// Container is required to call this function synchronously (one packet at a
   /// time).
+  ///
+  /// If using async mode, this function must only be called from the thread
+  /// that the dispatcher is running on.
   void HandleH4HciFromHost(H4PacketWithH4&& h4_packet);
 
   /// Called by container to ask proxy to handle a H4 packet sent from the
@@ -102,6 +113,9 @@ class ProxyHost {
   ///
   /// Container is required to call this function synchronously (one packet at a
   /// time).
+  ///
+  /// If using async mode, this function must only be called from the thread
+  /// that the dispatcher is running on.
   void HandleH4HciFromController(H4PacketWithHci&& h4_packet);
 
   /// Called when an HCI_Reset Command packet is observed. Proxy resets its
@@ -115,6 +129,19 @@ class ProxyHost {
   /// are destructed post-reset, packets generated post-reset are liable to be
   /// overwritten prematurely.
   void Reset();
+
+  // ##### Container async API
+
+  /// Sets dispatcher to use to run asynchronous tasks.
+  ///
+  /// The dispatcher must outlive the ProxyHost and any clients. This method
+  /// must called from the thread the dispatcher will run on.
+  ///
+  /// @returns
+  /// * @OK: Dispatcher is ready to run tasks.
+  /// * @FAILED_PRECONDITION: Dispatcher is already set.
+  /// * @UNIMPLEMENTED: PW_BLUETOOTH_PROXY_ASYNC is not enabled.
+  Status SetDispatcher(async2::Dispatcher& dispatcher);
 
   // ##### Client APIs
 
@@ -275,6 +302,55 @@ class ProxyHost {
   }
 
  private:
+  friend class internal::ProxyHostImpl;
+
+  /// @copydoc ProxyHost::Reset
+  void DoReset();
+
+  /// @copydoc ProxyHost::RegisterL2capStatusDelegate
+  void DoRegisterL2capStatusDelegate(L2capStatusDelegate& delegate);
+
+  /// @copydoc ProxyHost::UnregisterL2capStatusDelegate
+  void DoUnregisterL2capStatusDelegate(L2capStatusDelegate& delegate);
+
+  /// @copydoc ProxyHost::AcquireL2capCoc
+  pw::Result<L2capCoc> DoAcquireL2capCoc(
+      MultiBufAllocator& rx_multibuf_allocator,
+      uint16_t connection_handle,
+      L2capCoc::CocConfig rx_config,
+      L2capCoc::CocConfig tx_config,
+      Function<void(FlatConstMultiBuf&& payload)>&& receive_fn,
+      ChannelEventCallback&& event_fn);
+
+  /// @copydoc ProxyHost::AcquireBasicL2capChannel
+  pw::Result<BasicL2capChannel> DoAcquireBasicL2capChannel(
+      MultiBufAllocator& rx_multibuf_allocator,
+      uint16_t connection_handle,
+      uint16_t local_cid,
+      uint16_t remote_cid,
+      AclTransportType transport,
+      OptionalPayloadReceiveCallback&& payload_from_controller_fn,
+      OptionalPayloadReceiveCallback&& payload_from_host_fn,
+      ChannelEventCallback&& event_fn);
+
+  /// @copydoc ProxyHost::AcquireGattNotifyChannel
+  pw::Result<GattNotifyChannel> DoAcquireGattNotifyChannel(
+      int16_t connection_handle,
+      uint16_t attribute_handle,
+      ChannelEventCallback&& event_fn);
+
+  /// @copydoc ProxyHost::HasSendLeAclCapability
+  bool DoHasSendLeAclCapability() const;
+
+  /// @copydoc ProxyHost::HasSendBrEdrAclCapability
+  bool DoHasSendBrEdrAclCapability() const;
+
+  /// @copydoc ProxyHost::GetNumFreeLeAclPackets
+  uint16_t DoGetNumFreeLeAclPackets() const;
+
+  /// @copydoc ProxyHost::GetNumFreeBrEdrAclPackets
+  uint16_t DoGetNumFreeBrEdrAclPackets() const;
+
   // Handle HCI Event packet from the controller.
   void HandleEventFromController(H4PacketWithHci&& h4_packet);
 
@@ -303,6 +379,9 @@ class ProxyHost {
   // AclDataChannel callback for when new ACL TX credits are received and more
   // L2CAP packets can be sent.
   void OnAclTxCredits();
+
+  // Implementation-specific details that may vary between sync and async modes.
+  internal::ProxyHostImpl impl_;
 
   // For sending non-ACL data to the host and controller. ACL traffic shall be
   // sent through the `acl_data_channel_`.

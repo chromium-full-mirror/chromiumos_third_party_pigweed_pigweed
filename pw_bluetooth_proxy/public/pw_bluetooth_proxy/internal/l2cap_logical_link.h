@@ -63,6 +63,9 @@ class L2capLogicalLink final : public L2capLogicalLinkInterface,
   L2capLogicalLink(L2capLogicalLink&&) = delete;
   L2capLogicalLink& operator=(L2capLogicalLink&&) = delete;
 
+  // Initializes the link and its signaling channel.
+  Status Init() { return signaling_channel_.Init(); }
+
   // L2capLogicalLinkInterface overrides:
   Status SendFlowControlCreditInd(
       uint16_t channel_id,

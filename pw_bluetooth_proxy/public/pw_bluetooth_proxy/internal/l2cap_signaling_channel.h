@@ -18,6 +18,7 @@
 #include "pw_bluetooth_proxy/direction.h"
 #include "pw_bluetooth_proxy/internal/basic_l2cap_channel_internal.h"
 #include "pw_bluetooth_proxy/internal/multibuf.h"
+#include "pw_bluetooth_proxy/internal/mutex.h"
 #include "pw_bluetooth_proxy/l2cap_status_delegate.h"
 #include "pw_containers/vector.h"
 #include "pw_sync/lock_annotations.h"
@@ -37,6 +38,9 @@ class L2capSignalingChannel final {
 
   L2capSignalingChannel(L2capSignalingChannel&&) = delete;
   L2capSignalingChannel& operator=(L2capSignalingChannel&& other) = delete;
+
+  // Initializes the link and its underlying basic channel.
+  Status Init() { return channel_.Init(); }
 
   // Process the payload of a CFrame. Returns true if the CFrame was consumed by
   // the channel. Otherwise, returns false and the PDU containing this CFrame
@@ -140,7 +144,7 @@ class L2capSignalingChannel final {
   Vector<PendingConfiguration, kMaxPendingConfigurations>
       pending_configurations_ PW_GUARDED_BY(mutex_){};
 
-  sync::Mutex mutex_;
+  internal::Mutex mutex_;
 
   // Core Spec v6.0 Vol 3, Part A, Section 4: "The Identifier field is one octet
   // long and matches responses with requests. The requesting device sets this

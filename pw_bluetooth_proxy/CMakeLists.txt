@@ -41,15 +41,20 @@ pw_add_library(pw_bluetooth_proxy STATIC
     public/pw_bluetooth_proxy/internal/gatt_notify_rx_engine.h
     public/pw_bluetooth_proxy/internal/gatt_notify_tx_engine.h
     public/pw_bluetooth_proxy/internal/generic_l2cap_channel.h
+    public/pw_bluetooth_proxy/internal/generic_l2cap_channel_sync.h
     public/pw_bluetooth_proxy/internal/hci_transport.h
     public/pw_bluetooth_proxy/internal/l2cap_channel_manager.h
+    public/pw_bluetooth_proxy/internal/l2cap_channel_manager_sync.h
     public/pw_bluetooth_proxy/internal/l2cap_channel.h
+    public/pw_bluetooth_proxy/internal/l2cap_channel_sync.h
     public/pw_bluetooth_proxy/internal/l2cap_coc_internal.h
     public/pw_bluetooth_proxy/internal/l2cap_signaling_channel.h
     public/pw_bluetooth_proxy/internal/l2cap_status_tracker.h
     public/pw_bluetooth_proxy/internal/l2cap_logical_link.h
     public/pw_bluetooth_proxy/internal/locked_l2cap_channel.h
     public/pw_bluetooth_proxy/internal/logical_transport.h
+    public/pw_bluetooth_proxy/internal/mutex.h
+    public/pw_bluetooth_proxy/internal/proxy_host_sync.h
     public/pw_bluetooth_proxy/internal/recombiner.h
     public/pw_bluetooth_proxy/internal/rx_engine.h
     public/pw_bluetooth_proxy/internal/tx_engine.h
@@ -66,6 +71,8 @@ pw_add_library(pw_bluetooth_proxy STATIC
 # LINT.IfChange
 
   PUBLIC_DEPS
+    pw_allocator
+    pw_async2.dispatcher
     pw_bluetooth.emboss_hci_data
     pw_bluetooth.emboss_hci_events
     pw_bluetooth.emboss_hci_h4
@@ -95,14 +102,18 @@ pw_add_library(pw_bluetooth_proxy STATIC
     gatt_notify_channel_internal.cc
     gatt_notify_tx_engine.cc
     generic_l2cap_channel.cc
+    generic_l2cap_channel_sync.cc
     l2cap_channel_manager.cc
+    l2cap_channel_manager_sync.cc
     l2cap_channel.cc
+    l2cap_channel_sync.cc
     l2cap_coc.cc
     l2cap_coc_internal.cc
     l2cap_signaling_channel.cc
     l2cap_status_tracker.cc
     l2cap_logical_link.cc
     proxy_host.cc
+    proxy_host_sync.cc
     recombiner.cc
   PRIVATE_DEPS
     pw_containers.intrusive_map
@@ -195,13 +206,18 @@ pw_add_test(pw_bluetooth_proxy.pw_bluetooth_proxy_test
     pw_span.cast
     pw_sync.mutex
     pw_sync.no_lock
+    pw_sync.thread_notification
     pw_third_party.fuchsia.stdcompat
     pw_thread.test_thread_context
     pw_thread.thread
     pw_unit_test
   SOURCES
     pw_bluetooth_proxy_private/test_utils.h
+    basic_mode_tx_engine_test.cc
+    basic_mode_rx_engine_test.cc
     channel_proxy_test.cc
+    credit_based_flow_control_tx_engine_test.cc
+    credit_based_flow_control_rx_engine_test.cc
     gatt_notify_test.cc
     gatt_notify_tx_engine_test.cc
     h4_packet_test.cc
@@ -210,10 +226,6 @@ pw_add_test(pw_bluetooth_proxy.pw_bluetooth_proxy_test
     recombiner_test.cc
     test_utils.cc
     utils_test.cc
-    basic_mode_tx_engine_test.cc
-    basic_mode_rx_engine_test.cc
-    credit_based_flow_control_tx_engine_test.cc
-    credit_based_flow_control_rx_engine_test.cc
 # LINT.ThenChange(bt-proxy.bzl, BUILD.gn)
 
   GROUPS

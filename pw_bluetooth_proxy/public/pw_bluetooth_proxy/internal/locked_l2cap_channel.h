@@ -17,7 +17,7 @@
 #include <mutex>
 
 #include "pw_bluetooth_proxy/internal/l2cap_channel.h"
-#include "pw_sync/mutex.h"
+#include "pw_bluetooth_proxy/internal/mutex.h"
 
 namespace pw::bluetooth::proxy {
 
@@ -26,7 +26,7 @@ namespace pw::bluetooth::proxy {
 class LockedL2capChannel {
  public:
   LockedL2capChannel(L2capChannel& channel,
-                     std::unique_lock<sync::Mutex>&& lock)
+                     std::unique_lock<internal::Mutex>&& lock)
       : channel_(&channel), lock_(std::move(lock)) {}
 
   LockedL2capChannel(LockedL2capChannel&& other)
@@ -51,7 +51,7 @@ class LockedL2capChannel {
 
  private:
   L2capChannel* channel_;
-  std::unique_lock<sync::Mutex> lock_;
+  std::unique_lock<internal::Mutex> lock_;
 };
 
 }  // namespace pw::bluetooth::proxy

@@ -20,6 +20,7 @@
 #include "pw_bluetooth/l2cap_frames.emb.h"
 #include "pw_bluetooth_proxy/internal/l2cap_channel.h"
 #include "pw_bluetooth_proxy/internal/multibuf.h"
+#include "pw_bluetooth_proxy/internal/mutex.h"
 #include "pw_bluetooth_proxy/l2cap_channel_common.h"
 #include "pw_bluetooth_proxy/l2cap_coc_config.h"
 #include "pw_sync/mutex.h"
@@ -109,7 +110,7 @@ class L2capCocInternal final : public L2capChannel {
 
   Function<void(FlatConstMultiBuf&& payload)> receive_fn_;
 
-  sync::Mutex rx_mutex_;
+  internal::Mutex rx_mutex_;
   std::optional<FlatMultiBufInstance> rx_sdu_ PW_GUARDED_BY(rx_mutex_) =
       std::nullopt;
   uint16_t rx_sdu_offset_ PW_GUARDED_BY(rx_mutex_) = 0;
@@ -117,7 +118,7 @@ class L2capCocInternal final : public L2capChannel {
   uint16_t rx_remaining_credits_ PW_GUARDED_BY(rx_mutex_);
   uint16_t rx_total_credits_ PW_GUARDED_BY(rx_mutex_);
 
-  sync::Mutex tx_mutex_;
+  internal::Mutex tx_mutex_;
   uint16_t tx_credits_ PW_GUARDED_BY(tx_mutex_);
   uint16_t tx_sdu_offset_ PW_GUARDED_BY(tx_mutex_) = 0;
   bool is_continuing_segment_ PW_GUARDED_BY(tx_mutex_) = false;

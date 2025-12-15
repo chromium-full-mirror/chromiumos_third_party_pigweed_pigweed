@@ -22,10 +22,10 @@
 #include "pw_bluetooth_proxy/internal/hci_transport.h"
 #include "pw_bluetooth_proxy/internal/logical_transport.h"
 #include "pw_bluetooth_proxy/internal/multibuf.h"
+#include "pw_bluetooth_proxy/internal/mutex.h"
 #include "pw_containers/intrusive_map.h"
 #include "pw_containers/vector.h"
 #include "pw_sync/lock_annotations.h"
-#include "pw_sync/mutex.h"
 
 namespace pw::bluetooth::proxy {
 
@@ -274,7 +274,7 @@ class AclDataChannel {
   bool HandleAclData(Direction direction, pw::span<uint8_t> buffer);
 
   // Guards interactions with ACL connection objects.
-  mutable pw::sync::Mutex connection_mutex_ PW_ACQUIRED_BEFORE(credit_mutex_);
+  mutable internal::Mutex connection_mutex_ PW_ACQUIRED_BEFORE(credit_mutex_);
 
   // Returns pointer to AclConnection with provided `connection_handle` in
   // `acl_connections_`. Returns nullptr if no such connection exists.
@@ -300,7 +300,7 @@ class AclDataChannel {
 
   // Credit allocation will happen inside a mutex since it crosses thread
   // boundaries.
-  mutable pw::sync::Mutex credit_mutex_ PW_ACQUIRED_AFTER(connection_mutex_);
+  mutable internal::Mutex credit_mutex_ PW_ACQUIRED_AFTER(connection_mutex_);
 
   Credits le_credits_ PW_GUARDED_BY(credit_mutex_);
   Credits br_edr_credits_ PW_GUARDED_BY(credit_mutex_);
@@ -316,7 +316,7 @@ class AclDataChannel {
 
   // This separate mutex is required because the delegate may call SendAcl() and
   // acquire the connection_mutex_ inside of delegate callbacks.
-  sync::Mutex delegates_mutex_ PW_ACQUIRED_BEFORE(connection_mutex_);
+  internal::Mutex delegates_mutex_ PW_ACQUIRED_BEFORE(connection_mutex_);
   IntrusiveMap<uint16_t, ConnectionDelegate> connection_delegates_
       PW_GUARDED_BY(delegates_mutex_);
 

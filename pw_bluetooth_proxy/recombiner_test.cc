@@ -20,6 +20,7 @@
 
 #include "pw_assert/check.h"
 #include "pw_bluetooth_proxy/internal/locked_l2cap_channel.h"
+#include "pw_bluetooth_proxy/internal/mutex.h"
 #include "pw_bluetooth_proxy/proxy_host.h"
 #include "pw_bluetooth_proxy_private/test_utils.h"
 #include "pw_containers/to_array.h"
@@ -53,7 +54,7 @@ TEST_F(RecombinerTest, Start) {
   BasicL2capChannel channel =
       BuildBasicL2capChannel(proxy_, {.handle = kConnectionHandle});
 
-  sync::Mutex mutex;
+  internal::Mutex mutex;
   LockedL2capChannel locked_channel{*channel.InternalForTesting(),
                                     std::unique_lock(mutex)};
 
@@ -75,8 +76,7 @@ TEST_F(RecombinerTest, GetLocalCid) {
       proxy_, kConnectionHandle, emboss::StatusCode::SUCCESS));
   BasicL2capChannel channel = BuildBasicL2capChannel(
       proxy_, {.handle = kConnectionHandle, .local_cid = kLocalCid});
-
-  sync::Mutex mutex;
+  internal::Mutex mutex;
   LockedL2capChannel locked_channel{*channel.InternalForTesting(),
                                     std::unique_lock(mutex)};
 
@@ -96,7 +96,7 @@ TEST_F(RecombinerTest, EndWithChannel) {
       proxy_, kConnectionHandle, emboss::StatusCode::SUCCESS));
   BasicL2capChannel channel =
       BuildBasicL2capChannel(proxy_, {.handle = kConnectionHandle});
-  sync::Mutex mutex;
+  internal::Mutex mutex;
   std::optional<LockedL2capChannel> locked_channel{LockedL2capChannel{
       *channel.InternalForTesting(), std::unique_lock(mutex)}};
 
@@ -124,7 +124,7 @@ TEST_F(RecombinerTest, EndWithoutChannel) {
   {
     BasicL2capChannel channel =
         BuildBasicL2capChannel(proxy_, {.handle = kConnectionHandle});
-    sync::Mutex mutex;
+    internal::Mutex mutex;
     std::optional<LockedL2capChannel> locked_channel{LockedL2capChannel{
         *channel.InternalForTesting(), std::unique_lock(mutex)}};
 
@@ -152,7 +152,7 @@ TEST_F(RecombinerTest, WriteThenTake) {
   Recombiner recombiner{kDirection};
   BasicL2capChannel channel =
       BuildBasicL2capChannel(proxy_, {.handle = kConnectionHandle});
-  sync::Mutex mutex;
+  internal::Mutex mutex;
   std::optional<LockedL2capChannel> locked_channel{LockedL2capChannel{
       *channel.InternalForTesting(), std::unique_lock(mutex)}};
 
@@ -205,7 +205,7 @@ TEST_F(RecombinerTest, WriteCompleteWithoutChannel) {
   {
     BasicL2capChannel channel =
         BuildBasicL2capChannel(proxy_, {.handle = kConnectionHandle});
-    sync::Mutex mutex;
+    internal::Mutex mutex;
     std::optional<LockedL2capChannel> locked_channel{LockedL2capChannel{
         *channel.InternalForTesting(), std::unique_lock(mutex)}};
 
@@ -249,7 +249,7 @@ TEST_F(RecombinerTest, RecombinedPduIsLargerThanSpecified) {
 
   BasicL2capChannel channel =
       BuildBasicL2capChannel(proxy_, {.handle = kConnectionHandle});
-  sync::Mutex mutex;
+  internal::Mutex mutex;
   std::optional<LockedL2capChannel> locked_channel{LockedL2capChannel{
       *channel.InternalForTesting(), std::unique_lock(mutex)}};
 
@@ -294,7 +294,7 @@ TEST_F(RecombinerTest, CanClaimExtraHeader) {
   Recombiner recombiner{kDirection};
   BasicL2capChannel channel =
       BuildBasicL2capChannel(proxy_, {.handle = kConnectionHandle});
-  sync::Mutex mutex;
+  internal::Mutex mutex;
   std::optional<LockedL2capChannel> locked_channel{LockedL2capChannel{
       *channel.InternalForTesting(), std::unique_lock(mutex)}};
 

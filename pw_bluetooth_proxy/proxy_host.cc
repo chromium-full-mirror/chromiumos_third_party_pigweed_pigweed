@@ -31,7 +31,8 @@ ProxyHost::ProxyHost(
     uint16_t le_acl_credits_to_reserve,
     uint16_t br_edr_acl_credits_to_reserve,
     pw::Allocator* allocator)
-    : hci_transport_(std::move(send_to_host_fn),
+    : impl_(*this),
+      hci_transport_(std::move(send_to_host_fn),
                      std::move(send_to_controller_fn)),
       acl_data_channel_(hci_transport_,
                         le_acl_credits_to_reserve,
@@ -52,7 +53,7 @@ ProxyHost::~ProxyHost() {
       L2capChannelEvent::kChannelClosedByOther);
 }
 
-void ProxyHost::Reset() {
+void ProxyHost::DoReset() {
   // Reset AclDataChannel first, so that send credits are reset to 0 until
   // reinitialized by controller event. This way, new channels can still be
   // registered, but they cannot erroneously use invalidated send credits.
@@ -310,7 +311,7 @@ void ProxyHost::HandleAclFromHost(H4PacketWithH4&& h4_packet) {
   l2cap_channel_manager_.DeliverPendingEvents();
 }
 
-pw::Result<L2capCoc> ProxyHost::AcquireL2capCoc(
+pw::Result<L2capCoc> ProxyHost::DoAcquireL2capCoc(
     MultiBufAllocator& rx_multibuf_allocator,
     uint16_t connection_handle,
     L2capCoc::CocConfig rx_config,
@@ -325,7 +326,7 @@ pw::Result<L2capCoc> ProxyHost::AcquireL2capCoc(
                                                 std::move(event_fn));
 }
 
-pw::Result<BasicL2capChannel> ProxyHost::AcquireBasicL2capChannel(
+pw::Result<BasicL2capChannel> ProxyHost::DoAcquireBasicL2capChannel(
     MultiBufAllocator& rx_multibuf_allocator,
     uint16_t connection_handle,
     uint16_t local_cid,
@@ -345,7 +346,7 @@ pw::Result<BasicL2capChannel> ProxyHost::AcquireBasicL2capChannel(
       std::move(event_fn));
 }
 
-pw::Result<GattNotifyChannel> ProxyHost::AcquireGattNotifyChannel(
+pw::Result<GattNotifyChannel> ProxyHost::DoAcquireGattNotifyChannel(
     int16_t connection_handle,
     uint16_t attribute_handle,
     ChannelEventCallback&& event_fn) {
@@ -353,27 +354,27 @@ pw::Result<GattNotifyChannel> ProxyHost::AcquireGattNotifyChannel(
       connection_handle, attribute_handle, std::move(event_fn));
 }
 
-bool ProxyHost::HasSendLeAclCapability() const {
+bool ProxyHost::DoHasSendLeAclCapability() const {
   return acl_data_channel_.HasSendAclCapability(AclTransportType::kLe);
 }
 
-bool ProxyHost::HasSendBrEdrAclCapability() const {
+bool ProxyHost::DoHasSendBrEdrAclCapability() const {
   return acl_data_channel_.HasSendAclCapability(AclTransportType::kBrEdr);
 }
 
-uint16_t ProxyHost::GetNumFreeLeAclPackets() const {
+uint16_t ProxyHost::DoGetNumFreeLeAclPackets() const {
   return acl_data_channel_.GetNumFreeAclPackets(AclTransportType::kLe);
 }
 
-uint16_t ProxyHost::GetNumFreeBrEdrAclPackets() const {
+uint16_t ProxyHost::DoGetNumFreeBrEdrAclPackets() const {
   return acl_data_channel_.GetNumFreeAclPackets(AclTransportType::kBrEdr);
 }
 
-void ProxyHost::RegisterL2capStatusDelegate(L2capStatusDelegate& delegate) {
+void ProxyHost::DoRegisterL2capStatusDelegate(L2capStatusDelegate& delegate) {
   l2cap_channel_manager_.RegisterStatusDelegate(delegate);
 }
 
-void ProxyHost::UnregisterL2capStatusDelegate(L2capStatusDelegate& delegate) {
+void ProxyHost::DoUnregisterL2capStatusDelegate(L2capStatusDelegate& delegate) {
   l2cap_channel_manager_.UnregisterStatusDelegate(delegate);
 }
 

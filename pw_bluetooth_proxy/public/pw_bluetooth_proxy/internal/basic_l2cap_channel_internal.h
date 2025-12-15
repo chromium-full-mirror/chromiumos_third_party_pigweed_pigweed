@@ -16,6 +16,7 @@
 
 #include "pw_bluetooth_proxy/internal/l2cap_channel.h"
 #include "pw_bluetooth_proxy/internal/multibuf.h"
+#include "pw_bluetooth_proxy/internal/mutex.h"
 #include "pw_bluetooth_proxy/l2cap_channel_common.h"
 #include "pw_sync/mutex.h"
 
@@ -66,7 +67,7 @@ class BasicL2capChannelInternal final : public L2capChannel {
   std::optional<H4PacketWithH4> GenerateNextTxPacket(
       const FlatConstMultiBuf& payload, bool& keep_payload) override;
 
-  sync::Mutex mutex_;
+  internal::Mutex mutex_;
 
   // TODO: https://pwbug.dev/388082771 -  This is an optimization to avoid
   // allocating & copying in L2capSignalingChannel. It is temporary until

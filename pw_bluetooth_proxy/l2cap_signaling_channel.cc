@@ -63,9 +63,7 @@ L2capSignalingChannel::L2capSignalingChannel(
               this),
           /*payload_span_from_host_fn=*/
           pw::bind_member<&L2capSignalingChannel::HandlePayloadFromHost>(
-              this)) {
-  channel_.Init();
-}
+              this)) {}
 
 bool L2capSignalingChannel::OnCFramePayload(
     Direction direction, pw::span<const uint8_t> cframe_payload) {

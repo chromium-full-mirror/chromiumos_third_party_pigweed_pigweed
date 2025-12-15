@@ -498,7 +498,7 @@ TEST_F(L2capCocWriteTest, MultithreadedWrite) {
         kSduLengthFieldSize + kExpectedSduLength;
     const uint16_t kExpectedAclDataTotalLength =
         emboss::BasicL2capHeader::IntrinsicSizeInBytes() + kExpectedPduLength;
-    pw::sync::Mutex sends_by_channel_mutex;
+    sync::Mutex sends_by_channel_mutex;
     std::array<unsigned int, kNumThreads> sends_by_channel
         PW_GUARDED_BY(sends_by_channel_mutex){};
   } capture;

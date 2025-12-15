@@ -17,10 +17,10 @@
 #include <cstdint>
 #include <optional>
 
+#include "pw_bluetooth_proxy/internal/mutex.h"
 #include "pw_bluetooth_proxy/l2cap_status_delegate.h"
 #include "pw_containers/vector.h"
 #include "pw_sync/lock_annotations.h"
-#include "pw_sync/mutex.h"
 
 namespace pw::bluetooth::proxy {
 
@@ -97,7 +97,7 @@ class L2capStatusTracker {
   std::optional<DisconnectParams> pending_disconnection_complete_
       PW_GUARDED_BY(mutex_);
 
-  sync::Mutex mutex_;
+  internal::Mutex mutex_;
 };
 
 }  // namespace pw::bluetooth::proxy

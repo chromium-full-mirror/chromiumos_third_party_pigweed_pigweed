@@ -11,26 +11,31 @@
 // WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 // License for the specific language governing permissions and limitations under
 // the License.
+#pragma once
 
-#include "pw_bluetooth_proxy/internal/generic_l2cap_channel.h"
+#include "pw_bluetooth_proxy/config.h"
 
-#include "pw_assert/check.h"
-#include "pw_bluetooth_proxy/internal/l2cap_coc_internal.h"
+#if PW_BLUETOOTH_PROXY_ASYNC == 0
+
+#include "pw_sync/mutex.h"
 
 namespace pw::bluetooth::proxy::internal {
 
-GenericL2capChannel::GenericL2capChannel(L2capChannel& channel)
-    : connection_handle_(channel.connection_handle()),
-      transport_(channel.transport()),
-      local_cid_(channel.local_cid()),
-      remote_cid_(channel.remote_cid()),
-      impl_(channel) {}
-
-StatusWithMultiBuf GenericL2capChannel::Write(FlatConstMultiBuf&& payload) {
-  if (auto status = DoCheckWriteParameter(payload); !status.ok()) {
-    return {status, std::move(payload)};
-  }
-  return impl_.Write(std::move(payload));
-}
+// When PW_BLUETOOTH_PROXY_ASYNC is disabled, use normal mutexes for internals.
+using Mutex = sync::Mutex;
 
 }  // namespace pw::bluetooth::proxy::internal
+
+#else  // PW_BLUETOOTH_PROXY_ASYNC
+
+#include "pw_sync/no_lock.h"
+
+namespace pw::bluetooth::proxy::internal {
+
+// When PW_BLUETOOTH_PROXY_ASYNC is enabled, use no-op mutexes for everything
+// accessed solely from the dispatcher thread.
+using Mutex = sync::NoLock;
+
+}  // namespace pw::bluetooth::proxy::internal
+
+#endif  // PW_BLUETOOTH_PROXY_ASYNC
