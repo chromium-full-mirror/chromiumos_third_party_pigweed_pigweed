@@ -223,7 +223,7 @@ class BlockAllocator : public internal::GenericBlockAllocator {
   ///
   /// @param  block   Used to return the chosen block.
   /// @param  layout  Same as ``Allocator::Allocate``.
-  virtual BlockType* ChooseBlock(Layout layout) = 0;
+  virtual BlockResult<BlockType> ChooseBlock(Layout layout) = 0;
 
   /// Indicates that a block will no longer be free.
   ///
@@ -388,6 +388,7 @@ void BlockAllocator<BlockType>::DeallocateBlock(BlockType*&& block) {
   }
 
   // Free the block and merge it with its neighbors, if possible.
+  allocated_ -= block->OuterSize();
   auto free_result = BlockType::Free(std::move(block));
   block = free_result.block();
   UpdateLast(block);
@@ -417,6 +418,7 @@ bool BlockAllocator<BlockType>::DoResize(void* ptr, size_t new_size) {
     ReserveBlock(*next);
   }
 
+  size_t old_size = block->OuterSize();
   if (!block->Resize(new_size).ok()) {
     return false;
   }

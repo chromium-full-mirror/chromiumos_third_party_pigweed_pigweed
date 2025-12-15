@@ -62,6 +62,11 @@ declare_args() {
   # recommended to turn this off so you're not linting and testing all of your
   # external dependencies.
   pw_build_TEST_TRANSITIVE_PYTHON_DEPS = true
+
+  # If you wish to enable transitive dependencies on a subset of your targets,
+  # use this to filter out unwanted transitive dependencies.
+  # For example: `[ "$dir_pigweed/*" ]`
+  pw_build_TEST_TRANSITIVE_PYTHON_DEPS_FILTER_EXCLUDES = []
 }
 
 # Python packages provide the following targets as $target_name.$subtarget.

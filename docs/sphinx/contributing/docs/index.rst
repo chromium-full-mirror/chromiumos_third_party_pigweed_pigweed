@@ -5,15 +5,6 @@ Docs contributors
 =================
 Authoring guidelines and style guides for ``pigweed.dev`` contributors.
 
-.. grid:: 1
-
-   .. grid-item-card:: :octicon:`list-ordered` Docs contributor quickstart
-      :link: contrib-docs-quickstart
-      :link-type: ref
-      :class-item: sales-pitch-cta-primary
-
-      How to contribute updates to ``pigweed.dev`` content.
-
 .. grid:: 2
 
    .. grid-item-card:: :octicon:`list-ordered` Working with the build system
@@ -58,6 +49,15 @@ Authoring guidelines and style guides for ``pigweed.dev`` contributors.
       How to format the C++ code comments that are transformed
       into API references.
 
+   .. grid-item-card:: :octicon:`list-ordered` Website updates
+      :link: contrib-docs-website
+      :link-type: ref
+      :class-item: sales-pitch-cta-secondary
+
+      Information about how the ``pigweed.dev`` website is generated.
+
+.. grid:: 1
+
    .. grid-item-card:: :octicon:`list-ordered` Changelog updates
       :link: contrib-changelog
       :link-type: ref
@@ -69,7 +69,8 @@ Authoring guidelines and style guides for ``pigweed.dev`` contributors.
    :maxdepth: 1
    :hidden:
 
-   guides
+   Build system <build>
+   Doxygen <doxygen>
    modules
    Code examples <examples>
    website

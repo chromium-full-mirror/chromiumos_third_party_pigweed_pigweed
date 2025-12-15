@@ -837,7 +837,7 @@
     "@@aspect_rules_js+//npm:extensions.bzl%pnpm": {
       "general": {
         "bzlTransitiveDigest": "tmLEs2ngwNrJq1OgblYDQTIjF8TjHPE1t98jMTDqD1g=",
-        "usagesDigest": "0bnQ+rfWPgPBwIzrmxLJ+o/WAhUldmvdunr9wh8cgSk=",
+        "usagesDigest": "CJ1OJXapYjXo7JkAQo9eGAoi5+BAGFhihd2AQMr45Pw=",
         "recordedFileInputs": {},
         "recordedDirentsInputs": {},
         "envVariables": {},
@@ -1800,19 +1800,19 @@
         "bzlTransitiveDigest": "B03ED3L7FcWm0Hin9NKVS02w/MbisH94rmBOAGooMlg=",
         "usagesDigest": "Gyj0sHrD25Rs8gX9uuQv5mI9T64e48wY82re06T8/08=",
         "recordedFileInputs": {
-          "@@//out/workflows_launcher/external/nanopb+/extra/requirements_lock.txt": "2bcdca24f1a4429b4ab0f0bb80cca292a92e12f7bf3d0f46de7c2b14fd97ac25",
-          "@@//out/workflows_launcher/external/protobuf+/python/requirements.txt": "983be60d3cec4b319dcab6d48aeb3f5b2f7c3350f26b3a9e97486c37967c73c5",
-          "@@//out/workflows_launcher/external/rules_fuzzing+/fuzzing/requirements.txt": "ab04664be026b632a0d2a2446c4f65982b7654f5b6851d2f9d399a19b7242a5b",
-          "@@//out/workflows_launcher/external/rules_mypy+/mypy/private/requirements.txt": "006c5ff237085e72f2022c764b5b5acab47cdf61fd8157a3019c0305fda667bc",
-          "@@//out/workflows_launcher/external/rules_python++internal_deps+pypi__packaging/packaging-24.2.dist-info/RECORD": "91777a0e03c5978c8b440a2093cf44d1d13c859f97fb45ea4e5ec65182eed873",
-          "@@//out/workflows_launcher/external/rules_python+/python/private/pypi/requirements_parser/resolve_target_platforms.py": "42bf51980528302373529bcdfddb8014e485182d6bc9d2f7d3bbe1f11d8d923d",
-          "@@//out/workflows_launcher/external/rules_python+/python/private/pypi/whl_installer/platform.py": "b944b908b25a2f97d6d9f491504ad5d2507402d7e37c802ee878783f87f2aa11",
-          "@@//out/workflows_launcher/external/rules_python+/tools/publish/requirements_darwin.txt": "095d4a4f3d639dce831cd493367631cd51b53665292ab20194bac2c0c6458fa8",
-          "@@//out/workflows_launcher/external/rules_python+/tools/publish/requirements_linux.txt": "d576e0d8542df61396a9b38deeaa183c24135ed5e8e73bb9622f298f2671811e",
-          "@@//out/workflows_launcher/external/rules_python+/tools/publish/requirements_windows.txt": "d18538a3982beab378fd5687f4db33162ee1ece69801f9a451661b1b64286b76",
           "@@//pw_env_setup/py/pw_env_setup/virtualenv_setup/upstream_requirements_darwin_lock.txt": "affe8afad4cccc4b1fc1e424417dac43202b2dbdf60696dca8c70ffbd52cd450",
           "@@//pw_env_setup/py/pw_env_setup/virtualenv_setup/upstream_requirements_linux_lock.txt": "2c083efe31452a3c5edd93266a5bd079051611dabf14c541f6bb76f4e0b7ec5c",
-          "@@//pw_env_setup/py/pw_env_setup/virtualenv_setup/upstream_requirements_windows_lock.txt": "6e0284a08195eff58f8d932b5c71979c24cac2bc7a2e808bbf05b2ea4666b40b"
+          "@@//pw_env_setup/py/pw_env_setup/virtualenv_setup/upstream_requirements_windows_lock.txt": "6e0284a08195eff58f8d932b5c71979c24cac2bc7a2e808bbf05b2ea4666b40b",
+          "@@nanopb+//extra/requirements_lock.txt": "2bcdca24f1a4429b4ab0f0bb80cca292a92e12f7bf3d0f46de7c2b14fd97ac25",
+          "@@protobuf+//python/requirements.txt": "983be60d3cec4b319dcab6d48aeb3f5b2f7c3350f26b3a9e97486c37967c73c5",
+          "@@rules_fuzzing+//fuzzing/requirements.txt": "ab04664be026b632a0d2a2446c4f65982b7654f5b6851d2f9d399a19b7242a5b",
+          "@@rules_mypy+//mypy/private/requirements.txt": "006c5ff237085e72f2022c764b5b5acab47cdf61fd8157a3019c0305fda667bc",
+          "@@rules_python++internal_deps+pypi__packaging//packaging-24.2.dist-info/RECORD": "91777a0e03c5978c8b440a2093cf44d1d13c859f97fb45ea4e5ec65182eed873",
+          "@@rules_python+//python/private/pypi/requirements_parser/resolve_target_platforms.py": "42bf51980528302373529bcdfddb8014e485182d6bc9d2f7d3bbe1f11d8d923d",
+          "@@rules_python+//python/private/pypi/whl_installer/platform.py": "b944b908b25a2f97d6d9f491504ad5d2507402d7e37c802ee878783f87f2aa11",
+          "@@rules_python+//tools/publish/requirements_darwin.txt": "095d4a4f3d639dce831cd493367631cd51b53665292ab20194bac2c0c6458fa8",
+          "@@rules_python+//tools/publish/requirements_linux.txt": "d576e0d8542df61396a9b38deeaa183c24135ed5e8e73bb9622f298f2671811e",
+          "@@rules_python+//tools/publish/requirements_windows.txt": "d18538a3982beab378fd5687f4db33162ee1ece69801f9a451661b1b64286b76"
         },
         "recordedDirentsInputs": {},
         "envVariables": {
