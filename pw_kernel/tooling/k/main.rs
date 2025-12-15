@@ -1,0 +1,64 @@
+// Copyright 2025 The Pigweed Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License"); you may not
+// use this file except in compliance with the License. You may obtain a copy of
+// the License at
+//
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+// WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+// License for the specific language governing permissions and limitations under
+// the License.
+
+use anyhow::Result;
+mod image_info;
+
+use std::path::{Path, PathBuf};
+
+use clap::{Parser, Subcommand};
+
+#[derive(Parser)]
+#[command(name = "k")]
+#[command(about = "Pigweed Kernel CLI Tool", long_about = None)]
+struct Cli {
+    #[command(subcommand)]
+    command: Commands,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    /// Print information about a kernel image
+    #[command(name = "image_info")]
+    ImageInfo {
+        #[arg(required = true)]
+        path: PathBuf,
+    },
+}
+
+fn print_image_info(path: &Path) -> Result<()> {
+    let info = image_info::ImageInfo::new(path)?;
+    println!("Stacks:");
+    println!("  {:<30} {:<12} {:<10}", "Name", "Address", "Size");
+    println!("  {:-<30} {:-<12} {:-<10}", "", "", "");
+    for stack in info.stacks {
+        println!(
+            "  {:<30} 0x{:08x}   0x{:x}",
+            stack.name, stack.stack_addr, stack.stack_size
+        );
+    }
+    Ok(())
+}
+
+fn main() -> Result<()> {
+    let cli = Cli::parse();
+
+    match &cli.command {
+        Commands::ImageInfo { path } => {
+            print_image_info(path)?;
+        }
+    }
+
+    Ok(())
+}
