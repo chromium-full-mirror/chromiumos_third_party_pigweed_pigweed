@@ -31,7 +31,7 @@ It's a cooperatively scheduled "thread" which yields to the
 :cc:`Dispatcher <pw::async2::Dispatcher>` when waiting. When a ``Task``
 is able to make progress, the ``Dispatcher`` runs it again:
 
-.. literalinclude:: examples/basic.cc
+.. literalinclude:: examples/basic_manual.cc
    :language: cpp
    :linenos:
    :start-after: [pw_async2-examples-basic-manual]
@@ -40,7 +40,7 @@ is able to make progress, the ``Dispatcher`` runs it again:
 Tasks can then be run on a :cc:`Dispatcher <pw::async2::Dispatcher>`
 using the :cc:`Post() <pw::async2::Dispatcher::Post>` method:
 
-.. literalinclude:: examples/basic.cc
+.. literalinclude:: examples/basic_manual.cc
    :language: cpp
    :linenos:
    :start-after: [pw_async2-examples-basic-dispatcher]

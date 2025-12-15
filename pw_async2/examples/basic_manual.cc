@@ -1,4 +1,4 @@
-// Copyright 2024 The Pigweed Authors
+// Copyright 2025 The Pigweed Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License"); you may not
 // use this file except in compliance with the License. You may obtain a copy of
@@ -65,7 +65,6 @@ class MySender {
 namespace {
 
 using ::pw::async2::Context;
-using ::pw::async2::Pending;
 using ::pw::async2::Poll;
 using ::pw::async2::Ready;
 using ::pw::async2::Task;
@@ -115,62 +114,11 @@ class ReceiveAndSend final : public Task {
 }  // namespace
 // DOCSTAG: [pw_async2-examples-basic-manual]
 
-// DOCSTAG: [pw_async2-examples-basic-coro]
-#include "pw_allocator/allocator.h"
-#include "pw_async2/coro.h"
-#include "pw_log/log.h"
-#include "pw_result/result.h"
-
-namespace {
-
-using ::pw::OkStatus;
-using ::pw::Result;
-using ::pw::Status;
-using ::pw::async2::Coro;
-using ::pw::async2::CoroContext;
-
-class MyReceiver;
-class MySender;
-
-/// Create a coroutine which asynchronously receives a value from
-/// ``receiver`` and forwards it to ``sender``.
-///
-/// Note: the ``CoroContext`` argument is used by the ``Coro<T>`` internals to
-/// allocate the coroutine state. If this allocation fails, ``Coro<Status>``
-/// will return ``Status::Internal()``.
-Coro<Status> ReceiveAndSendCoro(CoroContext&,
-                                MyReceiver receiver,
-                                MySender sender) {
-  Result<MyData> data = co_await receiver.Receive();
-  if (!data.ok()) {
-    PW_LOG_ERROR("Receiving failed: %s", data.status().str());
-    co_return Status::Unavailable();
-  }
-  Status sent = co_await sender.Send(std::move(*data));
-  if (!sent.ok()) {
-    PW_LOG_ERROR("Sending failed: %s", sent.str());
-    co_return Status::Unavailable();
-  }
-  co_return OkStatus();
-}
-
-}  // namespace
-// DOCSTAG: [pw_async2-examples-basic-coro]
-
 #include "pw_allocator/testing.h"
 
 namespace {
 
-using ::pw::OkStatus;
-using ::pw::allocator::test::AllocatorForTest;
-using ::pw::async2::Context;
-using ::pw::async2::Coro;
-using ::pw::async2::CoroContext;
 using ::pw::async2::DispatcherForTest;
-using ::pw::async2::Pending;
-using ::pw::async2::Poll;
-using ::pw::async2::Ready;
-using ::pw::async2::Task;
 
 TEST(ManualExample, ReturnsOk) {
   auto task = ReceiveAndSend(MyReceiver(), MySender());
@@ -190,14 +138,6 @@ TEST(ManualExample, Runs) {
   // Sets the dispatcher to run until all `Post`ed tasks have completed.
   dispatcher.RunToCompletion();
   // DOCSTAG: [pw_async2-examples-basic-dispatcher]
-}
-
-TEST(CoroExample, ReturnsOk) {
-  AllocatorForTest<256> alloc;
-  CoroContext coro_cx(alloc);
-  auto coro = ReceiveAndSendCoro(coro_cx, MyReceiver(), MySender());
-  pw::async2::DispatcherForTest dispatcher;
-  EXPECT_EQ(dispatcher.RunInTaskUntilStalled(coro), Ready(OkStatus()));
 }
 
 }  // namespace

@@ -26,7 +26,10 @@ licenses(["notice"])
 
 pw_cc_test(
     name = "basic",
-    srcs = ["basic.cc"],
+    srcs = [
+        "basic_coro.cc",
+        "basic_manual.cc",
+    ],
     deps = [
         "//pw_allocator:testing",
         "//pw_async2:coro",
@@ -168,7 +171,8 @@ sphinx_docs_library(
     name = "docs",
     srcs = [
         "BUILD.bazel",
-        "basic.cc",
+        "basic_coro.cc",
+        "basic_manual.cc",
         "channel.cc",
         "coro_blinky_loop.cc",
         "count.cc",

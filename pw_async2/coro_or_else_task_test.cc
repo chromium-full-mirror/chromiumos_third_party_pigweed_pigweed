@@ -28,14 +28,10 @@ using ::pw::Status;
 using ::pw::allocator::Allocator;
 using ::pw::allocator::GetNullAllocator;
 using ::pw::allocator::test::AllocatorForTest;
-using ::pw::async2::Context;
 using ::pw::async2::Coro;
 using ::pw::async2::CoroContext;
 using ::pw::async2::CoroOrElseTask;
 using ::pw::async2::DispatcherForTest;
-using ::pw::async2::Poll;
-using ::pw::async2::Task;
-using ::pw::async2::Waker;
 
 Coro<Result<int>> ImmediatelyReturnsFive(CoroContext&) { co_return 5; }
 

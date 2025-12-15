@@ -30,7 +30,6 @@ namespace {
 
 using ::pw::Function;
 using ::pw::OkStatus;
-using ::pw::Result;
 using ::pw::Status;
 using ::pw::allocator::test::AllocatorForTest;
 using ::pw::async2::Context;

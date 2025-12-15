@@ -29,7 +29,6 @@
 
 using ::pw::Allocator;
 using ::pw::OkStatus;
-using ::pw::Result;
 using ::pw::Status;
 using ::pw::allocator::GetLibCAllocator;
 using ::pw::async2::AllocateTask;

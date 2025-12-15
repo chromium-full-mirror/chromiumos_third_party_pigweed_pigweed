@@ -83,8 +83,6 @@ int main() {
 
 }  // namespace examples::manual
 
-namespace examples::coro {
-
 using ::pw::allocator::LibCAllocator;
 using ::pw::async2::BasicDispatcher;
 using ::pw::async2::Coro;
@@ -93,6 +91,8 @@ using ::pw::async2::CoroOrElseTask;
 using ::pw::async2::MakeOnceSenderAndReceiver;
 using ::pw::async2::OnceReceiver;
 using ::pw::async2::Ready;
+
+namespace examples::coro {
 
 // The receiver should take ownership of an appropriate OnceReceiver<T>.
 Coro<pw::Status> ReceiveAndLogValue(CoroContext&,
@@ -133,16 +133,11 @@ int main() {
 namespace {
 
 using ::pw::allocator::test::AllocatorForTest;
-using ::pw::async2::Context;
-using ::pw::async2::Coro;
-using ::pw::async2::CoroContext;
 using ::pw::async2::DispatcherForTest;
 using ::pw::async2::MakeOnceSenderAndReceiver;
-using ::pw::async2::OnceReceiver;
 using ::pw::async2::Poll;
 using ::pw::async2::PollResult;
 using ::pw::async2::Ready;
-using ::pw::async2::Task;
 
 TEST(OnceSendRecv, ReceiveAndLogValueTask) {
   // Ensure the example code runs.

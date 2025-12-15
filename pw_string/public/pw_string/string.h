@@ -433,8 +433,6 @@ class InlineBasicString<T, string_impl::kGeneric> {
 
 // Class template argument deduction guides
 
-#ifdef __cpp_deduction_guides
-
 // In C++17, the capacity of the string may be deduced from a string literal or
 // array. For example, the following deduces a character type of char and a
 // capacity of 4 (which does not include the null terminator).
@@ -449,8 +447,6 @@ class InlineBasicString<T, string_impl::kGeneric> {
 template <typename T, size_t kCharArraySize>
 InlineBasicString(const T (&)[kCharArraySize])
     -> InlineBasicString<T, kCharArraySize - 1>;
-
-#endif  // __cpp_deduction_guides
 
 // Operators
 

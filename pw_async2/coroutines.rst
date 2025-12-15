@@ -36,7 +36,7 @@ Define tasks
 ------------
 The following code example demonstrates basic usage:
 
-.. literalinclude:: examples/basic.cc
+.. literalinclude:: examples/basic_coro.cc
    :language: cpp
    :linenos:
    :start-after: [pw_async2-examples-basic-coro]

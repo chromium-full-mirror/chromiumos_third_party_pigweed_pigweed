@@ -32,7 +32,9 @@ class EmptyEventHandler : public EventHandler {
 EmptyEventHandler handler;
 
 void TestFunction() {
-  for (volatile int i = 0; i < 10; i = i + 1) {
+  volatile int i = 0;
+  while (i < 10) {
+    i = i + 1;
   }
 }
 
