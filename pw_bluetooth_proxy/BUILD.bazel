@@ -40,7 +40,7 @@ pw_bluetooth_proxy_library(
         "PW_BLUETOOTH_PROXY_ASYNC=0",
         "PW_BLUETOOTH_PROXY_MULTIBUF=PW_BLUETOOTH_PROXY_MULTIBUF_V1",
     ],
-    visibility = ["//visibility:private"],
+    visibility = ["//pw_bluetooth_proxy/gatt:__pkg__"],
 )
 
 pw_bluetooth_proxy_library(
@@ -50,7 +50,7 @@ pw_bluetooth_proxy_library(
         "PW_BLUETOOTH_PROXY_ASYNC=0",
         "PW_BLUETOOTH_PROXY_MULTIBUF=PW_BLUETOOTH_PROXY_MULTIBUF_V2",
     ],
-    visibility = ["//visibility:private"],
+    visibility = ["//pw_bluetooth_proxy/gatt:__pkg__"],
 )
 
 pw_bluetooth_proxy_library(

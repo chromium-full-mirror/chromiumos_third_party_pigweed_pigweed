@@ -14,6 +14,8 @@
 
 include($ENV{PW_ROOT}/pw_build/pigweed.cmake)
 
+add_subdirectory(gatt)
+
 ###############################################################################
 ##          Everything below here is intended to be emboss only              ##
 ##          and will be skipped if emboss isn't enabled.                     ##
@@ -67,6 +69,9 @@ pw_add_library(pw_bluetooth_proxy STATIC
     public/pw_bluetooth_proxy/l2cap_coc_config.h
     public/pw_bluetooth_proxy/l2cap_status_delegate.h
     public/pw_bluetooth_proxy/proxy_host.h
+    public/pw_bluetooth_proxy/connection_handle.h
+    public/pw_bluetooth_proxy/channel_proxy.h
+    public/pw_bluetooth_proxy/l2cap_channel_manager_interface.h
 # LINT.ThenChange(bt-proxy.bzl, BUILD.gn)
 
   PUBLIC_INCLUDES

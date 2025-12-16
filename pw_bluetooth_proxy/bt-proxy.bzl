@@ -71,6 +71,7 @@ def pw_bluetooth_proxy_library(name, **kwargs):
         # LINT.IfChange
         hdrs = [
             "public/pw_bluetooth_proxy/basic_l2cap_channel.h",
+            "public/pw_bluetooth_proxy/connection_handle.h",
             "public/pw_bluetooth_proxy/config.h",
             "public/pw_bluetooth_proxy/direction.h",
             "public/pw_bluetooth_proxy/gatt_notify_channel.h",
@@ -113,6 +114,8 @@ def pw_bluetooth_proxy_library(name, **kwargs):
             "public/pw_bluetooth_proxy/l2cap_coc_config.h",
             "public/pw_bluetooth_proxy/l2cap_status_delegate.h",
             "public/pw_bluetooth_proxy/proxy_host.h",
+            "public/pw_bluetooth_proxy/channel_proxy.h",
+            "public/pw_bluetooth_proxy/l2cap_channel_manager_interface.h",
         ],
         features = ["-conversion_warnings"],
         # LINT.ThenChange(BUILD.gn, CMakeLists.txt)
