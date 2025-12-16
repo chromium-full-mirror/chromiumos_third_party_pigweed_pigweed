@@ -24,6 +24,7 @@ pw::Status InterruptSafeUartWriterMcuxpresso::Enable() {
   usart_config.baudRate_Bps = baudrate_;
   usart_config.enableRx = false;
   usart_config.enableTx = true;
+  usart_config.enableHardwareFlowControl = flow_control_;
 
   // Acquire the clock_tree element. Note that this function only requires the
   // IP clock and not the functional clock. However, ClockMcuxpressoClockIp
