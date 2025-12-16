@@ -139,7 +139,7 @@ void LowEnergyScanner::SetPacketFilters(
   // will be based on the filters which were previously offloaded. We will have
   // potentially kicked out peers that the new scan session may have been
   // interested in.
-  if (packet_filter_.IsOffloadedFilteringEnabled()) {
+  if (packet_filter_.IsOffloadingFilters()) {
     cached_scan_results_.clear();
   }
 }

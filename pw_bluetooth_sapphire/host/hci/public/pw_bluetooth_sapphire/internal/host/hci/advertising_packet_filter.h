@@ -24,18 +24,19 @@ namespace bt::hci {
 class AdvertisingPacketFilter {
  public:
   // Some Controllers support offloaded packet filtering (e.g. in Android vendor
-  // extensions). PacketFilterConfig allows us to switch on whether this feature
-  // is enabled for the current Controller or not.
+  // extensions). PacketFilterConfig allows us to switch offloaded packet
+  // filtering on if this feature is enabled for the current Controller or not.
   class Config {
    public:
-    Config(bool offloading_enabled, uint8_t max_filters)
-        : offloading_enabled_(offloading_enabled), max_filters_(max_filters) {}
+    Config(bool offloading_supported, uint8_t max_filters)
+        : offloading_supported_(offloading_supported),
+          max_filters_(max_filters) {}
 
-    bool offloading_enabled() const { return offloading_enabled_; }
+    bool offloading_supported() const { return offloading_supported_; }
     uint8_t max_filters() const { return max_filters_; }
 
    private:
-    bool offloading_enabled_ = false;
+    bool offloading_supported_ = false;
     uint8_t max_filters_ = 0;
   };
 
@@ -60,9 +61,7 @@ class AdvertisingPacketFilter {
                bool connectable,
                int8_t rssi) const;
 
-  bool IsOffloadedFilteringEnabled() const {
-    return offloaded_filtering_enabled_;
-  }
+  bool IsOffloadingFilters() const { return is_offloading_filters_; }
 
   const std::unordered_set<ScanId>& scan_ids() const { return scan_ids_; }
 
@@ -191,7 +190,7 @@ class AdvertisingPacketFilter {
   FilterIndex last_filter_index_ = kStartFilterIndex;
 
   // Tracks whether we are currently using Controller offloaded filtering.
-  bool offloaded_filtering_enabled_ = false;
+  bool is_offloading_filters_ = false;
 
   // Packet filter configuration that controls how this class behaves
   // (e.g. Controller offloading enabled, etc).

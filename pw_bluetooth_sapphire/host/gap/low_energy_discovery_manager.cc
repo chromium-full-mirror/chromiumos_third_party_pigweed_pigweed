@@ -183,7 +183,7 @@ void LowEnergyDiscoveryManager::StartDiscovery(
     // ongoing scan, we need to stop the scan, update Controller filters (done
     // in AddSession(...) above), and then restart the scan (via
     // OnScanStatus() later).
-    if (scanner_->IsOffloadedFilteringEnabled()) {
+    if (scanner_->IsOffloadingFilters()) {
       bt_log(INFO,
              "gap-le",
              "offloaded filtering enabled, adding new scan session requires "
