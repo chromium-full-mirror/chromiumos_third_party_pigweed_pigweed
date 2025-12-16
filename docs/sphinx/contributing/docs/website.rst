@@ -31,6 +31,11 @@ recommended workflow:
    checked-in image and replace the reference to it with the
    URL to the CDN-hosted image.
 
+.. _go/pigweed-gstatic: http://go/pigweed-gstatic
+
+Google employees working with external contributors should go to
+`go/pigweed-gstatic`_ to upload images.
+
 .. _contrib-docs-website-redirects:
 
 ----------------
