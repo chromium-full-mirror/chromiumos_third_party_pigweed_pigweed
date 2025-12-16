@@ -22,7 +22,7 @@ use {codegen as _, console_backend as _, entry as _};
 pub struct Target {}
 
 impl TargetInterface for Target {
-    const NAME: &'static str = "QEMU-VIRT-RISCV Kernelspace Threads";
+    const NAME: &'static str = "QEMU-VIRT-RISCV Kernel Threads";
 
     fn main() -> ! {
         static mut APP_STATE: threads::AppState<Arch> = threads::AppState::new(Arch);

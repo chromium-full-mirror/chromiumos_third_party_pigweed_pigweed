@@ -21,7 +21,7 @@ use {console_backend as _, entry as _};
 pub struct Target {}
 
 impl TargetInterface for Target {
-    const NAME: &'static str = "PW RP2350 Kernelspace Threads";
+    const NAME: &'static str = "PW RP2350 Kernel Threads";
 
     fn console_init() {
         console_backend::init();

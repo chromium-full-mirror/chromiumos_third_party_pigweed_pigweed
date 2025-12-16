@@ -22,7 +22,7 @@ use {console_backend as _, entry as _};
 pub struct Target {}
 
 impl TargetInterface for Target {
-    const NAME: &'static str = "MPS2-AN505 Kernelspace Threads";
+    const NAME: &'static str = "MPS2-AN505 Kernel Threads";
 
     fn main() -> ! {
         static mut APP_STATE: threads::AppState<Arch> = threads::AppState::new(Arch);

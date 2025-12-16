@@ -21,7 +21,7 @@ use {console_backend as _, entry as _};
 pub struct Target {}
 
 impl TargetInterface for Target {
-    const NAME: &'static str = "MPS2-AN505 Userspace IPC";
+    const NAME: &'static str = "MPS2-AN505 User IPC";
 
     fn main() -> ! {
         codegen::start();
