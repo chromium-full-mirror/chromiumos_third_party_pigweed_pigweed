@@ -32,7 +32,6 @@ cc_library_static {
     ],
     static_libs: [
         "pw_allocator",
-        "pw_chrono",
         "pw_containers",
         "pw_function",
         "pw_multibuf_v2",
@@ -43,7 +42,6 @@ cc_library_static {
     ],
     export_static_lib_headers: [
         "pw_allocator",
-        "pw_chrono",
         "pw_function",
         "pw_multibuf_v2",
         "pw_result",
@@ -55,6 +53,10 @@ cc_library_static {
         "fuchsia_sdk_lib_stdcompat",
         "pw_assert",
         "pw_bluetooth_emboss_util_include_dirs",
+        "pw_chrono",
+    ],
+    export_header_lib_headers: [
+        "pw_chrono",
     ],
     generated_headers: [
         "pw_bluetooth_generate_emboss_hci_commands",
