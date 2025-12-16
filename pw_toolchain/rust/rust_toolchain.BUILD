@@ -46,11 +46,14 @@ rust_library(
         "lib/rustlib/src/rust/library/stdarch/crates/core_arch/src/**/*.rs",
         "lib/rustlib/src/rust/library/portable-simd/crates/core_simd/src/**/*.rs",
     ]),
-    compile_data = glob([
-        "lib/rustlib/src/rust/library/core/src/**/*.md",
-        "lib/rustlib/src/rust/library/stdarch/crates/core_arch/src/**/*.md",
-        "lib/rustlib/src/rust/library/portable-simd/crates/core_simd/src/**/*.md",
-    ]),
+    compile_data = glob(
+        [
+            "lib/rustlib/src/rust/library/core/src/**/*.md",
+            "lib/rustlib/src/rust/library/stdarch/crates/core_arch/src/**/*.md",
+            "lib/rustlib/src/rust/library/portable-simd/crates/core_simd/src/**/*.md",
+        ],
+        allow_empty = True,
+    ),
     crate_features = ["stdsimd"],
     crate_name = "core",
     edition = "2024",
@@ -92,6 +95,54 @@ rust_stdlib_filegroup(
 rust_stdlib_filegroup(
     name = "rust_libs_core",
     srcs = [
+        ":rust_libs_compiler_builtin_files",
+        ":rust_libs_core_files",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+rust_library(
+    name = "liballoc",
+    srcs = glob([
+        "lib/rustlib/src/rust/library/alloc/src/**/*.rs",
+    ]),
+    compile_data = glob(
+        ["lib/rustlib/src/rust/library/alloc/src/**/*.md"],
+        allow_empty = True,
+    ),
+    crate_name = "alloc",
+    edition = "2024",
+    rustc_flags = [
+        "--cap-lints=allow",
+    ],
+    deps = [
+        ":libcore",
+        "@rust_crates//:compiler_builtins",
+    ],
+)
+
+build_with_core_only(
+    name = "rust_libs_alloc_files",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":liballoc",
+    ],
+)
+
+rust_stdlib_filegroup(
+    name = "rust_libs_core_alloc",
+    srcs = [
+        ":rust_libs_alloc_files",
+        ":rust_libs_compiler_builtin_files",
+        ":rust_libs_core_files",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+rust_stdlib_filegroup(
+    name = "rust_libs_core_alloc_std",
+    srcs = [
+        ":rust_libs_alloc_files",
         ":rust_libs_compiler_builtin_files",
         ":rust_libs_core_files",
     ],

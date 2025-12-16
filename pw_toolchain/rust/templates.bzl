@@ -31,6 +31,8 @@ rust_toolchain(
     rust_std = select({{
         "@pigweed//pw_toolchain/rust:stdlibs_none": "{toolchain_repo}//:rust_libs_none",
         "@pigweed//pw_toolchain/rust:stdlibs_core_only": "{toolchain_repo}//:rust_libs_core_only",
+        "@pigweed//pw_toolchain/rust:stdlibs_core_alloc": "{toolchain_repo}//:rust_libs_core_alloc",
+        "@pigweed//pw_toolchain/rust:stdlibs_core_alloc_std": "{toolchain_repo}//:rust_libs_core_alloc_std",
         "//conditions:default": "{toolchain_repo}//:rust_libs_core",
     }}),
     rustc = "{toolchain_repo}//:bin/rustc",
