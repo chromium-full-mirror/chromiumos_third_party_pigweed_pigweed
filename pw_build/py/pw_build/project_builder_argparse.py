@@ -96,6 +96,13 @@ def add_project_builder_arguments(
         ),
     )
 
+    return add_project_builder_option_arguments(parser)
+
+
+def add_project_builder_option_arguments(
+    parser: argparse.ArgumentParser,
+) -> argparse.ArgumentParser:
+    """Add ProjectBuilder optional arguments."""
     build_options_group = parser.add_argument_group(
         title='Build Execution Options'
     )

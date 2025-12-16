@@ -138,6 +138,46 @@ class WorkflowsManager:
             if not tool.rerun_shortcut:
                 tool.rerun_shortcut = f'check {tool.name}'
 
+    def get_build_names(self) -> Sequence[str]:
+        return list(
+            build.name
+            for build in self._fragments_by_name.values()
+            if isinstance(build, workflows_pb2.Build)
+        )
+
+    def get_group_names(self) -> Sequence[str]:
+        return list(
+            group.name
+            for group in self._fragments_by_name.values()
+            if isinstance(group, workflows_pb2.TaskGroup)
+        )
+
+    def get_group_build_names(self, group_name: str) -> Sequence[str]:
+        builds = []
+        group = self._get_group_fragment(group_name)
+
+        for build_name in group.builds:
+            build = self._fragments_by_name[build_name]
+            if isinstance(build, workflows_pb2.Build):
+                builds.append(build.name)
+        return builds
+
+    def get_group_analyzer_names(self, group_name: str) -> Sequence[str]:
+        group = self._get_group_fragment(group_name)
+
+        tools = []
+        for tool_name in group.analyzers:
+            tool = self._fragments_by_name[tool_name]
+            if isinstance(tool, workflows_pb2.Tool):
+                tools.append(tool.name)
+        return tools
+
+    def _get_group_fragment(self, group_name: str) -> workflows_pb2.TaskGroup:
+        group = self._fragments_by_name.get(group_name, None)
+        if not isinstance(group, workflows_pb2.TaskGroup):
+            raise TypeError(f'{group_name} is not a group.')
+        return group
+
     def _get_build_config(
         self,
         fragment: Fragment,
@@ -201,6 +241,24 @@ class WorkflowsManager:
             expanded_args = expand_action(action, substitutions)
             action.ClearField('args')
             action.args.extend(expanded_args)
+
+    def create_build_recipes(
+        self,
+        fragment_names: list[str],
+        forwarded_args: Sequence[str] | None = None,
+    ) -> list[BuildRecipe]:
+        """Creates build recipes for fragments by name."""
+
+        fragments = []
+        for name in fragment_names:
+            fragment = self._fragments_by_name.get(name, None)
+            if not fragment:
+                raise TypeError(
+                    f'{name} is not a known configuration fragment.'
+                )
+            fragments.append(fragment)
+
+        return self._create_build_recipes(fragments, forwarded_args)
 
     def _create_build_recipes(
         self,
@@ -408,9 +466,7 @@ class WorkflowsManager:
         Returns:
             A list of BuildRecipes that fulfill this request.
         """
-        group = self._fragments_by_name.get(group_name, None)
-        if not isinstance(group, workflows_pb2.TaskGroup):
-            raise TypeError(f'{group_name} is not a group.')
+        group = self._get_group_fragment(group_name)
 
         builds = [
             self._fragments_by_name[build_name] for build_name in group.builds

@@ -1491,7 +1491,7 @@ def main() -> int:
         else:
             workers = args.parallel_workers
 
-    return run_builds(project_builder, workers)
+    return project_builder.run_builds(workers)
 
 
 if __name__ == '__main__':

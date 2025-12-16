@@ -23,11 +23,6 @@ import sys
 from typing import NoReturn
 
 from google.protobuf import json_format, text_format
-from pw_build import project_builder
-from pw_build.proto import workflows_pb2
-from pw_build.workflows.bazel_driver import BazelBuildDriver
-from pw_build.workflows.describe import Describe
-from pw_build.workflows.manager import WorkflowsManager
 from pw_cli import multitool, argument_types
 from pw_config_loader import find_config
 import yaml
@@ -36,6 +31,13 @@ try:
     import tomllib  # type: ignore
 except ModuleNotFoundError:
     import toml as tomllib  # type: ignore
+
+from pw_build import project_builder
+from pw_build.proto import workflows_pb2
+from pw_build.workflows.bazel_driver import BazelBuildDriver
+from pw_build.workflows.build_plugin import WorkflowBuildPlugin
+from pw_build.workflows.describe import Describe
+from pw_build.workflows.manager import WorkflowsManager
 
 _LOG = logging.getLogger(__name__)
 _PROJECT_BUILDER_LOGGER = logging.getLogger(f'{_LOG.name}.project_builder')
@@ -94,13 +96,12 @@ class _WorkflowToolPlugin(multitool.MultitoolPlugin):
         # Don't forward project builder output to stdout when launching a
         # tool, it pollutes tool output.
         _PROJECT_BUILDER_LOGGER.propagate = False
-        result = project_builder.run_builds(
-            project_builder.ProjectBuilder(
-                build_recipes=recipes,
-                execute_command=project_builder.execute_command_pure,
-                root_logger=_PROJECT_BUILDER_LOGGER,
-            ),
+        builder = project_builder.ProjectBuilder(
+            build_recipes=recipes,
+            execute_command=project_builder.execute_command_pure,
+            root_logger=_PROJECT_BUILDER_LOGGER,
         )
+        result = builder.run_builds()
 
         if self._artifacts_manifest:
             artifacts = self._manager.collect_artifacts(self._fragment.name)
@@ -301,7 +302,7 @@ class WorkflowsCli(multitool.MultitoolCli):
         if self._artifacts_manifest:
             builder.clean_builds()
 
-        result = project_builder.run_builds(builder)
+        result = builder.run_builds()
 
         if self._artifacts_manifest:
             artifacts = self._workflows.collect_artifacts(args[0])
@@ -326,7 +327,7 @@ class WorkflowsCli(multitool.MultitoolCli):
         if self._artifacts_manifest:
             builder.clean_builds()
 
-        result = project_builder.run_builds(builder)
+        result = builder.run_builds()
 
         if self._artifacts_manifest:
             artifacts = self._workflows.collect_artifacts(args[0])
@@ -341,11 +342,7 @@ class WorkflowsCli(multitool.MultitoolCli):
 
     def _builtin_plugins(self) -> list[multitool.MultitoolPlugin]:
         return [
-            _BuiltinPlugin(
-                name='build',
-                description='Launch one or more builds',
-                callback=self._launch_build,
-            ),
+            WorkflowBuildPlugin(self._workflows),
             _BuiltinPlugin(
                 name='describe',
                 description='Describe a build, tool, or group',

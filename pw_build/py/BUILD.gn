@@ -27,6 +27,7 @@ pw_python_package("workflows") {
     "pw_build/__init__.py",
     "pw_build/workflows/bazel_driver.py",
     "pw_build/workflows/build_driver.py",
+    "pw_build/workflows/build_plugin.py",
     "pw_build/workflows/describe.py",
     "pw_build/workflows/launcher.py",
     "pw_build/workflows/manager.py",
