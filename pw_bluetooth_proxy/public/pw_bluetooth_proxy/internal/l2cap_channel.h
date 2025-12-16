@@ -44,6 +44,7 @@ class L2capChannelManager;
 namespace internal {
 
 class GenericL2capChannel;
+class GenericL2capChannelImpl;
 class L2capChannelManagerImpl;
 
 }  // namespace internal
@@ -70,9 +71,11 @@ class L2capChannel {
 
   virtual ~L2capChannel();
 
-  // Complete initialization and registration of the channel. Must be called
-  // after ctor for channel to be active.
-  Status Init();
+  // Complete initialization of the channel. Must be called before `Start`.
+  Status Init() { return impl_.Init(); }
+
+  // Registers the channel. Must be called for channel to be active.
+  Status Start();
 
   //-------------
   //  Status (internal public)
@@ -132,17 +135,6 @@ class L2capChannel {
   StatusWithMultiBuf WriteDuringRx(FlatConstMultiBuf&& payload) {
     return impl_.Write(std::move(payload));
   }
-
-  /// Determine if channel is ready to accept one or more Write payloads.
-  ///
-  /// @returns
-  /// * @OK: Channel is ready to accept one or more `Write` payloads.
-  /// * @UNAVAILABLE: Channel does not yet have the resources to queue a Write
-  ///   at this time (transient error). If an `event_fn` has been provided it
-  ///   will be called with `L2capChannelEvent::kWriteAvailable` when there is
-  ///   queue space available again.
-  /// * @FAILED_PRECONDITION: Channel is not `State::kRunning`.
-  Status IsWriteAvailable() { return impl_.IsWriteAvailable(); }
 
   // Max number of Tx L2CAP packets that can be waiting to send.
   static constexpr size_t QueueCapacity() {

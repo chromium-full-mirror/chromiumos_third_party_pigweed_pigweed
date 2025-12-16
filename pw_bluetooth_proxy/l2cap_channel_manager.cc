@@ -31,6 +31,8 @@
 
 namespace pw::bluetooth::proxy {
 
+internal::Mutex internal::L2capChannelManagerImpl::channels_mutex_;
+
 L2capChannelManager::~L2capChannelManager() {
   std::lock_guard lock(links_mutex_);
   ResetLogicalLinksLocked();
@@ -70,7 +72,6 @@ Result<L2capCoc> L2capChannelManager::AcquireL2capCoc(
   }
   L2capCoc client_channel(*channel);
   PW_TRY(client_channel.Init());
-  PW_TRY(channel->Init());
   channel.Release();
   return client_channel;
 }
@@ -117,7 +118,6 @@ Result<BasicL2capChannel> L2capChannelManager::AcquireBasicL2capChannel(
   if (channel == nullptr) {
     return Status::ResourceExhausted();
   }
-  PW_TRY(channel->Init());
   BasicL2capChannel client_channel(*channel);
   PW_TRY(client_channel.Init());
   channel.Release();
@@ -149,7 +149,6 @@ Result<GattNotifyChannel> L2capChannelManager::AcquireGattNotifyChannel(
   if (channel == nullptr) {
     return Status::ResourceExhausted();
   }
-  PW_TRY(channel->Init());
   GattNotifyChannel client_channel(*channel);
   PW_TRY(client_channel.Init());
   channel.Release();
@@ -157,7 +156,7 @@ Result<GattNotifyChannel> L2capChannelManager::AcquireGattNotifyChannel(
 }
 
 Status L2capChannelManager::RegisterChannel(L2capChannel& channel) {
-  std::lock_guard lock(impl_.channels_mutex_);
+  std::lock_guard lock(channels_mutex());
   return RegisterChannelLocked(channel);
 }
 
@@ -186,7 +185,7 @@ Status L2capChannelManager::RegisterChannelLocked(L2capChannel& channel) {
 }
 
 void L2capChannelManager::DeregisterChannel(L2capChannel& channel) {
-  std::lock_guard lock(impl_.channels_mutex_);
+  std::lock_guard lock(channels_mutex());
   DeregisterChannelLocked(channel);
 }
 
@@ -201,7 +200,7 @@ void L2capChannelManager::DeregisterAndCloseChannels(L2capChannelEvent event) {
   std::lock_guard links_lock(links_mutex_);
   ResetLogicalLinksLocked();
   {
-    std::lock_guard channels_lock(impl_.channels_mutex_);
+    std::lock_guard channels_lock(channels_mutex());
     channels_by_remote_cid_.clear();
     for (auto iter = channels_by_local_cid_.begin();
          iter != channels_by_local_cid_.end();) {
@@ -218,7 +217,7 @@ void L2capChannelManager::DeregisterAndCloseChannels(L2capChannelEvent event) {
 void L2capChannelManager::DeleteStaleChannels() {
   L2capChannelMap stale;
   {
-    std::lock_guard channels_lock(impl_.channels_mutex_);
+    std::lock_guard channels_lock(channels_mutex());
     stale.swap(stale_);
   }
   for (auto iter = stale.begin(); iter != stale.end();) {
@@ -264,7 +263,7 @@ void L2capChannelManager::ForceDrainChannelQueues() {
 std::optional<LockedL2capChannel> L2capChannelManager::FindChannelByLocalCid(
     uint16_t connection_handle, uint16_t local_cid) PW_NO_LOCK_SAFETY_ANALYSIS {
   // Lock annotations don't work with unique_lock
-  std::unique_lock lock(impl_.channels_mutex_);
+  std::unique_lock lock(channels_mutex());
   L2capChannel* channel =
       FindChannelByLocalCidLocked(connection_handle, local_cid);
   if (!channel) {
@@ -277,7 +276,7 @@ std::optional<LockedL2capChannel> L2capChannelManager::FindChannelByRemoteCid(
     uint16_t connection_handle,
     uint16_t remote_cid) PW_NO_LOCK_SAFETY_ANALYSIS {
   // Lock annotations don't work with unique_lock
-  std::unique_lock lock(impl_.channels_mutex_);
+  std::unique_lock lock(channels_mutex());
   L2capChannel* channel =
       FindChannelByRemoteCidLocked(connection_handle, remote_cid);
   if (!channel) {
@@ -348,7 +347,7 @@ void L2capChannelManager::HandleAclDisconnectionComplete(
       impl_.allocator().Delete(link);
     }
 
-    std::lock_guard lock(impl_.channels_mutex_);
+    std::lock_guard lock(channels_mutex());
     uint32_t key = L2capChannel::MakeKey(connection_handle, 0);
     auto channel_it = channels_by_local_cid_.lower_bound(key);
     while (channel_it != channels_by_local_cid_.end()) {
@@ -450,8 +449,7 @@ void L2capChannelManager::ResetLogicalLinksLocked() {
 
 namespace internal {
 
-void L2capChannelManagerImpl::OnDeregister(const L2capChannel& channel)
-    PW_NO_LOCK_SAFETY_ANALYSIS {
+void L2capChannelManagerImpl::OnDeregister(const L2capChannel& channel) {
   if (lrd_channel_ != manager_.channels_by_local_cid_.end() &&
       lrd_channel_->get() == &channel) {
     manager_.Advance(lrd_channel_);
@@ -462,7 +460,7 @@ void L2capChannelManagerImpl::OnDeregister(const L2capChannel& channel)
   }
 }
 
-void L2capChannelManagerImpl::OnDeletion() PW_NO_LOCK_SAFETY_ANALYSIS {
+void L2capChannelManagerImpl::OnDeletion() {
   if (manager_.channels_by_local_cid_.empty()) {
     lrd_channel_ = manager_.channels_by_local_cid_.end();
     round_robin_terminus_ = manager_.channels_by_local_cid_.end();

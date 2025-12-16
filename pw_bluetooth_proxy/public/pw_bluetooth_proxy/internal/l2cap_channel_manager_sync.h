@@ -76,14 +76,18 @@ class L2capChannelManagerImpl {
  private:
   friend class pw::bluetooth::proxy::L2capChannelManager;
 
+  static constexpr sync::Mutex& channels_mutex()
+      PW_LOCK_RETURNED(channels_mutex_) {
+    return channels_mutex_;
+  }
+
+  // Enforce mutual exclusion of all operations on channels.
+  // This is ACQUIRED_BEFORE AclDataChannel::credit_mutex_.
+  static sync::Mutex channels_mutex_;
+
   L2capChannelManager& manager_;
 
   ProxyAllocator allocator_;
-
-  // Enforce mutual exclusion of all operations on channels.
-  // This is ACQUIRED_BEFORE AclDataChannel::credit_mutex_ which is annotated
-  // on that member variable.
-  sync::Mutex channels_mutex_;
 
   // Iterator to "least recently drained" channel.
   L2capChannelIterator lrd_channel_ PW_GUARDED_BY(channels_mutex_);

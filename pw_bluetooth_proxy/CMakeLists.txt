@@ -42,11 +42,14 @@ pw_add_library(pw_bluetooth_proxy STATIC
     public/pw_bluetooth_proxy/internal/gatt_notify_tx_engine.h
     public/pw_bluetooth_proxy/internal/generic_l2cap_channel.h
     public/pw_bluetooth_proxy/internal/generic_l2cap_channel_sync.h
+    public/pw_bluetooth_proxy/internal/generic_l2cap_channel_async.h
     public/pw_bluetooth_proxy/internal/hci_transport.h
     public/pw_bluetooth_proxy/internal/l2cap_channel_manager.h
     public/pw_bluetooth_proxy/internal/l2cap_channel_manager_sync.h
+    public/pw_bluetooth_proxy/internal/l2cap_channel_manager_async.h
     public/pw_bluetooth_proxy/internal/l2cap_channel.h
     public/pw_bluetooth_proxy/internal/l2cap_channel_sync.h
+    public/pw_bluetooth_proxy/internal/l2cap_channel_async.h
     public/pw_bluetooth_proxy/internal/l2cap_coc_internal.h
     public/pw_bluetooth_proxy/internal/l2cap_signaling_channel.h
     public/pw_bluetooth_proxy/internal/l2cap_status_tracker.h
@@ -55,6 +58,7 @@ pw_add_library(pw_bluetooth_proxy STATIC
     public/pw_bluetooth_proxy/internal/logical_transport.h
     public/pw_bluetooth_proxy/internal/mutex.h
     public/pw_bluetooth_proxy/internal/proxy_host_sync.h
+    public/pw_bluetooth_proxy/internal/proxy_host_async.h
     public/pw_bluetooth_proxy/internal/recombiner.h
     public/pw_bluetooth_proxy/internal/rx_engine.h
     public/pw_bluetooth_proxy/internal/tx_engine.h
@@ -72,7 +76,12 @@ pw_add_library(pw_bluetooth_proxy STATIC
 
   PUBLIC_DEPS
     pw_allocator
+    pw_allocator.best_fit
+    pw_allocator.synchronized_allocator
+    pw_async2.basic_dispatcher
+    pw_async2.channel
     pw_async2.dispatcher
+    pw_async2.poll
     pw_bluetooth.emboss_hci_data
     pw_bluetooth.emboss_hci_events
     pw_bluetooth.emboss_hci_h4
@@ -90,6 +99,7 @@ pw_add_library(pw_bluetooth_proxy STATIC
     pw_sync.lock_annotations
     pw_sync.mutex
     pw_sync.thread_notification
+    pw_thread.id
   SOURCES
     acl_data_channel.cc
     basic_l2cap_channel.cc
@@ -223,6 +233,7 @@ pw_add_test(pw_bluetooth_proxy.pw_bluetooth_proxy_test
     proxy_host_test.cc
     recombiner_test.cc
     test_utils.cc
+    test_utils_async.cc
     test_utils_sync.cc
     utils_test.cc
 # LINT.ThenChange(bt-proxy.bzl, BUILD.gn)

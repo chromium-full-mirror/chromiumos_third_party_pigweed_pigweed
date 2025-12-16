@@ -3026,7 +3026,7 @@ TEST_F(L2capSignalingTest, FlowControlCreditIndDrainsQueue) {
   ind.credits().Write(L2capCoc::QueueCapacity());
 
   proxy.HandleH4HciFromController(std::move(flow_control_credit_ind));
-
+  RunDispatcher();
   EXPECT_EQ(sends_called, L2capCoc::QueueCapacity());
 }
 

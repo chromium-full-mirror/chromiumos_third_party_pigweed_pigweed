@@ -81,10 +81,14 @@ class GenericL2capChannelImpl {
   /// L2CAP channel. The channel is guaranteed not to be destroyed as long as
   /// the `BorrowedL2capChannel` is in scope.
   ///
+  /// @param[in] expected The expected state of the internal channel.
+  ///
   /// @returns
   /// * @OK: Returns the channel.
-  /// * @FAILED_PRECONDITION: This object is not connected to an L2CAP channel.
-  Result<BorrowedL2capChannel> BorrowL2capChannel() const;
+  /// * @FAILED_PRECONDITION: This object is not connected to an L2CAP channel,
+  ///                         or the channel is not in the expected state.
+  Result<BorrowedL2capChannel> BorrowL2capChannel(
+      L2capChannel::State expected = L2capChannel::State::kRunning) const;
 
   L2capChannel* channel_ = nullptr;
 };

@@ -34,16 +34,42 @@ pw_bluetooth_proxy_library(
 )
 
 pw_bluetooth_proxy_library(
-    name = "pw_bluetooth_proxy_v1",
+    name = "pw_bluetooth_proxy_sync_mbv1",
     testonly = True,
-    defines = ["PW_BLUETOOTH_PROXY_MULTIBUF=PW_BLUETOOTH_PROXY_MULTIBUF_V1"],
+    defines = [
+        "PW_BLUETOOTH_PROXY_ASYNC=0",
+        "PW_BLUETOOTH_PROXY_MULTIBUF=PW_BLUETOOTH_PROXY_MULTIBUF_V1",
+    ],
     visibility = ["//visibility:private"],
 )
 
 pw_bluetooth_proxy_library(
-    name = "pw_bluetooth_proxy_v2",
+    name = "pw_bluetooth_proxy_sync_mbv2",
     testonly = True,
-    defines = ["PW_BLUETOOTH_PROXY_MULTIBUF=PW_BLUETOOTH_PROXY_MULTIBUF_V2"],
+    defines = [
+        "PW_BLUETOOTH_PROXY_ASYNC=0",
+        "PW_BLUETOOTH_PROXY_MULTIBUF=PW_BLUETOOTH_PROXY_MULTIBUF_V2",
+    ],
+    visibility = ["//visibility:private"],
+)
+
+pw_bluetooth_proxy_library(
+    name = "pw_bluetooth_proxy_async_mbv1",
+    testonly = True,
+    defines = [
+        "PW_BLUETOOTH_PROXY_ASYNC=1",
+        "PW_BLUETOOTH_PROXY_MULTIBUF=PW_BLUETOOTH_PROXY_MULTIBUF_V1",
+    ],
+    visibility = ["//visibility:private"],
+)
+
+pw_bluetooth_proxy_library(
+    name = "pw_bluetooth_proxy_async_mbv2",
+    testonly = True,
+    defines = [
+        "PW_BLUETOOTH_PROXY_ASYNC=1",
+        "PW_BLUETOOTH_PROXY_MULTIBUF=PW_BLUETOOTH_PROXY_MULTIBUF_V2",
+    ],
     visibility = ["//visibility:private"],
 )
 
@@ -64,16 +90,29 @@ label_flag(
 # Tests
 
 pw_bluetooth_proxy_test(
-    name = "pw_bluetooth_proxy_v1_test",
+    name = "pw_bluetooth_proxy_sync_mbv1_test",
     versioned_deps = [
-        ":pw_bluetooth_proxy_v1",
+        ":pw_bluetooth_proxy_sync_mbv1",
         "//pw_multibuf:simple_allocator",
     ],
 )
 
 pw_bluetooth_proxy_test(
-    name = "pw_bluetooth_proxy_v2_test",
-    versioned_deps = [":pw_bluetooth_proxy_v2"],
+    name = "pw_bluetooth_proxy_sync_mbv2_test",
+    versioned_deps = [":pw_bluetooth_proxy_sync_mbv2"],
+)
+
+pw_bluetooth_proxy_test(
+    name = "pw_bluetooth_proxy_async_mbv1_test",
+    versioned_deps = [
+        ":pw_bluetooth_proxy_async_mbv1",
+        "//pw_multibuf:simple_allocator",
+    ],
+)
+
+pw_bluetooth_proxy_test(
+    name = "pw_bluetooth_proxy_async_mbv2_test",
+    versioned_deps = [":pw_bluetooth_proxy_async_mbv2"],
 )
 
 filegroup(

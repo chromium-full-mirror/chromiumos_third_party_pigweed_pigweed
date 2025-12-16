@@ -119,7 +119,15 @@ class L2capChannelImpl {
   StatusWithMultiBuf Write(FlatConstMultiBuf&& payload)
       PW_LOCKS_EXCLUDED(mutex_);
 
-  /// @copydoc L2capChannel::IsWriteAvailable
+  /// Determine if channel is ready to accept one or more Write payloads.
+  ///
+  /// @returns
+  /// * @OK: Channel is ready to accept one or more `Write` payloads.
+  /// * @UNAVAILABLE: Channel does not yet have the resources to queue a Write
+  ///   at this time (transient error). If an `event_fn` has been provided it
+  ///   will be called with `L2capChannelEvent::kWriteAvailable` when there is
+  ///   queue space available again.
+  /// * @FAILED_PRECONDITION: Channel is not `State::kRunning`.
   Status IsWriteAvailable() PW_LOCKS_EXCLUDED(mutex_);
 
   /// Request a "write available" event be sent when space become available in

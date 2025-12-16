@@ -40,7 +40,7 @@ class L2capSignalingChannel final {
   L2capSignalingChannel& operator=(L2capSignalingChannel&& other) = delete;
 
   // Initializes the link and its underlying basic channel.
-  Status Init() { return channel_.Init(); }
+  Status Init();
 
   // Process the payload of a CFrame. Returns true if the CFrame was consumed by
   // the channel. Otherwise, returns false and the PDU containing this CFrame

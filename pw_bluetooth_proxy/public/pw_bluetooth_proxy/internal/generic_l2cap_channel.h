@@ -28,7 +28,7 @@
 #if PW_BLUETOOTH_PROXY_ASYNC == 0
 #include "pw_bluetooth_proxy/internal/generic_l2cap_channel_sync.h"
 #else
-#error "PW_BLUETOOTH_PROXY_ASYNC is not supported in this build."
+#include "pw_bluetooth_proxy/internal/generic_l2cap_channel_async.h"
 #endif  // PW_BLUETOOTH_PROXY_ASYNC
 
 namespace pw::bluetooth::proxy {

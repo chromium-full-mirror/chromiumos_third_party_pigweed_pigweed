@@ -18,6 +18,7 @@
 
 #include <mutex>
 
+#include "pw_assert/check.h"
 #include "pw_bluetooth_proxy/internal/basic_l2cap_channel_internal.h"
 #include "pw_bluetooth_proxy/internal/gatt_notify_channel_internal.h"
 #include "pw_bluetooth_proxy/internal/generic_l2cap_channel.h"
@@ -36,6 +37,10 @@ GenericL2capChannelImpl::GenericL2capChannelImpl(L2capChannel& channel)
 
 GenericL2capChannelImpl& GenericL2capChannelImpl::operator=(
     GenericL2capChannelImpl&& other) {
+  if (this == &other) {
+    return *this;
+  }
+
   std::lock_guard lock(L2capChannelImpl::mutex());
   if (channel_ != nullptr) {
     channel_->impl_.client_ = nullptr;
@@ -54,12 +59,17 @@ GenericL2capChannelImpl::~GenericL2capChannelImpl() {
   }
 }
 
-Status GenericL2capChannelImpl::Init() { return OkStatus(); }
+Status GenericL2capChannelImpl::Init() {
+  PW_TRY_ASSIGN(BorrowedL2capChannel borrowed,
+                BorrowL2capChannel(L2capChannel::State::kNew));
+  PW_TRY(borrowed->Init());
+  return borrowed->Start();
+}
 
 StatusWithMultiBuf GenericL2capChannelImpl::Write(FlatConstMultiBuf&& payload) {
   auto result = BorrowL2capChannel();
   if (!result.ok()) {
-    return {Status::FailedPrecondition(), std::move(payload)};
+    return {result.status(), std::move(payload)};
   }
   BorrowedL2capChannel borrowed = std::move(*result);
   return borrowed->Write(std::move(payload));
@@ -67,7 +77,7 @@ StatusWithMultiBuf GenericL2capChannelImpl::Write(FlatConstMultiBuf&& payload) {
 
 Status GenericL2capChannelImpl::IsWriteAvailable() {
   PW_TRY_ASSIGN(BorrowedL2capChannel borrowed, BorrowL2capChannel());
-  return borrowed->IsWriteAvailable();
+  return borrowed->impl().IsWriteAvailable();
 }
 
 Status GenericL2capChannelImpl::SendAdditionalRxCredits(
@@ -98,11 +108,10 @@ L2capChannel* GenericL2capChannelImpl::InternalForTesting() const {
   return channel_;
 }
 
-Result<BorrowedL2capChannel> GenericL2capChannelImpl::BorrowL2capChannel()
-    const {
+Result<BorrowedL2capChannel> GenericL2capChannelImpl::BorrowL2capChannel(
+    L2capChannel::State expected) const {
   std::lock_guard lock(L2capChannelImpl::mutex());
-  if (channel_ == nullptr ||
-      channel_->state() != L2capChannel::State::kRunning) {
+  if (channel_ == nullptr || channel_->state() != expected) {
     return Status::FailedPrecondition();
   }
   return BorrowedL2capChannel(channel_->impl_);

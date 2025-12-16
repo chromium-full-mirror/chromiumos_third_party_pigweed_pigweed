@@ -65,6 +65,11 @@ L2capSignalingChannel::L2capSignalingChannel(
           pw::bind_member<&L2capSignalingChannel::HandlePayloadFromHost>(
               this)) {}
 
+Status L2capSignalingChannel::Init() {
+  PW_TRY(channel_.Init());
+  return channel_.Start();
+}
+
 bool L2capSignalingChannel::OnCFramePayload(
     Direction direction, pw::span<const uint8_t> cframe_payload) {
   std::optional<bool> any_commands_consumed;

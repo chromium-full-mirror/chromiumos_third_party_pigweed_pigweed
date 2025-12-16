@@ -97,20 +97,33 @@ Get started
       2. Then add ``pw_bluetooth_proxy`` to
       the ``DEPS`` list in your cmake target:
 
-This module depends on :ref:`module-pw_multibuf`, and can use either the older
-v1 or newer v2 MultiBuf API, depending on the
-:ref:`module configuration <module-structure-compile-time-configuration>`. By
-default, the v1 MultiBuf API is in use. When migrating to the v2 API, set the
-value of the :cc:`PW_BLUETOOTH_PROXY_MULTIBUF` option to
-:cc:`PW_BLUETOOTH_PROXY_MULTIBUF_V2`.
+Module configuration
+====================
+This module has configuration options that globally affect the behavior of the
+:cc:`pw::bluetooth::proxy::ProxyHost` via compile-time configuration. See the
+:ref:`module documentation <module-structure-compile-time-configuration>` for
+more details.
 
-The :cc:`pw::bluetooth::proxy::ProxyHost` can use a provided allocator or
-provide an internal one. To use an internal allocator, set the value of
-:cc:`PW_BLUETOOTH_PROXY_INTERNAL_ALLOCATOR_SIZE` to a non-zero value and omit
-the ``allocator`` parameter from the ``ProxyHost`` constructor invocation. When
-providing an allocator, it is recommended to set the value of
-:cc:`PW_BLUETOOTH_PROXY_INTERNAL_ALLOCATOR_SIZE` to zero to avoiding reserving
-space that will not be used.
+Module configuration options include:
+
+- :cc:`PW_BLUETOOTH_PROXY_MULTIBUF`: This module depends on
+  :ref:`module-pw_multibuf`, and can use either the older v1 or newer v2
+  MultiBuf API. By default, the v1 MultiBuf API is in use. When migrating to the
+  v2 API, set the value of this option to :cc:`PW_BLUETOOTH_PROXY_MULTIBUF_V2`.
+- :cc:`PW_BLUETOOTH_PROXY_INTERNAL_ALLOCATOR_SIZE`: The
+  :cc:`pw::bluetooth::proxy::ProxyHost` can either use a provided allocator or
+  provide an internal one. To use an internal allocator, set the value of
+  this option to a non-zero value and omit the ``allocator`` parameter from the
+  ``ProxyHost`` constructor invocation. When providing an allocator, it is
+  strongly recommended to set the value of this option to zero to avoiding
+  reserving space that will not be used.
+- :cc:`PW_BLUETOOTH_PROXY_ASYNC`: This module supports two modes of operation,
+  both of which provide thread-safe APIs. When this option is zero (the
+  default), it will use synchronization primitives to allow for parallel
+  execution. When this option is non-zero, it will asynchronously execute tasks
+  using a provided :cc`pw::async2::Dispatcher`. When using this mode of
+  operation, an allocator and a dispatcher must be provided that outlive the
+  :cc:`pw::bluetooth::proxy::ProxyHost`.
 
 .. _module-pw_bluetooth_proxy-reference:
 

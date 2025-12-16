@@ -160,7 +160,7 @@ Result<KFrameWithStorage> SetupKFrame(uint16_t handle,
 
 // Send an LE_Read_Buffer_Size (V2) CommandComplete event to `proxy` to request
 // the reservation of a number of LE ACL send credits.
-Status SendLeReadBufferResponseFromController(
+Status ProxyHostTest::SendLeReadBufferResponseFromController(
     ProxyHost& proxy,
     uint8_t num_credits_to_reserve,
     uint16_t le_acl_data_packet_length) {
@@ -179,12 +179,14 @@ Status SendLeReadBufferResponseFromController(
   view.le_acl_data_packet_length().Write(le_acl_data_packet_length);
 
   proxy.HandleH4HciFromController(std::move(h4_packet));
+  RunDispatcher();
   return OkStatus();
 }
 
-Status SendReadBufferResponseFromController(ProxyHost& proxy,
-                                            uint8_t num_credits_to_reserve,
-                                            uint16_t acl_data_packet_length) {
+Status ProxyHostTest::SendReadBufferResponseFromController(
+    ProxyHost& proxy,
+    uint8_t num_credits_to_reserve,
+    uint16_t acl_data_packet_length) {
   std::array<uint8_t,
              emboss::ReadBufferSizeCommandCompleteEventWriter::SizeInBytes()>
       hci_arr{};
@@ -201,6 +203,7 @@ Status SendReadBufferResponseFromController(ProxyHost& proxy,
   EXPECT_TRUE(view.Ok());
 
   proxy.HandleH4HciFromController(std::move(h4_packet));
+  RunDispatcher();
   return OkStatus();
 }
 
@@ -210,7 +213,7 @@ static constexpr size_t NumberOfCompletedPacketsSize(size_t num_connections) {
              emboss::NumberOfCompletedPacketsEventData::IntrinsicSizeInBytes();
 }
 
-Status SendNumberOfCompletedPackets(
+Status ProxyHostTest::SendNumberOfCompletedPackets(
     ProxyHost& proxy,
     std::initializer_list<std::pair<uint16_t, uint16_t>>
         packets_per_connection) {
@@ -241,14 +244,15 @@ Status SendNumberOfCompletedPackets(
   }
 
   proxy.HandleH4HciFromController(std::move(nocp_event));
+  RunDispatcher();
   return OkStatus();
 }
 
 // Send a Connection_Complete event to `proxy` indicating the provided
 // `handle` has disconnected.
-Status SendConnectionCompleteEvent(ProxyHost& proxy,
-                                   uint16_t handle,
-                                   emboss::StatusCode status) {
+Status ProxyHostTest::SendConnectionCompleteEvent(ProxyHost& proxy,
+                                                  uint16_t handle,
+                                                  emboss::StatusCode status) {
   std::array<uint8_t, emboss::ConnectionCompleteEvent::IntrinsicSizeInBytes()>
       hci_arr{};
   H4PacketWithHci h4_packet{emboss::H4PacketType::EVENT, hci_arr};
@@ -259,14 +263,15 @@ Status SendConnectionCompleteEvent(ProxyHost& proxy,
   view.status().Write(status);
   view.connection_handle().Write(handle);
   proxy.HandleH4HciFromController(std::move(h4_packet));
+  RunDispatcher();
   return OkStatus();
 }
 
 // Send a LE_Connection_Complete event to `proxy` indicating the provided
 // `handle` has disconnected.
-Status SendLeConnectionCompleteEvent(ProxyHost& proxy,
-                                     uint16_t handle,
-                                     emboss::StatusCode status) {
+Status ProxyHostTest::SendLeConnectionCompleteEvent(ProxyHost& proxy,
+                                                    uint16_t handle,
+                                                    emboss::StatusCode status) {
   std::array<uint8_t,
              emboss::LEConnectionCompleteSubevent::IntrinsicSizeInBytes()>
       hci_arr_dc{};
@@ -283,15 +288,16 @@ Status SendLeConnectionCompleteEvent(ProxyHost& proxy,
   view.connection_interval().Write(0x0006);
   view.supervision_timeout().Write(0x000A);
   proxy.HandleH4HciFromController(std::move(dc_event));
+  RunDispatcher();
   return OkStatus();
 }
 
 // Send a Disconnection_Complete event to `proxy` indicating the provided
 // `handle` has disconnected.
-Status SendDisconnectionCompleteEvent(ProxyHost& proxy,
-                                      uint16_t handle,
-                                      Direction direction,
-                                      bool successful) {
+Status ProxyHostTest::SendDisconnectionCompleteEvent(ProxyHost& proxy,
+                                                     uint16_t handle,
+                                                     Direction direction,
+                                                     bool successful) {
   std::array<uint8_t,
              sizeof(emboss::H4PacketType) +
                  emboss::DisconnectionCompleteEvent::IntrinsicSizeInBytes()>
@@ -317,14 +323,15 @@ Status SendDisconnectionCompleteEvent(ProxyHost& proxy,
   } else {
     return Status::InvalidArgument();
   }
+  RunDispatcher();
   return OkStatus();
 }
 
-Status SendL2capConnectionReq(ProxyHost& proxy,
-                              Direction direction,
-                              uint16_t handle,
-                              uint16_t source_cid,
-                              uint16_t psm) {
+Status ProxyHostTest::SendL2capConnectionReq(ProxyHost& proxy,
+                                             Direction direction,
+                                             uint16_t handle,
+                                             uint16_t source_cid,
+                                             uint16_t psm) {
   // First send CONNECTION_REQ to setup partial connection.
   constexpr size_t kConnectionReqLen =
       emboss::L2capConnectionReq::IntrinsicSizeInBytes();
@@ -357,15 +364,15 @@ Status SendL2capConnectionReq(ProxyHost& proxy,
   } else {
     return Status::InvalidArgument();
   }
-
+  RunDispatcher();
   return OkStatus();
 }
 
-Status SendL2capConfigureReq(ProxyHost& proxy,
-                             Direction direction,
-                             uint16_t handle,
-                             uint16_t destination_cid,
-                             L2capOptions& l2cap_options) {
+Status ProxyHostTest::SendL2capConfigureReq(ProxyHost& proxy,
+                                            Direction direction,
+                                            uint16_t handle,
+                                            uint16_t destination_cid,
+                                            L2capOptions& l2cap_options) {
   size_t kOptionsSize = 0;
   if (l2cap_options.mtu.has_value()) {
     kOptionsSize += emboss::L2capMtuConfigurationOption::IntrinsicSizeInBytes();
@@ -418,15 +425,16 @@ Status SendL2capConfigureReq(ProxyHost& proxy,
                                         cframe.acl.h4_span()};
     proxy.HandleH4HciFromHost(std::move(configure_req_packet));
   }
-
+  RunDispatcher();
   return OkStatus();
 }
 
-Status SendL2capConfigureRsp(ProxyHost& proxy,
-                             Direction direction,
-                             uint16_t handle,
-                             uint16_t local_cid,
-                             emboss::L2capConfigurationResult result) {
+Status ProxyHostTest::SendL2capConfigureRsp(
+    ProxyHost& proxy,
+    Direction direction,
+    uint16_t handle,
+    uint16_t local_cid,
+    emboss::L2capConfigurationResult result) {
   constexpr size_t kConfigureRspLen =
       emboss::L2capConfigureRsp::MinSizeInBytes();
   PW_TRY_ASSIGN(
@@ -457,11 +465,11 @@ Status SendL2capConfigureRsp(ProxyHost& proxy,
                                         cframe.acl.h4_span()};
     proxy.HandleH4HciFromHost(std::move(configure_rsp_packet));
   }
-
+  RunDispatcher();
   return OkStatus();
 }
 
-Status SendL2capConnectionRsp(
+Status ProxyHostTest::SendL2capConnectionRsp(
     ProxyHost& proxy,
     Direction direction,
     uint16_t handle,
@@ -500,16 +508,16 @@ Status SendL2capConnectionRsp(
   } else {
     return Status::InvalidArgument();
   }
-
+  RunDispatcher();
   return OkStatus();
 }
 
-Status SendL2capDisconnectRsp(ProxyHost& proxy,
-                              Direction direction,
-                              AclTransportType transport,
-                              uint16_t handle,
-                              uint16_t source_cid,
-                              uint16_t destination_cid) {
+Status ProxyHostTest::SendL2capDisconnectRsp(ProxyHost& proxy,
+                                             Direction direction,
+                                             AclTransportType transport,
+                                             uint16_t handle,
+                                             uint16_t source_cid,
+                                             uint16_t destination_cid) {
   constexpr size_t kDisconnectionRspLen =
       emboss::L2capDisconnectionRsp::MinSizeInBytes();
   PW_TRY_ASSIGN(
@@ -544,14 +552,15 @@ Status SendL2capDisconnectRsp(ProxyHost& proxy,
   } else {
     return Status::InvalidArgument();
   }
+  RunDispatcher();
   return OkStatus();
 }
 
-void SendL2capBFrame(ProxyHost& proxy,
-                     uint16_t handle,
-                     pw::span<const uint8_t> payload,
-                     size_t pdu_length,
-                     uint16_t channel_id) {
+void ProxyHostTest::SendL2capBFrame(ProxyHost& proxy,
+                                    uint16_t handle,
+                                    pw::span<const uint8_t> payload,
+                                    size_t pdu_length,
+                                    uint16_t channel_id) {
   constexpr size_t kHeadersSize =
       emboss::AclDataFrameHeader::IntrinsicSizeInBytes() +
       emboss::BasicL2capHeader::IntrinsicSizeInBytes();
@@ -580,11 +589,12 @@ void SendL2capBFrame(ProxyHost& proxy,
             h4_packet.GetHciSpan().begin() + kHeadersSize);
 
   proxy.HandleH4HciFromController(std::move(h4_packet));
+  RunDispatcher();
 }
 
-void SendAclContinuingFrag(ProxyHost& proxy,
-                           uint16_t handle,
-                           pw::span<const uint8_t> payload) {
+void ProxyHostTest::SendAclContinuingFrag(ProxyHost& proxy,
+                                          uint16_t handle,
+                                          pw::span<const uint8_t> payload) {
   constexpr size_t kHeadersSize =
       emboss::AclDataFrameHeader::IntrinsicSizeInBytes();
   // No BasicL2capHeader.
@@ -612,6 +622,7 @@ void SendAclContinuingFrag(ProxyHost& proxy,
             h4_packet.GetHciSpan().begin() + kHeadersSize);
 
   proxy.HandleH4HciFromController(std::move(h4_packet));
+  RunDispatcher();
 }
 
 L2capChannel::State GetState(const internal::GenericL2capChannel& channel) {

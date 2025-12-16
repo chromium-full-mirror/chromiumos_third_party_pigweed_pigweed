@@ -71,7 +71,9 @@ TEST_F(L2capCocTest, CanDeleteChannelInEventCallback) {
   ProxyHost proxy = ProxyHost(std::move(send_to_host_fn),
                               std::move(send_to_controller_fn),
                               /*le_acl_credits_to_reserve=*/1,
-                              /*br_edr_acl_credits_to_reserve=*/0);
+                              /*br_edr_acl_credits_to_reserve=*/0,
+                              GetProxyHostAllocator());
+  StartDispatcherOnCurrentThread(proxy);
   // Allow proxy to reserve 1 credit.
   PW_TEST_EXPECT_OK(SendLeReadBufferResponseFromController(proxy, 1));
   PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
@@ -590,6 +592,7 @@ TEST_F(L2capCocWriteTest, MultithreadedWrite) {
       proxy, kNumThreads * kPacketsPerThread));
   PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
       proxy, kConnectionHandle, emboss::StatusCode::SUCCESS));
+  RunDispatcher();
 
   MultiBufAllocatorContext<200 * 1024, sync::Mutex> packet_allocator_context;
   struct ThreadCapture {
@@ -783,7 +786,7 @@ TEST_F(L2capCocReadTest, RxCreditsAreReplenished) {
                                             .local_cid = capture.local_cid,
                                             .rx_credits = kRxCredits});
 
-  auto SendRxH4Packet = [&capture, &proxy]() {
+  auto SendRxH4Packet = [this, &capture, &proxy]() {
     std::array<uint8_t, 3> expected_payload = {0xAB, 0xCD, 0xEF};
     std::array<uint8_t, kFirstKFrameOverAclMinSize + expected_payload.size()>
         hci_arr;
@@ -807,6 +810,7 @@ TEST_F(L2capCocReadTest, RxCreditsAreReplenished) {
               hci_arr.begin() + kFirstKFrameOverAclMinSize);
 
     proxy.HandleH4HciFromController(std::move(h4_packet));
+    RunDispatcher();
   };
 
   // Rx packets before threshold should not trigger a credit packet.

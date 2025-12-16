@@ -21,7 +21,16 @@
 namespace pw::bluetooth::proxy {
 
 Status ProxyHost::SetDispatcher(async2::Dispatcher&) {
+  // Not needed in sync mode.
   return Status::Unimplemented();
+}
+
+void ProxyHost::HandleH4HciFromHost(H4PacketWithH4&& h4_packet) {
+  DoHandleH4HciFromHost(std::move(h4_packet));
+}
+
+void ProxyHost::HandleH4HciFromController(H4PacketWithHci&& h4_packet) {
+  DoHandleH4HciFromController(std::move(h4_packet));
 }
 
 void ProxyHost::Reset() { DoReset(); }

@@ -29,7 +29,7 @@
 #if PW_BLUETOOTH_PROXY_ASYNC == 0
 #include "pw_bluetooth_proxy/internal/proxy_host_sync.h"
 #else
-#error "PW_BLUETOOTH_PROXY_ASYNC is not supported in this build."
+#include "pw_bluetooth_proxy/internal/proxy_host_async.h"
 #endif  // PW_BLUETOOTH_PROXY_ASYNC
 
 /// Lightweight proxy for augmenting Bluetooth functionality
@@ -303,6 +303,12 @@ class ProxyHost {
 
  private:
   friend class internal::ProxyHostImpl;
+
+  /// @copydoc ProxyHost::HandleH4HciFromHost
+  void DoHandleH4HciFromHost(H4PacketWithH4&& h4_packet);
+
+  /// @copydoc ProxyHost::HandleH4HciFromController
+  void DoHandleH4HciFromController(H4PacketWithHci&& h4_packet);
 
   /// @copydoc ProxyHost::Reset
   void DoReset();

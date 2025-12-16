@@ -61,7 +61,7 @@ void ProxyHost::DoReset() {
   l2cap_channel_manager_.DeregisterAndCloseChannels(L2capChannelEvent::kReset);
 }
 
-void ProxyHost::HandleH4HciFromHost(H4PacketWithH4&& h4_packet) {
+void ProxyHost::DoHandleH4HciFromHost(H4PacketWithH4&& h4_packet) {
   switch (h4_packet.GetH4Type()) {
     case emboss::H4PacketType::COMMAND:
       HandleCommandFromHost(std::move(h4_packet));
@@ -79,7 +79,7 @@ void ProxyHost::HandleH4HciFromHost(H4PacketWithH4&& h4_packet) {
   }
 }
 
-void ProxyHost::HandleH4HciFromController(H4PacketWithHci&& h4_packet) {
+void ProxyHost::DoHandleH4HciFromController(H4PacketWithHci&& h4_packet) {
   switch (h4_packet.GetH4Type()) {
     case emboss::H4PacketType::EVENT:
       HandleEventFromController(std::move(h4_packet));

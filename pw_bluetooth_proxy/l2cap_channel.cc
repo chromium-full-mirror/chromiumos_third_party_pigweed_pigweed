@@ -151,7 +151,7 @@ L2capChannel::L2capChannel(
       remote_cid);
 }
 
-Status L2capChannel::Init() {
+Status L2capChannel::Start() {
   PW_LOG_INFO(
       "btproxy: L2capChannel initialized: "
       "transport_: %u, connection_handle_ : %u, "
@@ -160,7 +160,6 @@ Status L2capChannel::Init() {
       connection_handle(),
       local_cid(),
       remote_cid());
-  PW_TRY(impl_.Init());
   PW_TRY(l2cap_channel_manager_.RegisterChannel(*this));
 
   std::lock_guard lock(impl_.mutex_);

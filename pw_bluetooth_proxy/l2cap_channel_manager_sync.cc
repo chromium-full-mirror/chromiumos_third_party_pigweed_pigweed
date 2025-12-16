@@ -46,7 +46,7 @@ L2capChannelManagerImpl::~L2capChannelManagerImpl() {
   PW_DCHECK(manager_.channels_by_remote_cid_.empty());
 }
 
-void L2capChannelManagerImpl::OnRegister() PW_NO_LOCK_SAFETY_ANALYSIS {
+void L2capChannelManagerImpl::OnRegister() {
   if (lrd_channel_ == manager_.channels_by_local_cid_.end()) {
     lrd_channel_ = manager_.channels_by_local_cid_.begin();
   }
@@ -57,8 +57,7 @@ void L2capChannelManagerImpl::ReportNewTxPacketsOrCredits() {
   drain_needed_ = true;
 }
 
-void L2capChannelManagerImpl::DrainChannelQueuesIfNewTx()
-    PW_NO_LOCK_SAFETY_ANALYSIS {
+void L2capChannelManagerImpl::DrainChannelQueuesIfNewTx() {
   {
     std::lock_guard lock(drain_status_mutex_);
     if (drain_running_) {
