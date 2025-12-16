@@ -38,7 +38,7 @@ def _create_console_app(log_pane_count=2):
     prefs = ConsolePrefs(
         project_file=False, project_user_file=False, user_file=False
     )
-    prefs.set_code_theme('default')
+    prefs.code_theme = 'default'
     console_app = ConsoleApp(color_depth=ColorDepth.DEPTH_8_BIT, prefs=prefs)
 
     console_app.prefs.reset_config()
@@ -95,7 +95,7 @@ class TestCommandRunner(unittest.TestCase):
             # Check some common menu items exist.
             self.assertIn('[File] > Open Python Logger', flattened_menu_items)
             self.assertIn(
-                '[File] > Themes > UI Themes > High Contrast',
+                '[File] > Themes > UI Themes > dark',
                 flattened_menu_items,
             )
             self.assertIn('[Help] > User Guide', flattened_menu_items)

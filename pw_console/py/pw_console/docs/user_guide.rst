@@ -631,8 +631,45 @@ Example Config
    # Default: dark
    ui_theme: high-contrast-dark
 
+   # Optional user defined UI themes.
+   # These are common color values that map to various TUI elements defined in:
+   # https://cs.opensource.google/pigweed/pigweed/+/main:pw_console/py/pw_console/style.py?q=pw_console_styles
+   #
+   # Colors values are strings of prompt_toolkit colors. Either hex '#RRGGBB' or
+   # values like 'ansired'. These strings should omit 'fg:' or 'bg:' as shown in
+   # prompt_toolkit documentation.
+   #
+   # See the docs page for more color examples:
+   # https://python-prompt-toolkit.readthedocs.io/en/latest/pages/advanced_topics/styling.html#style-strings
+   ui_themes:
+     # Unique theme name.
+     dark:
+       # Optional display name for use in the main menu.
+       display_name: 'dark'
+       default_bg: '#2e2e2e'
+       default_fg: '#eeeeee'
+       dim_bg: '#262626'
+       dim_fg: '#dfdfdf'
+       button_active_bg: '#626262'
+       button_inactive_bg: '#525252'
+       active_bg: '#525252'
+       active_fg: '#dfdfdf'
+       inactive_bg: '#3f3f3f'
+       inactive_fg: '#bfbfbf'
+       line_highlight_bg: '#525252'
+       selected_line_bg: '#626262'
+       dialog_bg: '#3c3c3c'
+       red_accent: '#ff6c6b'
+       orange_accent: '#da8548'
+       yellow_accent: '#ffcc66'
+       green_accent: '#98be65'
+       cyan_accent: '#66cccc'
+       blue_accent: '#6699cc'
+       purple_accent: '#a9a1e1'
+       magenta_accent: '#c678dd'
+
    # Default: pigweed-code
-   code_theme: material
+   code_theme: pigweed-code
 
    # Default: False
    swap_light_and_dark: False

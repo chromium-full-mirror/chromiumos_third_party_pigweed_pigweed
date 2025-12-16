@@ -80,7 +80,11 @@ from pw_console.pw_ptpython_repl import PwPtPythonRepl
 from pw_console.python_logging import all_loggers
 from pw_console.quit_dialog import QuitDialog
 from pw_console.repl_pane import ReplPane
-from pw_console.style import generate_styles, THEME_NAME_MAPPING
+from pw_console.style import (
+    generate_styles,
+    add_user_ui_themes,
+    THEME_NAME_MAPPING,
+)
 from pw_console.test_mode import start_fake_logger
 from pw_console.widgets import (
     FloatingWindowPane,
@@ -228,9 +232,6 @@ class ConsoleApp:
 
         self.app_title = app_title if app_title else 'Pigweed Console'
 
-        # Top level UI state toggles.
-        self.load_theme(self.prefs.ui_theme)
-
         # Pigweed upstream RST user guide
         self.user_guide_window = HelpWindow(self, title='User Guide')
         self.user_guide_window.load_user_guide()
@@ -293,12 +294,12 @@ class ConsoleApp:
             python_repl=self.pw_ptpython_repl,
             startup_message=repl_startup_message,
         )
-        self.pw_ptpython_repl.use_code_colorscheme(self.prefs.code_theme)
+
+        # Load UI and code themes.
+        self._current_theme = generate_styles()
+        self._load_theme_prefs()
 
         self.system_command_output_pane: LogPane | None = None
-
-        if self.prefs.swap_light_and_dark:
-            self.toggle_light_theme()
 
         # Window panes are added via the window_manager
         self.window_manager = WindowManager(self)
@@ -463,6 +464,9 @@ class ConsoleApp:
             min_redraw_interval=MIN_REDRAW_INTERVAL,
         )
 
+        # Must be called after self.application is set.
+        self._apply_swap_light_and_dark()
+
     def get_template(self, file_name: str):
         return self.jinja_env.get_template(file_name)
 
@@ -498,19 +502,25 @@ class ConsoleApp:
             )
         )
 
+    def _save_and_set_ui_theme(self, theme_name: str) -> None:
+        self.prefs.ui_theme = theme_name
+        self.load_theme(theme_name)
+
     def set_ui_theme(self, theme_name: str) -> Callable:
         call_function = functools.partial(
             self.run_pane_menu_option,
-            functools.partial(self.load_theme, theme_name),
+            functools.partial(self._save_and_set_ui_theme, theme_name),
         )
         return call_function
+
+    def _save_and_set_code_theme(self, theme_name: str) -> None:
+        self.prefs.code_theme = theme_name
+        self.pw_ptpython_repl.use_code_colorscheme(theme_name)
 
     def set_code_theme(self, theme_name: str) -> Callable:
         call_function = functools.partial(
             self.run_pane_menu_option,
-            functools.partial(
-                self.pw_ptpython_repl.use_code_colorscheme, theme_name
-            ),
+            functools.partial(self._save_and_set_code_theme, theme_name),
         )
         return call_function
 
@@ -1028,12 +1038,23 @@ class ConsoleApp:
             # window pane.
             self.window_manager.focus_first_visible_pane()
 
+    def _swap_pigweed_code_theme(self) -> None:
+        """Load pigweed-code-light theme when using a light mode ui theme."""
+        if 'pigweed-code' not in self.prefs.code_theme:
+            return
+
+        if '-light' in self.prefs.ui_theme:
+            self._save_and_set_code_theme('pigweed-code-light')
+        else:
+            self._save_and_set_code_theme('pigweed-code')
+
     def toggle_light_theme(self):
         """Toggle light and dark theme colors."""
         # Use ptpython's style_transformation to swap dark and light colors.
         self.pw_ptpython_repl.swap_light_and_dark = (
             not self.pw_ptpython_repl.swap_light_and_dark
         )
+
         if self.application:
             self.focus_main_menu()
 
@@ -1044,11 +1065,13 @@ class ConsoleApp:
         for log_pane in self.all_log_panes():
             log_pane.log_view.refresh_visible_table_columns()
 
-    def load_theme(self, theme_name=None):
+    def load_theme(self, theme_name: str | None) -> None:
         """Regenerate styles for the current theme_name."""
         self._current_theme = generate_styles(theme_name)
         if theme_name:
-            self.prefs.set_ui_theme(theme_name)
+            self.prefs.ui_theme = theme_name
+
+        self._swap_pigweed_code_theme()
 
     def _create_log_pane(
         self, title: str = '', log_store: LogStore | None = None
@@ -1066,8 +1089,18 @@ class ConsoleApp:
         # Re-apply user settings.
         if self.prefs.user_file:
             self.prefs.load_config_file(self.prefs.user_file)
+        self._load_theme_prefs()
+        self._apply_swap_light_and_dark()
 
-        # Reset colors
+    def _apply_swap_light_and_dark(self) -> None:
+        if self.prefs.swap_light_and_dark:
+            self.toggle_light_theme()
+
+    def _load_theme_prefs(self) -> None:
+        # Include user defined themes
+        if self.prefs.ui_themes:
+            add_user_ui_themes(self.prefs.ui_themes)
+
         self.load_theme(self.prefs.ui_theme)
         self.pw_ptpython_repl.use_code_colorscheme(self.prefs.code_theme)
 

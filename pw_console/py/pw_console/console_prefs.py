@@ -27,7 +27,7 @@ import yaml
 
 from pw_config_loader.yaml_config_loader_mixin import YamlConfigLoaderMixin
 
-from pw_console.style import get_theme_colors, generate_styles
+from pw_console.style import generate_styles
 from pw_console.key_bindings import DEFAULT_KEY_BINDINGS
 
 _DEFAULT_REPL_HISTORY: Path = Path.home() / '.pw_console_history'
@@ -188,18 +188,20 @@ class ConsolePrefs(YamlConfigLoaderMixin):
     def ui_theme(self) -> str:
         return self._config.get('ui_theme', '')
 
-    def set_ui_theme(self, theme_name: str):
+    @ui_theme.setter
+    def ui_theme(self, theme_name: str) -> None:
         self._config['ui_theme'] = theme_name
 
     @property
-    def theme_colors(self):
-        return get_theme_colors(self.ui_theme)
+    def ui_themes(self) -> dict:
+        return self._config.get('ui_themes', {})
 
     @property
     def code_theme(self) -> str:
         return self._config.get('code_theme', '')
 
-    def set_code_theme(self, theme_name: str):
+    @code_theme.setter
+    def code_theme(self, theme_name: str) -> None:
         self._config['code_theme'] = theme_name
 
     @property

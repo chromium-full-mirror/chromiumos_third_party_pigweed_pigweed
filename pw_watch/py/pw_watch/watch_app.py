@@ -66,7 +66,7 @@ from pw_console.log_pane import LogPane
 from pw_console.plugin_mixin import PluginMixin
 import pw_console.python_logging
 from pw_console.quit_dialog import QuitDialog
-from pw_console.style import generate_styles, get_theme_colors
+from pw_console.style import generate_styles
 from pw_console.pigweed_code_style import PigweedCodeStyle
 from pw_console.widgets import (
     FloatingWindowPane,
@@ -217,10 +217,6 @@ class WatchAppPrefs(ProjectBuilderPrefs):
     @ui_theme.setter
     def ui_theme(self, new_ui_theme: str) -> None:
         self._config['ui_theme'] = new_ui_theme
-
-    @property
-    def theme_colors(self):
-        return get_theme_colors(self.ui_theme)
 
     @property
     def swap_light_and_dark(self) -> bool:
