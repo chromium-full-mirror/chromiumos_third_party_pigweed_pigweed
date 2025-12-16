@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 # Copyright 2022 The Pigweed Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may not
