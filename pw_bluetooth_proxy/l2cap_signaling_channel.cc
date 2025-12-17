@@ -42,32 +42,37 @@ uint16_t ChannelIdForTransport(AclTransportType transport) {
 }  // namespace
 
 L2capSignalingChannel::L2capSignalingChannel(
-    L2capChannelManager& l2cap_channel_manager,
-    uint16_t connection_handle,
-    AclTransportType transport)
-    : l2cap_channel_manager_(l2cap_channel_manager),
-      channel_(
-          l2cap_channel_manager,
-          /*rx_multibuf_allocator=*/nullptr,
-          /*connection_handle=*/connection_handle,
-          /*transport*/ transport,
-          /*local_cid=*/ChannelIdForTransport(transport),
-          /*remote_cid=*/ChannelIdForTransport(transport),
-          /*payload_from_controller_fn=*/
-          nullptr,
-          /*payload_from_host_fn=*/
-          nullptr,
-          /*event_fn=*/nullptr,
-          /*payload_span_from_controller_fn=*/
-          pw::bind_member<&L2capSignalingChannel::HandlePayloadFromController>(
-              this),
-          /*payload_span_from_host_fn=*/
-          pw::bind_member<&L2capSignalingChannel::HandlePayloadFromHost>(
-              this)) {}
+    L2capChannelManager& l2cap_channel_manager)
+    : l2cap_channel_manager_(l2cap_channel_manager) {}
 
-Status L2capSignalingChannel::Init() {
-  PW_TRY(channel_.Init());
-  return channel_.Start();
+Status L2capSignalingChannel::Init(uint16_t connection_handle,
+                                   AclTransportType transport) {
+  Allocator& allocator = l2cap_channel_manager_.impl().allocator();
+  auto channel = allocator.MakeUnique<internal::BasicL2capChannelInternal>(
+      l2cap_channel_manager_,
+      /*rx_multibuf_allocator=*/nullptr,
+      /*connection_handle=*/connection_handle,
+      /*transport*/ transport,
+      /*local_cid=*/ChannelIdForTransport(transport),
+      /*remote_cid=*/ChannelIdForTransport(transport),
+      /*payload_from_controller_fn=*/
+      nullptr,
+      /*payload_from_host_fn=*/
+      nullptr,
+      /*event_fn=*/nullptr,
+      /*payload_span_from_controller_fn=*/
+      bind_member<&L2capSignalingChannel::HandlePayloadFromController>(this),
+      /*payload_span_from_host_fn=*/
+      bind_member<&L2capSignalingChannel::HandlePayloadFromHost>(this));
+  if (channel == nullptr) {
+    PW_LOG_ERROR("Unable to allocate signaling channel for connection: %#x",
+                 connection_handle);
+    return Status::ResourceExhausted();
+  }
+  PW_TRY(channel->Init());
+  PW_TRY(channel->Start());
+  channel_ = channel.Release();
+  return OkStatus();
 }
 
 bool L2capSignalingChannel::OnCFramePayload(
@@ -107,7 +112,7 @@ bool L2capSignalingChannel::OnCFramePayload(
 
     // LE C-frames contain one signaling packet, while BR/EDR C-frames can
     // contain multiple.
-  } while (channel_.transport() == AclTransportType::kBrEdr &&
+  } while (channel_->transport() == AclTransportType::kBrEdr &&
            !cframe_payload.empty());
 
   if (!cframe_payload.empty()) {
@@ -272,7 +277,7 @@ void L2capSignalingChannel::HandleConnectionRsp(
           L2capChannelConnectionInfo{
               .direction = request_direction,
               .psm = pending_it->psm,
-              .connection_handle = channel_.connection_handle(),
+              .connection_handle = channel_->connection_handle(),
               .remote_cid = remote,
               .local_cid = local,
           });
@@ -338,7 +343,7 @@ void L2capSignalingChannel::HandleConfigurationReq(
               "destination_cid=%#x identifier=%d L2capMtuConfigurationOption "
               "is "
               "malformed, dropping the configuration options.",
-              channel_.connection_handle(),
+              channel_->connection_handle(),
               cmd.destination_cid().Read(),
               cmd.command_header().identifier().Read());
           return;
@@ -354,7 +359,7 @@ void L2capSignalingChannel::HandleConfigurationReq(
       .identifier = cmd.command_header().identifier().Read(),
       .info = L2capChannelConfigurationInfo{
           .direction = direction,
-          .connection_handle = channel_.connection_handle(),
+          .connection_handle = channel_->connection_handle(),
           .remote_cid = direction == Direction::kFromHost
                             ? cid
                             : static_cast<uint16_t>(0),
@@ -421,7 +426,7 @@ void L2capSignalingChannel::HandleDisconnectionRsp(
 
   l2cap_channel_manager_.HandleDisconnectionCompleteLocked(
       L2capStatusTracker::DisconnectParams{
-          .connection_handle = channel_.connection_handle(),
+          .connection_handle = channel_->connection_handle(),
           .remote_cid = remote,
           .local_cid = local});
 }
@@ -446,7 +451,7 @@ bool L2capSignalingChannel::HandleFlowControlCreditInd(
   // lookup.
   L2capChannel* found_channel =
       l2cap_channel_manager_.FindChannelByRemoteCidLocked(
-          channel_.connection_handle(), cmd.cid().Read());
+          channel_->connection_handle(), cmd.cid().Read());
   if (found_channel) {
     // If this L2CAP_FLOW_CONTROL_CREDIT_IND is addressed to a channel managed
     // by the proxy, it must be an L2CAP connection-oriented channel.
@@ -495,7 +500,7 @@ Status L2capSignalingChannel::SendFlowControlCreditInd(
   command_view->credits().Write(credits);
   PW_CHECK(command_view->Ok());
 
-  StatusWithMultiBuf s = channel_.WriteDuringRx(
+  StatusWithMultiBuf s = channel_->WriteDuringRx(
       std::move(MultiBufAdapter::Unwrap(command.value())));
 
   return s.status;

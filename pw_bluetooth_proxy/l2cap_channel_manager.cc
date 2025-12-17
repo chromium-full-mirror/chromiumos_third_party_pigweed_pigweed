@@ -356,7 +356,7 @@ void L2capChannelManager::HandleAclDisconnectionComplete(
           channel.state() == L2capChannel::State::kRunning) {
         DeregisterChannelLocked(channel);
         channel.Close();
-        impl_.allocator().Delete(&channel);
+        stale_.insert(channel.local_handle());
       }
     }
   }

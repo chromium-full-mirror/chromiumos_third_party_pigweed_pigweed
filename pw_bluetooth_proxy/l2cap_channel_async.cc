@@ -84,6 +84,8 @@ void L2capChannelImpl::Close() {
   if (request_handle_.has_value() && request_handle_->is_open()) {
     request_handle_->Close();
   }
+  // Always set to default to mark channel as stale, even if it wasn't acquired.
+  request_handle_ = async2::SpscChannelHandle<Request>();
 }
 
 StatusWithMultiBuf L2capChannelImpl::Write(FlatConstMultiBuf&& payload) {

@@ -72,8 +72,9 @@ void L2capChannelImpl::Close() {
   std::lock_guard lock(L2capChannelImpl::mutex());
   if (client_.has_value() && *client_ != nullptr) {
     (*client_)->channel_ = nullptr;
-    client_ = nullptr;
   }
+  // Always set to null to mark channel as stale, even if it was not acquired.
+  client_ = nullptr;
 }
 
 StatusWithMultiBuf L2capChannelImpl::Write(FlatConstMultiBuf&& payload)

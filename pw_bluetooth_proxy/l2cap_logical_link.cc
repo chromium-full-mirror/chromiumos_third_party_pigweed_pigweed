@@ -56,7 +56,7 @@ L2capLogicalLink::L2capLogicalLink(uint16_t connection_handle,
       transport_(transport),
       acl_data_channel_(acl_data_channel),
       channel_manager_(l2cap_channel_manager),
-      signaling_channel_(l2cap_channel_manager, connection_handle, transport) {
+      signaling_channel_(l2cap_channel_manager) {
   Status status = acl_data_channel_.RegisterConnection(*this);
   if (!status.ok()) {
     PW_LOG_ERROR(
@@ -79,6 +79,10 @@ L2capLogicalLink::~L2capLogicalLink() {
         connection_handle_,
         status.str());
   }
+}
+
+Status L2capLogicalLink::Init() {
+  return signaling_channel_.Init(connection_handle_, transport_);
 }
 
 AclDataChannel::ConnectionDelegate::HandleAclDataReturn

@@ -32,15 +32,13 @@ namespace pw::bluetooth::proxy {
 // Write and Read payloads are L2CAP signal commands.
 class L2capSignalingChannel final {
  public:
-  explicit L2capSignalingChannel(L2capChannelManager& l2cap_channel_manager,
-                                 uint16_t connection_handle,
-                                 AclTransportType transport);
+  explicit L2capSignalingChannel(L2capChannelManager& l2cap_channel_manager);
 
   L2capSignalingChannel(L2capSignalingChannel&&) = delete;
   L2capSignalingChannel& operator=(L2capSignalingChannel&& other) = delete;
 
   // Initializes the link and its underlying basic channel.
-  Status Init();
+  Status Init(uint16_t connection_handle, AclTransportType transport);
 
   // Process the payload of a CFrame. Returns true if the CFrame was consumed by
   // the channel. Otherwise, returns false and the PDU containing this CFrame
@@ -134,7 +132,7 @@ class L2capSignalingChannel final {
 
   L2capChannelManager& l2cap_channel_manager_;
 
-  internal::BasicL2capChannelInternal channel_;
+  internal::BasicL2capChannelInternal* channel_ = nullptr;
 
   // TODO(b/405190891): Properly clean-up pending_connections_ and
   // pending_configurations_
