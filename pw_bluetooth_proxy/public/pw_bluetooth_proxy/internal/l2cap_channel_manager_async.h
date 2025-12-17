@@ -19,7 +19,6 @@
 
 #include "pw_allocator/allocator.h"
 #include "pw_allocator/shared_ptr.h"
-#include "pw_assert/check.h"
 #include "pw_async2/basic_dispatcher.h"
 #include "pw_async2/channel.h"
 #include "pw_async2/poll.h"
@@ -125,7 +124,7 @@ class L2capChannelManagerImpl {
   /// Task wrapper that calls `DoDrainChannelQueuesIfNewTx`.
   class DrainTask final : public async2::Task {
    public:
-    constexpr explicit DrainTask(L2capChannelManagerImpl& impl)
+    explicit DrainTask(L2capChannelManagerImpl& impl)
         : async2::Task(PW_ASYNC_TASK_NAME("L2capChannelManager:Drain")),
           impl_(impl) {}
 

@@ -71,7 +71,7 @@ class L2capChannelImpl {
   friend class pw::bluetooth::proxy::L2capChannel;
   friend class GenericL2capChannelImpl;
 
-  constexpr explicit L2capChannelImpl(L2capChannel& channel)
+  explicit L2capChannelImpl(L2capChannel& channel)
       : channel_(channel), task_(*this) {}
 
   Allocator& allocator();
@@ -132,7 +132,7 @@ class L2capChannelImpl {
   /// Request handler for L2CAP channel requests.
   class Task final : public async2::Task {
    public:
-    constexpr explicit Task(L2capChannelImpl& impl)
+    explicit Task(L2capChannelImpl& impl)
         : async2::Task(PW_ASYNC_TASK_NAME("L2capChannel")), impl_(impl) {}
 
     ~Task() override { Deregister(); }

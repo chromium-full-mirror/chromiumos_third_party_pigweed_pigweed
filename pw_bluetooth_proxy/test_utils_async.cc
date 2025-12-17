@@ -16,6 +16,7 @@
 
 #if PW_BLUETOOTH_PROXY_ASYNC != 0
 
+#include "pw_assert/check.h"
 #include "pw_bluetooth_proxy_private/test_utils.h"
 #include "pw_status/try.h"
 
