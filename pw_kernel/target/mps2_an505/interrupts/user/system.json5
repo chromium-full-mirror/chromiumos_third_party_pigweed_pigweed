@@ -43,6 +43,13 @@
           },
         ],
       },
+      constants: [
+        {
+          name: "test_irq",
+          type: "u32",
+          value: 42
+        },
+      ],
     },
     {
       name: "test_interrupt_listener",

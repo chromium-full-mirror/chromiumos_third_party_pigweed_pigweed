@@ -16,14 +16,11 @@
 
 use core::mem::size_of;
 
-use app_test_interrupts::handle;
+use app_test_interrupts::{constants, handle};
 use pw_status::{Error, Result, StatusCode};
 use userspace::syscall::Signals;
 use userspace::time::Instant;
 use userspace::{entry, syscall};
-
-// TODO: once multiple target's are supported, feature flag the IRQ.
-const IRQ_NUMBER: u32 = 42;
 
 fn read_expected_value(expected_value: u32) -> Result<()> {
     // the interrupt listener responds on IPC with the interrupt count.
@@ -52,13 +49,13 @@ fn read_expected_value(expected_value: u32) -> Result<()> {
 }
 
 fn test_interrupts() -> Result<()> {
-    syscall::debug_trigger_interrupt(IRQ_NUMBER)?;
+    syscall::debug_trigger_interrupt(constants::TEST_IRQ)?;
     read_expected_value(1)?;
 
-    syscall::debug_trigger_interrupt(IRQ_NUMBER)?;
+    syscall::debug_trigger_interrupt(constants::TEST_IRQ)?;
     read_expected_value(2)?;
 
-    syscall::debug_trigger_interrupt(IRQ_NUMBER)?;
+    syscall::debug_trigger_interrupt(constants::TEST_IRQ)?;
     read_expected_value(3)?;
 
     Ok(())

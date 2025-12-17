@@ -52,3 +52,18 @@ pub mod interrupts {
         {%- endif -%}
     {% endfor %}
 }
+
+pub mod constants {
+    {% for constant in constants %}
+        {%- if constant.type == "string" %}
+            {%- set type = "&str" %}
+        {%- else %}
+            {%- set type = constant.type %}
+        {%- endif -%}
+    #[allow(unused)]
+    pub const {{constant.name | upper}}: {{type}} = 
+        {%- if constant.type == "string" %}"{{constant.value}}"
+        {%- elif constant.type == "char" %}'{{constant.value}}'
+        {%- else %}{{constant.value}}{% endif %};
+    {%- endfor %}
+}

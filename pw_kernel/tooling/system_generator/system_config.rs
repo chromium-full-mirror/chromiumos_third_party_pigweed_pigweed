@@ -78,12 +78,34 @@ pub struct InterruptTableConfig {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum ConstConfig {
+    Bool { name: String, value: bool },
+    Char { name: String, value: char },
+    U8 { name: String, value: u8 },
+    U16 { name: String, value: u16 },
+    U32 { name: String, value: u32 },
+    U64 { name: String, value: u64 },
+    U128 { name: String, value: u128 },
+    Usize { name: String, value: usize },
+    I8 { name: String, value: i8 },
+    I16 { name: String, value: i16 },
+    I32 { name: String, value: i32 },
+    I64 { name: String, value: i64 },
+    I128 { name: String, value: i128 },
+    Isize { name: String, value: isize },
+    String { name: String, value: String },
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct AppConfig {
     pub name: String,
     pub flash_size_bytes: u64,
     pub ram_size_bytes: u64,
     pub process: ProcessConfig,
+    #[serde(default)]
+    constants: Vec<ConstConfig>,
     // The following fields are calculated, not defined by a user.
     // TODO: davidroth - if this becomes too un-wieldy, we should
     // split the config schema from the template structs.
