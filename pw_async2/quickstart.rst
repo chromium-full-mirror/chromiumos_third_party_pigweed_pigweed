@@ -6,127 +6,262 @@ Quickstart
 .. pigweed-module-subpage::
    :name: pw_async2
 
-This quickstart outlines the general workflow for integrating ``pw_async2``
-into a project. It's based on the following files in upstream Pigweed:
+``pw_async2`` is Pigweed's cooperatively scheduled async framework.
+``pw_async2`` makes it easier to build correct, efficient asynchronous
+firmware. This quickstart sets you up with a minimal but complete ``pw_async2``
+project and explains key concepts along the way.
 
-* :cs:`pw_async2/examples/count.cc`
-* :cs:`pw_async2/examples/BUILD.bazel`
+* For a detailed conceptual overview of ``pw_async2``, check out
+  :ref:`module-pw_async2-informed-poll`.
+* For a more in-depth, hands-on introduction, try the
+  :ref:`module-pw_async2-codelab`.
 
-The example app can be built and run in upstream Pigweed with the
-following command:
+.. tab-set::
 
-.. code-block:: sh
+   .. tab-item:: Post task to dispatcher
 
-   bazelisk run //pw_async2/examples:count --config=cxx20
+      .. literalinclude:: examples/quickstart.cc
+         :language: cpp
+         :linenos:
+         :start-after: // DOCSTAG: [main]
+         :end-before: // DOCSTAG: [main]
 
----------------------------
-1. Understand informed poll
----------------------------
-Informed poll is the core design philosophy behind ``pw_async2``. Please read
-:ref:`module-pw_async2-informed-poll` before attempting to use ``pw_async2``.
+   .. tab-item:: Implement task
 
-.. _module-pw_async2-quickstart-rules:
+      Create a subclass of :cc:`Task <pw::async2::Task>`:
 
----------------------
-2. Set up build rules
----------------------
-All ``pw_async2`` projects must add a dependency on the ``dispatcher`` target.
-This target defines the :cc:`Task <pw::async2::Task>` class, an
-asynchronous unit of work analogous to a thread, as well as the
-:cc:`Dispatcher <pw::async2::Dispatcher>` class, an event loop used to
-run ``Task`` instances to completion.
+      .. literalinclude:: examples/quickstart.cc
+         :language: cpp
+         :linenos:
+         :start-after: // DOCSTAG: [decl]
+         :end-before: // DOCSTAG: [decl]
 
-In Bazel, add a dependency on ``@pigweed//pw_async2:dispatcher``:
+      Implement an override of :cc:`DoPend() <pw::async2::Task::DoPend>`:
 
-.. literalinclude:: examples/BUILD.bazel
-   :language: py
-   :linenos:
-   :emphasize-lines: 10
-   :start-after: count-example-start
-   :end-before: count-example-end
+      .. literalinclude:: examples/quickstart.cc
+         :language: cpp
+         :linenos:
+         :start-after: // DOCSTAG: [impl]
+         :end-before: // DOCSTAG: [impl]
 
-Depend on ``pw_async2.dispatcher`` in CMake or ``$dir_pw_async2:dispatcher`` in
-``BUILD.gn``.
+   .. tab-item:: Set up build rules
 
-.. _module-pw_async2-quickstart-dependencies:
+      .. literalinclude:: examples/BUILD.bazel
+         :language: py
+         :linenos:
+         :start-after: # DOCSTAG: [quickstart]
+         :end-before: # DOCSTAG: [quickstart]
 
-----------------------
-3. Inject dependencies
-----------------------
-Interfaces which wish to add new tasks to the event loop should accept and
-store a ``Dispatcher&`` reference.
+.. tip::
 
-.. literalinclude:: examples/count.cc
-   :language: cpp
-   :linenos:
-   :start-after: examples-constructor-start
-   :end-before: examples-constructor-end
+   The quickstart is based on the following files in upstream Pigweed:
 
-This allows the interface to call ``Dispatcher::Post`` in order to
-run asynchronous work on the dispatcher's event loop.
+   * :cs:`pw_async2/examples/quickstart.cc`
+   * :cs:`pw_async2/examples/BUILD.bazel`
 
-.. _module-pw_async2-quickstart-oneshot:
+   You can build and test it yourself with the following command:
 
----------------------------------------
-4. Post one-shot work to the dispatcher
----------------------------------------
-Simple, one-time work can be queued on the dispatcher via
-:cc:`EnqueueHeapFunc <pw::async2::EnqueueHeapFunc>`.
+   .. code-block:: console
 
-.. _module-pw_async2-quickstart-tasks:
+      bazelisk test //pw_async2/examples:quickstart
 
--------------------------------
-5. Post tasks to the dispatcher
--------------------------------
-Async work that involves a series of asynchronous operations should be made
-into a task. This can be done by either implementing a custom task (see
-:ref:`module-pw_async2-guides-implementing-tasks`) or by writing a C++20
-coroutine (see :cc:`Coro <pw::async2::Coro>`) and storing it in a
-:cc:`CoroOrElseTask <pw::async2::CoroOrElseTask>`.
+   See :ref:`docs-contributing` for help with setting up the upstream
+   Pigweed repo.
 
-.. literalinclude:: examples/count.cc
-   :language: cpp
-   :linenos:
-   :start-after: examples-task-start
-   :end-before: examples-task-end
+.. _module-pw_async2-quickstart-build:
 
-The resulting task must either be stored somewhere that has a lifetime longer
-than the async operations (such as in a static or as a member of a long-lived
-class) or dynamically allocated using :cc:`AllocateTask
-<pw::async2::AllocateTask>`.
-
-Finally, the interface instructs the dispatcher to run the task by invoking
-:cc:`Dispatcher::Post() <pw::async2::Dispatcher::Post>`.
-
-See :cs:`pw_async2/examples/count.cc` to view the complete example.
-
-.. _module-pw_async2-quickstart-toolchain:
-
---------------------------------------
-6. Build with an appropriate toolchain
---------------------------------------
-If using coroutines, remember to build your project with a toolchain
-that supports C++20 at minimum (the first version of C++ with coroutine
-support). For example, in upstream Pigweed a ``--config=cxx20`` must be
-provided when building and running the example:
+------------------
+Set up build rules
+------------------
+Add a dependency on ``dispatcher``. If you instantiate a concrete dispatcher
+such as ``basic_dispatcher``, also depend on that dispatcher implementation.
+The ``dispatcher`` dependency pulls in most of the core ``pw_async2`` API that
+you'll always need.
 
 .. tab-set::
 
    .. tab-item:: Bazel
 
-      .. code-block:: sh
+      .. literalinclude:: examples/BUILD.bazel
+         :language: py
+         :linenos:
+         :emphasize-lines: 5
+         :start-after: # DOCSTAG: [quickstart]
+         :end-before: # DOCSTAG: [quickstart]
 
-         bazelisk build //pw_async2/examples:count --config=cxx20
+      See :ref:`docs-build-bazel` for help with creating a new Bazel project
+      or integrating Pigweed into an existing Bazel project.
 
---------------
-Other examples
---------------
-.. _quickstart/bazel: https://cs.opensource.google/pigweed/quickstart/bazel
-.. _//apps/blinky/: https://cs.opensource.google/pigweed/quickstart/bazel/+/main:apps/blinky/
-.. _//modules/blinky/: https://cs.opensource.google/pigweed/quickstart/bazel/+/main:modules/blinky/
+      .. note::
 
-To see another example of ``pw_async2`` working in a minimal project,
-check out the following directories of Pigweed's `quickstart/bazel`_ repo:
+         The code above uses ``pw_cc_test`` because we unit test this example in
+         upstream Pigweed. In your project you'll want to use ``cc_binary`` or
+         :ref:`module-pw_build-bazel-pw_cc_binary` instead.
 
-* `//apps/blinky/`_
-* `//modules/blinky/`_
+   .. tab-item:: GN
+
+      .. code-block:: py
+
+         pw_executable("quickstart") {
+           sources = [
+             "quickstart.cc",
+           ]
+           deps = [
+             "$dir_pw_async2:dispatcher",
+             # …
+           ]
+         }
+
+      See :ref:`docs-build-gn` for help with integrating Pigweed into an
+      existing GN project.
+
+   .. tab-item:: CMake
+
+      .. code-block:: py
+
+         add_executable(quickstart quickstart.cc)
+         target_link_libraries(quickstart PRIVATE pw_async2.dispatcher)
+
+      See :ref:`docs-build-cmake` for help with integrating Pigweed into an
+      existing CMake project.
+
+.. _module-pw_async2-quickstart-dispatcher:
+
+-----------------------------------
+Create a dispatcher and post a task
+-----------------------------------
+The :ref:`dispatcher <module-pw_async2-informed-poll-components-dispatcher>` is
+the cooperative scheduler of ``pw_async2``. :ref:`Tasks
+<module-pw_async2-informed-poll-components-task>` are logical collections of
+async work. You post tasks to the dispatcher, and the dispatcher drives the
+tasks to completion.
+
+The highlighted lines below demonstrate creating a task, posting a task to
+a dispatcher, and running the tasks with a dispatcher:
+
+.. literalinclude:: examples/quickstart.cc
+   :language: cpp
+   :linenos:
+   :emphasize-lines: 12,15,17,19
+   :start-after: // DOCSTAG: [main]
+   :end-before: // DOCSTAG: [main]
+
+The next section dives into the ``TimerTask`` implementation in detail.
+
+.. _module-pw_async2-quickstart-task:
+
+----------------
+Implement a task
+----------------
+Each task represents a logical collection of async work. For example, when
+writing the firmware for a vending machine, you might dedicate one task to
+handling user input, another task to driving the item dispenser machinery,
+and yet another task to sending time series data to the cloud.
+
+First, let's study the main API of a single task. Your task class must be a
+subclass of :cc:`pw::async2::Task` and it must implement an override of
+:cc:`DoPend() <pw::async2::Task::DoPend>`, as ``TimerTask`` demonstrates:
+
+.. literalinclude:: examples/quickstart.cc
+   :language: cpp
+   :linenos:
+   :emphasize-lines: 7,14
+   :start-after: // DOCSTAG: [decl]
+   :end-before: // DOCSTAG: [decl]
+
+.. note::
+
+   The dispatcher drives a task forward by invoking the task's ``Pend()``
+   method, which is a non-virtual wrapper around ``DoPend()``.
+
+The ``DoPend()`` implementation is where ``TimerTask`` progresses through its
+work asynchronously. ``DoPend()`` waits on a ``TimeFuture`` called ``timer_``
+to complete. ``timer_`` finishes after 100ms and then never runs again. Futures
+like ``timer_`` will be described more in the next section. For now, focus on
+the return values of the implementation. Notice how the implementation returns
+``Pending()`` in one case, and ``Ready()`` in another case:
+
+.. literalinclude:: examples/quickstart.cc
+   :language: cpp
+   :linenos:
+   :emphasize-lines: 6,10
+   :start-after: // DOCSTAG: [impl]
+   :end-before: // DOCSTAG: [impl]
+
+All ``DoPend()`` implementations follow this general pattern:
+
+* The task is not able to progress for some reason so it returns
+  :cc:`pw::async2::Pending` to notify the dispatcher that it's stalled. The
+  dispatcher sleeps the task.
+
+  .. tip::
+
+     Helpers like :cc:`PW_TRY_READY` and :cc:`PW_TRY_READY_ASSIGN` can reduce
+     the boilerplate of handling a stalled task.
+
+* Something informs the dispatcher that the task is able to make more progress.
+  This will be explained in the next section. The dispatcher runs the task
+  again.
+
+* On the second run, ``TimerTask`` completes all of its work. The task returns
+  :cc:`pw::async2::Ready` to signal to the dispatcher that it has finished and
+  no longer needs to be polled.
+
+.. _module-pw_async2-quickstart-future:
+
+-----------------
+Wait for a future
+-----------------
+If you run this example, you'll see ``Waiting…`` logged only once:
+
+.. code-block:: none
+
+   INF  Waiting…
+   INF  Done!
+
+This suggests that there's no busy polling. So how does the polling work?
+``timer_`` is the key to understanding the flow. ``timer_`` is a :ref:`future
+<module-pw_async2-informed-poll-components-future>`, the main async primitive
+in ``pw_async2``. A future is a value that may not be ready yet.  Notice how
+``cx`` is passed to the timer's ``Pend()`` method:
+
+.. literalinclude:: examples/quickstart.cc
+   :language: cpp
+   :linenos:
+   :emphasize-lines: 3
+   :start-after: // DOCSTAG: [impl]
+   :end-before: // DOCSTAG: [impl]
+
+When the future is ready, the future informs the dispatcher that its parent
+task can make more progress and therefore should be polled again. This is why
+the ``pw_async2`` programming model is called
+:ref:`module-pw_async2-informed-poll`.
+
+.. note::
+
+   When the task invokes the future's ``Pend()`` method, the task provides
+   a :cc:`pw::async2::Context` instance. This ``Context`` instance is how the
+   future informs the dispatcher.
+
+.. _module-pw_async2-quickstart-more:
+
+----------
+Learn more
+----------
+Posting tasks to the dispatcher and implementing tasks that wait on futures is
+the core of all ``pw_async2`` systems. Of course, in a real-world project,
+you may need to handle more complex interactions, such as:
+
+* Tasks that communicate with each other via :ref:`module-pw_async2-channels`.
+
+* :ref:`Custom futures <module-pw_async2-futures-implementing>` that
+  :ref:`integrate with hardware
+  <module-pw_async2-futures-implementing-example>`.
+
+* Tasks that :ref:`wait on multiple futures
+  <module-pw_async2-futures-combinators>`.
+
+* :ref:`Custom dispatchers <module-pw_async2-dispatcher>`.
+
+Browse the :ref:`module-pw_async2-more` section on the ``pw_async2`` homepage
+for more guidance on building correct, efficient firmware with ``pw_async2``.

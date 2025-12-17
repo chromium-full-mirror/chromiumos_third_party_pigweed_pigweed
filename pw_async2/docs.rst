@@ -46,6 +46,8 @@ using the :cc:`Post() <pw::async2::Dispatcher::Post>` method:
    :start-after: [pw_async2-examples-basic-dispatcher]
    :end-before: [pw_async2-examples-basic-dispatcher]
 
+.. _module-pw_async2-more:
+
 ----------
 Learn more
 ----------
@@ -142,9 +144,9 @@ Learn more
    :hidden:
    :maxdepth: 1
 
+   quickstart
    informed_poll
    codelab/docs
-   quickstart
    guides
    dispatcher
    code_size

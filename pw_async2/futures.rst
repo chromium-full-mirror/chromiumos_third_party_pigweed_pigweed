@@ -216,6 +216,8 @@ when the operation completes, the provider is used to retrieve the future, and
 its ``Wake()`` function is called. This notifies the dispatcher that the task
 waiting on this future is ready to make progress and should be polled again.
 
+.. _module-pw_async2-futures-implementing-example:
+
 Example: Waiting for a GPIO interrupt
 =====================================
 Below is an example of a custom future that waits for a GPIO button press using
@@ -232,6 +234,8 @@ This pattern of waiting for a single value from a producer is so common that
 ``pw_async2`` provides ``ValueFuture`` and ``ValueProvider`` to handle it.
 In practice, you would return a ``VoidFuture`` (alias for ``ValueFuture<void>``)
 from ``WaitForPress`` instead of writing a custom ``ButtonFuture``.
+
+.. _module-pw_async2-futures-combinators:
 
 -----------
 Combinators

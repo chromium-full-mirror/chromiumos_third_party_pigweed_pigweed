@@ -1,4 +1,4 @@
-# Copyright 2024 The Pigweed Authors
+# Copyright 2025 The Pigweed Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may not
 # use this file except in compliance with the License. You may obtain a copy of
@@ -167,6 +167,19 @@ pw_cc_test(
     ],
 )
 
+# DOCSTAG: [quickstart]
+pw_cc_test(
+    name = "quickstart",
+    srcs = ["quickstart.cc"],
+    deps = [
+        "//pw_async2:basic_dispatcher",
+        "//pw_async2:system_time_provider",
+        "//pw_log",
+        "//pw_unit_test",
+    ],
+)
+# DOCSTAG: [quickstart]
+
 sphinx_docs_library(
     name = "docs",
     srcs = [
@@ -179,6 +192,7 @@ sphinx_docs_library(
         "custom_future.cc",
         "interrupt.cc",
         "once_send_recv_test.cc",
+        "quickstart.cc",
         "unit_test.cc",
     ],
     target_compatible_with = incompatible_with_mcu(),
