@@ -76,6 +76,15 @@ toolchain(
 )
 
 toolchain(
+    name = "cc_toolchain_cortex-m55",
+    target_compatible_with = [
+        "//pw_build/constraints/arm:cortex-m55",
+    ],
+    toolchain = ":cortex-m_cc_toolchain",
+    toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
+)
+
+toolchain(
     name = "cc_toolchain_cortex-m3",
     target_compatible_with = [
         "//pw_build/constraints/arm:cortex-m3",

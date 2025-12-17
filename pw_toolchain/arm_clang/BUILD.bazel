@@ -229,6 +229,19 @@ cc_args(
 )
 
 cc_args(
+    name = "cortex-m55",
+    actions = [
+        "@rules_cc//cc/toolchains/actions:assembly_actions",
+        "@rules_cc//cc/toolchains/actions:c_compile_actions",
+        "@rules_cc//cc/toolchains/actions:cpp_compile_actions",
+        "@rules_cc//cc/toolchains/actions:link_actions",
+    ],
+    args = [
+        "-mcpu=cortex-m55",
+    ],
+)
+
+cc_args(
     name = "cortex-m3",
     actions = [
         "@rules_cc//cc/toolchains/actions:assembly_actions",
@@ -280,6 +293,10 @@ cc_toolchain(
             ":cortex-m33",
             ":armv8m.main-none-eabi",
         ],
+        "//pw_build/constraints/arm:cortex-m55": [
+            ":cortex-m55",
+            ":armv8m.main-none-eabi",
+        ],
         "//pw_build/constraints/arm:none": [],
     }) + [
         # This should always go last so users can override previous choices.
@@ -307,6 +324,7 @@ cc_toolchain(
         "//pw_build/constraints/arm:cortex-m0plus": [],
         "//pw_build/constraints/arm:cortex-m3": [],
         "//pw_build/constraints/arm:cortex-m33": [],
+        "//pw_build/constraints/arm:cortex-m55": [],
         "//pw_build/constraints/arm:none": ["@platforms//:incompatible"],
     }),
     tool_map = "@llvm_toolchain//:all_tools",
@@ -335,6 +353,15 @@ toolchain(
     name = "arm_clang_cc_toolchain_cortex-m33",
     target_compatible_with = [
         "//pw_build/constraints/arm:cortex-m33",
+    ],
+    toolchain = ":arm_clang_toolchain_cortex-m",
+    toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
+)
+
+toolchain(
+    name = "arm_clang_cc_toolchain_cortex-m55",
+    target_compatible_with = [
+        "//pw_build/constraints/arm:cortex-m55",
     ],
     toolchain = ":arm_clang_toolchain_cortex-m",
     toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
