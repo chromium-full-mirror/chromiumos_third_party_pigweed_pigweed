@@ -48,7 +48,8 @@
         ]
       },
       "targets": [
-        "//..."
+        "//...",
+        "//pw_toolchain:cpp_20_check"
       ]
     },
     {

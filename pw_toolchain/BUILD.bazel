@@ -12,6 +12,7 @@
 # License for the specific language governing permissions and limitations under
 # the License.
 
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_python//sphinxdocs:sphinx_docs_library.bzl", "sphinx_docs_library")
@@ -173,6 +174,17 @@ cc_library(
     implementation_deps = ["//pw_assert:check"],
     linkopts = ["-Wl,--wrap=abort"],
     alwayslink = 1,
+)
+
+# This is a nop build test that only works when C++20 is enabled. This is useful
+# as a way to enforce the constraint is satisfied under a given configuration.
+build_test(
+    name = "cpp_20_check",
+    target_compatible_with = select({
+        "//pw_toolchain/cc:c++20_enabled": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
+    targets = ["@rules_cc//:empty_lib"],
 )
 
 filegroup(
