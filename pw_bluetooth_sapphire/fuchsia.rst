@@ -156,24 +156,50 @@ To query the current state of the ``bt-host`` component Inspect hierarchy, run:
 Editor configuration
 --------------------
 
-Clangd
-======
-Currently some manual steps are required to get clangd working with Fuchsia
-code (for example, for FIDL server files).
+Clangd setup
+============
+to enable C/C++ code intelligence in your editor, Generate commands databases
+(``compile_commands.json``) with the following command:
 
-#. Execute the following command to generate ``compile_commands.json``. This
-   needs to be done whenever the build graph changes.
+.. code-block:: console
 
-   .. code-block:: console
+   $ bazelisk run //:refresh_compile_commands_for_fuchsia_sdk
 
-      bazelisk run //:refresh_compile_commands_for_fuchsia_sdk
+This will create a ``.compile_commands`` directory with a number of
+subdirectories. For example:
 
-#. Add this flag to your clangd configuration, fixing the full path to your
-   Pigweed checkout:
+* ``k8-fastbuild``: The default host configuration (linux), used when you run
+  a test like ``bazelisk test //pw_status:status_test``. For macOS hosts,
+  this is named ``darwin_arm64-fastbuild``.
+* ``k8-opt-exec``: Host "exec" configuration. This is used to build tools
+  like ``protoc`` that are required for various stages of the build. For macOS
+  hosts, this is named ``darwin_arm64-opt-exec``.
+* ``fuchsia_x64-fastbuild-ST-89a3eb73aaef``: Code intelligence for Fuchsia
+  targets in ``pw_bluetooth_sapphire``.
 
-   .. code-block:: console
+Each of these directories provide a different view of the build graph. This
+ensures ``#if`` conditions and defines correctly match the configuration, giving
+you the most accurate code intelligence possible.
 
-      --compile-commands-dir=/path/to/pigweed/.compile_commands/fuchsia
+.. note::
+
+   Not all configurations cover the same libraries, tests, and binaries. For
+   example, the ``//:update_host_googletest_compile_commands`` command will
+   cover much more of Pigweed (and ``pw_bluetooth_proxy``), but is configured
+   specifically for host+Googletest.
+
+Select one of these configurations by directing ``clangd`` to use the associated
+directory:
+
+.. code-block:: console
+
+   --compile-commands-dir=/path/to/pigweed/.compile_commands/fuchsia_x64-fastbuild-ST-89a3eb73aaef
+
+.. note::
+
+   `b/469437909 <https://pwbug.dev/469437909>`__ The hex sequence at the end of
+   the Fuchsia platform name is unfortunately unstable, and can change
+   whenever different flags are passed to Bazel.
 
 --------------
 Infrastructure

@@ -15,7 +15,6 @@
 load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
 load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
 load("@bazel_skylib//rules:native_binary.bzl", "native_binary")
-load("@hedron_compile_commands//:refresh_compile_commands.bzl", "refresh_compile_commands")
 load("@pigweed//pw_build:compatibility.bzl", "incompatible_with_mcu")
 load("@pigweed//pw_ide/bazel/compile_commands:pw_compile_commands_generator.bzl", "pw_compile_commands_generator")
 load("@rules_python//sphinxdocs:sphinx_docs_library.bzl", "sphinx_docs_library")
@@ -98,7 +97,10 @@ pw_compile_commands_generator(
         ":update_host_googletest_compile_commands",
         ":update_rp2040_compile_commands",
         ":update_rp2350_compile_commands",
-    ],
+    ] + select({
+        "@platforms//os:linux": [":refresh_compile_commands_for_fuchsia_sdk"],
+        "//conditions:default": [],
+    }),
 )
 
 pw_compile_commands_generator(
@@ -133,92 +135,32 @@ pw_compile_commands_generator(
     ],
 )
 
-# The Fuchsia SDK is only supported on Linux hosts, so the target that
-# generates compile commands for targets built for Fuchsia is separate from
-# the more general-purpose `refresh_compile_commands` target.
-refresh_compile_commands(
+pw_compile_commands_generator(
     name = "refresh_compile_commands_for_fuchsia_sdk",
-    out_dir = ".compile_commands",
-    tags = [
-        "nomypy",
-        "nopylint",
-    ],
+    platform = "//targets/fuchsia:fuchsia_host",
     target_compatible_with = select({
         "@platforms//os:linux": [],
         "//conditions:default": ["@platforms//:incompatible"],
     }),
-    target_groups = {
-        "fuchsia": [
-            [
-                "//pw_bluetooth_sapphire/fuchsia/bt_host:test_pkg",
-                "--config=fuchsia",
-            ],
-            [
-                "//pw_bluetooth_sapphire/fuchsia/host/att:test_pkg",
-                "--config=fuchsia",
-            ],
-            [
-                "//pw_bluetooth_sapphire/fuchsia/host/common:test_pkg",
-                "--config=fuchsia",
-            ],
-            [
-                "//pw_bluetooth_sapphire/fuchsia/host/controllers:test_pkg",
-                "--config=fuchsia",
-            ],
-            [
-                "//pw_bluetooth_sapphire/fuchsia/host/fidl:test_pkg",
-                "--config=fuchsia",
-            ],
-            [
-                "//pw_bluetooth_sapphire/fuchsia/host/gap:test_pkg",
-                "--config=fuchsia",
-            ],
-            [
-                "//pw_bluetooth_sapphire/fuchsia/host/gatt:test_pkg",
-                "--config=fuchsia",
-            ],
-            [
-                "//pw_bluetooth_sapphire/fuchsia/host/hci:test_pkg",
-                "--config=fuchsia",
-            ],
-            [
-                "//pw_bluetooth_sapphire/fuchsia/host/hci-spec:test_pkg",
-                "--config=fuchsia",
-            ],
-            [
-                "//pw_bluetooth_sapphire/fuchsia/host/iso:test_pkg",
-                "--config=fuchsia",
-            ],
-            [
-                "//pw_bluetooth_sapphire/fuchsia/host/l2cap:test_pkg",
-                "--config=fuchsia",
-            ],
-            [
-                "//pw_bluetooth_sapphire/fuchsia/host/sco:test_pkg",
-                "--config=fuchsia",
-            ],
-            [
-                "//pw_bluetooth_sapphire/fuchsia/host/sdp:test_pkg",
-                "--config=fuchsia",
-            ],
-            [
-                "//pw_bluetooth_sapphire/fuchsia/host/sm:test_pkg",
-                "--config=fuchsia",
-            ],
-            [
-                "//pw_bluetooth_sapphire/fuchsia/host/socket:test_pkg",
-                "--config=fuchsia",
-            ],
-            [
-                "//pw_bluetooth_sapphire/fuchsia/host/testing:test_pkg",
-                "--config=fuchsia",
-            ],
-            [
-                "//pw_bluetooth_sapphire/fuchsia/host/transport:test_pkg",
-                "--config=fuchsia",
-            ],
-        ],
-    },
+    target_patterns = [
+        "//pw_bluetooth_sapphire/fuchsia/bt_host:test_pkg",
+        "//pw_bluetooth_sapphire/fuchsia/host/att:test_pkg",
+        "//pw_bluetooth_sapphire/fuchsia/host/common:test_pkg",
+        "//pw_bluetooth_sapphire/fuchsia/host/controllers:test_pkg",
+        "//pw_bluetooth_sapphire/fuchsia/host/fidl:test_pkg",
+        "//pw_bluetooth_sapphire/fuchsia/host/gap:test_pkg",
+        "//pw_bluetooth_sapphire/fuchsia/host/gatt:test_pkg",
+        "//pw_bluetooth_sapphire/fuchsia/host/hci:test_pkg",
+        "//pw_bluetooth_sapphire/fuchsia/host/hci-spec:test_pkg",
+        "//pw_bluetooth_sapphire/fuchsia/host/iso:test_pkg",
+        "//pw_bluetooth_sapphire/fuchsia/host/l2cap:test_pkg",
+        "//pw_bluetooth_sapphire/fuchsia/host/sco:test_pkg",
+        "//pw_bluetooth_sapphire/fuchsia/host/sdp:test_pkg",
+        "//pw_bluetooth_sapphire/fuchsia/host/sm:test_pkg",
+        "//pw_bluetooth_sapphire/fuchsia/host/socket:test_pkg",
+        "//pw_bluetooth_sapphire/fuchsia/host/testing:test_pkg",
+        "//pw_bluetooth_sapphire/fuchsia/host/transport:test_pkg",
+    ],
 )
 
 sphinx_docs_library(
