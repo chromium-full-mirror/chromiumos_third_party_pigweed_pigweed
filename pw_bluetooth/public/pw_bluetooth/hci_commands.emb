@@ -1847,6 +1847,22 @@ struct ReadEncryptionKeySizeCommand:
     -- Identifies an active ACL link (only the lower 12 bits are meaningful).
     [requires: 0x0000 <= this <= 0x0EFF]
 
+# ========== 7.6 Testing Commands ==========
+
+
+enum SimplePairingDebugModeType:
+  [maximum_bits: 8]
+  DISABLED = 0x00
+  ENABLED  = 0x01
+
+
+struct WriteSimplePairingDebugModeCommand:
+  -- 7.6.4 Write Simple Pairing Debug Mode command (2.1 + EDR) (BR/EDR)
+  -- HCI_Write_Simple_Pairing_Debug_Mode
+  let hdr_size = hci.CommandHeader.$size_in_bytes
+  0     [+hdr_size]  hci.CommandHeader           header
+  $next [+1]         SimplePairingDebugModeType  simple_pairing_debug_mode
+
 # ========== 7.8 LE Controller Commands ==========
 
 
