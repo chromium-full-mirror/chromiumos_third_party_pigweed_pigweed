@@ -15,6 +15,7 @@
 #define PW_LOG_MODULE_NAME "EXAMPLES_TIMEOUT"
 
 #include <array>
+#include <atomic>
 #include <chrono>  // IWYU pragma: keep
 #include <optional>
 #include <thread>
@@ -100,7 +101,7 @@ Result<T> RunFutureToCompletionWithTimeout(
 
 class FakeVoltageSensor {
  public:
-  static bool force_timeout;
+  static std::atomic<bool> force_timeout;
 
   Result<float> ReadWithTimeout(pw::chrono::SystemClock::duration delay) {
     auto read = ReadFuture();
@@ -133,7 +134,7 @@ class FakeVoltageSensor {
   }
 };
 
-bool FakeVoltageSensor::force_timeout = true;
+std::atomic<bool> FakeVoltageSensor::force_timeout = true;
 
 void LogSampledVoltages(const char* name,
                         const Result<Vector<float, 10>>& voltages) {
