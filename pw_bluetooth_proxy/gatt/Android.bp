@@ -31,27 +31,26 @@ cc_library_static {
     ],
     static_libs: [
         "pw_allocator",
-        "pw_assert",
         "pw_bluetooth_proxy",
         "pw_containers",
-        "pw_log",
     ],
     export_static_lib_headers: [
         "pw_allocator",
-        "pw_assert",
         "pw_bluetooth_proxy",
         "pw_containers",
-        "pw_log",
     ],
     header_libs: [
         "emboss_runtime_headers",
         "fuchsia_sdk_lib_stdcompat",
+        "pw_assert",
         "pw_bluetooth_emboss_util_include_dirs",
+        "pw_log",
+    ],
+    export_header_lib_headers: [
+        "pw_assert",
+        "pw_log",
     ],
     generated_headers: [
-        "pw_bluetooth_generate_emboss_att",
-    ],
-    export_generated_headers: [
         "pw_bluetooth_generate_emboss_att",
     ],
     // LINT.ThenChange(BUILD.gn, gatt.bzl, CMakeLists.txt)
