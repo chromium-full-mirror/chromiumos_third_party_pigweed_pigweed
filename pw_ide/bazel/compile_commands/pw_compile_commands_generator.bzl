@@ -207,5 +207,6 @@ def pw_compile_commands_generator(name, target_patterns = [], deps = [], platfor
         # Don't follow aliases, they technically mean different things from
         # a configuration perspective.
         platform = str(native.package_relative_label(platform)) if platform else None,
+        tags = kwargs.pop("tags", []) + ["pw_compile_commands_generator"],
         **kwargs
     )

@@ -38,6 +38,15 @@ command. See below for build system-specific details.
       Bazel command. This is the recommended approach as it ensures code
       intelligence is always fresh.
 
+      This mechanism is called the "Bazel Interceptor" and can be managed via the
+      ``pigweed.disableBazelInterceptor`` setting.
+
+      .. note::
+
+         The Bazel Interceptor is automatically disabled if you have configured
+         fixed compile command generation (see below), as preconfigured targets
+         take precedence over automatic discovery.
+
       **Fixed Compile Command Generation**
 
       To ensure a consistent set of compilation databases, you can use the

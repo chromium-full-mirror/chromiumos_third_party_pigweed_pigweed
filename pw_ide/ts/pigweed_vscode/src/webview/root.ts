@@ -38,6 +38,7 @@ type CipdReport = {
   lastBuildPlatformCount?: number;
   activeFileCount?: number;
   availableTargets?: { name: string; path: string }[];
+  preconfiguredTargets?: string[];
 };
 
 const vscode = acquireVsCodeApi();
@@ -51,11 +52,21 @@ export class Root extends LitElement {
       padding: 16px;
       max-width: 800px;
     }
+    .target-list {
+      list-style-type: none;
+      padding: 0;
+      margin: 8px 0;
+    }
+    .target-list li {
+      margin-bottom: 4px;
+    }
   `;
 
   @state() extensionData: ExtensionData = { unwanted: [], recommended: [] };
   @state() cipdReport: CipdReport = {};
   @state() manualBazelTarget = '';
+
+  @state() selectedPreconfiguredTarget = '';
 
   createRenderRoot() {
     return this;
@@ -66,6 +77,15 @@ export class Root extends LitElement {
     // Initialize manualBazelTarget when component connects
     this.manualBazelTarget =
       this.cipdReport.bazelCompileCommandsManualBuildCommand || '';
+
+    // Initialize selectedPreconfiguredTarget if available
+    if (
+      this.cipdReport.preconfiguredTargets &&
+      this.cipdReport.preconfiguredTargets.length > 0
+    ) {
+      this.selectedPreconfiguredTarget =
+        this.cipdReport.preconfiguredTargets[0];
+    }
   }
 
   private _toggleBazelInterceptor(enabled: boolean) {
@@ -96,6 +116,21 @@ export class Root extends LitElement {
       type: 'refreshCompileCommandsManually',
       data: this.manualBazelTarget.trim(),
     });
+  }
+
+  private _handlePreconfiguredTargetChange(event: Event) {
+    const selectElement = event.target as HTMLSelectElement;
+    this.selectedPreconfiguredTarget = selectElement.value;
+  }
+
+  private _runPreconfiguredTarget(e?: MouseEvent) {
+    e?.preventDefault();
+    if (this.selectedPreconfiguredTarget) {
+      vscode.postMessage({
+        type: 'runPreconfiguredTarget',
+        data: this.selectedPreconfiguredTarget,
+      });
+    }
   }
 
   private _selectTarget(e: Event) {
@@ -145,6 +180,10 @@ export class Root extends LitElement {
         >.
       </p>`;
 
+    const isPreconfigured =
+      this.cipdReport.preconfiguredTargets &&
+      this.cipdReport.preconfiguredTargets.length > 0;
+
     // Loading state
     if (Object.keys(this.cipdReport).length === 0) {
       return html` <div class="code-intelligence-status-card">
@@ -173,22 +212,66 @@ export class Root extends LitElement {
         <div class="status-line status-success">
           <span>✅</span>
           <span
-            >Code intelligence is configured and working (<a
-              href="#"
-              @click=${this._openDebugDetails}
-              >see details</a
+            >${isPreconfigured
+              ? html`<span style="color: gray"
+                  >Code intelligence is <b>preconfigured</b> in
+                  <code>BUILD.bazel</code></span
+                >`
+              : 'Code intelligence is configured and working'}
+            (<a href="#" @click=${this._openDebugDetails}>see details</a
             >).</span
           >
         </div>
         <ol class="status-steps">
           <li>
-            <b>Run a build</b>
+            <b
+              >${isPreconfigured
+                ? 'Generate compile commands'
+                : 'Run a build'}</b
+            >
             <div class="step-detail">
-              Last built:
-              <code
-                >bazel
-                ${this.cipdReport.bazelCompileCommandsLastBuildCommand}</code
-              >
+              ${isPreconfigured
+                ? html`
+                    Select a target to generate compile commands:
+                    <div class="target-selection-row">
+                      <div class="vscode-select">
+                        <select
+                          @change=${this._handlePreconfiguredTargetChange}
+                        >
+                          ${this.cipdReport.preconfiguredTargets?.map(
+                            (target) => html`
+                              <option
+                                value=${target}
+                                ?selected=${target ===
+                                this.selectedPreconfiguredTarget}
+                              >
+                                ${target}
+                              </option>
+                            `,
+                          )}
+                        </select>
+                      </div>
+                      <div
+                        class="vscode-button"
+                        role="button"
+                        tabindex="0"
+                        @click=${this._runPreconfiguredTarget}
+                        @keydown=${(e: KeyboardEvent) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            this._runPreconfiguredTarget();
+                          }
+                        }}
+                      >
+                        Generate
+                      </div>
+                    </div>
+                  `
+                : html`Last built:
+                    <code
+                      >bazel
+                      ${this.cipdReport
+                        .bazelCompileCommandsLastBuildCommand}</code
+                    >`}
             </div>
           </li>
           <li>
@@ -287,10 +370,35 @@ export class Root extends LitElement {
 
     const steps = [
       {
-        title: 'Run a build',
-        detail: this.cipdReport.bazelCompileCommandsLastBuildCommand
-          ? `Last built: <code>bazel ${this.cipdReport.bazelCompileCommandsLastBuildCommand}</code>`
-          : 'Build a bazel target in your project',
+        title: isPreconfigured ? 'Generate compile commands' : 'Run a build',
+        detail: isPreconfigured
+          ? html`
+              <div class="step-detail">
+                Select a target to generate compile commands:
+                <ul class="target-list">
+                  ${this.cipdReport.preconfiguredTargets?.map(
+                    (target) => html`
+                      <li>
+                        <a
+                          href="#"
+                          @click=${(e: MouseEvent) => {
+                            e.preventDefault();
+                            vscode.postMessage({
+                              type: 'runPreconfiguredTarget',
+                              data: target,
+                            });
+                          }}
+                          >bazel build ${target}</a
+                        >
+                      </li>
+                    `,
+                  )}
+                </ul>
+              </div>
+            `
+          : this.cipdReport.bazelCompileCommandsLastBuildCommand
+            ? `Last built: <code>bazel ${this.cipdReport.bazelCompileCommandsLastBuildCommand}</code>`
+            : 'Build a bazel target in your project',
       },
       {
         title: `Select a platform ${platformText}`,
@@ -307,10 +415,13 @@ export class Root extends LitElement {
       <div class="status-line status-info">
         <span>ℹ️</span>
         <span
-          >${this.cipdReport.isBazelInterceptorEnabled
-            ? html`Run <code>bazel </code> on a target to configure code
-                intelligence`
-            : 'Refresh manually below to configure code intelligence'}
+          >${isPreconfigured
+            ? html`Compile commands are <b>preconfigured</b> in
+                <code>BUILD.bazel</code>`
+            : this.cipdReport.isBazelInterceptorEnabled
+              ? html`Run <code>bazel </code> on a target to configure code
+                  intelligence`
+              : 'Refresh manually below to configure code intelligence'}
           (<a href="#" @click=${this._openDebugDetails}>see details</a>).</span
         >
       </div>
@@ -354,6 +465,30 @@ export class Root extends LitElement {
           <div>
             <span>Settings for code navigation and intelligence.</span>
             <div class="container">
+              <div class="row">
+                <label class="checkbox-label">
+                  <input
+                    type="checkbox"
+                    .checked=${this.cipdReport.experimentalCompileCommands}
+                    @change=${(e: Event) =>
+                      this._toggleExperimentalCompileCommands(
+                        (e.target as HTMLInputElement).checked,
+                      )}
+                  />
+                  Use aspect-based compile commands generator (experimental)
+                </label>
+              </div>
+              <div class="row">
+                <div>
+                  <b>Compile commands generated using</b><br />
+                  <sub>
+                    ${this.cipdReport.bazelCompileCommandsLastBuildCommand
+                      ? `bazel ${this.cipdReport.bazelCompileCommandsLastBuildCommand}`
+                      : 'NA'}
+                  </sub>
+                </div>
+                <div></div>
+              </div>
               <div class="toggle-button-group">
                 <button
                   class="toggle-button ${this.cipdReport
@@ -422,27 +557,6 @@ export class Root extends LitElement {
                 </div>
               </div>
               <div class="row">
-                <label class="checkbox-label">
-                  <input
-                    type="checkbox"
-                    .checked=${this.cipdReport.experimentalCompileCommands}
-                    @change=${(e: Event) =>
-                      this._toggleExperimentalCompileCommands(
-                        (e.target as HTMLInputElement).checked,
-                      )}
-                  />
-                  Use aspect-based compile commands generator (experimental)
-                </label>
-              </div>
-              <div class="row">
-                <div>
-                  <b>Compile commands generated using</b><br />
-                  <sub>
-                    ${this.cipdReport.bazelCompileCommandsLastBuildCommand
-                      ? `bazel ${this.cipdReport.bazelCompileCommandsLastBuildCommand}`
-                      : 'NA'}
-                  </sub>
-                </div>
                 <div></div>
               </div>
 
@@ -677,6 +791,16 @@ export class Root extends LitElement {
           this.cipdReport = message.data;
           this.manualBazelTarget =
             this.cipdReport.bazelCompileCommandsManualBuildCommand || '';
+
+          if (
+            !this.selectedPreconfiguredTarget &&
+            this.cipdReport.preconfiguredTargets &&
+            this.cipdReport.preconfiguredTargets.length > 0
+          ) {
+            this.selectedPreconfiguredTarget =
+              this.cipdReport.preconfiguredTargets[0];
+          }
+
           this.requestUpdate();
         }
       },

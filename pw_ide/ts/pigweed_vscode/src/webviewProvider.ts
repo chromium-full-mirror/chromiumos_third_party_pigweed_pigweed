@@ -57,8 +57,8 @@ function saveLastBazelCommand(
     logger?.addStdout(
       `Saved last bazel command to ${CDB_FILE_DIR}/${LAST_BAZEL_COMMAND_FILE_NAME}.`,
     );
-  } catch (e: any) {
-    logger?.addStderr('Failed to save last bazel command: ' + e.toString());
+  } catch (e: unknown) {
+    logger?.addStderr('Failed to save last bazel command: ' + String(e));
   }
 }
 
@@ -195,7 +195,9 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
 
   public resolveWebviewView(
     webviewView: vscode.WebviewView,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _context: vscode.WebviewViewResolveContext,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _token: vscode.CancellationToken,
   ) {
     this._view = webviewView;
@@ -306,6 +308,38 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
         case 'refreshCompileCommandsManually': {
           const buildCmd = data.data;
           await executeRefreshCompileCommandsManually(buildCmd);
+          break;
+        }
+        case 'runPreconfiguredTarget': {
+          const target = data.data;
+          const bazelBinary = getReliableBazelExecutable();
+          if (!bazelBinary) {
+            vscode.window.showErrorMessage('Bazel binary not found.');
+            break;
+          }
+          output.show();
+          const logger = new LoggerUI(logging);
+          const cwd = workingDir.get();
+
+          logging.info(`Running ${bazelBinary} run ${target}`);
+
+          // We use `bazel run` to execute the target.
+          // The target is expected to be a `pw_compile_commands_generator` target.
+          const exitCode = await spawnAsync(
+            bazelBinary,
+            ['run', target],
+            cwd,
+            logger,
+            bazelBinary,
+          );
+          if (exitCode !== 0) {
+            logger?.finishWithError(
+              `❌ Updating compile commands failed with exit code ${exitCode}.`,
+            );
+            return;
+          }
+
+          logger?.finish('✅ Compile commands generated successfully.');
           break;
         }
         case 'openDocs': {

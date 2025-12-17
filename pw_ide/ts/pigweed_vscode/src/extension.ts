@@ -31,8 +31,6 @@ import {
   enableInactiveFileCodeIntelligence,
   getTarget,
   initBazelClangdPath,
-  refreshCompileCommandsAndSetTarget,
-  refreshNonBazelCompileCommands,
   setCompileCommandsTarget,
   setTargetWithClangd,
 } from './clangd';
@@ -84,6 +82,8 @@ import {
 import { checkClangdVersion } from './clangd/extensionChecker';
 import { handleInactiveFileCodeIntelligenceEnabled } from './clangd/activeFilesCache';
 import * as path from 'path';
+import { getPreconfiguredTargets } from './bazelQuery';
+import { manageBazelInterceptor } from './interceptorLogic';
 
 interface CommandEntry {
   name: string;
@@ -368,6 +368,9 @@ export async function activate(context: vscode.ExtensionContext) {
     'experimentalCompileCommands',
   );
 
+  const preconfiguredTargets = await getPreconfiguredTargets(workingDir.get());
+  const isPreconfigured = preconfiguredTargets.length > 0;
+
   if (
     experimentalCompileCommands?.workspaceValue === undefined &&
     experimentalCompileCommands?.globalValue === undefined
@@ -498,9 +501,11 @@ export async function activate(context: vscode.ExtensionContext) {
       await initAsBazelProject(refreshManager);
     }
 
-    if (!settings.disableBazelInterceptor()) {
-      await createBazelInterceptorFile();
-    }
+    await manageBazelInterceptor(
+      settings.disableBazelInterceptor(),
+      isPreconfigured,
+      createBazelInterceptorFile,
+    );
 
     registerCommands(
       projectType,

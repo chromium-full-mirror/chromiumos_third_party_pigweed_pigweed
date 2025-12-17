@@ -19,8 +19,22 @@ import { getTarget, CDB_FILE_DIR, LAST_BAZEL_COMMAND_FILE_NAME } from './paths';
 import { clangdPath } from './bazel';
 import { settings, workingDir } from '../settings/vscode';
 
-export default function getCipdReport() {
-  const report: any = {};
+import { getPreconfiguredTargets } from '../bazelQuery';
+
+interface CipdReport {
+  clangdPath?: string;
+  bazelPath?: string;
+  targetSelected?: string;
+  isCompileCommandsGenerated?: boolean;
+  compileCommandsPath?: string;
+  bazelCompileCommandsManualBuildCommand?: string;
+  bazelCompileCommandsLastBuildCommand?: string;
+  preconfiguredTargets?: string[];
+  [key: string]: any;
+}
+
+export default async function getCipdReport() {
+  const report: CipdReport = {};
 
   // Check if clangd is found
   const clangdCmd = clangdPath();
@@ -56,6 +70,11 @@ export default function getCipdReport() {
   } else {
     report['bazelCompileCommandsLastBuildCommand'] = '';
   }
+
+  // Check for preconfigured compile commands
+  report['preconfiguredTargets'] = await getPreconfiguredTargets(
+    workingDir.get(),
+  );
 
   return report;
 }

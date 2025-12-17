@@ -162,6 +162,23 @@
   background-color: var(--vscode-button-hoverBackground);
 }
 
+.target-selection-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.target-selection-row .vscode-select {
+  flex-grow: 1;
+}
+
+.target-selection-row .vscode-button {
+  min-width: 56px;
+  padding: 1px 4px;
+}
 .input-button-row {
   display: flex;
   align-items: stretch;
@@ -316,6 +333,7 @@
 }
 
 .status-steps li {
+  margin-top: 1em;
   margin-bottom: 1em;
 }
 
