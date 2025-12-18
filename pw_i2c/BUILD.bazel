@@ -98,7 +98,7 @@ pw_facade(
 
 label_flag(
     name = "responder_test_backend",
-    build_setting_default = "//pw_build:empty_cc_library",
+    build_setting_default = "@rules_cc//:empty_lib",
 )
 
 cc_library(

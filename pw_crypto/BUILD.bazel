@@ -69,7 +69,7 @@ cc_library(
 
 label_flag(
     name = "mbedtls_sha256_engine",
-    build_setting_default = "//pw_build:empty_cc_library",
+    build_setting_default = "@rules_cc//:empty_lib",
 )
 
 # TODO: https://pwbug.dev/452106129 - This target will be renamed/moved
@@ -225,7 +225,7 @@ cc_library(
 # Label flag to provide an alt AES implementation to mbedTLS.
 label_flag(
     name = "mbedtls_aes_engine",
-    build_setting_default = "//pw_build:empty_cc_library",
+    build_setting_default = "@rules_cc//:empty_lib",
 )
 
 # TODO: https://pwbug.dev/452106129 - This target will be renamed/moved

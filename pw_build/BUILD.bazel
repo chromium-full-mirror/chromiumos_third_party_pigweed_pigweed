@@ -187,7 +187,7 @@ pw_cc_test(
 label_flag(
     name = "default_module_config",
     # The default module config is empty.
-    build_setting_default = ":empty_cc_library",
+    build_setting_default = "@rules_cc//:empty_lib",
 )
 
 cc_library(
@@ -214,8 +214,9 @@ pw_cc_test(
 # This empty library is used as a placeholder for label flags that need to
 # point to a library of some kind, but don't actually need the dependency to
 # amount to anything.
-cc_library(
+alias(
     name = "empty_cc_library",
+    actual = "@rules_cc//:empty_lib",
 )
 
 # A special target used instead of a cc_library as the default condition in

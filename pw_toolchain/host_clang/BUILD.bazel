@@ -352,7 +352,7 @@ alias(
     actual = select({
         "@platforms//os:linux": "@linux_sysroot//:sysroot",
         "@platforms//os:macos": "@macos_sysroot//:sysroot",
-        "//conditions:default": "//pw_build:empty_cc_library",
+        "//conditions:default": "@rules_cc//:empty_lib",
     }),
 )
 
