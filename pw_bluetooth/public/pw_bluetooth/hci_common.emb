@@ -209,6 +209,9 @@ enum OpCode:
   EXIT_SNIFF_MODE                                              = 0x0804
     -- Exit Sniff Mode Command
 
+  SNIFF_SUBRATING                                              = 0x0811
+    -- Sniff Subrating Command
+
   ### Controller & Baseband Commands - Core Spec v5.0 Vol 2, Part E, Section 7.3 (OGF 0x03)
 
   SET_EVENT_MASK                                               = 0x0C01
