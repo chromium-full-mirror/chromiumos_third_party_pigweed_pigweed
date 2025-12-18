@@ -49,7 +49,6 @@ pw_source_set("interrupt_spin_lock") {
   public_deps = [
     "$dir_pw_assert",
     "$dir_pw_sync:interrupt_spin_lock.facade",
-    "$dir_pw_sync:yield_core",
   ]
 }
 
