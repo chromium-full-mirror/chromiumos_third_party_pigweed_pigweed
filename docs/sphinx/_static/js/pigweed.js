@@ -66,7 +66,7 @@ window.pw.initSearch = () => {
       // Send the search query to Google Analytics.
       // https://developers.google.com/analytics/devguides/collection/ga4/reference/events#search
       // eslint-disable-next-line no-undef
-      if (gtag) {
+      if (typeof window.gtag === 'function') {
         // eslint-disable-next-line no-undef
         gtag('event', 'search', { search_term: query });
       }
@@ -278,6 +278,34 @@ window.pw.monkeyPatchSphinxSearchIndex = async () => {
   Search.performSearch(query);
 };
 
+// Measure how much pigweed.dev visitors use the site's various navigation
+// aids: global nav, breadcrumbs, page nav, etc.
+window.pw.setUpNavigationAnalytics = () => {
+  const selectors = {
+    breadcrumbs: '.bd-breadcrumbs a',
+    global_nav: '.bd-header a',
+    main_content: '.bd-article a',
+    page_nav: '.bd-sidebar-secondary a',
+    prev_next: '.prev-next-footer a',
+    section_nav: '.bd-sidebar-primary a',
+  };
+  for (const [label, selector] of Object.entries(selectors)) {
+    const links = Array.from(document.querySelectorAll(selector));
+    links.forEach((link) => {
+      link.addEventListener('click', (e) => {
+        // eslint-disable-next-line no-undef
+        if (typeof window.gtag === 'function') {
+          // eslint-disable-next-line no-undef
+          gtag('event', 'click', {
+            event_category: 'navigation',
+            event_label: label,
+          });
+        }
+      });
+    });
+  }
+};
+
 window.addEventListener('DOMContentLoaded', () => {
   // Manually control when Mermaid diagrams render to prevent scrolling issues.
   // Context: https://pigweed.dev/docs/style_guide.html#site-nav-scrolling
@@ -290,5 +318,6 @@ window.addEventListener('DOMContentLoaded', () => {
   window.pw.root = document.documentElement.dataset.content_root;
   window.pw.initSearch();
   window.pw.monkeyPatchSphinxSearchIndex();
+  window.pw.setUpNavigationAnalytics();
   window.pw.dev();
 });
