@@ -1192,7 +1192,6 @@ _LINTFORMAT = pigweed_local_presubmit.QUICK + (
 LINTFORMAT = (
     _LINTFORMAT,
     python_checks.check_python_versions,
-    python_checks.gn_python_lint,
 )
 
 QUICK = (
