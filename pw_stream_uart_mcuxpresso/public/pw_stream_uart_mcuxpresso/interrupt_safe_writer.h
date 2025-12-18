@@ -34,17 +34,6 @@ class InterruptSafeUartWriterMcuxpresso : public pw::stream::NonSeekableWriter {
       uintptr_t base,
       clock_name_t clock_name,
       unsigned int baudrate,
-      pw::clock_tree::Element& clock_tree_element)
-      : base_(base),
-        baudrate_(baudrate),
-        flow_control_(false),
-        clock_tree_element_(clock_tree_element),
-        clock_name_(clock_name) {}
-
-  constexpr InterruptSafeUartWriterMcuxpresso(
-      uintptr_t base,
-      clock_name_t clock_name,
-      unsigned int baudrate,
       bool flow_control,
       pw::clock_tree::Element& clock_tree_element)
       : base_(base),
