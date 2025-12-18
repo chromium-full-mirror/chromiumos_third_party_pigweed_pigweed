@@ -1,5 +1,13 @@
 # Change Log
 
+## [1.10.0] - 2025-12-18
+
+### ✨ Features & Improvements
+
+ * Pre-configured Compile Commands: Compile commands can now be configured in
+   your BUILD.bazel file. See https://pigweed.dev/pw_ide/guide/vscode/code_intelligence.html
+   for details.
+
 ## [1.9.12] - 2025-10-20
 
 ### 🐛 Bug Fixes
