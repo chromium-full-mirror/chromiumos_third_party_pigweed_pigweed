@@ -34,7 +34,7 @@ type CipdReport = {
   isBazelInterceptorEnabled?: boolean;
   bazelCompileCommandsManualBuildCommand?: string;
   bazelCompileCommandsLastBuildCommand?: string;
-  experimentalCompileCommands?: boolean;
+
   lastBuildPlatformCount?: number;
   activeFileCount?: number;
   availableTargets?: { name: string; path: string }[];
@@ -93,13 +93,6 @@ export class Root extends LitElement {
       type: enabled
         ? 'enableBazelBuildInterceptor'
         : 'disableBazelBuildInterceptor', // Send appropriate message
-    });
-  }
-
-  private _toggleExperimentalCompileCommands(enabled: boolean) {
-    vscode.postMessage({
-      type: 'setExperimentalCompileCommands',
-      data: enabled,
     });
   }
 
@@ -465,19 +458,7 @@ export class Root extends LitElement {
           <div>
             <span>Settings for code navigation and intelligence.</span>
             <div class="container">
-              <div class="row">
-                <label class="checkbox-label">
-                  <input
-                    type="checkbox"
-                    .checked=${this.cipdReport.experimentalCompileCommands}
-                    @change=${(e: Event) =>
-                      this._toggleExperimentalCompileCommands(
-                        (e.target as HTMLInputElement).checked,
-                      )}
-                  />
-                  Use aspect-based compile commands generator (experimental)
-                </label>
-              </div>
+              <div class="row"></div>
               <div class="row">
                 <div>
                   <b>Compile commands generated using</b><br />

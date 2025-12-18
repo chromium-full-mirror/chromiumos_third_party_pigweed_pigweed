@@ -43,7 +43,6 @@ export interface Settings {
   disableInactiveFileNotice: Setting<boolean>;
   disableInactiveFileCodeIntelligence: Setting<boolean>;
   enforceExtensionRecommendations: Setting<boolean>;
-  experimentalCompileCommands: Setting<boolean>;
   hideInactiveFileIndicators: Setting<boolean>;
   preserveBazelPath: Setting<boolean>;
   projectRoot: Setting<string | undefined>;
@@ -334,18 +333,6 @@ function enforceExtensionRecommendations(
   return update(value);
 }
 
-function experimentalCompileCommands(): boolean;
-function experimentalCompileCommands(
-  value: boolean | undefined,
-): Thenable<void>;
-function experimentalCompileCommands(
-  value?: boolean,
-): boolean | undefined | Thenable<void> {
-  const { get, update } = boolSettingFor('experimentalCompileCommands');
-  if (value === undefined) return get() ?? false;
-  return update(value);
-}
-
 function hideInactiveFileIndicators(): boolean;
 function hideInactiveFileIndicators(value: boolean | undefined): Thenable<void>;
 function hideInactiveFileIndicators(
@@ -450,7 +437,6 @@ export const settings: Settings = {
   disableInactiveFileNotice,
   disableInactiveFileCodeIntelligence,
   enforceExtensionRecommendations,
-  experimentalCompileCommands,
   hideInactiveFileIndicators,
   preserveBazelPath,
   projectRoot,

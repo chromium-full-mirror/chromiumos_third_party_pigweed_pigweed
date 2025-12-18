@@ -121,39 +121,6 @@ export async function generateAspectCompileCommands(
   saveLastBazelCommand(cwd, `build ${buildCmd}`, logger);
 }
 
-async function generateAqueryCompileCommands(
-  bazelBinary: string,
-  buildCmd: string,
-  cwd: string,
-  logger: LoggerUI,
-) {
-  // Python-based generator
-  const generatorTarget =
-    '@pigweed//pw_ide/py:compile_commands_generator_binary';
-  const args = [
-    'run',
-    generatorTarget,
-    '--',
-    '--target',
-    `build ${buildCmd}`,
-    '--cwd',
-    cwd,
-    '--bazelCmd',
-    bazelBinary,
-  ];
-
-  const exitCode = await spawnAsync(bazelBinary, args, cwd, logger);
-
-  if (exitCode === 0) {
-    logger.finish('✅ Compile commands generated successfully.');
-    saveLastBazelCommand(cwd, `build ${buildCmd}`, logger);
-  } else {
-    logger.finishWithError(
-      `❌ Compile commands generation failed with exit code ${exitCode}.`,
-    );
-  }
-}
-
 export async function executeRefreshCompileCommandsManually(buildCmd: string) {
   const bazelBinary = getReliableBazelExecutable();
   const cwd = workingDir.get();
@@ -170,11 +137,7 @@ export async function executeRefreshCompileCommandsManually(buildCmd: string) {
   const logger = new LoggerUI(logging);
   await settings.bazelCompileCommandsManualBuildCommand(buildCmd);
 
-  if (settings.experimentalCompileCommands()) {
-    generateAspectCompileCommands(bazelBinary, buildCmd, cwd, logger);
-  } else {
-    generateAqueryCompileCommands(bazelBinary, buildCmd, cwd, logger);
-  }
+  generateAspectCompileCommands(bazelBinary, buildCmd, cwd, logger);
 }
 
 export class WebviewProvider implements vscode.WebviewViewProvider {
@@ -295,15 +258,6 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
           await this.sendCipdReport();
           break;
         }
-        case 'setExperimentalCompileCommands': {
-          const enabled = data.data;
-          await settings.experimentalCompileCommands(enabled);
-          if (!settings.disableBazelInterceptor()) {
-            await createBazelInterceptorFile();
-          }
-          await this.sendCipdReport();
-          break;
-        }
 
         case 'refreshCompileCommandsManually': {
           const buildCmd = data.data;
@@ -378,7 +332,6 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
     const pathForBazelBuildInterceptor = getBazelInterceptorPath();
     if (!pathForBazelBuildInterceptor) return;
     const bazelInterceptorExists = existsSync(pathForBazelBuildInterceptor);
-    const experimentalCompileCommands = settings.experimentalCompileCommands();
 
     const targets = await availableTargets();
     const lastBuildPlatformCount = targets.length;
@@ -397,7 +350,6 @@ export class WebviewProvider implements vscode.WebviewViewProvider {
     report = {
       ...report,
       isBazelInterceptorEnabled: bazelInterceptorExists,
-      experimentalCompileCommands,
       lastBuildPlatformCount,
       activeFileCount,
       availableTargets: targets.map((t) => ({

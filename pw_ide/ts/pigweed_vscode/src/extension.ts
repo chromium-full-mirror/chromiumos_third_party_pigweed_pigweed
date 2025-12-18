@@ -362,22 +362,8 @@ export async function activate(context: vscode.ExtensionContext) {
   logger.info('Extension loaded');
   logger.info('');
 
-  // Default to experimental aspects compile commands generator
-  const config = vscode.workspace.getConfiguration('pigweed');
-  const experimentalCompileCommands = config.inspect(
-    'experimentalCompileCommands',
-  );
-
   const preconfiguredTargets = await getPreconfiguredTargets(workingDir.get());
   const isPreconfigured = preconfiguredTargets.length > 0;
-
-  if (
-    experimentalCompileCommands?.workspaceValue === undefined &&
-    experimentalCompileCommands?.globalValue === undefined
-  ) {
-    await settings.experimentalCompileCommands(true);
-    logger.info('Defaulting `experimentalCompileCommands` to true.');
-  }
 
   const useBazel = await shouldSupportBazel();
   const useCmake = await shouldSupportCmake();
