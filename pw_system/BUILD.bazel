@@ -651,7 +651,7 @@ cc_library(
     tags = ["noclangtidy"],
     deps = [
         "//pw_allocator:allocator",
-        "//pw_async2:dispatcher",
+        "//pw_async2",
         "//pw_channel",
         "//pw_rpc",
     ],
@@ -671,7 +671,7 @@ cc_library(
     deps = [
         ":config",
         "//pw_allocator:allocator",
-        "//pw_async2:dispatcher",
+        "//pw_async2",
         "//pw_channel",
         "//pw_channel:forwarding_channel",
         "//pw_containers:inline_var_len_entry_queue",

@@ -58,7 +58,7 @@ pw_test("poll_test") {
   sources = [ "poll_test.cc" ]
 }
 
-pw_source_set("dispatcher") {
+pw_source_set("pw_async2") {
   public_configs = [ ":public_include_path" ]
   public = [
     "public/pw_async2/context.h",
@@ -94,6 +94,10 @@ pw_source_set("dispatcher") {
   ]
 }
 
+group("dispatcher") {
+  public_deps = [ ":pw_async2" ]
+}
+
 pw_source_set("internal") {
   public_configs = [ ":public_include_path" ]
   public = [
@@ -113,7 +117,7 @@ pw_source_set("basic_dispatcher") {
   public_configs = [ ":public_include_path" ]
   public = [ "public/pw_async2/basic_dispatcher.h" ]
   public_deps = [
-    ":dispatcher",
+    ":pw_async2",
     "$dir_pw_sync:thread_notification",
   ]
 }
@@ -122,7 +126,7 @@ pw_source_set("notified_dispatcher") {
   public_configs = [ ":public_include_path" ]
   public = [ "public/pw_async2/notified_dispatcher.h" ]
   public_deps = [
-    ":dispatcher",
+    ":pw_async2",
     "$dir_pw_sync:thread_notification",
   ]
 }
@@ -131,7 +135,7 @@ pw_source_set("testing") {
   public_configs = [ ":public_include_path" ]
   public = [ "public/pw_async2/dispatcher_for_test.h" ]
   deps = [ dir_pw_assert ]
-  public_deps = [ ":dispatcher" ]
+  public_deps = [ ":pw_async2" ]
   if (pw_async2_DISPATCHER_FOR_TEST_BACKEND != "") {
     public_deps += [ pw_async2_DISPATCHER_FOR_TEST_BACKEND ]
   }
@@ -154,7 +158,7 @@ pw_source_set("basic_dispatcher_for_test") {
 pw_source_set("epoll_dispatcher") {
   public_configs = [ ":public_include_path" ]
   public_deps = [
-    ":dispatcher",
+    ":pw_async2",
     "$dir_pw_assert",
     "$dir_pw_status",
   ]
@@ -179,7 +183,7 @@ pw_test("dispatcher_test") {
               pw_sync_INTERRUPT_SPIN_LOCK_BACKEND != "" &&
               pw_sync_TIMED_THREAD_NOTIFICATION_BACKEND != ""
   deps = [
-    ":dispatcher",
+    ":pw_async2",
     ":testing",
     "$dir_pw_containers:vector",
   ]
@@ -190,17 +194,17 @@ pw_source_set("pendable") {
   public_configs = [ ":public_include_path" ]
   public = [ "public/pw_async2/pendable.h" ]
   public_deps = [
-    ":dispatcher",
     ":poll",
+    ":pw_async2",
   ]
 }
 
 pw_test("pendable_test") {
   enable_if = pw_async2_DISPATCHER_FOR_TEST_BACKEND != ""
   deps = [
-    ":dispatcher",
     ":pendable",
     ":poll",
+    ":pw_async2",
     ":testing",
   ]
   sources = [ "pendable_test.cc" ]
@@ -209,9 +213,9 @@ pw_test("pendable_test") {
 pw_test("future_test") {
   enable_if = pw_async2_DISPATCHER_FOR_TEST_BACKEND != ""
   deps = [
-    ":dispatcher",
     ":pend_func_task",
     ":poll",
+    ":pw_async2",
     ":select",
     ":testing",
   ]
@@ -224,8 +228,8 @@ pw_source_set("future_timeout") {
   public = [ "public/pw_async2/future_timeout.h" ]
   public_deps = [
     ":channel",
-    ":dispatcher",
     ":poll",
+    ":pw_async2",
     ":system_time_provider",
     ":time_provider",
     ":value_future",
@@ -242,10 +246,10 @@ pw_test("future_timeout_test") {
   enable_if = pw_async2_DISPATCHER_FOR_TEST_BACKEND != ""
   deps = [
     ":channel",
-    ":dispatcher",
     ":future_timeout",
     ":pend_func_task",
     ":poll",
+    ":pw_async2",
     ":simulated_time_provider",
     ":testing",
     ":value_future",
@@ -262,17 +266,17 @@ pw_source_set("value_future") {
   public_configs = [ ":public_include_path" ]
   public = [ "public/pw_async2/value_future.h" ]
   public_deps = [
-    ":dispatcher",
     ":poll",
+    ":pw_async2",
   ]
 }
 
 pw_test("value_future_test") {
   enable_if = pw_async2_DISPATCHER_FOR_TEST_BACKEND != ""
   deps = [
-    ":dispatcher",
     ":pend_func_task",
     ":poll",
+    ":pw_async2",
     ":testing",
     ":value_future",
   ]
@@ -283,7 +287,7 @@ pw_source_set("pend_func_task") {
   public_configs = [ ":public_include_path" ]
   public = [ "public/pw_async2/pend_func_task.h" ]
   public_deps = [
-    ":dispatcher",
+    ":pw_async2",
     dir_pw_function,
   ]
 }
@@ -291,8 +295,8 @@ pw_source_set("pend_func_task") {
 pw_test("pend_func_task_test") {
   enable_if = pw_async2_DISPATCHER_FOR_TEST_BACKEND != ""
   deps = [
-    ":dispatcher",
     ":pend_func_task",
+    ":pw_async2",
     ":testing",
   ]
   sources = [ "pend_func_task_test.cc" ]
@@ -302,7 +306,7 @@ pw_source_set("callback_task") {
   public_configs = [ ":public_include_path" ]
   public = [ "public/pw_async2/callback_task.h" ]
   public_deps = [
-    ":dispatcher",
+    ":pw_async2",
     dir_pw_function,
   ]
 }
@@ -311,7 +315,7 @@ pw_test("callback_task_test") {
   enable_if = pw_async2_DISPATCHER_FOR_TEST_BACKEND != ""
   deps = [
     ":callback_task",
-    ":dispatcher",
+    ":pw_async2",
     ":testing",
     ":value_future",
     dir_pw_function,
@@ -324,7 +328,7 @@ pw_source_set("allocate_task") {
   public_configs = [ ":public_include_path" ]
   public = [ "public/pw_async2/allocate_task.h" ]
   public_deps = [
-    ":dispatcher",
+    ":pw_async2",
     "$dir_pw_allocator:allocator",
   ]
 }
@@ -343,7 +347,7 @@ pw_source_set("once_sender") {
   public_configs = [ ":public_include_path" ]
   public = [ "public/pw_async2/once_sender.h" ]
   public_deps = [
-    ":dispatcher",
+    ":pw_async2",
     "$dir_pw_function",
     "$dir_pw_sync:mutex",
   ]
@@ -364,7 +368,7 @@ pw_source_set("waker_queue") {
   public = [ "public/pw_async2/waker_queue.h" ]
   deps = [ "$dir_pw_log:args" ]
   public_deps = [
-    ":dispatcher",
+    ":pw_async2",
     "$dir_pw_containers:inline_queue",
   ]
   sources = [ "waker_queue.cc" ]
@@ -385,7 +389,7 @@ if (pw_toolchain_CXX_STANDARD >= pw_toolchain_STANDARD.CXX20) {
     public_configs = [ ":public_include_path" ]
     public = [ "public/pw_async2/coro.h" ]
     public_deps = [
-      ":dispatcher",
+      ":pw_async2",
       "$dir_pw_allocator:allocator",
       "$dir_pw_status",
       dir_pw_function,
@@ -398,7 +402,7 @@ if (pw_toolchain_CXX_STANDARD >= pw_toolchain_STANDARD.CXX20) {
     enable_if = pw_async2_DISPATCHER_FOR_TEST_BACKEND != ""
     deps = [
       ":coro",
-      ":dispatcher",
+      ":pw_async2",
       ":testing",
       "$dir_pw_allocator:null_allocator",
       "$dir_pw_allocator:testing",
@@ -412,7 +416,7 @@ if (pw_toolchain_CXX_STANDARD >= pw_toolchain_STANDARD.CXX20) {
     public = [ "public/pw_async2/coro_or_else_task.h" ]
     public_deps = [
       ":coro",
-      ":dispatcher",
+      ":pw_async2",
       "$dir_pw_function",
       "$dir_pw_status",
     ]
@@ -424,7 +428,7 @@ if (pw_toolchain_CXX_STANDARD >= pw_toolchain_STANDARD.CXX20) {
     deps = [
       ":coro",
       ":coro_or_else_task",
-      ":dispatcher",
+      ":pw_async2",
       ":testing",
       "$dir_pw_allocator:null_allocator",
       "$dir_pw_allocator:testing",
@@ -436,8 +440,8 @@ if (pw_toolchain_CXX_STANDARD >= pw_toolchain_STANDARD.CXX20) {
     public_configs = [ ":public_include_path" ]
     public = [ "public/pw_async2/pend_func_awaitable.h" ]
     public_deps = [
-      ":dispatcher",
       ":poll",
+      ":pw_async2",
       dir_pw_function,
     ]
   }
@@ -447,9 +451,9 @@ if (pw_toolchain_CXX_STANDARD >= pw_toolchain_STANDARD.CXX20) {
     deps = [
       ":coro",
       ":coro_or_else_task",
-      ":dispatcher",
       ":pend_func_awaitable",
       ":poll",
+      ":pw_async2",
       ":testing",
       "$dir_pw_allocator:testing",
       "$dir_pw_status",
@@ -464,7 +468,7 @@ pw_source_set("time_provider") {
   sources = [ "time_provider.cc" ]
   public_configs = [ ":public_include_path" ]
   public_deps = [
-    ":dispatcher",
+    ":pw_async2",
     "$dir_pw_chrono:virtual_clock",
     "$dir_pw_containers:intrusive_list",
     "$dir_pw_sync:interrupt_spin_lock",
@@ -521,15 +525,15 @@ pw_test("simulated_time_provider_test") {
 pw_source_set("enqueue_heap_func") {
   public = [ "public/pw_async2/enqueue_heap_func.h" ]
   public_configs = [ ":public_include_path" ]
-  public_deps = [ ":dispatcher" ]
+  public_deps = [ ":pw_async2" ]
 }
 
 pw_test("enqueue_heap_func_test") {
   enable_if = pw_async2_DISPATCHER_FOR_TEST_BACKEND != ""
   sources = [ "enqueue_heap_func_test.cc" ]
   deps = [
-    ":dispatcher",
     ":enqueue_heap_func",
+    ":pw_async2",
     ":testing",
   ]
 }
@@ -537,15 +541,15 @@ pw_test("enqueue_heap_func_test") {
 pw_source_set("join") {
   public = [ "public/pw_async2/join.h" ]
   public_configs = [ ":public_include_path" ]
-  public_deps = [ ":dispatcher" ]
+  public_deps = [ ":pw_async2" ]
 }
 
 pw_test("join_test") {
   enable_if = pw_async2_DISPATCHER_FOR_TEST_BACKEND != ""
   sources = [ "join_test.cc" ]
   deps = [
-    ":dispatcher",
     ":join",
+    ":pw_async2",
     ":testing",
     ":value_future",
   ]
@@ -556,7 +560,7 @@ pw_source_set("select") {
   public = [ "public/pw_async2/select.h" ]
   public_configs = [ ":public_include_path" ]
   public_deps = [
-    ":dispatcher",
+    ":pw_async2",
     "$dir_pw_containers:optional_tuple",
   ]
 }
@@ -565,8 +569,8 @@ pw_test("select_test") {
   enable_if = pw_async2_DISPATCHER_FOR_TEST_BACKEND != ""
   sources = [ "select_test.cc" ]
   deps = [
-    ":dispatcher",
     ":pendable",
+    ":pw_async2",
     ":select",
     ":testing",
     ":value_future",
@@ -576,16 +580,16 @@ pw_test("select_test") {
 pw_source_set("cancellable_task") {
   public_configs = [ ":public_include_path" ]
   public = [ "public/pw_async2/cancellable_task.h" ]
-  public_deps = [ ":dispatcher" ]
+  public_deps = [ ":pw_async2" ]
 }
 
 pw_test("cancellable_task_test") {
   enable_if = pw_async2_DISPATCHER_FOR_TEST_BACKEND != ""
   deps = [
     ":cancellable_task",
-    ":dispatcher",
     ":pendable",
     ":poll",
+    ":pw_async2",
     ":testing",
     dir_pw_function,
   ]
@@ -600,8 +604,8 @@ pw_source_set("channel") {
   sources = [ "channel.cc" ]
   public_deps = [
     ":callback_task",
-    ":dispatcher",
     ":poll",
+    ":pw_async2",
     "$dir_pw_allocator",
     "$dir_pw_assert",
     "$dir_pw_containers:deque",
@@ -616,9 +620,9 @@ pw_test("channel_test") {
   sources = [ "channel_test.cc" ]
   deps = [
     ":channel",
-    ":dispatcher",
     ":pend_func_task",
     ":poll",
+    ":pw_async2",
     ":testing",
     "$dir_pw_allocator:testing",
     "$dir_pw_containers:vector",
@@ -630,8 +634,8 @@ pw_test("channel_thread_test") {
   sources = [ "channel_thread_test.cc" ]
   deps = [
     ":channel",
-    ":dispatcher",
     ":poll",
+    ":pw_async2",
     ":testing",
     "$dir_pw_containers:vector",
     "$dir_pw_thread:test_thread_context",
@@ -647,9 +651,9 @@ pw_test("channel_typed_test") {
   sources = [ "channel_typed_test.cc" ]
   deps = [
     ":channel",
-    ":dispatcher",
     ":pend_func_task",
     ":poll",
+    ":pw_async2",
     ":testing",
     "$dir_pw_allocator:testing",
     "$dir_pw_containers:vector",
@@ -660,7 +664,7 @@ pw_test("task_test") {
   enable_if = pw_async2_DISPATCHER_FOR_TEST_BACKEND != "" &&
               pw_thread_TEST_THREAD_CONTEXT_BACKEND != ""
   deps = [
-    ":dispatcher",
+    ":pw_async2",
     ":testing",
     "$dir_pw_sync:binary_semaphore",
     "$dir_pw_sync:mutex",
@@ -675,7 +679,7 @@ pw_test("dispatcher_thread_test") {
   enable_if = pw_async2_DISPATCHER_FOR_TEST_BACKEND != "" &&
               pw_thread_TEST_THREAD_CONTEXT_BACKEND != ""
   deps = [
-    ":dispatcher",
+    ":pw_async2",
     ":testing",
     "$dir_pw_sync:thread_notification",
     "$dir_pw_thread:sleep",
@@ -693,8 +697,8 @@ if (pw_toolchain_CXX_STANDARD >= pw_toolchain_STANDARD.CXX20) {
       ":channel",
       ":coro",
       ":coro_or_else_task",
-      ":dispatcher",
       ":poll",
+      ":pw_async2",
       ":testing",
       "$dir_pw_allocator:testing",
       "$dir_pw_containers:vector",

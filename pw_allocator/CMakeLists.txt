@@ -96,7 +96,7 @@ pw_add_library(pw_allocator.async_pool STATIC
   PUBLIC_DEPS
     pw_allocator
     pw_allocator.pool
-    pw_async2.dispatcher
+    pw_async2
     pw_async2.poll
   SOURCES
     async_pool.cc
@@ -651,7 +651,7 @@ pw_add_test(pw_allocator.async_pool_test
     pw_allocator.chunk_pool
     pw_allocator.testing
     pw_allocator.testing
-    pw_async2.dispatcher
+    pw_async2
     pw_async2.pend_func_task
     pw_async2.testing
   GROUPS

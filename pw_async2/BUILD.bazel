@@ -52,7 +52,7 @@ pw_cc_test(
 )
 
 cc_library(
-    name = "dispatcher",
+    name = "pw_async2",
     srcs = [
         "context.cc",
         "dispatcher.cc",
@@ -89,6 +89,11 @@ cc_library(
     ],
 )
 
+alias(
+    name = "dispatcher",
+    actual = ":pw_async2",
+)
+
 cc_library(
     name = "internal",
     hdrs = [
@@ -115,7 +120,7 @@ cc_library(
     hdrs = ["public/pw_async2/basic_dispatcher.h"],
     strip_include_prefix = "public",
     deps = [
-        ":dispatcher",
+        ":pw_async2",
         "//pw_sync:thread_notification",
     ],
 )
@@ -125,7 +130,7 @@ cc_library(
     hdrs = ["public/pw_async2/notified_dispatcher.h"],
     strip_include_prefix = "public",
     deps = [
-        ":dispatcher",
+        ":pw_async2",
         "//pw_sync:thread_notification",
     ],
 )
@@ -158,8 +163,8 @@ cc_library(
     implementation_deps = ["//pw_assert:check"],
     strip_include_prefix = "public",
     deps = [
-        ":dispatcher",
         ":dispatcher_for_test_backend",
+        ":pw_async2",
     ],
 )
 
@@ -174,7 +179,7 @@ cc_library(
     strip_include_prefix = "public",
     target_compatible_with = ["@platforms//os:linux"],
     deps = [
-        ":dispatcher",
+        ":pw_async2",
         "//pw_assert:assert",
         "//pw_status",
     ],
@@ -215,7 +220,7 @@ pw_cc_test(
     name = "dispatcher_test",
     srcs = ["dispatcher_test.cc"],
     deps = [
-        ":dispatcher",
+        ":pw_async2",
         ":testing",
         "//pw_containers:vector",
     ],
@@ -225,7 +230,7 @@ pw_cc_test(
     name = "task_test",
     srcs = ["task_test.cc"],
     deps = [
-        ":dispatcher",
+        ":pw_async2",
         ":testing",
         "//pw_sync:binary_semaphore",
         "//pw_sync:mutex",
@@ -239,7 +244,7 @@ pw_cc_test(
     name = "dispatcher_thread_test",
     srcs = ["dispatcher_thread_test.cc"],
     deps = [
-        ":dispatcher",
+        ":pw_async2",
         ":testing",
         "//pw_sync:thread_notification",
         "//pw_thread:sleep",
@@ -255,8 +260,8 @@ cc_library(
     ],
     strip_include_prefix = "public",
     deps = [
-        ":dispatcher",
         ":poll",
+        ":pw_async2",
     ],
 )
 
@@ -264,9 +269,9 @@ pw_cc_test(
     name = "pendable_test",
     srcs = ["pendable_test.cc"],
     deps = [
-        ":dispatcher",
         ":pendable",
         ":poll",
+        ":pw_async2",
         ":testing",
     ],
 )
@@ -276,9 +281,9 @@ pw_cc_test(
     srcs = ["future_test.cc"],
     has_nc_test = True,
     deps = [
-        ":dispatcher",
         ":pend_func_task",
         ":poll",
+        ":pw_async2",
         ":select",
         ":testing",
     ],
@@ -292,8 +297,8 @@ cc_library(
     strip_include_prefix = "public",
     deps = [
         ":channel",
-        ":dispatcher",
         ":poll",
+        ":pw_async2",
         ":system_time_provider",
         ":time_provider",
         ":value_future",
@@ -312,10 +317,10 @@ pw_cc_test(
     has_nc_test = True,
     deps = [
         ":channel",
-        ":dispatcher",
         ":future_timeout",
         ":pend_func_task",
         ":poll",
+        ":pw_async2",
         ":simulated_time_provider",
         ":testing",
         ":value_future",
@@ -333,8 +338,8 @@ cc_library(
     ],
     strip_include_prefix = "public",
     deps = [
-        ":dispatcher",
         ":poll",
+        ":pw_async2",
     ],
 )
 
@@ -342,9 +347,9 @@ pw_cc_test(
     name = "value_future_test",
     srcs = ["value_future_test.cc"],
     deps = [
-        ":dispatcher",
         ":pend_func_task",
         ":poll",
+        ":pw_async2",
         ":testing",
         ":value_future",
     ],
@@ -357,8 +362,8 @@ cc_library(
     ],
     strip_include_prefix = "public",
     deps = [
-        ":dispatcher",
         ":poll",
+        ":pw_async2",
         "//pw_function",
     ],
 )
@@ -369,9 +374,9 @@ pw_cc_test(
     deps = [
         ":coro",
         ":coro_or_else_task",
-        ":dispatcher",
         ":pend_func_awaitable",
         ":poll",
+        ":pw_async2",
         ":testing",
         "//pw_allocator:testing",
         "//pw_function",
@@ -386,7 +391,7 @@ cc_library(
     ],
     strip_include_prefix = "public",
     deps = [
-        ":dispatcher",
+        ":pw_async2",
         "//pw_function",
     ],
 )
@@ -395,8 +400,8 @@ pw_cc_test(
     name = "pend_func_task_test",
     srcs = ["pend_func_task_test.cc"],
     deps = [
-        ":dispatcher",
         ":pend_func_task",
+        ":pw_async2",
         ":testing",
         "//pw_function",
     ],
@@ -409,7 +414,7 @@ cc_library(
     ],
     strip_include_prefix = "public",
     deps = [
-        ":dispatcher",
+        ":pw_async2",
         "//pw_function",
     ],
 )
@@ -419,7 +424,7 @@ pw_cc_test(
     srcs = ["callback_task_test.cc"],
     deps = [
         ":callback_task",
-        ":dispatcher",
+        ":pw_async2",
         ":testing",
         ":value_future",
         "//pw_function",
@@ -433,7 +438,7 @@ cc_library(
     ],
     strip_include_prefix = "public",
     deps = [
-        ":dispatcher",
+        ":pw_async2",
         "//pw_allocator:allocator",
     ],
 )
@@ -455,7 +460,7 @@ cc_library(
     ],
     strip_include_prefix = "public",
     deps = [
-        ":dispatcher",
+        ":pw_async2",
         "//pw_function",
         "//pw_sync:mutex",
     ],
@@ -467,8 +472,8 @@ pw_cc_test(
         "once_sender_test.cc",
     ],
     deps = [
-        ":dispatcher",
         ":once_sender",
+        ":pw_async2",
         ":testing",
         "//pw_containers:vector",
     ],
@@ -484,7 +489,7 @@ cc_library(
     ],
     strip_include_prefix = "public",
     deps = [
-        ":dispatcher",
+        ":pw_async2",
         "//pw_containers:inline_queue",
         "//pw_log:args",
     ],
@@ -496,8 +501,8 @@ pw_cc_test(
         "waker_queue_test.cc",
     ],
     deps = [
-        ":dispatcher",
         ":pend_func_task",
+        ":pw_async2",
         ":testing",
         ":waker_queue",
     ],
@@ -517,7 +522,7 @@ cc_library(
     strip_include_prefix = "public",
     target_compatible_with = minimum_cxx_20(),
     deps = [
-        ":dispatcher",
+        ":pw_async2",
         "//pw_allocator:allocator",
         "//pw_function",
         "//pw_status",
@@ -529,7 +534,7 @@ pw_cc_test(
     srcs = ["coro_test.cc"],
     deps = [
         ":coro",
-        ":dispatcher",
+        ":pw_async2",
         ":testing",
         "//pw_allocator:null_allocator",
         "//pw_allocator:testing",
@@ -545,7 +550,7 @@ cc_library(
     strip_include_prefix = "public",
     deps = [
         ":coro",
-        ":dispatcher",
+        ":pw_async2",
         "//pw_function",
         "//pw_status",
     ],
@@ -557,7 +562,7 @@ pw_cc_test(
     deps = [
         ":coro",
         ":coro_or_else_task",
-        ":dispatcher",
+        ":pw_async2",
         ":testing",
         "//pw_allocator:null_allocator",
         "//pw_allocator:testing",
@@ -576,7 +581,7 @@ cc_library(
     implementation_deps = ["//pw_assert:check"],
     strip_include_prefix = "public",
     deps = [
-        ":dispatcher",
+        ":pw_async2",
         "//pw_chrono:virtual_clock",
         "//pw_containers:intrusive_list",
         "//pw_sync:interrupt_spin_lock",
@@ -646,7 +651,7 @@ cc_library(
     ],
     strip_include_prefix = "public",
     deps = [
-        ":dispatcher",
+        ":pw_async2",
     ],
 )
 
@@ -657,9 +662,9 @@ pw_cc_test(
     ],
     deps = [
         ":cancellable_task",
-        ":dispatcher",
         ":pendable",
         ":poll",
+        ":pw_async2",
         ":testing",
         "//pw_function",
     ],
@@ -672,7 +677,7 @@ cc_library(
     ],
     strip_include_prefix = "public",
     deps = [
-        ":dispatcher",
+        ":pw_async2",
     ],
 )
 
@@ -682,8 +687,8 @@ pw_cc_test(
         "enqueue_heap_func_test.cc",
     ],
     deps = [
-        ":dispatcher",
         ":enqueue_heap_func",
+        ":pw_async2",
         ":testing",
     ],
 )
@@ -695,7 +700,7 @@ cc_library(
     ],
     strip_include_prefix = "public",
     deps = [
-        ":dispatcher",
+        ":pw_async2",
     ],
 )
 
@@ -706,8 +711,8 @@ pw_cc_test(
     ],
     has_nc_test = True,
     deps = [
-        ":dispatcher",
         ":join",
+        ":pw_async2",
         ":testing",
         ":value_future",
     ],
@@ -720,7 +725,7 @@ cc_library(
     ],
     strip_include_prefix = "public",
     deps = [
-        ":dispatcher",
+        ":pw_async2",
         "//pw_containers:optional_tuple",
     ],
 )
@@ -731,9 +736,9 @@ pw_cc_test(
         "select_test.cc",
     ],
     deps = [
-        ":dispatcher",
         ":pendable",
         ":poll",
+        ":pw_async2",
         ":select",
         ":testing",
         ":value_future",
@@ -748,8 +753,8 @@ cc_library(
     strip_include_prefix = "public",
     deps = [
         ":callback_task",
-        ":dispatcher",
         ":poll",
+        ":pw_async2",
         "//pw_allocator",
         "//pw_containers:deque",
         "//pw_numeric:checked_arithmetic",
@@ -767,9 +772,9 @@ pw_cc_test(
     ],
     deps = [
         ":channel",
-        ":dispatcher",
         ":pend_func_task",
         ":poll",
+        ":pw_async2",
         ":testing",
         "//pw_allocator:testing",
         "//pw_containers:vector",
@@ -783,8 +788,8 @@ pw_cc_test(
     ],
     deps = [
         ":channel",
-        ":dispatcher",
         ":poll",
+        ":pw_async2",
         ":testing",
         "//pw_containers:vector",
         "//pw_thread:test_thread_context",

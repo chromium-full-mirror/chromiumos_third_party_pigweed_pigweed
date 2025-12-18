@@ -133,7 +133,7 @@ pw_add_library(pw_hdlc.router STATIC
     public
   PUBLIC_DEPS
     pw_hdlc.decoder
-    pw_async2.dispatcher
+    pw_async2
     pw_async2.poll
     pw_containers.vector
     pw_multibuf.allocator

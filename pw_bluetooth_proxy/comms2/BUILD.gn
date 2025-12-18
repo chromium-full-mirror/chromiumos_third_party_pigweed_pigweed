@@ -30,7 +30,7 @@ pw_source_set("packets") {
   sources = [ "h4_packet.cc" ]
   deps = [ "$dir_pw_assert:check" ]
   public_deps = [
-    "$dir_pw_async2:dispatcher",
+    "$dir_pw_async2:pw_async2",
     "$dir_pw_bluetooth:emboss_hci_data",
     "$dir_pw_bluetooth:emboss_hci_h4",
     "$dir_pw_containers:intrusive_map",
@@ -73,7 +73,7 @@ pw_source_set("proxy") {
   public_deps = [
     ":packets",
     "$dir_pw_allocator:chunk_pool",
-    "$dir_pw_async2:dispatcher",
+    "$dir_pw_async2:pw_async2",
     "$dir_pw_channel:packet_channel",
     "$dir_pw_channel:packet_proxy",
     "$dir_pw_containers:inline_async_queue",

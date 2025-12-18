@@ -36,7 +36,7 @@ cc_library(
     ],
     strip_include_prefix = "public",
     deps = [
-        "//pw_async2:dispatcher",
+        "//pw_async2",
         "//pw_bluetooth:emboss_hci_data",
         "//pw_bluetooth:emboss_hci_h4",
         "//pw_bytes",
@@ -84,7 +84,7 @@ cc_library(
     deps = [
         ":packets",
         "//pw_allocator:chunk_pool",
-        "//pw_async2:dispatcher",
+        "//pw_async2",
         "//pw_channel:packet_channel",
         "//pw_channel:packet_proxy",
         "//pw_containers:inline_async_queue",

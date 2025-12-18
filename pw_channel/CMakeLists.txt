@@ -21,7 +21,7 @@ pw_add_library(pw_channel INTERFACE
     public/pw_channel/internal/channel_specializations.h
   PUBLIC_DEPS
     pw_assert
-    pw_async2.dispatcher
+    pw_async2
     pw_async2.poll
     pw_bytes
     pw_channel.properties
@@ -40,7 +40,7 @@ pw_add_library(pw_channel.packet_channel INTERFACE
   HEADERS
     public/pw_channel/packet_channel.h
   PUBLIC_DEPS
-    pw_async2.dispatcher
+    pw_async2
     pw_channel.properties
     pw_result
     pw_third_party.fuchsia.stdcompat
@@ -72,7 +72,7 @@ pw_add_test(pw_channel.packet_channel_test
   PRIVATE_DEPS
     pw_channel.packet_channel
     pw_allocator.allocator
-    pw_async2.dispatcher
+    pw_async2
     pw_async2.poll
     pw_async2.testing
     pw_containers
@@ -196,7 +196,7 @@ pw_add_library(pw_channel.test_packet_channel INTERFACE
   PUBLIC_DEPS
     pw_allocator.testing
     pw_assert
-    pw_async2.dispatcher
+    pw_async2
     pw_channel.packet_channel
     pw_containers.dynamic_deque
     pw_containers.dynamic_vector
@@ -210,7 +210,7 @@ pw_add_test(pw_channel.test_packet_channel_test
     test_packet_channel_test.cc
   PRIVATE_DEPS
     pw_allocator.testing
-    pw_async2.dispatcher
+    pw_async2
     pw_async2.pend_func_task
     pw_async2.poll
     pw_async2.testing
@@ -228,7 +228,7 @@ pw_add_library(pw_channel.packet_proxy STATIC
   PUBLIC_DEPS
     pw_allocator
     pw_allocator.chunk_pool
-    pw_async2.dispatcher
+    pw_async2
     pw_async2.poll
     pw_async2.waker_queue
     pw_channel.packet_channel

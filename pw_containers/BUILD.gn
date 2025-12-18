@@ -117,8 +117,8 @@ pw_source_set("async_count_and_capacity") {
   visibility = [ ":*" ]
   public_deps = [
     ":deque_common",
-    "$dir_pw_async2:dispatcher",
     "$dir_pw_async2:poll",
+    "$dir_pw_async2:pw_async2",
     "$dir_pw_async2:waker_queue",
   ]
 }

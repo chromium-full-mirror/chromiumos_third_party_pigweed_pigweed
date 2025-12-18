@@ -188,7 +188,7 @@ cc_library(
     strip_include_prefix = "public",
     deps = [
         ":pw_hdlc",
-        "//pw_async2:dispatcher",
+        "//pw_async2",
         "//pw_async2:poll",
         "//pw_bytes",
         "//pw_channel",

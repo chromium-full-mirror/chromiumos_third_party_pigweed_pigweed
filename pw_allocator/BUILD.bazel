@@ -125,7 +125,7 @@ cc_library(
     deps = [
         ":pool",
         ":pw_allocator",
-        "//pw_async2:dispatcher",
+        "//pw_async2",
         "//pw_async2:poll",
     ],
 )

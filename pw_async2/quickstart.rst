@@ -107,7 +107,7 @@ you'll always need.
              "quickstart.cc",
            ]
            deps = [
-             "$dir_pw_async2:dispatcher",
+             "$dir_pw_async2",
              # …
            ]
          }
@@ -120,7 +120,7 @@ you'll always need.
       .. code-block:: py
 
          add_executable(quickstart quickstart.cc)
-         target_link_libraries(quickstart PRIVATE pw_async2.dispatcher)
+         target_link_libraries(quickstart PRIVATE pw_async2)
 
       See :ref:`docs-build-cmake` for help with integrating Pigweed into an
       existing CMake project.

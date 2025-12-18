@@ -138,7 +138,7 @@ def pw_bluetooth_proxy_library(name, **kwargs):
             "//pw_allocator:synchronized_allocator",
             "//pw_async2:basic_dispatcher",
             "//pw_async2:channel",
-            "//pw_async2:dispatcher",
+            "//pw_async2",
             "//pw_async2:poll",
             "//pw_bluetooth:emboss_hci_common",
             "//pw_bluetooth:emboss_hci_data",

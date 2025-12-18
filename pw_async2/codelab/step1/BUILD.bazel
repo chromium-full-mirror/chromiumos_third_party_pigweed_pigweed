@@ -34,8 +34,8 @@ pw_cc_binary(
         "-Wno-deprecated-declarations",
     ],
     deps = [
+        "//pw_async2",
         "//pw_async2:basic_dispatcher",
-        "//pw_async2:dispatcher",
         "//pw_async2:pendable",
         "//pw_async2:poll",
         "//pw_async2:select",
