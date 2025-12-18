@@ -141,6 +141,31 @@ class MergerTest(fake_filesystem_unittest.TestCase):
         self.assertEqual(data[0]['file'], 'a.cc')
         self.assertEqual(data[0]['directory'], str(self.workspace_root))
 
+    def test_writes_last_generation_time(self):
+        """Test that the last generation time file is written."""
+        _create_fragment(
+            self.fs,
+            self.output_path,
+            'target1',
+            'k8-fastbuild',
+            [
+                {
+                    'file': 'a.cc',
+                    'directory': '__WORKSPACE_ROOT__',
+                    'arguments': ['c', 'd'],
+                }
+            ],
+        )
+        self.assertEqual(merger.main(), 0)
+        timestamp_path = (
+            self.workspace_root
+            / '.compile_commands'
+            / 'pw_lastGenerationTime.txt'
+        )
+        self.assertTrue(timestamp_path.exists())
+        content = timestamp_path.read_text(encoding='utf-8')
+        self.assertTrue(content.isdigit())
+
     def test_merge_multiple_platforms(self):
         """Test that multiple platforms are correctly separated."""
         _create_fragment(

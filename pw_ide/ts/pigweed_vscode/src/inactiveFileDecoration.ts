@@ -28,7 +28,9 @@ import {
 } from 'vscode';
 
 // Ensure FileStatus is imported as a value (enum) and not just a type
-import { ClangdActiveFilesCache, FileStatus } from './clangd';
+import { ClangdActiveFilesCache, FileStatus, CDB_FILE_DIR } from './clangd';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { Disposable } from './disposables';
 
 import {
@@ -84,6 +86,7 @@ export class InactiveFileDecorationProvider
   private decorations: DecorationsMap;
   private activeFilesCache: ClangdActiveFilesCache;
   private bannerDecorationType: TextEditorDecorationType;
+  private isOutdated = false;
 
   constructor(activeFilesCache: ClangdActiveFilesCache) {
     super();
@@ -140,6 +143,33 @@ export class InactiveFileDecorationProvider
     return this.decorations.get(uri.toString());
   }
 
+  private async checkOutdated() {
+    const projectRoot = await getPigweedProjectRoot(settings, workingDir);
+    if (!projectRoot) return;
+
+    const timeFile = path.join(
+      projectRoot,
+      CDB_FILE_DIR,
+      'pw_lastGenerationTime.txt',
+    );
+
+    if (fs.existsSync(timeFile)) {
+      try {
+        const content = fs.readFileSync(timeFile, 'utf8');
+        const timestamp = parseInt(content.trim(), 10);
+        const now = Math.floor(Date.now() / 1000);
+        // Older than 1 week (604800 seconds)
+        if (now - timestamp > 604800) {
+          this.isOutdated = true;
+          return;
+        }
+      } catch (e) {
+        logger.error(`Failed to read timestamp file: ${e}`);
+      }
+    }
+    this.isOutdated = false;
+  }
+
   /** Provide updated file decorations for the current target's active files. */
   async refreshDecorations(providedTarget?: string): Promise<DecorationsMap> {
     const newDecorations: DecorationsMap = new Map();
@@ -182,6 +212,7 @@ export class InactiveFileDecorationProvider
   /** Update file decorations per the current target's active files. */
   update = async (target?: string) => {
     logger.info('Updating inactive file indicators');
+    await this.checkOutdated();
     const newDecorations = await this.refreshDecorations(target);
 
     // Determine which URIs need to be refreshed in the UI
@@ -276,6 +307,30 @@ export class InactiveFileDecorationProvider
             backgroundColor: new ThemeColor('editorPane.background'),
             border: `1px solid`,
             borderColor: new ThemeColor('editorError.foreground'),
+            textDecoration:
+              ';padding: 2px 5px; margin: 2px 0; display: block;position: absolute;',
+          },
+        },
+      });
+    } else if (
+      status === 'ACTIVE' &&
+      this.isOutdated &&
+      editor.selection.active.line >= 5
+    ) {
+      const message = `⚠️ Compile commands may be outdated. Regenerate for accurate results.`;
+      const hoverMessage = `The compile commands file was last updated more than 1 week ago.`;
+
+      const range = new Range(0, 0, 0, 0);
+      decorationsArray.push({
+        range,
+        hoverMessage,
+        renderOptions: {
+          before: {
+            contentText: message,
+            color: new ThemeColor('editorWarning.foreground'),
+            backgroundColor: new ThemeColor('editorPane.background'),
+            border: `1px solid`,
+            borderColor: new ThemeColor('editorWarning.foreground'),
             textDecoration:
               ';padding: 2px 5px; margin: 2px 0; display: block;position: absolute;',
           },

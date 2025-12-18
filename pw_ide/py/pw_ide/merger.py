@@ -28,6 +28,7 @@ import shlex
 import subprocess
 import sys
 import tempfile
+import time
 from typing import NamedTuple
 
 from pw_cli import color, plural
@@ -626,6 +627,7 @@ def main() -> int:
     _LOG.info(
         "✅ Successfully created compilation databases in: %s", output_dir
     )
+    (output_dir / 'pw_lastGenerationTime.txt').write_text(str(int(time.time())))
     return 0
 
 
