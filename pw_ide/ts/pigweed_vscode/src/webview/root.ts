@@ -368,25 +368,36 @@ export class Root extends LitElement {
           ? html`
               <div class="step-detail">
                 Select a target to generate compile commands:
-                <ul class="target-list">
-                  ${this.cipdReport.preconfiguredTargets?.map(
-                    (target) => html`
-                      <li>
-                        <a
-                          href="#"
-                          @click=${(e: MouseEvent) => {
-                            e.preventDefault();
-                            vscode.postMessage({
-                              type: 'runPreconfiguredTarget',
-                              data: target,
-                            });
-                          }}
-                          >bazel build ${target}</a
-                        >
-                      </li>
-                    `,
-                  )}
-                </ul>
+                <div class="target-selection-row">
+                  <div class="vscode-select">
+                    <select @change=${this._handlePreconfiguredTargetChange}>
+                      ${this.cipdReport.preconfiguredTargets?.map(
+                        (target) => html`
+                          <option
+                            value=${target}
+                            ?selected=${target ===
+                            this.selectedPreconfiguredTarget}
+                          >
+                            ${target}
+                          </option>
+                        `,
+                      )}
+                    </select>
+                  </div>
+                  <div
+                    class="vscode-button"
+                    role="button"
+                    tabindex="0"
+                    @click=${this._runPreconfiguredTarget}
+                    @keydown=${(e: KeyboardEvent) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        this._runPreconfiguredTarget();
+                      }
+                    }}
+                  >
+                    Generate
+                  </div>
+                </div>
               </div>
             `
           : this.cipdReport.bazelCompileCommandsLastBuildCommand
