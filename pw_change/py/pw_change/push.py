@@ -23,7 +23,7 @@ import sys
 from collections.abc import Sequence
 from typing import NoReturn
 
-from pw_change.remote_dest import remote_dest
+from pw_change import remote_dest
 
 
 def _default_at_google_com(x: str) -> str:
@@ -102,7 +102,21 @@ def _auto_submit_label(host: str | None) -> str:
 
 def push(args: argparse.Namespace) -> int:
     """Push changes to Gerrit."""
-    remote, branch = remote_dest()
+    try:
+        remote, branch = remote_dest.remote_dest()
+    except remote_dest.NotAtBranchHeadError:
+        print(
+            'the checkout is not at a branch head, please push from the top of '
+            'a branch',
+            file=sys.stderr,
+        )
+        return -1
+    except remote_dest.UpstreamNotSetError as e:
+        print(
+            f"can't find an upstream for branch {e.branch!r}",
+            file=sys.stderr,
+        )
+        return -1
 
     if not args.force:
         branch = f'refs/for/{branch}'

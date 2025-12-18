@@ -16,16 +16,31 @@
 import subprocess
 
 
+class NotAtBranchHeadError(Exception):
+    pass
+
+
+class UpstreamNotSetError(Exception):
+    def __init__(self, *args, branch, **kwargs):
+        self.branch = branch
+        super().__init__(*args, **kwargs)
+
+
 def remote_dest() -> tuple[str, str]:
-    remote_branch = (
-        subprocess.run(
-            ['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
-            capture_output=True,
-            check=True,
+    """Determine the remote destination (URL, branch) for the current branch."""
+    try:
+        remote_branch = (
+            subprocess.run(
+                ['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
+                capture_output=True,
+                check=True,
+            )
+            .stdout.decode()
+            .strip()
         )
-        .stdout.decode()
-        .strip()
-    )
+    except subprocess.CalledProcessError:
+        raise NotAtBranchHeadError('not at top of a branch')
+
     while '/' not in remote_branch:
         cmd = [
             'git',
@@ -34,15 +49,22 @@ def remote_dest() -> tuple[str, str]:
             '--symbolic-full-name',
             f'{remote_branch}@{{upstream}}',
         ]
-        remote_branch = (
-            subprocess.run(
-                cmd,
-                capture_output=True,
-                check=True,
+
+        try:
+            remote_branch = (
+                subprocess.run(
+                    cmd,
+                    capture_output=True,
+                    check=True,
+                )
+                .stdout.decode()
+                .strip()
             )
-            .stdout.decode()
-            .strip()
-        )
+        except subprocess.CalledProcessError:
+            raise UpstreamNotSetError(
+                f'upstream not set for {remote_branch}',
+                branch=remote_branch,
+            )
 
     remote, branch = remote_branch.split('/', 1)
     return remote, branch
