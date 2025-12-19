@@ -29,6 +29,8 @@ class NotifiedDispatcher : public RunnableDispatcher {
   constexpr explicit NotifiedDispatcher(sync::ThreadNotification& notify)
       : notify_(notify) {}
 
+  sync::ThreadNotification& notification() const { return notify_; }
+
  private:
   void DoWake() override { notify_.release(); }
 
