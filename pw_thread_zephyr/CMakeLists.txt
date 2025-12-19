@@ -37,7 +37,7 @@ pw_zephyrize_libraries_ifdef(
   pw_thread_zephyr.id
 )
 
-pw_add_library(pw_thread_zephyr.sleep INTERFACE
+pw_add_library(pw_thread_zephyr.sleep STATIC
   HEADERS
     public/pw_thread_zephyr/sleep_inline.h
     sleep_public_overrides/pw_thread_backend/sleep_inline.h
@@ -48,8 +48,10 @@ pw_add_library(pw_thread_zephyr.sleep INTERFACE
     pw_chrono.system_clock
     pw_thread.sleep.facade
   PRIVATE_DEPS
-    pw_chrono_zephyr.system_clock
     pw_assert.check
+    pw_thread.thread
+  SOURCES
+    sleep.cc
 )
 pw_zephyrize_libraries_ifdef(
   CONFIG_PIGWEED_THREAD_SLEEP
