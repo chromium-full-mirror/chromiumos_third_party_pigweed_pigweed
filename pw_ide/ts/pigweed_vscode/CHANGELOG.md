@@ -1,5 +1,12 @@
 # Change Log
 
+
+## [1.10.0] - 2025-12-19
+
+### 🐛 Bug Fixes
+
+ * Fix bazelisk not found error when triggering compile commands generation.
+
 ## [1.10.0] - 2025-12-18
 
 ### ✨ Features & Improvements
