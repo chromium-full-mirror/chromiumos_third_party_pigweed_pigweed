@@ -204,9 +204,20 @@ endmacro()
 
 function(_pw_sandbox_files sandbox_dir files_var)
   set(result "")
+  set(parent_dir "..")
   foreach(file IN LISTS ${files_var})
-    set(destination "${sandbox_dir}/${file}")
-    message(DEBUG "Sandbox '${file}' as '${destination}'")
+    cmake_path(ABSOLUTE_PATH file NORMALIZE)
+    cmake_path(RELATIVE_PATH file OUTPUT_VARIABLE relative_file)
+
+    cmake_path(IS_PREFIX parent_dir "${relative_file}" in_parent_directory)
+    if(in_parent_directory)
+      message(FATAL_ERROR
+        "File paths must be nested under the current directory; "
+        "'${file}' is not nested under ${CMAKE_CURRENT_SOURCE_DIR}")
+    endif()
+
+    set(destination "${sandbox_dir}/${relative_file}")
+    message("DEBUG Sandboxing '${file}' as '${destination}'")
     cmake_path(GET destination PARENT_PATH directory)
     file(MAKE_DIRECTORY "${directory}")
     cmake_path(ABSOLUTE_PATH file OUTPUT_VARIABLE absolute)
@@ -293,29 +304,29 @@ function(pw_add_library_generic NAME TYPE)
 
   # Default sandboxing to the global pw_ENABLE_CC_SANDBOX option.
   if("${arg_SANDBOX}" STREQUAL "")
-    set(arg_SANDBOX "${pw_ENABLE_CC_SANDBOX}")
+    set(sandbox_enabled "${pw_ENABLE_CC_SANDBOX}")
+  else()
+    set(sandbox_enabled "${arg_SANDBOX}")
   endif()
 
-  if(arg_SANDBOX)
+  if(sandbox_enabled)
     foreach(path IN LISTS arg_GENERATED_HEADERS arg_HEADERS arg_SOURCES)
-      # Skip sandboxing absolute paths for now.
-      cmake_path(IS_ABSOLUTE path is_absolute)
-      if(is_absolute)
-        message(DEBUG "Skipping sandboxing ${NAME} due to absolute path ${path}")
-        set(arg_SANDBOX OFF)
-        break()
-      endif()
-
-      # Don't sandbox files that don't exist yet.
+      # Don't sandbox files that don't exist yet or are generator expressions.
       cmake_path(ABSOLUTE_PATH path OUTPUT_VARIABLE absolute)
       if(NOT EXISTS "${absolute}" OR "${path}" MATCHES ".*\\$<.+>.*")
-        message(DEBUG "Skipping sandboxing ${NAME} due to generated file ${path}")
-        set(arg_SANDBOX OFF)
+        if(NOT "${arg_SANDBOX}" STREQUAL "" AND arg_SANDBOX)
+          message(FATAL_ERROR "Sandboxing is enabled for ${NAME}, but it has "
+            "files that do not yet exist. This is not currently supported.")
+        endif()
+
+        message(DEBUG
+          "Skipping sandboxing ${NAME} due to generated file '${path}'")
+        set(sandbox_enabled OFF)
         break()
       endif()
     endforeach()
 
-    if(arg_SANDBOX)
+    if(sandbox_enabled)
       file(REMOVE_RECURSE "${sandbox_dir}")
       _pw_sandbox_files("${sandbox_dir}" arg_HEADERS)
       _pw_sandbox_files("${sandbox_dir}" arg_SOURCES)

@@ -578,7 +578,11 @@ if (current_toolchain != default_toolchain) {
   }
 
   pw_test("sandbox_test") {
-    sources = [ "sandbox_test.cc" ]
+    sources = [
+      "absolute_path_source_file.cc",
+      "sandbox_absolute_source_test.cc",
+      "sandbox_test.cc",
+    ]
 
     # The GN build does not support sandboxing.
     defines = [ "SANDBOX_ENABLED=0" ]

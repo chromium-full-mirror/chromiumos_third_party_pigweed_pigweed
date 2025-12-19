@@ -225,13 +225,30 @@ pw_add_test(pw_build.sandbox_enabled_test
     pw_build
 )
 
-pw_add_test(pw_build.sandbox_disabled_test
+set(absolute_test_header public/pw_build/internal/test_header_with_dep.h)
+cmake_path(ABSOLUTE_PATH absolute_test_header)
+
+set(absolute_test_source absolute_path_source_file.cc)
+cmake_path(ABSOLUTE_PATH absolute_test_source)
+
+pw_add_library(pw_build._sandbox_test_absolute_path STATIC
+  HEADERS
+    "${absolute_test_header}"
+  SOURCES
+    "${absolute_test_source}"
+  PUBLIC_INCLUDES
+    public
+  SANDBOX ON
+)
+
+pw_add_test(pw_build.sandbox_absolute_path_test
   SOURCES
     sandbox_test.cc
+    sandbox_absolute_source_test.cc
   PRIVATE_DEFINES
-    SANDBOX_ENABLED=0
+    SANDBOX_ENABLED=1
   PRIVATE_DEPS
-    pw_build._sandbox_test_visible_header_sandbox_off
+    pw_build._sandbox_test_absolute_path
   GROUPS
     modules
     pw_build

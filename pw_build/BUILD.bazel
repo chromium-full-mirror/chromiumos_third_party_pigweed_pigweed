@@ -293,7 +293,11 @@ cc_library(
 
 pw_cc_test(
     name = "sandbox_test",
-    srcs = ["sandbox_test.cc"],
+    srcs = [
+        "absolute_path_source_file.cc",
+        "sandbox_absolute_source_test.cc",
+        "sandbox_test.cc",
+    ],
     defines = ["SANDBOX_ENABLED=1"],
     deps = [":sandbox_test_visible_header"],
 )
