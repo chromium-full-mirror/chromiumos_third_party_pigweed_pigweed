@@ -63,13 +63,6 @@ window.pw.initSearch = () => {
       // eslint-disable-next-line no-undef
       Search.performSearch(query);
       timeoutId = null;
-      // Send the search query to Google Analytics.
-      // https://developers.google.com/analytics/devguides/collection/ga4/reference/events#search
-      // eslint-disable-next-line no-undef
-      if (typeof window.gtag === 'function') {
-        // eslint-disable-next-line no-undef
-        gtag('event', 'search', { search_term: query });
-      }
     }, delay_ms);
   });
 };
@@ -306,6 +299,48 @@ window.pw.setUpNavigationAnalytics = () => {
   }
 };
 
+window.pw.setUpSearchAnalytics = () => {
+  // Report search analytics when the user clicks a SERP link.
+  const listen = (node) => {
+    // Callers of this function do not verify that the node actually exists.
+    if (!node) {
+      return;
+    }
+    node.addEventListener('click', (e) => {
+      // Search results always get rendered into a node with this ID.
+      const searchResults = node.querySelector('#search-results');
+      if (!searchResults) {
+        return;
+      }
+      // The search result link that the user selected.
+      const link = e.target.closest('a');
+      if (!link) {
+        return;
+      }
+      // Double-check that it's actually a search result link.
+      if (!link.parentNode.parentNode.classList.contains('search')) {
+        return;
+      }
+      // eslint-disable-next-line no-undef
+      if (typeof window.gtag !== 'function') {
+        return;
+      }
+      const query = document.querySelector('#search-input').value;
+      const result = link.href;
+      const links = Array.from(
+        searchResults.querySelectorAll('.search > li > a'),
+      );
+      const rank = links.indexOf(link); // 0-indexed
+      // eslint-disable-next-line no-undef
+      gtag('event', 'select_search_result', { query, result, rank });
+    });
+  };
+  // Parent node of #search-results on /search.html
+  listen(document.querySelector('.bd-search-container'));
+  // Parent node of #search-results on every page other than /search.html
+  listen(document.querySelector('.search-button__search-container'));
+};
+
 window.addEventListener('DOMContentLoaded', () => {
   // Manually control when Mermaid diagrams render to prevent scrolling issues.
   // Context: https://pigweed.dev/docs/style_guide.html#site-nav-scrolling
@@ -319,5 +354,6 @@ window.addEventListener('DOMContentLoaded', () => {
   window.pw.initSearch();
   window.pw.monkeyPatchSphinxSearchIndex();
   window.pw.setUpNavigationAnalytics();
+  window.pw.setUpSearchAnalytics();
   window.pw.dev();
 });
