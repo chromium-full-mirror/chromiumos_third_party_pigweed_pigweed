@@ -217,7 +217,7 @@ function(_pw_sandbox_files sandbox_dir files_var)
     endif()
 
     set(destination "${sandbox_dir}/${relative_file}")
-    message("DEBUG Sandboxing '${file}' as '${destination}'")
+    message(DEBUG "Sandboxing '${file}' as '${destination}'")
     cmake_path(GET destination PARENT_PATH directory)
     file(MAKE_DIRECTORY "${directory}")
     cmake_path(ABSOLUTE_PATH file OUTPUT_VARIABLE absolute)
