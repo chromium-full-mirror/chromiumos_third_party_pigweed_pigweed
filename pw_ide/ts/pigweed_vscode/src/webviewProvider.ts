@@ -77,6 +77,7 @@ function spawnAsync(
           ...process.env,
           PATH: `${path.dirname(bazelBinary)}:${process.env?.PATH || ''}`,
           BAZELISK_SKIP_WRAPPER: '1',
+          BAZEL_REAL: bazelBinary,
         }
       : process.env;
     const child = spawn(command, args, { cwd, env });
