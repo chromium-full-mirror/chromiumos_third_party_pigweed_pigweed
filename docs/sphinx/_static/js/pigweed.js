@@ -288,11 +288,10 @@ window.pw.setUpNavigationAnalytics = () => {
       link.addEventListener('click', (e) => {
         // eslint-disable-next-line no-undef
         if (typeof window.gtag === 'function') {
+          const pw_href = link.href;
+          const pw_component = label;
           // eslint-disable-next-line no-undef
-          gtag('event', 'click', {
-            event_category: 'navigation',
-            event_label: label,
-          });
+          gtag('event', 'pw_navigation', { pw_href, pw_component });
         }
       });
     });
@@ -317,22 +316,22 @@ window.pw.setUpSearchAnalytics = () => {
       if (!link) {
         return;
       }
-      // Double-check that it's actually a search result link.
-      if (!link.parentNode.parentNode.classList.contains('search')) {
-        return;
-      }
       // eslint-disable-next-line no-undef
       if (typeof window.gtag !== 'function') {
         return;
       }
-      const query = document.querySelector('#search-input').value;
-      const result = link.href;
       const links = Array.from(
         searchResults.querySelectorAll('.search > li > a'),
       );
-      const rank = links.indexOf(link); // 0-indexed
+      const index = links.indexOf(link);
+      if (index === -1) {
+        return;
+      }
+      const pw_query = document.querySelector('#search-input').value;
+      const pw_href = link.href;
+      const pw_rank = index + 1; // Use 1-based indexing for SERP stats.
       // eslint-disable-next-line no-undef
-      gtag('event', 'select_search_result', { query, result, rank });
+      gtag('event', 'pw_search', { pw_query, pw_href, pw_rank });
     });
   };
   // Parent node of #search-results on /search.html
