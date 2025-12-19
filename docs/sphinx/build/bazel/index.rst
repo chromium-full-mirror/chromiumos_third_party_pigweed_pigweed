@@ -25,6 +25,28 @@ more information.
       blinky LED program that runs on Raspberry Pi Picos and can
       be simulated on your development host.
 
+--------------------------
+Explore other Bazel topics
+--------------------------
+
+.. grid:: 2
+
+   .. grid-item-card:: :octicon:`rocket` Bazel dependencies
+      :link: docs-bazel-dependencies
+      :link-type: ref
+      :class-item: sales-pitch-cta-primary
+
+      Learn how to use and control Bazel's powerful project system to
+      manage externally-provided resources and package managers.
+
+   .. grid-item-card:: :octicon:`rocket` Bazel build compatibility patterns
+      :link: docs-bazel-compatibility
+      :link-type: ref
+      :class-item: sales-pitch-cta-primary
+
+      A deep-dive into the Bazel patterns Pigweed uses to express that a build
+      target is compatible with a platform
+
 .. grid:: 2
 
    .. grid-item-card:: :octicon:`rocket` Bazel integration
@@ -36,14 +58,6 @@ more information.
       as a dependency, start using Pigweed modules, and set up static and
       runtime analysis.
 
-   .. grid-item-card:: :octicon:`rocket` Bazel build compatibility patterns
-      :link: docs-bazel-compatibility
-      :link-type: ref
-      :class-item: sales-pitch-cta-primary
-
-      A deep-dive into the Bazel patterns Pigweed uses to express that a build
-      target is compatible with a platform
-
 .. toctree::
    :maxdepth: 2
    :hidden:
@@ -52,4 +66,5 @@ more information.
    install
    quickstart
    integration/index
+   dependencies
    compatibility
