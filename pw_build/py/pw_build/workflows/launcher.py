@@ -230,8 +230,9 @@ class WorkflowsCli(multitool.MultitoolCli):
         )
         if not config:
             _LOG.critical(
-                'No `%s` files found in current directory or its parents',
+                'No `%s` files found in current directory (%s) or its parents',
                 _WORKFLOWS_FILES,
+                search_from,
             )
             return workflows_pb2.WorkflowSuite()
 
