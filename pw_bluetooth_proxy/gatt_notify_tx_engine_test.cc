@@ -15,6 +15,7 @@
 #include "pw_bluetooth_proxy/internal/gatt_notify_tx_engine.h"
 
 #include "pw_allocator/testing.h"
+#include "pw_assert/check.h"
 #include "pw_bluetooth_proxy/internal/multibuf.h"
 #include "pw_bluetooth_proxy_private/test_utils.h"
 #include "pw_containers/inline_queue.h"
@@ -72,14 +73,12 @@ class GattNotifyTxEngineTest : public ::testing::Test,
     return max_payload_size_;
   }
 
-  const FlatConstMultiBuf* GetFrontPayload() override {
-    if (!payload_queue_.empty()) {
-      return &MultiBufAdapter::Unwrap(payload_queue_.front());
-    }
-    return nullptr;
+  const FlatConstMultiBuf& FrontPayload() {
+    PW_CHECK(!payload_queue_.empty());
+    return MultiBufAdapter::Unwrap(payload_queue_.front());
   }
 
-  void PopFrontPayload() override {
+  void PopFrontPayload() {
     ASSERT_FALSE(payload_queue_.empty());
     payload_queue_.pop();
   }
@@ -104,8 +103,12 @@ class GattNotifyTxEngineTest : public ::testing::Test,
 };
 
 TEST_F(GattNotifyTxEngineTest, GenerateNextPacket) {
-  Result<H4PacketWithH4> packet_0 = engine().GenerateNextPacket();
+  bool keep_payload = true;
+  Result<H4PacketWithH4> packet_0 =
+      engine().GenerateNextPacket(FrontPayload(), keep_payload);
   PW_TEST_ASSERT_OK(packet_0);
+  EXPECT_FALSE(keep_payload);
+  PopFrontPayload();
   pw::span<uint8_t> packet_0_span = packet_0->GetH4Span();
   EXPECT_EQ(packet_0_span.size(), 15u);
   const std::array<uint8_t, 15> kExpectedH4_0 = {0x02,  // H4 type: ACL
@@ -132,8 +135,11 @@ TEST_F(GattNotifyTxEngineTest, GenerateNextPacket) {
                          kExpectedH4_0.begin(),
                          kExpectedH4_0.end()));
 
-  Result<H4PacketWithH4> packet_1 = engine().GenerateNextPacket();
+  Result<H4PacketWithH4> packet_1 =
+      engine().GenerateNextPacket(FrontPayload(), keep_payload);
   PW_TEST_ASSERT_OK(packet_1);
+  EXPECT_FALSE(keep_payload);
+  PopFrontPayload();
   pw::span<uint8_t> packet_1_span = packet_1->GetH4Span();
   EXPECT_EQ(packet_1_span.size(), 15u);
   const std::array<uint8_t, 15> kExpectedH4_1 = {0x02,  // H4 type: ACL
@@ -159,10 +165,6 @@ TEST_F(GattNotifyTxEngineTest, GenerateNextPacket) {
                          packet_1_span.end(),
                          kExpectedH4_1.begin(),
                          kExpectedH4_1.end()));
-
-  // No more packets queued.
-  Result<H4PacketWithH4> result = engine().GenerateNextPacket();
-  EXPECT_EQ(result.status(), Status::Unavailable());
 }
 
 TEST_F(GattNotifyTxEngineTest, CheckWriteParameterNoSizeYet) {

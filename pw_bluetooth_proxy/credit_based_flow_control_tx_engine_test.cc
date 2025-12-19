@@ -16,6 +16,7 @@
 #include "pw_bluetooth_proxy/internal/credit_based_flow_control_tx_engine.h"
 
 #include "pw_allocator/testing.h"
+#include "pw_assert/check.h"
 #include "pw_bluetooth_proxy_private/test_utils.h"
 #include "pw_containers/inline_queue.h"
 #include "pw_unit_test/framework.h"
@@ -82,14 +83,12 @@ class CreditBasedFlowControlTxEngineTest : public ::testing::Test,
     return max_payload_size_;
   }
 
-  const FlatConstMultiBuf* GetFrontPayload() override {
-    if (!payload_queue_.empty()) {
-      return &MultiBufAdapter::Unwrap(payload_queue_.front());
-    }
-    return nullptr;
+  const FlatConstMultiBuf& FrontPayload() {
+    PW_CHECK(!payload_queue_.empty());
+    return MultiBufAdapter::Unwrap(payload_queue_.front());
   }
 
-  void PopFrontPayload() override {
+  void PopFrontPayload() {
     ASSERT_FALSE(payload_queue_.empty());
     payload_queue_.pop();
   }
@@ -114,15 +113,19 @@ class CreditBasedFlowControlTxEngineTest : public ::testing::Test,
 };
 
 TEST_F(CreditBasedFlowControlTxEngineTest, GenerateNextPacket) {
+  bool keep_payload = false;
   // No credits yet
-  EXPECT_EQ(engine().GenerateNextPacket().status(), Status::Unavailable());
+  EXPECT_EQ(engine().GenerateNextPacket(FrontPayload(), keep_payload).status(),
+            Status::Unavailable());
   Result<bool> credits_result = engine().AddCredits(2);
   ASSERT_TRUE(credits_result.ok());
   EXPECT_TRUE(credits_result.value());
 
   // Generate first segment of first SDU
-  Result<H4PacketWithH4> packet_0 = engine().GenerateNextPacket();
+  Result<H4PacketWithH4> packet_0 =
+      engine().GenerateNextPacket(FrontPayload(), keep_payload);
   PW_TEST_ASSERT_OK(packet_0);
+  EXPECT_TRUE(keep_payload);
   pw::span<uint8_t> packet_0_span = packet_0->GetH4Span();
   EXPECT_EQ(packet_0_span.size(), 14u);
   const std::array<uint8_t, 14> kExpectedH4_0 = {0x02,  // H4 type: ACL
@@ -154,8 +157,11 @@ TEST_F(CreditBasedFlowControlTxEngineTest, GenerateNextPacket) {
   EXPECT_FALSE(credits_result.value());
 
   // Generate second segment of first SDU
-  Result<H4PacketWithH4> packet_1 = engine().GenerateNextPacket();
+  Result<H4PacketWithH4> packet_1 =
+      engine().GenerateNextPacket(FrontPayload(), keep_payload);
   PW_TEST_ASSERT_OK(packet_1);
+  EXPECT_FALSE(keep_payload);
+  PopFrontPayload();
   pw::span<uint8_t> packet_1_span = packet_1->GetH4Span();
   EXPECT_EQ(packet_1_span.size(), 13u);
   const std::array<uint8_t, 13> kExpectedH4_1 = {0x02,  // H4 type: ACL
@@ -180,8 +186,10 @@ TEST_F(CreditBasedFlowControlTxEngineTest, GenerateNextPacket) {
                          kExpectedH4_1.end()));
 
   // Generate first (and last) segment of second SDU
-  Result<H4PacketWithH4> packet_2 = engine().GenerateNextPacket();
+  Result<H4PacketWithH4> packet_2 =
+      engine().GenerateNextPacket(FrontPayload(), keep_payload);
   PW_TEST_ASSERT_OK(packet_2);
+  EXPECT_FALSE(keep_payload);
   pw::span<uint8_t> packet_2_span = packet_2->GetH4Span();
   EXPECT_EQ(packet_2_span.size(), 14u);
 
@@ -210,10 +218,6 @@ TEST_F(CreditBasedFlowControlTxEngineTest, GenerateNextPacket) {
   credits_result = engine().AddCredits(1);
   ASSERT_TRUE(credits_result.ok());
   EXPECT_TRUE(credits_result.value());
-
-  // No more packets queued.
-  Result<H4PacketWithH4> result = engine().GenerateNextPacket();
-  EXPECT_EQ(result.status(), Status::Unavailable());
 }
 
 TEST_F(CreditBasedFlowControlTxEngineTest, CheckWriteParameterLargerThanMtu) {
@@ -259,7 +263,9 @@ TEST_F(CreditBasedFlowControlTxEngineTest, MaxSizeNotKnownYet) {
   Result<bool> credits_result = engine().AddCredits(2);
   ASSERT_TRUE(credits_result.ok());
   EXPECT_TRUE(credits_result.value());
-  Result<H4PacketWithH4> packet = engine().GenerateNextPacket();
+  bool keep_payload = false;
+  Result<H4PacketWithH4> packet =
+      engine().GenerateNextPacket(FrontPayload(), keep_payload);
   EXPECT_EQ(packet.status(), Status::Unavailable());
 }
 

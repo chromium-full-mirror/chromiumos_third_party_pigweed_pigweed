@@ -36,30 +36,26 @@ constexpr size_t H4SizeForL2capData(uint16_t data_length) {
 
 }  // namespace
 
-Result<H4PacketWithH4> GattNotifyTxEngine::GenerateNextPacket() {
-  const FlatConstMultiBuf* attribute_value = delegate_->GetFrontPayload();
-  if (!attribute_value) {
-    return Status::Unavailable();
-  }
-
+Result<H4PacketWithH4> GattNotifyTxEngine::GenerateNextPacket(
+    const FlatConstMultiBuf& attribute_value, bool& keep_payload) {
+  keep_payload = true;
   std::optional<uint16_t> max_l2cap_payload_size =
-      delegate_->MaxL2capPayloadSize();
+      delegate_.MaxL2capPayloadSize();
   // This should have been caught during Write.
   PW_CHECK(max_l2cap_payload_size);
   const uint16_t max_attribute_size =
       *max_l2cap_payload_size - emboss::AttHandleValueNtf::MinSizeInBytes();
   // This should have been caught during Write.
-  PW_CHECK(attribute_value->size() < max_attribute_size);
+  PW_CHECK(attribute_value.size() < max_attribute_size);
 
   size_t att_frame_size =
-      emboss::AttHandleValueNtf::MinSizeInBytes() + attribute_value->size();
+      emboss::AttHandleValueNtf::MinSizeInBytes() + attribute_value.size();
 
   const size_t l2cap_packet_size =
       emboss::BasicL2capHeader::IntrinsicSizeInBytes() + att_frame_size;
   const size_t h4_packet_size = H4SizeForL2capData(att_frame_size);
 
-  PW_TRY_ASSIGN(H4PacketWithH4 h4_packet,
-                delegate_->AllocateH4(h4_packet_size));
+  PW_TRY_ASSIGN(H4PacketWithH4 h4_packet, delegate_.AllocateH4(h4_packet_size));
   h4_packet.SetH4Type(emboss::H4PacketType::ACL_DATA);
 
   // Write ACL header
@@ -85,25 +81,24 @@ Result<H4PacketWithH4> GattNotifyTxEngine::GenerateNextPacket() {
   PW_CHECK(att_frame_size == bframe.payload().BackingStorage().SizeInBytes());
   Result<emboss::AttHandleValueNtfWriter> att_notify =
       MakeEmbossWriter<emboss::AttHandleValueNtfWriter>(
-          attribute_value->size(),
+          attribute_value.size(),
           bframe.payload().BackingStorage().data(),
           att_frame_size);
   PW_CHECK_OK(att_notify);
   att_notify->attribute_opcode().Write(emboss::AttOpcode::ATT_HANDLE_VALUE_NTF);
   att_notify->attribute_handle().Write(attribute_handle_);
-  MultiBufAdapter::Copy(att_notify->attribute_value(), *attribute_value);
+  MultiBufAdapter::Copy(att_notify->attribute_value(), attribute_value);
   PW_CHECK(att_notify->Ok());
 
   // All content has been copied from the front payload, so release it.
-  delegate_->PopFrontPayload();
-
+  keep_payload = false;
   return h4_packet;
 }
 
 Status GattNotifyTxEngine::CheckWriteParameter(
     const FlatConstMultiBuf& payload) {
   std::optional<uint16_t> max_l2cap_payload_size =
-      delegate_->MaxL2capPayloadSize();
+      delegate_.MaxL2capPayloadSize();
   if (!max_l2cap_payload_size) {
     PW_LOG_WARN("Tried to write before LE_Read_Buffer_Size processed.");
     return Status::FailedPrecondition();

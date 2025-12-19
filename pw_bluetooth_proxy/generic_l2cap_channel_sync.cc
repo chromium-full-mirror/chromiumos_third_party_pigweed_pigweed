@@ -19,13 +19,10 @@
 #include <mutex>
 
 #include "pw_assert/check.h"
-#include "pw_bluetooth_proxy/internal/basic_l2cap_channel_internal.h"
-#include "pw_bluetooth_proxy/internal/gatt_notify_channel_internal.h"
 #include "pw_bluetooth_proxy/internal/generic_l2cap_channel.h"
 #include "pw_bluetooth_proxy/internal/l2cap_channel.h"
 #include "pw_bluetooth_proxy/internal/l2cap_channel_manager.h"
 #include "pw_bluetooth_proxy/internal/l2cap_channel_manager_sync.h"
-#include "pw_bluetooth_proxy/internal/l2cap_coc_internal.h"
 
 namespace pw::bluetooth::proxy::internal {
 
@@ -62,7 +59,6 @@ GenericL2capChannelImpl::~GenericL2capChannelImpl() {
 Status GenericL2capChannelImpl::Init() {
   PW_TRY_ASSIGN(BorrowedL2capChannel borrowed,
                 BorrowL2capChannel(L2capChannel::State::kNew));
-  PW_TRY(borrowed->Init());
   return borrowed->Start();
 }
 
@@ -83,8 +79,7 @@ Status GenericL2capChannelImpl::IsWriteAvailable() {
 Status GenericL2capChannelImpl::SendAdditionalRxCredits(
     uint16_t additional_rx_credits) {
   PW_TRY_ASSIGN(BorrowedL2capChannel borrowed, BorrowL2capChannel());
-  auto& l2cap_coc = static_cast<internal::L2capCocInternal&>(*borrowed);
-  return l2cap_coc.SendAdditionalRxCredits(additional_rx_credits);
+  return borrowed->SendAdditionalRxCredits(additional_rx_credits);
 }
 
 void GenericL2capChannelImpl::Stop() {

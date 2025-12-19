@@ -27,8 +27,6 @@ class TxEngine {
    public:
     virtual ~Delegate() = default;
     virtual std::optional<uint16_t> MaxL2capPayloadSize() = 0;
-    virtual const FlatConstMultiBuf* GetFrontPayload() = 0;
-    virtual void PopFrontPayload() = 0;
     virtual pw::Result<H4PacketWithH4> AllocateH4(uint16_t length) = 0;
   };
 
@@ -44,7 +42,8 @@ class TxEngine {
   virtual ~TxEngine() = default;
 
   // Returns UNAVAILABLE if there is nothing to send.
-  virtual Result<H4PacketWithH4> GenerateNextPacket() = 0;
+  virtual Result<H4PacketWithH4> GenerateNextPacket(
+      const FlatConstMultiBuf& payload, bool& keep_payload) = 0;
 
   // Returns FAILED_PRECONDITION if the maximum size is not yet known.
   // Returns INVALID_ARGUMENT if the payload is too large.

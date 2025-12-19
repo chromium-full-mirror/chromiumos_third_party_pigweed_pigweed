@@ -19,8 +19,7 @@
 
 namespace pw::bluetooth::proxy {
 
-BasicL2capChannel::BasicL2capChannel(
-    internal::BasicL2capChannelInternal& channel)
+BasicL2capChannel::BasicL2capChannel(L2capChannel& channel)
     : internal::GenericL2capChannel(channel) {
   std::optional<uint16_t> max_l2cap_payload_size =
       channel.MaxL2capPayloadSize();

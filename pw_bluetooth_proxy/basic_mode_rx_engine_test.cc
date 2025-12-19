@@ -14,9 +14,6 @@
 
 #include "pw_bluetooth_proxy/internal/basic_mode_rx_engine.h"
 
-#include "pw_allocator/testing.h"
-#include "pw_bluetooth_proxy_private/test_utils.h"
-#include "pw_sync/mutex.h"
 #include "pw_unit_test/framework.h"
 
 namespace pw::bluetooth::proxy::internal {
@@ -26,8 +23,7 @@ namespace {
 constexpr uint16_t kLocalCid = 0x50;
 
 TEST(BasicModeRxEngineTest, InvalidBFrame) {
-  MultiBufAllocatorContext<1000> packet_allocator_context;
-  BasicModeRxEngine engine(kLocalCid, &packet_allocator_context.GetAllocator());
+  BasicModeRxEngine engine(kLocalCid);
   std::array<uint8_t, 1> frame = {};
   RxEngine::HandlePduFromControllerReturnValue result =
       engine.HandlePduFromController(frame);
@@ -35,7 +31,7 @@ TEST(BasicModeRxEngineTest, InvalidBFrame) {
 }
 
 TEST(BasicModeRxEngineTest, UseSpans) {
-  BasicModeRxEngine engine(kLocalCid, /*rx_multibuf_allocator=*/nullptr);
+  BasicModeRxEngine engine(kLocalCid);
   std::array<uint8_t, 7> frame = {// L2cap B-Frame:
                                   0x03,
                                   0x00,  // PDU length
@@ -55,50 +51,6 @@ TEST(BasicModeRxEngineTest, UseSpans) {
                          actual_payload.end(),
                          kExpectedPayload.begin(),
                          kExpectedPayload.end()));
-}
-
-TEST(BasicModeRxEngineTest, UseMultiBufAllocator) {
-  MultiBufAllocatorContext<1000> packet_allocator_context;
-  BasicModeRxEngine engine(kLocalCid, &packet_allocator_context.GetAllocator());
-  std::array<uint8_t, 7> frame = {// L2cap B-Frame:
-                                  0x03,
-                                  0x00,  // PDU length
-                                  0x50,
-                                  0x00,  // Local Channel ID
-                                         // Payload:
-                                  0x03,
-                                  0x04,
-                                  0x05};
-  const std::array<uint8_t, 3> kExpectedPayload = {0x03, 0x04, 0x05};
-  RxEngine::HandlePduFromControllerReturnValue result =
-      engine.HandlePduFromController(frame);
-  ASSERT_TRUE(std::holds_alternative<FlatMultiBufInstance>(result));
-  pw::span<uint8_t> actual_payload =
-      MultiBufAdapter::AsSpan(std::get<FlatMultiBufInstance>(result));
-  ASSERT_EQ(actual_payload.size(), kExpectedPayload.size());
-  EXPECT_TRUE(std::equal(actual_payload.begin(),
-                         actual_payload.end(),
-                         kExpectedPayload.begin(),
-                         kExpectedPayload.end()));
-}
-
-TEST(BasicModeRxEngineTest, UseMultiBufAllocatorOutOfMemory) {
-  MultiBufAllocatorContext<2> packet_allocator_context;
-  BasicModeRxEngine engine(kLocalCid, &packet_allocator_context.GetAllocator());
-  std::array<uint8_t, 7> frame = {// L2cap B-Frame:
-                                  0x03,
-                                  0x00,  // PDU length
-                                  0x50,
-                                  0x00,  // Local Channel ID
-                                         // Payload:
-                                  0x03,
-                                  0x04,
-                                  0x05};
-  RxEngine::HandlePduFromControllerReturnValue result =
-      engine.HandlePduFromController(frame);
-  ASSERT_TRUE(std::holds_alternative<L2capChannelEvent>(result));
-  EXPECT_EQ(std::get<L2capChannelEvent>(result),
-            L2capChannelEvent::kRxOutOfMemory);
 }
 
 }  // namespace

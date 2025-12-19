@@ -32,25 +32,8 @@ BasicModeRxEngine::HandlePduFromController(pw::span<uint8_t> frame) {
     return std::monostate();
   }
 
-  pw::span payload(bframe_view->payload().BackingStorage().data(),
-                   bframe_view->payload().SizeInBytes());
-
-  if (rx_multibuf_allocator_ == nullptr) {
-    return payload;
-  }
-
-  std::optional<FlatMultiBufInstance> multibuf =
-      MultiBufAdapter::Create(*rx_multibuf_allocator_, payload.size());
-  if (!multibuf) {
-    PW_LOG_ERROR(
-        "(CID %#x) Rx MultiBuf allocator out of memory. So stopping channel "
-        "and reporting it needs to be closed.",
-        local_cid_);
-    return L2capChannelEvent::kRxOutOfMemory;
-  }
-  MultiBufAdapter::Copy(
-      multibuf.value(), /*dst_offset=*/0, pw::as_bytes(payload));
-  return std::move(multibuf.value());
+  return pw::span(bframe_view->payload().BackingStorage().data(),
+                  bframe_view->payload().SizeInBytes());
 }
 
 }  // namespace pw::bluetooth::proxy::internal

@@ -25,18 +25,19 @@ class BasicModeTxEngine final : public TxEngine {
   BasicModeTxEngine(uint16_t connection_handle,
                     uint16_t remote_cid,
                     Delegate& delegate)
-      : delegate_(&delegate),
+      : delegate_(delegate),
         connection_handle_(connection_handle),
         remote_cid_(remote_cid) {}
 
-  BasicModeTxEngine(BasicModeTxEngine&& other) = default;
-  BasicModeTxEngine& operator=(BasicModeTxEngine&& other) = default;
+  BasicModeTxEngine(BasicModeTxEngine&& other) = delete;
+  BasicModeTxEngine& operator=(BasicModeTxEngine&& other) = delete;
 
   ~BasicModeTxEngine() override = default;
 
   // TxEngine overrides:
 
-  Result<H4PacketWithH4> GenerateNextPacket() override;
+  Result<H4PacketWithH4> GenerateNextPacket(const FlatConstMultiBuf& payload,
+                                            bool& keep_payload) override;
   Status CheckWriteParameter(const FlatConstMultiBuf& payload) override;
   Result<bool> AddCredits(uint16_t) override {
     // Basic mode does not use credits.
@@ -46,8 +47,8 @@ class BasicModeTxEngine final : public TxEngine {
       pw::span<uint8_t> frame) override;
 
  private:
-  Delegate* delegate_;
-  uint16_t connection_handle_;
-  uint16_t remote_cid_;
+  Delegate& delegate_;
+  const uint16_t connection_handle_;
+  const uint16_t remote_cid_;
 };
 }  // namespace pw::bluetooth::proxy::internal

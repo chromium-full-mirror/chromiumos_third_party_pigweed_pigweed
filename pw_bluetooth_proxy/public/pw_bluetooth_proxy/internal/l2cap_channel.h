@@ -16,9 +16,16 @@
 
 #include <cstdint>
 
+#include "pw_allocator/unique_ptr.h"
 #include "pw_assert/assert.h"
 #include "pw_bluetooth_proxy/direction.h"
 #include "pw_bluetooth_proxy/h4_packet.h"
+#include "pw_bluetooth_proxy/internal/basic_mode_rx_engine.h"
+#include "pw_bluetooth_proxy/internal/basic_mode_tx_engine.h"
+#include "pw_bluetooth_proxy/internal/credit_based_flow_control_rx_engine.h"
+#include "pw_bluetooth_proxy/internal/credit_based_flow_control_tx_engine.h"
+#include "pw_bluetooth_proxy/internal/gatt_notify_rx_engine.h"
+#include "pw_bluetooth_proxy/internal/gatt_notify_tx_engine.h"
 #include "pw_bluetooth_proxy/internal/logical_transport.h"
 #include "pw_bluetooth_proxy/internal/multibuf.h"
 #include "pw_bluetooth_proxy/internal/mutex.h"
@@ -53,9 +60,16 @@ class L2capChannelManagerImpl;
 //
 // Protocol-dependent information that is fixed per channel, such as addresses,
 // flags, handles, etc. should be provided at construction to derived channels.
-class L2capChannel {
+class L2capChannel final : public internal::TxEngine::Delegate {
  public:
   static constexpr uint16_t kMaxValidConnectionHandle = 0x0EFF;
+
+  // Return true if the PDU was consumed by the channel. Otherwise, return false
+  // and the PDU will be forwarded by `ProxyHost` on to the Bluetooth
+  // controller.
+  using PayloadSpanReceiveCallback = Function<bool(pw::span<uint8_t>)>;
+
+  using PayloadReceiveCallback = Function<void(FlatConstMultiBuf&& payload)>;
 
   enum class State {
     // Channel is new.
@@ -69,10 +83,38 @@ class L2capChannel {
     kClosed,
   };
 
-  virtual ~L2capChannel();
+  // Precondition: AreValidParameters() is true
+  explicit L2capChannel(L2capChannelManager& l2cap_channel_manager,
+                        MultiBufAllocator* rx_multibuf_allocator,
+                        uint16_t connection_handle,
+                        AclTransportType transport,
+                        uint16_t local_cid,
+                        uint16_t remote_cid,
+                        ChannelEventCallback&& event_fn);
 
-  // Complete initialization of the channel. Must be called before `Start`.
-  Status Init() { return impl_.Init(); }
+  ~L2capChannel() override;
+
+  // Returns whether or not ACL connection handle & L2CAP channel identifiers
+  // are valid parameters for a packet.
+  [[nodiscard]] static bool AreValidParameters(uint16_t connection_handle,
+                                               uint16_t local_cid,
+                                               uint16_t remote_cid);
+
+  // Initialize the channel for Basic mode. Must be called before `Start`.
+  Status InitBasic(OptionalPayloadReceiveCallback&& payload_from_controller_fn,
+                   OptionalPayloadReceiveCallback&& payload_from_host_fn,
+                   PayloadSpanReceiveCallback&& payload_span_from_controller_fn,
+                   PayloadSpanReceiveCallback&& payload_span_from_host_fn);
+
+  // Initialize the channel for Credit Based Flow Control mode. Must be called
+  // before `Start`.
+  Status InitCreditBasedFlowControl(
+      ConnectionOrientedChannelConfig rx_config,
+      ConnectionOrientedChannelConfig tx_config,
+      Function<void(FlatConstMultiBuf&& payload)>&& receive_fn);
+
+  // Initialize the channel for GATT Notify mode. Must be called before `Start`.
+  Status InitGattNotify(uint16_t attribute_handle);
 
   // Registers the channel. Must be called for channel to be active.
   Status Start();
@@ -153,7 +195,7 @@ class L2capChannel {
   // Return true if the PDU was consumed by the channel. Otherwise, return false
   // and the PDU will be forwarded by `ProxyHost` on to the Bluetooth
   // controller.
-  [[nodiscard]] virtual bool HandlePduFromHost(pw::span<uint8_t> l2cap_pdu) = 0;
+  [[nodiscard]] bool HandlePduFromHost(span<uint8_t> l2cap_pdu);
 
   // Called when an L2CAP PDU is received on this channel. If channel is
   // `kRunning`, returns `HandlePduFromController(l2cap_pdu)`. If channel is not
@@ -181,41 +223,38 @@ class L2capChannel {
   // header.
   //
   // Returns std::nullopt if the ACL data packet length is not yet known.
-  std::optional<uint16_t> MaxL2capPayloadSize() const;
+  std::optional<uint16_t> MaxL2capPayloadSize() override;
 
- protected:
-  //----------------------
-  //  Creation (protected)
-  //----------------------
+  Status AddTxCredits(uint16_t credits);
 
-  explicit L2capChannel(
-      L2capChannelManager& l2cap_channel_manager,
-      MultiBufAllocator* rx_multibuf_allocator,
-      uint16_t connection_handle,
-      AclTransportType transport,
-      uint16_t local_cid,
-      uint16_t remote_cid,
-      OptionalPayloadReceiveCallback&& payload_from_controller_fn,
-      OptionalPayloadReceiveCallback&& payload_from_host_fn,
-      ChannelEventCallback&& event_fn);
+ private:
+  friend class L2capChannelManager;
+  friend class internal::GenericL2capChannel;
+  friend class internal::GenericL2capChannelImpl;
+  friend class internal::L2capChannelImpl;
+  friend class internal::L2capChannelManagerImpl;
 
-  // Returns whether or not ACL connection handle & L2CAP channel identifiers
-  // are valid parameters for a packet.
-  [[nodiscard]] static bool AreValidParameters(uint16_t connection_handle,
-                                               uint16_t local_cid,
-                                               uint16_t remote_cid);
-
-  //-------------------
-  //  Other (protected)
-  //-------------------
+  // TODO: https://pwbug.dev/349700888 - Make capacity configurable.
+  static constexpr size_t kQueueCapacity = 5;
 
   L2capChannelManager& channel_manager() const {
     return l2cap_channel_manager_;
   }
 
-  //----------------
-  //  Tx (protected)
-  //----------------
+  // Returns false if payload should be forwarded to host instead.
+  // Allows client to modify the payload to be forwarded.
+  bool SendPayloadToClient(pw::span<uint8_t> payload,
+                           const OptionalPayloadReceiveCallback& callback);
+
+  // Reserve an L2CAP packet over ACL over H4 packet.
+  pw::Result<H4PacketWithH4> PopulateL2capPacket(uint16_t data_length);
+
+  // TxEngine::Delegate overrides:
+  Result<H4PacketWithH4> AllocateH4(uint16_t length) override;
+
+  //--------------
+  //  Tx (private)
+  //--------------
 
   // Reserve an L2CAP over ACL over H4 packet, with those three headers
   // populated for an L2CAP PDU payload of `data_length` bytes addressed to
@@ -234,44 +273,6 @@ class L2capChannel {
   // not held either.
   void DrainChannelQueuesIfNewTx();
 
-  //-------
-  //  Rx (protected)
-  //-------
-
-  // Returns false if payload should be forwarded to controller instead.
-  // Allows client to modify the payload to be forwarded.
-  virtual bool SendPayloadFromHostToClient(pw::span<uint8_t> payload);
-
-  // Returns false if payload should be forwarded to host instead.
-  // Allows client to modify the payload to be forwarded.
-  virtual bool SendPayloadFromControllerToClient(pw::span<uint8_t> payload);
-
-  constexpr MultiBufAllocator* rx_multibuf_allocator() const {
-    return rx_multibuf_allocator_;
-  }
-
- private:
-  friend class L2capChannelManager;
-  friend class internal::GenericL2capChannel;
-  friend class internal::GenericL2capChannelImpl;
-  friend class internal::L2capChannelImpl;
-  friend class internal::L2capChannelManagerImpl;
-
-  // TODO: https://pwbug.dev/349700888 - Make capacity configurable.
-  static constexpr size_t kQueueCapacity = 5;
-
-  // Returns false if payload should be forwarded to host instead.
-  // Allows client to modify the payload to be forwarded.
-  bool SendPayloadToClient(pw::span<uint8_t> payload,
-                           const OptionalPayloadReceiveCallback& callback);
-
-  // Reserve an L2CAP packet over ACL over H4 packet.
-  pw::Result<H4PacketWithH4> PopulateL2capPacket(uint16_t data_length);
-
-  //--------------
-  //  Tx (private)
-  //--------------
-
   // Returns the next Tx H4 based on the given `payload`, and sets
   // `keep_payload` to false if payload should be discard, e.g. if the returned
   // PDU completes the transmission of a payload. If no Tx H4s can be generated,
@@ -280,23 +281,29 @@ class L2capChannel {
   //
   // Subclasses should override to generate correct H4 packet from their
   // payload.
-  virtual std::optional<H4PacketWithH4> GenerateNextTxPacket(
-      const FlatConstMultiBuf& payload, bool& keep_payload) = 0;
+  std::optional<H4PacketWithH4> GenerateNextTxPacket(
+      const FlatConstMultiBuf& payload, bool& keep_payload)
+      PW_EXCLUSIVE_LOCKS_REQUIRED(impl_.mutex_);
+
+  // Returns false if payload should be forwarded to controller instead.
+  // Allows client to modify the payload to be forwarded.
+  bool SendPayloadFromHostToClient(pw::span<uint8_t> payload);
+
+  Status SendAdditionalRxCredits(uint16_t additional_rx_credits);
 
   //--------------
   //  Rx (private)
   //--------------
 
-  // Handle an Rx L2CAP PDU.
-  //
-  // Implementations should call `SendPayloadFromControllerToClient` after
-  // recombining/processing the PDU (e.g. after updating channel state and
-  // screening out certain PDUs).
-  //
-  // Return true if the PDU was consumed by the channel. Otherwise, return false
-  // and the PDU will be forwarded by `ProxyHost` on to the Bluetooth host.
-  [[nodiscard]] virtual bool DoHandlePduFromController(
-      pw::span<uint8_t> l2cap_pdu) = 0;
+  // Returns false if payload should be forwarded to host instead.
+  // Allows client to modify the payload to be forwarded.
+  bool SendPayloadFromControllerToClient(pw::span<uint8_t> payload);
+
+  constexpr MultiBufAllocator* rx_multibuf_allocator() const {
+    return rx_multibuf_allocator_;
+  }
+
+  Status ReplenishRxCredits(uint16_t credits);
 
   //-------------
   //  Rx recombine - private, used by friend Recombiner only
@@ -412,6 +419,9 @@ class L2capChannel {
   //  Data members
   //--------------
 
+  internal::RxEngine& rx_engine() PW_EXCLUSIVE_LOCKS_REQUIRED(rx_mutex_);
+  internal::TxEngine& tx_engine() PW_EXCLUSIVE_LOCKS_REQUIRED(impl_.mutex_);
+
   L2capChannelManager& l2cap_channel_manager_;
 
   State state_ PW_GUARDED_BY(impl_.mutex_) = State::kNew;
@@ -431,9 +441,29 @@ class L2capChannel {
   MultiBufAllocator* rx_multibuf_allocator_ = nullptr;
 
   // Client-provided controller read callback.
-  const OptionalPayloadReceiveCallback payload_from_controller_fn_;
+  // Used in Basic mode.
+  OptionalPayloadReceiveCallback payload_from_controller_fn_;
+  // Optionally used in Basic mode (for signaling channels, GATT).
+  PayloadSpanReceiveCallback payload_span_from_controller_fn_;
+  // Used in CreditBasedFlowControl mode.
+  PayloadReceiveCallback receive_fn_;
+
   // Client-provided host read callback.
-  const OptionalPayloadReceiveCallback payload_from_host_fn_;
+  OptionalPayloadReceiveCallback payload_from_host_fn_;
+  PayloadSpanReceiveCallback payload_span_from_host_fn_;
+
+  std::variant<std::monostate,
+               internal::BasicModeTxEngine,
+               internal::CreditBasedFlowControlTxEngine,
+               internal::GattNotifyTxEngine>
+      tx_engine_ PW_GUARDED_BY(impl_.mutex_);
+
+  internal::Mutex rx_mutex_ PW_ACQUIRED_BEFORE(impl_.mutex_);
+  std::variant<std::monostate,
+               internal::BasicModeRxEngine,
+               internal::CreditBasedFlowControlRxEngine,
+               internal::GattNotifyRxEngine>
+      rx_engine_ PW_GUARDED_BY(rx_mutex_);
 
   // Recombination MultiBufs used by Recombiner to store in-progress
   // payloads when they are being recombined.

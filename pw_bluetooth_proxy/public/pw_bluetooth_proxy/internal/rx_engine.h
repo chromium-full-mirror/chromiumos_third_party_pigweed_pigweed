@@ -42,6 +42,8 @@ class RxEngine {
   /// or an error channel event to send to the client.
   virtual HandlePduFromControllerReturnValue HandlePduFromController(
       pw::span<uint8_t> frame) = 0;
+
+  virtual Status AddRxCredits(uint16_t additional_rx_credits) = 0;
 };
 
 }  // namespace pw::bluetooth::proxy::internal

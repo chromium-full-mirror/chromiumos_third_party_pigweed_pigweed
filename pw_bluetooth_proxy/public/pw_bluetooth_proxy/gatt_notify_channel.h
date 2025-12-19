@@ -15,7 +15,6 @@
 
 #include <cstdint>
 
-#include "pw_bluetooth_proxy/internal/gatt_notify_channel_internal.h"
 #include "pw_bluetooth_proxy/internal/generic_l2cap_channel.h"
 
 namespace pw::bluetooth::proxy {
@@ -32,7 +31,7 @@ class GattNotifyChannel final : public internal::GenericL2capChannel {
  private:
   friend class L2capChannelManager;
 
-  explicit GattNotifyChannel(internal::GattNotifyChannelInternal& channel);
+  explicit GattNotifyChannel(L2capChannel& channel, uint16_t attribute_handle);
 
   /// @copydoc internal::GenericL2capChannel::DoCheckWriteParameter
   Status DoCheckWriteParameter(const FlatConstMultiBuf& payload) override;

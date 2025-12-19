@@ -33,6 +33,17 @@
 
 namespace pw::bluetooth::proxy {
 
+namespace {
+
+template <class... Ts>
+struct Visitors : Ts... {
+  using Ts::operator()...;
+};
+template <class... Ts>
+Visitors(Ts...) -> Visitors<Ts...>;
+
+}  // namespace
+
 L2capChannel::~L2capChannel() {
   // Block until there are no outstanding borrows. Callers (namely
   // L2capChannelManager) MUST NOT be holding the `static_mutex_` when this
@@ -115,7 +126,49 @@ bool L2capChannel::HandlePduFromController(pw::span<uint8_t> l2cap_pdu) {
     impl_.SendEvent(L2capChannelEvent::kRxWhileStopped);
     return true;
   }
-  return DoHandlePduFromController(l2cap_pdu);
+
+  internal::RxEngine::HandlePduFromControllerReturnValue result;
+  {
+    std::lock_guard rx_lock(rx_mutex_);
+    result = rx_engine().HandlePduFromController(l2cap_pdu);
+  }
+
+  return std::visit(
+      Visitors{
+          [](std::monostate) {
+            // Do nothing and consume the packet.
+            return true;
+          },
+          [this](L2capChannelEvent event) {
+            StopAndSendEvent(event);
+            // Consume the packet that caused the
+            // error/closure.
+            return true;
+          },
+          [this](FlatMultiBufInstance&& buffer) {
+            // MultiBufs are only returned by CreditBasedFlowControlRxEngine,
+            // which is used with receive_fn_.
+            PW_CHECK(!payload_span_from_controller_fn_);
+            PW_CHECK(!payload_from_controller_fn_);
+            if (receive_fn_) {
+              receive_fn_(std::move(MultiBufAdapter::Unwrap(buffer)));
+            }
+            return true;
+          },
+          [this](span<uint8_t> buffer) {
+            // receive_fn_ is only used by CreditBasedFlowControlRxEngine, which
+            // returns MultiBufs.
+            PW_CHECK(!receive_fn_);
+
+            if (payload_span_from_controller_fn_) {
+              return payload_span_from_controller_fn_(buffer);
+            }
+
+            PW_CHECK(payload_from_controller_fn_);
+            return SendPayloadToClient(buffer, payload_from_controller_fn_);
+          },
+      },
+      std::move(result));
 }
 
 L2capChannel::State L2capChannel::state() const {
@@ -123,24 +176,19 @@ L2capChannel::State L2capChannel::state() const {
   return state_;
 }
 
-L2capChannel::L2capChannel(
-    L2capChannelManager& l2cap_channel_manager,
-    MultiBufAllocator* rx_multibuf_allocator,
-    uint16_t connection_handle,
-    AclTransportType transport,
-    uint16_t local_cid,
-    uint16_t remote_cid,
-    OptionalPayloadReceiveCallback&& payload_from_controller_fn,
-    OptionalPayloadReceiveCallback&& payload_from_host_fn,
-    ChannelEventCallback&& event_fn)
+L2capChannel::L2capChannel(L2capChannelManager& l2cap_channel_manager,
+                           MultiBufAllocator* rx_multibuf_allocator,
+                           uint16_t connection_handle,
+                           AclTransportType transport,
+                           uint16_t local_cid,
+                           uint16_t remote_cid,
+                           ChannelEventCallback&& event_fn)
     : l2cap_channel_manager_(l2cap_channel_manager),
       transport_(transport),
       local_handle_(*this, MakeKey(connection_handle, local_cid)),
       remote_handle_(*this, MakeKey(connection_handle, remote_cid)),
       event_fn_(std::move(event_fn)),
       rx_multibuf_allocator_(rx_multibuf_allocator),
-      payload_from_controller_fn_(std::move(payload_from_controller_fn)),
-      payload_from_host_fn_(std::move(payload_from_host_fn)),
       impl_(*this) {
   PW_LOG_INFO(
       "btproxy: L2capChannel ctor - transport_: %u, connection_handle_ : %u, "
@@ -149,6 +197,7 @@ L2capChannel::L2capChannel(
       connection_handle,
       local_cid,
       remote_cid);
+  PW_CHECK(AreValidParameters(connection_handle, local_cid, remote_cid));
 }
 
 Status L2capChannel::Start() {
@@ -236,7 +285,7 @@ pw::Result<H4PacketWithH4> L2capChannel::PopulateL2capPacket(
   return h4_packet;
 }
 
-std::optional<uint16_t> L2capChannel::MaxL2capPayloadSize() const {
+std::optional<uint16_t> L2capChannel::MaxL2capPayloadSize() {
   std::optional<uint16_t> max_acl_length =
       channel_manager().MaxDataPacketLengthForTransport(transport());
   if (!max_acl_length.has_value()) {
@@ -343,6 +392,174 @@ pw::Status L2capChannel::StartRecombinationBuf(Direction direction,
 
 void L2capChannel::EndRecombinationBuf(Direction direction) {
   GetRecombinationBufOptRef(direction) = std::nullopt;
+}
+
+Status L2capChannel::InitBasic(
+    OptionalPayloadReceiveCallback&& payload_from_controller_fn,
+    OptionalPayloadReceiveCallback&& payload_from_host_fn,
+    PayloadSpanReceiveCallback&& payload_span_from_controller_fn,
+    PayloadSpanReceiveCallback&& payload_span_from_host_fn) {
+  payload_from_controller_fn_ = std::move(payload_from_controller_fn);
+  payload_from_host_fn_ = std::move(payload_from_host_fn);
+  payload_span_from_controller_fn_ = std::move(payload_span_from_controller_fn);
+  payload_span_from_host_fn_ = std::move(payload_span_from_host_fn);
+
+  {
+    std::lock_guard rx_lock(rx_mutex_);
+    std::lock_guard lock(impl_.mutex_);
+    tx_engine_.emplace<internal::BasicModeTxEngine>(
+        connection_handle(), remote_cid(), *this);
+    rx_engine_.emplace<internal::BasicModeRxEngine>(local_cid());
+  }
+
+  return impl_.Init();
+}
+
+Status L2capChannel::InitCreditBasedFlowControl(
+    ConnectionOrientedChannelConfig rx_config,
+    ConnectionOrientedChannelConfig tx_config,
+    Function<void(FlatConstMultiBuf&& payload)>&& receive_fn) {
+  if (tx_config.mps < emboss::L2capLeCreditBasedConnectionReq::min_mps() ||
+      tx_config.mps > emboss::L2capLeCreditBasedConnectionReq::max_mps()) {
+    PW_LOG_ERROR("Tx MPS (%" PRIu16
+                 " octets) invalid. L2CAP implementations shall support a "
+                 "minimum MPS of %" PRIi32
+                 " octets and may support an MPS up to %" PRIi32 " octets.",
+                 tx_config.mps,
+                 emboss::L2capLeCreditBasedConnectionReq::min_mps(),
+                 emboss::L2capLeCreditBasedConnectionReq::max_mps());
+    return Status::InvalidArgument();
+  }
+
+  if (!rx_multibuf_allocator_) {
+    return Status::FailedPrecondition();
+  }
+
+  receive_fn_ = std::move(receive_fn);
+
+  {
+    std::lock_guard rx_lock(rx_mutex_);
+    std::lock_guard lock(impl_.mutex_);
+    tx_engine_.emplace<internal::CreditBasedFlowControlTxEngine>(
+        tx_config, connection_handle(), local_cid(), *this);
+    rx_engine_.emplace<internal::CreditBasedFlowControlRxEngine>(
+        rx_config,
+        *rx_multibuf_allocator_,
+        pw::bind_member<&L2capChannel::ReplenishRxCredits>(this));
+  }
+
+  return impl_.Init();
+}
+
+Status L2capChannel::InitGattNotify(uint16_t attribute_handle) {
+  if (attribute_handle == 0) {
+    PW_LOG_ERROR("Attribute handle cannot be 0.");
+    return pw::Status::InvalidArgument();
+  }
+
+  {
+    std::lock_guard rx_lock(rx_mutex_);
+    std::lock_guard lock(impl_.mutex_);
+    rx_engine_.emplace<internal::GattNotifyRxEngine>();
+    tx_engine_.emplace<internal::GattNotifyTxEngine>(
+        connection_handle(), remote_cid(), attribute_handle, *this);
+  }
+
+  return impl_.Init();
+}
+
+Status L2capChannel::ReplenishRxCredits(uint16_t credits) {
+  PW_CHECK(rx_multibuf_allocator());
+  // SendFlowControlCreditInd logs if status is not ok, so no need to log here.
+  return channel_manager().SendFlowControlCreditInd(
+      connection_handle(), local_cid(), credits, *rx_multibuf_allocator());
+}
+
+Result<H4PacketWithH4> L2capChannel::AllocateH4(uint16_t length) {
+  return l2cap_channel_manager_.GetAclH4Packet(length);
+}
+
+internal::RxEngine& L2capChannel::rx_engine() {
+  return std::visit(
+      [](auto&& arg) -> internal::RxEngine& {
+        using T = std::decay_t<decltype(arg)>;
+        if constexpr (std::is_same_v<T, std::monostate>)
+          PW_CRASH("RxEngine is monostate");
+        else
+          return arg;
+      },
+      rx_engine_);
+}
+
+internal::TxEngine& L2capChannel::tx_engine() {
+  return std::visit(
+      [](auto&& arg) -> internal::TxEngine& {
+        using T = std::decay_t<decltype(arg)>;
+        if constexpr (std::is_same_v<T, std::monostate>)
+          PW_CRASH("TxEngine is monostate");
+        else
+          return arg;
+      },
+      tx_engine_);
+}
+
+bool L2capChannel::HandlePduFromHost(pw::span<uint8_t> l2cap_pdu) {
+  internal::TxEngine::HandlePduFromHostReturnValue result;
+  {
+    std::lock_guard lock(impl_.mutex_);
+    result = tx_engine().HandlePduFromHost(l2cap_pdu);
+  }
+  if (result.send_to_client.has_value()) {
+    if (payload_span_from_host_fn_) {
+      return payload_span_from_host_fn_(result.send_to_client.value());
+    }
+    PW_CHECK(payload_from_host_fn_);
+    return SendPayloadToClient(result.send_to_client.value(),
+                               payload_from_host_fn_);
+  }
+  return !result.forward_to_controller;
+}
+
+Status L2capChannel::AddTxCredits(uint16_t credits) {
+  Result<bool> result;
+  {
+    std::lock_guard lock(impl_.mutex_);
+    result = tx_engine().AddCredits(credits);
+  }
+  if (!result.ok()) {
+    StopAndSendEvent(L2capChannelEvent::kRxInvalid);
+    return result.status();
+  }
+  if (result.value()) {
+    ReportNewTxPacketsOrCredits();
+  }
+  return OkStatus();
+}
+
+Status L2capChannel::SendAdditionalRxCredits(uint16_t additional_rx_credits) {
+  if (state() != State::kRunning) {
+    return Status::FailedPrecondition();
+  }
+  std::lock_guard lock(rx_mutex_);
+  Status status = ReplenishRxCredits(additional_rx_credits);
+
+  if (status.ok()) {
+    status = rx_engine().AddRxCredits(additional_rx_credits);
+  }
+
+  DrainChannelQueuesIfNewTx();
+  return status;
+}
+
+std::optional<H4PacketWithH4> L2capChannel::GenerateNextTxPacket(
+    const FlatConstMultiBuf& payload, bool& keep_payload) {
+  Result<H4PacketWithH4> result =
+      tx_engine().GenerateNextPacket(payload, keep_payload);
+  if (!result.ok()) {
+    // TODO: https://pwbug.dev/450060983 - Return the result
+    return std::nullopt;
+  }
+  return std::move(result.value());
 }
 
 }  // namespace pw::bluetooth::proxy

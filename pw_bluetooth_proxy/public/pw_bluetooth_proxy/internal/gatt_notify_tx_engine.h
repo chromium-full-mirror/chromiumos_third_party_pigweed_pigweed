@@ -26,7 +26,7 @@ class GattNotifyTxEngine final : public TxEngine {
                      uint16_t remote_cid,
                      uint16_t attribute_handle,
                      Delegate& delegate)
-      : delegate_(&delegate),
+      : delegate_(delegate),
         connection_handle_(connection_handle),
         remote_cid_(remote_cid),
         attribute_handle_(attribute_handle) {}
@@ -35,7 +35,8 @@ class GattNotifyTxEngine final : public TxEngine {
 
   // TxEngine overrides:
 
-  Result<H4PacketWithH4> GenerateNextPacket() override;
+  Result<H4PacketWithH4> GenerateNextPacket(
+      const FlatConstMultiBuf& attribute_value, bool& keep_payload) override;
   Status CheckWriteParameter(const FlatConstMultiBuf& payload) override;
   Result<bool> AddCredits(uint16_t) override {
     // ATT does not use credits.
@@ -47,9 +48,9 @@ class GattNotifyTxEngine final : public TxEngine {
   }
 
  private:
-  Delegate* delegate_;
-  uint16_t connection_handle_;
-  uint16_t remote_cid_;
-  uint16_t attribute_handle_;
+  Delegate& delegate_;
+  const uint16_t connection_handle_;
+  const uint16_t remote_cid_;
+  const uint16_t attribute_handle_;
 };
 }  // namespace pw::bluetooth::proxy::internal

@@ -35,6 +35,8 @@ class GattNotifyRxEngine final : public RxEngine {
     // span to forward the packet.
     return pw::span<uint8_t>();
   }
+
+  Status AddRxCredits(uint16_t) override { return Status::Unimplemented(); }
 };
 
 }  // namespace pw::bluetooth::proxy::internal

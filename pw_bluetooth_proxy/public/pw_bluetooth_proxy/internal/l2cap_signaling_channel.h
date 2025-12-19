@@ -16,7 +16,8 @@
 
 #include "pw_bluetooth/l2cap_frames.emb.h"
 #include "pw_bluetooth_proxy/direction.h"
-#include "pw_bluetooth_proxy/internal/basic_l2cap_channel_internal.h"
+#include "pw_bluetooth_proxy/internal/l2cap_channel.h"
+#include "pw_bluetooth_proxy/internal/logical_transport.h"
 #include "pw_bluetooth_proxy/internal/multibuf.h"
 #include "pw_bluetooth_proxy/internal/mutex.h"
 #include "pw_bluetooth_proxy/l2cap_status_delegate.h"
@@ -25,6 +26,8 @@
 #include "pw_sync/mutex.h"
 
 namespace pw::bluetooth::proxy {
+
+class L2capChannelManager;
 
 // Interface for L2CAP signaling channels, which can be either ACL-U signaling
 // channels or LE-U signaling channels.
@@ -132,7 +135,7 @@ class L2capSignalingChannel final {
 
   L2capChannelManager& l2cap_channel_manager_;
 
-  internal::BasicL2capChannelInternal* channel_ = nullptr;
+  L2capChannel* channel_ = nullptr;
 
   // TODO(b/405190891): Properly clean-up pending_connections_ and
   // pending_configurations_

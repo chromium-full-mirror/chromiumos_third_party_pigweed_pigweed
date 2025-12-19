@@ -22,7 +22,6 @@
 #include "pw_bluetooth/l2cap_frames.emb.h"
 #include "pw_bluetooth_proxy/direction.h"
 #include "pw_bluetooth_proxy/internal/l2cap_channel_manager.h"
-#include "pw_bluetooth_proxy/internal/l2cap_coc_internal.h"
 #include "pw_bluetooth_proxy/internal/multibuf.h"
 #include "pw_bluetooth_proxy/l2cap_channel_common.h"
 #include "pw_bytes/span.h"
@@ -48,29 +47,32 @@ L2capSignalingChannel::L2capSignalingChannel(
 Status L2capSignalingChannel::Init(uint16_t connection_handle,
                                    AclTransportType transport) {
   Allocator& allocator = l2cap_channel_manager_.impl().allocator();
-  auto channel = allocator.MakeUnique<internal::BasicL2capChannelInternal>(
+
+  UniquePtr<L2capChannel> channel = allocator.MakeUnique<L2capChannel>(
       l2cap_channel_manager_,
       /*rx_multibuf_allocator=*/nullptr,
-      /*connection_handle=*/connection_handle,
-      /*transport*/ transport,
+      connection_handle,
+      transport,
       /*local_cid=*/ChannelIdForTransport(transport),
       /*remote_cid=*/ChannelIdForTransport(transport),
+      /*event_fn=*/nullptr);
+  if (channel == nullptr) {
+    return Status::ResourceExhausted();
+  }
+  PW_TRY(channel->InitBasic(
       /*payload_from_controller_fn=*/
       nullptr,
       /*payload_from_host_fn=*/
       nullptr,
-      /*event_fn=*/nullptr,
       /*payload_span_from_controller_fn=*/
-      bind_member<&L2capSignalingChannel::HandlePayloadFromController>(this),
+      pw::bind_member<&L2capSignalingChannel::HandlePayloadFromController>(
+          this),
       /*payload_span_from_host_fn=*/
-      bind_member<&L2capSignalingChannel::HandlePayloadFromHost>(this));
-  if (channel == nullptr) {
-    PW_LOG_ERROR("Unable to allocate signaling channel for connection: %#x",
-                 connection_handle);
-    return Status::ResourceExhausted();
-  }
-  PW_TRY(channel->Init());
+      pw::bind_member<&L2capSignalingChannel::HandlePayloadFromHost>(this)));
+  // Registers channel with L2capChannelManager.
   PW_TRY(channel->Start());
+  // The channel has been registered with L2capChannelManager, which now
+  // owns it.
   channel_ = channel.Release();
   return OkStatus();
 }
@@ -453,13 +455,7 @@ bool L2capSignalingChannel::HandleFlowControlCreditInd(
       l2cap_channel_manager_.FindChannelByRemoteCidLocked(
           channel_->connection_handle(), cmd.cid().Read());
   if (found_channel) {
-    // If this L2CAP_FLOW_CONTROL_CREDIT_IND is addressed to a channel managed
-    // by the proxy, it must be an L2CAP connection-oriented channel.
-    // TODO: https://pwbug.dev/360929142 - Validate type in case remote peer
-    // sends indication addressed to wrong CID.
-    internal::L2capCocInternal* coc_ptr =
-        static_cast<internal::L2capCocInternal*>(found_channel);
-    coc_ptr->AddTxCredits(cmd.credits().Read());
+    std::ignore = found_channel->AddTxCredits(cmd.credits().Read());
     return true;
   }
   return false;

@@ -16,18 +16,22 @@
 
 #include <mutex>
 
+#include "pw_bluetooth/l2cap_frames.emb.h"
 #include "pw_log/log.h"
 
 namespace pw::bluetooth::proxy {
 
-L2capCoc::L2capCoc(internal::L2capCocInternal& channel)
-    : internal::GenericL2capChannel(channel), tx_mtu_(channel.tx_mtu()) {
+constexpr uint8_t kSduLengthFieldSize =
+    emboss::FirstKFrame::MinSizeInBytes() -
+    emboss::BasicL2capHeader::IntrinsicSizeInBytes();
+
+L2capCoc::L2capCoc(L2capChannel& channel, uint16_t tx_mtu)
+    : internal::GenericL2capChannel(channel), tx_mtu_(tx_mtu) {
   std::optional<uint16_t> max_l2cap_payload_size =
       channel.MaxL2capPayloadSize();
   if (!max_l2cap_payload_size.has_value()) {
     PW_LOG_ERROR("Maximum L2CAP payload size is not set.");
-  } else if (*max_l2cap_payload_size <=
-             internal::L2capCocInternal::kSduLengthFieldSize) {
+  } else if (*max_l2cap_payload_size <= kSduLengthFieldSize) {
     PW_LOG_ERROR(
         "Maximum L2CAP payload size is smaller than minimum SDU size.");
   }

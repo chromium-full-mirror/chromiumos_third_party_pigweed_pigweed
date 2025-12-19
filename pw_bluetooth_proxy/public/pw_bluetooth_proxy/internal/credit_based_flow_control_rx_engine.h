@@ -25,10 +25,9 @@ class CreditBasedFlowControlRxEngine final : public RxEngine {
  public:
   CreditBasedFlowControlRxEngine(
       ConnectionOrientedChannelConfig config,
-      uint16_t local_cid,
       MultiBufAllocator& rx_multibuf_allocator,
       Function<Status(uint16_t)> replenish_rx_credits_fn)
-      : local_cid_(local_cid),
+      : local_cid_(config.cid),
         rx_mtu_(config.mtu),
         rx_mps_(config.mps),
         replenish_rx_credits_fn_(std::move(replenish_rx_credits_fn)),
@@ -45,6 +44,8 @@ class CreditBasedFlowControlRxEngine final : public RxEngine {
 
   HandlePduFromControllerReturnValue HandlePduFromController(
       pw::span<uint8_t> frame) override;
+
+  Status AddRxCredits(uint16_t additional_rx_credits) override;
 
  private:
   uint16_t local_cid_;

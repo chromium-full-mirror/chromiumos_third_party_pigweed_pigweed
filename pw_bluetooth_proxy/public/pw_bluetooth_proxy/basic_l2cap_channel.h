@@ -13,7 +13,6 @@
 // the License.
 #pragma once
 
-#include "pw_bluetooth_proxy/internal/basic_l2cap_channel_internal.h"
 #include "pw_bluetooth_proxy/internal/generic_l2cap_channel.h"
 
 namespace pw::bluetooth::proxy {
@@ -26,7 +25,7 @@ class BasicL2capChannel final : public internal::GenericL2capChannel {
  private:
   friend class L2capChannelManager;
 
-  explicit BasicL2capChannel(internal::BasicL2capChannelInternal& channel);
+  explicit BasicL2capChannel(L2capChannel& channel);
 
   /// @copydoc internal::GenericL2capChannel::DoCheckWriteParameter
   Status DoCheckWriteParameter(const FlatConstMultiBuf& payload) override;

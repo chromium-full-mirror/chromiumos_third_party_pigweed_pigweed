@@ -156,4 +156,21 @@ CreditBasedFlowControlRxEngine::HandlePduFromController(
 
   return std::monostate();
 }
+
+Status CreditBasedFlowControlRxEngine::AddRxCredits(
+    uint16_t additional_rx_credits) {
+  // We treat additional bumps from the client as bumping the total allowed
+  // credits.
+  rx_total_credits_ += additional_rx_credits;
+  rx_remaining_credits_ += additional_rx_credits;
+  PW_LOG_INFO(
+      "btproxy: CreditBasedFlowControlRxEngine::AddRxCredits -  "
+      "additional_rx_credits: %u, rx_total_credits_: %u, "
+      "rx_remaining_credits_: %u",
+      additional_rx_credits,
+      rx_total_credits_,
+      rx_remaining_credits_);
+  return OkStatus();
+}
+
 }  // namespace pw::bluetooth::proxy::internal

@@ -22,11 +22,9 @@
 #include "pw_async2/poll.h"
 #include "pw_async2/task.h"
 #include "pw_async2/try.h"
-#include "pw_bluetooth_proxy/internal/gatt_notify_channel_internal.h"
 #include "pw_bluetooth_proxy/internal/l2cap_channel.h"
 #include "pw_bluetooth_proxy/internal/l2cap_channel_async.h"
 #include "pw_bluetooth_proxy/internal/l2cap_channel_manager.h"
-#include "pw_bluetooth_proxy/internal/l2cap_coc_internal.h"
 #include "pw_log/log.h"
 
 namespace pw::bluetooth::proxy::internal {
@@ -136,7 +134,11 @@ async2::Poll<std::optional<H4PacketWithH4>> L2capChannelImpl::DequeuePacket(
 
   // Create a packet from the payload.
   bool keep_payload = false;
-  packet = channel_.GenerateNextTxPacket(*payload_, keep_payload);
+  {
+    // Fake lock to satisfy annotations.
+    std::lock_guard lock(channel_.impl_.mutex_);
+    packet = channel_.GenerateNextTxPacket(*payload_, keep_payload);
+  }
 
   // If no additional packets can be created from the payload, remove it.
   if (!keep_payload) {
@@ -180,10 +182,8 @@ async2::Poll<> L2capChannelImpl::Task::DoPend(async2::Context& context) {
     }
     switch (request->type) {
       case Request::Type::kSendAdditionalRxCredits: {
-        auto& channel =
-            static_cast<internal::L2capCocInternal&>(impl_.channel());
-        std::ignore =
-            channel.SendAdditionalRxCredits(request->additional_rx_credits);
+        std::ignore = impl_.channel().SendAdditionalRxCredits(
+            request->additional_rx_credits);
         break;
       }
       case Request::Type::kNotifyOnDequeue: {

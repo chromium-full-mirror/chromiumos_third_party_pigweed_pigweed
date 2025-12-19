@@ -35,19 +35,16 @@ constexpr size_t H4SizeForL2capData(uint16_t data_length) {
 
 }  // namespace
 
-Result<H4PacketWithH4> BasicModeTxEngine::GenerateNextPacket() {
-  const FlatConstMultiBuf* payload = delegate_->GetFrontPayload();
-  if (!payload) {
-    return Status::Unavailable();
-  }
-  const uint16_t data_length = payload->size();
+Result<H4PacketWithH4> BasicModeTxEngine::GenerateNextPacket(
+    const FlatConstMultiBuf& payload, bool& keep_payload) {
+  keep_payload = true;
+  const uint16_t data_length = payload.size();
 
   const size_t l2cap_packet_size =
       emboss::BasicL2capHeader::IntrinsicSizeInBytes() + data_length;
   const size_t h4_packet_size = H4SizeForL2capData(data_length);
 
-  PW_TRY_ASSIGN(H4PacketWithH4 h4_packet,
-                delegate_->AllocateH4(h4_packet_size));
+  PW_TRY_ASSIGN(H4PacketWithH4 h4_packet, delegate_.AllocateH4(h4_packet_size));
   h4_packet.SetH4Type(emboss::H4PacketType::ACL_DATA);
 
   PW_TRY_ASSIGN(
@@ -66,19 +63,18 @@ Result<H4PacketWithH4> BasicModeTxEngine::GenerateNextPacket() {
   bframe.channel_id().Write(remote_cid_);
   PW_CHECK(bframe.IsComplete());
 
-  MultiBufAdapter::Copy(bframe.payload(), *payload);
+  MultiBufAdapter::Copy(bframe.payload(), payload);
   PW_CHECK(acl.Ok());
   PW_CHECK(bframe.Ok());
 
   // All content has been copied from the front payload, so release it.
-  delegate_->PopFrontPayload();
-
+  keep_payload = false;
   return h4_packet;
 }
 
 Status BasicModeTxEngine::CheckWriteParameter(
     const FlatConstMultiBuf& payload) {
-  std::optional<uint16_t> max_l2cap_length = delegate_->MaxL2capPayloadSize();
+  std::optional<uint16_t> max_l2cap_length = delegate_.MaxL2capPayloadSize();
   if (!max_l2cap_length) {
     return Status::FailedPrecondition();
   }

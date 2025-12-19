@@ -17,7 +17,6 @@
 #include <cstdint>
 
 #include "pw_bluetooth_proxy/internal/generic_l2cap_channel.h"
-#include "pw_bluetooth_proxy/internal/l2cap_coc_internal.h"
 #include "pw_bluetooth_proxy/l2cap_channel_common.h"
 #include "pw_bluetooth_proxy/l2cap_coc_config.h"
 #include "pw_status/status.h"
@@ -42,7 +41,7 @@ class L2capCoc final : public internal::GenericL2capChannel {
  private:
   friend class L2capChannelManager;
 
-  explicit L2capCoc(internal::L2capCocInternal& channel);
+  explicit L2capCoc(L2capChannel& channel, uint16_t tx_mtu);
 
   /// @copydoc internal::GenericL2capChannel::DoCheckWriteParameter
   Status DoCheckWriteParameter(const FlatConstMultiBuf& payload) override;

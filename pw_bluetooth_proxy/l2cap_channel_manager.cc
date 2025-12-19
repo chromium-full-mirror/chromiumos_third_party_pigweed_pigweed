@@ -19,9 +19,6 @@
 
 #include "pw_assert/check.h"
 #include "pw_bluetooth_proxy/internal/acl_data_channel.h"
-#include "pw_bluetooth_proxy/internal/basic_l2cap_channel_internal.h"
-#include "pw_bluetooth_proxy/internal/gatt_notify_channel_internal.h"
-#include "pw_bluetooth_proxy/internal/l2cap_coc_internal.h"
 #include "pw_bluetooth_proxy/internal/logical_transport.h"
 #include "pw_containers/algorithm.h"
 #include "pw_containers/flat_map.h"
@@ -55,22 +52,27 @@ Result<L2capCoc> L2capChannelManager::AcquireL2capCoc(
   if (!acl_data_channel_.HasAclConnection(connection_handle)) {
     return Status::Unavailable();
   }
-  if (!internal::L2capCocInternal::AreValidParameters(
-          connection_handle, rx_config, tx_config)) {
+
+  if (!L2capChannel::AreValidParameters(connection_handle,
+                                        /*local_cid=*/rx_config.cid,
+                                        /*remote_cid=*/tx_config.cid)) {
     return Status::InvalidArgument();
   }
-  auto channel = impl_.allocator().MakeUnique<internal::L2capCocInternal>(
-      rx_multibuf_allocator,
-      *this,
-      connection_handle,
-      rx_config,
-      tx_config,
-      std::move(event_fn),
-      std::move(receive_fn));
+
+  UniquePtr<L2capChannel> channel =
+      impl_.allocator().MakeUnique<L2capChannel>(*this,
+                                                 &rx_multibuf_allocator,
+                                                 connection_handle,
+                                                 AclTransportType::kLe,
+                                                 /*local_cid=*/rx_config.cid,
+                                                 /*remote_cid=*/tx_config.cid,
+                                                 std::move(event_fn));
   if (channel == nullptr) {
     return Status::ResourceExhausted();
   }
-  L2capCoc client_channel(*channel);
+  PW_TRY(channel->InitCreditBasedFlowControl(
+      rx_config, tx_config, std::move(receive_fn)));
+  L2capCoc client_channel(*channel, tx_config.mtu);
   PW_TRY(client_channel.Init());
   channel.Release();
   return client_channel;
@@ -96,28 +98,25 @@ Result<BasicL2capChannel> L2capChannelManager::AcquireBasicL2capChannel(
   if (!acl_data_channel_.HasAclConnection(connection_handle)) {
     return Status::Unavailable();
   }
-  if (!internal::BasicL2capChannelInternal::AreValidParameters(
+  if (!L2capChannel::AreValidParameters(
           connection_handle, local_cid, remote_cid)) {
     return Status::InvalidArgument();
   }
-  auto channel =
-      impl_.allocator().MakeUnique<internal::BasicL2capChannelInternal>(
-          *this,
-          &rx_multibuf_allocator,
-          /*connection_handle=*/connection_handle,
-          /*transport=*/transport,
-          /*local_cid=*/local_cid,
-          /*remote_cid=*/remote_cid,
-          /*payload_from_controller_fn=*/
-          std::move(payload_from_controller_fn),
-          /*payload_from_host_fn=*/
-          std::move(payload_from_host_fn),
-          /*event_fn=*/std::move(event_fn),
-          /*payload_span_from_controller_fn=*/nullptr,
-          /*payload_span_from_host_fn=*/nullptr);
+  UniquePtr<L2capChannel> channel =
+      impl_.allocator().MakeUnique<L2capChannel>(*this,
+                                                 &rx_multibuf_allocator,
+                                                 connection_handle,
+                                                 transport,
+                                                 local_cid,
+                                                 remote_cid,
+                                                 std::move(event_fn));
   if (channel == nullptr) {
     return Status::ResourceExhausted();
   }
+  PW_TRY(channel->InitBasic(std::move(payload_from_controller_fn),
+                            std::move(payload_from_host_fn),
+                            /*payload_span_from_controller_fn=*/nullptr,
+                            /*payload_span_from_host_fn=*/nullptr));
   BasicL2capChannel client_channel(*channel);
   PW_TRY(client_channel.Init());
   channel.Release();
@@ -139,17 +138,28 @@ Result<GattNotifyChannel> L2capChannelManager::AcquireGattNotifyChannel(
   if (!acl_data_channel_.HasAclConnection(connection_handle)) {
     return Status::Unavailable();
   }
-  if (!internal::GattNotifyChannelInternal::AreValidParameters(
-          connection_handle, attribute_handle)) {
+  if (!L2capChannel::AreValidParameters(
+          connection_handle,
+          static_cast<uint16_t>(emboss::L2capFixedCid::LE_U_ATTRIBUTE_PROTOCOL),
+          static_cast<uint16_t>(
+              emboss::L2capFixedCid::LE_U_ATTRIBUTE_PROTOCOL))) {
     return Status::InvalidArgument();
   }
-  auto channel =
-      impl_.allocator().MakeUnique<internal::GattNotifyChannelInternal>(
-          *this, connection_handle, attribute_handle, std::move(event_fn));
+  UniquePtr<L2capChannel> channel = impl_.allocator().MakeUnique<L2capChannel>(
+      *this,
+      /*rx_multibuf_allocator=*/nullptr,
+      connection_handle,
+      AclTransportType::kLe,
+      /*local_cid=*/
+      static_cast<uint16_t>(emboss::L2capFixedCid::LE_U_ATTRIBUTE_PROTOCOL),
+      /*remote_cid=*/
+      static_cast<uint16_t>(emboss::L2capFixedCid::LE_U_ATTRIBUTE_PROTOCOL),
+      std::move(event_fn));
   if (channel == nullptr) {
     return Status::ResourceExhausted();
   }
-  GattNotifyChannel client_channel(*channel);
+  PW_TRY(channel->InitGattNotify(attribute_handle));
+  GattNotifyChannel client_channel(*channel, attribute_handle);
   PW_TRY(client_channel.Init());
   channel.Release();
   return client_channel;

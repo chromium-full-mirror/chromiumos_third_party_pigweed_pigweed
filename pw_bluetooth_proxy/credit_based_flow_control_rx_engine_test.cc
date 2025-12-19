@@ -42,7 +42,6 @@ class CreditBasedFlowControlRxEngineTest : public ::testing::Test {
     };
 
     engine_.emplace(config,
-                    kLocalCid,
                     packet_allocator_context_.GetAllocator(),
                     std::move(replenish_rx_credits_fn));
   }
@@ -229,6 +228,61 @@ TEST_F(CreditBasedFlowControlRxEngineTest, OutOfMemory) {
   ASSERT_TRUE(std::holds_alternative<L2capChannelEvent>(result));
   EXPECT_EQ(std::get<L2capChannelEvent>(result),
             L2capChannelEvent::kRxOutOfMemory);
+}
+
+TEST_F(CreditBasedFlowControlRxEngineTest, AddCredits) {
+  PW_TEST_ASSERT_OK(engine().AddRxCredits(10 - kCredits));
+
+  std::array<uint8_t, 9> pdu_0 = {// L2cap K-Frame:
+                                  0x05,
+                                  0x00,  // PDU length
+                                  0x60,
+                                  0x00,  // Local Channel ID
+                                  0x03,
+                                  0x00,  // SDU length
+                                         // Payload:
+                                  0x07,
+                                  0x08,
+                                  0x09};
+
+  RxEngine::HandlePduFromControllerReturnValue result_0 =
+      engine().HandlePduFromController(pdu_0);
+  ASSERT_TRUE(std::holds_alternative<FlatMultiBufInstance>(result_0));
+  EXPECT_EQ(replenished_credits(), 0u);
+
+  std::array<uint8_t, 9> pdu_1 = {// L2cap K-Frame:
+                                  0x05,
+                                  0x00,  // PDU length
+                                  0x60,
+                                  0x00,  // Local Channel ID
+                                  0x03,
+                                  0x00,  // SDU length
+                                         // Payload:
+                                  0x09,
+                                  0x09,
+                                  0x09};
+  RxEngine::HandlePduFromControllerReturnValue result_1 =
+      engine().HandlePduFromController(pdu_1);
+  ASSERT_TRUE(std::holds_alternative<FlatMultiBufInstance>(result_1));
+  // The threshold should not be exceeded
+  EXPECT_EQ(replenished_credits(), 0u);
+
+  std::array<uint8_t, 9> pdu_2 = {// L2cap K-Frame:
+                                  0x05,
+                                  0x00,  // PDU length
+                                  0x60,
+                                  0x00,  // Local Channel ID
+                                  0x03,
+                                  0x00,  // SDU length
+                                         // Payload:
+                                  0x08,
+                                  0x09,
+                                  0x08};
+  RxEngine::HandlePduFromControllerReturnValue result_2 =
+      engine().HandlePduFromController(pdu_2);
+  ASSERT_TRUE(std::holds_alternative<FlatMultiBufInstance>(result_2));
+  // The threshold should be exceeded
+  EXPECT_EQ(replenished_credits(), 3u);
 }
 
 }  // namespace

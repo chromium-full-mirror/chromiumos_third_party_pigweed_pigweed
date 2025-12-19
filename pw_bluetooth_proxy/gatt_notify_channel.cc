@@ -24,10 +24,10 @@
 
 namespace pw::bluetooth::proxy {
 
-GattNotifyChannel::GattNotifyChannel(
-    internal::GattNotifyChannelInternal& channel)
+GattNotifyChannel::GattNotifyChannel(L2capChannel& channel,
+                                     uint16_t attribute_handle)
     : internal::GenericL2capChannel(channel),
-      attribute_handle_(channel.attribute_handle()) {
+      attribute_handle_(attribute_handle) {
   std::optional<uint16_t> max_l2cap_payload_size =
       channel.MaxL2capPayloadSize();
   if (!max_l2cap_payload_size.has_value()) {

@@ -38,7 +38,7 @@ CreditBasedFlowControlTxEngine::CreditBasedFlowControlTxEngine(
     uint16_t connection_handle,
     uint16_t local_cid,
     Delegate& delegate)
-    : delegate_(&delegate),
+    : delegate_(delegate),
       mtu_(config.mtu),
       mps_(config.mps),
       connection_handle_(connection_handle),
@@ -46,13 +46,14 @@ CreditBasedFlowControlTxEngine::CreditBasedFlowControlTxEngine(
       local_cid_(local_cid),
       credits_(config.credits) {}
 
-Result<H4PacketWithH4> CreditBasedFlowControlTxEngine::GenerateNextPacket() {
-  const FlatConstMultiBuf* sdu = delegate_->GetFrontPayload();
+Result<H4PacketWithH4> CreditBasedFlowControlTxEngine::GenerateNextPacket(
+    const FlatConstMultiBuf& sdu, bool& keep_payload) {
+  keep_payload = true;
   constexpr uint8_t kSduLengthFieldSize =
       emboss::FirstKFrame::MinSizeInBytes() -
       emboss::BasicL2capHeader::IntrinsicSizeInBytes();
   std::optional<uint16_t> max_basic_payload_size = MaxBasicL2capPayloadSize();
-  if (!sdu || credits_ == 0 || !max_basic_payload_size ||
+  if (credits_ == 0 || !max_basic_payload_size ||
       *max_basic_payload_size <= kSduLengthFieldSize) {
     return Status::Unavailable();
   }
@@ -65,21 +66,20 @@ Result<H4PacketWithH4> CreditBasedFlowControlTxEngine::GenerateNextPacket() {
     // Generating the first (or only) PDU of an SDU.
     size_t sdu_bytes_max_allowable =
         *max_basic_payload_size - kSduLengthFieldSize;
-    sdu_bytes_in_segment = std::min(sdu->size(), sdu_bytes_max_allowable);
+    sdu_bytes_in_segment = std::min(sdu.size(), sdu_bytes_max_allowable);
     pdu_data_size = sdu_bytes_in_segment + kSduLengthFieldSize;
   } else {
     // Generating a continuing PDU in an SDU.
     size_t sdu_bytes_max_allowable = *max_basic_payload_size;
     sdu_bytes_in_segment =
-        std::min(sdu->size() - sdu_offset_, sdu_bytes_max_allowable);
+        std::min(sdu.size() - sdu_offset_, sdu_bytes_max_allowable);
     pdu_data_size = sdu_bytes_in_segment;
   }
 
   const size_t l2cap_packet_size =
       emboss::BasicL2capHeader::IntrinsicSizeInBytes() + pdu_data_size;
   const size_t h4_packet_size = H4SizeForL2capData(pdu_data_size);
-  PW_TRY_ASSIGN(H4PacketWithH4 h4_packet,
-                delegate_->AllocateH4(h4_packet_size));
+  PW_TRY_ASSIGN(H4PacketWithH4 h4_packet, delegate_.AllocateH4(h4_packet_size));
   h4_packet.SetH4Type(emboss::H4PacketType::ACL_DATA);
 
   PW_TRY_ASSIGN(
@@ -99,13 +99,11 @@ Result<H4PacketWithH4> CreditBasedFlowControlTxEngine::GenerateNextPacket() {
     PW_CHECK(first_kframe_writer.ok());
     first_kframe_writer->pdu_length().Write(pdu_data_size);
     first_kframe_writer->channel_id().Write(remote_cid_);
-    first_kframe_writer->sdu_length().Write(sdu->size());
+    first_kframe_writer->sdu_length().Write(sdu.size());
     PW_CHECK(first_kframe_writer->Ok());
 
-    MultiBufAdapter::Copy(first_kframe_writer->payload(),
-                          *sdu,
-                          sdu_offset_,
-                          sdu_bytes_in_segment);
+    MultiBufAdapter::Copy(
+        first_kframe_writer->payload(), sdu, sdu_offset_, sdu_bytes_in_segment);
   } else {
     Result<emboss::SubsequentKFrameWriter> subsequent_kframe_writer =
         MakeEmbossWriter<emboss::SubsequentKFrameWriter>(
@@ -114,17 +112,17 @@ Result<H4PacketWithH4> CreditBasedFlowControlTxEngine::GenerateNextPacket() {
     subsequent_kframe_writer->pdu_length().Write(pdu_data_size);
     subsequent_kframe_writer->channel_id().Write(remote_cid_);
     MultiBufAdapter::Copy(subsequent_kframe_writer->payload(),
-                          *sdu,
+                          sdu,
                           sdu_offset_,
                           sdu_bytes_in_segment);
   }
 
   sdu_offset_ += sdu_bytes_in_segment;
 
-  if (sdu_offset_ == sdu->size()) {
+  if (sdu_offset_ == sdu.size()) {
     // This segment was the final (or only) PDU of the SDU payload. So all
     // content has been copied from the front payload so it can be released.
-    delegate_->PopFrontPayload();
+    keep_payload = false;
     sdu_offset_ = 0;
     is_continuing_segment_ = false;
   } else {
@@ -182,7 +180,7 @@ CreditBasedFlowControlTxEngine::HandlePduFromHost(pw::span<uint8_t>) {
 std::optional<uint16_t>
 CreditBasedFlowControlTxEngine::MaxBasicL2capPayloadSize() const {
   std::optional<uint16_t> max_basic_l2cap_payload_size =
-      delegate_->MaxL2capPayloadSize();
+      delegate_.MaxL2capPayloadSize();
   if (!max_basic_l2cap_payload_size) {
     return std::nullopt;
   }

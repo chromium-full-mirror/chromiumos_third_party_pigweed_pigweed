@@ -22,21 +22,18 @@ namespace pw::bluetooth::proxy::internal {
 /// This class is not thread-safe and requires external synchronization.
 class BasicModeRxEngine final : public RxEngine {
  public:
-  // @param rx_multibuf_allocator The allocator to use when allocating SDU
-  // multibufs. If nullptr, spans will be returned from HandlePduFromController.
-  BasicModeRxEngine(uint16_t local_cid,
-                    MultiBufAllocator* rx_multibuf_allocator)
-      : rx_multibuf_allocator_(rx_multibuf_allocator), local_cid_(local_cid) {}
+  BasicModeRxEngine(uint16_t local_cid) : local_cid_(local_cid) {}
 
-  BasicModeRxEngine(BasicModeRxEngine&& other) = default;
-  BasicModeRxEngine& operator=(BasicModeRxEngine&& other) = default;
+  BasicModeRxEngine(BasicModeRxEngine&& other) = delete;
+  BasicModeRxEngine& operator=(BasicModeRxEngine&& other) = delete;
 
   HandlePduFromControllerReturnValue HandlePduFromController(
       pw::span<uint8_t> frame) override;
 
+  Status AddRxCredits(uint16_t) override { return Status::Unimplemented(); }
+
  private:
-  MultiBufAllocator* rx_multibuf_allocator_;
-  uint16_t local_cid_;
+  const uint16_t local_cid_;
 };
 
 }  // namespace pw::bluetooth::proxy::internal

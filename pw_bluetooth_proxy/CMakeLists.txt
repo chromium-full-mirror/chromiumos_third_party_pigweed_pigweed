@@ -39,12 +39,10 @@ set(PW_BLUETOOTH_PROXY_HEADERS
   public/pw_bluetooth_proxy/gatt_notify_channel.h
   public/pw_bluetooth_proxy/h4_packet.h
   public/pw_bluetooth_proxy/internal/acl_data_channel.h
-  public/pw_bluetooth_proxy/internal/basic_l2cap_channel_internal.h
   public/pw_bluetooth_proxy/internal/basic_mode_tx_engine.h
   public/pw_bluetooth_proxy/internal/basic_mode_rx_engine.h
   public/pw_bluetooth_proxy/internal/credit_based_flow_control_tx_engine.h
   public/pw_bluetooth_proxy/internal/credit_based_flow_control_rx_engine.h
-  public/pw_bluetooth_proxy/internal/gatt_notify_channel_internal.h
   public/pw_bluetooth_proxy/internal/gatt_notify_rx_engine.h
   public/pw_bluetooth_proxy/internal/gatt_notify_tx_engine.h
   public/pw_bluetooth_proxy/internal/generic_l2cap_channel.h
@@ -57,7 +55,6 @@ set(PW_BLUETOOTH_PROXY_HEADERS
   public/pw_bluetooth_proxy/internal/l2cap_channel.h
   public/pw_bluetooth_proxy/internal/l2cap_channel_sync.h
   public/pw_bluetooth_proxy/internal/l2cap_channel_async.h
-  public/pw_bluetooth_proxy/internal/l2cap_coc_internal.h
   public/pw_bluetooth_proxy/internal/l2cap_signaling_channel.h
   public/pw_bluetooth_proxy/internal/l2cap_status_tracker.h
   public/pw_bluetooth_proxy/internal/l2cap_logical_link.h
@@ -127,13 +124,11 @@ set(PW_BLUETOOTH_PROXY_PRIVATE_DEPS
 set(PW_BLUETOOTH_PROXY_SOURCES
   acl_data_channel.cc
   basic_l2cap_channel.cc
-  basic_l2cap_channel_internal.cc
   basic_mode_tx_engine.cc
   basic_mode_rx_engine.cc
   credit_based_flow_control_tx_engine.cc
   credit_based_flow_control_rx_engine.cc
   gatt_notify_channel.cc
-  gatt_notify_channel_internal.cc
   gatt_notify_tx_engine.cc
   generic_l2cap_channel_async.cc
   generic_l2cap_channel_sync.cc
@@ -145,7 +140,6 @@ set(PW_BLUETOOTH_PROXY_SOURCES
   l2cap_channel_sync.cc
   l2cap_channel.cc
   l2cap_coc.cc
-  l2cap_coc_internal.cc
   l2cap_signaling_channel.cc
   l2cap_status_tracker.cc
   l2cap_logical_link.cc

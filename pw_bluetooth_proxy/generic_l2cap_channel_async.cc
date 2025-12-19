@@ -17,11 +17,9 @@
 #if PW_BLUETOOTH_PROXY_ASYNC != 0
 
 #include "pw_assert/check.h"
-#include "pw_bluetooth_proxy/internal/gatt_notify_channel_internal.h"
 #include "pw_bluetooth_proxy/internal/generic_l2cap_channel_async.h"
 #include "pw_bluetooth_proxy/internal/l2cap_channel_manager.h"
 #include "pw_bluetooth_proxy/internal/l2cap_channel_manager_async.h"
-#include "pw_bluetooth_proxy/internal/l2cap_coc_internal.h"
 
 namespace pw::bluetooth::proxy::internal {
 
@@ -60,7 +58,6 @@ GenericL2capChannelImpl::~GenericL2capChannelImpl() {
 }
 
 Status GenericL2capChannelImpl::Init() {
-  PW_TRY(channel_->Init());
   PW_TRY(channel_->impl().Connect(request_handle_, request_sender_));
   channel_->impl().Connect(payload_sender_);
   return channel_->Start();
@@ -106,8 +103,7 @@ Status GenericL2capChannelImpl::SendAdditionalRxCredits(
     return Status::FailedPrecondition();
   }
   if (this_thread::get_id() == dispatcher_thread_id_) {
-    auto* channel = static_cast<internal::L2capCocInternal*>(channel_);
-    return channel->SendAdditionalRxCredits(additional_rx_credits);
+    return channel_->SendAdditionalRxCredits(additional_rx_credits);
   }
   Request request;
   request.type = Request::Type::kSendAdditionalRxCredits;

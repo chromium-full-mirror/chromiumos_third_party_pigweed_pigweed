@@ -29,13 +29,14 @@ class CreditBasedFlowControlTxEngine final : public TxEngine {
                                  Delegate& delegate);
 
   CreditBasedFlowControlTxEngine(CreditBasedFlowControlTxEngine&& other) =
-      default;
+      delete;
   CreditBasedFlowControlTxEngine& operator=(
-      CreditBasedFlowControlTxEngine&& other) = default;
+      CreditBasedFlowControlTxEngine&& other) = delete;
 
   // TxEngine overrides:
 
-  Result<H4PacketWithH4> GenerateNextPacket() override;
+  Result<H4PacketWithH4> GenerateNextPacket(const FlatConstMultiBuf& sdu,
+                                            bool& keep_payload) override;
   Status CheckWriteParameter(const FlatConstMultiBuf& payload) override;
   Result<bool> AddCredits(uint16_t credits) override;
   HandlePduFromHostReturnValue HandlePduFromHost(
@@ -44,12 +45,12 @@ class CreditBasedFlowControlTxEngine final : public TxEngine {
  private:
   std::optional<uint16_t> MaxBasicL2capPayloadSize() const;
 
-  Delegate* delegate_;
-  uint16_t mtu_;
-  uint16_t mps_;
-  uint16_t connection_handle_;
-  uint16_t remote_cid_;
-  uint16_t local_cid_;
+  Delegate& delegate_;
+  const uint16_t mtu_;
+  const uint16_t mps_;
+  const uint16_t connection_handle_;
+  const uint16_t remote_cid_;
+  const uint16_t local_cid_;
 
   uint16_t credits_;
   uint16_t sdu_offset_ = 0;

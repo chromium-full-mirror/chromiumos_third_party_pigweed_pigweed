@@ -1687,7 +1687,7 @@ TEST_F(DisconnectionCompleteTest, DisconnectionErasesAclConnection) {
   int sends_called = 0;
   pw::Function<void(H4PacketWithH4 && packet)> send_to_controller_fn(
       [&sends_called](H4PacketWithH4&&) { ++sends_called; });
-  pw::allocator::test::AllocatorForTest<32768> allocator;
+  pw::allocator::test::AllocatorForTest<34000> allocator;
   ProxyHost proxy = ProxyHost(std::move(send_to_host_fn),
                               std::move(send_to_controller_fn),
                               /*le_acl_credits_to_reserve=*/1,
@@ -2188,7 +2188,7 @@ TEST_F(MultiSendTest, AttemptToCreateOverMaxConnectionsFails) {
   pw::Function<void(H4PacketWithH4 && packet)> send_to_controller_fn(
       []([[maybe_unused]] H4PacketWithH4&& packet) {});
 
-  pw::allocator::test::AllocatorForTest<32768> allocator;
+  pw::allocator::test::AllocatorForTest<34000> allocator;
   ProxyHost proxy = ProxyHost(std::move(send_to_host_fn),
                               std::move(send_to_controller_fn),
                               /*le_acl_credits_to_reserve=*/kSends,
