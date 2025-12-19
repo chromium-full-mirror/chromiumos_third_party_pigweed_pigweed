@@ -425,6 +425,12 @@ cc_library(
 )
 
 cc_library(
+    name = "functional",
+    hdrs = ["public/pw_containers/functional.h"],
+    strip_include_prefix = "public",
+)
+
+cc_library(
     name = "raw_storage",
     hdrs = ["public/pw_containers/internal/raw_storage.h"],
     strip_include_prefix = "public",
@@ -503,6 +509,16 @@ pw_cc_test(
     deps = [
         ":flat_map",
         "//pw_polyfill",
+    ],
+)
+
+pw_cc_test(
+    name = "functional_test",
+    srcs = [
+        "functional_test.cc",
+    ],
+    deps = [
+        ":functional",
     ],
 )
 
@@ -872,6 +888,7 @@ filegroup(
         "public/pw_containers/dynamic_vector.h",
         "public/pw_containers/filtered_view.h",
         "public/pw_containers/flat_map.h",
+        "public/pw_containers/functional.h",
         "public/pw_containers/inline_async_deque.h",
         "public/pw_containers/inline_async_queue.h",
         "public/pw_containers/inline_deque.h",

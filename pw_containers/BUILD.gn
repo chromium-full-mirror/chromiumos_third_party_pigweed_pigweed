@@ -85,6 +85,11 @@ pw_source_set("flat_map") {
   public_deps = [ "$dir_pw_assert:assert" ]
 }
 
+pw_source_set("functional") {
+  public_configs = [ ":public_include_path" ]
+  public = [ "public/pw_containers/functional.h" ]
+}
+
 pw_source_set("common") {
   public = [
     "public/pw_containers/internal/traits.h",
@@ -440,6 +445,7 @@ pw_test_group("tests") {
     ":fixed_deque_static_common_test",
     ":filtered_view_test",
     ":flat_map_test",
+    ":functional_test",
     ":dynamic_deque_test",
     ":dynamic_queue_test",
     ":inline_async_deque_test",
@@ -518,6 +524,11 @@ pw_test("flat_map_test") {
 
   # TODO: b/259746255 - Remove this when everything compiles with -Wconversion.
   configs = [ "$dir_pw_build:conversion_warnings" ]
+}
+
+pw_test("functional_test") {
+  sources = [ "functional_test.cc" ]
+  deps = [ ":functional" ]
 }
 
 pw_test("dynamic_deque_test") {

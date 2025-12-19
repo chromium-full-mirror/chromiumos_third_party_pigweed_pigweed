@@ -76,6 +76,13 @@ pw_add_library(pw_containers.flat_map INTERFACE
     pw_assert.assert
 )
 
+pw_add_library(pw_containers.functional INTERFACE
+  HEADERS
+    public/pw_containers/functional.h
+  PUBLIC_INCLUDES
+    public
+)
+
 pw_add_library(pw_containers._common INTERFACE
   HEADERS
     public/pw_containers/internal/traits.h
@@ -519,6 +526,16 @@ pw_add_test(pw_containers.flat_map_test
     modules
     pw_containers
     pw_polyfill
+)
+
+pw_add_test(pw_containers.functional_test
+  SOURCES
+    functional_test.cc
+  PRIVATE_DEPS
+    pw_containers.functional
+  GROUPS
+    modules
+    pw_containers
 )
 
 pw_add_test(pw_containers.dynamic_deque_test
