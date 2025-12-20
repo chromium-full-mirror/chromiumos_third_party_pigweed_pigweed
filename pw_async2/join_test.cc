@@ -108,10 +108,10 @@ TEST(Joiner, PendDelegatesToPendables) {
 
   EXPECT_EQ(dispatcher.RunInTaskUntilStalled(join), Pending());
   controller_2.allow_completion_ = true;
-  std::move(controller_2.waker_).Wake();
+  controller_2.waker_.Wake();
   EXPECT_EQ(dispatcher.RunInTaskUntilStalled(join), Pending());
   controller_1.allow_completion_ = true;
-  std::move(controller_1.waker_).Wake();
+  controller_1.waker_.Wake();
   auto&& result = dispatcher.RunInTaskUntilStalled(join);
   ASSERT_TRUE(result.IsReady());
   auto&& [v1, v2] = std::move(*result);

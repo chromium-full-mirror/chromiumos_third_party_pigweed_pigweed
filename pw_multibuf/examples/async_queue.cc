@@ -47,9 +47,9 @@ class AsyncMultiBufQueueObserver : public multibuf::Observer {
  private:
   void DoNotify(Event event, size_t) override {
     if (event == multibuf::Observer::Event::kBytesAdded) {
-      std::move(empty_waker_).Wake();
+      empty_waker_.Wake();
     } else if (event == multibuf::Observer::Event::kBytesRemoved) {
-      std::move(full_waker_).Wake();
+      full_waker_.Wake();
     }
   }
 

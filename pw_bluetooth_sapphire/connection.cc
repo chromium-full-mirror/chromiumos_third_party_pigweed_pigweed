@@ -39,7 +39,7 @@ Connection::Connection(
     // TODO: https://pwbug.dev/396449684 - Update set_closed_callback with
     // disconnect reason.
     self->disconnect_reason_ = DisconnectReason::kFailure;
-    std::move(self->waker_).Wake();
+    self->waker_.Wake();
   });
 }
 

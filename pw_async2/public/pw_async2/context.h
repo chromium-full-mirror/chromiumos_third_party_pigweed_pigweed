@@ -76,7 +76,7 @@ class Context {
   /// ```
   /// Waker waker;
   /// PW_ASYNC_STORE_WAKER(cx, waker, ...);
-  /// std::move(waker).Wake();
+  /// waker.Wake();
   /// ```
   void ReEnqueue();
 

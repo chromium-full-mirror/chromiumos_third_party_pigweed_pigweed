@@ -285,7 +285,7 @@ void Peripheral::Advertisement::OnStopLocked(pw::Status status) {
 
   advertised_peripheral_->stop_status_ = status;
   advertised_peripheral_->peripheral_ = nullptr;
-  std::move(advertised_peripheral_->waker_).Wake();
+  advertised_peripheral_->waker_.Wake();
   advertised_peripheral_ = nullptr;
 }
 

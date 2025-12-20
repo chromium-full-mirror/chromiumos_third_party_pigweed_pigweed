@@ -125,7 +125,7 @@ int Measure() {
 
   Waker waker;
   PW_BLOAT_EXPR((waker = std::move(task.last_waker)), mask);
-  std::move(waker).Wake();
+  waker.Wake();
   dispatcher.RunToCompletion();
 
   int result = -1;

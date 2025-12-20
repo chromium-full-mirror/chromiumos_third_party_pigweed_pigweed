@@ -176,13 +176,10 @@ class Waker : public pw::IntrusiveForwardList<Waker>::Item {
   /// Wakes up the ``Waker``'s creator, alerting it that an asynchronous
   /// event has occurred that may allow it to make progress.
   ///
-  /// ``Wake`` operates on an rvalue reference (``&&``) in order to indicate
-  /// that the event that was waited on has been complete. This makes it
-  /// possible to track the outstanding events that may cause a ``Task`` to
-  /// wake up and make progress.
+  /// \note Wake() causes the waker to remove itself from the Task's waker list.
   ///
   /// This operation is guaranteed to be thread-safe.
-  void Wake() && PW_LOCKS_EXCLUDED(internal::lock());
+  void Wake() PW_LOCKS_EXCLUDED(internal::lock());
 
   /// Returns whether this ``Waker`` is empty.
   ///

@@ -58,7 +58,7 @@ TEST(PendFuncTask, PendDelegatesToFunc) {
   EXPECT_TRUE(dispatcher.RunUntilStalled());
   EXPECT_EQ(poll_count, 1);
 
-  std::move(waker).Wake();
+  waker.Wake();
   allow_completion = true;
   dispatcher.RunToCompletion();
   EXPECT_EQ(poll_count, 2);

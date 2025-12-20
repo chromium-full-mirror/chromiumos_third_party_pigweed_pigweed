@@ -256,7 +256,7 @@ class Closeable {
 
   void Close() {
     closed_ = true;
-    std::move(waker_).Wake();
+    waker_.Wake();
   }
 
  private:
@@ -434,7 +434,7 @@ class SimpleAsyncAllocator : public Allocator {
 
   void DoDeallocate(void* ptr) override {
     allocator_.Deallocate(ptr);
-    std::move(waker_).Wake();
+    waker_.Wake();
   }
 
   allocator::test::AllocatorForTest<kAllocatorCapacity> allocator_;

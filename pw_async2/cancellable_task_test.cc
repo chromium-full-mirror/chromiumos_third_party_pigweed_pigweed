@@ -81,7 +81,7 @@ TEST(CancellableTask, DoesNothingWithCompletedTask) {
   EXPECT_FALSE(task_completed);
 
   task.should_complete = true;
-  std::move(task.waker).Wake();
+  task.waker.Wake();
   dispatcher.RunToCompletion();
   EXPECT_EQ(dispatcher.tasks_polled(), 2u);
   EXPECT_TRUE(task_completed);

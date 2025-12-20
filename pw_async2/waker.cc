@@ -58,7 +58,7 @@ Waker& Waker::operator=(Waker&& other) noexcept {
   return *this;
 }
 
-void Waker::Wake() && {
+void Waker::Wake() {
   std::lock_guard lock(internal::lock());
   if (task_ != nullptr) {
     task_->dispatcher_->WakeTask(*task_);

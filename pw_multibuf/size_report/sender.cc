@@ -21,12 +21,12 @@ void BasicSender::Send(const char* message) {
   demo_transport_header_.segment_id++;
   demo_transport_header_.total_length =
       static_cast<uint32_t>(message_.size_bytes());
-  std::move(waker_).Wake();
+  waker_.Wake();
 }
 
 void BasicSender::Stop() {
   stopped_ = true;
-  std::move(waker_).Wake();
+  waker_.Wake();
 }
 
 ConstByteSpan BasicSender::GetDemoLinkHeader(size_t payload_len) {

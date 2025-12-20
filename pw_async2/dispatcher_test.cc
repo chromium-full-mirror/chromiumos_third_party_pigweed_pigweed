@@ -97,7 +97,7 @@ TEST(DispatcherForTest, RunUntilStalledDoesNotPendSleepingTask) {
   EXPECT_EQ(dispatcher.tasks_polled(), 1u);
   EXPECT_EQ(dispatcher.tasks_completed(), 0u);
 
-  std::move(task.last_waker).Wake();
+  task.last_waker.Wake();
   dispatcher.RunToCompletion();
   EXPECT_EQ(task.polled, 2);
   EXPECT_EQ(dispatcher.tasks_polled(), 2u);
@@ -132,7 +132,7 @@ TEST(DispatcherForTest, RunToCompletionPendsMultipleTasks) {
       ++(*counter_);
       if (*counter_ >= until_) {
         for (auto& waker : wakers_) {
-          std::move(waker).Wake();
+          waker.Wake();
         }
         return Ready();
       } else {
@@ -284,13 +284,13 @@ TEST(Dispatcher, WakingMultipleTasksOnlyWakesOnce) {
 
   EXPECT_EQ(dispatcher.wake_count(), 1);
 
-  std::move(task1.last_waker).Wake();
+  task1.last_waker.Wake();
   EXPECT_EQ(dispatcher.wake_count(), 2);
 
-  std::move(task2.last_waker).Wake();
+  task2.last_waker.Wake();
   EXPECT_EQ(dispatcher.wake_count(), 2);
 
-  std::move(task3.last_waker).Wake();
+  task3.last_waker.Wake();
   EXPECT_EQ(dispatcher.wake_count(), 2);
 }
 
@@ -304,10 +304,10 @@ TEST(Dispatcher, WakingMultipleTasksAndPostingOnlyWakesOnce) {
 
   EXPECT_EQ(dispatcher.wake_count(), 1);
 
-  std::move(task1.last_waker).Wake();
+  task1.last_waker.Wake();
   EXPECT_EQ(dispatcher.wake_count(), 2);
 
-  std::move(task2.last_waker).Wake();
+  task2.last_waker.Wake();
   dispatcher.Post(task3);
   EXPECT_EQ(dispatcher.wake_count(), 2);
 }

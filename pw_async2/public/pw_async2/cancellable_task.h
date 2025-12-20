@@ -35,7 +35,7 @@ class CancellableTask final : public TaskType {
   /// If the task has already completed, this is a no-op.
   void Cancel() {
     cancelled_ = true;
-    std::move(cancel_waker_).Wake();
+    cancel_waker_.Wake();
   }
 
  protected:

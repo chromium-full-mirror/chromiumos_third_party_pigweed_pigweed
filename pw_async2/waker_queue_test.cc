@@ -154,14 +154,14 @@ TEST(WakerQueue, ReStoreExistingTask) {
 
   // Wake the task out of band, causing it to attempt to store in the queue
   // again.
-  std::move(out_of_band_waker).Wake();
+  out_of_band_waker.Wake();
   EXPECT_EQ(queue.size(), 1u);
 
   EXPECT_TRUE(dispatcher.RunUntilStalled());
   EXPECT_EQ(queue.size(), 1u);
 
   // NOLINTNEXTLINE(bugprone-use-after-move)
-  std::move(out_of_band_waker).Wake();
+  out_of_band_waker.Wake();
   queue.WakeAll();
 }
 

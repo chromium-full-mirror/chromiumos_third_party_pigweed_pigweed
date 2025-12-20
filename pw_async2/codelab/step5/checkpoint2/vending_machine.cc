@@ -37,7 +37,7 @@ pw::async2::Poll<int> Keypad::Pend(pw::async2::Context& cx) {
 void Keypad::Press(int key) {
   std::lock_guard lock(lock_);
   key_pressed_ = key;
-  std::move(waker_).Wake();
+  waker_.Wake();
 }
 
 pw::async2::Poll<VendingMachineTask::Input> VendingMachineTask::PendInput(

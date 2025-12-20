@@ -41,7 +41,7 @@ class TestPacketReaderWriter final
   /// Enqueues packets to be returned from future `PendRead` calls.
   void EnqueueReadPacket(Packet&& packet) {
     read_queue_.push_back(std::move(packet));
-    std::move(read_waker_).Wake();
+    read_waker_.Wake();
   }
 
  private:
@@ -96,7 +96,7 @@ class TestPacketReaderWriter final
     }
     staged_.clear();
     staged_.shrink_to_fit();
-    std::move(write_waker()).Wake();
+    write_waker().Wake();
   }
 
   async2::Waker read_waker_;

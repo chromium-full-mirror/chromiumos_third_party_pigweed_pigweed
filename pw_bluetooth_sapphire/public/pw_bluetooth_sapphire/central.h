@@ -61,9 +61,7 @@ class Central final : public pw::bluetooth::low_energy::Central2 {
     void QueueScanResultLocked(ScanResult&& result)
         PW_EXCLUSIVE_LOCKS_REQUIRED(lock());
 
-    void WakeLocked() PW_EXCLUSIVE_LOCKS_REQUIRED(lock()) {
-      std::move(waker_).Wake();
-    }
+    void WakeLocked() PW_EXCLUSIVE_LOCKS_REQUIRED(lock()) { waker_.Wake(); }
 
     void OnScanErrorLocked() PW_EXCLUSIVE_LOCKS_REQUIRED(lock()) {
       central_ = nullptr;

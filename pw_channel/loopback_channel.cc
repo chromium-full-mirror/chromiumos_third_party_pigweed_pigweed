@@ -34,7 +34,7 @@ PollResult<MultiBuf> LoopbackChannel<DataType::kDatagram>::DoPendRead(
   }
   MultiBuf data = std::move(*queue_);
   queue_ = std::nullopt;
-  std::move(waker_).Wake();
+  waker_.Wake();
   return data;
 }
 
@@ -53,7 +53,7 @@ Poll<Status> LoopbackChannel<DataType::kDatagram>::DoPendReadyToWrite(
 Status LoopbackChannel<DataType::kDatagram>::DoStageWrite(MultiBuf&& data) {
   PW_DASSERT(!queue_.has_value());
   queue_ = std::move(data);
-  std::move(waker_).Wake();
+  waker_.Wake();
   return OkStatus();
 }
 
@@ -82,7 +82,7 @@ Status LoopbackChannel<DataType::kByte>::DoStageWrite(MultiBuf&& data) {
     bool was_empty = queue_.empty();
     queue_.PushSuffix(std::move(data));
     if (was_empty) {
-      std::move(read_waker_).Wake();
+      read_waker_.Wake();
     }
   }
   return OkStatus();

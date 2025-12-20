@@ -60,7 +60,7 @@ class Mailbox {
 
   void SetValue(T v) {
     value_ = v;
-    std::move(waker_).Wake();
+    waker_.Wake();
   }
 
   int PollCount() { return poll_count_; }

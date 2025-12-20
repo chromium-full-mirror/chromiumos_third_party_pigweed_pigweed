@@ -153,14 +153,14 @@ TEST(CoroTest, AwaitMultipleAndAwakenRuns) {
 
   int a_value = 4;
   a.return_value = a_value;
-  std::move(a.last_waker).Wake();
+  a.last_waker.Wake();
   EXPECT_TRUE(dispatcher.RunUntilStalled());
   EXPECT_EQ(a.poll_count, 2);
   EXPECT_EQ(b.poll_count, 1);
 
   int b_value = 5;
   b.return_value = b_value;
-  std::move(b.last_waker).Wake();
+  b.last_waker.Wake();
   dispatcher.RunToCompletion();
   EXPECT_EQ(a.poll_count, 2);
   EXPECT_EQ(b.poll_count, 2);

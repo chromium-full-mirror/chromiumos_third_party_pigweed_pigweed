@@ -303,8 +303,8 @@ TEST(ForwardingDatagramchannel, PendCloseAwakensAndClosesPeer) {
 
   EXPECT_FALSE(pair->first().is_read_or_write_open());
 
-  std::move(read_task.waker).Wake();  // wake the task so it runs again
-  dispatcher.RunToCompletion();       // runs to completion
+  read_task.waker.Wake();        // wake the task so it runs again
+  dispatcher.RunToCompletion();  // runs to completion
 
   EXPECT_FALSE(pair->first().is_read_or_write_open());
   EXPECT_EQ(read_task.packets_read, 1);
@@ -525,8 +525,8 @@ TEST(ForwardingByteChannel, PendCloseAwakensAndClosesPeer) {
 
   EXPECT_FALSE(pair->second().is_read_or_write_open());
 
-  std::move(read_task.waker).Wake();  // wake the task so it runs again
-  dispatcher.RunToCompletion();       // runs to completion
+  read_task.waker.Wake();        // wake the task so it runs again
+  dispatcher.RunToCompletion();  // runs to completion
 
   EXPECT_FALSE(pair->first().is_read_or_write_open());
   EXPECT_EQ(read_task.bytes_read, 5);

@@ -462,7 +462,7 @@ async2::Poll<> AnyPacketChannel<Packet>::PendWrite(async2::Context& cx) {
 template <typename Packet>
 void AnyPacketChannel<Packet>::SetAvailableWrites(uint16_t available_writes) {
   if (available_writes > available_writes_) {
-    std::move(write_waker_).Wake();
+    write_waker_.Wake();
   }
   available_writes_ = available_writes;
 }
@@ -477,7 +477,7 @@ void AnyPacketChannel<Packet>::AcknowledgeWrites(uint16_t num_completed) {
 
   available_writes_ = static_cast<uint16_t>(new_available_writes);
 
-  std::move(write_waker_).Wake();
+  write_waker_.Wake();
 }
 
 template <typename Packet>
@@ -489,7 +489,7 @@ async2::Poll<Status> AnyPacketChannel<Packet>::PendClose(async2::Context& cx) {
   if (result.IsReady()) {
     set_read_write_closed();
   }
-  std::move(write_waker_).Wake();
+  write_waker_.Wake();
   return result;
 }
 

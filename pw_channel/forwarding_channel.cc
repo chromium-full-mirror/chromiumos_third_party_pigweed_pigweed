@@ -37,7 +37,7 @@ ForwardingChannel<DataType::kDatagram>::DoPendRead(async2::Context& cx)
 
   auto read_data = std::move(*read_queue_);
   read_queue_.reset();
-  std::move(sibling_.waker_).Wake();
+  sibling_.waker_.Wake();
   return read_data;
 }
 
@@ -61,7 +61,7 @@ Status ForwardingChannel<DataType::kDatagram>::DoStageWrite(
   PW_DASSERT(!sibling_.read_queue_.has_value());
   sibling_.read_queue_ = std::move(data);
 
-  std::move(sibling_.waker_).Wake();
+  sibling_.waker_.Wake();
   return OkStatus();
 }
 
@@ -70,7 +70,7 @@ async2::Poll<Status> ForwardingChannel<DataType::kDatagram>::DoPendClose(
   std::lock_guard lock(pair_.mutex_);
   sibling_.set_write_closed();  // No more writes from the other end
   read_queue_.reset();
-  std::move(sibling_.waker_).Wake();
+  sibling_.waker_.Wake();
   return OkStatus();
 }
 
@@ -105,7 +105,7 @@ Status ForwardingChannel<DataType::kByte>::DoStageWrite(
   }
 
   sibling_.read_queue_.PushSuffix(std::move(data));
-  std::move(sibling_.read_waker_).Wake();
+  sibling_.read_waker_.Wake();
   return OkStatus();
 }
 
@@ -114,7 +114,7 @@ async2::Poll<Status> ForwardingChannel<DataType::kByte>::DoPendClose(
   std::lock_guard lock(pair_.mutex_);
   sibling_.set_write_closed();  // No more writes from the other end
   read_queue_.Release();
-  std::move(sibling_.read_waker_).Wake();
+  sibling_.read_waker_.Wake();
   return OkStatus();
 }
 

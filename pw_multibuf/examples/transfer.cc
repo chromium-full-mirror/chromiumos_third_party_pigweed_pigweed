@@ -254,7 +254,7 @@ class Link {
   Poll<> Write(Context& context, ConstByteSpan tx_buffer) {
     if (!pending_.has_value()) {
       pending_ = tx_buffer;
-      std::move(rx_waker_).Wake();
+      rx_waker_.Wake();
     } else if (pending_->empty()) {
       pending_.reset();
       return Ready();
@@ -271,7 +271,7 @@ class Link {
     size_t len = std::min(pending_->size(), rx_buffer.size());
     std::memcpy(rx_buffer.data(), pending_->data(), len);
     pending_ = pending_->subspan(len);
-    std::move(tx_waker_).Wake();
+    tx_waker_.Wake();
     return Ready(len);
   }
 

@@ -128,7 +128,7 @@ class DispatcherForTestFacade final : public RunnableDispatcher {
 
     void Complete() {
       should_complete_.store(true, std::memory_order_relaxed);
-      std::move(waker_).Wake();
+      waker_.Wake();
     }
 
     void Reset() {

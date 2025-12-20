@@ -77,7 +77,7 @@ class SleepingTask : public Task {
   void Wake() {
     std::lock_guard lock(lock_);
     should_complete_ = true;
-    std::move(waker_).Wake();
+    waker_.Wake();
   }
 
  private:

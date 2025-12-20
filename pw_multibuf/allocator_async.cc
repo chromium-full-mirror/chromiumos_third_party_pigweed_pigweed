@@ -64,7 +64,7 @@ bool MultiBufAllocationFuture::HandleMemoryAvailable(
        (contiguity_requirement_ == kAllowDiscontiguous &&
         min_size_ <= size_available));
   if (should_wake_and_remove) {
-    std::move(const_cast<Waker&>(waker_)).Wake();
+    const_cast<Waker&>(waker_).Wake();
   }
   return should_wake_and_remove;
 }

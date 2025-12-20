@@ -116,7 +116,7 @@ class TestPacketWriterImpl
     bool old_ready_to_write = ready_to_write_;
     ready_to_write_ = ready;
     if (!old_ready_to_write && ready_to_write_ && !write_waker().IsEmpty()) {
-      std::move(write_waker()).Wake();
+      write_waker().Wake();
     }
   }
   void ClearPackets() { packets_.clear(); }
@@ -165,14 +165,14 @@ class TestPacketReader
     bool was_empty = packet_queue_.empty();
     packet_queue_.push_back(std::move(packet));
     if (was_empty && !read_waker_.IsEmpty()) {
-      std::move(read_waker_).Wake();
+      read_waker_.Wake();
     }
   }
 
   void SimulateEndOfStream() {
     end_of_stream_ = true;
     if (!read_waker_.IsEmpty()) {
-      std::move(read_waker_).Wake();
+      read_waker_.Wake();
     }
   }
 

@@ -284,7 +284,7 @@ void TimeProvider<Clock>::RunExpired(typename Clock::time_point now) {
       DoInvokeAt(futures_.front().expiration_);
       return;
     }
-    std::move(futures_.front().waker_).Wake();
+    futures_.front().waker_.Wake();
     futures_.pop_front();
   }
 }

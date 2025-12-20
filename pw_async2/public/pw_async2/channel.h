@@ -226,7 +226,7 @@ class BaseChannelFuture : public IntrusiveForwardList<BaseChannelFuture>::Item {
   [[nodiscard]] bool is_complete() const { return completed_; }
 
   // Internal API for the channel to wake the future.
-  void Wake() { std::move(waker_).Wake(); }
+  void Wake() { waker_.Wake(); }
 
  protected:
   // Creates a new future, storing nullptr if `channel` is nullptr or if the

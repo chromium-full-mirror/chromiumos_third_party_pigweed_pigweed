@@ -20,7 +20,7 @@ void* AsyncPool::DoAllocate() { return pool_.Allocate(); }
 
 void AsyncPool::DoDeallocate(void* ptr) {
   pool_.Deallocate(ptr);
-  std::move(waker_).Wake();
+  waker_.Wake();
 }
 
 async2::Poll<void*> AsyncPool::PendAllocate(async2::Context& context) {

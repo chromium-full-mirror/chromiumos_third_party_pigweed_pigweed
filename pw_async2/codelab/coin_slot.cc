@@ -32,7 +32,7 @@ pw::async2::Poll<unsigned> CoinSlot::Pend(pw::async2::Context& context) {
 void CoinSlot::Deposit() {
   std::lock_guard lock(lock_);
   coins_deposited_ += 1;
-  std::move(waker_).Wake();
+  waker_.Wake();
 }
 
 }  // namespace codelab

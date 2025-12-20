@@ -42,9 +42,7 @@ Waker global_chars_available_waker;
 void InitStdio() {
   stdio_init_all();
   stdio_set_chars_available_callback(
-      []([[maybe_unused]] void* arg) {
-        std::move(global_chars_available_waker).Wake();
-      },
+      []([[maybe_unused]] void* arg) { global_chars_available_waker.Wake(); },
       nullptr);
 }
 

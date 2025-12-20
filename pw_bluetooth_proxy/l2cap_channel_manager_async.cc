@@ -73,7 +73,7 @@ void L2capChannelManagerImpl::OnRegister() {
   if (lrd_channel_ == manager_.channels_by_local_cid_.end()) {
     lrd_channel_ = manager_.channels_by_local_cid_.begin();
   }
-  std::move(waker_).Wake();
+  waker_.Wake();
 }
 
 // See L2capChannelManager::ReportNewTxPacketsOrCredits
@@ -83,7 +83,7 @@ void L2capChannelManagerImpl::ReportNewTxPacketsOrCredits() {
 
 void L2capChannelManagerImpl::DrainChannelQueuesIfNewTx() {
   // Actual work is done by the drain task and `DoDrainChannelQueuesIfNewTx`
-  std::move(waker_).Wake();
+  waker_.Wake();
 }
 
 async2::Poll<> L2capChannelManagerImpl::DoDrainChannelQueuesIfNewTx(

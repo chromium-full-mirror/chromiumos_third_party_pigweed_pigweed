@@ -57,7 +57,7 @@ struct PendableValue {
 
   void AllowCompletion() {
     allow_completion_ = true;
-    std::move(waker_).Wake();
+    waker_.Wake();
   }
 
   int poll_count;

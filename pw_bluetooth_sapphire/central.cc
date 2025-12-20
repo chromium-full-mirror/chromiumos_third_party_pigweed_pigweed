@@ -241,7 +241,7 @@ void Central::ScanHandleImpl::QueueScanResultLocked(ScanResult&& result) {
     results_.pop();
   }
   results_.push(std::move(result));
-  std::move(waker_).Wake();
+  waker_.Wake();
 }
 
 async2::PollResult<Central::ScanResult> Central::ScanHandleImpl::PendResult(

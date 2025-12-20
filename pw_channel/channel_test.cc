@@ -216,7 +216,7 @@ class TestByteReader
     bool was_empty = data_.empty();
     data_.PushSuffix(std::move(data));
     if (was_empty) {
-      std::move(read_waker_).Wake();
+      read_waker_.Wake();
     }
   }
 
@@ -251,7 +251,7 @@ class TestDatagramWriter : public pw::channel::Implement<DatagramWriter> {
         "Can't make writable when write is pending or already writable");
 
     state_ = kReadyToWrite;
-    std::move(waker_).Wake();
+    waker_.Wake();
   }
 
   void MakeReadyToFlush() {
@@ -260,7 +260,7 @@ class TestDatagramWriter : public pw::channel::Implement<DatagramWriter> {
                     "Can't make flushable unless a write is pending");
 
     state_ = kReadyToFlush;
-    std::move(waker_).Wake();
+    waker_.Wake();
   }
 
  private:

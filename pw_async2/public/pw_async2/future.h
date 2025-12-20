@@ -385,7 +385,7 @@ class ListableFutureWithWaker
   Lock& lock() { return provider_; }
 
   /// Wakes the task waiting on the future.
-  void Wake() { std::move(waker_).Wake(); }
+  void Wake() { waker_.Wake(); }
 
  private:
   using Base = Future<ListableFutureWithWaker<Derived, T>, T>;

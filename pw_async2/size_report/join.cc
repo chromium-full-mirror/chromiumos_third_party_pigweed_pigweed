@@ -101,7 +101,7 @@ int Measure() {
   // Move the waker onto the stack to call its operator= before waking the task.
   Waker waker;
   PW_BLOAT_EXPR((waker = std::move(task.last_waker)), mask);
-  std::move(waker).Wake();
+  waker.Wake();
   dispatcher.RunToCompletion();
 
   int result = -1;

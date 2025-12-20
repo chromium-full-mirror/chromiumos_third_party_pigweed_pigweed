@@ -40,7 +40,7 @@ void BasicProxy::DisconnectTask() {
       break;
     case State::kDisconnecting:
       state_ = State::kDisconnected;
-      std::move(reset_waker_).Wake();
+      reset_waker_.Wake();
       break;
     case State::kDisconnected:
       break;

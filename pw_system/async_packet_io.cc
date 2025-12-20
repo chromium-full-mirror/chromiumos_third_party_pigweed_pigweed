@@ -57,7 +57,7 @@ Status RpcChannelOutputQueue::Send(ConstByteSpan datagram) {
                       datagram.size());
   mutex_.lock();
   if (queue_.try_push(datagram)) {
-    std::move(packet_ready_).Wake();
+    packet_ready_.Wake();
   } else {
     dropped_packets_ += 1;
   }
@@ -101,7 +101,7 @@ void RpcServerThread::RunOnce() {
   packet_multibuf_.Release();
   std::lock_guard lock(mutex_);
   ready_for_packet_ = true;
-  std::move(ready_to_receive_packet_).Wake();
+  ready_to_receive_packet_.Wake();
 }
 
 PacketIO::PacketIO(channel::ByteReaderWriter& io_channel,

@@ -47,7 +47,7 @@ class BlockingTask : public Task {
 
   void WaitUntilRunning() { running_.acquire(); }
 
-  void Wake() { std::move(waker_).Wake(); }
+  void Wake() { waker_.Wake(); }
 
  private:
   pw::sync::ThreadNotification running_;

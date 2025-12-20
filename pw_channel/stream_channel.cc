@@ -99,13 +99,13 @@ OwnedChunk StreamChannelReadState::WaitForBufferToFillAndTakeFrontChunk() {
 void StreamChannelReadState::ProvideFilledBuffer(MultiBuf&& filled_buffer) {
   std::lock_guard lock(buffer_lock_);
   filled_buffer_.PushSuffix(std::move(filled_buffer));
-  std::move(on_buffer_filled_).Wake();
+  on_buffer_filled_.Wake();
 }
 
 void StreamChannelReadState::SetReadError(Status status) {
   std::lock_guard lock(buffer_lock_);
   status_ = status;
-  std::move(on_buffer_filled_).Wake();
+  on_buffer_filled_.Wake();
 }
 
 Status StreamChannelWriteState::SendData(MultiBuf&& buf) {

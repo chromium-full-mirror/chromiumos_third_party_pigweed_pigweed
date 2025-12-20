@@ -97,10 +97,10 @@ Status EpollDispatcher::NativeWaitForWake() {
     }
 
     if ((event.events & (EPOLLIN | EPOLLRDHUP)) != 0) {
-      std::move(wakers_[event.data.fd].read).Wake();
+      wakers_[event.data.fd].read.Wake();
     }
     if ((event.events & EPOLLOUT) != 0) {
-      std::move(wakers_[event.data.fd].write).Wake();
+      wakers_[event.data.fd].write.Wake();
     }
   }
 

@@ -23,7 +23,7 @@ void Context::ReEnqueue() {
   // The new waker will be immediately woken and removed, so its wait reason
   // does not matter.
   std::ignore = internal::CloneWaker(*waker_, waker);
-  std::move(waker).Wake();
+  waker.Wake();
 }
 
 }  // namespace pw::async2

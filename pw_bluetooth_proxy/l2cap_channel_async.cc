@@ -155,7 +155,7 @@ async2::Poll<std::optional<H4PacketWithH4>> L2capChannelImpl::DequeuePacket(
 }
 
 void L2capChannelImpl::ReportNewTxPacketsOrCredits() {
-  std::move(waker_).Wake();
+  waker_.Wake();
   channel_.l2cap_channel_manager_.ReportNewTxPacketsOrCredits();
 }
 

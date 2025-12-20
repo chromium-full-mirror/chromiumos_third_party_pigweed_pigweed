@@ -31,7 +31,7 @@ bool StoreWaker(Context& cx, WakerQueueBase& queue, log::Token wait_reason) {
 void WakerQueueBase::WakeMany(size_t count) {
   while (count > 0 && !empty()) {
     Waker& waker = queue_.front();
-    std::move(waker).Wake();
+    waker.Wake();
     queue_.pop();
     count--;
   }

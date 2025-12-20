@@ -112,7 +112,7 @@ class OnceSender final {
   ~OnceSender() {
     std::lock_guard lock(sender_receiver_lock());
     if (receiver_) {
-      std::move(receiver_->waker_).Wake();
+      receiver_->waker_.Wake();
       receiver_->sender_ = nullptr;
     }
   }
@@ -136,7 +136,7 @@ class OnceSender final {
     std::lock_guard lock(sender_receiver_lock());
     if (receiver_) {
       receiver_->value_.emplace(std::forward<Args>(args)...);
-      std::move(receiver_->waker_).Wake();
+      receiver_->waker_.Wake();
       receiver_->sender_ = nullptr;
       receiver_ = nullptr;
     }
@@ -274,7 +274,7 @@ class OnceRefSender final {
     std::lock_guard lock(sender_receiver_lock());
     if (receiver_) {
       receiver_->sender_ = nullptr;
-      std::move(receiver_->waker_).Wake();
+      receiver_->waker_.Wake();
     }
   }
 
@@ -296,7 +296,7 @@ class OnceRefSender final {
     std::lock_guard lock(sender_receiver_lock());
     if (receiver_) {
       *(receiver_->value_) = value;
-      std::move(receiver_->waker_).Wake();
+      receiver_->waker_.Wake();
       receiver_->sender_ = nullptr;
       receiver_->value_ = nullptr;
       receiver_ = nullptr;
@@ -308,7 +308,7 @@ class OnceRefSender final {
     std::lock_guard lock(sender_receiver_lock());
     if (receiver_) {
       *(receiver_->value_) = std::move(value);
-      std::move(receiver_->waker_).Wake();
+      receiver_->waker_.Wake();
       receiver_->sender_ = nullptr;
       receiver_->value_ = nullptr;
       receiver_ = nullptr;
@@ -332,7 +332,7 @@ class OnceRefSender final {
   void Commit() {
     std::lock_guard lock(sender_receiver_lock());
     if (receiver_) {
-      std::move(receiver_->waker_).Wake();
+      receiver_->waker_.Wake();
       receiver_->sender_ = nullptr;
       receiver_->value_ = nullptr;
       receiver_ = nullptr;

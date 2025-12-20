@@ -29,7 +29,7 @@ pw::async2::Poll<> ItemDropSensor::Pend(pw::async2::Context& cx) {
 
 void ItemDropSensor::Drop() {
   if (!drop_detected_.exchange(true, std::memory_order_relaxed)) {
-    std::move(waker_).Wake();
+    waker_.Wake();
   }
 }
 
