@@ -360,7 +360,7 @@ class WorkflowsCli(multitool.MultitoolCli):
         self, args: argparse.Namespace
     ) -> Sequence[multitool.MultitoolPlugin]:
         if not self.config:
-            self.config = self._load_config_from()
+            self.config = self._load_config_from(args.directory or Path.cwd())
 
         self._artifacts_manifest = args.artifacts_manifest
 
