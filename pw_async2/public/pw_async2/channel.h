@@ -28,8 +28,6 @@
 
 namespace pw::async2 {
 
-/// @submodule{pw_async2,channels}
-
 template <typename T>
 class Receiver;
 
@@ -528,6 +526,8 @@ class BaseChannelHandle {
 };
 
 }  // namespace internal
+
+/// @submodule{pw_async2,channels}
 
 /// Channel handle for a particular type `T`.
 template <typename T>
@@ -1527,6 +1527,8 @@ std::tuple<SpscChannelHandle<T>, Sender<T>, Receiver<T>> CreateSpscChannel(
   return std::make_tuple(
       SpscChannelHandle<T>(storage), Sender<T>(storage), Receiver<T>(storage));
 }
+
+/// @endsubmodule
 
 namespace internal {
 

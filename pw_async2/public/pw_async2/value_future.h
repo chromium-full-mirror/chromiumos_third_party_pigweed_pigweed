@@ -23,6 +23,8 @@ class ValueProvider;
 template <typename T>
 class BroadcastValueProvider;
 
+/// @submodule{pw_async2,futures}
+
 /// A future that holds a single value.
 ///
 /// A `ValueFuture` is a concrete `Future` implementation that is vended by a
@@ -248,5 +250,7 @@ class ValueProvider {
  private:
   SingleFutureProvider<ValueFuture<T>> provider_;
 };
+
+/// @endsubmodule
 
 }  // namespace pw::async2

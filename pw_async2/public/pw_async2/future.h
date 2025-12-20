@@ -25,6 +25,8 @@
 
 namespace pw::async2 {
 
+/// @submodule{pw_async2,futures}
+
 /// A `Future` is an abstract handle to an asynchronous operation that is polled
 /// to completion. On completion, futures may return a value representing the
 /// result of the operation.
@@ -422,5 +424,7 @@ class ListableFutureWithWaker
   Waker waker_;
   bool complete_ = false;
 };
+
+/// @endsubmodule
 
 }  // namespace pw::async2

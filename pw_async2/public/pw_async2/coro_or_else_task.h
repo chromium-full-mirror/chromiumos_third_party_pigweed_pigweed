@@ -64,6 +64,6 @@ class CoroOrElseTask final : public Task {
   pw::Function<void(Status)> or_else_;
 };
 
-/// @}
+/// @endsubmodule
 
 }  // namespace pw::async2

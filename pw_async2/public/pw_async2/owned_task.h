@@ -16,7 +16,7 @@
 #include "pw_async2/task.h"
 #include "pw_log/tokenized_args.h"
 
-/// @submodule{pw_async2,core}
+/// @submodule{pw_async2,tasks}
 
 namespace pw::async2 {
 
@@ -56,5 +56,7 @@ class OwnedTask : public Task {
   /// `Task`s delegating to other `OwnedTask`s.
   virtual void DoDestroy() = 0;
 };
+
+/// @endsubmodule
 
 }  // namespace pw::async2

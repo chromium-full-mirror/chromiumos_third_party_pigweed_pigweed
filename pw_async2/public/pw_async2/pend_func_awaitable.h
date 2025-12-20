@@ -22,7 +22,7 @@
 
 namespace pw::async2 {
 
-/// @submodule{pw_async2,adapters}
+/// @submodule{pw_async2,deprecated}
 
 /// A co-awaitable object that delegates to a provided ``func``.
 ///
@@ -56,6 +56,6 @@ PendFuncAwaitable(Callable) -> PendFuncAwaitable<
     typename std::invoke_result<Callable, Context&>::type::value_type,
     typename std::remove_reference<Callable>::type>;
 
-/// @}
+/// @endsubmodule
 
 }  // namespace pw::async2

@@ -32,7 +32,7 @@ using PendOutputOf = typename decltype(std::declval<T>().Pend(
 
 }  // namespace internal
 
-/// @submodule{pw_async2,dispatcher}
+/// @submodule{pw_async2,dispatchers}
 
 /// A single-threaded cooperatively scheduled runtime for async tasks.
 ///
@@ -222,6 +222,6 @@ class Dispatcher {
   std::atomic<bool> wants_wake_ = false;
 };
 
-/// @}
+/// @endsubmodule
 
 }  // namespace pw::async2

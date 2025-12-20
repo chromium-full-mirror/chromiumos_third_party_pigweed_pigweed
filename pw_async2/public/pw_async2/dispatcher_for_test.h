@@ -43,7 +43,7 @@ class PendableAsTaskWithOutput : public Task {
 
 }  // namespace internal
 
-/// @module{pw_async2}
+/// @submodule{pw_async2,dispatchers}
 
 /// `DispatcherForTestFacade` defines the interface for `DispatcherForTest`.
 /// Backends must provide:
@@ -164,15 +164,21 @@ class DispatcherForTestFacade final : public RunnableDispatcher {
   std::atomic<uint32_t> wake_count_ = 0u;
 };
 
+/// @endsubmodule
+
 }  // namespace pw::async2
 
 #include "pw_async2_backend/native_dispatcher_for_test.h"
 
 namespace pw::async2 {
 
+/// @submodule{pw_async2,dispatchers}
+
 /// `DispatcherForTest` is a `RunnableDispatcher` implementation to use in unit
 /// tests. See `DispatcherForTestFacade` for details.
 using DispatcherForTest =
     DispatcherForTestFacade<backend::NativeDispatcherForTest>;
+
+/// @endsubmodule
 
 }  // namespace pw::async2

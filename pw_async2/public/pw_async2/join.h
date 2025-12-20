@@ -183,6 +183,6 @@ constexpr auto Join(Futures&&... futures) {
   return JoinFuture(std::forward<Futures>(futures)...);
 }
 
-/// @}
+/// @endsubmodule
 
 }  // namespace pw::async2

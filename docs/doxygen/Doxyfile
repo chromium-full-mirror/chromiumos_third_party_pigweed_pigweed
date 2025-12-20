@@ -32,7 +32,9 @@ ALIASES                = "rst=^^\verbatim embed:rst:leading-asterisk^^" \
                          "cpp_enum{1}=@crossref{cpp,type,\1}" \
                          "pw_status{1}=@crossref{c,enumerator,\1}" \
                          "module{1}=\addtogroup \1^^@{" \
+                         "endmodule=@}" \
                          "submodule{2}=\addtogroup \1_\2^^@{" \
+                         "endsubmodule=@}" \
                          "OK=\ref pw::OkStatus() \"OK\"" \
                          "CANCELLED=\ref pw::Status::Cancelled() \"CANCELLED\"" \
                          "UNKNOWN=\ref pw::Status::Unknown() \"UNKNOWN\"" \

@@ -17,7 +17,7 @@
 
 namespace pw::async2 {
 
-/// @submodule{pw_async2,dispatcher}
+/// @submodule{pw_async2,dispatchers}
 
 /// `Dispatcher` that supports being run in a user-determined thread. Not all
 /// `Dispatcher` implementations can be used in this way.
@@ -56,5 +56,7 @@ class RunnableDispatcher : public Dispatcher {
   /// If the implementation is unable to block the thread, it must crash.
   virtual void DoWaitForWake() = 0;
 };
+
+/// @endsubmodule
 
 }  // namespace pw::async2

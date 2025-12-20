@@ -18,7 +18,7 @@
 
 namespace pw::async2 {
 
-/// @submodule{pw_async2,dispatcher}
+/// @submodule{pw_async2,dispatchers}
 
 /// Simple `RunnableDispatcher` implementation that uses a
 /// `pw::sync::ThreadNotification` to wait for tasks to wake.
@@ -38,5 +38,7 @@ class NotifiedDispatcher : public RunnableDispatcher {
 
   sync::ThreadNotification& notify_;
 };
+
+/// @endsubmodule
 
 }  // namespace pw::async2

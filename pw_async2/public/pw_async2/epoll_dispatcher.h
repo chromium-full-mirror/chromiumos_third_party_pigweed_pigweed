@@ -20,6 +20,8 @@
 
 namespace pw::async2 {
 
+/// @submodule{pw_async2,dispatchers}
+
 class EpollDispatcher final : public RunnableDispatcher {
  public:
   EpollDispatcher() { PW_ASSERT_OK(NativeInit()); }
@@ -66,5 +68,7 @@ class EpollDispatcher final : public RunnableDispatcher {
 
   std::unordered_map<int, ReadWriteWaker> wakers_;
 };
+
+/// @endsubmodule
 
 }  // namespace pw::async2

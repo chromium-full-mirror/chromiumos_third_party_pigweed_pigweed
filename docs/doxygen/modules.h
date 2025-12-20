@@ -126,46 +126,72 @@
 /// @maindocs
 /// [Home](../../pw_async2/docs.html) |
 /// [Quickstart](../../pw_async2/quickstart.html) |
-/// [Codelab](../../pw_async2/codelab.html) |
+/// [Informed poll](../../pw_async2/informed_poll.html) |
+/// [Codelab](../../pw_async2/codelab/docs.html) |
 /// [Guides](../../pw_async2/guides.html) |
+/// [Dispatcher](../../pw_async2/dispatcher.html) |
 /// [Code size analysis](../../pw_async2/code_size.html) |
 /// [Coroutines](../../pw_async2/coroutines.html) |
-/// [Dispatcher](../../pw_async2/dispatcher.html) |
-/// [Channels](../../pw_async2/channels.html)
+/// [Futures](../../pw_async2/futures.html) |
+/// [Channels](../../pw_async2/channels.html) |
+/// [Tasks](../../pw_async2/tasks.html)
 /// @endmaindocs
-
-/// @defgroup pw_async2_adapters Pendable adapters
-/// @ingroup pw_async2
-/// @brief Pendable wrappers and helpers
 
 /// @defgroup pw_async2_alloc Dynamic allocation
 /// @ingroup pw_async2
-/// @brief Heap allocate space for tasks or functions with `pw::Allocator`
+/// @brief Heap allocate space for tasks
 
-/// @defgroup pw_async2_dispatcher Dispatcher
+/// @defgroup pw_async2_context Context
 /// @ingroup pw_async2
-/// @brief Dispatcher interface and implementations
+/// @brief Resources for scheduling asynchronous work
+
+/// @defgroup pw_async2_dispatchers Dispatchers
+/// @ingroup pw_async2
+/// @brief Interface for the cooperative scheduler and concrete implementations
+/// @details Learn more: [Dispatchers](../../pw_async2/dispatcher.html)
 
 /// @defgroup pw_async2_combinators Combinators
 /// @ingroup pw_async2
-/// @brief Helpers for interacting with multiple pendables
-
-/// @defgroup pw_async2_core Core
-/// @ingroup pw_async2
-/// @brief Core primitives such as tasks, polls, contexts, and wakers
-/// @details Learn more: [Core concepts](../../pw_async2/design.html#core-concepts)
+/// @brief Helpers for interacting with multiples futures
+/// @details Learn more: [Combinators](../../pw_async2/futures.html#combinators)
 
 /// @defgroup pw_async2_coroutines Coroutines
 /// @ingroup pw_async2
-/// @brief C++20 coroutine support. Learn more: [Coroutines](../../pw_async2/coroutines.html)
+/// @brief C++20 coroutine support.
+/// @details Learn more: [Coroutines](../../pw_async2/coroutines.html)
 
 /// @defgroup pw_async2_channels Channels
 /// @ingroup pw_async2
-/// @brief Send objects between tasks or threads. Learn more: [Channels](../../pw_async2/channels.html)
+/// @brief Inter-task communication
+/// @details Learn more: [Channels](../../pw_async2/channels.html)
 
-/// @defgroup pw_async2_pendables Built-in pendables
+/// @defgroup pw_async2_deprecated Deprecated
 /// @ingroup pw_async2
-/// @brief Async operations that can be polled for completion and suspended. Learn more: [The pendable function interface](../../pw_async2/design.html#the-pendable-function-interface)
+/// @brief Deprecated APIs
+
+/// @defgroup pw_async2_futures Futures
+/// @ingroup pw_async2
+/// @brief Values that may not be ready yet
+/// @details Learn more: [Futures](../../pw_async2/futures.html)
+
+/// @defgroup pw_async2_poll Poll
+/// @ingroup pw_async2
+/// @brief Statuses for asynchronous operations
+
+/// @defgroup pw_async2_tasks Tasks
+/// @ingroup pw_async2
+/// @brief Logical collections of asynchronous work
+/// @details Learn more: [Tasks](../../pw_async2/tasks.html)
+
+/// @defgroup pw_async2_time Time
+/// @ingroup pw_async2
+/// @brief Interacting with time, timers, and timeouts
+/// @details Learn more: [Interacting with time, timers, and timeouts](../../pw_async2/guides.html#interacting-with-timers-delays-and-timeouts)
+
+/// @defgroup pw_async2_wakers Wakers
+/// @ingroup pw_async2
+/// @brief Queue work in response to async events
+/// @details Learn more: [Wakers](../../pw_async2/informed_poll.html#wakers-progress-updates-for-the-dispatcher)
 
 /// @defgroup pw_async_basic pw_async_basic
 /// @maindocs

@@ -53,7 +53,7 @@ inline constexpr bool IsPendable = PendableTraits<decltype(Func)>::kIsPendable;
 
 }  // namespace internal
 
-/// @submodule{pw_async2,adapters}
+/// @submodule{pw_async2,deprecated}
 
 /// Wraps a pendable member function in an object which has a single ``Pend``
 /// method, allowing it to be used more broadly.
@@ -207,6 +207,6 @@ inline constexpr FreePendableWrapper<FreeFunc> PendableFor(Args&&... args) {
   return FreePendableWrapper<FreeFunc>(std::forward<Args>(args)...);
 }
 
-/// @}
+/// @endsubmodule
 
 }  // namespace pw::async2

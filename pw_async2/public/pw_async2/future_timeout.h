@@ -34,6 +34,8 @@
 
 namespace pw::async2 {
 
+/// @submodule{pw_async2,time}
+
 /// When used as the `TimeoutResolution` type parameter, causes the
 /// `FutureWithTimeout` wrapper to return `Ready()` when there is a timeout.
 struct EmptyReadyResolution {
@@ -512,5 +514,7 @@ using CustomFutureWithTimeoutOr =
                        std::declval<TimeProvider<Clock>&>(),
                        std::declval<typename Clock::duration>(),
                        std::declval<U&&>()));
+
+/// @endsubmodule
 
 }  // namespace pw::async2

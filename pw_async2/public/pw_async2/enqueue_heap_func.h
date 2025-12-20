@@ -51,6 +51,6 @@ void EnqueueHeapFunc(Dispatcher& dispatcher, Func&& func) {
       internal::RunHeapFuncTask<Func>::New(std::forward<Func>(func)));
 }
 
-/// @}
+/// @endsubmodule
 
 }  // namespace pw::async2

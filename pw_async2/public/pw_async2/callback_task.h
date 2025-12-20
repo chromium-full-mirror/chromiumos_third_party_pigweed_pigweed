@@ -32,7 +32,7 @@ using CallbackType = std::conditional_t<
 
 }  // namespace internal
 
-/// @submodule{pw_async2,adapters}
+/// @submodule{pw_async2,tasks}
 
 /// A `Task` which pends a future and invokes a provided callback
 /// with its output when it returns `Ready`.
@@ -102,6 +102,6 @@ CallbackTask(Func&&, FutureType&&) -> CallbackTask<FutureType, Func>;
 
 // TODO: b/458069794 - Add StreamCallbackTask.
 
-/// @}
+/// @endsubmodule
 
 }  // namespace pw::async2

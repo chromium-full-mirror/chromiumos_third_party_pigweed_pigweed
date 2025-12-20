@@ -64,6 +64,6 @@ Task* AllocateTask(pw::allocator::Allocator& allocator, Args&&... args) {
       allocator, std::forward<Args>(args)...);
 }
 
-/// @}
+/// @endsubmodule
 
 }  // namespace pw::async2

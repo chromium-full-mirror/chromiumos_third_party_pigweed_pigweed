@@ -55,7 +55,7 @@ class WakerQueueBase {
 
 }  // namespace internal
 
-/// @submodule{pw_async2,combinators}
+/// @submodule{pw_async2,deprecated}
 
 /// A ``WakerQueue`` is an ordered list of ``Waker``s that allows multiple tasks
 /// to wait on the same asynchronous operation.
@@ -70,6 +70,6 @@ class WakerQueue : public internal::WakerQueueBase {
   InlineQueue<Waker, kCapacity> queue_;
 };
 
-/// @}
+/// @endsubmodule
 
 }  // namespace pw::async2

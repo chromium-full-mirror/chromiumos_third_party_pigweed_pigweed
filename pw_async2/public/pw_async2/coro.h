@@ -45,7 +45,7 @@ class CoroContext {
   pw::allocator::Allocator& alloc_;
 };
 
-/// @}
+/// @endsubmodule
 
 // The internal coroutine API implementation details enabling `Coro<T>`.
 //
@@ -539,7 +539,7 @@ class Coro final {
   internal::OwningCoroutineHandle<promise_type> promise_handle_;
 };
 
-/// @}
+/// @endsubmodule
 
 // Implement the remaining internal pieces that require a definition of
 // `Coro<T>`.

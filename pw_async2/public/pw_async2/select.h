@@ -56,7 +56,7 @@ struct AllPendablesCompleted {
   std::nullopt_t value = std::nullopt;
 };
 
-/// @}
+/// @endsubmodule
 
 namespace internal {
 
@@ -304,6 +304,6 @@ SelectFuture<Futures...> Select(Futures&&... futures) {
   return SelectFuture(std::forward<Futures>(futures)...);
 }
 
-/// @}
+/// @endsubmodule
 
 }  // namespace pw::async2

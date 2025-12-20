@@ -13,7 +13,7 @@
 // the License.
 #pragma once
 
-/// @submodule{pw_async2,core}
+/// @submodule{pw_async2,poll}
 
 /// Returns `Poll::Pending()` if `expr` is `Poll::Pending()`.
 #define PW_TRY_READY(expr)            \
@@ -28,7 +28,7 @@
 #define PW_TRY_READY_ASSIGN(lhs, expression) \
   _PW_TRY_READY_ASSIGN(_PW_TRY_READY_UNIQUE(__LINE__), lhs, expression)
 
-/// @}
+/// @endsubmodule
 
 #define _PW_TRY_READY_ASSIGN(result, lhs, expr) \
   auto&& result = (expr);                       \
