@@ -12,6 +12,8 @@
 # License for the specific language governing permissions and limitations under
 # the License.
 
+load("@bazel_tools//tools/build_defs/cc:action_names.bzl", "ACTION_NAMES")
+load(":pw_cc_tool_for_action.bzl", "pw_cc_tool_for_action")
 load(":pw_cc_toolchain_feature_is_enabled.bzl", "pw_cc_toolchain_feature_is_enabled")
 
 pw_cc_toolchain_feature_is_enabled(
@@ -62,4 +64,26 @@ pw_cc_toolchain_feature_is_enabled(
 pw_cc_toolchain_feature_is_enabled(
     name = "linker_is_msvc-cl",
     feature_name = "linker_is_msvc-cl",
+)
+
+# Runnable targets that alias to the current C/C++ toolchain tools used to
+# compile for the current target platform.
+#
+# These are ONLY exposed to make it easier to debug the active toolchain.
+# For example:
+#
+#   # Print the version of the toolchain used when compiling for this MCU.
+#   $ bazel run --config=lm3s6965evb \
+#         //pw_toolchain/cc/current_toolchain:cc -- --version
+#
+# WARNING: These are intentionally private, and should NEVER be used as
+# dependencies!!!
+#
+# An inherent side-effect of this structure is that target/exec compatibility
+# is lost in a way that can cause the wrong toolchain to be selected when it
+# is used as a dependency of another rule.
+pw_cc_tool_for_action(
+    name = "cc",
+    action_name = ACTION_NAMES.c_compile,
+    visibility = ["//visibility:private"],
 )
