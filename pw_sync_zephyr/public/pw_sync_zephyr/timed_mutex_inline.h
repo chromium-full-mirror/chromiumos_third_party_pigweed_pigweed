@@ -18,11 +18,13 @@
 
 namespace pw::sync {
 
+#ifndef CONFIG_TIMEOUT_64BIT
 inline bool TimedMutex::try_lock_until(
     chrono::SystemClock::time_point deadline) {
   // Note that if this deadline is in the future, it will get rounded up by
   // one whole tick due to how try_lock_for is implemented.
   return try_lock_for(deadline - chrono::SystemClock::now());
 }
+#endif  // CONFIG_TIMEOUT_64BIT
 
 }  // namespace pw::sync

@@ -48,7 +48,6 @@ pw_add_library(pw_sync_zephyr.timed_mutex_backend STATIC
     pw_sync.timed_mutex.facade
   PRIVATE_DEPS
     pw_assert
-    pw_chrono_zephyr.system_clock
     pw_interrupt.context
   SOURCES
     timed_mutex.cc

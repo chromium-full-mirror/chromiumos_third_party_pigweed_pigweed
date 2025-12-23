@@ -16,11 +16,10 @@
 
 #include <zephyr/kernel.h>
 
-#include <algorithm>
+#include <limits>
 
 #include "pw_assert/check.h"
 #include "pw_chrono/system_clock.h"
-#include "pw_chrono_zephyr/system_clock_constants.h"
 #include "pw_interrupt/context.h"
 
 using pw::chrono::SystemClock;
@@ -42,17 +41,23 @@ bool TimedMutex::try_lock_for(SystemClock::duration timeout) {
   // tick based kernel we cannot tell how far along we are on the current tick,
   // ergo we add one whole tick to the final duration. However, this also means
   // that the loop must ensure that timeout + 1 is less than the max timeout.
-  constexpr SystemClock::duration kMaxTimeoutMinusOne =
-      pw::chrono::zephyr::kMaxTimeout - SystemClock::duration(1);
-  while (timeout > kMaxTimeoutMinusOne) {
-    if (k_mutex_lock(&native_handle(), K_TICKS(kMaxTimeoutMinusOne.count())) ==
-        0) {
+  constexpr SystemClock::duration kLongTimeout =
+      chrono::SystemClock::duration(std::numeric_limits<int32_t>::max());
+  while (timeout > kLongTimeout) {
+    if (k_mutex_lock(&native_handle(), K_TICKS(kLongTimeout.count())) == 0) {
       return true;
     }
 
-    timeout -= kMaxTimeoutMinusOne;
+    timeout -= kLongTimeout;
   }
-#endif  // CONFIG_TIMEOUT_64BIT
+
+  /// Do the final wait. Cast to uint32_t as the underlying duration
+  /// representation may be larger, but as per the exit condition, we know that
+  /// it must hold that timeout <= INT32_MAX, which in turn must fit in a
+  /// uint32_t.
+  return k_mutex_lock(&native_handle(),
+                      K_TICKS(static_cast<uint32_t>(timeout.count()))) == 0;
+#else
 
   // Note that unlike many other RTOSes, for a duration timeout in ticks, the
   // core kernel wait routine, z_add_timeout, for relative timeouts will always
@@ -61,6 +66,33 @@ bool TimedMutex::try_lock_for(SystemClock::duration timeout) {
   // here and the kernel will guarantee we wait the proper number of ticks plus
   // some time in the range of [1,2) extra ticks.
   return k_mutex_lock(&native_handle(), K_TICKS(timeout.count())) == 0;
+
+#endif  // CONFIG_TIMEOUT_64BIT
 }
+
+#ifdef CONFIG_TIMEOUT_64BIT
+bool TimedMutex::try_lock_until(chrono::SystemClock::time_point deadline) {
+  PW_DASSERT(!interrupt::InInterruptContext());
+
+  const chrono::SystemClock::time_point now = chrono::SystemClock::now();
+
+  // Check if the expiration deadline has already passed, and attempt to acquire
+  // without a timeout.
+  if (deadline <= now) {
+    return try_lock();
+  }
+
+  // With 64-bit timeouts we can wait on a time_point, so do this directly when
+  // Zephyr has been configured this way. We will sleep until the time since the
+  // epoch start (boot, for the case of a monotonic system clock) we'd like to
+  // wait for. Even if enough time has passed such that we're making this call
+  // after the wakeup time has passed -- so if we were preempted between the
+  // yield and here and we passed the deadline -- we'll then sleep for a single
+  // tick
+  return k_mutex_lock(
+             &native_handle(),
+             K_TIMEOUT_ABS_TICKS(deadline.time_since_epoch().count())) == 0;
+}
+#endif  // CONFIG_TIMEOUT_64BIT
 
 }  // namespace pw::sync

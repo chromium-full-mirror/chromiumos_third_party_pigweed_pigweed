@@ -24,7 +24,9 @@ namespace pw::sync {
 
 inline CountingSemaphore::CountingSemaphore() : native_type_() {
   constexpr unsigned int kInitialCount = 0;
-  k_sem_init(&native_type_, kInitialCount, backend::kCountingSemaphoreMaxValue);
+  PW_ASSERT(k_sem_init(&native_type_,
+                       kInitialCount,
+                       backend::kCountingSemaphoreMaxValue) == 0);
 }
 
 inline CountingSemaphore::~CountingSemaphore() = default;
@@ -38,12 +40,14 @@ inline bool CountingSemaphore::try_acquire() noexcept {
   return k_sem_take(&native_type_, K_NO_WAIT) == 0;
 }
 
+#ifndef CONFIG_TIMEOUT_64BIT
 inline bool CountingSemaphore::try_acquire_until(
     chrono::SystemClock::time_point deadline) {
   // Note that if this deadline is in the future, it will get rounded up by
   // one whole tick due to how try_acquire_for is implemented.
   return try_acquire_for(deadline - chrono::SystemClock::now());
 }
+#endif  // CONFIG_TIMEOUT_64BIT
 
 inline CountingSemaphore::native_handle_type
 CountingSemaphore::native_handle() {
