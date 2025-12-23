@@ -13,6 +13,9 @@
 // the License.
 #pragma once
 
+#ifndef PW_ALLOCATOR_PUBLIC_PW_ALLOCATOR_ALLOCATOR_H_
+#define PW_ALLOCATOR_PUBLIC_PW_ALLOCATOR_ALLOCATOR_H_
+
 #include <cstddef>
 
 #include "pw_allocator/capability.h"
@@ -27,6 +30,10 @@
 namespace pw {
 
 /// @submodule{pw_allocator,core}
+
+// Forward declare to break a circular dependency with shared_ptr.h.
+template <typename T>
+class SharedPtr;
 
 /// Abstract interface for variable-layout memory allocation.
 ///
@@ -416,3 +423,5 @@ using Allocator = ::pw::Allocator;
 /// @}
 
 }  // namespace pw
+
+#endif  // PW_ALLOCATOR_PUBLIC_PW_ALLOCATOR_ALLOCATOR_H_
