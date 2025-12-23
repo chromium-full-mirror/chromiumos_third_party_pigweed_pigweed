@@ -33,7 +33,7 @@ from typing import (
     TextIO,
 )
 
-from pw_cli import color
+from pw_cli import argument_types, color
 from pw_cli.collect_files import add_file_collection_arguments
 from pw_cli.diff import colorize_diff
 from pw_cli.plural import plural
@@ -166,6 +166,13 @@ def add_arguments(
         '--jobs',
         type=int,
         help='Number of parallel jobs to use. Defaults to the number of CPUs.',
+    )
+    parser.add_argument(
+        '-C',
+        '--directory',
+        type=argument_types.directory,
+        default=None,
+        help=argparse.SUPPRESS,
     )
     parser.set_defaults(apply_fixes=default_to_fix)
 

@@ -71,6 +71,7 @@ class FormattingSuite:
         exclude: Collection[Pattern] = tuple(),
         apply_fixes: bool = True,
         jobs: int | None = None,
+        directory: Path | None = None,
     ) -> bool:
         """Formats files in a repository.
 
@@ -81,7 +82,11 @@ class FormattingSuite:
             exclude: Regex patterns to exclude from the set of collected files.
             apply_fixes: Whether or not to apply formatting fixes to files.
             jobs: Number of parallel jobs to use.
+            directory: Change to this directory before doing anything.
         """
+        if directory:
+            os.chdir(directory)
+
         all_files = collect_files_in_current_repo(
             paths,
             _git_runner,
