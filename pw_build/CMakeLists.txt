@@ -122,6 +122,13 @@ pw_add_library_generic(pw_build.pedantic_warnings INTERFACE
     # supported prior and permitted by the Google style guide.
     "-Wno-c++20-designator"
 
+    # TODO: https://pwbug.dev/456551524 - Remove workaround after toolchain
+    # is rolled to recognize the c2y-extensions flag.
+    "-Wno-unknown-warning-option"
+    # __COUNTER__ is a GCC extension until C++26. Using it results in
+    # -Wc2y-extensions warnings, which must be disabled.
+    "-Wno-c2y-extensions"
+
     # Allow empty ... arguments in macros, which are permitted in C++20 but
     # widely supported prior.
     "-Wno-gnu-zero-variadic-macro-arguments"
