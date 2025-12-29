@@ -211,7 +211,8 @@ Status MultiSink::UnsafeForEachEntry(
   const size_t first_logged_offset =
       max_num_entries > num_entries ? 0 : num_entries - max_num_entries;
   pw::multisink::MultiSink::iterator it = multisink_iteration.begin();
-  for (size_t offset = 0; it != multisink_iteration.end(); ++it, ++offset) {
+  for (size_t offset = 0; it != multisink_iteration.end() && it.status().ok();
+       ++it, ++offset) {
     if (offset < first_logged_offset) {
       continue;  // Skip this log.
     }
@@ -234,10 +235,14 @@ Status MultiSink::UnsafeForEachEntryFromEnd(
   size_t total_bytes = 0;
   iterator it = multisink_iteration.begin();
   iterator last_elem_it;
-  for (; it != multisink_iteration.end(); ++it) {
+  for (; it != multisink_iteration.end() && it.status().ok(); ++it) {
     num_entries++;
     total_bytes += (*it).size();
     last_elem_it = it;
+  }
+  if (!it.status().ok()) {
+    PW_LOG_WARN("Multisink corruption detected, no entries can be processed");
+    return Status::DataLoss();
   }
 
   size_t max_num_entries = std::numeric_limits<size_t>::max();
@@ -259,7 +264,8 @@ Status MultiSink::UnsafeForEachEntryFromEnd(
   const size_t first_logged_offset =
       max_num_entries > num_entries ? 0 : num_entries - max_num_entries;
   it = multisink_iteration.begin();
-  for (size_t offset = 0; it != multisink_iteration.end(); ++it, ++offset) {
+  for (size_t offset = 0; it != multisink_iteration.end() && it.status().ok();
+       ++it, ++offset) {
     if (offset < first_logged_offset) {
       continue;  // Skip this log.
     }
