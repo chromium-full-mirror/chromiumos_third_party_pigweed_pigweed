@@ -14,6 +14,7 @@
 
 use anyhow::Result;
 mod image_info;
+mod stacks;
 
 use std::path::{Path, PathBuf};
 
@@ -35,6 +36,14 @@ enum Commands {
         #[arg(required = true)]
         path: PathBuf,
     },
+    /// Print stack usage information from a running target
+    #[command(name = "stacks")]
+    Stacks {
+        #[arg(required = true)]
+        path: PathBuf,
+        #[arg(long, default_value = "localhost:1234")]
+        gdb: String,
+    },
 }
 
 fn print_image_info(path: &Path) -> Result<()> {
@@ -51,12 +60,16 @@ fn print_image_info(path: &Path) -> Result<()> {
     Ok(())
 }
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match &cli.command {
         Commands::ImageInfo { path } => {
             print_image_info(path)?;
+        }
+        Commands::Stacks { path, gdb } => {
+            stacks::run(path, gdb).await?;
         }
     }
 

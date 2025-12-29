@@ -22,13 +22,18 @@ rust_binary(
     srcs = [
         "image_info.rs",
         "main.rs",
+        "stacks.rs",
     ],
     edition = "2024",
     tags = ["kernel"],
     target_compatible_with = incompatible_with_mcu(),
     deps = [
+        "//pw_kernel/lib/magic_values",
+        "//pw_kernel/lib/pw_gdb_protocol",
         "@rust_crates//:anyhow",
         "@rust_crates//:clap",
         "@rust_crates//:object",
+        "@rust_crates//:tokio",
+        "@rust_crates//:tokio-util",
     ],
 )

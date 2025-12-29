@@ -26,6 +26,7 @@ pub struct StackInfo {
 
 pub struct ImageInfo {
     pub stacks: Vec<StackInfo>,
+    pub endian: object::Endianness,
 }
 
 impl ImageInfo {
@@ -68,7 +69,7 @@ impl ImageInfo {
             });
         }
 
-        Ok(ImageInfo { stacks })
+        Ok(ImageInfo { stacks, endian })
     }
 
     fn extract_usize_field(
