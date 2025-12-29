@@ -766,8 +766,11 @@ def format_paths_in_repo(
     base: str,
     code_formats: Collection[CodeFormat] = CODE_FORMATS,
     jobs: int = 1,  # pylint: disable=unused-argument
+    directory: Path | None = None,
 ) -> int:
     """Checks or fixes formatting for files in a Git repo."""
+    if directory:
+        os.chdir(directory)
 
     repo = git_repo.root() if git_repo.is_repo() else None
 
