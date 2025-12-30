@@ -45,17 +45,28 @@ class AdvertisingPacketFilter {
 
   AdvertisingPacketFilter(const Config& config, Transport::WeakPtr hci);
 
+  // Set the packet filters for a given scan id. If offloading is supported and
+  // the Controller has memory available (for all currently configured filters,
+  // including the one being added), this method will offload the filters being
+  // added. Conversely, if the Controller doesn't have memory available for all
+  // filters, offloaded filtering will be disabled and we will gracefully fall
+  // back to Host level filtering.
   void SetPacketFilters(ScanId scan_id,
                         const std::vector<DiscoveryFilter>& filters);
 
-  void UnsetPacketFilters(ScanId scan_id) {
-    UnsetPacketFiltersInternal(scan_id, true);
-  }
+  // Remove the packet filters for a given scan id. If offloading is currently
+  // in use, this method will remove filters from the Controller configuration
+  // as well. Conversely, if offloading isn't in use and, by removing this scan
+  // id's filters, we can now push all filters onto the Controller, this method
+  // may re-enable offloaded packet filtering.
+  void UnsetPacketFilters(ScanId scan_id);
 
+  // Obtain the set of scan ids that have filters that match a particular peer
   std::unordered_set<ScanId> Matches(const AdvertisingData::ParseResult& ad,
                                      bool connectable,
                                      int8_t rssi) const;
 
+  // Determine whether a particular scan id's filters match a given peer
   bool Matches(ScanId scan_id,
                const AdvertisingData::ParseResult& ad,
                bool connectable,
@@ -78,6 +89,13 @@ class AdvertisingPacketFilter {
     kManufacturerCode,
   };
 
+  // Remove the packet filters for a given scan id. If offloading is currently
+  // in use, this method will remove filters from the Controller configuration
+  // as well.
+  //
+  // Importantly, this method will not check whether we can now push all
+  // remaining filters onto the Controller. Even if so, it will not re-enable
+  // offloaded packet filtering in the Controller.
   void UnsetPacketFiltersInternal(ScanId scan_id, bool run_commands);
 
   // Generate the next valid, available, and within range FilterIndex.

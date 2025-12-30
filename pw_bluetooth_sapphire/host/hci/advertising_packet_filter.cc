@@ -114,6 +114,23 @@ void AdvertisingPacketFilter::SetPacketFilters(
   });
 }
 
+void AdvertisingPacketFilter::UnsetPacketFilters(ScanId scan_id) {
+  UnsetPacketFiltersInternal(scan_id, true);
+
+  if (!config_.offloading_supported()) {
+    return;
+  }
+
+  if (is_offloading_filters_) {
+    return;
+  }
+
+  if (MemoryAvailable()) {
+    bt_log(INFO, "hci-le", "controller filter memory available");
+    EnableOffloadedFiltering();
+  }
+}
+
 void AdvertisingPacketFilter::UnsetPacketFiltersInternal(ScanId scan_id,
                                                          bool run_commands) {
   if (scan_id_to_filters_.count(scan_id) == 0) {
@@ -129,11 +146,6 @@ void AdvertisingPacketFilter::UnsetPacketFiltersInternal(ScanId scan_id,
   }
 
   if (!is_offloading_filters_) {
-    if (MemoryAvailable()) {
-      bt_log(INFO, "hci-le", "controller filter memory available");
-      EnableOffloadedFiltering();
-    }
-
     return;
   }
 
