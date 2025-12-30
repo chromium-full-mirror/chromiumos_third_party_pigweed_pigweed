@@ -149,18 +149,12 @@ void AdvertisingPacketFilter::UnsetPacketFiltersInternal(ScanId scan_id,
     return;
   }
 
-  if (!scan_id_to_index_.contains(scan_id)) {
-    return;
-  }
-
   bt_log(INFO, "hci-le", "deleting offloaded filters (scan id: %d)", scan_id);
-  const std::unordered_set<FilterIndex>& filter_indexes =
-      scan_id_to_index_.get(scan_id).value();
-  for (FilterIndex filter_index : filter_indexes) {
+  for (FilterIndex filter_index : scan_id_to_index_[scan_id]) {
     CommandPacket packet = BuildUnsetParametersCommand(filter_index);
     hci_cmd_runner_->QueueCommand(std::move(packet));
   }
-  scan_id_to_index_.remove(scan_id);
+  scan_id_to_index_.erase(scan_id);
 
   if (!hci_cmd_runner_->IsReady()) {
     return;
@@ -225,17 +219,38 @@ bool AdvertisingPacketFilter::Matches(ScanId scan_id,
 
 std::optional<AdvertisingPacketFilter::FilterIndex>
 AdvertisingPacketFilter::NextFilterIndex() {
-  if (scan_id_to_index_.size_many() >= config_.max_filters()) {
+  if (NumFilterIndexesInUse() >= config_.max_filters()) {
     return std::nullopt;
   }
 
   FilterIndex value = last_filter_index_;
   do {
     value = (value + 1) % config_.max_filters();
-  } while (scan_id_to_index_.contains(value));
+  } while (IsFilterIndexInUse(value));
 
   last_filter_index_ = value;
   return value;
+}
+
+size_t AdvertisingPacketFilter::NumFilterIndexesInUse() const {
+  size_t result = 0;
+
+  for (const auto& [_, filter_indexes] : scan_id_to_index_) {
+    result += filter_indexes.size();
+  }
+
+  return result;
+}
+
+bool AdvertisingPacketFilter::IsFilterIndexInUse(
+    FilterIndex filter_index) const {
+  for (const auto& [_, filter_indexes] : scan_id_to_index_) {
+    if (filter_indexes.count(filter_index) != 0) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 bool AdvertisingPacketFilter::MemoryAvailable() const {
@@ -248,8 +263,7 @@ bool AdvertisingPacketFilter::MemoryAvailable() const {
     total_filters += filters.size();
   }
 
-  size_t num_filters_offloaded = scan_id_to_index_.size_many();
-  if (num_filters_offloaded + total_filters > config_.max_filters()) {
+  if (NumFilterIndexesInUse() + total_filters > config_.max_filters()) {
     return false;
   }
 
@@ -279,8 +293,7 @@ bool AdvertisingPacketFilter::MemoryAvailableForFilter(
     return false;
   }
 
-  size_t num_filters_offloaded = scan_id_to_index_.size_many();
-  if (num_filters_offloaded + 1 > config_.max_filters()) {
+  if (NumFilterIndexesInUse() + 1 > config_.max_filters()) {
     return false;
   }
 
@@ -331,8 +344,7 @@ bool AdvertisingPacketFilter::MemoryAvailableForFilters(
     return false;
   }
 
-  size_t num_filters_offloaded = scan_id_to_index_.size_many();
-  if (num_filters_offloaded + filters.size() > config_.max_filters()) {
+  if (NumFilterIndexesInUse() + filters.size() > config_.max_filters()) {
     return false;
   }
 
@@ -448,7 +460,7 @@ bool AdvertisingPacketFilter::Offload(ScanId scan_id,
   }
 
   FilterIndex filter_index = filter_index_opt.value();
-  scan_id_to_index_.put(scan_id, filter_index);
+  scan_id_to_index_[scan_id].insert(filter_index);
 
   CommandPacket set_parameters =
       BuildSetParametersCommand(filter_index, filter);

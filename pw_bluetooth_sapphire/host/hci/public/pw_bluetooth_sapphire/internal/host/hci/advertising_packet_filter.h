@@ -14,7 +14,6 @@
 
 #pragma once
 
-#include "pw_bluetooth_sapphire/internal/host/common/bidirectional_multimap.h"
 #include "pw_bluetooth_sapphire/internal/host/hci/discovery_filter.h"
 #include "pw_bluetooth_sapphire/internal/host/hci/sequential_command_runner.h"
 #include "pw_bluetooth_sapphire/internal/host/transport/transport.h"
@@ -148,6 +147,12 @@ class AdvertisingPacketFilter {
   // track to the default value.
   void ResetOpenSlots();
 
+  // Returns the number of filter indexes currently in use
+  size_t NumFilterIndexesInUse() const;
+
+  // Returns whether we are already using a particular filter index or not
+  bool IsFilterIndexInUse(FilterIndex filter_index) const;
+
   CommandPacket BuildEnableCommand(bool enabled) const;
 
   CommandPacket BuildSetParametersCommand(FilterIndex filter_index,
@@ -230,7 +235,7 @@ class AdvertisingPacketFilter {
 
   // Map between a scan id and the indexes of its filters offloaded to the
   // Controller.
-  BidirectionalMultimap<ScanId, FilterIndex> scan_id_to_index_;
+  std::unordered_map<ScanId, std::unordered_set<FilterIndex>> scan_id_to_index_;
 
   // The HCI transport.
   Transport::WeakPtr hci_;
