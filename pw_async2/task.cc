@@ -210,7 +210,7 @@ bool Task::Wake() {
       return false;
     case State::kUnposted:
       // This should be unreachable.
-      PW_DCHECK(false);
+      PW_CHECK(false);
     case State::kRunning:
       // Wake again to indicate that this task should be run once more,
       // as the state of the world may have changed since the task
