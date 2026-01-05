@@ -276,6 +276,7 @@ sphinx_docs_library(
         "//pw_malloc:docs",
         "//pw_malloc_freelist:docs",
         "//pw_malloc_freertos:docs",
+        "//pw_memory:docs",
         "//pw_metric:docs",
         "//pw_module:docs",
         "//pw_multibuf:docs",

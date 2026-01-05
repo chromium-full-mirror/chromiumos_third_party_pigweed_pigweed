@@ -78,6 +78,7 @@ Modules
    pw_libcxx/docs
    pw_log/docs
    pw_malloc/docs
+   pw_memory/docs
    pw_metric/docs
    pw_module/docs
    pw_multibuf/docs

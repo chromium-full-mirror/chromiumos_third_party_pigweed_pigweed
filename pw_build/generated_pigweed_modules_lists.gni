@@ -141,6 +141,7 @@ declare_args() {
   dir_pw_malloc = get_path_info("../pw_malloc", "abspath")
   dir_pw_malloc_freelist = get_path_info("../pw_malloc_freelist", "abspath")
   dir_pw_malloc_freertos = get_path_info("../pw_malloc_freertos", "abspath")
+  dir_pw_memory = get_path_info("../pw_memory", "abspath")
   dir_pw_metric = get_path_info("../pw_metric", "abspath")
   dir_pw_module = get_path_info("../pw_module", "abspath")
   dir_pw_multibuf = get_path_info("../pw_multibuf", "abspath")
@@ -339,6 +340,7 @@ declare_args() {
     dir_pw_malloc,
     dir_pw_malloc_freelist,
     dir_pw_malloc_freertos,
+    dir_pw_memory,
     dir_pw_metric,
     dir_pw_module,
     dir_pw_multibuf,
@@ -527,6 +529,7 @@ declare_args() {
     "$dir_pw_malloc:tests",
     "$dir_pw_malloc_freelist:tests",
     "$dir_pw_malloc_freertos:tests",
+    "$dir_pw_memory:tests",
     "$dir_pw_metric:tests",
     "$dir_pw_module:tests",
     "$dir_pw_multibuf:tests",
@@ -715,6 +718,7 @@ declare_args() {
     "$dir_pw_malloc:docs",
     "$dir_pw_malloc_freelist:docs",
     "$dir_pw_malloc_freertos:docs",
+    "$dir_pw_memory:docs",
     "$dir_pw_metric:docs",
     "$dir_pw_module:docs",
     "$dir_pw_multibuf:docs",

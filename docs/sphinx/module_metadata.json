@@ -601,6 +601,13 @@
   "pw_malloc_freertos": {
     "status": "stable"
   },
+  "pw_memory": {
+    "tagline": "Memory utilities",
+    "status": "stable",
+    "languages": [
+      "C++"
+    ]
+  },
   "pw_metric": {
     "status": "stable"
   },

@@ -103,6 +103,7 @@ pw_log_zephyr
 pw_malloc
 pw_malloc_freelist
 pw_malloc_freertos
+pw_memory
 pw_metric
 pw_module
 pw_multibuf
