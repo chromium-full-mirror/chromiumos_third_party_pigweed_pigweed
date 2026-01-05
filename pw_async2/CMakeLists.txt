@@ -255,6 +255,19 @@ pw_add_test(pw_async2.value_future_test
     pw_async2.value_future
 )
 
+pw_add_test(pw_async2.value_future_thread_test
+  SOURCES
+    value_future_thread_test.cc
+  PRIVATE_DEPS
+    pw_async2.callback_task
+    pw_async2.poll
+    pw_async2.testing
+    pw_async2.value_future
+    pw_thread.sleep
+    pw_thread.test_thread_context
+    pw_thread.thread
+)
+
 pw_add_library(pw_async2.pend_func_task INTERFACE
   HEADERS
     public/pw_async2/pend_func_task.h

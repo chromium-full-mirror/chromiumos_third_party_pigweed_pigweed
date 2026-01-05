@@ -355,6 +355,21 @@ pw_cc_test(
     ],
 )
 
+pw_cc_test(
+    name = "value_future_thread_test",
+    srcs = ["value_future_thread_test.cc"],
+    deps = [
+        ":callback_task",
+        ":poll",
+        ":testing",
+        ":value_future",
+        "//pw_thread:sleep",
+        "//pw_thread:test_thread_context",
+        "//pw_thread:thread",
+        "//pw_unit_test",
+    ],
+)
+
 cc_library(
     name = "pend_func_awaitable",
     hdrs = [
