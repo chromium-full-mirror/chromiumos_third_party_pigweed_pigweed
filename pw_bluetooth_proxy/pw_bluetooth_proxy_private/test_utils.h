@@ -179,6 +179,18 @@ struct BasicL2capParameters {
   ChannelEventCallback&& event_fn = nullptr;
 };
 
+struct BasicChannelProxyParameters {
+  ConnectionHandle connection_handle = ConnectionHandle{123};
+  uint16_t local_channel_id = 234;
+  uint16_t remote_channel_id = 456;
+  AclTransportType transport = AclTransportType::kLe;
+  L2capChannelManagerInterface::BufferReceiveFunction
+      payload_from_controller_fn = [](auto, auto, auto, auto) { return false; };
+  L2capChannelManagerInterface::BufferReceiveFunction payload_from_host_fn =
+      [](auto, auto, auto, auto) { return false; };
+  ChannelEventCallback event_fn = nullptr;
+};
+
 struct GattNotifyChannelParameters {
   uint16_t handle = 123;
   uint16_t attribute_handle = 0xBC;
@@ -440,6 +452,12 @@ class ProxyHostTest : public testing::Test {
 
   GattNotifyChannel BuildGattNotifyChannel(ProxyHost& proxy,
                                            GattNotifyChannelParameters params);
+
+  Result<UniquePtr<ChannelProxy>> BuildBasicModeChannelProxyWithResult(
+      ProxyHost& proxy, BasicChannelProxyParameters&& params);
+
+  UniquePtr<ChannelProxy> BuildBasicModeChannelProxy(
+      ProxyHost& proxy, BasicChannelProxyParameters&& params);
 
   //////////////////////////////////////////////////////////////////////////////
   // MultiBuf utilities.

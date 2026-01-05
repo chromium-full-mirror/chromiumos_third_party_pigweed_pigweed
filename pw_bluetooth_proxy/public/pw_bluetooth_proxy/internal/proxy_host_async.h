@@ -28,6 +28,7 @@
 #include "pw_bluetooth_proxy/internal/l2cap_channel.h"
 #include "pw_bluetooth_proxy/internal/multibuf.h"
 #include "pw_bluetooth_proxy/l2cap_channel_common.h"
+#include "pw_bluetooth_proxy/l2cap_channel_manager_interface.h"
 #include "pw_bluetooth_proxy/l2cap_coc.h"
 #include "pw_bluetooth_proxy/l2cap_coc_config.h"
 #include "pw_bluetooth_proxy/l2cap_status_delegate.h"
@@ -37,6 +38,9 @@
 namespace pw::bluetooth::proxy {
 
 class ProxyHost;
+
+using BufferReceiveFunction =
+    L2capChannelManagerInterface::BufferReceiveFunction;
 
 namespace internal {
 
@@ -97,6 +101,16 @@ class ProxyHostImpl {
       ChannelEventCallback event_fn;
     };
 
+    struct BasicChannelProxyParams {
+      ConnectionHandle connection_handle = ConnectionHandle{0};
+      uint16_t local_channel_id = 0;
+      uint16_t remote_channel_id = 0;
+      AclTransportType transport = AclTransportType::kBrEdr;
+      BufferReceiveFunction payload_from_controller_fn;
+      BufferReceiveFunction payload_from_host_fn;
+      ChannelEventCallback event_fn;
+    };
+
     struct GattNotifyParams {
       int16_t connection_handle = 0;
       uint16_t attribute_handle = 0;
@@ -112,12 +126,18 @@ class ProxyHostImpl {
       ChannelEventCallback event_fn;
     };
 
-    std::variant<BasicL2capParams, GattNotifyParams, L2capCocParams> params;
+    std::variant<BasicL2capParams,
+                 BasicChannelProxyParams,
+                 GattNotifyParams,
+                 L2capCocParams>
+        params;
   };
 
   /// Response to a channel request.
-  using ClientChannel =
-      std::variant<BasicL2capChannel, GattNotifyChannel, L2capCoc>;
+  using ClientChannel = std::variant<BasicL2capChannel,
+                                     GattNotifyChannel,
+                                     L2capCoc,
+                                     UniquePtr<ChannelProxy>>;
 
   explicit ProxyHostImpl(ProxyHost& proxy);
 

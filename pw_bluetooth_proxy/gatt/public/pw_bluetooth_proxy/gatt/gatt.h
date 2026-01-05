@@ -166,12 +166,14 @@ class Gatt {
       ConnectionHandle connection_handle);
 
   bool OnSpanReceivedFromController(ConstByteSpan payload,
-                                    uint16_t connection_handle,
-                                    uint16_t channel_id);
+                                    ConnectionHandle connection_handle,
+                                    uint16_t local_channel_id,
+                                    uint16_t remote_channel_id);
 
   bool OnSpanReceivedFromHost(ConstByteSpan payload,
-                              uint16_t connection_handle,
-                              uint16_t channel_id);
+                              ConnectionHandle connection_handle,
+                              uint16_t local_channel_id,
+                              uint16_t remote_channel_id);
 
   void OnL2capEvent(L2capChannelEvent event,
                     ConnectionHandle connection_handle);

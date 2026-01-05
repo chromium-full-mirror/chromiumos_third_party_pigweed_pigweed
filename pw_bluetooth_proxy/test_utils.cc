@@ -707,4 +707,25 @@ GattNotifyChannel ProxyHostTest::BuildGattNotifyChannel(
   return std::move(channel.value());
 }
 
+Result<UniquePtr<ChannelProxy>>
+ProxyHostTest::BuildBasicModeChannelProxyWithResult(
+    ProxyHost& proxy, BasicChannelProxyParameters&& params) {
+  return proxy.InterceptBasicModeChannel(
+      params.connection_handle,
+      params.local_channel_id,
+      params.remote_channel_id,
+      params.transport,
+      std::move(params.payload_from_controller_fn),
+      std::move(params.payload_from_host_fn),
+      std::move(params.event_fn));
+}
+
+UniquePtr<ChannelProxy> ProxyHostTest::BuildBasicModeChannelProxy(
+    ProxyHost& proxy, BasicChannelProxyParameters&& params) {
+  Result<UniquePtr<ChannelProxy>> result =
+      BuildBasicModeChannelProxyWithResult(proxy, std::move(params));
+  PW_TEST_EXPECT_OK(result);
+  return std::move(result.value());
+}
+
 }  // namespace pw::bluetooth::proxy

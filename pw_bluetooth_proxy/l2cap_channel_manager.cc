@@ -19,6 +19,7 @@
 
 #include "pw_assert/check.h"
 #include "pw_bluetooth_proxy/internal/acl_data_channel.h"
+#include "pw_bluetooth_proxy/internal/channel_proxy_impl.h"
 #include "pw_bluetooth_proxy/internal/logical_transport.h"
 #include "pw_containers/algorithm.h"
 #include "pw_containers/flat_map.h"
@@ -27,6 +28,20 @@
 #include "pw_status/try.h"
 
 namespace pw::bluetooth::proxy {
+
+namespace {
+
+// Cast subset SourceVariant to a superset TargerVariant.
+template <typename TargetVariant, typename SourceVariant>
+TargetVariant variant_cast(SourceVariant&& source) {
+  return std::visit(
+      [](auto&& arg) -> TargetVariant {
+        return TargetVariant(std::forward<decltype(arg)>(arg));
+      },
+      std::forward<SourceVariant>(source));
+}
+
+}  // namespace
 
 internal::Mutex internal::L2capChannelManagerImpl::channels_mutex_;
 
@@ -114,9 +129,7 @@ Result<BasicL2capChannel> L2capChannelManager::AcquireBasicL2capChannel(
     return Status::ResourceExhausted();
   }
   PW_TRY(channel->InitBasic(std::move(payload_from_controller_fn),
-                            std::move(payload_from_host_fn),
-                            /*payload_span_from_controller_fn=*/nullptr,
-                            /*payload_span_from_host_fn=*/nullptr));
+                            std::move(payload_from_host_fn)));
   BasicL2capChannel client_channel(*channel);
   PW_TRY(client_channel.Init());
   channel.Release();
@@ -455,6 +468,72 @@ void L2capChannelManager::ResetLogicalLinksLocked() {
     iter = logical_links_.erase(iter);
     impl_.allocator().Delete(link);
   }
+}
+
+Result<UniquePtr<ChannelProxy>>
+L2capChannelManager::DoInterceptBasicModeChannel(
+    ConnectionHandle connection_handle,
+    uint16_t local_channel_id,
+    uint16_t remote_channel_id,
+    AclTransportType transport,
+    BufferReceiveFunction&& payload_from_controller_fn,
+    BufferReceiveFunction&& payload_from_host_fn,
+    ChannelEventCallback&& event_fn) {
+  std::lock_guard links_lock(links_mutex_);
+  auto link_iter =
+      logical_links_.find(static_cast<uint16_t>(connection_handle));
+  if (link_iter == logical_links_.end()) {
+    PW_LOG_WARN(
+        "Attempt to create BasicL2capChannel for non-existent connection: %#x",
+        static_cast<uint16_t>(connection_handle));
+    return Status::InvalidArgument();
+  }
+  if (!acl_data_channel_.HasAclConnection(
+          static_cast<uint16_t>(connection_handle))) {
+    return Status::Unavailable();
+  }
+  if (!L2capChannel::AreValidParameters(
+          static_cast<uint16_t>(connection_handle),
+          local_channel_id,
+          remote_channel_id)) {
+    return Status::InvalidArgument();
+  }
+
+  UniquePtr<L2capChannel> channel = impl_.allocator().MakeUnique<L2capChannel>(
+      *this,
+      /*rx_multibuf_allocator=*/&multibuf_allocator_,
+      static_cast<uint16_t>(connection_handle),
+      transport,
+      local_channel_id,
+      remote_channel_id,
+      std::move(event_fn));
+
+  if (channel == nullptr) {
+    return Status::ResourceExhausted();
+  }
+
+  std::optional<uint16_t> max_l2cap_payload_size =
+      channel->MaxL2capPayloadSize();
+  if (!max_l2cap_payload_size.has_value()) {
+    PW_LOG_ERROR("Maximum L2CAP payload size is not set.");
+    return Status::FailedPrecondition();
+  }
+
+  UniquePtr<internal::ChannelProxyImpl> channel_proxy =
+      impl_.allocator().MakeUnique<internal::ChannelProxyImpl>(
+          max_l2cap_payload_size.value(), *channel);
+  if (channel_proxy == nullptr) {
+    return Status::ResourceExhausted();
+  }
+
+  PW_TRY(channel->InitBasic(
+      variant_cast<L2capChannel::FromControllerFn>(
+          std::move(payload_from_controller_fn)),
+      variant_cast<L2capChannel::FromHostFn>(std::move(payload_from_host_fn))));
+
+  PW_TRY(channel_proxy->Init());
+  channel.Release();
+  return channel_proxy;
 }
 
 namespace internal {

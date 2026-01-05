@@ -41,6 +41,7 @@ set(PW_BLUETOOTH_PROXY_HEADERS
   public/pw_bluetooth_proxy/internal/acl_data_channel.h
   public/pw_bluetooth_proxy/internal/basic_mode_tx_engine.h
   public/pw_bluetooth_proxy/internal/basic_mode_rx_engine.h
+  public/pw_bluetooth_proxy/internal/channel_proxy_impl.h
   public/pw_bluetooth_proxy/internal/credit_based_flow_control_tx_engine.h
   public/pw_bluetooth_proxy/internal/credit_based_flow_control_rx_engine.h
   public/pw_bluetooth_proxy/internal/gatt_notify_rx_engine.h
@@ -126,6 +127,7 @@ set(PW_BLUETOOTH_PROXY_SOURCES
   basic_l2cap_channel.cc
   basic_mode_tx_engine.cc
   basic_mode_rx_engine.cc
+  channel_proxy_impl.cc
   credit_based_flow_control_tx_engine.cc
   credit_based_flow_control_rx_engine.cc
   gatt_notify_channel.cc
@@ -253,6 +255,7 @@ set(PW_BLUETOOTH_PROXY_TEST_PRIVATE_DEPS
 
 set(PW_BLUETOOTH_PROXY_TEST_SOURCES
   pw_bluetooth_proxy_private/test_utils.h
+  basic_mode_channel_proxy_test.cc
   basic_mode_tx_engine_test.cc
   basic_mode_rx_engine_test.cc
   channel_proxy_test.cc

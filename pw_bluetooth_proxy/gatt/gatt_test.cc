@@ -137,13 +137,13 @@ class GattTest : public ::testing::Test, public L2capChannelManagerInterface {
   bool ReceiveFromController(span<std::byte> payload) {
     PW_CHECK(!payload_from_controller_fns_.empty());
     return payload_from_controller_fns_[0](
-        payload, cpp23::to_underlying(kConnectionHandle1), kAttFixedChannelId);
+        payload, kConnectionHandle1, kAttFixedChannelId, kAttFixedChannelId);
   }
 
   bool ReceiveFromHost(span<std::byte> payload) {
     PW_CHECK(!payload_from_host_fns_.empty());
     return payload_from_host_fns_[0](
-        payload, cpp23::to_underlying(kConnectionHandle1), kAttFixedChannelId);
+        payload, kConnectionHandle1, kAttFixedChannelId, kAttFixedChannelId);
   }
 
   const Vector<ChannelEventCallback>& event_callbacks() const {
@@ -161,7 +161,7 @@ class GattTest : public ::testing::Test, public L2capChannelManagerInterface {
 
  private:
   Result<UniquePtr<ChannelProxy>> DoInterceptBasicModeChannel(
-      uint16_t /*connection_handle*/,
+      ConnectionHandle /*connection_handle*/,
       uint16_t local_channel_id,
       uint16_t remote_channel_id,
       AclTransportType transport,
@@ -502,10 +502,10 @@ TEST_F(GattTest, InterceptNotificationOn2Connections) {
       expected_value_1[0],
       expected_value_1[1]  // value
   };
-  EXPECT_TRUE(receive_from_controller_functions()[1](
-      att_packet_1,
-      cpp23::to_underlying(kConnectionHandle2),
-      kAttFixedChannelId));
+  EXPECT_TRUE(receive_from_controller_functions()[1](att_packet_1,
+                                                     kConnectionHandle2,
+                                                     kAttFixedChannelId,
+                                                     kAttFixedChannelId));
   ASSERT_EQ(delegate_0.notifications().size(), 1u);
   ASSERT_EQ(delegate_1.notifications().size(), 1u);
   EXPECT_EQ(delegate_1.notifications()[0].connection_handle,

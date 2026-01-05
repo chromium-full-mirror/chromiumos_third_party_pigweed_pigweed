@@ -40,6 +40,7 @@ _pw_bluetooth_proxy_public = [
   "public/pw_bluetooth_proxy/internal/acl_data_channel.h",
   "public/pw_bluetooth_proxy/internal/basic_mode_tx_engine.h",
   "public/pw_bluetooth_proxy/internal/basic_mode_rx_engine.h",
+  "public/pw_bluetooth_proxy/internal/channel_proxy_impl.h",
   "public/pw_bluetooth_proxy/internal/credit_based_flow_control_tx_engine.h",
   "public/pw_bluetooth_proxy/internal/credit_based_flow_control_rx_engine.h",
   "public/pw_bluetooth_proxy/internal/gatt_notify_rx_engine.h",
@@ -128,6 +129,7 @@ _pw_bluetooth_proxy_sources = [
   "basic_l2cap_channel.cc",
   "basic_mode_rx_engine.cc",
   "basic_mode_tx_engine.cc",
+  "channel_proxy_impl.cc",
   "credit_based_flow_control_rx_engine.cc",
   "credit_based_flow_control_tx_engine.cc",
   "gatt_notify_channel.cc",
@@ -273,6 +275,7 @@ _pw_bluetooth_proxy_test_deps = [
 ]
 
 _pw_bluetooth_proxy_test_sources = [
+  "basic_mode_channel_proxy_test.cc",
   "basic_mode_rx_engine_test.cc",
   "basic_mode_tx_engine_test.cc",
   "channel_proxy_test.cc",

@@ -60,14 +60,8 @@ Status L2capSignalingChannel::Init(uint16_t connection_handle,
     return Status::ResourceExhausted();
   }
   PW_TRY(channel->InitBasic(
-      /*payload_from_controller_fn=*/
-      nullptr,
-      /*payload_from_host_fn=*/
-      nullptr,
-      /*payload_span_from_controller_fn=*/
       pw::bind_member<&L2capSignalingChannel::HandlePayloadFromController>(
           this),
-      /*payload_span_from_host_fn=*/
       pw::bind_member<&L2capSignalingChannel::HandlePayloadFromHost>(this)));
   // Registers channel with L2capChannelManager.
   PW_TRY(channel->Start());

@@ -101,6 +101,24 @@ void ProxyHost::UnregisterL2capStatusDelegate(L2capStatusDelegate& delegate) {
   DoUnregisterL2capStatusDelegate(delegate);
 }
 
+Result<UniquePtr<ChannelProxy>> ProxyHost::DoInterceptBasicModeChannel(
+    ConnectionHandle connection_handle,
+    uint16_t local_channel_id,
+    uint16_t remote_channel_id,
+    AclTransportType transport,
+    BufferReceiveFunction&& payload_from_controller_fn,
+    BufferReceiveFunction&& payload_from_host_fn,
+    ChannelEventCallback&& event_fn) {
+  return InternalDoInterceptBasicModeChannel(
+      connection_handle,
+      local_channel_id,
+      remote_channel_id,
+      transport,
+      std::move(payload_from_controller_fn),
+      std::move(payload_from_host_fn),
+      std::move(event_fn));
+}
+
 }  // namespace pw::bluetooth::proxy
 
 #endif  // PW_BLUETOOTH_PROXY_ASYNC == 0

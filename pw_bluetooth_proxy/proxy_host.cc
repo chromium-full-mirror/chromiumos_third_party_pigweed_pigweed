@@ -394,4 +394,22 @@ void ProxyHost::OnAclTxCredits() {
   l2cap_channel_manager_.ForceDrainChannelQueues();
 }
 
+Result<UniquePtr<ChannelProxy>> ProxyHost::InternalDoInterceptBasicModeChannel(
+    ConnectionHandle connection_handle,
+    uint16_t local_channel_id,
+    uint16_t remote_channel_id,
+    AclTransportType transport,
+    BufferReceiveFunction&& payload_from_controller_fn,
+    BufferReceiveFunction&& payload_from_host_fn,
+    ChannelEventCallback&& event_fn) {
+  return l2cap_channel_manager_.InterceptBasicModeChannel(
+      connection_handle,
+      local_channel_id,
+      remote_channel_id,
+      transport,
+      std::move(payload_from_controller_fn),
+      std::move(payload_from_host_fn),
+      std::move(event_fn));
+}
+
 }  // namespace pw::bluetooth::proxy

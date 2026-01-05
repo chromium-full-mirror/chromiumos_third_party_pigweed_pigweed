@@ -183,6 +183,41 @@ Result<BasicL2capChannel> ProxyHost::AcquireBasicL2capChannel(
       std::move(std::get<BasicL2capChannel>(channel)));
 }
 
+Result<UniquePtr<ChannelProxy>> ProxyHost::DoInterceptBasicModeChannel(
+    ConnectionHandle connection_handle,
+    uint16_t local_channel_id,
+    uint16_t remote_channel_id,
+    AclTransportType transport,
+    BufferReceiveFunction&& payload_from_controller_fn,
+    BufferReceiveFunction&& payload_from_host_fn,
+    ChannelEventCallback&& event_fn) {
+  if (l2cap_channel_manager_.impl().IsRunningOnDispatcherThread()) {
+    return InternalDoInterceptBasicModeChannel(
+        connection_handle,
+        local_channel_id,
+        remote_channel_id,
+        transport,
+        std::move(payload_from_controller_fn),
+        std::move(payload_from_host_fn),
+        std::move(event_fn));
+  }
+  ChannelRequest request{
+      .params =
+          ChannelRequest::BasicChannelProxyParams{
+              .connection_handle = connection_handle,
+              .local_channel_id = local_channel_id,
+              .remote_channel_id = remote_channel_id,
+              .transport = transport,
+              .payload_from_controller_fn =
+                  std::move(payload_from_controller_fn),
+              .payload_from_host_fn = std::move(payload_from_host_fn),
+              .event_fn = std::move(event_fn)},
+  };
+  PW_TRY_ASSIGN(auto channel, impl_.ChannelSendAndReceive(std::move(request)));
+  return Result<UniquePtr<ChannelProxy>>(
+      std::move(std::get<UniquePtr<ChannelProxy>>(channel)));
+}
+
 Result<GattNotifyChannel> ProxyHost::AcquireGattNotifyChannel(
     int16_t connection_handle,
     uint16_t attribute_handle,
@@ -456,7 +491,19 @@ Result<ProxyHostImpl::ClientChannel> ProxyHostImpl::DoHandleRequest(
                                          std::move(params.event_fn)));
             return Result<ClientChannel>(std::move(channel));
           },
-      },
+          [this](ChannelRequest::BasicChannelProxyParams&& params)
+              -> Result<ProxyHostImpl::ClientChannel> {
+            PW_TRY_ASSIGN(ClientChannel channel,
+                          proxy_.InternalDoInterceptBasicModeChannel(
+                              params.connection_handle,
+                              params.local_channel_id,
+                              params.remote_channel_id,
+                              params.transport,
+                              std::move(params.payload_from_controller_fn),
+                              std::move(params.payload_from_host_fn),
+                              std::move(params.event_fn)));
+            return Result<ClientChannel>(std::move(channel));
+          }},
       std::move(request.params));
 }
 

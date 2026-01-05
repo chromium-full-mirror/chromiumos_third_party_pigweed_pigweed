@@ -21,13 +21,14 @@ with a third version that uses a module configuration option.
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("//pw_unit_test:pw_cc_test.bzl", "pw_cc_test")
 
-def pw_bluetooth_proxy_library(name, **kwargs):
+def pw_bluetooth_proxy_library(name, versioned_deps, **kwargs):
     """Creates a cc_library for bt-proxy with a specific version of some deps.
 
     TODO(b/448714138): This really ought to be achieved using an aspect.
 
     Args:
       name:           Name of the target.
+      versioned_deps: List of labels of a version-specific dependencies.
       **kwargs:       Additional arguments to pass to cc_library.
     """
     cc_library(
@@ -62,6 +63,7 @@ def pw_bluetooth_proxy_library(name, **kwargs):
             "basic_mode_rx_engine.cc",
             "credit_based_flow_control_tx_engine.cc",
             "credit_based_flow_control_rx_engine.cc",
+            "channel_proxy_impl.cc",
         ],
         # LINT.ThenChange(Android.bp, BUILD.gn, CMakeLists.txt)
 
@@ -76,6 +78,7 @@ def pw_bluetooth_proxy_library(name, **kwargs):
             "public/pw_bluetooth_proxy/internal/acl_data_channel.h",
             "public/pw_bluetooth_proxy/internal/basic_mode_tx_engine.h",
             "public/pw_bluetooth_proxy/internal/basic_mode_rx_engine.h",
+            "public/pw_bluetooth_proxy/internal/channel_proxy_impl.h",
             "public/pw_bluetooth_proxy/internal/credit_based_flow_control_rx_engine.h",
             "public/pw_bluetooth_proxy/internal/credit_based_flow_control_tx_engine.h",
             "public/pw_bluetooth_proxy/internal/gatt_notify_rx_engine.h",
@@ -155,7 +158,7 @@ def pw_bluetooth_proxy_library(name, **kwargs):
             "//pw_sync:mutex",
             "//pw_sync:thread_notification",
             "//pw_thread:id",
-        ],
+        ] + versioned_deps,
         # LINT.ThenChange(Android.bp, BUILD.gn, CMakeLists.txt)
         **kwargs
     )
@@ -176,6 +179,7 @@ def pw_bluetooth_proxy_test(name, versioned_deps, **kwargs):
             "pw_bluetooth_proxy_private/test_utils.h",
             "basic_mode_tx_engine_test.cc",
             "basic_mode_rx_engine_test.cc",
+            "basic_mode_channel_proxy_test.cc",
             "channel_proxy_test.cc",
             "credit_based_flow_control_tx_engine_test.cc",
             "credit_based_flow_control_rx_engine_test.cc",

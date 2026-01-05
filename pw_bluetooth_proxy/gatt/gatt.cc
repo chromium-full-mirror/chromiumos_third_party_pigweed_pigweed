@@ -220,7 +220,7 @@ Status Gatt::CancelInterceptNotification(ClientId client,
 Result<UniquePtr<ChannelProxy>> Gatt::InterceptAttChannel(
     ConnectionHandle connection_handle) {
   return l2cap_.InterceptBasicModeChannel(
-      cpp23::to_underlying(connection_handle),
+      connection_handle,
       static_cast<uint16_t>(emboss::L2capFixedCid::LE_U_ATTRIBUTE_PROTOCOL),
       static_cast<uint16_t>(emboss::L2capFixedCid::LE_U_ATTRIBUTE_PROTOCOL),
       AclTransportType::kLe,
@@ -232,10 +232,11 @@ Result<UniquePtr<ChannelProxy>> Gatt::InterceptAttChannel(
 }
 
 bool Gatt::OnSpanReceivedFromController(ConstByteSpan payload,
-                                        uint16_t connection_handle,
-                                        uint16_t /*channel_id*/) {
+                                        ConnectionHandle connection_handle,
+                                        uint16_t /*local_channel_id*/,
+                                        uint16_t /*remote_channel_id*/) {
   std::lock_guard lock(mutex_);
-  auto conn_iter = connections_.find(connection_handle);
+  auto conn_iter = connections_.find(cpp23::to_underlying(connection_handle));
   if (conn_iter == connections_.end()) {
     return false;
   }
@@ -304,8 +305,9 @@ bool Gatt::OnSpanReceivedFromController(ConstByteSpan payload,
 }
 
 bool Gatt::OnSpanReceivedFromHost(ConstByteSpan /*payload*/,
-                                  uint16_t /*connection_handle*/,
-                                  uint16_t /*channel_id*/) {
+                                  ConnectionHandle /*connection_handle*/,
+                                  uint16_t /*local_channel_id*/,
+                                  uint16_t /*remote_channel_id*/) {
   // Intercepting outbound ATT packets is not supported.
   return false;
 }

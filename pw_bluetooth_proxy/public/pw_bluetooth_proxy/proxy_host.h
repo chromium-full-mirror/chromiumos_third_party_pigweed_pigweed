@@ -39,7 +39,7 @@ namespace pw::bluetooth::proxy {
 
 /// `ProxyHost` acts as the main coordinator for proxy functionality. After
 /// creation, the container then passes packets through the proxy.
-class ProxyHost {
+class ProxyHost : public L2capChannelManagerInterface {
  public:
   /// Creates an `ProxyHost` that will process HCI packets.
   /// @param[in] send_to_host_fn Callback that will be called when proxy wants
@@ -67,7 +67,7 @@ class ProxyHost {
   ProxyHost& operator=(ProxyHost&&) = delete;
   /// Deregisters all channels, and if any channels are not yet closed, closes
   /// them and sends `L2capChannelEvent::kChannelClosedByOther`.
-  ~ProxyHost();
+  ~ProxyHost() override;
 
   // ##### Container API
   // Containers are expected to call these functions (in addition to ctor).
@@ -385,6 +385,25 @@ class ProxyHost {
   // AclDataChannel callback for when new ACL TX credits are received and more
   // L2CAP packets can be sent.
   void OnAclTxCredits();
+
+  // L2capChannelManagerInterface override:
+  Result<UniquePtr<ChannelProxy>> DoInterceptBasicModeChannel(
+      ConnectionHandle connection_handle,
+      uint16_t local_channel_id,
+      uint16_t remote_channel_id,
+      AclTransportType transport,
+      BufferReceiveFunction&& payload_from_controller_fn,
+      BufferReceiveFunction&& payload_from_host_fn,
+      ChannelEventCallback&& event_fn) override;
+
+  Result<UniquePtr<ChannelProxy>> InternalDoInterceptBasicModeChannel(
+      ConnectionHandle connection_handle,
+      uint16_t local_channel_id,
+      uint16_t remote_channel_id,
+      AclTransportType transport,
+      BufferReceiveFunction&& payload_from_controller_fn,
+      BufferReceiveFunction&& payload_from_host_fn,
+      ChannelEventCallback&& event_fn);
 
   // Implementation-specific details that may vary between sync and async modes.
   internal::ProxyHostImpl impl_;

@@ -18,6 +18,7 @@
 
 #include "pw_allocator/unique_ptr.h"
 #include "pw_assert/assert.h"
+#include "pw_bluetooth_proxy/connection_handle.h"
 #include "pw_bluetooth_proxy/direction.h"
 #include "pw_bluetooth_proxy/h4_packet.h"
 #include "pw_bluetooth_proxy/internal/basic_mode_rx_engine.h"
@@ -68,8 +69,25 @@ class L2capChannel final : public internal::TxEngine::Delegate {
   // and the PDU will be forwarded by `ProxyHost` on to the Bluetooth
   // controller.
   using PayloadSpanReceiveCallback = Function<bool(pw::span<uint8_t>)>;
+  using SpanReceiveFunction = Function<bool(ConstByteSpan,
+                                            ConnectionHandle connection_handle,
+                                            uint16_t local_channel_id,
+                                            uint16_t remote_channel_id)>;
 
   using PayloadReceiveCallback = Function<void(FlatConstMultiBuf&& payload)>;
+
+  using FromControllerFn = std::variant<std::monostate,
+                                        OptionalPayloadReceiveCallback,
+                                        OptionalBufferReceiveFunction,
+                                        PayloadSpanReceiveCallback,
+                                        SpanReceiveFunction,
+                                        PayloadReceiveCallback>;
+
+  using FromHostFn = std::variant<std::monostate,
+                                  OptionalPayloadReceiveCallback,
+                                  OptionalBufferReceiveFunction,
+                                  PayloadSpanReceiveCallback,
+                                  SpanReceiveFunction>;
 
   enum class State {
     // Channel is new.
@@ -101,10 +119,8 @@ class L2capChannel final : public internal::TxEngine::Delegate {
                                                uint16_t remote_cid);
 
   // Initialize the channel for Basic mode. Must be called before `Start`.
-  Status InitBasic(OptionalPayloadReceiveCallback&& payload_from_controller_fn,
-                   OptionalPayloadReceiveCallback&& payload_from_host_fn,
-                   PayloadSpanReceiveCallback&& payload_span_from_controller_fn,
-                   PayloadSpanReceiveCallback&& payload_span_from_host_fn);
+  Status InitBasic(FromControllerFn&& from_controller_fn,
+                   FromHostFn&& from_host_fn);
 
   // Initialize the channel for Credit Based Flow Control mode. Must be called
   // before `Start`.
@@ -243,8 +259,11 @@ class L2capChannel final : public internal::TxEngine::Delegate {
 
   // Returns false if payload should be forwarded to host instead.
   // Allows client to modify the payload to be forwarded.
-  bool SendPayloadToClient(pw::span<uint8_t> payload,
-                           const OptionalPayloadReceiveCallback& callback);
+  using SendPayloadToClientCallback =
+      std::variant<OptionalPayloadReceiveCallback*,
+                   OptionalBufferReceiveFunction*>;
+  bool SendPayloadToClient(span<uint8_t> payload,
+                           SendPayloadToClientCallback callback);
 
   // Reserve an L2CAP packet over ACL over H4 packet.
   pw::Result<H4PacketWithH4> PopulateL2capPacket(uint16_t data_length);
@@ -285,19 +304,11 @@ class L2capChannel final : public internal::TxEngine::Delegate {
       const FlatConstMultiBuf& payload, bool& keep_payload)
       PW_EXCLUSIVE_LOCKS_REQUIRED(impl_.mutex_);
 
-  // Returns false if payload should be forwarded to controller instead.
-  // Allows client to modify the payload to be forwarded.
-  bool SendPayloadFromHostToClient(pw::span<uint8_t> payload);
-
   Status SendAdditionalRxCredits(uint16_t additional_rx_credits);
 
   //--------------
   //  Rx (private)
   //--------------
-
-  // Returns false if payload should be forwarded to host instead.
-  // Allows client to modify the payload to be forwarded.
-  bool SendPayloadFromControllerToClient(pw::span<uint8_t> payload);
 
   constexpr MultiBufAllocator* rx_multibuf_allocator() const {
     return rx_multibuf_allocator_;
@@ -441,16 +452,10 @@ class L2capChannel final : public internal::TxEngine::Delegate {
   MultiBufAllocator* rx_multibuf_allocator_ = nullptr;
 
   // Client-provided controller read callback.
-  // Used in Basic mode.
-  OptionalPayloadReceiveCallback payload_from_controller_fn_;
-  // Optionally used in Basic mode (for signaling channels, GATT).
-  PayloadSpanReceiveCallback payload_span_from_controller_fn_;
-  // Used in CreditBasedFlowControl mode.
-  PayloadReceiveCallback receive_fn_;
+  FromControllerFn from_controller_fn_;
 
   // Client-provided host read callback.
-  OptionalPayloadReceiveCallback payload_from_host_fn_;
-  PayloadSpanReceiveCallback payload_span_from_host_fn_;
+  FromHostFn from_host_fn_;
 
   std::variant<std::monostate,
                internal::BasicModeTxEngine,

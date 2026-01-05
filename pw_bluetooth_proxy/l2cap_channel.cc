@@ -141,31 +141,45 @@ bool L2capChannel::HandlePduFromController(pw::span<uint8_t> l2cap_pdu) {
           },
           [this](L2capChannelEvent event) {
             StopAndSendEvent(event);
-            // Consume the packet that caused the
-            // error/closure.
+            // Consume the packet that caused the event.
             return true;
           },
           [this](FlatMultiBufInstance&& buffer) {
             // MultiBufs are only returned by CreditBasedFlowControlRxEngine,
-            // which is used with receive_fn_.
-            PW_CHECK(!payload_span_from_controller_fn_);
-            PW_CHECK(!payload_from_controller_fn_);
-            if (receive_fn_) {
-              receive_fn_(std::move(MultiBufAdapter::Unwrap(buffer)));
+            // which is used with PayloadReceiveCallback.
+            if (auto* receive_fn =
+                    std::get_if<PayloadReceiveCallback>(&from_controller_fn_);
+                *receive_fn != nullptr) {
+              (*receive_fn)(std::move(MultiBufAdapter::Unwrap(buffer)));
             }
             return true;
           },
           [this](span<uint8_t> buffer) {
-            // receive_fn_ is only used by CreditBasedFlowControlRxEngine, which
-            // returns MultiBufs.
-            PW_CHECK(!receive_fn_);
+            return std::visit(
+                Visitors{[](std::monostate) { return false; },
+                         [this, buffer](OptionalPayloadReceiveCallback& cb) {
+                           return SendPayloadToClient(buffer, &cb);
+                         },
+                         [this, buffer](OptionalBufferReceiveFunction& fn) {
+                           return SendPayloadToClient(buffer, &fn);
+                         },
+                         [buffer](PayloadSpanReceiveCallback& cb) {
+                           return cb(buffer);
+                         },
+                         [this, buffer](SpanReceiveFunction& fn) {
+                           return fn(as_bytes(buffer),
+                                     ConnectionHandle{connection_handle()},
+                                     local_cid(),
+                                     remote_cid());
+                         },
+                         [](PayloadReceiveCallback&) {
+                           // CreditBasedFlowControlRxEngine only uses MultiBufs
+                           PW_CRASH("Invalid from controller callback");
+                           return false;
+                         }
 
-            if (payload_span_from_controller_fn_) {
-              return payload_span_from_controller_fn_(buffer);
-            }
-
-            PW_CHECK(payload_from_controller_fn_);
-            return SendPayloadToClient(buffer, payload_from_controller_fn_);
+                },
+                from_controller_fn_);
           },
       },
       std::move(result));
@@ -309,18 +323,9 @@ void L2capChannel::DrainChannelQueuesIfNewTx() {
 //  Rx (protected)
 //-------
 
-bool L2capChannel::SendPayloadFromHostToClient(pw::span<uint8_t> payload) {
-  return SendPayloadToClient(payload, payload_from_host_fn_);
-}
-
-bool L2capChannel::SendPayloadFromControllerToClient(
-    pw::span<uint8_t> payload) {
-  return SendPayloadToClient(payload, payload_from_controller_fn_);
-}
-
-bool L2capChannel::SendPayloadToClient(
-    pw::span<uint8_t> payload, const OptionalPayloadReceiveCallback& callback) {
-  if (!callback) {
+bool L2capChannel::SendPayloadToClient(pw::span<uint8_t> payload,
+                                       SendPayloadToClientCallback callback) {
+  if (std::visit([](auto&& cb) { return *cb == nullptr; }, callback)) {
     return false;
   }
 
@@ -355,7 +360,17 @@ bool L2capChannel::SendPayloadToClient(
   // In the future when whole path is operating with multibuf's, we could pass
   // it back up to container to be forwarded and avoid the two copies of
   // payload.
-  auto client_multibuf = callback(std::move(MultiBufAdapter::Unwrap(buffer)));
+  auto client_multibuf = std::visit(
+      Visitors{[&buffer](OptionalPayloadReceiveCallback* cb) {
+                 return (*cb)(std::move(MultiBufAdapter::Unwrap(buffer)));
+               },
+               [this, &buffer](OptionalBufferReceiveFunction* fn) {
+                 return (*fn)(std::move(MultiBufAdapter::Unwrap(buffer)),
+                              ConnectionHandle{connection_handle()},
+                              local_cid(),
+                              remote_cid());
+               }},
+      callback);
   if (client_multibuf.has_value()) {
     MultiBufAdapter::Copy(as_writable_bytes(payload), client_multibuf.value());
     return false;
@@ -394,15 +409,10 @@ void L2capChannel::EndRecombinationBuf(Direction direction) {
   GetRecombinationBufOptRef(direction) = std::nullopt;
 }
 
-Status L2capChannel::InitBasic(
-    OptionalPayloadReceiveCallback&& payload_from_controller_fn,
-    OptionalPayloadReceiveCallback&& payload_from_host_fn,
-    PayloadSpanReceiveCallback&& payload_span_from_controller_fn,
-    PayloadSpanReceiveCallback&& payload_span_from_host_fn) {
-  payload_from_controller_fn_ = std::move(payload_from_controller_fn);
-  payload_from_host_fn_ = std::move(payload_from_host_fn);
-  payload_span_from_controller_fn_ = std::move(payload_span_from_controller_fn);
-  payload_span_from_host_fn_ = std::move(payload_span_from_host_fn);
+Status L2capChannel::InitBasic(FromControllerFn&& from_controller_fn,
+                               FromHostFn&& from_host_fn) {
+  from_controller_fn_ = std::move(from_controller_fn);
+  from_host_fn_ = std::move(from_host_fn);
 
   {
     std::lock_guard rx_lock(rx_mutex_);
@@ -435,7 +445,7 @@ Status L2capChannel::InitCreditBasedFlowControl(
     return Status::FailedPrecondition();
   }
 
-  receive_fn_ = std::move(receive_fn);
+  from_controller_fn_.emplace<PayloadReceiveCallback>(std::move(receive_fn));
 
   {
     std::lock_guard rx_lock(rx_mutex_);
@@ -509,15 +519,28 @@ bool L2capChannel::HandlePduFromHost(pw::span<uint8_t> l2cap_pdu) {
     std::lock_guard lock(impl_.mutex_);
     result = tx_engine().HandlePduFromHost(l2cap_pdu);
   }
-  if (result.send_to_client.has_value()) {
-    if (payload_span_from_host_fn_) {
-      return payload_span_from_host_fn_(result.send_to_client.value());
-    }
-    PW_CHECK(payload_from_host_fn_);
-    return SendPayloadToClient(result.send_to_client.value(),
-                               payload_from_host_fn_);
+
+  if (!result.send_to_client.has_value()) {
+    return !result.forward_to_controller;
   }
-  return !result.forward_to_controller;
+  span<uint8_t> buffer = result.send_to_client.value();
+
+  return std::visit(
+      Visitors{[](std::monostate) { return false; },
+               [this, &buffer](OptionalPayloadReceiveCallback& cb) {
+                 return SendPayloadToClient(buffer, &cb);
+               },
+               [this, &buffer](OptionalBufferReceiveFunction& fn) {
+                 return SendPayloadToClient(buffer, &fn);
+               },
+               [&buffer](PayloadSpanReceiveCallback& cb) { return cb(buffer); },
+               [this, &buffer](SpanReceiveFunction& fn) {
+                 return fn(as_bytes(buffer),
+                           ConnectionHandle{connection_handle()},
+                           local_cid(),
+                           remote_cid());
+               }},
+      from_host_fn_);
 }
 
 Status L2capChannel::AddTxCredits(uint16_t credits) {

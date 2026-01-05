@@ -18,6 +18,7 @@
 
 #include "pw_allocator/unique_ptr.h"
 #include "pw_bluetooth_proxy/channel_proxy.h"
+#include "pw_bluetooth_proxy/connection_handle.h"
 #include "pw_bluetooth_proxy/internal/logical_transport.h"
 #include "pw_bluetooth_proxy/l2cap_channel_common.h"
 #include "pw_bytes/span.h"
@@ -33,20 +34,25 @@ class L2capChannelManagerInterface {
   // This is an optimization to avoid allocating and copying on every H4 packet.
   // TODO: https://pwbug.dev/411168474 - Use multibuf for H4 packets and delete
   // this.
-  using SpanReceiveFunction = Function<bool(
-      ConstByteSpan, uint16_t connection_handle, uint16_t channel_id)>;
+  using SpanReceiveFunction = Function<bool(ConstByteSpan,
+                                            ConnectionHandle connection_handle,
+                                            uint16_t local_channel_id,
+                                            uint16_t remote_channel_id)>;
 
   using OptionalBufferReceiveFunction =
       Function<std::optional<FlatConstMultiBufInstance>(
           FlatMultiBuf&& payload,
-          uint16_t connection_handle,
-          uint16_t channel_id)>;
+          ConnectionHandle connection_handle,
+          uint16_t local_channel_id,
+          uint16_t remote_channel_id)>;
 
   using BufferReceiveFunction =
       std::variant<OptionalBufferReceiveFunction, SpanReceiveFunction>;
 
+  // TODO: https://pwbug.dev/400536541 - Pass connection handle and channel IDs
+  // to event_fn.
   Result<UniquePtr<ChannelProxy>> InterceptBasicModeChannel(
-      uint16_t connection_handle,
+      ConnectionHandle connection_handle,
       uint16_t local_channel_id,
       uint16_t remote_channel_id,
       AclTransportType transport,
@@ -64,7 +70,7 @@ class L2capChannelManagerInterface {
 
  private:
   virtual Result<UniquePtr<ChannelProxy>> DoInterceptBasicModeChannel(
-      uint16_t connection_handle,
+      ConnectionHandle connection_handle,
       uint16_t local_channel_id,
       uint16_t remote_channel_id,
       AclTransportType transport,

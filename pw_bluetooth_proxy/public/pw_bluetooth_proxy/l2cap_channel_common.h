@@ -16,6 +16,7 @@
 
 #include <optional>
 
+#include "pw_bluetooth_proxy/connection_handle.h"
 #include "pw_bluetooth_proxy/internal/multibuf.h"
 #include "pw_function/function.h"
 #include "pw_status/status.h"
@@ -77,5 +78,11 @@ struct StatusWithMultiBuf {
 /// 3. Modify and return the payload to be forwarded.
 using OptionalPayloadReceiveCallback =
     Function<std::optional<FlatConstMultiBufInstance>(FlatMultiBuf&& payload)>;
+using OptionalBufferReceiveFunction =
+    Function<std::optional<FlatConstMultiBufInstance>(
+        FlatMultiBuf&& payload,
+        ConnectionHandle connection_handle,
+        uint16_t local_channel_id,
+        uint16_t remote_channel_id)>;
 
 }  // namespace pw::bluetooth::proxy

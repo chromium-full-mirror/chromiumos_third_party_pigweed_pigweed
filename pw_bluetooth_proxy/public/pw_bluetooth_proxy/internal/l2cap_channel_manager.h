@@ -27,6 +27,7 @@
 #include "pw_bluetooth_proxy/internal/mutex.h"
 #include "pw_bluetooth_proxy/internal/proxy_allocator.h"
 #include "pw_bluetooth_proxy/l2cap_channel_common.h"
+#include "pw_bluetooth_proxy/l2cap_channel_manager_interface.h"
 #include "pw_bluetooth_proxy/l2cap_coc.h"
 #include "pw_containers/intrusive_map.h"
 #include "pw_function/function.h"
@@ -43,9 +44,11 @@
 #include "pw_bluetooth_proxy/internal/l2cap_channel_manager_async.h"
 #endif  // PW_BLUETOOTH_PROXY_ASYNC
 
-namespace pw::bluetooth::proxy {
+#if PW_BLUETOOTH_PROXY_MULTIBUF == PW_BLUETOOTH_PROXY_MULTIBUF_V1
+#include "pw_multibuf/simple_allocator.h"  // nogncheck
+#endif
 
-class L2capChannelManager;
+namespace pw::bluetooth::proxy {
 
 // `L2capChannelManager` mediates between `ProxyHost` and the L2CAP-based
 // channels held by clients of `ProxyHost`, such as L2CAP connection-oriented
@@ -56,7 +59,7 @@ class L2capChannelManager;
 // credits are unavailable and sending Tx packets as credits become available,
 // dequeueing packets in FIFO order per channel and in round robin fashion
 // around channels.
-class L2capChannelManager {
+class L2capChannelManager final : public L2capChannelManagerInterface {
  public:
   /// @param[in] allocator - General purpose allocator to use for internal
   /// packet buffers and objects. If null, an internal allocator and memory pool
@@ -64,7 +67,7 @@ class L2capChannelManager {
   L2capChannelManager(AclDataChannel& acl_data_channel,
                       pw::Allocator* allocator);
 
-  ~L2capChannelManager();
+  ~L2capChannelManager() override;
 
   pw::Result<L2capCoc> AcquireL2capCoc(
       MultiBufAllocator& rx_multibuf_allocator,
@@ -75,6 +78,7 @@ class L2capChannelManager {
       ChannelEventCallback&& event_fn)
       PW_LOCKS_EXCLUDED(links_mutex_, channels_mutex());
 
+  /// @deprecated Use InterceptBasicModeChannel() instead.
   pw::Result<BasicL2capChannel> AcquireBasicL2capChannel(
       MultiBufAllocator& rx_multibuf_allocator,
       uint16_t connection_handle,
@@ -252,6 +256,17 @@ class L2capChannelManager {
 
   void ResetLogicalLinksLocked() PW_EXCLUSIVE_LOCKS_REQUIRED(links_mutex_);
 
+  // L2capChannelManagerInterface override:
+  Result<UniquePtr<ChannelProxy>> DoInterceptBasicModeChannel(
+      ConnectionHandle connection_handle,
+      uint16_t local_channel_id,
+      uint16_t remote_channel_id,
+      AclTransportType transport,
+      BufferReceiveFunction&& payload_from_controller_fn,
+      BufferReceiveFunction&& payload_from_host_fn,
+      ChannelEventCallback&& event_fn) override
+      PW_LOCKS_EXCLUDED(links_mutex_, channels_mutex());
+
   // Reference to the ACL data channel owned by the proxy.
   AclDataChannel& acl_data_channel_;
 
@@ -274,6 +289,16 @@ class L2capChannelManager {
   internal::Mutex links_mutex_ PW_ACQUIRED_BEFORE(channels_mutex());
   IntrusiveMap<uint16_t, internal::L2capLogicalLinkInterface> logical_links_
       PW_GUARDED_BY(links_mutex_);
+
+#if PW_BLUETOOTH_PROXY_MULTIBUF == PW_BLUETOOTH_PROXY_MULTIBUF_V1
+  // This buffer is small because it is only used with ChannelProxy, which has
+  // no MultiBuf clients other than tests, and MultiBuf v1 will soon be removed.
+  std::array<std::byte, 200> allocator_buffer_;
+  multibuf::SimpleAllocator multibuf_allocator_{allocator_buffer_,
+                                                impl_.allocator()};
+#elif PW_BLUETOOTH_PROXY_MULTIBUF == PW_BLUETOOTH_PROXY_MULTIBUF_V2
+  MultiBufAllocator multibuf_allocator_{impl_.allocator(), impl_.allocator()};
+#endif
 };
 
 }  // namespace pw::bluetooth::proxy
