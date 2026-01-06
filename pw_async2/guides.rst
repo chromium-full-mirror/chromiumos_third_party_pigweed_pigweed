@@ -257,12 +257,12 @@ See :ref:`module-pw_async2-futures-timeout`.
 -------------------------------------------
 Composing async operations with combinators
 -------------------------------------------
-Combinators allow for the composition of multiple async operations:
+Combinators allow for the composition of multiple futures:
 
-* :cc:`Join <pw::async2::Join>`: Waits for *all* of a set of pendable
-  operations to complete.
+* :cc:`Join <pw::async2::Join>`: Waits for *all* of a set of futures to
+  complete, returning a tuple of their results.
 * :cc:`Select <pw::async2::Select>`: Waits for the *first* of a set of
-  pendable operations to complete, returning its result.
+  futures to complete, returning its result.
 
 .. _module-pw_async2-guides-aliases:
 

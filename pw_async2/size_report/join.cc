@@ -15,14 +15,11 @@
 #include "pw_async2/join.h"
 
 #include "public/pw_async2/size_report/size_report.h"
-#include "pw_assert/check.h"
 #include "pw_async2/basic_dispatcher.h"
-#include "pw_async2/dispatcher.h"
 #include "pw_async2/pend_func_task.h"
-#include "pw_async2/pendable.h"
 #include "pw_async2/size_report/size_report.h"
+#include "pw_async2/value_future.h"
 #include "pw_bloat/bloat_this_binary.h"
-#include "pw_log/log.h"
 
 namespace pw::async2::size_report {
 namespace {
@@ -34,19 +31,14 @@ BasicDispatcher dispatcher;
 #ifdef _PW_ASYNC2_SIZE_REPORT_JOIN
 
 int SingleTypeJoin(uint32_t mask) {
-  PendableInt value_1(47);
-  PendableInt value_2(52);
-  PendableInt value_3(57);
-  value_1.allow_completion = true;
-  value_2.allow_completion = true;
-  value_3.allow_completion = true;
-  Joiner join(PendableFor<&PendableInt::Get>(value_1),
-              PendableFor<&PendableInt::Get>(value_2),
-              PendableFor<&PendableInt::Get>(value_3));
-
-  decltype(join.Pend(std::declval<Context&>())) result = Pending();
+  ValueFuture<int> value_1 = ValueFuture<int>::Resolved(47);
+  ValueFuture<int> value_2 = ValueFuture<int>::Resolved(52);
+  ValueFuture<int> value_3 = ValueFuture<int>::Resolved(57);
+  auto future =
+      Join(std::move(value_1), std::move(value_2), std::move(value_3));
+  decltype(future.Pend(std::declval<Context&>())) result = Pending();
   PendFuncTask task([&](Context& cx) {
-    result = join.Pend(cx);
+    result = future.Pend(cx);
     return result.Readiness();
   });
   dispatcher.Post(task);
@@ -57,27 +49,24 @@ int SingleTypeJoin(uint32_t mask) {
   if (result.IsReady()) {
     value = std::get<0>(*result) + std::get<1>(*result) + std::get<2>(*result);
   }
-
   return value;
 }
 
 #ifdef _PW_ASYNC2_SIZE_REPORT_JOIN_INCREMENTAL
 
 int MultiTypeJoin(uint32_t mask) {
-  PendableInt value_1(47);
-  PendableUint value_2(0x00ff00ff);
-  PendableChar value_3('c');
-  value_1.allow_completion = true;
-  value_2.allow_completion = true;
-  value_3.allow_completion = true;
-  Joiner join(PendableFor<&PendableInt::Get>(value_1),
-              PendableFor<&PendableUint::Get>(value_2),
-              PendableFor<&PendableChar::Get>(value_3));
-  decltype(join.Pend(std::declval<Context&>())) result = Pending();
+  ValueFuture<int> value_1 = ValueFuture<int>::Resolved(47);
+  ValueFuture<uint32_t> value_2 = ValueFuture<uint32_t>::Resolved(0x00ff00ff);
+  ValueFuture<char> value_3 = ValueFuture<char>::Resolved('c');
+  auto future =
+      Join(std::move(value_1), std::move(value_2), std::move(value_3));
+  decltype(future.Pend(std::declval<Context&>())) result = Pending();
   PendFuncTask task([&](Context& cx) {
-    result = join.Pend(cx);
+    result = future.Pend(cx);
     return result.Readiness();
   });
+  dispatcher.Post(task);
+  dispatcher.RunUntilStalled();
   PW_BLOAT_COND(result.IsReady(), mask);
 
   int value = -1;
@@ -91,6 +80,33 @@ int MultiTypeJoin(uint32_t mask) {
 #endif  // _PW_ASYNC2_SIZE_REPORT_JOIN_INCREMENTAL
 #endif  // _PW_ASYNC2_SIZE_REPORT_JOIN
 
+// Ensure all ValueFuture types and their core operations (construct/move/Pend)
+// are in the base binary.
+void SetBaselineValueFutures(uint32_t mask) {
+  ValueFuture<int> value_1 = ValueFuture<int>::Resolved(47);
+  ValueFuture<uint32_t> value_2 = ValueFuture<uint32_t>::Resolved(0x00ff00ff);
+  ValueFuture<char> value_3 = ValueFuture<char>::Resolved('c');
+
+  PendFuncTask task([v1 = std::move(value_1),
+                     v2 = std::move(value_2),
+                     v3 = std::move(value_3),
+                     &mask](Context& cx) mutable -> Poll<> {
+    auto result_1 = v1.Pend(cx);
+    auto result_2 = v2.Pend(cx);
+    auto result_3 = v3.Pend(cx);
+    bool all_ready =
+        result_1.IsReady() && result_2.IsReady() && result_3.IsReady();
+    PW_BLOAT_COND(all_ready, mask);
+    if (all_ready) {
+      return Ready();
+    }
+    return Pending();
+  });
+
+  dispatcher.Post(task);
+  dispatcher.RunUntilStalled();
+}
+
 int Measure() {
   volatile uint32_t mask = bloat::kDefaultMask;
   SetBaseline(mask);
@@ -103,6 +119,8 @@ int Measure() {
   PW_BLOAT_EXPR((waker = std::move(task.last_waker)), mask);
   waker.Wake();
   dispatcher.RunToCompletion();
+
+  SetBaselineValueFutures(mask);
 
   int result = -1;
 
