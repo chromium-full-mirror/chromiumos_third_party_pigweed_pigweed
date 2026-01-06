@@ -205,10 +205,10 @@ class BasicMultiBuf {
 
   using size_type = typename Deque::size_type;
   using difference_type = typename Deque::difference_type;
-  using iterator =
-      multibuf::internal::ByteIterator<size_type, /*kIsConst=*/false>;
-  using const_iterator =
-      multibuf::internal::ByteIterator<size_type, /*kIsConst=*/true>;
+  using iterator = multibuf::internal::
+      ByteIterator<size_type, multibuf::internal::ChunkMutability::kMutable>;
+  using const_iterator = multibuf::internal::
+      ByteIterator<size_type, multibuf::internal::ChunkMutability::kConst>;
   using pointer = iterator::pointer;
   using const_pointer = const_iterator::pointer;
   using reference = iterator::reference;
@@ -216,6 +216,9 @@ class BasicMultiBuf {
   using value_type = std::conditional_t<is_const(),
                                         const_iterator::value_type,
                                         iterator::value_type>;
+
+  using ChunksType = multibuf::internal::Chunks<Deque>;
+  using ConstChunksType = multibuf::internal::ConstChunks<Deque>;
 
   /// An instantiation of a `MultiBuf`.
   ///
@@ -318,6 +321,12 @@ class BasicMultiBuf {
   /// fragments.
   constexpr bool empty() const { return generic().empty(); }
 
+  /// Returns whether the MultiBuf is at capacity, i.e. whether it cannot add
+  /// more chunks or fragments without allocating additional memory. This is
+  /// similar to the standard `full()` method for containers, except that this
+  /// object can dynamically grow.
+  constexpr bool at_capacity() const { return generic().at_capacity(); }
+
   /// Returns the size of a MultiBuf in bytes, which is the sum of the lengths
   /// of the views that make up its topmost layer.
   constexpr size_t size() const { return generic().size(); }
@@ -360,13 +369,11 @@ class BasicMultiBuf {
   /// @endcode
   /// @{
   template <bool kMutable = !is_const()>
-  constexpr std::enable_if_t<kMutable, multibuf::Chunks<Deque>> Chunks() {
+  constexpr std::enable_if_t<kMutable, ChunksType> Chunks() {
     return generic().Chunks();
   }
-  constexpr multibuf::ConstChunks<Deque> Chunks() const {
-    return generic().ConstChunks();
-  }
-  constexpr multibuf::ConstChunks<Deque> ConstChunks() const {
+  constexpr ConstChunksType Chunks() const { return generic().ConstChunks(); }
+  constexpr ConstChunksType ConstChunks() const {
     return generic().ConstChunks();
   }
   /// @}
@@ -1193,6 +1200,8 @@ class GenericMultiBuf final
                             Property::kObservable> {
  private:
   using ControlBlock = allocator::internal::ControlBlock;
+  using typename BasicMultiBuf<>::ChunksType;
+  using typename BasicMultiBuf<>::ConstChunksType;
   using typename BasicMultiBuf<>::Deque;
 
  public:
@@ -1244,6 +1253,11 @@ class GenericMultiBuf final
   /// @copydoc BasicMultiBuf<>::empty
   constexpr bool empty() const { return deque_.empty(); }
 
+  /// @copydoc BasicMultiBuf<>::at_capacity
+  constexpr bool at_capacity() const {
+    return deque_.size() == deque_.capacity();
+  }
+
   /// @copydoc BasicMultiBuf<>::size
   constexpr size_t size() const {
     return static_cast<size_t>(cend() - cbegin());
@@ -1261,11 +1275,9 @@ class GenericMultiBuf final
 
   // Iterators.
 
-  constexpr multibuf::Chunks<Deque> Chunks() {
-    return multibuf::Chunks<Deque>(deque_, depth_);
-  }
-  constexpr multibuf::ConstChunks<Deque> ConstChunks() const {
-    return multibuf::ConstChunks<Deque>(deque_, depth_);
+  constexpr ChunksType Chunks() { return ChunksType(deque_, depth_); }
+  constexpr ConstChunksType ConstChunks() const {
+    return ConstChunksType(deque_, depth_);
   }
 
   constexpr iterator begin() { return iterator(Chunks().begin(), 0); }

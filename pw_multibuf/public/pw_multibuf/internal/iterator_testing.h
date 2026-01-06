@@ -44,6 +44,9 @@ namespace pw::multibuf::test {
 ///                       iterators or const_iterators.
 class IteratorTest : public ::testing::Test {
  protected:
+  using ChunksType = internal::Chunks<DynamicDeque<internal::Entry>>;
+  using RawChunksType = internal::RawChunks<DynamicDeque<internal::Entry>>;
+
   constexpr static uint16_t kNumLayers = 4;
   constexpr static uint16_t kNumFragments = 4;
   constexpr static uint16_t kBufSize = 16;
@@ -78,10 +81,12 @@ class IteratorTest : public ::testing::Test {
         deque_.push_back(entry);
       }
     }
-    chunks_ = Chunks(deque_, kNumLayers);
+    chunks_ = ChunksType(deque_, kNumLayers);
+    raw_chunks_ = RawChunksType(deque_, kNumLayers);
   }
 
-  Chunks<DynamicDeque<internal::Entry>>& chunks() { return chunks_; }
+  ChunksType& chunks() { return chunks_; }
+  RawChunksType& raw_chunks() { return raw_chunks_; }
 
   // Fragment 0 is non-empty.
   // Fragment 1 is empty.
@@ -98,8 +103,25 @@ class IteratorTest : public ::testing::Test {
     }
   }
 
-  std::pair<internal::ByteIterator<uint16_t, false>,
-            internal::ByteIterator<uint16_t, false>>
+  constexpr static uint16_t kNumRaw = 4;
+  ByteSpan GetRaw(size_t index) {
+    switch (index) {
+      case 0:
+        return {data(0), size(0)};
+      case 1:
+        return {data(1), size(1)};
+      case 2:
+        return {data(2), size(2)};
+      case 3:
+        return {data(3), size(3)};
+      default:
+        return {};
+    }
+  }
+
+  std::pair<
+      internal::ByteIterator<uint16_t, internal::ChunkMutability::kMutable>,
+      internal::ByteIterator<uint16_t, internal::ChunkMutability::kMutable>>
   GetByteIterators() {
     return {{chunks_.begin(), 0}, {chunks_.end(), 0}};
   }
@@ -128,7 +150,8 @@ class IteratorTest : public ::testing::Test {
   allocator::BumpAllocator allocator_;
   DynamicDeque<internal::Entry> deque_;
 
-  Chunks<DynamicDeque<internal::Entry>> chunks_;
+  ChunksType chunks_;
+  RawChunksType raw_chunks_;
 };
 
 }  // namespace pw::multibuf::test

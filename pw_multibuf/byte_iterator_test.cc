@@ -14,15 +14,16 @@
 
 #include "pw_multibuf/internal/byte_iterator.h"
 
+#include "pw_multibuf/internal/chunk_iterator.h"
 #include "pw_multibuf/internal/iterator_testing.h"
 #include "pw_unit_test/framework.h"
 
 namespace {
 
-using ByteIterator =
-    ::pw::multibuf::internal::ByteIterator<uint16_t, /*kIsConst=*/false>;
-using ConstByteIterator =
-    ::pw::multibuf::internal::ByteIterator<uint16_t, /*kIsConst=*/true>;
+using ByteIterator = ::pw::multibuf::internal::
+    ByteIterator<uint16_t, ::pw::multibuf::internal::ChunkMutability::kMutable>;
+using ConstByteIterator = ::pw::multibuf::internal::
+    ByteIterator<uint16_t, ::pw::multibuf::internal::ChunkMutability::kConst>;
 using ::pw::multibuf::test::IteratorTest;
 
 // Test fixture.

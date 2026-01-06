@@ -14,17 +14,16 @@
 #pragma once
 
 #include <cstddef>
-#include <cstdint>
 #include <iterator>
 
-#include "pw_assert/assert.h"
-#include "pw_containers/dynamic_deque.h"
+#include "pw_bytes/span.h"
 #include "pw_multibuf/internal/chunk_iterator.h"
-#include "pw_multibuf/internal/entry.h"
 
 namespace pw::multibuf {
 
 // Forward declarations for friending.
+class MultiBufV1Adapter;
+
 namespace test {
 class IteratorTest;
 }  // namespace test
@@ -40,10 +39,11 @@ class GenericMultiBuf;
 /// iterate over the bytes of the topmost layer of a multibuf. It is
 /// distinguished from `ChunkIterator`, which iterates over byte spans of
 /// the topmost layer.
-template <typename SizeType, bool kIsConst>
+template <typename SizeType, ChunkMutability kMutability>
 class ByteIterator {
  private:
-  using ChunkIteratorType = ChunkIterator<SizeType, kIsConst>;
+  using ChunkIteratorType =
+      ChunkIterator<SizeType, ChunkContiguity::kCoalesce, kMutability>;
   using Deque = typename ChunkIteratorType::Deque;
 
  public:
@@ -57,7 +57,7 @@ class ByteIterator {
   constexpr ByteIterator() = default;
 
   // Support converting non-const iterators to const_iterators.
-  constexpr operator ByteIterator<SizeType, /*kIsConst=*/true>() const {
+  constexpr operator ByteIterator<SizeType, ChunkMutability::kConst>() const {
     return {chunk_, offset_};
   }
 
@@ -133,7 +133,7 @@ class ByteIterator {
     size_t offset = rhs.offset_;
     while (chunk != lhs.chunk_) {
       ConstByteSpan bytes = *chunk;
-      delta += bytes.size() - offset;
+      delta += static_cast<difference_type>(bytes.size() - offset);
       offset = 0;
       ++chunk;
     }
@@ -172,17 +172,20 @@ class ByteIterator {
 
  private:
   // Allow non-const iterators to construct const_iterators in conversions.
-  template <typename, bool>
+  template <typename, ChunkMutability>
   friend class ByteIterator;
 
   // Allow MultiBufs to create iterators.
   friend class ::pw::multibuf::internal::GenericMultiBuf;
 
+  // Allow MultiBufV1Adapters to create iterators.
+  friend class ::pw::multibuf::MultiBufV1Adapter;
+
   // For unit testing.
   friend class ::pw::multibuf::test::IteratorTest;
 
-  constexpr ByteIterator(ChunkIteratorType chunk, size_t offset)
-      : chunk_(chunk), offset_(offset) {}
+  constexpr ByteIterator(ChunkIteratorType&& chunk, size_t offset)
+      : chunk_(std::move(chunk)), offset_(offset) {}
 
   constexpr size_type chunk_index() const { return chunk_.index_; }
 

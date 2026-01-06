@@ -84,9 +84,7 @@ class AsyncMultiBufQueue {
  public:
   [[nodiscard]] bool empty() const { return mbuf_->empty(); }
 
-  [[nodiscard]] bool full() const {
-    return mbuf_->ConstChunks().size() == mbuf_->ConstChunks().capacity();
-  }
+  [[nodiscard]] bool full() const { return mbuf_->at_capacity(); }
 
   void push_back(UniquePtr<std::byte[]>&& bytes) {
     PW_ASSERT(!full());

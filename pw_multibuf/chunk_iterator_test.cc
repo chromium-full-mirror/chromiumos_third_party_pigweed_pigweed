@@ -12,8 +12,14 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 
-#include "pw_multibuf/internal/chunk_iterator.h"
+#include <cstddef>
+#include <cstdint>
+#include <type_traits>
 
+#include "pw_bytes/span.h"
+#include "pw_containers/dynamic_deque.h"
+#include "pw_multibuf/chunks.h"
+#include "pw_multibuf/internal/entry.h"
 #include "pw_multibuf/internal/iterator_testing.h"
 #include "pw_unit_test/framework.h"
 
@@ -21,26 +27,60 @@
 
 namespace {
 
-using ::pw::multibuf::Chunks;
+using ::pw::ByteSpan;
+using ::pw::multibuf::internal::Chunks;
 using ::pw::multibuf::internal::Entry;
+using ::pw::multibuf::internal::RawChunks;
 using ::pw::multibuf::test::IteratorTest;
 using Deque = pw::DynamicDeque<Entry>;
 
-template <typename IteratorType>
-class ChunkIteratorTestImpl : public IteratorTest {
- private:
-  using FlippedType =
-      std::conditional_t<std::is_same_v<IteratorType, Chunks<Deque>::iterator>,
-                         Chunks<Deque>::const_iterator,
-                         Chunks<Deque>::iterator>;
+template <typename _ChunksType, typename _IteratorType>
+struct IteratorTraits {
+  using ChunksType = _ChunksType;
+  using IteratorType = _IteratorType;
+  using FlippedType = std::conditional_t<
+      std::is_same_v<IteratorType, typename ChunksType::iterator>,
+      typename ChunksType::const_iterator,
+      typename ChunksType::iterator>;
+};
 
+using ChunksIteratorTraits =
+    IteratorTraits<Chunks<Deque>, Chunks<Deque>::iterator>;
+using ConstChunksIteratorTraits =
+    IteratorTraits<Chunks<Deque>, Chunks<Deque>::const_iterator>;
+using RawChunksIteratorTraits =
+    IteratorTraits<RawChunks<Deque>, RawChunks<Deque>::iterator>;
+using RawConstChunksIteratorTraits =
+    IteratorTraits<RawChunks<Deque>, RawChunks<Deque>::const_iterator>;
+
+template <typename IteratorTraits>
+class ChunkIteratorTestBase : public IteratorTest {
  protected:
-  ChunkIteratorTestImpl() {
-    second_ = chunks().begin();
-    flipped_ = chunks().begin();
-    first_ = second_++;
-    last_ = chunks().end();
-    past_the_end_ = last_--;
+  using ChunksType = typename IteratorTraits::ChunksType;
+  using IteratorType = typename IteratorTraits::IteratorType;
+  using FlippedType = typename IteratorTraits::FlippedType;
+
+  explicit ChunkIteratorTestBase(const ChunksType& chunks)
+      : first_(chunks.begin()),
+        flipped_(chunks.begin()),
+        second_(++chunks.begin()),
+        last_(--chunks.end()),
+        past_the_end_(chunks.end()) {}
+
+  [[nodiscard]] ByteSpan GetChunk(size_t index) {
+    if constexpr (std::is_same_v<ChunksType, Chunks<Deque>>) {
+      return this->GetContiguous(index);
+    } else if constexpr (std::is_same_v<ChunksType, RawChunks<Deque>>) {
+      return this->GetRaw(index);
+    }
+  }
+
+  [[nodiscard]] uint16_t GetNumChunks() const {
+    if constexpr (std::is_same_v<ChunksType, Chunks<Deque>>) {
+      return this->kNumContiguous;
+    } else if constexpr (std::is_same_v<ChunksType, RawChunks<Deque>>) {
+      return this->kNumRaw;
+    }
   }
 
   // Unit tests.
@@ -50,10 +90,11 @@ class ChunkIteratorTestImpl : public IteratorTest {
   void CanIterateUsingPostfixIncrement();
   void CanIterateUsingPrefixDecrement();
   void CanIterateUsingPostfixDecrement();
+  void DistanceFromFirstToLastMatchesSize();
   void CanCompareIteratorsUsingEqual();
   void CanCompareIteratorsUsingNotEqual();
 
-  Chunks<Deque> chunks_;
+ private:
   IteratorType first_;
   FlippedType flipped_;
   IteratorType second_;
@@ -61,23 +102,41 @@ class ChunkIteratorTestImpl : public IteratorTest {
   IteratorType past_the_end_;
 };
 
-using ChunkIteratorTest = ChunkIteratorTestImpl<Chunks<Deque>::iterator>;
-using ChunkConstIteratorTest =
-    ChunkIteratorTestImpl<Chunks<Deque>::const_iterator>;
+template <typename IteratorTraits>
+class ChunkIteratorTestImpl : public ChunkIteratorTestBase<IteratorTraits> {
+ protected:
+  ChunkIteratorTestImpl()
+      : ChunkIteratorTestBase<IteratorTraits>(this->chunks()) {}
+};
+
+template <typename IteratorTraits>
+class RawChunkIteratorTestImpl : public ChunkIteratorTestBase<IteratorTraits> {
+ protected:
+  RawChunkIteratorTestImpl()
+      : ChunkIteratorTestBase<IteratorTraits>(this->raw_chunks()) {}
+};
+
+using ChunkIteratorTest = ChunkIteratorTestImpl<ChunksIteratorTraits>;
+using ChunkConstIteratorTest = ChunkIteratorTestImpl<ConstChunksIteratorTraits>;
+using RawChunkIteratorTest = RawChunkIteratorTestImpl<RawChunksIteratorTraits>;
+using RawChunkConstIteratorTest =
+    RawChunkIteratorTestImpl<RawConstChunksIteratorTraits>;
 using ChunksTest = IteratorTest;
 
 // Template method implementations.
 
 TEST_F(ChunkIteratorTest, CheckFixture) {}
 TEST_F(ChunkConstIteratorTest, CheckFixture) {}
+TEST_F(RawChunkIteratorTest, CheckFixture) {}
+TEST_F(RawChunkConstIteratorTest, CheckFixture) {}
 
 static_assert(sizeof(pw::multibuf::internal::Entry) == sizeof(std::byte*));
 
-template <typename IteratorType>
-void ChunkIteratorTestImpl<
-    IteratorType>::IndirectionOperatorDereferencesToByteSpan() {
-  pw::ConstByteSpan actual = *first_;
-  pw::ConstByteSpan expected = GetContiguous(0);
+template <typename IteratorTraits>
+void ChunkIteratorTestBase<
+    IteratorTraits>::IndirectionOperatorDereferencesToByteSpan() {
+  const pw::ConstByteSpan actual = *first_;
+  const pw::ConstByteSpan expected = GetChunk(0);
   EXPECT_EQ(actual.data(), expected.data());
   EXPECT_EQ(actual.size(), expected.size());
 }
@@ -87,11 +146,17 @@ TEST_F(ChunkIteratorTest, IndirectionOperatorDereferencesToByteSpan) {
 TEST_F(ChunkConstIteratorTest, IndirectionOperatorDereferencesToByteSpan) {
   IndirectionOperatorDereferencesToByteSpan();
 }
+TEST_F(RawChunkIteratorTest, IndirectionOperatorDereferencesToByteSpan) {
+  IndirectionOperatorDereferencesToByteSpan();
+}
+TEST_F(RawChunkConstIteratorTest, IndirectionOperatorDereferencesToByteSpan) {
+  IndirectionOperatorDereferencesToByteSpan();
+}
 
-template <typename IteratorType>
-void ChunkIteratorTestImpl<
-    IteratorType>::MemberOfOperatorDereferencesToByteSpan() {
-  pw::ConstByteSpan expected = GetContiguous(0);
+template <typename IteratorTraits>
+void ChunkIteratorTestBase<
+    IteratorTraits>::MemberOfOperatorDereferencesToByteSpan() {
+  const pw::ConstByteSpan expected = GetChunk(0);
   EXPECT_EQ(first_->data(), expected.data());
   EXPECT_EQ(first_->size(), expected.size());
 }
@@ -101,12 +166,19 @@ TEST_F(ChunkIteratorTest, MemberOfOperatorDereferencesToByteSpan) {
 TEST_F(ChunkConstIteratorTest, MemberOfOperatorDereferencesToByteSpan) {
   MemberOfOperatorDereferencesToByteSpan();
 }
+TEST_F(RawChunkIteratorTest, MemberOfOperatorDereferencesToByteSpan) {
+  MemberOfOperatorDereferencesToByteSpan();
+}
+TEST_F(RawChunkConstIteratorTest, MemberOfOperatorDereferencesToByteSpan) {
+  MemberOfOperatorDereferencesToByteSpan();
+}
 
-template <typename IteratorType>
-void ChunkIteratorTestImpl<IteratorType>::CanIterateUsingPrefixIncrement() {
+template <typename IteratorTraits>
+void ChunkIteratorTestBase<IteratorTraits>::CanIterateUsingPrefixIncrement() {
   IteratorType iter = first_;
-  for (size_t i = 0; i < kNumContiguous; ++i) {
-    pw::ConstByteSpan expected = GetContiguous(i);
+  for (size_t i = 0; i < GetNumChunks(); ++i) {
+    EXPECT_EQ(size_t(std::distance(first_, iter)), i);
+    const pw::ConstByteSpan expected = GetChunk(i);
     EXPECT_EQ(iter->data(), expected.data());
     EXPECT_EQ(iter->size(), expected.size());
     ++iter;
@@ -119,13 +191,20 @@ TEST_F(ChunkIteratorTest, CanIterateUsingPrefixIncrement) {
 TEST_F(ChunkConstIteratorTest, CanIterateUsingPrefixIncrement) {
   CanIterateUsingPrefixIncrement();
 }
+TEST_F(RawChunkIteratorTest, CanIterateUsingPrefixIncrement) {
+  CanIterateUsingPrefixIncrement();
+}
+TEST_F(RawChunkConstIteratorTest, CanIterateUsingPrefixIncrement) {
+  CanIterateUsingPrefixIncrement();
+}
 
-template <typename IteratorType>
-void ChunkIteratorTestImpl<IteratorType>::CanIterateUsingPostfixIncrement() {
+template <typename IteratorTraits>
+void ChunkIteratorTestBase<IteratorTraits>::CanIterateUsingPostfixIncrement() {
   IteratorType iter = first_;
   IteratorType copy;
-  for (size_t i = 0; i < kNumContiguous; ++i) {
-    pw::ConstByteSpan expected = GetContiguous(i);
+  for (size_t i = 0; i < GetNumChunks(); ++i) {
+    EXPECT_EQ(size_t(std::distance(first_, iter)), i);
+    const pw::ConstByteSpan expected = GetChunk(i);
     copy = iter++;
     EXPECT_EQ(copy->data(), expected.data());
     EXPECT_EQ(copy->size(), expected.size());
@@ -139,15 +218,22 @@ TEST_F(ChunkIteratorTest, CanIterateUsingPostfixIncrement) {
 TEST_F(ChunkConstIteratorTest, CanIterateUsingPostfixIncrement) {
   CanIterateUsingPostfixIncrement();
 }
+TEST_F(RawChunkIteratorTest, CanIterateUsingPostfixIncrement) {
+  CanIterateUsingPostfixIncrement();
+}
+TEST_F(RawChunkConstIteratorTest, CanIterateUsingPostfixIncrement) {
+  CanIterateUsingPostfixIncrement();
+}
 
-template <typename IteratorType>
-void ChunkIteratorTestImpl<IteratorType>::CanIterateUsingPrefixDecrement() {
+template <typename IteratorTraits>
+void ChunkIteratorTestBase<IteratorTraits>::CanIterateUsingPrefixDecrement() {
   IteratorType iter = past_the_end_;
-  for (size_t i = 1; i <= kNumContiguous; ++i) {
-    pw::ConstByteSpan expected = GetContiguous(kNumContiguous - i);
+  for (size_t i = 1; i <= GetNumChunks(); ++i) {
+    const pw::ConstByteSpan expected = GetChunk(GetNumChunks() - i);
     --iter;
     EXPECT_EQ(iter->data(), expected.data());
     EXPECT_EQ(iter->size(), expected.size());
+    EXPECT_EQ(size_t(std::distance(iter, past_the_end_)), i);
   }
   EXPECT_EQ(iter, first_);
 }
@@ -157,15 +243,22 @@ TEST_F(ChunkIteratorTest, CanIterateUsingPrefixDecrement) {
 TEST_F(ChunkConstIteratorTest, CanIterateUsingPrefixDecrement) {
   CanIterateUsingPrefixDecrement();
 }
+TEST_F(RawChunkIteratorTest, CanIterateUsingPrefixDecrement) {
+  CanIterateUsingPrefixDecrement();
+}
+TEST_F(RawChunkConstIteratorTest, CanIterateUsingPrefixDecrement) {
+  CanIterateUsingPrefixDecrement();
+}
 
-template <typename IteratorType>
-void ChunkIteratorTestImpl<IteratorType>::CanIterateUsingPostfixDecrement() {
+template <typename IteratorTraits>
+void ChunkIteratorTestBase<IteratorTraits>::CanIterateUsingPostfixDecrement() {
   IteratorType iter = last_;
-  for (size_t i = 1; i < kNumContiguous; ++i) {
-    pw::ConstByteSpan expected = GetContiguous(kNumContiguous - i);
+  for (size_t i = 1; i < GetNumChunks(); ++i) {
+    const pw::ConstByteSpan expected = GetChunk(GetNumChunks() - i);
     auto copy = iter--;
     EXPECT_EQ(copy->data(), expected.data());
     EXPECT_EQ(copy->size(), expected.size());
+    EXPECT_EQ(size_t(std::distance(iter, last_)), i);
   }
   EXPECT_EQ(iter, first_);
 }
@@ -175,9 +268,38 @@ TEST_F(ChunkIteratorTest, CanIterateUsingPostfixDecrement) {
 TEST_F(ChunkConstIteratorTest, CanIterateUsingPostfixDecrement) {
   CanIterateUsingPostfixDecrement();
 }
+TEST_F(RawChunkIteratorTest, CanIterateUsingPostfixDecrement) {
+  CanIterateUsingPostfixDecrement();
+}
+TEST_F(RawChunkConstIteratorTest, CanIterateUsingPostfixDecrement) {
+  CanIterateUsingPostfixDecrement();
+}
 
-template <typename IteratorType>
-void ChunkIteratorTestImpl<IteratorType>::CanCompareIteratorsUsingEqual() {
+TEST_F(ChunkIteratorTest, DistanceFromFirstToLastMatchesSize) {
+  ChunksType chunks = this->chunks();
+  EXPECT_EQ(kNumContiguous, chunks.size());
+  EXPECT_EQ(kNumContiguous,
+            size_t(std::distance(chunks.begin(), chunks.end())));
+}
+TEST_F(ChunkConstIteratorTest, DistanceFromFirstToLastMatchesSize) {
+  ChunksType chunks = this->chunks();
+  EXPECT_EQ(kNumContiguous, chunks.size());
+  EXPECT_EQ(kNumContiguous,
+            size_t(std::distance(chunks.begin(), chunks.end())));
+}
+TEST_F(RawChunkIteratorTest, DistanceFromFirstToLastMatchesSize) {
+  ChunksType chunks = this->raw_chunks();
+  EXPECT_EQ(kNumRaw, chunks.size());
+  EXPECT_EQ(kNumRaw, size_t(std::distance(chunks.begin(), chunks.end())));
+}
+TEST_F(RawChunkConstIteratorTest, DistanceFromFirstToLastMatchesSize) {
+  ChunksType chunks = this->raw_chunks();
+  EXPECT_EQ(kNumRaw, chunks.size());
+  EXPECT_EQ(kNumRaw, size_t(std::distance(chunks.begin(), chunks.end())));
+}
+
+template <typename IteratorTraits>
+void ChunkIteratorTestBase<IteratorTraits>::CanCompareIteratorsUsingEqual() {
   EXPECT_EQ(first_, first_);
   EXPECT_EQ(first_, flipped_);
   EXPECT_EQ(past_the_end_, past_the_end_);
@@ -188,9 +310,15 @@ TEST_F(ChunkIteratorTest, CanCompareIteratorsUsingEqual) {
 TEST_F(ChunkConstIteratorTest, CanCompareIteratorsUsingEqual) {
   CanCompareIteratorsUsingEqual();
 }
+TEST_F(RawChunkIteratorTest, CanCompareIteratorsUsingEqual) {
+  CanCompareIteratorsUsingEqual();
+}
+TEST_F(RawChunkConstIteratorTest, CanCompareIteratorsUsingEqual) {
+  CanCompareIteratorsUsingEqual();
+}
 
-template <typename IteratorType>
-void ChunkIteratorTestImpl<IteratorType>::CanCompareIteratorsUsingNotEqual() {
+template <typename IteratorTraits>
+void ChunkIteratorTestBase<IteratorTraits>::CanCompareIteratorsUsingNotEqual() {
   EXPECT_NE(first_, second_);
   EXPECT_NE(flipped_, second_);
   EXPECT_NE(first_, past_the_end_);
@@ -201,11 +329,26 @@ TEST_F(ChunkIteratorTest, CanCompareIteratorsUsingNotEqual) {
 TEST_F(ChunkConstIteratorTest, CanCompareIteratorsUsingNotEqual) {
   CanCompareIteratorsUsingNotEqual();
 }
+TEST_F(RawChunkIteratorTest, CanCompareIteratorsUsingNotEqual) {
+  CanCompareIteratorsUsingNotEqual();
+}
+TEST_F(RawChunkConstIteratorTest, CanCompareIteratorsUsingNotEqual) {
+  CanCompareIteratorsUsingNotEqual();
+}
 
 TEST_F(ChunksTest, CanIterateUsingRangeBasedForLoop) {
   size_t i = 0;
   for (auto actual : chunks()) {
-    pw::ConstByteSpan expected = GetContiguous(i++);
+    const pw::ConstByteSpan expected = GetContiguous(i++);
+    EXPECT_EQ(actual.data(), expected.data());
+    EXPECT_EQ(actual.size(), expected.size());
+  }
+}
+
+TEST_F(ChunksTest, CanIterateRawUsingRangeBasedForLoop) {
+  size_t i = 0;
+  for (auto actual : raw_chunks()) {
+    const pw::ConstByteSpan expected = GetRaw(i++);
     EXPECT_EQ(actual.data(), expected.data());
     EXPECT_EQ(actual.size(), expected.size());
   }

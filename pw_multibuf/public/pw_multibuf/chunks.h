@@ -13,6 +13,8 @@
 // the License.
 #pragma once
 
+#include <type_traits>
+
 #include "pw_multibuf/internal/chunk_iterator.h"
 
 namespace pw::multibuf {
@@ -23,95 +25,72 @@ class IteratorTest;
 }  // namespace test
 
 namespace internal {
-class GenericMultiBuf;
 
 /// Base class for ranges of chunks.
-template <typename Derived, typename Deque>
+template <typename Deque,
+          ChunkContiguity kContiguity,
+          ChunkMutability kMutability>
 class ChunksImpl {
  public:
   using size_type = typename Deque::size_type;
   using value_type = typename Deque::value_type;
   using difference_type = typename Deque::difference_type;
-  using iterator = ChunkIterator<size_type, /*kIsConst=*/false>;
-  using const_iterator = ChunkIterator<size_type, /*kIsConst=*/true>;
+  using iterator = ChunkIterator<size_type, kContiguity, kMutability>;
+  using const_iterator =
+      ChunkIterator<size_type, kContiguity, ChunkMutability::kConst>;
 
   constexpr ChunksImpl() = default;
 
-  constexpr size_type size() const { return deque().size() / depth(); }
-  constexpr size_type capacity() const { return deque().capacity() / depth(); }
-
-  constexpr const_iterator cbegin() const { return derived().begin(); }
-  constexpr const_iterator cend() const { return derived().end(); }
-
- protected:
-  constexpr void Init(Deque& deque, size_type depth) {
-    derived().begin_.deque_ = &deque;
-    derived().begin_.depth_ = depth;
-    derived().end_.deque_ = &deque;
-    derived().end_.depth_ = depth;
-    derived().end_.index_ = deque.size();
+  constexpr size_type size() const {
+    if constexpr (kContiguity == ChunkContiguity::kKeepAll) {
+      return deque().size() / depth();
+    }
+    return static_cast<size_type>(std::distance(begin_, end_));
   }
-
-  constexpr Derived& derived() { return static_cast<Derived&>(*this); }
-  constexpr const Derived& derived() const {
-    return static_cast<const Derived&>(*this);
-  }
-
-  constexpr const Deque& deque() const { return *(derived().begin_.deque_); }
-  constexpr size_type depth() const { return derived().begin_.depth_; }
-};
-
-}  // namespace internal
-
-/// Helper class that allows iterating over read-only chunks in a MultiBuf.
-///
-/// This allows using range-based for-loops, e.g.
-///
-/// @code{.cpp}
-/// for (ConstByteSpan chunk : multibuf.ConstChunks()) {
-///   ReadChunk(chunk);
-/// }
-/// @endcode
-///
-/// @warning Modifying the structure of a MultiBuf invalidates any outstanding
-/// chunk iterators.
-template <typename Deque>
-class Chunks : public internal::ChunksImpl<Chunks<Deque>, Deque> {
- private:
-  using Base = internal::ChunksImpl<Chunks<Deque>, Deque>;
-
- public:
-  using typename Base::const_iterator;
-  using typename Base::difference_type;
-  using typename Base::iterator;
-  using typename Base::size_type;
-  using typename Base::value_type;
-
-  constexpr Chunks() = default;
 
   constexpr iterator begin() const { return begin_; }
   constexpr iterator end() const { return end_; }
 
+  constexpr const_iterator cbegin() const { return begin_; }
+  constexpr const_iterator cend() const { return end_; }
+
  private:
-  template <typename, typename>
-  friend class ::pw::multibuf::internal::ChunksImpl;
-  friend class ::pw::multibuf::internal::GenericMultiBuf;
+  friend class GenericMultiBuf;
 
   // For unit testing.
   friend class ::pw::multibuf::test::IteratorTest;
 
-  constexpr Chunks(Deque& deque, size_type depth) { Base::Init(deque, depth); }
+  using DequeRefType =
+      std::conditional_t<kMutability == ChunkMutability::kConst,
+                         const Deque&,
+                         Deque&>;
+
+  constexpr void Init(DequeRefType& deque, size_type depth) {
+    begin_.deque_ = &deque;
+    begin_.depth_ = depth;
+    end_.deque_ = &deque;
+    end_.depth_ = depth;
+    end_.index_ = deque.size();
+  }
+
+  constexpr ChunksImpl(DequeRefType& deque, size_type depth) {
+    Init(deque, depth);
+  }
+
+  constexpr const Deque& deque() const { return *(begin_.deque_); }
+  constexpr size_type depth() const { return begin_.depth_; }
 
   iterator begin_;
   iterator end_;
 };
 
-/// Helper class that allows iterating over mutable chunks in a MultiBuf.
+/// Helper class that allows iterating over mutable contiguous chunks in a
+/// MultiBuf.
 ///
 /// This allows using range-based for-loops, e.g.
 ///
 /// @code{.cpp}
-/// for (ByteSpan chunk : multibuf.ConstChunks()) {
+/// for (ByteSpan chunk : multibuf.RawChunks()) {
 ///   ModifyChunk(chunk);
 /// }
 /// @endcode
@@ -119,33 +98,57 @@ class Chunks : public internal::ChunksImpl<Chunks<Deque>, Deque> {
 /// @warning Modifying the structure of a MultiBuf invalidates any outstanding
 /// chunk iterators.
 template <typename Deque>
-class ConstChunks
-    : public internal::ChunksImpl<ConstChunks<Deque>, const Deque> {
- private:
-  using Base = internal::ChunksImpl<ConstChunks<Deque>, const Deque>;
+using Chunks =
+    ChunksImpl<Deque, ChunkContiguity::kCoalesce, ChunkMutability::kMutable>;
 
- public:
-  using typename Base::const_iterator;
-  using typename Base::difference_type;
-  using typename Base::size_type;
-  using typename Base::value_type;
+/// Helper class that allows iterating over read-only contiguous chunks in a
+/// MultiBuf.
+///
+/// This allows using range-based for-loops, e.g.
+///
+/// @code{.cpp}
+/// for (ConstByteSpan chunk : multibuf.RawConstChunks()) {
+///   ReadChunk(chunk);
+/// }
+/// @endcode
+///
+/// @warning Modifying the structure of a MultiBuf invalidates any outstanding
+/// chunk iterators.
+template <typename Deque>
+using ConstChunks =
+    ChunksImpl<Deque, ChunkContiguity::kCoalesce, ChunkMutability::kConst>;
 
-  constexpr ConstChunks() = default;
+/// Helper class that allows iterating the raw mutable chunks in a MultiBuf.
+///
+/// This allows using range-based for-loops, e.g.
+///
+/// @code{.cpp}
+/// for (ByteSpan chunk : multibuf.RawChunks()) {
+///   ModifyChunk(chunk);
+/// }
+/// @endcode
+///
+/// @warning Modifying the structure of a MultiBuf invalidates any outstanding
+/// chunk iterators.
+template <typename Deque>
+using RawChunks =
+    ChunksImpl<Deque, ChunkContiguity::kKeepAll, ChunkMutability::kMutable>;
 
-  constexpr const_iterator begin() const { return begin_; }
-  constexpr const_iterator end() const { return end_; }
+/// Helper class that allows iterating the raw read-only chunks in a MultiBuf.
+///
+/// This allows using range-based for-loops, e.g.
+///
+/// @code{.cpp}
+/// for (ConstByteSpan chunk : multibuf.RawConstChunks()) {
+///   ReadChunk(chunk);
+/// }
+/// @endcode
+///
+/// @warning Modifying the structure of a MultiBuf invalidates any outstanding
+/// chunk iterators.
+template <typename Deque>
+using RawConstChunks =
+    ChunksImpl<Deque, ChunkContiguity::kKeepAll, ChunkMutability::kConst>;
 
- private:
-  template <typename, typename>
-  friend class ::pw::multibuf::internal::ChunksImpl;
-  friend class ::pw::multibuf::internal::GenericMultiBuf;
-
-  constexpr ConstChunks(const Deque& deque, size_type depth) {
-    Base::Init(deque, depth);
-  }
-
-  const_iterator begin_;
-  const_iterator end_;
-};
-
+}  // namespace internal
 }  // namespace pw::multibuf
