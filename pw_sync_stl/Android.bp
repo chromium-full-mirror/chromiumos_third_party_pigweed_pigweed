@@ -39,11 +39,16 @@ cc_library_static {
         "pw_chrono",
         "pw_sync",
     ],
-    // Explicitly depend on the pw_assert_log and pw_chrono_stl backends since
-    // they are part of pw_android_common_backends.
+    // Explicitly depend on the pw_assert_log, pw_chrono_stl, and
+    // pw_sync.binary_semaphore_thread_notification backends since they are
+    // part of pw_android_common_backends.
     static_libs: [
         "pw_assert_log",
         "pw_chrono_stl",
+        "pw_sync.binary_semaphore_thread_notification",
+    ],
+    export_static_lib_headers: [
+        "pw_sync.binary_semaphore_thread_notification",
     ],
     shared_libs: [
         "liblog",
