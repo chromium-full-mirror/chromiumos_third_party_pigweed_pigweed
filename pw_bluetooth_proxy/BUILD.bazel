@@ -16,7 +16,7 @@ load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_python//sphinxdocs:sphinx_docs_library.bzl", "sphinx_docs_library")
 load("//pw_bloat:pw_size_diff.bzl", "pw_size_diff")
 load("//pw_bloat:pw_size_table.bzl", "pw_size_table")
-load("//pw_bluetooth_proxy:bt-proxy.bzl", "pw_bluetooth_proxy_library", "pw_bluetooth_proxy_test")
+load("//pw_bluetooth_proxy:bt-proxy.bzl", "pw_bluetooth_proxy_library", "pw_bluetooth_proxy_test", "pw_bluetooth_proxy_test_utils")
 load("//pw_build:compatibility.bzl", "incompatible_with_mcu")
 
 package(
@@ -99,6 +99,11 @@ label_flag(
 )
 
 # Tests
+
+pw_bluetooth_proxy_test_utils(
+    name = "test_utils_async_mbv2",
+    versioned_deps = [":pw_bluetooth_proxy_async_mbv2"],
+)
 
 pw_bluetooth_proxy_test(
     name = "pw_bluetooth_proxy_sync_mbv1_test",

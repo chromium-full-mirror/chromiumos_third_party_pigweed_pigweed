@@ -218,3 +218,51 @@ def pw_bluetooth_proxy_test(name, versioned_deps, **kwargs):
         # LINT.ThenChange(BUILD.gn)
         **kwargs
     )
+
+def pw_bluetooth_proxy_test_utils(name, versioned_deps, **kwargs):
+    """Creates a cc_library for test tools with a specific version of some deps.
+
+    Args:
+      name:           Name of the target.
+      versioned_deps: List of labels of a version-specific dependencies.
+      **kwargs:       Additional arguments to pass to cc_library.
+    """
+    cc_library(
+        name = name,
+        testonly = True,
+        hdrs = [
+            "pw_bluetooth_proxy_private/test_utils.h",
+        ],
+
+        # LINT.IfChange
+        srcs = [
+            "test_utils.cc",
+            "test_utils_async.cc",
+            "test_utils_sync.cc",
+        ],
+        features = ["-conversion_warnings"],
+        deps = [
+            "//pw_allocator:null_allocator",
+            "//pw_allocator:synchronized_allocator",
+            "//pw_allocator:testing",
+            "//pw_assert:check",
+            "//pw_bluetooth:emboss_att",
+            "//pw_bluetooth:emboss_hci_commands",
+            "//pw_bluetooth:emboss_hci_common",
+            "//pw_bluetooth:emboss_hci_events",
+            "//pw_bluetooth:emboss_hci_h4",
+            "//pw_bluetooth:emboss_l2cap_frames",
+            "//pw_bluetooth:emboss_util",
+            "//pw_unit_test",
+            "//pw_sync:thread_notification",
+            "//pw_thread:test_thread_context",
+            "//pw_thread:thread",
+            "//pw_function",
+            "//pw_allocator:libc_allocator",
+            "//pw_async2:notified_dispatcher",
+            "//pw_span:cast",
+            "//pw_sync:mutex",
+        ] + versioned_deps,
+        # LINT.ThenChange(BUILD.gn)
+        **kwargs
+    )

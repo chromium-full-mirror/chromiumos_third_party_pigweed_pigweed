@@ -421,3 +421,15 @@ pw_add_test(pw_bluetooth_proxy.pw_bluetooth_proxy_async_mbv2_test
   GROUPS
     modules
 )
+
+pw_add_library(pw_bluetooth_proxy._test_utils_async_mbv2 STATIC
+  PUBLIC_DEPS
+    ${PW_BLUETOOTH_PROXY_TEST_PRIVATE_DEPS}
+    pw_bluetooth_proxy._async_mbv2
+  HEADERS
+    pw_bluetooth_proxy_private/test_utils.h
+  SOURCES
+    test_utils.cc
+    test_utils_async.cc
+    test_utils_sync.cc
+)

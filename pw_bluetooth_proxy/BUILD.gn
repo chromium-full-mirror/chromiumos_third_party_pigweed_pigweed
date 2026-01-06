@@ -294,6 +294,17 @@ _pw_bluetooth_proxy_test_sources = [
   "utils_test.cc",
 ]
 
+pw_source_set("test_utils_async_mbv2") {
+  public = [ "pw_bluetooth_proxy_private/test_utils.h" ]
+  sources = [
+    "test_utils.cc",
+    "test_utils_async.cc",
+    "test_utils_sync.cc",
+  ]
+  deps = _pw_bluetooth_proxy_test_deps + [ ":pw_bluetooth_proxy_async_mbv2" ]
+  visibility = [ "./*" ]
+}
+
 # LINT.ThenChange(bt-proxy.bzl, CMakeLists.txt)
 
 pw_test("pw_bluetooth_proxy_sync_mbv1_test") {
