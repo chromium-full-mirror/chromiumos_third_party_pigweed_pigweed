@@ -500,7 +500,7 @@ TEST_F(MultiBufTest, InstancesAreMovable) {
   EXPECT_EQ(metrics1.allocated_bytes.value(), 0u);
 
   auto chunk = allocator_.MakeUnique<std::byte[]>(kN);
-  ASSERT_TRUE(mb1.TryReserveForPushBack(chunk));
+  ASSERT_TRUE(mb1.TryReserveForPushBack());
   mb1.PushBack(std::move(chunk));
   size_t allocated_bytes = metrics1.allocated_bytes.value();
   EXPECT_NE(allocated_bytes, 0u);
@@ -512,7 +512,7 @@ TEST_F(MultiBufTest, InstancesAreMovable) {
 
   chunk = allocator_.MakeUnique<std::byte[]>(kN);
   EXPECT_EQ(metrics2.allocated_bytes.value(), 0u);
-  ASSERT_TRUE(mb2.TryReserveForPushBack(chunk));
+  ASSERT_TRUE(mb2.TryReserveForPushBack());
   mb2.PushBack(std::move(chunk));
   EXPECT_NE(metrics2.allocated_bytes.value(), 0u);
   mbi2 = std::move(mbi1);
@@ -654,7 +654,7 @@ TEST_F(MultiBufTest, SizeForMultiBufWithOneChunk) {
   ConstMultiBuf::Instance mbi(allocator_);
   ConstMultiBuf& mb = *mbi;
   auto chunk = allocator_.MakeUnique<std::byte[]>(kN);
-  ASSERT_TRUE(mb.TryReserveForPushBack(chunk));
+  ASSERT_TRUE(mb.TryReserveForPushBack());
   mb.PushBack(std::move(chunk));
   EXPECT_EQ(mb.size(), kN);
 }
@@ -663,10 +663,10 @@ TEST_F(MultiBufTest, SizeForMultiBufWithMultipleChunks) {
   ConstMultiBuf::Instance mbi(allocator_);
   ConstMultiBuf& mb = *mbi;
   auto chunk = allocator_.MakeUnique<std::byte[]>(kN);
-  ASSERT_TRUE(mb.TryReserveForPushBack(chunk));
+  ASSERT_TRUE(mb.TryReserveForPushBack());
   mb.PushBack(std::move(chunk));
   chunk = allocator_.MakeUnique<std::byte[]>(kN / 2);
-  ASSERT_TRUE(mb.TryReserveForPushBack(chunk));
+  ASSERT_TRUE(mb.TryReserveForPushBack());
   mb.PushBack(std::move(chunk));
   EXPECT_EQ(mb.size(), kN + kN / 2);
 }
@@ -674,7 +674,7 @@ TEST_F(MultiBufTest, SizeForMultiBufWithMultipleChunks) {
 TEST_F(MultiBufTest, IsDerefencableWithAt) {
   ConstMultiBuf::Instance mbi(allocator_);
   ConstMultiBuf& mb = mbi;
-  ASSERT_TRUE(mb.TryReserveForPushBack(unowned_chunk_));
+  ASSERT_TRUE(mb.TryReserveForPushBack());
   mb.PushBack(unowned_chunk_);
   for (size_t i = 0; i < unowned_chunk_.size(); ++i) {
     EXPECT_EQ(mb.at(i), static_cast<std::byte>(i));
@@ -725,7 +725,7 @@ PW_NC_EXPECT(
 TEST_F(MultiBufTest, IsDerefencableWithArrayOperator) {
   ConstMultiBuf::Instance mbi(allocator_);
   ConstMultiBuf& mb = mbi;
-  ASSERT_TRUE(mb.TryReserveForPushBack(unowned_chunk_));
+  ASSERT_TRUE(mb.TryReserveForPushBack());
   mb.PushBack(unowned_chunk_);
   for (size_t i = 0; i < unowned_chunk_.size(); ++i) {
     EXPECT_EQ(mb[i], static_cast<std::byte>(i));
@@ -753,7 +753,7 @@ TEST_F(MultiBufTest, IterateChunksOverEmptyChunks) {
   ConstMultiBuf& mb = mbi;
   for (size_t i = 0; i < 3; ++i) {
     pw::ByteSpan s;
-    ASSERT_TRUE(mb.TryReserveForPushBack(s));
+    ASSERT_TRUE(mb.TryReserveForPushBack());
     mb.PushBack(s);
   }
 
@@ -765,7 +765,7 @@ TEST_F(MultiBufTest, IterateChunksOverEmptyChunks) {
 TEST_F(MultiBufTest, IterateConstChunksOverOne) {
   ConstMultiBuf::Instance mbi(allocator_);
   ConstMultiBuf& mb = mbi;
-  ASSERT_TRUE(mb.TryReserveForPushBack(unowned_chunk_));
+  ASSERT_TRUE(mb.TryReserveForPushBack());
   mb.PushBack(unowned_chunk_);
 
   for (auto buffer : mb.ConstChunks()) {
@@ -777,7 +777,7 @@ TEST_F(MultiBufTest, IterateConstChunksOverOne) {
 TEST_F(MultiBufTest, IterateChunksOverOne) {
   MultiBuf::Instance mbi(allocator_);
   MultiBuf& mb = mbi;
-  ASSERT_TRUE(mb.TryReserveForPushBack(unowned_chunk_));
+  ASSERT_TRUE(mb.TryReserveForPushBack());
   mb.PushBack(unowned_chunk_);
 
   for (auto buffer : mb.Chunks()) {
@@ -799,7 +799,7 @@ TEST_F(MultiBufTest, IterateConstBytesOverEmpty) {
 TEST_F(MultiBufTest, IterateConstBytesOverContiguous) {
   ConstMultiBuf::Instance mbi(allocator_);
   ConstMultiBuf& mb = mbi;
-  ASSERT_TRUE(mb.TryReserveForPushBack(unowned_chunk_));
+  ASSERT_TRUE(mb.TryReserveForPushBack());
   mb.PushBack(unowned_chunk_);
   uint8_t value = 0;
   for (const std::byte& b : mb) {
@@ -812,7 +812,7 @@ TEST_F(MultiBufTest, IterateConstBytesOverContiguous) {
 TEST_F(MultiBufTest, IterateBytesOverContiguous) {
   MultiBuf::Instance mbi(allocator_);
   MultiBuf& mb = mbi;
-  ASSERT_TRUE(mb.TryReserveForPushBack(unowned_chunk_));
+  ASSERT_TRUE(mb.TryReserveForPushBack());
   mb.PushBack(unowned_chunk_);
 
   // Iterate and assign.
@@ -865,81 +865,6 @@ TEST_F(MultiBufTest, IterateBytesOverNonContiguous) {
   EXPECT_EQ(value, kN * 3);
 }
 
-TEST_F(MultiBufTest, IsCompatibleWithUnowned) {
-  ConstMultiBuf::Instance mbi1(allocator_);
-  mbi1->PushBack(unowned_chunk_);
-
-  ConstMultiBuf::Instance mbi2(allocator_);
-  mbi2->PushBack(unowned_chunk_);
-  EXPECT_TRUE(mbi1->IsCompatible(*mbi2));
-
-  ConstMultiBuf::Instance mbi3(allocator_);
-  auto owned = allocator_.MakeUnique<std::byte[]>(kN);
-  mbi3->PushBack(std::move(owned));
-  EXPECT_TRUE(mbi1->IsCompatible(*mbi3));
-
-  ConstMultiBuf::Instance mbi4(allocator_);
-  auto shared = allocator_.MakeShared<std::byte[]>(kN);
-  mbi4->PushBack(shared);
-  EXPECT_TRUE(mbi1->IsCompatible(*mbi4));
-
-  ConstMultiBuf::Instance mbi5(allocator_);
-  mbi5->PushBack(unowned_chunk_);
-  owned = allocator_.MakeUnique<std::byte[]>(kN);
-  mbi5->PushBack(std::move(owned));
-  mbi5->PushBack(shared);
-  EXPECT_TRUE(mbi1->IsCompatible(*mbi5));
-}
-
-TEST_F(MultiBufTest, IsCompatibleWithUniquePtr) {
-  AllocatorForTest<128> allocator2;
-  ConstMultiBuf::Instance mbi1(allocator_);
-  auto chunk = allocator_.MakeUnique<std::byte[]>(kN);
-  mbi1->PushBack(std::move(chunk));
-
-  ConstMultiBuf::Instance mbi2(allocator_);
-  mbi2->PushBack(unowned_chunk_);
-  auto owned = allocator_.MakeUnique<std::byte[]>(kN);
-  mbi2->PushBack(std::move(owned));
-  auto shared = allocator_.MakeShared<std::byte[]>(kN);
-  mbi2->PushBack(shared);
-  EXPECT_TRUE(mbi1->IsCompatible(*mbi2));
-  mbi2->Clear();
-
-  owned = allocator2.MakeUnique<std::byte[]>(kN);
-  mbi2->PushBack(std::move(owned));
-  EXPECT_FALSE(mbi1->IsCompatible(*mbi2));
-  mbi2->Clear();
-
-  shared = allocator2.MakeShared<std::byte[]>(kN);
-  mbi2->PushBack(shared);
-  EXPECT_FALSE(mbi1->IsCompatible(*mbi2));
-}
-
-TEST_F(MultiBufTest, IsCompatibleWithSharedPtr) {
-  AllocatorForTest<128> allocator2;
-  ConstMultiBuf::Instance mbi1(allocator_);
-  auto shared = allocator_.MakeShared<std::byte[]>(kN);
-  mbi1->PushBack(shared, 0, kN / 2);
-
-  ConstMultiBuf::Instance mbi2(allocator_);
-  mbi2->PushBack(unowned_chunk_);
-  auto owned = allocator_.MakeUnique<std::byte[]>(kN);
-  mbi2->PushBack(std::move(owned));
-  mbi2->PushBack(shared, kN / 2, kN / 2);
-  EXPECT_TRUE(mbi1->IsCompatible(*mbi2));
-  mbi2->Clear();
-
-  owned = allocator2.MakeUnique<std::byte[]>(kN);
-  mbi2->PushBack(std::move(owned));
-  EXPECT_FALSE(mbi1->IsCompatible(*mbi2));
-  mbi2->Clear();
-
-  shared = allocator2.MakeShared<std::byte[]>(kN);
-  mbi2->PushBack(shared);
-  EXPECT_FALSE(mbi1->IsCompatible(*mbi2));
-}
-
 TEST_F(MultiBufTest, TryReserveChunksWithNumChunksEqualToZero) {
   ConstMultiBuf::Instance mb(allocator_);
   EXPECT_TRUE(mb->TryReserveChunks(0));
@@ -989,27 +914,11 @@ TEST_F(MultiBufTest, TryReserveForInsertOfMultiBufFailsDueToAllocationFailure) {
   EXPECT_FALSE(mb1->TryReserveForInsert(mb1->begin(), *mb2));
 }
 
-TEST_F(MultiBufTest, TryReserveForInsertOfUnownedFailsDueToExcessiveSize) {
-  ConstMultiBuf::Instance mb(allocator_);
-  allocator_.Exhaust();
-  EXPECT_FALSE(mb->TryReserveForInsert(mb->begin(), unowned_chunk_));
-}
-
-#if PW_NC_TEST(TryReserveForInsertOfUniquePtrFailsDueToReadOnly)
-PW_NC_EXPECT("Cannot `Insert` read-only bytes into mutable MultiBuf");
-void ShouldAssert(pw::Allocator& allocator) {
-  MultiBuf::Instance mb(allocator);
-  auto ptr = allocator.MakeUnique<std::byte[]>(kN);
-  pw::UniquePtr<const std::byte[]> const_ptr(ptr.Release(), kN, allocator);
-  EXPECT_FALSE(mb->TryReserveForInsert(mb->begin(), const_ptr));
-}
-#endif  // PW_NC_TEST
-
 TEST_F(MultiBufTest, TryReserveForInsertOfUniquePtrFailsDueToExcessiveSize) {
   ConstMultiBuf::Instance mb(allocator_);
   auto chunk = allocator_.MakeUnique<std::byte[]>(kN);
   allocator_.Exhaust();
-  EXPECT_FALSE(mb->TryReserveForInsert(mb->begin(), chunk));
+  EXPECT_FALSE(mb->TryReserveForInsert(mb->begin()));
 }
 
 TEST_F(MultiBufTest, InsertMultiBufIntoEmptyMultiBuf) {
@@ -1155,24 +1064,14 @@ TEST_F(MultiBufTest,
 TEST_F(MultiBufTest, TryReserveForPushBackOfUnownedFailsDueToExcessiveSize) {
   ConstMultiBuf::Instance mb(allocator_);
   allocator_.Exhaust();
-  EXPECT_FALSE(mb->TryReserveForPushBack(unowned_chunk_));
+  EXPECT_FALSE(mb->TryReserveForPushBack());
 }
-
-#if PW_NC_TEST(TryReserveForPushBackOfUniquePtrFailsDueToReadOnly)
-PW_NC_EXPECT("Cannot `PushBack` read-only bytes into mutable MultiBuf");
-void ShouldAssert(pw::Allocator& allocator) {
-  MultiBuf::Instance mb(allocator);
-  auto ptr = allocator.MakeUnique<std::byte[]>(kN);
-  pw::UniquePtr<const std::byte[]> const_ptr(ptr.Release(), kN, allocator);
-  EXPECT_FALSE(mb->TryReserveForPushBack(const_ptr));
-}
-#endif  // PW_NC_TEST
 
 TEST_F(MultiBufTest, TryReserveForPushBackOfUniquePtrFailsDueToExcessiveSize) {
   ConstMultiBuf::Instance mb(allocator_);
   auto chunk = allocator_.MakeUnique<std::byte[]>(kN);
   allocator_.Exhaust();
-  EXPECT_FALSE(mb->TryReserveForPushBack(chunk));
+  EXPECT_FALSE(mb->TryReserveForPushBack());
 }
 
 TEST_F(MultiBufTest, TryReserveForPushBackFailsWhenMemoryExhausted) {
@@ -1180,18 +1079,18 @@ TEST_F(MultiBufTest, TryReserveForPushBackFailsWhenMemoryExhausted) {
   ConstMultiBuf& mb = mbi;
 
   allocator_.Exhaust();
-  EXPECT_FALSE(mb.TryReserveForPushBack(unowned_chunk_));
+  EXPECT_FALSE(mb.TryReserveForPushBack());
 }
 
 TEST_F(MultiBufTest, PushBackSucceedsWithMultiBuf) {
   ConstMultiBuf::Instance mbi(allocator_);
   ConstMultiBuf& mb = mbi;
-  ASSERT_TRUE(mb.TryReserveForPushBack(owned_chunk_));
+  ASSERT_TRUE(mb.TryReserveForPushBack());
   mb.PushBack(std::move(owned_chunk_));
 
   ConstMultiBuf::Instance fragment(allocator_);
   auto chunk = allocator_.MakeUnique<std::byte[]>(kN * 2);
-  ASSERT_TRUE(fragment->TryReserveForPushBack(chunk));
+  ASSERT_TRUE(fragment->TryReserveForPushBack());
   fragment->PushBack(std::move(chunk));
 
   ASSERT_TRUE(mb.TryReserveForPushBack(*fragment));
@@ -1204,7 +1103,7 @@ TEST_F(MultiBufTest, PushBackSucceedsWithByteSpan) {
   {
     ConstMultiBuf::Instance mbi(allocator_);
     ConstMultiBuf& mb = mbi;
-    ASSERT_TRUE(mb.TryReserveForPushBack(unowned_chunk_));
+    ASSERT_TRUE(mb.TryReserveForPushBack());
     mb.PushBack(unowned_chunk_);
     EXPECT_FALSE(mb.empty());
     EXPECT_EQ(mb.size(), unowned_chunk_.size());
@@ -1271,7 +1170,7 @@ TEST_F(MultiBufTest, PushBackSucceedsWithUniquePtr) {
   {
     ConstMultiBuf::Instance mbi(allocator_);
     ConstMultiBuf& mb = mbi;
-    ASSERT_TRUE(mb.TryReserveForPushBack(owned_chunk_));
+    ASSERT_TRUE(mb.TryReserveForPushBack());
     mb.PushBack(std::move(owned_chunk_));
     EXPECT_FALSE(mb.empty());
     EXPECT_EQ(mb.size(), kN);
@@ -1401,20 +1300,31 @@ TEST_F(MultiBufTest, RemoveCompleteOwnedChunkFromMultiBufWithOtherChunks) {
   EXPECT_EQ(mbi2->size(), kN);
 }
 
-TEST_F(MultiBufTest, PartialOwnedChunkIsNotRemovable) {
-  ConstMultiBuf::Instance mbi(allocator_);
+TEST_F(MultiBufTest, RemovePartialOwnedChunkFromMultiBufWithOtherChunks) {
+  ConstMultiBuf::Instance mbi1(allocator_);
   auto chunk = allocator_.MakeUnique<std::byte[]>(kN);
-  mbi->PushBack(std::move(chunk));
+  mbi1->PushBack(std::move(chunk));
   chunk = allocator_.MakeUnique<std::byte[]>(kN);
-  mbi->PushBack(std::move(chunk));
+  mbi1->PushBack(std::move(chunk));
   chunk = allocator_.MakeUnique<std::byte[]>(kN);
-  mbi->PushBack(std::move(chunk));
-  auto pos = mbi->begin() + kN;
-  EXPECT_TRUE(mbi->IsRemovable(pos, kN));
-  EXPECT_FALSE(mbi->IsRemovable(pos, kN - 1));
-  EXPECT_FALSE(mbi->IsRemovable(pos, kN + 1));
-  EXPECT_FALSE(mbi->IsRemovable(pos - 1, kN + 1));
-  EXPECT_FALSE(mbi->IsRemovable(pos + 1, kN - 1));
+  mbi1->PushBack(std::move(chunk));
+
+  ASSERT_TRUE(mbi1->IsRemovable(mbi1->begin() + kN, kN));
+  auto result = mbi1->Remove(mbi1->begin() + kN / 2, kN * 2);
+  ASSERT_EQ(result.status(), pw::OkStatus());
+  EXPECT_FALSE(mbi1->empty());
+  EXPECT_EQ(mbi1->size(), kN);
+
+  // Owned chunks that are split should be converted to shared.
+  EXPECT_FALSE(mbi1->IsReleasable(mbi1->begin()));
+  EXPECT_FALSE(mbi1->IsReleasable(mbi1->begin() + kN / 2));
+
+  // Owned chunks that are moved without being split should remained owned.
+  ConstMultiBuf::Instance mbi2(std::move(*result));
+  EXPECT_EQ(mbi2->size(), kN * 2);
+  EXPECT_FALSE(mbi2->IsReleasable(mbi2->begin()));
+  EXPECT_TRUE(mbi2->IsReleasable(mbi2->begin() + kN / 2));
+  EXPECT_FALSE(mbi2->IsReleasable(mbi2->begin() + 3 * kN / 2));
 }
 
 TEST_F(MultiBufTest, RemoveOnlySharedChunk) {
@@ -1520,11 +1430,11 @@ TEST_F(MultiBufTest, PopFrontFragmentFailsOnAllocationFailure) {
   ConstMultiBuf& mb = mbi;
 
   auto chunk = allocator_.MakeUnique<std::byte[]>(kN);
-  ASSERT_TRUE(mb.TryReserveForPushBack(chunk));
+  ASSERT_TRUE(mb.TryReserveForPushBack());
   mb.PushBack(std::move(chunk));
 
   chunk = allocator_.MakeUnique<std::byte[]>(kN * 2);
-  ASSERT_TRUE(mb.TryReserveForPushBack(chunk));
+  ASSERT_TRUE(mb.TryReserveForPushBack());
   mb.PushBack(std::move(chunk));
 
   allocator_.Exhaust();
@@ -1538,11 +1448,11 @@ TEST_F(MultiBufTest, PopFrontFragmentSucceedsWhenNotEmpty) {
   ConstMultiBuf& mb = mbi;
 
   auto chunk = allocator_.MakeUnique<std::byte[]>(kN);
-  ASSERT_TRUE(mb.TryReserveForPushBack(chunk));
+  ASSERT_TRUE(mb.TryReserveForPushBack());
   mb.PushBack(std::move(chunk));
 
   chunk = allocator_.MakeUnique<std::byte[]>(kN * 2);
-  ASSERT_TRUE(mb.TryReserveForPushBack(chunk));
+  ASSERT_TRUE(mb.TryReserveForPushBack());
   mb.PushBack(std::move(chunk));
 
   pw::Result<ConstMultiBuf::Instance> result = mb.PopFrontFragment();
@@ -1665,8 +1575,9 @@ TEST_F(MultiBufTest, DiscardPartialOwnedChunkFromMultiBufWithOtherChunks) {
   result = mb->Discard(mb->begin() + kN, kN);
   ASSERT_EQ(result.status(), pw::OkStatus());
   EXPECT_EQ(mb->size(), 2 * kN);
-  EXPECT_EQ(allocator_.deallocate_ptr(), bytes2.data());
-  EXPECT_EQ(allocator_.deallocate_size(), bytes2.size());
+  EXPECT_NE(allocator_.deallocate_ptr(), nullptr);
+  EXPECT_EQ(allocator_.deallocate_size(),
+            sizeof(pw::allocator::internal::ControlBlock));
 }
 
 TEST_F(MultiBufTest, DiscardContiguousChunks) {
@@ -1693,11 +1604,11 @@ TEST_F(MultiBufTest, IsReleasableReturnsFalseWhenNotOwned) {
 TEST_F(MultiBufTest, ReleaseSucceedsWhenNotEmptyAndOwned) {
   ConstMultiBuf::Instance mbi(allocator_);
   ConstMultiBuf& mb = mbi;
-  ASSERT_TRUE(mb.TryReserveForPushBack(owned_chunk_));
+  ASSERT_TRUE(mb.TryReserveForPushBack());
   mb.PushBack(std::move(owned_chunk_));
 
   auto chunk = allocator_.MakeUnique<std::byte[]>(kN * 2);
-  ASSERT_TRUE(mb.TryReserveForPushBack(chunk));
+  ASSERT_TRUE(mb.TryReserveForPushBack());
   mb.PushBack(std::move(chunk));
 
   pw::UniquePtr<const std::byte[]> released = mb.Release(mb.begin());
@@ -1819,7 +1730,7 @@ TEST_F(MultiBufTest, CopyToWithMultipleChunks) {
 TEST_F(MultiBufTest, CopyFromWithContiguousChunks) {
   MultiBuf::Instance mbi(allocator_);
   MultiBuf& mb = mbi;
-  ASSERT_TRUE(mb.TryReserveForPushBack(unowned_chunk_));
+  ASSERT_TRUE(mb.TryReserveForPushBack());
   mb.PushBack(unowned_chunk_);
 
   std::array<std::byte, kN / 2> in;
@@ -1893,7 +1804,7 @@ TEST_F(MultiBufTest, CopyFromWithMultipleChunks) {
 TEST_F(MultiBufTest, GetContiguousDoesNotCopy) {
   ConstMultiBuf::Instance mbi(allocator_);
   ConstMultiBuf& mb = mbi;
-  ASSERT_TRUE(mb.TryReserveForPushBack(unowned_chunk_));
+  ASSERT_TRUE(mb.TryReserveForPushBack());
   mb.PushBack(unowned_chunk_);
   std::memset(unowned_chunk_.data(), 0xAA, unowned_chunk_.size());
 
@@ -1941,7 +1852,7 @@ TEST_F(MultiBufTest, GetNonContiguousCopies) {
 TEST_F(MultiBufTest, GetMoreThanAvailableTruncates) {
   ConstMultiBuf::Instance mbi(allocator_);
   ConstMultiBuf& mb = mbi;
-  ASSERT_TRUE(mb.TryReserveForPushBack(unowned_chunk_));
+  ASSERT_TRUE(mb.TryReserveForPushBack());
   mb.PushBack(unowned_chunk_);
 
   std::array<std::byte, kN> tmp;
@@ -1957,7 +1868,7 @@ TEST_F(MultiBufTest, GetMoreThanAvailableTruncates) {
 TEST_F(MultiBufTest, GetPastTheEndReturnsEmpty) {
   ConstMultiBuf::Instance mbi(allocator_);
   ConstMultiBuf& mb = mbi;
-  ASSERT_TRUE(mb.TryReserveForPushBack(unowned_chunk_));
+  ASSERT_TRUE(mb.TryReserveForPushBack());
   mb.PushBack(unowned_chunk_);
   std::array<std::byte, kN> tmp;
   pw::ConstByteSpan bytes = mb.Get(tmp, unowned_chunk_.size());
@@ -1968,7 +1879,7 @@ TEST_F(MultiBufTest, GetPastTheEndReturnsEmpty) {
 TEST_F(MultiBufTest, VisitContiguousDoesNotCopy) {
   ConstMultiBuf::Instance mbi(allocator_);
   ConstMultiBuf& mb = mbi;
-  ASSERT_TRUE(mb.TryReserveForPushBack(unowned_chunk_));
+  ASSERT_TRUE(mb.TryReserveForPushBack());
   mb.PushBack(unowned_chunk_);
   std::memset(unowned_chunk_.data(), 0x01, unowned_chunk_.size());
 
@@ -2027,7 +1938,7 @@ TEST_F(MultiBufTest, VisitNonContiguousCopies) {
 TEST_F(MultiBufTest, ClearFreesChunks) {
   ConstMultiBuf::Instance mbi(allocator_);
   ConstMultiBuf& mb = mbi;
-  ASSERT_TRUE(mb.TryReserveForPushBack(owned_chunk_));
+  ASSERT_TRUE(mb.TryReserveForPushBack());
   mb.PushBack(std::move(owned_chunk_));
   size_t allocated = allocator_.GetAllocated();
 
@@ -2039,11 +1950,11 @@ TEST_F(MultiBufTest, ShrinkToFitFreesUnusedCapacity) {
   ConstMultiBuf::Instance mbi(allocator_);
   ConstMultiBuf& mb = mbi;
 
-  ASSERT_TRUE(mb.TryReserveForPushBack(owned_chunk_));
+  ASSERT_TRUE(mb.TryReserveForPushBack());
   mb.PushBack(std::move(owned_chunk_));
   size_t allocated = allocator_.GetAllocated();
 
-  ASSERT_TRUE(mb.TryReserveForPushBack(unowned_chunk_));
+  ASSERT_TRUE(mb.TryReserveForPushBack());
   EXPECT_GT(allocator_.GetAllocated(), allocated);
 
   // Don't actually push chunks. Shrink to fit should free the unused slots.
@@ -2054,7 +1965,7 @@ TEST_F(MultiBufTest, ShrinkToFitFreesUnusedCapacity) {
 TEST_F(MultiBufTest, ClearAndShrinkToFitFreesAllMemory) {
   ConstMultiBuf::Instance mbi(allocator_);
   ConstMultiBuf& mb = mbi;
-  ASSERT_TRUE(mb.TryReserveForPushBack(owned_chunk_));
+  ASSERT_TRUE(mb.TryReserveForPushBack());
   mb.PushBack(std::move(owned_chunk_));
 
   mb.Clear();
@@ -2066,12 +1977,12 @@ TEST_F(MultiBufTest, IsReusableAfterClear) {
   ConstMultiBuf::Instance mbi(allocator_);
   ConstMultiBuf& mb = mbi;
   auto chunk = allocator_.MakeUnique<std::byte[]>(kN);
-  ASSERT_TRUE(mb.TryReserveForPushBack(chunk));
+  ASSERT_TRUE(mb.TryReserveForPushBack());
   mb.PushBack(std::move(chunk));
   mb.Clear();
 
   chunk = allocator_.MakeUnique<std::byte[]>(kN);
-  ASSERT_TRUE(mb.TryReserveForPushBack(chunk));
+  ASSERT_TRUE(mb.TryReserveForPushBack());
   mb.PushBack(std::move(chunk));
 }
 

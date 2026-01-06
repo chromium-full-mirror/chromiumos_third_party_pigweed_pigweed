@@ -276,7 +276,7 @@ template <typename EmbossWriter, typename HeaderType>
 
   // Insert the bytes into the Multibuf, transferring ownership of the
   // allocation.
-  if (!mb.TryReserveForInsert(insert_position, allocation)) {
+  if (!mb.TryReserveForInsert(insert_position)) {
     return false;
   }
 

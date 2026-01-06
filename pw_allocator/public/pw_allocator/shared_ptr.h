@@ -248,6 +248,9 @@ class SharedPtr final : public ::pw::allocator::internal::ManagedPtr<T> {
   template <typename>
   friend class WeakPtr;
 
+  // Allow GenericMultiBufs to compose SharedPtr<T>.
+  friend class ::pw::multibuf::internal::GenericMultiBuf;
+
   // Allow MultiBufs to decompose SharedPtr<T>.
   template <multibuf::Property...>
   friend class BasicMultiBuf;
@@ -265,10 +268,10 @@ class SharedPtr final : public ::pw::allocator::internal::ManagedPtr<T> {
   template <typename... Args>
   static SharedPtr Create(Allocator* allocator, Args&&... args);
 
-  /// Constructs an array of `count` objects, and wraps it in a `UniquePtr`
+  /// Constructs an array of `count` objects, and wraps it in a `SharedPtr`
   ///
   /// The returned value may contain null if allocating memory for the object
-  /// fails. Callers must check for null before using the `UniquePtr`.
+  /// fails. Callers must check for null before using the `SharedPtr`.
   ///
   /// NOTE: Instances of this type are most commonly constructed using
   /// `Allocator::MakeShared`.

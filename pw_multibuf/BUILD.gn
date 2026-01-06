@@ -328,6 +328,7 @@ pw_source_set("iterators") {
     ":chunk",
     "$dir_pw_assert:assert",
     "$dir_pw_containers:dynamic_deque",
+    dir_pw_allocator,
     dir_pw_bytes,
     dir_pw_preprocessor,
   ]

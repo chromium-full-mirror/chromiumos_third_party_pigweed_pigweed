@@ -346,6 +346,7 @@ pw_add_library(pw_multibuf._iterators INTERFACE
   PUBLIC_INCLUDES
     public
   PUBLIC_DEPS
+    pw_allocator
     pw_assert.assert
     pw_bytes
     pw_containers.dynamic_deque

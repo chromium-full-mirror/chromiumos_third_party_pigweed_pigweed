@@ -28,28 +28,24 @@ GenericMultiBuf& GenericMultiBuf::operator=(GenericMultiBuf&& other) {
   deque_ = std::move(other.deque_);
   entries_per_chunk_ =
       std::exchange(other.entries_per_chunk_, Entry::kMinEntriesPerChunk);
-  CopyMemoryContext(other);
-  other.ClearMemoryContext();
   observer_ = std::exchange(other.observer_, nullptr);
   return *this;
 }
 
-bool GenericMultiBuf::TryReserveChunks(size_t num_chunks) {
-  return TryReserveLayers(NumLayers(), num_chunks);
-}
-
 bool GenericMultiBuf::TryReserveForInsert(const_iterator pos,
                                           const GenericMultiBuf& mb) {
-  PW_CHECK(IsCompatible(mb));
   size_type entries_per_chunk = entries_per_chunk_;
   while (entries_per_chunk_ < mb.entries_per_chunk_) {
     if (!AddLayer(0)) {
       break;
     }
   }
-  if (entries_per_chunk_ >= mb.entries_per_chunk_ &&
-      TryReserveEntries(pos, entries_per_chunk_ * mb.num_chunks())) {
-    return true;
+  auto [chunk, offset] = GetChunkAndOffset(pos);
+  if (offset == 0 || !IsOwned(chunk) || TryConvertToShared(chunk)) {
+    if (entries_per_chunk_ >= mb.entries_per_chunk_ &&
+        TryReserveEntries(entries_per_chunk_ * mb.num_chunks(), offset != 0)) {
+      return true;
+    }
   }
   while (entries_per_chunk_ > entries_per_chunk) {
     PopLayer();
@@ -57,30 +53,14 @@ bool GenericMultiBuf::TryReserveForInsert(const_iterator pos,
   return false;
 }
 
-bool GenericMultiBuf::TryReserveForInsert(const_iterator pos, size_t size) {
-  PW_CHECK_UINT_LE(size, Entry::kMaxSize);
-  return TryReserveEntries(pos, entries_per_chunk_);
-}
-
-bool GenericMultiBuf::TryReserveForInsert(const_iterator pos,
-                                          size_t size,
-                                          const Deallocator* deallocator) {
-  PW_CHECK(IsCompatible(deallocator));
-  return TryReserveForInsert(pos, size);
-}
-
-bool GenericMultiBuf::TryReserveForInsert(const_iterator pos,
-                                          size_t size,
-                                          const ControlBlock* control_block) {
-  PW_CHECK(IsCompatible(control_block));
-  return TryReserveForInsert(pos, size);
+bool GenericMultiBuf::TryReserveForInsert(const_iterator pos) {
+  auto [chunk, offset] = GetChunkAndOffset(pos);
+  return (offset == 0 || !IsOwned(chunk) || TryConvertToShared(chunk)) &&
+         TryReserveEntries(entries_per_chunk_, offset != 0);
 }
 
 void GenericMultiBuf::Insert(const_iterator pos, GenericMultiBuf&& mb) {
   PW_CHECK(TryReserveForInsert(pos, mb));
-  if (!has_deallocator()) {
-    CopyMemoryContext(mb);
-  }
 
   // Make room for the other object's entries.
   size_type chunk = InsertChunks(pos, mb.num_chunks());
@@ -118,6 +98,7 @@ void GenericMultiBuf::Insert(const_iterator pos, GenericMultiBuf&& mb) {
 }
 
 void GenericMultiBuf::Insert(const_iterator pos, ConstByteSpan bytes) {
+  PW_CHECK(TryReserveForInsert(pos));
   Insert(pos, bytes, 0, bytes.size());
 }
 
@@ -126,11 +107,9 @@ void GenericMultiBuf::Insert(const_iterator pos,
                              size_t offset,
                              size_t length,
                              Deallocator* deallocator) {
-  PW_CHECK(TryReserveForInsert(pos, bytes.size(), deallocator));
-  if (!has_deallocator()) {
-    SetDeallocator(deallocator);
-  }
+  PW_CHECK(TryReserveForInsert(pos));
   size_type chunk = Insert(pos, bytes, offset, length);
+  deque_[memory_context_index(chunk)].deallocator = deallocator;
   deque_[base_view_index(chunk)].base_view.owned = true;
 }
 
@@ -139,25 +118,11 @@ void GenericMultiBuf::Insert(const_iterator pos,
                              size_t offset,
                              size_t length,
                              ControlBlock* control_block) {
-  PW_CHECK(TryReserveForInsert(pos, bytes.size(), control_block));
-  if (!has_control_block()) {
-    SetControlBlock(control_block);
-  }
+  PW_CHECK(TryReserveForInsert(pos));
   size_type chunk = Insert(pos, bytes, offset, length);
+  control_block->IncrementShared();
+  deque_[memory_context_index(chunk)].control_block = control_block;
   deque_[base_view_index(chunk)].base_view.shared = true;
-}
-
-bool GenericMultiBuf::IsRemovable(const_iterator pos, size_t size) const {
-  PW_CHECK(pos != cend());
-  PW_CHECK_UINT_NE(size, 0u);
-  if (static_cast<size_t>(cend() - pos) < size) {
-    return false;
-  }
-  auto [chunk, offset] = GetChunkAndOffset(pos);
-  auto end = pos + static_cast<difference_type>(size);
-  auto [end_chunk, end_offset] = GetChunkAndOffset(end);
-  return (offset == 0 || !IsOwned(chunk)) &&
-         (end_offset == 0 || !IsOwned(end_chunk));
 }
 
 Result<GenericMultiBuf> GenericMultiBuf::Remove(const_iterator pos,
@@ -167,8 +132,7 @@ Result<GenericMultiBuf> GenericMultiBuf::Remove(const_iterator pos,
   if (!TryReserveForRemove(pos, size, &out)) {
     return Status::ResourceExhausted();
   }
-  CopyRange(pos, size, out);
-  EraseRange(pos, size);
+  MoveRange(pos, size, out);
   if (observer_ != nullptr) {
     observer_->Notify(Observer::Event::kBytesRemoved, size);
   }
@@ -193,13 +157,11 @@ Result<GenericMultiBuf> GenericMultiBuf::PopFrontFragment() {
 
 Result<GenericMultiBuf::const_iterator> GenericMultiBuf::Discard(
     const_iterator pos, size_t size) {
-  PW_CHECK_UINT_NE(size, 0u);
-  difference_type out_offset = pos - begin();
   if (!TryReserveForRemove(pos, size, nullptr)) {
     return Status::ResourceExhausted();
   }
+  difference_type out_offset = pos - begin();
   ClearRange(pos, size);
-  EraseRange(pos, size);
   if (observer_ != nullptr) {
     observer_->Notify(Observer::Event::kBytesRemoved, size);
   }
@@ -217,7 +179,7 @@ UniquePtr<std::byte[]> GenericMultiBuf::Release(const_iterator pos) {
   auto [chunk, offset] = GetChunkAndOffset(pos);
   ByteSpan bytes(GetData(chunk),
                  deque_[base_view_index(chunk)].base_view.length);
-  auto* deallocator = GetDeallocator();
+  Deallocator* deallocator = deque_[memory_context_index(chunk)].deallocator;
   EraseRange(pos - offset, size_t{GetLength(chunk)});
   if (observer_ != nullptr) {
     observer_->Notify(Observer::Event::kBytesRemoved, bytes.size());
@@ -228,18 +190,16 @@ UniquePtr<std::byte[]> GenericMultiBuf::Release(const_iterator pos) {
 bool GenericMultiBuf::IsShareable(const_iterator pos) const {
   PW_CHECK(pos != cend());
   auto [chunk, offset] = GetChunkAndOffset(pos);
-  return !IsOwned(chunk) && IsShared(chunk);
+  return IsShared(chunk);
 }
 
-std::byte* GenericMultiBuf::Share(const_iterator pos) {
+SharedPtr<std::byte[]> GenericMultiBuf::Share(const_iterator pos) {
   PW_CHECK(IsShareable(pos));
   auto [chunk, offset] = GetChunkAndOffset(pos);
-  GetControlBlock()->IncrementShared();
-  return GetData(chunk);
-}
-
-size_t GenericMultiBuf::CopyTo(ByteSpan dst, size_t offset) const {
-  return CopyToImpl(dst, offset, 0);
+  ControlBlock* control_block =
+      deque_[memory_context_index(chunk)].control_block;
+  control_block->IncrementShared();
+  return SharedPtr<std::byte[]>(GetData(chunk), control_block);
 }
 
 size_t GenericMultiBuf::CopyFrom(ConstByteSpan src, size_t offset) {
@@ -288,31 +248,8 @@ ConstByteSpan GenericMultiBuf::Get(ByteSpan copy, size_t offset) const {
 }
 
 void GenericMultiBuf::Clear() {
-  while (entries_per_chunk_ > Entry::kMinEntriesPerChunk) {
-    UnsealTopLayer();
-    PopLayer();
-  }
-  // Free any owned chunks.
-  Deallocator* deallocator = has_deallocator() ? GetDeallocator() : nullptr;
-  size_t num_bytes = 0;
-  for (size_type chunk = 0; chunk < num_chunks(); ++chunk) {
-    num_bytes += size_t{GetLength(chunk)};
-    if (!IsOwned(chunk)) {
-      continue;
-    }
-    deallocator->Deallocate(GetData(chunk));
-    if (!IsShared(chunk)) {
-      continue;
-    }
-    for (size_type shared = FindShared(chunk, chunk + 1);
-         shared != num_chunks();
-         shared = FindShared(chunk, shared + 1)) {
-      deque_[base_view_index(shared)].base_view.owned = false;
-      deque_[base_view_index(shared)].base_view.shared = false;
-    }
-  }
-  deque_.clear();
-  ClearMemoryContext();
+  size_t num_bytes = size();
+  ClearRange(begin(), num_bytes);
   if (observer_ != nullptr) {
     observer_->Notify(Observer::Event::kBytesRemoved, num_bytes);
     observer_ = nullptr;
@@ -454,72 +391,13 @@ void GenericMultiBuf::PopLayer() {
 // Implementation methods
 
 size_t GenericMultiBuf::CheckRange(size_t offset, size_t length, size_t size) {
+  PW_CHECK_UINT_LE(size, Entry::kMaxSize);
   PW_CHECK_UINT_LE(offset, size);
   if (length == dynamic_extent) {
     return size - offset;
   }
   PW_CHECK_UINT_LE(length, size - offset);
   return length;
-}
-
-Deallocator* GenericMultiBuf::GetDeallocator() const {
-  switch (memory_tag_) {
-    case MemoryTag::kDeallocator:
-      return memory_context_.deallocator;
-    case MemoryTag::kControlBlock:
-      return memory_context_.control_block->allocator();
-    case MemoryTag::kEmpty:
-      PW_CRASH("Invalid memory tag");
-  }
-  PW_UNREACHABLE;
-}
-
-void GenericMultiBuf::SetDeallocator(Deallocator* deallocator) {
-  memory_tag_ = MemoryTag::kDeallocator;
-  memory_context_.deallocator = deallocator;
-}
-
-GenericMultiBuf::ControlBlock* GenericMultiBuf::GetControlBlock() const {
-  PW_DCHECK_UINT_EQ(memory_tag_, MemoryTag::kControlBlock);
-  return memory_context_.control_block;
-}
-
-void GenericMultiBuf::SetControlBlock(ControlBlock* control_block) {
-  memory_tag_ = MemoryTag::kControlBlock;
-  memory_context_.control_block = control_block;
-  memory_context_.control_block->IncrementShared();
-}
-
-void GenericMultiBuf::CopyMemoryContext(const GenericMultiBuf& other) {
-  memory_tag_ = other.memory_tag_;
-  memory_context_ = other.memory_context_;
-}
-
-void GenericMultiBuf::ClearMemoryContext() {
-  if (memory_tag_ == MemoryTag::kControlBlock) {
-    memory_context_.control_block->DecrementShared();
-  }
-  memory_tag_ = MemoryTag::kEmpty;
-  memory_context_.deallocator = nullptr;
-}
-
-bool GenericMultiBuf::IsCompatible(const GenericMultiBuf& other) const {
-  if (other.has_control_block()) {
-    return IsCompatible(other.GetControlBlock());
-  }
-  if (other.has_deallocator()) {
-    return IsCompatible(other.GetDeallocator());
-  }
-  return true;
-}
-
-bool GenericMultiBuf::IsCompatible(const Deallocator* other) const {
-  return !has_deallocator() || GetDeallocator() == other;
-}
-
-bool GenericMultiBuf::IsCompatible(const ControlBlock* other) const {
-  return has_control_block() ? (GetControlBlock() == other)
-                             : IsCompatible(other->allocator());
 }
 
 GenericMultiBuf::size_type GenericMultiBuf::NumFragments() const {
@@ -551,10 +429,19 @@ GenericMultiBuf::GetChunkAndOffset(const_iterator pos) const {
   return std::make_pair(chunk, offset);
 }
 
-bool GenericMultiBuf::TryReserveEntries(const_iterator pos,
-                                        size_type num_entries) {
-  auto [chunk, offset] = GetChunkAndOffset(pos);
-  return TryReserveEntries(num_entries, offset != 0);
+bool GenericMultiBuf::TryConvertToShared(size_type chunk) {
+  Deallocator* deallocator = deque_[memory_context_index(chunk)].deallocator;
+  std::byte* data = deque_[data_index(chunk)].data;
+  Entry::BaseView& base_view = deque_[base_view_index(chunk)].base_view;
+  auto* control_block =
+      ControlBlock::Create(deallocator, data, base_view.length);
+  if (control_block == nullptr) {
+    return false;
+  }
+  deque_[memory_context_index(chunk)].control_block = control_block;
+  base_view.owned = false;
+  base_view.shared = true;
+  return true;
 }
 
 bool GenericMultiBuf::TryReserveEntries(size_type num_entries, bool split) {
@@ -572,6 +459,7 @@ GenericMultiBuf::size_type GenericMultiBuf::InsertChunks(const_iterator pos,
     num_chunks++;
   }
   size_type num_entries = num_chunks * entries_per_chunk_;
+  PW_CHECK(TryReserveEntries(num_entries, offset != 0));
   Entry entry;
   entry.data = nullptr;
   for (size_type i = 0; i < num_entries; ++i) {
@@ -598,6 +486,7 @@ GenericMultiBuf::size_type GenericMultiBuf::Insert(const_iterator pos,
                                                    size_t length) {
   length = CheckRange(offset, length, bytes.size());
   size_type chunk = InsertChunks(pos, 1);
+  deque_[memory_context_index(chunk)].deallocator = nullptr;
   deque_[data_index(chunk)].data = const_cast<std::byte*>(bytes.data());
   auto offset_ = static_cast<Entry::size_type>(offset);
   auto length_ = static_cast<Entry::size_type>(length);
@@ -624,17 +513,17 @@ GenericMultiBuf::size_type GenericMultiBuf::Insert(const_iterator pos,
 void GenericMultiBuf::SplitBase(size_type chunk,
                                 Deque& out_deque,
                                 size_type out_chunk) {
-  if (IsOwned(chunk)) {
-    PW_CHECK_PTR_EQ(&deque_, &out_deque);
-    deque_[base_view_index(chunk)].base_view.shared = true;
-  }
   if (&deque_ == &out_deque && chunk == out_chunk) {
     return;
   }
+  PW_CHECK(!IsOwned(chunk));
   size_type index = chunk * entries_per_chunk_;
   size_type out_index = out_chunk * entries_per_chunk_;
   for (size_type i = 0; i < entries_per_chunk_; ++i) {
     out_deque[out_index + i] = deque_[index + i];
+  }
+  if (IsShared(chunk)) {
+    deque_[memory_context_index(chunk)].control_block->IncrementShared();
   }
 }
 
@@ -687,32 +576,44 @@ void GenericMultiBuf::SplitAfter(size_type chunk, size_type split) {
 bool GenericMultiBuf::TryReserveForRemove(const_iterator pos,
                                           size_t size,
                                           GenericMultiBuf* out) {
+  PW_CHECK_UINT_NE(size, 0u);
   auto [chunk, offset] = GetChunkAndOffset(pos);
   auto end = pos + static_cast<difference_type>(size);
   auto [end_chunk, end_offset] = GetChunkAndOffset(end);
   size_type shift = end_chunk - chunk;
+
+  // If removing part of an owned chunk, make it shared.
+  if (offset != 0 && IsOwned(chunk) && !TryConvertToShared(chunk)) {
+    return false;
+  }
+
+  // Removing a sub-chunk.
   if (shift == 0 && offset != 0) {
     return (out == nullptr || out->TryReserveEntries(entries_per_chunk_)) &&
-           TryReserveEntries(0, offset != 0);
+           TryReserveEntries(0, /*split=*/true);
   }
+
+  // If removing part of an owned chunk, make it shared.
+  if (end_offset != 0 && IsOwned(end_chunk) && !TryConvertToShared(end_chunk)) {
+    return false;
+  }
+
+  // Discarding entries, no room needed.
   if (out == nullptr) {
     return true;
   }
-  if (shift == 0 && offset == 0) {
-    return out->TryReserveEntries(entries_per_chunk_);
-  }
+
+  // Make room in `out`.
   if (end_offset != 0) {
     ++shift;
   }
   return out == nullptr || out->TryReserveEntries(shift * entries_per_chunk_);
 }
 
-void GenericMultiBuf::CopyRange(const_iterator pos,
+void GenericMultiBuf::MoveRange(const_iterator pos,
                                 size_t size,
                                 GenericMultiBuf& out) {
   out.entries_per_chunk_ = entries_per_chunk_;
-  out.CopyMemoryContext(*this);
-
   auto [chunk, offset] = GetChunkAndOffset(pos);
   auto end = pos + static_cast<difference_type>(size);
   auto [end_chunk, end_offset] = GetChunkAndOffset(end);
@@ -724,6 +625,7 @@ void GenericMultiBuf::CopyRange(const_iterator pos,
   if (shift == 0 && offset == 0) {
     out.InsertChunks(begin(), 1);
     SplitBefore(chunk, end_offset, out.deque_, 0);
+    EraseRange(pos, size);
     return;
   }
 
@@ -732,6 +634,7 @@ void GenericMultiBuf::CopyRange(const_iterator pos,
     out.InsertChunks(begin(), 1);
     SplitBefore(end_chunk, end_offset, out.deque_, 0);
     out.SplitAfter(0, offset);
+    EraseRange(pos, size);
     return;
   }
 
@@ -740,7 +643,7 @@ void GenericMultiBuf::CopyRange(const_iterator pos,
   size_type reserve = end_offset == 0 ? shift : shift + 1;
   out.InsertChunks(cend(), reserve);
 
-  // Copy the suffix of the first chunk.
+  // Move the suffix of the first chunk.
   if (offset != 0) {
     SplitAfter(chunk, offset, out.deque_, out_chunk);
     --shift;
@@ -748,47 +651,45 @@ void GenericMultiBuf::CopyRange(const_iterator pos,
     ++out_chunk;
   }
 
-  // Copy the complete chunks.
-  pw::copy(deque_.begin() + (chunk * entries_per_chunk_),
-           deque_.begin() + (end_chunk * entries_per_chunk_),
-           out.deque_.begin() + (out_chunk * entries_per_chunk_));
-
+  // Move the complete chunks.
+  size_type index = chunk * entries_per_chunk_;
+  size_type end_index = end_chunk * entries_per_chunk_;
+  size_type out_index = out_chunk * entries_per_chunk_;
+  pw::copy(deque_.begin() + index,
+           deque_.begin() + end_index,
+           out.deque_.begin() + out_index);
   chunk += shift;
   out_chunk += shift;
-  if (has_control_block()) {
-    GetControlBlock()->IncrementShared();
-  }
 
   // Copy the prefix of the last chunk.
   if (end_offset != 0) {
     SplitBefore(end_chunk, end_offset, out.deque_, out_chunk);
   }
+  EraseRange(pos, size);
 }
 
 void GenericMultiBuf::ClearRange(const_iterator pos, size_t size) {
   auto [chunk, offset] = GetChunkAndOffset(pos);
   auto end = pos + static_cast<difference_type>(size);
   auto [end_chunk, end_offset] = GetChunkAndOffset(end);
-
-  // Deallocate any owned memory that was not moved.
-  if (!has_deallocator()) {
-    return;
-  }
-  Deallocator* deallocator = GetDeallocator();
   if (offset != 0) {
     ++chunk;
   }
   for (; chunk < end_chunk; ++chunk) {
-    if (!IsOwned(chunk)) {
+    std::byte* data = deque_[data_index(chunk)].data;
+    if (IsOwned(chunk)) {
+      deque_[memory_context_index(chunk)].deallocator->Deallocate(data);
       continue;
     }
-    if (IsShared(chunk) && (FindShared(chunk, 0) != chunk ||
-                            FindShared(chunk, end_chunk) != num_chunks())) {
-      // There is at least one shared reference being kept.
+    if (!IsShared(chunk)) {
       continue;
     }
-    deallocator->Deallocate(GetData(chunk));
+    // To avoid races with other shared or weak pointers to the data, put the
+    // data pointer back into a SharedPtr and let it go out scope.
+    SharedPtr<std::byte[]> shared(
+        data, deque_[memory_context_index(chunk)].control_block);
   }
+  EraseRange(pos, size);
 }
 
 void GenericMultiBuf::EraseRange(const_iterator pos, size_t size) {
@@ -819,35 +720,6 @@ void GenericMultiBuf::EraseRange(const_iterator pos, size_t size) {
     deque_.erase(deque_.begin() + (chunk * entries_per_chunk_),
                  deque_.begin() + (end_chunk * entries_per_chunk_));
   }
-
-  // Check if the memory context is still needed.
-  if (!has_deallocator()) {
-    return;
-  }
-  Deallocator* deallocator = GetDeallocator();
-  bool needs_deallocator = false;
-  for (chunk = 0; chunk < num_chunks(); ++chunk) {
-    if (IsOwned(chunk)) {
-      needs_deallocator = true;
-    } else if (IsShared(chunk)) {
-      return;
-    }
-  }
-  ClearMemoryContext();
-  if (needs_deallocator) {
-    SetDeallocator(deallocator);
-  }
-}
-
-GenericMultiBuf::size_type GenericMultiBuf::FindShared(size_type chunk,
-                                                       size_type start) {
-  std::byte* data = GetData(chunk);
-  for (chunk = start; chunk < num_chunks(); ++chunk) {
-    if (IsShared(chunk) && data == GetData(chunk)) {
-      break;
-    }
-  }
-  return chunk;
 }
 
 size_t GenericMultiBuf::CopyToImpl(ByteSpan dst,

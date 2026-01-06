@@ -418,52 +418,6 @@ class BasicMultiBuf {
 
   // Other methods
 
-  /// Returns whether the MultiBuf can be added to this object.
-  ///
-  /// To be compatible, the memory for each of incoming MultiBuf's chunks must
-  /// be one of the following:
-  ///   * Externally managed, i.e. "unowned".
-  ///   * Deallocatable by the same deallocator as other chunks, if any.
-  ///   * Part of the same shared memory allocation as any other shared chunks.
-  ///
-  /// @param    mb      MultiBuf to check for compatibility.
-  bool IsCompatible(const BasicMultiBuf& mb) const {
-    return generic().IsCompatible(mb.generic());
-  }
-
-  /// @name IsCompatible
-  /// Returns whether the owned memory can be added to this object.
-  ///
-  /// To be compatible, the unique pointer must be the first owned or shared
-  /// memory added to the object, or have the same deallocator as all previously
-  /// owned or shared memory added to the object.
-  ///
-  /// @param    bytes   Owned memory to check for compatibility.
-  /// @{
-  bool IsCompatible(const UniquePtr<std::byte[]>& bytes) const {
-    return generic().IsCompatible(bytes.deallocator());
-  }
-  bool IsCompatible(const UniquePtr<const std::byte[]>& bytes) const {
-    return generic().IsCompatible(bytes.deallocator());
-  }
-  /// @}
-
-  /// @name IsCompatible
-  /// Returns whether the shared memory can be added to this object.
-  ///
-  /// To be compatible, the shared pointer must be the first shared pointer
-  /// added to the object, or match the shared pointer previously added.
-  ///
-  /// @param    bytes   Shared memory to check for compatibility.
-  /// @{
-  bool IsCompatible(const SharedPtr<std::byte[]>& bytes) const {
-    return generic().IsCompatible(bytes.control_block());
-  }
-  bool IsCompatible(const SharedPtr<const std::byte[]>& bytes) const {
-    return generic().IsCompatible(bytes.control_block());
-  }
-  /// @}
-
   /// Attempts to reserves memory to hold metadata for the given number of total
   /// chunks. Returns whether the memory was successfully allocated.
   [[nodiscard]] bool TryReserveChunks(size_t num_chunks) {
@@ -487,61 +441,16 @@ class BasicMultiBuf {
   [[nodiscard]] bool TryReserveForInsert(
       const_iterator pos, const BasicMultiBuf<kOtherProperties...>& mb);
 
-  /// Attempts to modify this object to be able to accept the given unowned
-  /// memory, and returns whether successful.
+  /// Attempts to modify this object to be able to insert a chunk at the given
+  /// position, and returns whether successful.
   ///
-  /// It is an error to call this method with an invalid iterator or
-  /// incompatible MultiBuf, if applicable.
-  ///
-  /// If unable to allocate space for the metadata, returns false and leaves the
-  /// object unchanged. Otherwise, returns true.
-  ///
-  /// @param    pos     Location to insert memory within the MultiBuf.
-  /// @param    bytes   Unowned memory to be inserted.
-  template <
-      int&... kExplicitGuard,
-      typename T,
-      typename =
-          std::enable_if_t<std::is_constructible_v<ConstByteSpan, T>, int>>
-  [[nodiscard]] bool TryReserveForInsert(const_iterator pos, const T& bytes);
-
-  /// @name TryReserveForInsert
-  /// Attempts to modify this object to be able to accept the given owned
-  /// memory, and returns whether successful.
-  ///
-  /// It is an error to call this method with an invalid iterator or
-  /// incompatible MultiBuf, if applicable.
+  /// It is an error to call this method with an invalid iterator.
   ///
   /// If unable to allocate space for the metadata, returns false and leaves the
   /// object unchanged. Otherwise, returns true.
   ///
   /// @param    pos     Location to insert memory within the MultiBuf.
-  /// @param    bytes   Owned memory to be inserted.
-  /// @{
-  [[nodiscard]] bool TryReserveForInsert(const_iterator pos,
-                                         const UniquePtr<std::byte[]>& bytes);
-  [[nodiscard]] bool TryReserveForInsert(
-      const_iterator pos, const UniquePtr<const std::byte[]>& bytes);
-  /// @}
-
-  /// @name TryReserveForInsert
-  /// Attempts to modify this object to be able to accept the given shared
-  /// memory, and returns whether successful.
-  ///
-  /// It is an error to call this method with an invalid iterator or
-  /// incompatible MultiBuf, if applicable.
-  ///
-  /// If unable to allocate space for the metadata, returns false and leaves the
-  /// object unchanged. Otherwise, returns true.
-  ///
-  /// @param    pos     Location to insert memory within the MultiBuf.
-  /// @param    bytes   Shared memory to be inserted.
-  /// @{
-  [[nodiscard]] bool TryReserveForInsert(const_iterator pos,
-                                         const SharedPtr<std::byte[]>& bytes);
-  [[nodiscard]] bool TryReserveForInsert(
-      const_iterator pos, const SharedPtr<const std::byte[]>& bytes);
-  /// @}
+  [[nodiscard]] bool TryReserveForInsert(const_iterator pos);
 
   /// Insert memory before the given iterator.
   ///
@@ -649,7 +558,7 @@ class BasicMultiBuf {
               size_t length = dynamic_extent);
   /// @}
 
-  /// Attempts to modify this object to be able to move the given MultiBuf to
+  /// Attempts to modify this object to be able to append the given MultiBuf to
   /// the end of this object.
   ///
   /// If unable to allocate space for the metadata, returns false and leaves the
@@ -660,47 +569,12 @@ class BasicMultiBuf {
   [[nodiscard]] bool TryReserveForPushBack(
       const BasicMultiBuf<kOtherProperties...>& mb);
 
-  /// Attempts to modify this object to be able to move the given unowned memory
-  /// to the end of this object.
+  /// Attempts to modify this object to be able to append a chunk to the end of
+  /// this object.
   ///
   /// If unable to allocate space for the metadata, returns false and leaves the
   /// object unchanged. Otherwise, returns true.
-  ///
-  /// @param    bytes   Unowned memory to be inserted.
-  template <
-      int&... kExplicitGuard,
-      typename T,
-      typename =
-          std::enable_if_t<std::is_constructible_v<ConstByteSpan, T>, int>>
-  [[nodiscard]] bool TryReserveForPushBack(const T& bytes);
-
-  /// @name TryReserveForPushBack
-  /// Attempts to modify this object to be able to move the given owned memory
-  /// to the end of this object.
-  ///
-  /// If unable to allocate space for the metadata, returns false and leaves the
-  /// object unchanged. Otherwise, returns true.
-  ///
-  /// @param    bytes   Owned memory to be inserted.
-  /// @{
-  [[nodiscard]] bool TryReserveForPushBack(const UniquePtr<std::byte[]>& bytes);
-  [[nodiscard]] bool TryReserveForPushBack(
-      const UniquePtr<const std::byte[]>& bytes);
-  /// @}
-
-  /// @name TryReserveForPushBack
-  /// Attempts to modify this object to be able to move the given shared memory
-  /// to the end of this object.
-  ///
-  /// If unable to allocate space for the metadata, returns false and leaves the
-  /// object unchanged. Otherwise, returns true.
-  ///
-  /// @param    bytes   Shared memory to be inserted.
-  /// @{
-  [[nodiscard]] bool TryReserveForPushBack(const SharedPtr<std::byte[]>& bytes);
-  [[nodiscard]] bool TryReserveForPushBack(
-      const SharedPtr<const std::byte[]>& bytes);
-  /// @}
+  [[nodiscard]] bool TryReserveForPushBack();
 
   /// Moves bytes to the end of this object.
   ///
@@ -800,9 +674,7 @@ class BasicMultiBuf {
   /// Returns whether the given range can be removed.
   ///
   /// A range may not be valid to `Remove` if it does not fall within the
-  /// MultiBuf, or if it splits "owned" chunks. Owned chunks are those added
-  /// using a `UniquePtr`. Splitting them between different MultiBufs would
-  /// result in conflicting ownership, and is therefore disallowed.
+  /// MultiBuf.
   ///
   /// @param    pos     Location from which to remove memory from the MultiBuf.
   /// @param    size    Amount of memory to remove.
@@ -1263,16 +1135,6 @@ class GenericMultiBuf final
     return static_cast<size_t>(cend() - cbegin());
   }
 
-  /// @copydoc BasicMultiBuf<>::has_deallocator
-  constexpr bool has_deallocator() const {
-    return memory_tag_ == MemoryTag::kDeallocator || has_control_block();
-  }
-
-  /// @copydoc BasicMultiBuf<>::has_control_block
-  constexpr bool has_control_block() const {
-    return memory_tag_ == MemoryTag::kControlBlock;
-  }
-
   // Iterators.
 
   constexpr ChunksType Chunks() {
@@ -1294,25 +1156,16 @@ class GenericMultiBuf final
 
   // Mutators.
 
-  /// @copydoc BasicMultiBuf<>::IsCompatible
-  bool IsCompatible(const GenericMultiBuf& other) const;
-  bool IsCompatible(const Deallocator* other) const;
-  bool IsCompatible(const ControlBlock* other) const;
-
   /// @copydoc BasicMultiBuf<>::TryReserveChunks
-  [[nodiscard]] bool TryReserveChunks(size_t num_chunks);
+  [[nodiscard]] bool TryReserveChunks(size_t num_chunks) {
+    return TryReserveLayers(NumLayers(), num_chunks);
+  }
 
   /// @copydoc BasicMultiBuf<>::TryReserveForInsert
   /// @{
   [[nodiscard]] bool TryReserveForInsert(const_iterator pos,
                                          const GenericMultiBuf& mb);
-  [[nodiscard]] bool TryReserveForInsert(const_iterator pos, size_t size);
-  [[nodiscard]] bool TryReserveForInsert(const_iterator pos,
-                                         size_t size,
-                                         const Deallocator* deallocator);
-  [[nodiscard]] bool TryReserveForInsert(const_iterator pos,
-                                         size_t size,
-                                         const ControlBlock* control_block);
+  [[nodiscard]] bool TryReserveForInsert(const_iterator pos);
   /// @}
 
   /// @copydoc BasicMultiBuf<>::Insert
@@ -1332,7 +1185,11 @@ class GenericMultiBuf final
   /// @}
 
   /// @copydoc BasicMultiBuf<>::IsRemovable
-  [[nodiscard]] bool IsRemovable(const_iterator pos, size_t size) const;
+  [[nodiscard]] constexpr bool IsRemovable(const_iterator pos,
+                                           size_t size) const {
+    return pos != cend() && size != 0 &&
+           size <= static_cast<size_t>(cend() - pos);
+  }
 
   /// @copydoc BasicMultiBuf<>::Remove
   Result<GenericMultiBuf> Remove(const_iterator pos, size_t size);
@@ -1353,10 +1210,12 @@ class GenericMultiBuf final
   [[nodiscard]] bool IsShareable(const_iterator pos) const;
 
   /// @copydoc BasicMultiBuf<>::Share
-  std::byte* Share(const_iterator pos);
+  SharedPtr<std::byte[]> Share(const_iterator pos);
 
   /// @copydoc BasicMultiBuf<>::CopyTo
-  size_t CopyTo(ByteSpan dst, size_t offset) const;
+  size_t CopyTo(ByteSpan dst, size_t offset) const {
+    return CopyToImpl(dst, offset, 0);
+  }
 
   /// @copydoc BasicMultiBuf<>::CopyFrom
   size_t CopyFrom(ConstByteSpan src, size_t offset);
@@ -1412,6 +1271,11 @@ class GenericMultiBuf final
   /// Returns the number of chunks in the MultiBuf.
   constexpr size_type num_chunks() const {
     return deque_.size() / entries_per_chunk_;
+  }
+
+  /// Returns the index to the data entry of a given chunk.
+  constexpr size_type memory_context_index(size_type chunk) const {
+    return Entry::memory_context_index(chunk, entries_per_chunk_);
   }
 
   /// Returns the index to the data entry of a given chunk.
@@ -1499,37 +1363,21 @@ class GenericMultiBuf final
     return ByteSpan(GetData(chunk) + GetOffset(chunk), GetLength(chunk));
   }
 
-  /// Returns the deallocator from the memory context, if set.
-  Deallocator* GetDeallocator() const;
-
-  /// Sets the deallocator.
-  void SetDeallocator(Deallocator* deallocator);
-
-  /// Returns the control block from the memory context, if set.
-  ControlBlock* GetControlBlock() const;
-
-  /// Sets the deallocator.
-  void SetControlBlock(ControlBlock* control_block);
-
-  /// Copies the memory context from another MultiBuf.
-  void CopyMemoryContext(const GenericMultiBuf& other);
-
-  /// Resets the memory context to its initial state.
-  void ClearMemoryContext();
-
   /// Converts an iterator into a chunk index and byte offset.
   ///
   /// The given iterator must be valid.
   std::pair<size_type, size_type> GetChunkAndOffset(const_iterator pos) const;
 
+  /// Attempts to allocate a control block and convert an owned chunk into a
+  /// shared one.
+  [[nodiscard]] bool TryConvertToShared(size_type chunk);
+
   /// Attempts to allocate room for an additional `num_entries` of metadata.
   ///
   /// If the added entries would split a chunk, an extra chunk will be needed to
   /// hold the split portion.
-  /// @{
-  bool TryReserveEntries(const_iterator pos, size_type num_entries);
-  bool TryReserveEntries(size_type num_entries, bool split = false);
-  /// @}
+  [[nodiscard]] bool TryReserveEntries(size_type num_entries,
+                                       bool split = false);
 
   /// Inserts the given number of empty chunk into the deque at the given
   /// position, and returns the chunk index to the start of the chunk.
@@ -1595,11 +1443,11 @@ class GenericMultiBuf final
                                          size_t size,
                                          GenericMultiBuf* out);
 
-  /// Copies entries for a given range of bytes from this object to another.
+  /// Moves entries for a given range of bytes from this object to another.
   ///
   /// It is an error to call this method without calling `TryReserveForRemove`
   /// first.
-  void CopyRange(const_iterator pos, size_t size, GenericMultiBuf& out);
+  void MoveRange(const_iterator pos, size_t size, GenericMultiBuf& out);
 
   /// Clears any chunks that fall completely within the given range.
   ///
@@ -1611,10 +1459,6 @@ class GenericMultiBuf final
   /// It is an error to call this method without calling `TryReserveForRemove`
   /// first.
   void EraseRange(const_iterator pos, size_t size);
-
-  /// Returns the first chunk after `start`, inclusive, that is shared and has
-  /// the same data as the given `chunk`.
-  size_type FindShared(size_type chunk, size_type start);
 
   /// Copies `dst.size()` bytes from `offset` to `dst`, using the chunk hint,
   /// `start`.
@@ -1647,35 +1491,6 @@ class GenericMultiBuf final
 
   // Number of entries per chunk in this MultiBuf.
   size_type entries_per_chunk_ = Entry::kMinEntriesPerChunk;
-
-  /// @name MemoryContext
-  /// Encapsulates details about the ownership of the memory buffers stored in
-  /// this object.
-  ///
-  /// The discriminated union is managed using an explicit tag as opposed to
-  /// using ``std::variant``. This tag is smaller than the pointer stored in the
-  /// context, and can be stored alongside the ``entries_per_chunk_`` member.
-  /// This allows for a more compact MultiBuf object than one that uses
-  /// ``std::variant``.
-  ///
-  /// It is strongly recommended to maintain the abstraction of these members by
-  /// using the "{has_/Get/Set}{Deallocator/ControlBlock}" methods above rather
-  /// than accessing these members directly.
-  ///
-  /// See ``IsCompatible`` for details on what combinations of memory ownership
-  /// are supported.
-  /// @{
-  enum class MemoryTag : uint8_t {
-    kEmpty,
-    kDeallocator,
-    kControlBlock,
-  } memory_tag_ = MemoryTag::kEmpty;
-
-  union MemoryContext {
-    Deallocator* deallocator;
-    ControlBlock* control_block;
-  } memory_context_ = {.deallocator = nullptr};
-  /// }@
 
   /// Optional subscriber to notifications about adding and removing bytes and
   /// layers.
@@ -1793,6 +1608,11 @@ class Instance {
 // Template method implementations.
 
 template <multibuf::Property... kProperties>
+bool BasicMultiBuf<kProperties...>::TryReserveForInsert(const_iterator pos) {
+  return generic().TryReserveForInsert(pos);
+}
+
+template <multibuf::Property... kProperties>
 template <multibuf::Property... kOtherProperties>
 bool BasicMultiBuf<kProperties...>::TryReserveForInsert(
     const_iterator pos, const BasicMultiBuf<kOtherProperties...>& mb) {
@@ -1800,46 +1620,6 @@ bool BasicMultiBuf<kProperties...>::TryReserveForInsert(
                                           BasicMultiBuf>();
   return generic().TryReserveForInsert(pos,
                                        static_cast<const GenericMultiBuf&>(mb));
-}
-
-template <multibuf::Property... kProperties>
-template <int&... kExplicitGuard, typename T, typename>
-bool BasicMultiBuf<kProperties...>::TryReserveForInsert(const_iterator pos,
-                                                        const T& bytes) {
-  using data_ptr_type = decltype(std::data(std::declval<T&>()));
-  static_assert(std::is_same_v<data_ptr_type, std::byte*> || is_const(),
-                "Cannot `Insert` read-only bytes into mutable MultiBuf");
-  return generic().TryReserveForInsert(pos, bytes.size());
-}
-
-template <multibuf::Property... kProperties>
-bool BasicMultiBuf<kProperties...>::TryReserveForInsert(
-    const_iterator pos, const UniquePtr<std::byte[]>& bytes) {
-  return generic().TryReserveForInsert(pos, bytes.size(), bytes.deallocator());
-}
-
-template <multibuf::Property... kProperties>
-bool BasicMultiBuf<kProperties...>::TryReserveForInsert(
-    const_iterator pos, const UniquePtr<const std::byte[]>& bytes) {
-  static_assert(is_const(),
-                "Cannot `Insert` read-only bytes into mutable MultiBuf");
-  return generic().TryReserveForInsert(pos, bytes.size(), bytes.deallocator());
-}
-
-template <multibuf::Property... kProperties>
-bool BasicMultiBuf<kProperties...>::TryReserveForInsert(
-    const_iterator pos, const SharedPtr<std::byte[]>& bytes) {
-  return generic().TryReserveForInsert(
-      pos, bytes.size(), bytes.control_block());
-}
-
-template <multibuf::Property... kProperties>
-bool BasicMultiBuf<kProperties...>::TryReserveForInsert(
-    const_iterator pos, const SharedPtr<const std::byte[]>& bytes) {
-  static_assert(is_const(),
-                "Cannot `Insert` read-only bytes into mutable MultiBuf");
-  return generic().TryReserveForInsert(
-      pos, bytes.size(), bytes.control_block());
 }
 
 template <multibuf::Property... kProperties>
@@ -1907,44 +1687,13 @@ template <multibuf::Property... kProperties>
 template <multibuf::Property... kOtherProperties>
 bool BasicMultiBuf<kProperties...>::TryReserveForPushBack(
     const BasicMultiBuf<kOtherProperties...>& mb) {
-  return TryReserveForInsert(end(), mb);
+  return generic().TryReserveForInsert(end(),
+                                       static_cast<const GenericMultiBuf&>(mb));
 }
 
 template <multibuf::Property... kProperties>
-template <int&... kExplicitGuard, typename T, typename>
-bool BasicMultiBuf<kProperties...>::TryReserveForPushBack(const T& bytes) {
-  using data_ptr_type = decltype(std::data(std::declval<T&>()));
-  static_assert(std::is_same_v<data_ptr_type, std::byte*> || is_const(),
-                "Cannot `PushBack` read-only bytes into mutable MultiBuf");
-  return TryReserveForInsert(end(), bytes);
-}
-
-template <multibuf::Property... kProperties>
-bool BasicMultiBuf<kProperties...>::TryReserveForPushBack(
-    const UniquePtr<std::byte[]>& bytes) {
-  return TryReserveForInsert(end(), std::move(bytes));
-}
-
-template <multibuf::Property... kProperties>
-bool BasicMultiBuf<kProperties...>::TryReserveForPushBack(
-    const UniquePtr<const std::byte[]>& bytes) {
-  static_assert(is_const(),
-                "Cannot `PushBack` read-only bytes into mutable MultiBuf");
-  return TryReserveForInsert(end(), std::move(bytes));
-}
-
-template <multibuf::Property... kProperties>
-bool BasicMultiBuf<kProperties...>::TryReserveForPushBack(
-    const SharedPtr<std::byte[]>& bytes) {
-  return TryReserveForInsert(end(), bytes);
-}
-
-template <multibuf::Property... kProperties>
-bool BasicMultiBuf<kProperties...>::TryReserveForPushBack(
-    const SharedPtr<const std::byte[]>& bytes) {
-  static_assert(is_const(),
-                "Cannot `PushBack` read-only bytes into mutable MultiBuf");
-  return TryReserveForInsert(end(), bytes);
+bool BasicMultiBuf<kProperties...>::TryReserveForPushBack() {
+  return generic().TryReserveForInsert(end());
 }
 
 template <multibuf::Property... kProperties>
@@ -2029,8 +1778,7 @@ BasicMultiBuf<kProperties...>::Release(const_iterator pos) {
 template <multibuf::Property... kProperties>
 SharedPtr<typename BasicMultiBuf<kProperties...>::value_type[]>
 BasicMultiBuf<kProperties...>::Share(const_iterator pos) {
-  return SharedPtr<value_type[]>(generic().Share(pos),
-                                 generic().GetControlBlock());
+  return SharedPtr<value_type[]>(generic().Share(pos));
 }
 
 }  // namespace pw

@@ -27,7 +27,7 @@ std::optional<FlatMultiBufInstance> MultiBufAdapter::Create(
     return mbuf;
   }
   auto chunk = allocator.data_alloc.MakeUnique<std::byte[]>(payload);
-  if (chunk == nullptr || !mbuf->TryReserveForPushBack(chunk)) {
+  if (chunk == nullptr || !mbuf->TryReserveForPushBack()) {
     return std::nullopt;
   }
   mbuf->PushBack(std::move(chunk));

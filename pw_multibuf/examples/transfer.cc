@@ -68,7 +68,7 @@ class NetworkPacket {
       return Status::ResourceExhausted();
     }
     NetworkPacket packet(allocator);
-    if (!packet.mbuf_->TryReserveForPushBack(metadata)) {
+    if (!packet.mbuf_->TryReserveForPushBack()) {
       return Status::ResourceExhausted();
     }
     packet.mbuf_->PushBack(std::move(metadata));
@@ -97,7 +97,7 @@ class NetworkPacket {
 
   /// Add a payload to a network packet.
   [[nodiscard]] bool AddPayload(UniquePtr<std::byte[]>&& payload) {
-    if (!mbuf_->TryReserveForPushBack(payload)) {
+    if (!mbuf_->TryReserveForPushBack()) {
       return false;
     }
     mbuf_->PushBack(std::move(payload));
