@@ -13,6 +13,7 @@
 # the License.
 
 load("//pw_bluetooth_proxy/gatt:gatt.bzl", "pw_bluetooth_proxy_gatt_library", "pw_bluetooth_proxy_gatt_test")
+load("//pw_unit_test:pw_cc_test.bzl", "pw_cc_test")
 
 package(
     default_visibility = ["//visibility:public"],
@@ -43,6 +44,13 @@ pw_bluetooth_proxy_gatt_library(
     visibility = ["//visibility:private"],
 )
 
+pw_bluetooth_proxy_gatt_library(
+    name = "gatt_async_mbv2",
+    testonly = True,
+    versioned_deps = ["//pw_bluetooth_proxy:pw_bluetooth_proxy_async_mbv2"],
+    visibility = ["//visibility:private"],
+)
+
 pw_bluetooth_proxy_gatt_test(
     name = "gatt_v1_test",
     versioned_deps = [
@@ -54,5 +62,16 @@ pw_bluetooth_proxy_gatt_test(
     name = "gatt_v2_test",
     versioned_deps = [
         ":gatt_v2",
+    ],
+)
+
+pw_cc_test(
+    name = "gatt_integration_test",
+    srcs = ["gatt_integration_test.cc"],
+    deps = [
+        ":gatt_async_mbv2",
+        "//pw_allocator:testing",
+        "//pw_bluetooth_proxy:test_utils_async_mbv2",
+        "//pw_containers:vector",
     ],
 )

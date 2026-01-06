@@ -45,6 +45,28 @@ pw_source_set("gatt") {
   # LINT.ThenChange(Android.bp, BUILD.bazel, CMakeLists.txt)
 }
 
+pw_source_set("gatt_async_mbv2") {
+  # LINT.IfChange
+  public = [ "public/pw_bluetooth_proxy/gatt/gatt.h" ]
+  public_configs = [ ":public_include_path" ]
+  public_deps = [
+    "$dir_pw_allocator",
+    "$dir_pw_assert:check",
+    "$dir_pw_bluetooth_proxy:pw_bluetooth_proxy_async_mbv2",
+    "$dir_pw_containers:dynamic_vector",
+    "$dir_pw_containers:intrusive_map",
+    "$dir_pw_log",
+  ]
+  deps = [
+    "$dir_pw_bluetooth:emboss_att",
+    "$dir_pw_bluetooth:emboss_util",
+  ]
+  sources = [ "gatt.cc" ]
+  visibility = [ ":*" ]
+
+  # LINT.ThenChange(Android.bp, BUILD.bazel, CMakeLists.txt)
+}
+
 pw_test("gatt_test") {
   enable_if = dir_pw_third_party_emboss != "" && pw_thread_ID_BACKEND != ""
 
@@ -61,4 +83,28 @@ pw_test("gatt_test") {
   ]
 
   # LINT.ThenChange(BUILD.bazel, CMakeLists.txt)
+}
+
+pw_test("gatt_integration_test") {
+  enable_if =
+      dir_pw_third_party_emboss != "" && pw_thread_THREAD_BACKEND != "" &&
+      pw_thread_TEST_THREAD_CONTEXT_BACKEND != ""
+
+  # LINT.IfChange
+  sources = [ "gatt_integration_test.cc" ]
+  deps = [
+    ":gatt_async_mbv2",
+    "$dir_pw_allocator:testing",
+    "$dir_pw_bluetooth_proxy:test_utils_async_mbv2",
+    "$dir_pw_containers:vector",
+  ]
+
+  # LINT.ThenChange(BUILD.bazel, CMakeLists.txt)
+}
+
+pw_test_group("tests") {
+  tests = [
+    ":gatt_test",
+    ":gatt_integration_test",
+  ]
 }

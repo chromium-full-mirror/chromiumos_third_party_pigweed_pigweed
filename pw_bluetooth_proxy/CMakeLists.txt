@@ -16,8 +16,6 @@ include($ENV{PW_ROOT}/pw_build/pigweed.cmake)
 include($ENV{PW_ROOT}/pw_thread/backend.cmake)
 include($ENV{PW_ROOT}/third_party/emboss/emboss.cmake)
 
-add_subdirectory(gatt)
-
 ###############################################################################
 ##          Everything below here is intended to be emboss only              ##
 ##          and will be skipped if emboss isn't enabled.                     ##
@@ -433,3 +431,6 @@ pw_add_library(pw_bluetooth_proxy._test_utils_async_mbv2 STATIC
     test_utils_async.cc
     test_utils_sync.cc
 )
+
+# GATT depends on the above targets, so add_subdirectory() must be called last.
+add_subdirectory(gatt)

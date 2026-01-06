@@ -45,6 +45,27 @@ pw_add_library(pw_bluetooth_proxy.gatt STATIC
 # LINT.ThenChange(Android.bp, gatt.bzl, BUILD.gn)
 )
 
+pw_add_library(pw_bluetooth_proxy.gatt._async_mbv2 STATIC
+# LINT.IfChange
+  HEADERS
+    public/pw_bluetooth_proxy/gatt/gatt.h
+  PUBLIC_INCLUDES
+    public
+  PUBLIC_DEPS
+    pw_allocator
+    pw_assert.check
+    pw_bluetooth_proxy._async_mbv2
+    pw_containers.dynamic_vector
+    pw_containers.intrusive_map
+    pw_log
+  PRIVATE_DEPS
+    pw_bluetooth.emboss_att
+    pw_bluetooth.emboss_util
+  SOURCES
+    gatt.cc
+# LINT.ThenChange(Android.bp, gatt.bzl, BUILD.gn)
+)
+
 pw_add_test(pw_bluetooth_proxy.gatt.gatt_test
 # LINT.IfChange
   PRIVATE_DEPS
@@ -57,6 +78,20 @@ pw_add_test(pw_bluetooth_proxy.gatt.gatt_test
     pw_sync.no_lock
   SOURCES
     gatt_test.cc
+  GROUPS
+    modules
+# LINT.ThenChange(Android.bp, BUILD.bazel, BUILD.gn)
+)
+
+pw_add_test(pw_bluetooth_proxy.gatt.gatt_integration_test
+# LINT.IfChange
+  PRIVATE_DEPS
+    pw_bluetooth_proxy.gatt._async_mbv2
+    pw_allocator.testing
+    pw_containers.vector
+    pw_bluetooth_proxy._test_utils_async_mbv2
+  SOURCES
+    gatt_integration_test.cc
   GROUPS
     modules
 # LINT.ThenChange(Android.bp, BUILD.bazel, BUILD.gn)
