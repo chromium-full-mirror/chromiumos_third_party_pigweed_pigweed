@@ -24,6 +24,8 @@
 #include "pw_log/log.h"
 #include "pw_thread/sleep.h"
 
+#define PW_TASK_NAME_FMT() PW_LOG_TOKEN_FMT("pw_async2")
+
 namespace pw::async2 {
 namespace {
 
@@ -42,7 +44,7 @@ Task::~Task() {
       state_,
       State::kUnposted,
       "Tasks must be deregistered before they are destroyed; "
-      "the " PW_LOG_TOKEN_FMT() " task is still posted to a dispatcher",
+      "the " PW_TASK_NAME_FMT() " task is still posted to a dispatcher",
       name_);
 }
 
@@ -128,7 +130,7 @@ void Task::Join() {
 
 // Called by the dispatcher to run this task.
 Task::RunResult Task::RunInDispatcher() {
-  PW_LOG_DEBUG("Dispatcher running task " PW_LOG_TOKEN_FMT() ":%p",
+  PW_LOG_DEBUG("Dispatcher running task " PW_TASK_NAME_FMT() ":%p",
                name_,
                static_cast<const void*>(this));
 
@@ -167,7 +169,7 @@ Task::RunResult Task::RunInDispatcher() {
     dispatcher_ = nullptr;
     RemoveAllWakersLocked();
 
-    PW_LOG_DEBUG("Task " PW_LOG_TOKEN_FMT() ":%p completed",
+    PW_LOG_DEBUG("Task " PW_TASK_NAME_FMT() ":%p completed",
                  name_,
                  static_cast<const void*>(this));
     return owned_by_dispatcher_ ? kCompletedNeedsDestroy : kCompleted;
@@ -175,15 +177,16 @@ Task::RunResult Task::RunInDispatcher() {
 
   if (state_ == State::kRunning) {
     PW_LOG_DEBUG(
-        "Dispatcher adding task " PW_LOG_TOKEN_FMT() ":%p to sleep queue",
+        "Dispatcher adding task " PW_TASK_NAME_FMT() ":%p to sleep queue",
         name_,
         static_cast<const void*>(this));
 
     if (requires_waker) {
       PW_CHECK(!wakers_.empty(),
-               "Task " PW_LOG_TOKEN_FMT()
+               "Task " PW_TASK_NAME_FMT()
                ":%p returned Pending() without registering a waker",
-               name_, static_cast<const void*>(this));
+               name_,
+               static_cast<const void*>(this));
       state_ = State::kSleeping;
       dispatcher_->AddSleepingTaskLocked(*this);
     } else {
@@ -193,14 +196,14 @@ Task::RunResult Task::RunInDispatcher() {
     }
   }
   PW_LOG_DEBUG(
-      "Task " PW_LOG_TOKEN_FMT() ":%p finished its run and is still pending",
+      "Task " PW_TASK_NAME_FMT() ":%p finished its run and is still pending",
       name_,
       static_cast<const void*>(this));
   return kActive;
 }
 
 bool Task::Wake() {
-  PW_LOG_DEBUG("Dispatcher waking task " PW_LOG_TOKEN_FMT() ":%p",
+  PW_LOG_DEBUG("Dispatcher waking task " PW_TASK_NAME_FMT() ":%p",
                name_,
                static_cast<const void*>(this));
 

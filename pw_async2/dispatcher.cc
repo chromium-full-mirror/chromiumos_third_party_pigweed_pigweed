@@ -117,7 +117,7 @@ void Dispatcher::LogRegisteredTasks() {
 
   PW_LOG_INFO("Woken tasks:");
   for (const Task& task : woken_) {
-    PW_LOG_INFO("  - " PW_LOG_TOKEN_FMT() ":%p",
+    PW_LOG_INFO("  - " PW_LOG_TOKEN_FMT("pw_async2") ":%p",
                 task.name_,
                 static_cast<const void*>(&task));
   }
@@ -126,7 +126,7 @@ void Dispatcher::LogRegisteredTasks() {
     int waker_count = static_cast<int>(
         std::distance(task.wakers_.begin(), task.wakers_.end()));
 
-    PW_LOG_INFO("  - " PW_LOG_TOKEN_FMT() ":%p (%d wakers)",
+    PW_LOG_INFO("  - " PW_LOG_TOKEN_FMT("pw_async2") ":%p (%d wakers)",
                 task.name_,
                 static_cast<const void*>(&task),
                 waker_count);
