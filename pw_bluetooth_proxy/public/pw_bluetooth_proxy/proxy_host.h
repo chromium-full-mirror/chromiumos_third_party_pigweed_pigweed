@@ -14,7 +14,6 @@
 
 #pragma once
 
-#include "pw_async2/dispatcher.h"
 #include "pw_bluetooth_proxy/gatt_notify_channel.h"
 #include "pw_bluetooth_proxy/internal/acl_data_channel.h"
 #include "pw_bluetooth_proxy/internal/hci_transport.h"
@@ -28,7 +27,14 @@
 
 #if PW_BLUETOOTH_PROXY_ASYNC == 0
 #include "pw_bluetooth_proxy/internal/proxy_host_sync.h"
+
+// TODO: b/472522742 - Forward-declare the dispatcher until downstream support
+// for pw_async2 is resolved.
+namespace pw::async2 {
+class Dispatcher;
+}  // namespace pw::async2
 #else
+#include "pw_async2/dispatcher.h"
 #include "pw_bluetooth_proxy/internal/proxy_host_async.h"
 #endif  // PW_BLUETOOTH_PROXY_ASYNC
 
