@@ -15,10 +15,16 @@
 
 #include <string_view>
 
+#include "pw_function/function.h"
+#include "pw_status/status.h"
+
 namespace codelab::webui {
 
-void StartWebUIServer();
+void StartWebUIServer(
+    pw::Function<pw::Status(std::string_view)> do_received_text);
 
 void SetDisplay(std::string_view text);
+
+void SetDispenserMotorState(int state);
 
 }  // namespace codelab::webui

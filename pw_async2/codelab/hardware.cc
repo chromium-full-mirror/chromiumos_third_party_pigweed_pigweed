@@ -55,6 +55,35 @@ void DebugDispatcher() {
   }
 }
 
+Status HandleSingleCommand(char command) {
+  switch (command) {
+    case kCoinReceived:
+      coin_inserted_isr();
+      break;
+    case kItemDropSensor:
+      item_drop_sensor_isr();
+      break;
+    case kKeypress1:
+    case kKeypress2:
+    case kKeypress3:
+    case kKeypress4:
+      key_press_isr(static_cast<char>(command) - '0');
+      break;
+    case kQuit:
+      std::_Exit(0);
+    case kDebugDispatcher:
+      DebugDispatcher();
+      break;
+    default:
+      PW_LOG_WARN("Received unexpected command: %c (0x%02x)",
+                  static_cast<char>(command),
+                  static_cast<int>(command));
+      return Status::InvalidArgument();
+  }
+
+  return {};
+}
+
 Status StreamHardwareLoop(pw::stream::Reader& reader) {
   char command = '\0';
 
@@ -64,29 +93,8 @@ Status StreamHardwareLoop(pw::stream::Reader& reader) {
       continue;  // ignore space characters
     }
 
-    switch (command) {
-      case kCoinReceived:
-        coin_inserted_isr();
-        break;
-      case kItemDropSensor:
-        item_drop_sensor_isr();
-        break;
-      case kKeypress1:
-      case kKeypress2:
-      case kKeypress3:
-      case kKeypress4:
-        key_press_isr(static_cast<char>(command) - '0');
-        break;
-      case kQuit:
-        return pw::OkStatus();
-      case kDebugDispatcher:
-        DebugDispatcher();
-        break;
-      default:
-        PW_LOG_WARN("Received unexpected command: %c (0x%02x)",
-                    static_cast<char>(command),
-                    static_cast<int>(command));
-        return Status::InvalidArgument();
+    if (const auto status = HandleSingleCommand(command); !status.ok()) {
+      return status;
     }
   }
 }
@@ -95,8 +103,6 @@ Status CommandLineHardwareLoop() {
   pw::stream::SysIoReader sys_io_reader;
   return StreamHardwareLoop(sys_io_reader);
 }
-
-pw::stream::SocketStream webui_socket;
 
 constexpr bool kUseWebUi = PW_ASYNC2_CODELAB_WEBUI;
 
@@ -132,28 +138,39 @@ void SetDispenserMotorState(int item, MotorState state) {
   PW_LOG_INFO("[Motor for item %d set to %s]",
               item,
               state == MotorState::kOff ? "Off" : "On");
+
+  if (kUseWebUi) {
+    webui::SetDispenserMotorState(state == MotorState::kOff ? -item : item);
+  }
 }
 
 void HardwareInit(pw::async2::Dispatcher* dispatcher) {
   current_dispatcher = dispatcher;
 
-  if (!kUseWebUi) {
-    PW_LOG_INFO("==========================================");
-    PW_LOG_INFO("Command line HW simulation notes:");
-    PW_LOG_INFO("  Type 'q' (then enter) to quit.");
-    PW_LOG_INFO("  Type 'd' to show the dispatcher state.");
-    PW_LOG_INFO("  Type 'c' to insert a coin.");
-    PW_LOG_INFO("  Type 'i' to signal an item dropped.");
-    PW_LOG_INFO("  Type '1'..'4' to press a keypad key.");
-    PW_LOG_INFO("==========================================");
+  if (kUseWebUi) {
+    webui::StartWebUIServer([](std::string_view text) -> pw::Status {
+      if (text.size() != 1) {
+        pw::InlineString<kDisplayCharacters> command;
+        pw::string::Append(command, text).IgnoreError();
+        PW_LOG_ERROR("Unexpected command '%s'", command.c_str());
+        return pw::Status::InvalidArgument();
+      }
+
+      return HandleSingleCommand(text[0]);
+    });
   }
+
+  PW_LOG_INFO("==========================================");
+  PW_LOG_INFO("Command line HW simulation notes:");
+  PW_LOG_INFO("  Type 'q' (then enter) to quit.");
+  PW_LOG_INFO("  Type 'd' to show the dispatcher state.");
+  PW_LOG_INFO("  Type 'c' to insert a coin.");
+  PW_LOG_INFO("  Type 'i' to signal an item dropped.");
+  PW_LOG_INFO("  Type '1'..'4' to press a keypad key.");
+  PW_LOG_INFO("==========================================");
 
   std::thread hardware_thread(HardwareLoop);
   hardware_thread.detach();
-
-  if (kUseWebUi) {
-    webui::StartWebUIServer();
-  }
 }
 
 }  // namespace codelab

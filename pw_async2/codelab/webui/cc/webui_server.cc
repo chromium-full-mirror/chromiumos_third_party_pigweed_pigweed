@@ -17,11 +17,13 @@
 #include <array>
 #include <cstddef>
 #include <cstdlib>
+#include <mutex>
 #include <optional>
 #include <string_view>
 #include <thread>
 #include <utility>
 
+#include "pw_function/function.h"
 #include "pw_log/log.h"
 #include "pw_preprocessor/compiler.h"
 #include "pw_result/result.h"
@@ -29,6 +31,9 @@
 #include "pw_status/status.h"
 #include "pw_stream/socket_stream.h"
 #include "pw_string/string_builder.h"
+#include "pw_sync/interrupt_spin_lock.h"
+#include "pw_sync/lock_annotations.h"
+#include "websocket_frame_protocol.h"
 #include "websocket_http_upgrade.h"
 #include "webui/resources.h"
 
@@ -140,18 +145,93 @@ pw::Result<pw::span<const std::byte>> ProcessHttpRequest(
 
 class ClientState {
  public:
-  explicit ClientState(pw::stream::SocketStream&& connection)
-      : connection_(std::move(connection)) {}
+  explicit ClientState(
+      pw::stream::SocketStream&& connection,
+      pw::Function<pw::Status(std::string_view)>& do_received_text)
+      : connection_(std::move(connection)),
+        do_received_text_(&do_received_text) {}
 
   pw::Result<pw::span<const std::byte>> HandleHttpRequest(
       pw::span<const std::byte> request_bytes) {
     auto result = ProcessHttpRequest(
         request_bytes, response_buffer_, using_websocket_protocol_);
-    if (using_websocket_protocol_) {
-      PW_LOG_INFO("Websocket connection established");
+    return result;
+  }
+
+  pw::Result<pw::span<const std::byte>> HandleWebsocketRequest(
+      pw::span<std::byte> request_bytes) {
+    pw::span<std::byte> response = response_buffer_;
+    size_t used = 0;
+
+    pw::span<std::byte> remaining_bytes = request_bytes;
+    while (!remaining_bytes.empty()) {
+      using namespace pw::experimental::websocket::frame_protocol;
+
+      auto frame_result = DecodeFrame(remaining_bytes);
+      if (!frame_result.ok()) {
+        return frame_result.status();
+      }
+
+      auto received = *frame_result;
+      if (!received.final_fragment) {
+        PW_LOG_CRITICAL("Fragmented messages are not supported.");
+        return pw::Status::FailedPrecondition();
+      }
+      if (!received.mask.has_value()) {
+        PW_LOG_CRITICAL("Client frames must be masked.");
+        return pw::Status::FailedPrecondition();
+      }
+
+      switch (received.opcode) {
+        case Frame::kClose: {
+          auto encode_result = EncodeFrame(Frame{.final_fragment = true,
+                                                 .opcode = Frame::kClose,
+                                                 .payload = received.payload},
+                                           response);
+          if (!encode_result.ok()) {
+            return encode_result.status();
+          }
+          used += encode_result->size();
+          break;
+        }
+
+        case Frame::kPing: {
+          auto encode_result = EncodeFrame(Frame{.final_fragment = true,
+                                                 .opcode = Frame::kPong,
+                                                 .payload = received.payload},
+                                           response);
+          if (!encode_result.ok()) {
+            return encode_result.status();
+          }
+          used += encode_result->size();
+          break;
+        }
+
+        case Frame::kPong:
+          PW_LOG_CRITICAL("Unexpected Pong");
+          return pw::Status::InvalidArgument();
+          break;
+
+        case Frame::kText: {
+          auto status = (*do_received_text_)(std::string_view(
+              reinterpret_cast<const char*>(received.payload.data()),
+              received.payload.size()));
+          if (!status.ok()) {
+            return status;
+          }
+          break;
+        }
+
+        case Frame::kContinuation:
+        case Frame::kBinary:
+        default:
+          PW_LOG_CRITICAL("Unsupported opcode: %d",
+                          static_cast<int>(received.opcode));
+          return pw::Status::InvalidArgument();
+      }
     }
 
-    return result;
+    return response.subspan(0, used);
   }
 
   void HandleClientLoop() {
@@ -164,44 +244,80 @@ class ClientState {
       }
 
       pw::Result<pw::span<const std::byte>> response_result;
+      bool was_using_websocket_protocol = using_websocket_protocol_;
       if (!using_websocket_protocol_) {
         response_result = HandleHttpRequest(*request_result);
-        if (!response_result.ok()) {
-          PW_LOG_CRITICAL("handling request failed: %s",
-                          response_result.status().str());
+      } else {
+        response_result = HandleWebsocketRequest(*request_result);
+      }
+
+      if (response_result.ok()) {
+        const auto response = *response_result;
+        const auto write_status =
+            connection_.Write(response.data(), response.size());
+        if (!write_status.ok()) {
+          PW_LOG_CRITICAL("write failed: %s", write_status.str());
           return;
         }
-
       } else {
-        PW_LOG_ERROR("Websocket protocol message received");
-        return;
+        PW_LOG_CRITICAL("handling request failed: %s",
+                        response_result.status().str());
       }
 
-      const auto response = *response_result;
-      const auto write_status =
-          connection_.Write(response.data(), response.size());
-      if (!write_status.ok()) {
-        PW_LOG_CRITICAL("write failed: %s", write_status.str());
-        return;
-      }
-
-      if (!using_websocket_protocol_) {
+      if (!response_result.ok() || !using_websocket_protocol_) {
         done_with_client_ = true;
+      }
+
+      if (!was_using_websocket_protocol && using_websocket_protocol_) {
+        PW_LOG_INFO("Websocket connection established");
+        websocket_ready_ = true;
+        Send(pw::as_bytes(pw::span("rset"sv)));
       }
     }
   }
 
+  void Send(pw::span<const std::byte> data) {
+    if (!websocket_ready_) {
+      return;
+    }
+
+    using namespace pw::experimental::websocket::frame_protocol;
+
+    constexpr size_t kEncodedBufferSize = 128;
+    std::array<std::byte, kEncodedBufferSize> encoded_buffer;
+    auto result = EncodeFrame(
+        Frame{.final_fragment = true, .opcode = Frame::kText, .payload = data},
+        encoded_buffer);
+
+    if (!result.ok()) {
+      PW_LOG_CRITICAL("Encoding frame failed: %s", result.status().str());
+      return;
+    }
+
+    const auto encoded = *result;
+    const auto write_status = connection_.Write(encoded.data(), encoded.size());
+    if (!write_status.ok()) {
+      PW_LOG_CRITICAL("write failed: %s", write_status.str());
+    }
+  }
+
  private:
+  bool websocket_ready_ = false;
   bool done_with_client_ = false;
   bool using_websocket_protocol_ = false;
   pw::stream::SocketStream connection_;
+  pw::Function<pw::Status(std::string_view)>* do_received_text_;
   std::array<std::byte, kRequestBufferSize> request_buffer_{};
   std::array<std::byte, kResponseBufferSize> response_buffer_{};
 };
 
-std::optional<ClientState> client_state;
+pw::sync::InterruptSpinLock client_lock;
+std::optional<ClientState> client_state PW_GUARDED_BY(client_lock);
 
-void AcceptConnectionsLoop() {
+void AcceptConnectionsLoop(
+    pw::Function<pw::Status(std::string_view)> do_received_text) {
+  std::atexit([]() { std::_Exit(0); });
+
   constexpr int kListenPort = 8081;
   pw::stream::ServerSocket server;
   if (const pw::Status status = server.Listen(kListenPort); !status.ok()) {
@@ -224,13 +340,22 @@ void AcceptConnectionsLoop() {
       return;
     }
 
-    client_state.emplace(std::move(*connection));
+    ClientState* state = nullptr;
+
+    {
+      std::lock_guard lock(client_lock);
+      client_state.emplace(std::move(*connection), do_received_text);
+      state = &client_state.value();
+    }
+
     PW_LOG_INFO("Client connected.");
-
-    client_state->HandleClientLoop();
-
-    client_state.reset();
+    state->HandleClientLoop();
     PW_LOG_INFO("Client disconnected.");
+
+    {
+      std::lock_guard lock(client_lock);
+      client_state.reset();
+    }
   }
 
   PW_UNREACHABLE;
@@ -238,13 +363,37 @@ void AcceptConnectionsLoop() {
 
 }  // namespace
 
-void StartWebUIServer() {
-  std::thread server_thread(AcceptConnectionsLoop);
+void StartWebUIServer(
+    pw::Function<pw::Status(std::string_view)> do_received_text) {
+  std::thread server_thread(AcceptConnectionsLoop, std::move(do_received_text));
   server_thread.detach();
 }
 
 void SetDisplay([[maybe_unused]] std::string_view text) {
-  PW_LOG_INFO("webui::SetDisplay() is WIP");
+  std::lock_guard lock(client_lock);
+  if (!client_state) {
+    return;
+  }
+
+  constexpr size_t kBufferSize = 120;
+  std::array<std::byte, kBufferSize> response_buffer{};
+  auto response = pw::StringBuilder(response_buffer);
+  response.append("msg:");
+  response.append(text);
+  client_state->Send(response.as_bytes());
+}
+
+void SetDispenserMotorState(int state) {
+  std::lock_guard lock(client_lock);
+  if (!client_state) {
+    return;
+  }
+
+  constexpr size_t kBufferSize = 128;
+  std::array<std::byte, kBufferSize> response_buffer{};
+  auto response = pw::StringBuilder(response_buffer);
+  response.Format("%+d", state);
+  client_state->Send(response.as_bytes());
 }
 
 }  // namespace codelab::webui

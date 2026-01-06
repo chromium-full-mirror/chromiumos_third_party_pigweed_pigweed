@@ -60,6 +60,7 @@ cc_library(
         "//pw_assert:check",
         "//pw_async2",
         "//pw_async2/codelab/webui:webui_server",
+        "//pw_function",
         "//pw_log",
         "//pw_status",
         "//pw_stream:socket_stream",
@@ -67,7 +68,7 @@ cc_library(
         "//pw_string:string",
         "//pw_string:util",
     ],
-    local_defines = ["PW_ASYNC2_CODELAB_WEBUI=0"],
+    local_defines = ["PW_ASYNC2_CODELAB_WEBUI=1"],
     strip_include_prefix = ".",
     target_compatible_with = incompatible_with_mcu(),
 )
