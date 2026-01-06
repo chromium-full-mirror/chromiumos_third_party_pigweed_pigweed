@@ -373,6 +373,7 @@ pw_source_set("multibuf_v2") {
     ":iterators",
     ":properties",
     "$dir_pw_allocator:null_allocator",
+    "$dir_pw_containers:algorithm",
     "$dir_pw_containers:dynamic_deque",
     dir_pw_allocator,
     dir_pw_bytes,

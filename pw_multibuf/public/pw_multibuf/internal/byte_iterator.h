@@ -58,10 +58,12 @@ class ByteIterator {
 
   // Support converting non-const iterators to const_iterators.
   constexpr operator ByteIterator<SizeType, ChunkMutability::kConst>() const {
-    return {chunk_, offset_};
+    return {chunk_iterator_, offset_};
   }
 
-  constexpr reference operator*() const { return chunk_->data()[offset_]; }
+  constexpr reference operator*() const {
+    return chunk_iterator_->data()[offset_];
+  }
 
   constexpr reference operator[](difference_type n) const {
     return *(*this + n);
@@ -81,9 +83,9 @@ class ByteIterator {
     }
     size_t delta = static_cast<size_t>(n);
     delta += offset_;
-    while (delta != 0 && chunk_->size() <= delta) {
-      delta -= chunk_->size();
-      ++chunk_;
+    while (delta != 0 && chunk_iterator_->size() <= delta) {
+      delta -= chunk_iterator_->size();
+      ++chunk_iterator_;
     }
     offset_ = delta;
     return *this;
@@ -111,9 +113,9 @@ class ByteIterator {
     }
     size_t delta = static_cast<size_t>(n);
     while (delta > offset_) {
-      --chunk_;
+      --chunk_iterator_;
       delta -= offset_;
-      offset_ = chunk_->size();
+      offset_ = chunk_iterator_->size();
     }
     offset_ -= delta;
     return *this;
@@ -129,13 +131,13 @@ class ByteIterator {
       return -(rhs - lhs);
     }
     difference_type delta = 0;
-    auto chunk = rhs.chunk_;
+    auto chunk_iterator = rhs.chunk_iterator_;
     size_t offset = rhs.offset_;
-    while (chunk != lhs.chunk_) {
-      ConstByteSpan bytes = *chunk;
+    while (chunk_iterator != lhs.chunk_iterator_) {
+      ConstByteSpan bytes = *chunk_iterator;
       delta += static_cast<difference_type>(bytes.size() - offset);
       offset = 0;
-      ++chunk;
+      ++chunk_iterator;
     }
     return delta + static_cast<difference_type>(lhs.offset_);
   }
@@ -184,15 +186,15 @@ class ByteIterator {
   // For unit testing.
   friend class ::pw::multibuf::test::IteratorTest;
 
-  constexpr ByteIterator(ChunkIteratorType&& chunk, size_t offset)
-      : chunk_(std::move(chunk)), offset_(offset) {}
+  constexpr ByteIterator(ChunkIteratorType&& chunk_iterator, size_t offset)
+      : chunk_iterator_(std::move(chunk_iterator)), offset_(offset) {}
 
-  constexpr size_type chunk_index() const { return chunk_.index_; }
+  constexpr size_type chunk() const { return chunk_iterator_.chunk_; }
 
   // Compare using a method to allow access to the befriended ChunkIterator.
   constexpr int Compare(const ByteIterator& other) const {
-    if (chunk_ != other.chunk_) {
-      return chunk_.index_ < other.chunk_.index_ ? -1 : 1;
+    if (chunk_iterator_ != other.chunk_iterator_) {
+      return chunk_iterator_.chunk_ < other.chunk_iterator_.chunk_ ? -1 : 1;
     }
     if (offset_ != other.offset_) {
       return offset_ < other.offset_ ? -1 : 1;
@@ -200,7 +202,7 @@ class ByteIterator {
     return 0;
   }
 
-  ChunkIteratorType chunk_;
+  ChunkIteratorType chunk_iterator_;
   size_t offset_ = 0;
 };
 

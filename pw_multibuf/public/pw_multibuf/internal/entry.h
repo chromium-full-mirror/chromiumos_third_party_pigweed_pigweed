@@ -39,6 +39,40 @@ union Entry {
   /// Offset and length must fit in 15 bits.
   static constexpr size_t kMaxSize = ~(1U << 15);
 
+  /// Per-chunk index entry that holds the data pointer.
+  static constexpr size_type kDataIndex = 0;
+
+  /// Per-chunk index entry that holds the base view of the data.
+  static constexpr size_type kBaseViewIndex = 1;
+
+  /// Minimum number of entries per chunk.
+  static constexpr size_type kMinEntriesPerChunk = 2;
+
+  /// Returns the index to the data entry of a given chunk.
+  static constexpr size_type data_index(size_type chunk,
+                                        size_type entries_per_chunk) {
+    return chunk * entries_per_chunk + kDataIndex;
+  }
+
+  /// Returns the index to the base view entry of a given chunk.
+  static constexpr size_type base_view_index(size_type chunk,
+                                             size_type entries_per_chunk) {
+    return chunk * entries_per_chunk + kBaseViewIndex;
+  }
+
+  /// Returns the index to a view entry of a given chunk.
+  static constexpr size_type view_index(size_type chunk,
+                                        size_type entries_per_chunk,
+                                        size_type layer) {
+    return chunk * entries_per_chunk + kBaseViewIndex + layer - 1;
+  }
+
+  /// Returns the index to the top view entry of a given chunk.
+  static constexpr size_type top_view_index(size_type chunk,
+                                            size_type entries_per_chunk) {
+    return (chunk + 1) * entries_per_chunk - 1;
+  }
+
   /// Pointer to memory.
   std::byte* data;
 

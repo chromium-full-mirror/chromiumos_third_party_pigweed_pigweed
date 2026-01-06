@@ -397,6 +397,7 @@ pw_add_library(pw_multibuf.multibuf_v2 STATIC
     pw_allocator
     pw_allocator.null_allocator
     pw_bytes
+    pw_containers.algorithm
     pw_containers.dynamic_deque
     pw_multibuf._iterators
     pw_multibuf.properties

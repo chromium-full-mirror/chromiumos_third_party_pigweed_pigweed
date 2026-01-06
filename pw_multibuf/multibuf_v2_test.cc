@@ -735,18 +735,30 @@ TEST_F(MultiBufTest, IsDerefencableWithArrayOperator) {
 TEST_F(MultiBufTest, IterateConstChunksOverEmpty) {
   ConstMultiBuf::Instance mbi(allocator_);
   ConstMultiBuf& mb = mbi;
-  for (auto buffer : mb.ConstChunks()) {
-    EXPECT_NE(buffer.data(), buffer.data());
-    EXPECT_NE(buffer.size(), buffer.size());
+  for ([[maybe_unused]] auto buffer : mb.ConstChunks()) {
+    FAIL();
   }
 }
 
 TEST_F(MultiBufTest, IterateChunksOverEmpty) {
   MultiBuf::Instance mbi(allocator_);
   MultiBuf& mb = mbi;
-  for (auto buffer : mb.Chunks()) {
-    EXPECT_NE(buffer.data(), buffer.data());
-    EXPECT_NE(buffer.size(), buffer.size());
+  for ([[maybe_unused]] auto buffer : mb.Chunks()) {
+    FAIL();
+  }
+}
+
+TEST_F(MultiBufTest, IterateChunksOverEmptyChunks) {
+  ConstMultiBuf::Instance mbi(allocator_);
+  ConstMultiBuf& mb = mbi;
+  for (size_t i = 0; i < 3; ++i) {
+    pw::ByteSpan s;
+    ASSERT_TRUE(mb.TryReserveForPushBack(s));
+    mb.PushBack(s);
+  }
+
+  for ([[maybe_unused]] auto buffer : mb.Chunks()) {
+    FAIL();
   }
 }
 

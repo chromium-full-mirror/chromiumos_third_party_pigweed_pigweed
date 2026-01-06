@@ -89,7 +89,7 @@ class ChunkIterator {
   constexpr
   operator ChunkIterator<SizeType, kContiguity, ChunkMutability::kConst>()
       const {
-    return {deque_, depth_, index_};
+    return {deque_, chunk_, entries_per_chunk_};
   }
 
   constexpr reference operator*() {
@@ -130,8 +130,9 @@ class ChunkIterator {
 
   constexpr friend bool operator==(const ChunkIterator& lhs,
                                    const ChunkIterator& rhs) {
-    return lhs.deque_ == rhs.deque_ && lhs.depth_ == rhs.depth_ &&
-           lhs.index_ == rhs.index_;
+    return lhs.deque_ == rhs.deque_ &&
+           lhs.entries_per_chunk_ == rhs.entries_per_chunk_ &&
+           lhs.chunk_ == rhs.chunk_;
   }
 
   constexpr friend bool operator!=(const ChunkIterator& lhs,
@@ -154,28 +155,42 @@ class ChunkIterator {
 
   friend MultiBufV1Adapter;
 
-  constexpr ChunkIterator(Deque* deque, size_type depth, size_type index)
-      : deque_(deque), depth_(depth), index_(index) {
+  constexpr ChunkIterator(Deque* deque,
+                          size_type chunk,
+                          size_type entries_per_chunk)
+      : deque_(deque), chunk_(chunk), entries_per_chunk_(entries_per_chunk) {
     ResetCurrent();
   }
 
   [[nodiscard]] constexpr bool is_valid() const {
-    return deque_ != nullptr && index_ < deque_->size();
+    return deque_ != nullptr && chunk_ < num_chunks();
   }
 
-  constexpr ByteType* data(size_type index) const {
-    return (*deque_)[index].data + (*deque_)[index + depth_ - 1].view.offset;
+  constexpr size_type num_chunks() const {
+    return deque_ == nullptr ? 0 : deque_->size() / entries_per_chunk_;
   }
 
-  constexpr size_t size(size_type index) const {
-    return (*deque_)[index + depth_ - 1].view.length;
+  constexpr ByteType* data(size_type chunk) const {
+    size_type data_index = Entry::data_index(chunk, entries_per_chunk_);
+    size_type view_index = Entry::top_view_index(chunk, entries_per_chunk_);
+    size_type offset = entries_per_chunk_ == Entry::kMinEntriesPerChunk
+                           ? (*deque_)[view_index].base_view.offset
+                           : (*deque_)[view_index].view.offset;
+    return (*deque_)[data_index].data + offset;
+  }
+
+  constexpr size_t size(size_type chunk) const {
+    size_type view_index = Entry::top_view_index(chunk, entries_per_chunk_);
+    return entries_per_chunk_ == Entry::kMinEntriesPerChunk
+               ? (*deque_)[view_index].base_view.length
+               : (*deque_)[view_index].view.length;
   }
 
   constexpr void ResetCurrent();
 
   Deque* deque_ = nullptr;
-  size_type depth_ = 0;
-  size_type index_ = 0;
+  size_type chunk_ = 0;
+  size_type entries_per_chunk_ = Entry::kMinEntriesPerChunk;
   SpanType current_;
 };
 
@@ -188,8 +203,8 @@ constexpr ChunkIterator<SizeType, kContiguity, kMutability>&
 ChunkIterator<SizeType, kContiguity, kMutability>::operator=(
     const ChunkIterator& other) {
   deque_ = other.deque_;
-  depth_ = other.depth_;
-  index_ = other.index_;
+  chunk_ = other.chunk_;
+  entries_per_chunk_ = other.entries_per_chunk_;
   ResetCurrent();
   return *this;
 }
@@ -202,18 +217,18 @@ ChunkIterator<SizeType, kContiguity, kMutability>::operator++() {
   PW_ASSERT(is_valid());
 
   if constexpr (kContiguity == ChunkContiguity::kKeepAll) {
-    index_ += depth_;
+    ++chunk_;
     ResetCurrent();
     return *this;
   }
 
   size_t left = current_.size();
   while (left != 0) {
-    left -= size(index_);
-    index_ += depth_;
+    left -= size(chunk_);
+    ++chunk_;
   }
-  while (index_ < deque_->size() && size(index_) == 0) {
-    index_ += depth_;
+  while (chunk_ < num_chunks() && size(chunk_) == 0) {
+    ++chunk_;
   }
   ResetCurrent();
   return *this;
@@ -225,22 +240,22 @@ template <typename SizeType,
 constexpr ChunkIterator<SizeType, kContiguity, kMutability>&
 ChunkIterator<SizeType, kContiguity, kMutability>::operator--() {
   PW_ASSERT(deque_ != nullptr);
-  PW_ASSERT(index_ != 0);
+  PW_ASSERT(chunk_ != 0);
 
   if constexpr (kContiguity == ChunkContiguity::kKeepAll) {
-    index_ -= depth_;
-    current_ = SpanType(data(index_), size(index_));
+    --chunk_;
+    current_ = SpanType(data(chunk_), size(chunk_));
     return *this;
   }
 
   current_ = SpanType();
-  while (index_ != 0) {
-    SpanType prev(data(index_ - depth_), size(index_ - depth_));
+  while (chunk_ != 0) {
+    SpanType prev(data(chunk_ - 1), size(chunk_ - 1));
     if (!current_.empty() && prev.data() + prev.size() != current_.data()) {
       break;
     }
     current_ = SpanType(prev.data(), prev.size() + current_.size());
-    index_ -= depth_;
+    --chunk_;
   }
   return *this;
 }
@@ -252,26 +267,33 @@ constexpr void
 ChunkIterator<SizeType, kContiguity, kMutability>::ResetCurrent() {
   if (!is_valid()) {
     current_ = SpanType();
+    chunk_ = num_chunks();
     return;
   }
 
+  current_ = SpanType(data(chunk_), size(chunk_));
   if constexpr (kContiguity == ChunkContiguity::kKeepAll) {
-    current_ = SpanType(data(index_), size(index_));
     return;
   }
 
-  current_ = SpanType(data(index_), size(index_));
-  for (size_type i = index_; i < deque_->size() - depth_; i += depth_) {
-    SpanType next(data(i + depth_), size(i + depth_));
-    if (current_.empty()) {
-      current_ = next;
-      index_ += depth_;
+  for (size_type i = chunk_ + 1; i < num_chunks(); ++i) {
+    size_t next_size = size(i);
+    if (next_size == 0) {
       continue;
     }
-    if (current_.data() + current_.size() != next.data()) {
+    auto* next_data = data(i);
+    if (current_.empty()) {
+      current_ = SpanType(next_data, next_size);
+      chunk_ = i;
+      continue;
+    }
+    if (current_.data() + current_.size() != next_data) {
       break;
     }
-    current_ = SpanType(current_.data(), current_.size() + next.size());
+    current_ = SpanType(current_.data(), current_.size() + next_size);
+  }
+  if (current_.empty()) {
+    chunk_ = num_chunks();
   }
 }
 

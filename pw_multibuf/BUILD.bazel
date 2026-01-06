@@ -443,6 +443,7 @@ cc_library(
         "//pw_allocator",
         "//pw_allocator:null_allocator",
         "//pw_bytes",
+        "//pw_containers:algorithm",
         "//pw_containers:dynamic_deque",
     ],
 )

@@ -43,7 +43,7 @@ class ChunksImpl {
 
   constexpr size_type size() const {
     if constexpr (kContiguity == ChunkContiguity::kKeepAll) {
-      return deque().size() / depth();
+      return deque().size() / begin_.entries_per_chunk_;
     }
     return static_cast<size_type>(std::distance(begin_, end_));
   }
@@ -65,20 +65,15 @@ class ChunksImpl {
                          const Deque&,
                          Deque&>;
 
-  constexpr void Init(DequeRefType& deque, size_type depth) {
+  constexpr ChunksImpl(DequeRefType& deque, size_type entries_per_chunk) {
     begin_.deque_ = &deque;
-    begin_.depth_ = depth;
+    begin_.entries_per_chunk_ = entries_per_chunk;
     end_.deque_ = &deque;
-    end_.depth_ = depth;
-    end_.index_ = deque.size();
-  }
-
-  constexpr ChunksImpl(DequeRefType& deque, size_type depth) {
-    Init(deque, depth);
+    end_.entries_per_chunk_ = entries_per_chunk;
+    end_.chunk_ = deque.size() / entries_per_chunk;
   }
 
   constexpr const Deque& deque() const { return *(begin_.deque_); }
-  constexpr size_type depth() const { return begin_.depth_; }
 
   iterator begin_;
   iterator end_;
