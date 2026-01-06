@@ -12,8 +12,6 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 
-#include <initializer_list>
-#include <string_view>
 #define PW_LOG_MODULE_NAME "EXAMPLES_TOP_DOWN_FORWARD"
 
 #include <algorithm>
@@ -22,6 +20,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
+#include <initializer_list>
+#include <string_view>
 #include <utility>
 
 #include "pw_allocator/allocator.h"

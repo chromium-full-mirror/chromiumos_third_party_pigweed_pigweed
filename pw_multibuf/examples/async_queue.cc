@@ -17,16 +17,14 @@
 #include "pw_allocator/allocator.h"
 #include "pw_allocator/testing.h"
 #include "pw_assert/assert.h"
+#include "pw_async2/basic_dispatcher.h"
 #include "pw_async2/context.h"
-#include "pw_async2/dispatcher.h"
-#include "pw_async2/dispatcher_for_test.h"
 #include "pw_async2/pend_func_task.h"
 #include "pw_async2/poll.h"
 #include "pw_async2/try.h"
 #include "pw_async2/waker.h"
 #include "pw_bytes/span.h"
 #include "pw_multibuf/multibuf_v2.h"
-#include "pw_multibuf/observer.h"
 #include "pw_unit_test/framework.h"
 
 namespace pw::multibuf::examples {
@@ -135,7 +133,7 @@ TEST(RingBufferTest, CanPushAndPop) {
       });
   // DOCSTAG: [pw_multibuf-examples-async_queue-consumer]
 
-  async2::DispatcherForTest dispatcher;
+  async2::BasicDispatcher dispatcher;
   dispatcher.Post(producer);
   dispatcher.Post(consumer);
   dispatcher.RunToCompletion();

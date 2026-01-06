@@ -18,8 +18,8 @@
 #include "pw_allocator/allocator.h"
 #include "pw_allocator/testing.h"
 #include "pw_assert/check.h"
+#include "pw_async2/basic_dispatcher.h"
 #include "pw_async2/context.h"
-#include "pw_async2/dispatcher_for_test.h"
 #include "pw_async2/pend_func_task.h"
 #include "pw_async2/poll.h"
 #include "pw_async2/try.h"
@@ -293,7 +293,7 @@ const char* kLoremIpsum =
 TEST(LinkTest, SendAndReceiveData) {
   allocator::test::AllocatorForTest<2048> allocator;
   Link link;
-  async2::DispatcherForTest dispatcher;
+  async2::BasicDispatcher dispatcher;
 
   auto tx_payload =
       allocator.MakeUnique<std::byte[]>(std::strlen(kLoremIpsum) + 1);
