@@ -35,7 +35,7 @@ ControlBlock* ControlBlock::Create(Allocator* allocator,
   auto addr = cpp20::bit_cast<uintptr_t>(ptr);
   addr = AlignUp(addr + sizeof(ControlBlock), layout.alignment());
   auto* data = cpp20::bit_cast<std::byte*>(addr);
-  return new (ptr) ControlBlock(allocator, data, size);
+  return new (ptr) ControlBlock(allocator, data, size, true);
 }
 
 ControlBlock* ControlBlock::Create(Deallocator* deallocator,
@@ -50,7 +50,24 @@ ControlBlock* ControlBlock::Create(Deallocator* deallocator,
   if (ptr == nullptr) {
     return nullptr;
   }
-  return new (ptr) ControlBlock(allocator, data, size);
+  return new (ptr) ControlBlock(allocator, data, size, false);
+}
+
+ControlBlock::ControlBlock(Allocator* allocator,
+                           void* data,
+                           size_t size,
+                           bool coallocated)
+    : allocator_(allocator),
+      data_(data),
+      coallocated_and_size_((size << 1) | (coallocated ? 1 : 0)),
+      num_weak_and_shared_(Pack(1, 1)) {
+  PW_CHECK_UINT_EQ(size, GetSize());
+}
+
+ControlBlock::~ControlBlock() {
+  if (!IsCoallocated()) {
+    allocator_->Deallocate(data_);
+  }
 }
 
 int32_t ControlBlock::num_shared() const noexcept {

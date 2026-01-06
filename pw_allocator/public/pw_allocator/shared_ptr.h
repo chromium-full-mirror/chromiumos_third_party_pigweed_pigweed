@@ -403,6 +403,7 @@ void SharedPtr<T>::reset() noexcept {
     Base::Resize(allocator, control_block_, sizeof(ControlBlock));
   } else {
     // No `WeakPtr`s remain, and all of the memory can be freed.
+    std::destroy_at(control_block_);
     Base::Deallocate(allocator, control_block_);
   }
 

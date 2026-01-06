@@ -214,6 +214,7 @@ void WeakPtr<T>::reset() noexcept {
     return;
   }
   Allocator* allocator = control_block_->allocator();
+  std::destroy_at(control_block_);
   Base::Deallocate(allocator, control_block_);
   control_block_ = nullptr;
 }

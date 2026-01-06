@@ -75,15 +75,21 @@ class ControlBlock final {
                               void* data,
                               size_t size);
 
+  /// Destructor.
+  ///
+  /// If this control block was `Create`d for previously allocated memory, that
+  /// memory is freed.
+  ~ControlBlock();
+
   /// Returns the allocator that allocated the control block.
-  Allocator* allocator() const { return allocator_; }
+  constexpr Allocator* allocator() const { return allocator_; }
 
   /// Returns a pointer to the memory location of the associated object.
-  void* data() const { return data_; }
+  constexpr void* data() const { return data_; }
 
   /// Returns the number of underlying objects if the shared pointer is to an
   /// array type, otherwise returns 1.
-  size_t size() const { return size_; }
+  constexpr size_t size() const { return GetSize(); }
 
   /// Returns the number of active shared pointers to the associated object.
   ///
@@ -121,11 +127,11 @@ class ControlBlock final {
 
  private:
   /// Creates a new control block with an initial shared pointer count of 1.
-  constexpr ControlBlock(Allocator* allocator, void* data, size_t size)
-      : allocator_(allocator),
-        data_(data),
-        size_(size),
-        num_weak_and_shared_(Pack(1, 1)) {}
+  ControlBlock(Allocator* allocator, void* data, size_t size, bool coallocated);
+
+  // Accessors and mutators that handling unpacking values
+  constexpr bool IsCoallocated() const { return coallocated_and_size_ & 1u; }
+  constexpr size_t GetSize() const { return coallocated_and_size_ >> 1u; }
 
   /// Returns a count of weak pointers from a packed value.
   static constexpr uint16_t UnpackWeak(uint32_t num_weak_and_shared) {
@@ -145,7 +151,7 @@ class ControlBlock final {
 
   Allocator* allocator_;
   void* data_;
-  size_t size_;
+  const size_t coallocated_and_size_ = 0;
 
   // Combines 2 16-bit counts for weak and shared pointers, respectively.
   mutable std::atomic_uint32_t num_weak_and_shared_;

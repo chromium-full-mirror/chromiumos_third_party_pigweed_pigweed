@@ -178,7 +178,7 @@ class ManagedPtr : public WeakManagedPtr<T> {
   /// This will fail to compile if it is called with a non-array type.
   void Destroy(size_t size) {
     static_assert(std::is_array_v<T>,
-                  "Destrot(size_t) cannot be called with non-array types");
+                  "Destroy(size_t) cannot be called with non-array types");
     std::destroy_n(ptr_, size);
   }
 

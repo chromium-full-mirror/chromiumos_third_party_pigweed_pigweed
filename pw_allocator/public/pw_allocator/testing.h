@@ -67,10 +67,11 @@ void FreeAll(typename BlockType::Range range) {
 /// An `AllocatorForTest` that is automatically initialized on construction.
 template <size_t kBufferSize,
           typename BlockType_ = FirstFitBlock<uint32_t>,
-          typename MetricsType = internal::AllMetrics>
+          typename MetricsType_ = internal::AllMetrics>
 class AllocatorForTest : public Allocator {
  public:
   using BlockType = BlockType_;
+  using MetricsType = MetricsType_;
   using AllocatorType = FirstFitAllocator<BlockType>;
 
   // Since the unbderlying first-fit allocator uses an intrusive free list, all

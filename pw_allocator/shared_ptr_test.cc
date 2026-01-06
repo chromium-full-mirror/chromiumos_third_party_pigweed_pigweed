@@ -294,20 +294,37 @@ TEST_F(SharedPtrTest, Conversions) {
 }
 
 TEST_F(SharedPtrTest, SharedFromUniquePtr) {
+  const auto& metrics = allocator_.metrics();
+  EXPECT_EQ(metrics.num_allocations.value(), 0u);
   pw::UniquePtr<Counter> owned = allocator_.MakeUnique<Counter>(5u);
-  pw::SharedPtr<Counter> shared(owned);
-  ASSERT_NE(shared, nullptr);
-  EXPECT_EQ(owned, nullptr);
-  EXPECT_EQ(shared->value(), 5u);
+  EXPECT_EQ(metrics.num_allocations.value(), 1u);
+  {
+    pw::SharedPtr<Counter> shared(owned);
+    EXPECT_EQ(metrics.num_allocations.value(), 2u);
+    ASSERT_NE(shared, nullptr);
+    EXPECT_EQ(owned, nullptr);
+    EXPECT_EQ(shared->value(), 5u);
+    EXPECT_EQ(metrics.num_deallocations.value(), 0u);
+  }
+  EXPECT_EQ(metrics.num_deallocations.value(), 2u);
 }
 
 TEST_F(SharedPtrTest, SharedFromUniquePtrFailsOnAllocationFailure) {
-  pw::UniquePtr<Counter> owned = allocator_.MakeUnique<Counter>(5u);
-  allocator_.Exhaust();
-  pw::SharedPtr<Counter> shared(owned);
-  EXPECT_EQ(shared, nullptr);
-  ASSERT_NE(owned, nullptr);
-  EXPECT_EQ(owned->value(), 5u);
+  const auto& metrics = allocator_.metrics();
+  EXPECT_EQ(metrics.num_allocations.value(), 0u);
+  {
+    pw::UniquePtr<Counter> owned = allocator_.MakeUnique<Counter>(5u);
+    EXPECT_EQ(metrics.num_allocations.value(), 1u);
+
+    allocator_.Exhaust();
+    pw::SharedPtr<Counter> shared(owned);
+
+    EXPECT_EQ(metrics.num_allocations.value(), 1u);
+    EXPECT_EQ(shared, nullptr);
+    ASSERT_NE(owned, nullptr);
+    EXPECT_EQ(owned->value(), 5u);
+  }
+  EXPECT_EQ(metrics.num_deallocations.value(), 1u);
 }
 
 }  // namespace
