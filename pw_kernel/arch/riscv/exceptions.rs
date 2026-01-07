@@ -76,7 +76,7 @@ pub fn early_init() {
     // Explicitly set up MTVEC to point to the kernel's handler to ensure
     // that it is set to the correct mode.
     let (base, mode) = match KernelConfig::get_exception_mode() {
-        ExceptionMode::Direct => (_start_trap as usize, MtVecMode::Direct),
+        ExceptionMode::Direct => (_start_trap as *const () as usize, MtVecMode::Direct),
         ExceptionMode::Vectored(vec_table) => (vec_table, MtVecMode::Vectored),
     };
     MtVec::write(MtVec::read().with_base(base).with_mode(mode));

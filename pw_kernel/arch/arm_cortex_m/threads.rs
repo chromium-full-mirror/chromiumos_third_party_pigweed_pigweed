@@ -322,7 +322,7 @@ impl kernel::scheduler::thread::ThreadState for ArchThreadState {
                 ExcReturnFrameType::Standard,
                 ExcReturnMode::ThreadSecure,
             ),
-            trampoline as usize,
+            trampoline as *const () as usize,
             (initial_function as usize, args.0, args.1, args.2),
         );
     }
