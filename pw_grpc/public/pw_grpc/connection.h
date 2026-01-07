@@ -205,6 +205,7 @@ class Connection {
     StreamId id = 0;
     bool half_closed = false;
     bool started_response = false;
+    bool debug_logged_no_window = false;
     int32_t send_window = 0;
     int32_t recv_window = kTargetStreamWindowSize;
 
@@ -232,6 +233,7 @@ class Connection {
       id = 0;
       half_closed = false;
       started_response = false;
+      debug_logged_no_window = false;
       send_window = 0;
       recv_window = kTargetStreamWindowSize;
       response_queue.clear();

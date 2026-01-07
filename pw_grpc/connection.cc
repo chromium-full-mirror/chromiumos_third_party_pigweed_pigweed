@@ -326,6 +326,15 @@ Status Connection::SharedState::DrainResponseQueue(Stream& stream) {
 
     if (static_cast<int32_t>(message_size) > stream.send_window ||
         static_cast<int32_t>(message_size) > connection_send_window_) {
+      // TODO(b/471320234): remove after debugging
+      if (!stream.debug_logged_no_window) {
+        stream.debug_logged_no_window = true;
+        PW_LOG_WARN("stream id=%d not enough window: msg=%zu ssw=%d csw=%d",
+                    stream.id,
+                    message_size,
+                    stream.send_window,
+                    connection_send_window_);
+      }
       break;
     }
 
