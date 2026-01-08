@@ -202,29 +202,34 @@ macro(_pw_add_library_multi_value_args variable)
                     PUBLIC_LINK_OPTIONS PRIVATE_LINK_OPTIONS "${ARGN}")
 endmacro()
 
-function(_pw_sandbox_files sandbox_dir files_var)
+function(_pw_sandbox_paths sandbox_dir paths_var)
   set(result "")
   set(parent_dir "..")
-  foreach(file IN LISTS ${files_var})
-    cmake_path(ABSOLUTE_PATH file NORMALIZE)
-    cmake_path(RELATIVE_PATH file OUTPUT_VARIABLE relative_file)
+  foreach(path IN LISTS ${paths_var})
+    cmake_path(ABSOLUTE_PATH path NORMALIZE)
+    cmake_path(RELATIVE_PATH path OUTPUT_VARIABLE relative_file)
 
     cmake_path(IS_PREFIX parent_dir "${relative_file}" in_parent_directory)
     if(in_parent_directory)
       message(FATAL_ERROR
         "File paths must be nested under the current directory; "
-        "'${file}' is not nested under ${CMAKE_CURRENT_SOURCE_DIR}")
+        "'${path}' is not nested under ${CMAKE_CURRENT_SOURCE_DIR}")
     endif()
 
-    set(destination "${sandbox_dir}/${relative_file}")
-    message(DEBUG "Sandboxing '${file}' as '${destination}'")
-    cmake_path(GET destination PARENT_PATH directory)
-    file(MAKE_DIRECTORY "${directory}")
-    cmake_path(ABSOLUTE_PATH file OUTPUT_VARIABLE absolute)
-    file(CREATE_LINK "${absolute}" "${destination}" SYMBOLIC)
-    list(APPEND result "${destination}")
+    if(IS_DIRECTORY "${path}")
+      message(DEBUG "Sandboxing include '${path}' as '${sandbox_dir}/${relative_file}'")
+      list(APPEND result "${sandbox_dir}/${relative_file}")
+    else()
+      set(destination "${sandbox_dir}/${relative_file}")
+      message(DEBUG "Sandboxing '${path}' as '${destination}'")
+      cmake_path(GET destination PARENT_PATH directory)
+      file(MAKE_DIRECTORY "${directory}")
+      cmake_path(ABSOLUTE_PATH path OUTPUT_VARIABLE absolute)
+      file(CREATE_LINK "${absolute}" "${destination}" SYMBOLIC)
+      list(APPEND result "${destination}")
+    endif()
   endforeach()
-  set("${files_var}" ${result} PARENT_SCOPE)
+  set("${paths_var}" ${result} PARENT_SCOPE)
 endfunction()
 
 # pw_add_library_generic: Creates a CMake library target.
@@ -310,13 +315,15 @@ function(pw_add_library_generic NAME TYPE)
   endif()
 
   if(sandbox_enabled)
-    foreach(path IN LISTS arg_GENERATED_HEADERS arg_HEADERS arg_SOURCES)
+    foreach(path IN LISTS arg_GENERATED_HEADERS arg_HEADERS arg_SOURCES
+        arg_PUBLIC_INCLUDES arg_PRIVATE_INCLUDES)
       # Don't sandbox files that don't exist yet or are generator expressions.
       cmake_path(ABSOLUTE_PATH path OUTPUT_VARIABLE absolute)
       if(NOT EXISTS "${absolute}" OR "${path}" MATCHES ".*\\$<.+>.*")
         if(NOT "${arg_SANDBOX}" STREQUAL "" AND arg_SANDBOX)
-          message(FATAL_ERROR "Sandboxing is enabled for ${NAME}, but it has "
-            "files that do not yet exist. This is not currently supported.")
+          message(FATAL_ERROR "Sandboxing is enabled for ${NAME}, but the path "
+            "'${path}' does not exist or is a generator expression. This is "
+            "not currently supported.")
         endif()
 
         message(DEBUG
@@ -328,10 +335,10 @@ function(pw_add_library_generic NAME TYPE)
 
     if(sandbox_enabled)
       file(REMOVE_RECURSE "${sandbox_dir}")
-      _pw_sandbox_files("${sandbox_dir}" arg_HEADERS)
-      _pw_sandbox_files("${sandbox_dir}" arg_SOURCES)
-      list(TRANSFORM arg_PRIVATE_INCLUDES PREPEND "${sandbox_dir}/")
-      list(TRANSFORM arg_PUBLIC_INCLUDES PREPEND "${sandbox_dir}/")
+      _pw_sandbox_paths("${sandbox_dir}" arg_HEADERS)
+      _pw_sandbox_paths("${sandbox_dir}" arg_SOURCES)
+      _pw_sandbox_paths("${sandbox_dir}" arg_PRIVATE_INCLUDES)
+      _pw_sandbox_paths("${sandbox_dir}" arg_PUBLIC_INCLUDES)
     endif()
   endif()
   list(APPEND arg_HEADERS ${arg_GENERATED_HEADERS})

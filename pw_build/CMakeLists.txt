@@ -238,13 +238,16 @@ cmake_path(ABSOLUTE_PATH absolute_test_header)
 set(absolute_test_source absolute_path_source_file.cc)
 cmake_path(ABSOLUTE_PATH absolute_test_source)
 
+set(absolute_public_include public)
+cmake_path(ABSOLUTE_PATH absolute_public_include)
+
 pw_add_library(pw_build._sandbox_test_absolute_path STATIC
   HEADERS
     "${absolute_test_header}"
   SOURCES
     "${absolute_test_source}"
   PUBLIC_INCLUDES
-    public
+    "${absolute_public_include}"
   SANDBOX ON
 )
 
