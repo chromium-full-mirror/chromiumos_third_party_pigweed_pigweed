@@ -147,9 +147,9 @@ cipd_composite_repository = use_repo_rule("//pw_env_setup/bazel/cipd_setup:cipd_
 
 # Fetch llvm toolchain.
 # ROLL: Warning: this variable is automatically updated.
-# ROLL: Last updated 2026-01-02.
-# ROLL: By https://cr-buildbucket.appspot.com/build/8693759586404378673.
-LLVM_VERSION = "git_revision:9a5fa3075ac670e7d748b693895d4d347af5f83d"
+# ROLL: Last updated 2026-01-08.
+# ROLL: By https://cr-buildbucket.appspot.com/build/8693208335718132913.
+LLVM_VERSION = "git_revision:5bf5657a97d9c0efc0f18826ca9ee9db17acb514"
 
 cipd_composite_repository(
     name = "llvm_toolchain",
@@ -207,9 +207,9 @@ register_toolchains(
 pw_rust = use_extension("//pw_toolchain/rust:extensions.bzl", "pw_rust")
 
 # ROLL: Warning: this variable is automatically updated.
-# ROLL: Last updated 2026-01-02.
-# ROLL: By https://cr-buildbucket.appspot.com/build/8693759586404378673.
-RUST_VERSION = "git_revisions:5f1173bb2b0a7012640bd5383c61b433b16a452d,9a5fa3075ac670e7d748b693895d4d347af5f83d"
+# ROLL: Last updated 2026-01-08.
+# ROLL: By https://cr-buildbucket.appspot.com/build/8693208335718132913.
+RUST_VERSION = "git_revisions:58b270bebef86316f70174d5a1ea4eb19ef91b62,5bf5657a97d9c0efc0f18826ca9ee9db17acb514"
 
 pw_rust.toolchain(cipd_tag = RUST_VERSION)
 use_repo(pw_rust, "pw_rust_toolchains")
