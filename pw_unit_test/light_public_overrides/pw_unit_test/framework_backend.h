@@ -21,6 +21,7 @@
        "included when using the pw_unit_test light backend."
 #endif  // GTEST_TEST
 
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>

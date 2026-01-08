@@ -10,7 +10,7 @@
         "windows-amd64"
       ],
       "tags": [
-        "git_revisions:a41214f9bd7ce869d21898f31107f92c90a9112f,62adc83c918b1b55f70e4ee33c727b040da2a9ed"
+        "git_revisions:5f1173bb2b0a7012640bd5383c61b433b16a452d,9a5fa3075ac670e7d748b693895d4d347af5f83d"
       ]
     },
     {
@@ -19,7 +19,7 @@
         "linux-arm64"
       ],
       "tags": [
-        "git_revisions:a41214f9bd7ce869d21898f31107f92c90a9112f,62adc83c918b1b55f70e4ee33c727b040da2a9ed"
+        "git_revisions:5f1173bb2b0a7012640bd5383c61b433b16a452d,9a5fa3075ac670e7d748b693895d4d347af5f83d"
       ]
     },
     {
@@ -28,7 +28,7 @@
         "linux-amd64"
       ],
       "tags": [
-        "git_revisions:a41214f9bd7ce869d21898f31107f92c90a9112f,62adc83c918b1b55f70e4ee33c727b040da2a9ed"
+        "git_revisions:5f1173bb2b0a7012640bd5383c61b433b16a452d,9a5fa3075ac670e7d748b693895d4d347af5f83d"
       ]
     },
     {
@@ -37,7 +37,7 @@
         "mac-arm64"
       ],
       "tags": [
-        "git_revisions:a41214f9bd7ce869d21898f31107f92c90a9112f,62adc83c918b1b55f70e4ee33c727b040da2a9ed"
+        "git_revisions:5f1173bb2b0a7012640bd5383c61b433b16a452d,9a5fa3075ac670e7d748b693895d4d347af5f83d"
       ]
     },
     {
@@ -46,7 +46,7 @@
         "windows-amd64"
       ],
       "tags": [
-        "git_revisions:a41214f9bd7ce869d21898f31107f92c90a9112f,62adc83c918b1b55f70e4ee33c727b040da2a9ed"
+        "git_revisions:5f1173bb2b0a7012640bd5383c61b433b16a452d,9a5fa3075ac670e7d748b693895d4d347af5f83d"
       ]
     },
     {
@@ -55,7 +55,7 @@
         "mac-amd64"
       ],
       "tags": [
-        "git_revisions:a41214f9bd7ce869d21898f31107f92c90a9112f,62adc83c918b1b55f70e4ee33c727b040da2a9ed"
+        "git_revisions:5f1173bb2b0a7012640bd5383c61b433b16a452d,9a5fa3075ac670e7d748b693895d4d347af5f83d"
       ]
     },
     {
@@ -67,7 +67,7 @@
         "mac-arm64"
       ],
       "tags": [
-        "git_revisions:a41214f9bd7ce869d21898f31107f92c90a9112f,62adc83c918b1b55f70e4ee33c727b040da2a9ed"
+        "git_revisions:5f1173bb2b0a7012640bd5383c61b433b16a452d,9a5fa3075ac670e7d748b693895d4d347af5f83d"
       ]
     },
     {

@@ -275,9 +275,8 @@ impl<'data> SystemImage<'data> {
                 let new_name = format!("{}_{}", symbol.name, app_name);
                 new_symbol.name = new_name.into_bytes().into();
             }
-            if symbol.section.is_some() {
-                new_symbol.section =
-                    Self::get_mapped_section_id(section_map, symbol.section.unwrap())?;
+            if let Some(section) = symbol.section {
+                new_symbol.section = Self::get_mapped_section_id(section_map, section)?;
             }
             new_symbol.st_info = symbol.st_info;
             new_symbol.st_other = symbol.st_other;
