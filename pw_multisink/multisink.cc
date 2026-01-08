@@ -252,15 +252,24 @@ Status MultiSink::UnsafeForEachEntryFromEnd(
   if (total_bytes > max_size_bytes) {
     total_bytes = 0;
     max_num_entries = 0;
-    while (total_bytes <= max_size_bytes) {
+    while (total_bytes <= max_size_bytes && last_elem_it.status().ok()) {
       total_bytes += (*last_elem_it).size();
       last_elem_it--;
       max_num_entries++;
     }
+    if (!last_elem_it.status().ok()) {
+      if (!it.status().ok()) {
+        PW_LOG_WARN(
+            "Multisink corruption detected, no entries can be processed");
+        return Status::DataLoss();
+      }
+      PW_LOG_WARN(
+          "Multisink corruption detected, will attempt to process %zu entries",
+          max_num_entries);
+    }
   }
 
-  // Log up to the max number of logs to avoid overflowing the crash log
-  // writer.
+  // Process up to the max number of entries calculated.
   const size_t first_logged_offset =
       max_num_entries > num_entries ? 0 : num_entries - max_num_entries;
   it = multisink_iteration.begin();
