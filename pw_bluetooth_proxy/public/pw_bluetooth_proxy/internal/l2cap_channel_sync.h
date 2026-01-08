@@ -18,6 +18,7 @@
 #if PW_BLUETOOTH_PROXY_ASYNC == 0
 
 #include <cstddef>
+#include <mutex>
 #include <optional>
 
 #include "pw_bluetooth_proxy/h4_packet.h"
