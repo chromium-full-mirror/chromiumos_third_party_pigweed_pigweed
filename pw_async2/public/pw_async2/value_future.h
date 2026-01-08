@@ -17,9 +17,18 @@
 
 #include "pw_assert/assert.h"
 #include "pw_async2/future.h"
+#include "pw_polyfill/language_feature_macros.h"
 #include "pw_sync/interrupt_spin_lock.h"
 
 namespace pw::async2 {
+namespace internal {
+
+inline sync::InterruptSpinLock& ValueProviderLock() {
+  PW_CONSTINIT static sync::InterruptSpinLock lock;
+  return lock;
+}
+
+}  // namespace internal
 
 template <typename T>
 class ValueProvider;
@@ -27,67 +36,6 @@ template <typename T>
 class BroadcastValueProvider;
 
 /// @submodule{pw_async2,futures}
-
-namespace internal {
-
-template <typename FutureType>
-class FutureList : public BaseFutureList {
- public:
-  bool empty() const PW_LOCKS_EXCLUDED(lock_) {
-    std::lock_guard lock(lock_);
-    return BaseFutureList::empty();
-  }
-
-  void Push(FutureCore& future) PW_LOCKS_EXCLUDED(lock_) {
-    std::lock_guard lock(lock_);
-    BaseFutureList::Push(future);
-  }
-
-  bool PushIfEmpty(FutureCore& future) PW_LOCKS_EXCLUDED(lock_) {
-    std::lock_guard lock(lock_);
-    return BaseFutureList::PushIfEmpty(future);
-  }
-
-  void Remove(FutureCore& future) PW_LOCKS_EXCLUDED(lock_) {
-    std::lock_guard lock(lock_);
-    BaseFutureList::Remove(future);
-  }
-
-  void Replace(FutureCore& old_future, FutureCore& new_future)
-      PW_LOCKS_EXCLUDED(lock_) {
-    std::lock_guard lock(lock_);
-    BaseFutureList::Replace(old_future, new_future);
-  }
-
-  template <typename Func>
-  std::invoke_result_t<Func> RunWithLock(Func&& func) PW_LOCKS_EXCLUDED(lock_) {
-    std::lock_guard lock(lock_);
-    return func();
-  }
-
-  template <typename... Args>
-  void ResolveAll(Args&&... args) {
-    std::lock_guard lock(lock_);
-    ResolveAllWith([&](FutureCore& base) {
-      auto* future = ContainerOf(&base, &FutureType::core_);
-      future->ResolveLocked(std::forward<Args>(args)...);
-    });
-  }
-
-  template <typename... Args>
-  void ResolveOne(Args&&... args) {
-    std::lock_guard lock(lock_);
-    ResolveOneWith([&](FutureCore& base) {
-      auto* future = ContainerOf(&base, &FutureType::core_);
-      future->ResolveLocked(std::forward<Args>(args)...);
-    });
-  }
-
- private:
-  mutable sync::InterruptSpinLock lock_;
-};
-
-}  // namespace internal
 
 /// A future that holds a single value.
 ///
@@ -99,13 +47,24 @@ class ValueFuture {
  public:
   using value_type = T;
 
-  ValueFuture(ValueFuture&& other) noexcept = default;
-  ValueFuture& operator=(ValueFuture&& other) noexcept = default;
-  ~ValueFuture() = default;
+  ValueFuture(ValueFuture&& other) noexcept
+      PW_LOCKS_EXCLUDED(internal::ValueProviderLock()) {
+    *this = std::move(other);
+  }
 
-  /// Creates a `ValueFuture` that is already resolved with the given value.
-  static ValueFuture Resolved(T value) {
-    return ValueFuture(std::in_place, std::move(value));
+  ValueFuture& operator=(ValueFuture&& other) noexcept
+      PW_LOCKS_EXCLUDED(internal::ValueProviderLock()) {
+    if (this != &other) {
+      std::lock_guard lock(internal::ValueProviderLock());
+      core_ = std::move(other.core_);
+      value_ = std::move(other.value_);
+    }
+    return *this;
+  }
+
+  ~ValueFuture() PW_LOCKS_EXCLUDED(internal::ValueProviderLock()) {
+    std::lock_guard lock(internal::ValueProviderLock());
+    core_.Unlist();
   }
 
   /// Creates a `ValueFuture` that is already resolved by constructing its
@@ -115,61 +74,56 @@ class ValueFuture {
     return ValueFuture(std::in_place, std::forward<Args>(args)...);
   }
 
-  Poll<T> Pend(Context& cx) { return core_.DoPend<ValueFuture<T>>(*this, cx); }
+  Poll<T> Pend(Context& cx) {
+    // ValueFuture uses a global lock so that futures don't have to access their
+    // provider to get a lock after they're completed. This ensures the
+    // ValueFuture never needs to access the provider.
+    //
+    // With some care (and complexity), the lock could be moved to the provider.
+    // A global lock is simpler and more efficient in practice.
+    std::lock_guard lock(internal::ValueProviderLock());
+    return core_.DoPend<ValueFuture<T>>(*this, cx);
+  }
 
-  [[nodiscard]] bool is_complete() const { return core_.is_complete(); }
-
-  static constexpr char kWaitReason[] = "ValueFuture";
+  [[nodiscard]] bool is_complete() const {
+    std::lock_guard lock(internal::ValueProviderLock());
+    return core_.is_complete();
+  }
 
  private:
   friend class FutureCore;
   friend class ValueProvider<T>;
   friend class BroadcastValueProvider<T>;
-  friend class internal::FutureList<ValueFuture<T>>;
 
-  using DeferPush = FutureCore::DeferPush;
+  static constexpr char kWaitReason[] = "ValueFuture";
 
   template <typename... Args>
   explicit ValueFuture(std::in_place_t, Args&&... args)
       : core_(FutureCore::kReadyForCompletion),
         value_(std::in_place, std::forward<Args>(args)...) {}
 
-  explicit ValueFuture(internal::FutureList<ValueFuture<T>>& list)
-      : core_(list) {}
+  ValueFuture(FutureCore::Pending) : core_(FutureCore::kPending) {}
 
-  ValueFuture(internal::FutureList<ValueFuture<T>>& list, DeferPush)
-      : core_(list, FutureCore::kDeferPush) {}
-
-  Poll<T> DoPend(Context&) {
-    if (core_.list() == nullptr) {
-      PW_ASSERT(value_.has_value());
-      T value = std::move(value_.value());
-      value_.reset();
-      return Ready(std::move(value));
+  Poll<T> DoPend(Context&)
+      PW_EXCLUSIVE_LOCKS_REQUIRED(internal::ValueProviderLock()) {
+    if (!core_.is_ready()) {
+      return Pending();
     }
 
-    auto* list =
-        static_cast<internal::FutureList<ValueFuture<T>>*>(core_.list());
-    return list->RunWithLock([&]() -> Poll<T> {
-      if (value_.has_value()) {
-        T value = std::move(value_.value());
-        value_.reset();
-        return Ready(std::move(value));
-      }
-      return Pending();
-    });
+    return Ready(std::move(*value_));
   }
 
   template <typename... Args>
-  void ResolveLocked(Args&&... args) {
+  void ResolveLocked(Args&&... args)
+      PW_EXCLUSIVE_LOCKS_REQUIRED(internal::ValueProviderLock()) {
     // SAFETY: This is only called from FutureList with the lock held.
-    PW_ASSERT(!value_.has_value());
+    PW_DASSERT(!value_.has_value());
     value_.emplace(std::forward<Args>(args)...);
-    core_.Wake();
+    core_.WakeAndMarkReady();
   }
 
-  FutureCore core_;
-  std::optional<T> value_;
+  FutureCore core_ PW_GUARDED_BY(internal::ValueProviderLock());
+  std::optional<T> value_ PW_GUARDED_BY(internal::ValueProviderLock());
 };
 
 /// Specialization for a future that does not return any value, just a
@@ -179,19 +133,25 @@ class ValueFuture<void> {
  public:
   using value_type = ReadyType;
 
-  ValueFuture() : ready_(false) {}
+  ValueFuture(ValueFuture&& other) = default;
 
-  ValueFuture(ValueFuture&& other) noexcept = default;
-  ValueFuture& operator=(ValueFuture&& other) noexcept = default;
-  ~ValueFuture() = default;
+  ValueFuture& operator=(ValueFuture&& other) = default;
+
+  ~ValueFuture() PW_LOCKS_EXCLUDED(internal::ValueProviderLock()) {
+    std::lock_guard lock(internal::ValueProviderLock());
+    core_.Unlist();
+  }
 
   Poll<> Pend(Context& cx) {
+    std::lock_guard lock(internal::ValueProviderLock());
     return core_.DoPend<ValueFuture<void>>(*this, cx);
   }
 
   [[nodiscard]] bool is_complete() const { return core_.is_complete(); }
 
-  static ValueFuture Resolved() { return ValueFuture(true); }
+  static ValueFuture Resolved() {
+    return ValueFuture(FutureCore::kReadyForCompletion);
+  }
 
   static constexpr char kWaitReason[] = "ValueFuture<void>";
 
@@ -199,39 +159,20 @@ class ValueFuture<void> {
   friend class FutureCore;
   friend class ValueProvider<void>;
   friend class BroadcastValueProvider<void>;
-  friend class internal::FutureList<ValueFuture<void>>;
 
-  using DeferPush = FutureCore::DeferPush;
+  explicit ValueFuture(FutureCore::ReadyForCompletion)
+      : core_(FutureCore::kReadyForCompletion) {}
 
-  explicit ValueFuture(bool ready)
-      : core_(FutureCore::kReadyForCompletion), ready_(ready) {}
-
-  explicit ValueFuture(internal::FutureList<ValueFuture<void>>& list)
-      : core_(list) {}
-
-  ValueFuture(internal::FutureList<ValueFuture<void>>& list, DeferPush)
-      : core_(list, FutureCore::kDeferPush) {}
+  explicit ValueFuture(FutureCore::Pending) : core_(FutureCore::kPending) {}
 
   Poll<> DoPend(Context&) {
-    if (core_.list() == nullptr) {
-      return ready_ ? Ready() : Pending();
+    if (!core_.is_ready()) {
+      return Pending();
     }
-
-    auto* list =
-        static_cast<internal::FutureList<ValueFuture<void>>*>(core_.list());
-    return list->RunWithLock(
-        [&]() -> Poll<> { return ready_ ? Ready() : Pending(); });
-  }
-
-  void ResolveLocked() {
-    // SAFETY: This is only called from FutureList with the lock held.
-    PW_ASSERT(!ready_);
-    ready_ = true;
-    core_.Wake();
+    return Ready();
   }
 
   FutureCore core_;
-  bool ready_ = false;
 };
 
 /// A `ValueFuture` that does not return any value, just a completion signal.
@@ -248,25 +189,41 @@ using VoidFuture = ValueFuture<void>;
 template <typename T>
 class BroadcastValueProvider {
  public:
+  constexpr BroadcastValueProvider() = default;
+
+  ~BroadcastValueProvider() { PW_ASSERT(list_.empty()); }
+
   /// Returns a `ValueFuture` that will be completed when `Resolve` is called.
   ///
   /// Multiple futures can be retrieved and will pend concurrently.
-  ValueFuture<T> Get() { return ValueFuture<T>(list_); }
+  ValueFuture<T> Get() {
+    ValueFuture<T> future(FutureCore::kPending);
+    {
+      std::lock_guard lock(internal::ValueProviderLock());
+      list_.Push(future.core_);
+    }
+    return future;
+  }
 
   /// Resolves every pending `ValueFuture` with a copy of the provided value.
   template <typename U = T, std::enable_if_t<!std::is_void_v<U>, int> = 0>
   void Resolve(const U& value) {
-    list_.ResolveAll(value);
+    std::lock_guard lock(internal::ValueProviderLock());
+    list_.ResolveAllWith(
+        [&](ValueFuture<T>& future)
+            PW_NO_LOCK_SAFETY_ANALYSIS { future.ResolveLocked(value); });
   }
 
   /// Resolves every pending `ValueFuture`.
   template <typename U = T, std::enable_if_t<std::is_void_v<U>, int> = 0>
   void Resolve() {
+    std::lock_guard lock(internal::ValueProviderLock());
     list_.ResolveAll();
   }
 
  private:
-  internal::FutureList<ValueFuture<T>> list_;
+  FutureList<&ValueFuture<T>::core_> list_
+      PW_GUARDED_BY(internal::ValueProviderLock());
 };
 
 /// A one-to-one provider for a single value.
@@ -278,12 +235,20 @@ class BroadcastValueProvider {
 template <typename T>
 class ValueProvider {
  public:
+  constexpr ValueProvider() = default;
+
+  ~ValueProvider() { PW_ASSERT(list_.empty()); }
+
   /// Returns a `ValueFuture` that will be completed when `Resolve` is called.
   ///
   /// If a future has already been vended and is still pending, this crashes.
   ValueFuture<T> Get() {
-    PW_ASSERT(!has_future());
-    return ValueFuture<T>(list_);
+    ValueFuture<T> future(FutureCore::kPending);
+    {
+      std::lock_guard lock(internal::ValueProviderLock());
+      list_.PushRequireEmpty(future.core_);
+    }
+    return future;
   }
 
   /// Returns a `ValueFuture` that will be completed when `Resolve` is called.
@@ -291,32 +256,44 @@ class ValueProvider {
   /// If a future has already been vended and is still pending, this will
   /// return `std::nullopt`.
   std::optional<ValueFuture<T>> TryGet() {
-    ValueFuture<T> future(list_, ValueFuture<T>::DeferPush::kDeferPush);
-    if (!list_.PushIfEmpty(future.core_)) {
-      return std::nullopt;
+    ValueFuture<T> future(FutureCore::kPending);
+    {
+      std::lock_guard lock(internal::ValueProviderLock());
+      if (!list_.PushIfEmpty(future.core_)) {
+        return std::nullopt;
+      }
     }
     return future;
   }
 
   /// Returns `true` if the provider stores a pending future.
-  bool has_future() const { return !list_.empty(); }
+  bool has_future() const {
+    std::lock_guard lock(internal::ValueProviderLock());
+    return !list_.empty();
+  }
 
-  /// Resolves the pending `ValueFuture` by constructing its value in-place.
+  /// Resolves the pending `ValueFuture`, if any, by constructing its value
+  /// in-place.
   template <typename... Args,
             typename U = T,
             std::enable_if_t<!std::is_void_v<U>, int> = 0>
   void Resolve(Args&&... args) {
-    list_.ResolveOne(std::forward<Args>(args)...);
+    std::lock_guard lock(internal::ValueProviderLock());
+    if (ValueFuture<T>* future = list_.PopIfAvailable(); future != nullptr) {
+      future->ResolveLocked(std::forward<Args>(args)...);
+    };
   }
 
   /// Resolves the pending `ValueFuture`.
   template <typename U = T, std::enable_if_t<std::is_void_v<U>, int> = 0>
   void Resolve() {
-    list_.ResolveOne();
+    std::lock_guard lock(internal::ValueProviderLock());
+    list_.ResolveOneIfAvailable();
   }
 
  private:
-  internal::FutureList<ValueFuture<T>> list_;
+  FutureList<&ValueFuture<T>::core_> list_
+      PW_GUARDED_BY(internal::ValueProviderLock());
 };
 
 /// @endsubmodule

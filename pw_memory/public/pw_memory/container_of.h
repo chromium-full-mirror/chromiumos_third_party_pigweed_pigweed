@@ -25,7 +25,6 @@ struct PointerToMemberTraits;
 template <typename T, typename C>
 struct PointerToMemberTraits<T C::*> {
   using value_type = T;
-  using class_type = T;
 };
 
 template <typename T>

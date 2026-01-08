@@ -69,6 +69,7 @@ pw_add_library(pw_async2 STATIC
     pw_log
     pw_log.args
     pw_polyfill
+    pw_memory
     pw_sync.interrupt_spin_lock
     pw_sync.lock_annotations
     pw_tokenizer
@@ -80,6 +81,7 @@ pw_add_library(pw_async2 STATIC
   SOURCES
     context.cc
     dispatcher.cc
+    future.cc
     runnable_dispatcher.cc
     task.cc
     waker.cc
@@ -455,7 +457,10 @@ pw_add_library(pw_async2.time_provider STATIC
   PUBLIC_DEPS
     pw_async2
     pw_chrono.virtual_clock
+    pw_async2.poll
     pw_containers.intrusive_list
+    pw_function
+    pw_memory
     pw_sync.interrupt_spin_lock
     pw_toolchain.no_destructor
   PUBLIC_INCLUDES

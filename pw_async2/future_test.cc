@@ -489,4 +489,250 @@ void ShouldAssert() {
 }
 #endif  // PW_NC_TEST
 
+class TestAsyncInt;
+
+class TestIntFuture {
+ public:
+  using value_type = int;
+
+  TestIntFuture(TestIntFuture&& other) noexcept
+      : core_(std::move(other.core_)),
+        async_int_(std::exchange(other.async_int_, nullptr)) {}
+
+  TestIntFuture& operator=(TestIntFuture&& other) noexcept {
+    if (this != &other) {
+      core_ = std::move(other.core_);
+      async_int_ = std::exchange(other.async_int_, nullptr);
+    }
+    return *this;
+  }
+
+  Poll<int> Pend(Context& cx) { return core_.DoPend(*this, cx); }
+
+  // Exposed for testing.
+  const pw::async2::FutureCore& core() const { return core_; }
+
+  [[nodiscard]] bool is_complete() const { return core_.is_complete(); }
+
+ private:
+  friend class TestAsyncInt;
+  friend class pw::async2::FutureCore;
+
+  static constexpr const char kWaitReason[] = "TestIntFuture";
+
+  TestIntFuture(TestAsyncInt& async_int);
+
+  TestIntFuture(TestAsyncInt& async_int,
+                pw::async2::FutureCore::ReadyForCompletion)
+      : core_(pw::async2::FutureCore::kReadyForCompletion),
+        async_int_(&async_int) {}
+
+  Poll<int> DoPend(Context&);
+
+  pw::async2::FutureCore core_;
+  TestAsyncInt* async_int_;
+};
+
+class TestAsyncInt {
+ public:
+  TestIntFuture Get() { return TestIntFuture(*this); }
+
+  TestIntFuture SetAndGet(int value) {
+    PW_ASSERT(!value_.has_value());
+    value_ = value;
+    return TestIntFuture(*this, pw::async2::FutureCore::kReadyForCompletion);
+  }
+
+  void Set(int value) {
+    PW_ASSERT(!value_.has_value());
+    value_ = value;
+    list_.ResolveAll();
+  }
+
+  void WakeAllFuturesWithoutSettingValue() {
+    TestIntFuture* future;
+    while ((future = list_.PopIfAvailable()) != nullptr) {
+      future->core_.Wake();
+    }
+  }
+
+ private:
+  friend class TestIntFuture;
+
+  pw::async2::FutureList<&TestIntFuture::core_> list_;
+  std::optional<int> value_;
+};
+
+TestIntFuture::TestIntFuture(TestAsyncInt& async_int)
+    : core_(pw::async2::FutureCore::kPending), async_int_(&async_int) {
+  async_int_->list_.Push(core_);
+}
+
+Poll<int> TestIntFuture::DoPend(Context&) {
+  PW_ASSERT(async_int_ != nullptr);
+  if (async_int_->value_.has_value()) {
+    return Ready(*async_int_->value_);
+  }
+  if (!core_.in_list()) {
+    async_int_->list_.Push(core_);
+  }
+  return Pending();
+}
+
+static_assert(!is_future_v<pw::async2::FutureCore>);
+static_assert(is_future_v<TestIntFuture>);
+
+TEST(FutureCore, Pend) {
+  DispatcherForTest dispatcher;
+  TestAsyncInt provider;
+
+  TestIntFuture future = provider.Get();
+  EXPECT_TRUE(future.core().is_pendable());
+  EXPECT_FALSE(future.core().is_ready());
+  EXPECT_FALSE(future.core().is_complete());
+
+  PendFuncTask task([&](Context& cx) -> Poll<> {
+    PW_TRY_READY_ASSIGN(int value, future.Pend(cx));
+    EXPECT_EQ(value, 42);
+    return Ready();
+  });
+
+  dispatcher.Post(task);
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
+
+  provider.Set(42);
+  dispatcher.RunToCompletion();
+
+  EXPECT_TRUE(future.core().is_complete());
+  EXPECT_FALSE(future.core().is_pendable());
+}
+
+TEST(FutureCore, PendReady) {
+  DispatcherForTest dispatcher;
+  TestAsyncInt provider;
+
+  TestIntFuture future = provider.SetAndGet(65535);
+  EXPECT_TRUE(future.core().is_pendable());
+  EXPECT_TRUE(future.core().is_ready());
+  EXPECT_FALSE(future.core().is_complete());
+
+  PendFuncTask task([&](Context& cx) -> Poll<> {
+    PW_TRY_READY_ASSIGN(int value, future.Pend(cx));
+    EXPECT_EQ(value, 65535);
+    return Ready();
+  });
+
+  dispatcher.Post(task);
+  dispatcher.RunToCompletion();
+
+  EXPECT_TRUE(future.core().is_complete());
+  EXPECT_FALSE(future.core().is_pendable());
+}
+
+TEST(FutureCore, MoveAssign) {
+  DispatcherForTest dispatcher;
+  TestAsyncInt provider;
+
+  TestIntFuture future1 = provider.Get();
+  TestIntFuture future2 = provider.Get();
+
+  future1 = std::move(future2);
+
+  int result = -1;
+  PendFuncTask task([&](Context& cx) -> Poll<> {
+    PW_TRY_READY_ASSIGN(int value, future1.Pend(cx));
+    result = value;
+    return Ready();
+  });
+
+  dispatcher.Post(task);
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
+
+  provider.Set(100);
+  dispatcher.RunToCompletion();
+  EXPECT_EQ(result, 100);
+}
+
+TEST(FutureCore, MoveConstruct) {
+  DispatcherForTest dispatcher;
+  TestAsyncInt provider;
+
+  TestIntFuture future1 = provider.Get();
+  TestIntFuture future2(std::move(future1));
+
+  int result = -1;
+  PendFuncTask task([&](Context& cx) -> Poll<> {
+    PW_TRY_READY_ASSIGN(int value, future2.Pend(cx));
+    result = value;
+    return Ready();
+  });
+
+  dispatcher.Post(task);
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
+
+  provider.Set(101);
+  dispatcher.RunToCompletion();
+  EXPECT_EQ(result, 101);
+}
+
+TEST(FutureCore, MultipleFutures) {
+  DispatcherForTest dispatcher;
+  TestAsyncInt provider;
+
+  TestIntFuture future1 = provider.Get();
+  TestIntFuture future2 = provider.Get();
+  int result1 = -1;
+  int result2 = -1;
+
+  PendFuncTask task1([&](Context& cx) -> Poll<> {
+    PW_TRY_READY_ASSIGN(int value, future1.Pend(cx));
+    result1 = value;
+    return Ready();
+  });
+
+  PendFuncTask task2([&](Context& cx) -> Poll<> {
+    PW_TRY_READY_ASSIGN(int value, future2.Pend(cx));
+    result2 = value;
+    return Ready();
+  });
+
+  dispatcher.Post(task1);
+  dispatcher.Post(task2);
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
+
+  provider.Set(77);
+  dispatcher.RunToCompletion();
+  EXPECT_EQ(result1, 77);
+  EXPECT_EQ(result2, 77);
+}
+
+TEST(FutureCore, RelistsItselfOnPending) {
+  DispatcherForTest dispatcher;
+  TestAsyncInt provider;
+
+  TestIntFuture future = provider.Get();
+
+  int result = -1;
+  PendFuncTask task([&](Context& cx) -> Poll<> {
+    PW_TRY_READY_ASSIGN(int value, future.Pend(cx));
+    result = value;
+    return Ready();
+  });
+
+  dispatcher.Post(task);
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
+  EXPECT_EQ(dispatcher.tasks_polled(), 1u);
+
+  // Spuriously wake the futures.
+  provider.WakeAllFuturesWithoutSettingValue();
+
+  EXPECT_TRUE(dispatcher.RunUntilStalled());
+  EXPECT_EQ(dispatcher.tasks_polled(), 2u);
+
+  provider.Set(88);
+  dispatcher.RunToCompletion();
+  EXPECT_EQ(dispatcher.tasks_polled(), 3u);
+  EXPECT_EQ(result, 88);
+}
+
 }  // namespace

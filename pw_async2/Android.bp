@@ -27,6 +27,7 @@ cc_library_static {
     srcs: [
         "context.cc",
         "dispatcher.cc",
+        "future.cc",
         "runnable_dispatcher.cc",
         "task.cc",
         "waker.cc",

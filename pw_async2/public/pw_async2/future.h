@@ -21,6 +21,7 @@
 #include "pw_async2/context.h"
 #include "pw_async2/poll.h"
 #include "pw_containers/intrusive_list.h"
+#include "pw_memory/container_of.h"
 #include "pw_sync/interrupt_spin_lock.h"
 
 namespace pw::async2 {
@@ -425,212 +426,210 @@ class ListableFutureWithWaker
   bool complete_ = false;
 };
 
-namespace internal {
-
-template <typename ValueType, typename Class>
-constexpr size_t OffsetOf(ValueType Class::* member) {
-  alignas(Class) unsigned char obj_memory[sizeof(Class)];
-  Class* c = reinterpret_cast<Class*>(obj_memory);
-  return reinterpret_cast<size_t>(&(c->*member)) - reinterpret_cast<size_t>(c);
-}
-
-template <typename ValueType, typename Class>
-Class* ContainerOf(void* ptr, ValueType Class::* member) {
-  return reinterpret_cast<Class*>(reinterpret_cast<char*>(ptr) -
-                                  OffsetOf(member));
-}
-
-template <typename ValueType, typename Class>
-const Class* ContainerOf(const void* ptr, ValueType Class::* member) {
-  return reinterpret_cast<const Class*>(reinterpret_cast<const char*>(ptr) -
-                                        OffsetOf(member));
-}
-
-class BaseFutureList;
-
-}  // namespace internal
-
-/// A non-templated base class for futures that need to be wakeable and
-/// stored in a list.
+/// `FutureCore` provides common functionality for futures that need to be
+/// wakeable and stored in a list.
 ///
 /// This class provides the core mechanism for:
 /// - Storing a `Waker` to be woken up.
-/// - Tracking completion state.
+/// - Tracking future state.
 /// - Being part of an `IntrusiveList`.
 ///
 /// It is designed to be used as a member of a concrete future class
 /// (composition) rather than a base class, to simplify move semantics and
 /// object lifetime.
-class FutureCore : public IntrusiveList<FutureCore>::Item {
+class FutureCore : public IntrusiveForwardList<FutureCore>::Item {
  public:
-  FutureCore() = default;
+  constexpr FutureCore() : state_(State::kNull) {}
 
   FutureCore(FutureCore&& other) noexcept;
+
   FutureCore& operator=(FutureCore&& other) noexcept;
+
+  /// Tag type to construct a `FutureCore` for which the next call to `Pend`
+  /// will return `Ready`.
+  enum ReadyForCompletion { kReadyForCompletion };
+
+  /// Tag type to construct an active `FutureCore`. `Pend` may be called.
+  enum Pending { kPending };
+
+  /// Constructs a pending `FutureCore` that represents an async operation.
+  /// `Pend` must be called until it returns `Ready`.
+  ///
+  /// A pending `FutureCore` must be tracked by its provider (e.g. in a
+  /// `FutureList`).
+  explicit constexpr FutureCore(Pending) : state_(State::kPending) {}
+
+  /// Creates a wakeable future that is ready for completion. The next call to
+  /// `Pend` must return `Ready`.
+  explicit constexpr FutureCore(ReadyForCompletion) : state_(State::kReady) {}
 
   FutureCore(const FutureCore&) = delete;
   FutureCore& operator=(const FutureCore&) = delete;
 
-  ~FutureCore();
+  ~FutureCore() = default;
 
-  [[nodiscard]] bool is_complete() const { return state_ == kComplete; }
+  /// @returns Whether the future's `Pend()` function can be called.
+  [[nodiscard]] bool is_pendable() const { return state_ > State::kComplete; }
 
-  [[nodiscard]] bool is_initialized() const {
-    return state_ != kDefaultConstructed;
+  /// @returns Whether the future has completed: the future's `Pend()` returned
+  /// `Ready`.
+  [[nodiscard]] bool is_complete() const { return state_ == State::kComplete; }
+
+  /// @returns `true` if the next `Pend()` call is guaranteed to return `Ready`.
+  /// Depending on the implementation, `Pend()` may return `Ready` while
+  /// `is_ready` is `false`. Future implementations call `WakeAndMarkReady` to
+  /// set `is_ready` to `true`.
+  [[nodiscard]] bool is_ready() const { return state_ == State::kReady; }
+
+  /// Wakes the task waiting on the future, if any. The future must be pended in
+  /// order to make progress.
+  void Wake() { waker_.Wake(); }
+
+  /// Wakes the task pending the future and sets `is_ready` to `true`. Only call
+  /// this if the next call to to the future's `Pend()` will return `Ready`.
+  void WakeAndMarkReady() {
+    Wake();
+    state_ = State::kReady;
   }
 
-  /// Wakes the task waiting on the future.
-  void Wake() { std::move(waker_).Wake(); }
-
-  /// Tag to defer pushing to the list causing the future to start in an
-  /// unlisted state.
-  enum DeferPush { kDeferPush };
-
-  enum ReadyForCompletion { kReadyForCompletion };
-
-  /// Creates a wakeable future associated with the given list.
-  /// The future is automatically pushed to the list.
-  explicit FutureCore(internal::BaseFutureList& list);
-
-  /// Creates a wakeable future associated with the given list, but does not
-  /// push it to the list yet.
-  FutureCore(internal::BaseFutureList& list, DeferPush);
-
-  explicit FutureCore(ReadyForCompletion) : state_(kIncomplete) {}
-
-  internal::BaseFutureList* list() const { return list_; }
+  /// Removes this future from its list, if it is in one.
+  void Unlist() { unlist(); }
 
   template <typename FutureType>
-  auto DoPend(FutureType& future, Context& cx) {
-    PW_ASSERT(is_initialized());
-    PW_ASSERT(!is_complete());
+  auto DoPend(FutureType& future, Context& cx) PW_NO_LOCK_SAFETY_ANALYSIS {
+    PW_ASSERT(is_pendable());
 
     auto poll = future.DoPend(cx);
     if (poll.IsPending()) {
       PW_ASYNC_STORE_WAKER(cx, waker_, FutureType::kWaitReason);
     } else {
-      state_ = kComplete;
+      state_ = State::kComplete;
     }
 
     return poll;
   }
 
- protected:
+  /// @returns whether the future is currently in a list.
+  [[nodiscard]] bool in_list() const { return !unlisted(); }
+
  private:
-  friend class internal::BaseFutureList;
+  friend class BaseFutureList;  // for IntrusiveForwardList::Item functions
 
-  enum State : unsigned char {
-    kDefaultConstructed,
-    kComplete,
-    kIncomplete
-  } state_ = kDefaultConstructed;
+  /// @returns `true` if the `FutureCore` was NOT default constructed.
+  [[nodiscard]] bool is_initialized() const { return state_ != State::kNull; }
 
-  internal::BaseFutureList* list_ = nullptr;
   Waker waker_;
+
+  enum class State : unsigned char {
+    /// The FutureCore is in a default constructed state. It does not yet
+    /// represent an async operation and `Pend()` cannot be called.
+    kNull,
+
+    /// A previous call to `Pend()` returned `Ready()`.
+    kComplete,
+
+    /// The next call to `Pend()` will return `Ready()`.
+    kReady,
+
+    /// `Pend()` may be called to advance the operation represented by this
+    /// future. `Pend()` may return `Ready()` or `Pending()`.
+    kPending,
+  } state_;
 };
 
-namespace internal {
-
-/// A list of `FutureCore`s.
+/// A list of `FutureCore`s with common future-related operations. Future
+/// providers may use `BaseFutureList` or `FutureList` in place of a plain
+/// `IntrusiveForwardList`.
 ///
 /// This class does not provide any locking. It is the responsibility of the
 /// user to ensure safety, typically by holding a lock in the containing
 /// provider.
 class BaseFutureList {
  public:
+  constexpr BaseFutureList() = default;
+
   bool empty() const { return list_.empty(); }
 
-  void Push(FutureCore& future) { list_.push_back(future); }
+  void Push(FutureCore& future) { containers::PushBackSlow(list_, future); }
 
-  bool PushIfEmpty(FutureCore& future) {
+  void PushRequireEmpty(FutureCore& future);
+
+  bool PushIfEmpty(FutureCore& future);
+
+  FutureCore* PopIfAvailable() { return list_.empty() ? nullptr : &Pop(); }
+
+  FutureCore& Pop() {
+    FutureCore& future = list_.front();
+    list_.pop_front();
+    return future;
+  }
+
+  /// Pops the next future fromt the list and calls `WakeAndMarkReady()`.
+  /// Crashes if there are no futures in the list.
+  void ResolveOne() {
+    list_.front().WakeAndMarkReady();
+    list_.pop_front();
+  }
+
+  void ResolveOneIfAvailable() {
     if (!list_.empty()) {
-      return false;
-    }
-    list_.push_back(future);
-    return true;
-  }
-
-  void Remove(FutureCore& future) {
-    if (!future.unlisted()) {
-      list_.remove(future);
+      ResolveOne();
     }
   }
 
-  void Replace(FutureCore& old_future, FutureCore& new_future) {
-    if (!old_future.unlisted()) {
-      new_future.replace(old_future);
-    }
-  }
+  /// Pops all futures and calls `WakeAndMarkReady()` on them.
+  void ResolveAll();
 
  protected:
+  IntrusiveForwardList<FutureCore>& list() { return list_; }
+
+ private:
+  IntrusiveForwardList<FutureCore> list_;
+};
+
+/// List of futures of a custom future type. This is a minimal extension to
+/// `BaseFutureList`.
+///
+/// @tparam kGetFuture either a function that converts a `FutureCore` to its
+///     corresponding future type, or a pointer to the `FutureCore` member
+///     within the future.
+template <auto kGetFuture,
+          bool kIsMemberPtr =
+              std::is_member_object_pointer_v<decltype(kGetFuture)>>
+class FutureList : public BaseFutureList {
+ public:
+  using value_type = std::remove_reference_t<decltype(*kGetFuture(
+      std::declval<FutureCore*>()))>;
+  using pointer = value_type*;
+  using reference = value_type&;
+
+  constexpr FutureList() = default;
+
+  pointer PopIfAvailable() {
+    return kGetFuture(BaseFutureList::PopIfAvailable());
+  }
+
+  reference Pop() { return *kGetFuture(BaseFutureList::PopIfAvailable()); }
+
   template <typename Resolver>
   void ResolveAllWith(Resolver&& resolver) {
-    while (!list_.empty()) {
-      auto& future = list_.front();
-      list_.pop_front();
-      resolver(future);
+    while (!list().empty()) {
+      resolver(Pop());
     }
   }
 
   template <typename Resolver>
   void ResolveOneWith(Resolver&& resolver) {
-    if (!list_.empty()) {
-      auto& future = list_.front();
-      list_.pop_front();
-      resolver(future);
+    if (!list().empty()) {
+      resolver(Pop());
     }
   }
-
- private:
-  friend class pw::async2::FutureCore;
-
-  IntrusiveList<FutureCore> list_;
 };
 
-}  // namespace internal
-
-inline FutureCore::FutureCore(FutureCore&& other) noexcept
-    : state_(std::exchange(other.state_, kDefaultConstructed)),
-      list_(std::exchange(other.list_, nullptr)),
-      waker_(std::move(other.waker_)) {
-  if (list_) {
-    list_->Replace(other, *this);
-  }
-}
-
-inline FutureCore& FutureCore::operator=(FutureCore&& other) noexcept {
-  if (this == &other) {
-    return *this;
-  }
-
-  if (list_ != nullptr) {
-    list_->Remove(*this);
-  }
-
-  state_ = std::exchange(other.state_, kDefaultConstructed);
-  list_ = std::exchange(other.list_, nullptr);
-  waker_ = std::move(other.waker_);
-
-  if (list_ != nullptr) {
-    list_->Replace(other, *this);
-  }
-
-  return *this;
-}
-
-inline FutureCore::~FutureCore() {
-  if (list_ != nullptr) {
-    list_->Remove(*this);
-  }
-}
-
-inline FutureCore::FutureCore(internal::BaseFutureList& list)
-    : state_(kIncomplete), list_(&list) {
-  list_->Push(*this);
-}
-
-inline FutureCore::FutureCore(internal::BaseFutureList& list, DeferPush)
-    : state_(kIncomplete), list_(&list) {}
+// Allow passing a pointer-to-member instead of a function.
+template <auto kMemberPtr>
+class FutureList<kMemberPtr, true>
+    : public FutureList<pw::ContainerOf<kMemberPtr, FutureCore>> {};
 
 /// @endsubmodule
 
