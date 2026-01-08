@@ -334,6 +334,15 @@ pw_source_set("dynamic_vector") {
   ]
 }
 
+pw_source_set("dynamic_ptr_vector") {
+  public_configs = [ ":public_include_path" ]
+  public = [ "public/pw_containers/dynamic_ptr_vector.h" ]
+  public_deps = [
+    ":dynamic_vector",
+    "$dir_pw_allocator:allocator",
+  ]
+}
+
 pw_source_set("wrapped_iterator") {
   public_configs = [ ":public_include_path" ]
   public = [ "public/pw_containers/wrapped_iterator.h" ]
@@ -470,6 +479,7 @@ pw_test_group("tests") {
     ":var_len_entry_queue_test",
     ":vector_test",
     ":dynamic_vector_test",
+    ":dynamic_ptr_vector_test",
     ":wrapped_iterator_test",
     ":ptr_iterator_test",
     ":optional_tuple_test",
@@ -750,6 +760,16 @@ pw_test("dynamic_vector_test") {
     ":test_helpers",
     "$dir_pw_allocator:testing",
   ]
+}
+
+pw_test("dynamic_ptr_vector_test") {
+  sources = [ "dynamic_ptr_vector_test.cc" ]
+  deps = [
+    ":dynamic_ptr_vector",
+    ":test_helpers",
+    "$dir_pw_allocator:testing",
+  ]
+  negative_compilation_tests = true
 }
 
 pw_test("wrapped_iterator_test") {

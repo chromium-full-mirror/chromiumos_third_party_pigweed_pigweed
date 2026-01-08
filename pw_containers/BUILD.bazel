@@ -408,6 +408,16 @@ cc_library(
 )
 
 cc_library(
+    name = "dynamic_ptr_vector",
+    hdrs = ["public/pw_containers/dynamic_ptr_vector.h"],
+    strip_include_prefix = "public",
+    deps = [
+        ":dynamic_vector",
+        "//pw_allocator:allocator",
+    ],
+)
+
+cc_library(
     name = "filtered_view",
     hdrs = ["public/pw_containers/filtered_view.h"],
     strip_include_prefix = "public",
@@ -569,6 +579,18 @@ pw_cc_test(
         ":dynamic_vector",
         ":test_helpers",
         "//pw_allocator:testing",
+    ],
+)
+
+pw_cc_test(
+    name = "dynamic_ptr_vector_test",
+    srcs = ["dynamic_ptr_vector_test.cc"],
+    has_nc_test = True,
+    deps = [
+        ":dynamic_ptr_vector",
+        ":test_helpers",
+        "//pw_allocator:testing",
+        "//pw_unit_test",
     ],
 )
 
@@ -884,6 +906,7 @@ filegroup(
         "public/pw_containers/bitset.h",
         "public/pw_containers/deque.h",
         "public/pw_containers/dynamic_deque.h",
+        "public/pw_containers/dynamic_ptr_vector.h",
         "public/pw_containers/dynamic_queue.h",
         "public/pw_containers/dynamic_vector.h",
         "public/pw_containers/filtered_view.h",

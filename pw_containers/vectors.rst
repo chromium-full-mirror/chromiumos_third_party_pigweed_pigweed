@@ -11,7 +11,7 @@ A vector is a one-dimensional array with a variable length.
 ----------
 pw::Vector
 ----------
-:cc:`Vector` class is similar to ``std::vector``, except it is backed by a
+:cc:`pw::Vector` class is similar to ``std::vector``, except it is backed by a
 fixed-size buffer.
 
 Vectors must be declared with an explicit maximum size
@@ -51,8 +51,30 @@ The tables below illustrate the following scenarios:
 -----------------
 pw::DynamicVector
 -----------------
-:cc:`DynamicVector` is similar to :cc:`Vector`, except that
-it uses :cc:`Allocator` for memory operations.
+:cc:`pw::DynamicVector` is similar to :cc:`pw::Vector`, except that it uses
+:cc:`pw::Allocator` for memory operations.
+
+--------------------
+pw::DynamicPtrVector
+--------------------
+:cc:`pw::DynamicPtrVector` behaves like a ``std::vector<T>``, but stores
+pointers to objects of type ``T`` allocated using a :cc:`pw::Allocator`. This
+allows it to store objects that are not movable or copyable, or objects of
+polymorphic types, while still providing a vector-like interface.
+
+To support this, :cc:`pw::DynamicPtrVector` differs from `std::vector` in a few
+ways:
+
+*   **Memory Management**: It manages the lifetime of the objects it holds.
+    When an element is removed (e.g., via ``pop_back``, ``erase``, or
+    destruction of the vector), the object is destroyed and its memory deallocated.
+*   **Pointer Storage**: The underlying storage is a ``DynamicVector<T*>``.
+    Functions like ``data()`` return ``T* const*``.
+*   **Capacity**: ``reserve_ptr`` and ``ptr_capacity`` refer to the capacity of
+    the underlying pointer vector, not the objects themselves. Objects are
+    allocated individually.
+*   **Emplace**: ``emplace`` and ``emplace_back`` allow constructing derived
+    classes (e.g. ``vec.emplace_back<Derived>(args...)``).
 
 -------------
 API reference
