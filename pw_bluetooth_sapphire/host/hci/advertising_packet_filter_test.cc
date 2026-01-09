@@ -54,15 +54,13 @@ TEST_F(AdvertisingPacketFilterTest, SetUnsetPacketFilters) {
   AdvertisingPacketFilter packet_filter(
       {/*offloading_supported=*/false, /*max_filters=*/0},
       transport()->GetWeakPtr());
-  ASSERT_EQ(0u, packet_filter.scan_ids().size());
+  ASSERT_EQ(0u, packet_filter.NumScanIds());
 
   packet_filter.SetPacketFilters(0, {});
-  ASSERT_EQ(1u, packet_filter.scan_ids().size());
-  EXPECT_EQ(1u, packet_filter.scan_ids().count(0));
+  ASSERT_EQ(1u, packet_filter.NumScanIds());
 
   packet_filter.UnsetPacketFilters(0);
-  ASSERT_EQ(0u, packet_filter.scan_ids().size());
-  EXPECT_EQ(0u, packet_filter.scan_ids().count(0));
+  ASSERT_EQ(0u, packet_filter.NumScanIds());
 }
 
 // filtering passes if we haven't added any filters

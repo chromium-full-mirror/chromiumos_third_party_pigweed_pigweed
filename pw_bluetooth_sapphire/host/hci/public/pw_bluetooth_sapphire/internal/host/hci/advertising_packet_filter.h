@@ -75,10 +75,12 @@ class AdvertisingPacketFilter {
     return filtering_state_ == FilteringState::kOffloadedFiltering;
   }
 
-  const std::unordered_set<ScanId>& scan_ids() const { return scan_ids_; }
+  // Returns the number of scan ids currently registered. This method is only
+  // used for testing.
+  size_t NumScanIds() const { return scan_id_to_filters_.size(); }
 
-  // Returns the last filter index that was used. This method is primarily used
-  // for testing.
+  // Returns the last filter index that was used. This method is only used for
+  // testing.
   FilterIndex last_filter_index() const { return last_filter_index_; }
 
  private:
@@ -231,9 +233,6 @@ class AdvertisingPacketFilter {
   // offloaded per type of filter. Track how many slots are available to use
   // within the Controller.
   std::unordered_map<OffloadedFilterType, uint8_t> open_slots_;
-
-  // The total set of scan ids being tracked.
-  std::unordered_set<ScanId> scan_ids_;
 
   // Filters associated with a particular upper layer scan session with a given
   // scan id. These filters may be offloaded to the Controller if Controller

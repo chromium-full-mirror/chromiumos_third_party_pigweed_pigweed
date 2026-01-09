@@ -50,7 +50,6 @@ void AdvertisingPacketFilter::SetPacketFilters(
          scan_id,
          filters.size());
 
-  scan_ids_.insert(scan_id);
   scan_id_to_filters_[scan_id] = filters;
 
   if (!config_.offloading_supported()) {
@@ -129,12 +128,6 @@ void AdvertisingPacketFilter::UnsetPacketFilters(ScanId scan_id) {
 
 void AdvertisingPacketFilter::UnsetPacketFiltersInternal(ScanId scan_id,
                                                          bool run_commands) {
-  if (scan_id_to_filters_.count(scan_id) == 0) {
-    return;
-  }
-
-  bt_log(INFO, "hci", "removing packet filters for scan id: %d", scan_id);
-  scan_ids_.erase(scan_id);
   scan_id_to_filters_.erase(scan_id);
 
   if (!config_.offloading_supported()) {
@@ -176,7 +169,7 @@ AdvertisingPacketFilter::Matches(const AdvertisingData::ParseResult& ad,
                                  int8_t rssi) const {
   std::unordered_set<ScanId> result;
 
-  for (uint16_t scan_id : scan_ids_) {
+  for (const auto& [scan_id, _] : scan_id_to_filters_) {
     if (Matches(scan_id, ad, connectable, rssi)) {
       result.insert(scan_id);
     }
