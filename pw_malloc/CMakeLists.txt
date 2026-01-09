@@ -13,10 +13,11 @@
 # the License.
 
 include($ENV{PW_ROOT}/pw_build/pigweed.cmake)
+include($ENV{PW_ROOT}/pw_malloc/backend.cmake)
 
 pw_add_module_config(pw_malloc_CONFIG)
 
-pw_add_facade(pw_malloc INTERFACE
+pw_add_facade(pw_malloc STATIC
   BACKEND
     pw_malloc_BACKEND
   HEADERS

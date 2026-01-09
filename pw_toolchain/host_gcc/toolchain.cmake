@@ -20,6 +20,7 @@ include($ENV{PW_ROOT}/pw_assert/backend.cmake)
 include($ENV{PW_ROOT}/pw_async2/backend.cmake)
 include($ENV{PW_ROOT}/pw_chrono/backend.cmake)
 include($ENV{PW_ROOT}/pw_log/backend.cmake)
+include($ENV{PW_ROOT}/pw_malloc/backend.cmake)
 include($ENV{PW_ROOT}/pw_perf_test/backend.cmake)
 include($ENV{PW_ROOT}/pw_rpc/system_server/backend.cmake)
 include($ENV{PW_ROOT}/pw_sync/backend.cmake)
@@ -85,6 +86,8 @@ pw_set_backend(pw_system.io pw_system.sys_io_target_io)
 pw_set_backend(pw_trace pw_trace_tokenized)
 # Maybe this should just be a facade?
 set(pw_trace_tokenizer_time pw_trace_tokenized.host_trace_time CACHE STRING "Tokenizer trace time implementation" FORCE)
+
+pw_set_backend(pw_malloc pw_malloc.best_fit)
 
 set(pw_build_WARNINGS pw_build.strict_warnings pw_build.extra_strict_warnings
     CACHE STRING "" FORCE)
