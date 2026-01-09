@@ -25,6 +25,7 @@ struct PointerToMemberTraits;
 template <typename T, typename C>
 struct PointerToMemberTraits<T C::*> {
   using value_type = T;
+  using class_type = C;
 };
 
 template <typename T>
@@ -82,6 +83,22 @@ template <auto kMemberPtr,
           typename Member = internal::MemberValueType<decltype(kMemberPtr)>>
 auto ContainerOf(Member* ptr) {
   return ContainerOf(ptr, kMemberPtr);
+}
+
+/// Function that dereferences a pointer to a member.
+///
+/// This is a just wrapper around a pointer-to-member dereference, but is useful
+/// to create a function that complements `ContainerOf`.
+///
+/// @tparam kMemberPtr A pointer to the member within the class.
+/// @param ptr A pointer to the containing class.
+/// @return A pointer to the member.
+template <auto kMemberPtr,
+          typename Class = typename internal::PointerToMemberTraits<
+              decltype(kMemberPtr)>::class_type>
+constexpr internal::MemberValueType<decltype(kMemberPtr)>& MemberOf(
+    Class& ptr) {
+  return ptr.*kMemberPtr;
 }
 
 }  // namespace pw

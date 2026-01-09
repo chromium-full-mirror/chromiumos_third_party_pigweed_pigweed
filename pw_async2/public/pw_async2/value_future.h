@@ -246,7 +246,7 @@ class ValueProvider {
     ValueFuture<T> future(FutureCore::kPending);
     {
       std::lock_guard lock(internal::ValueProviderLock());
-      list_.PushRequireEmpty(future.core_);
+      list_.PushRequireEmpty(future);
     }
     return future;
   }

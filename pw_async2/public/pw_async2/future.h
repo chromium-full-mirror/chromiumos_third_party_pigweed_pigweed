@@ -590,26 +590,42 @@ class BaseFutureList {
 /// List of futures of a custom future type. This is a minimal extension to
 /// `BaseFutureList`.
 ///
-/// @tparam kGetFuture either a function that converts a `FutureCore` to its
-///     corresponding future type, or a pointer to the `FutureCore` member
-///     within the future.
-template <auto kGetFuture,
-          bool kIsMemberPtr =
-              std::is_member_object_pointer_v<decltype(kGetFuture)>>
-class FutureList : public BaseFutureList {
+/// @tparam kGetFutureImpl a function that converts a `FutureCore&` to its
+///     corresponding future type
+/// @tparam kGetFutureCore a function that converts a future reference to its
+///     corresponding `FutureCore`.
+template <auto kGetFutureImpl, auto kGetFutureCore>
+class CustomFutureList : public BaseFutureList {
  public:
-  using value_type = std::remove_reference_t<decltype(*kGetFuture(
+  using value_type = std::remove_reference_t<decltype(*kGetFutureImpl(
       std::declval<FutureCore*>()))>;
   using pointer = value_type*;
   using reference = value_type&;
 
-  constexpr FutureList() = default;
+  constexpr CustomFutureList() = default;
 
-  pointer PopIfAvailable() {
-    return kGetFuture(BaseFutureList::PopIfAvailable());
+  void Push(FutureCore& future) { BaseFutureList::Push(future); }
+  void Push(reference future) { Push(kGetFutureCore(future)); }
+
+  void PushRequireEmpty(FutureCore& future) {
+    BaseFutureList::PushRequireEmpty(future);
+  }
+  void PushRequireEmpty(reference future) {
+    PushRequireEmpty(kGetFutureCore(future));
   }
 
-  reference Pop() { return *kGetFuture(BaseFutureList::PopIfAvailable()); }
+  bool PushIfEmpty(FutureCore& future) {
+    return BaseFutureList::PushIfEmpty(future);
+  }
+  bool PushIfEmpty(reference future) {
+    return PushIfEmpty(kGetFutureCore(future));
+  }
+
+  pointer PopIfAvailable() {
+    return kGetFutureImpl(BaseFutureList::PopIfAvailable());
+  }
+
+  reference Pop() { return *kGetFutureImpl(BaseFutureList::PopIfAvailable()); }
 
   template <typename Resolver>
   void ResolveAllWith(Resolver&& resolver) {
@@ -626,10 +642,13 @@ class FutureList : public BaseFutureList {
   }
 };
 
-// Allow passing a pointer-to-member instead of a function.
+/// A `CustomFutureList` that uses a pointer to a `FutureCore` member.
+///
+/// @tparam kMemberPtr pointer to a `FutureCore` member of a custom future
+///     class
 template <auto kMemberPtr>
-class FutureList<kMemberPtr, true>
-    : public FutureList<pw::ContainerOf<kMemberPtr, FutureCore>> {};
+using FutureList =
+    CustomFutureList<ContainerOf<kMemberPtr, FutureCore>, MemberOf<kMemberPtr>>;
 
 /// @endsubmodule
 
