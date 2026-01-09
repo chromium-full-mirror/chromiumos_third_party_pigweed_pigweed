@@ -71,7 +71,9 @@ class AdvertisingPacketFilter {
                bool connectable,
                int8_t rssi) const;
 
-  bool IsOffloadingFilters() const { return is_offloading_filters_; }
+  bool IsUsingOffloadedFiltering() const {
+    return filtering_state_ == FilteringState::kOffloadedFiltering;
+  }
 
   const std::unordered_set<ScanId>& scan_ids() const { return scan_ids_; }
 
@@ -80,6 +82,11 @@ class AdvertisingPacketFilter {
   FilterIndex last_filter_index() const { return last_filter_index_; }
 
  private:
+  enum class FilteringState {
+    kHostFiltering,
+    kOffloadedFiltering,
+  };
+
   enum class OffloadedFilterType {
     kServiceUUID,
     kServiceDataUUID,
@@ -212,8 +219,9 @@ class AdvertisingPacketFilter {
   // available filter index.
   FilterIndex last_filter_index_ = kStartFilterIndex;
 
-  // Tracks whether we are currently using Controller offloaded filtering.
-  bool is_offloading_filters_ = false;
+  // Tracks whether we are currently using Host filtering or Controller
+  // offloaded filtering.
+  FilteringState filtering_state_ = FilteringState::kHostFiltering;
 
   // Packet filter configuration that controls how this class behaves
   // (e.g. Controller offloading enabled, etc).

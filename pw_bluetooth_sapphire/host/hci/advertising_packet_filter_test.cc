@@ -160,7 +160,7 @@ TEST_F(AdvertisingPacketFilterTest, OffloadingRemainsDisabledIfConfiguredOff) {
   packet_filter.SetPacketFilters(0, {});
 
   RunUntilIdle();
-  EXPECT_FALSE(packet_filter.IsOffloadingFilters());
+  EXPECT_FALSE(packet_filter.IsUsingOffloadedFiltering());
   EXPECT_FALSE(test_device()->packet_filter_state().enabled);
 }
 
@@ -172,7 +172,7 @@ TEST_F(AdvertisingPacketFilterTest, OffloadingEnabledOnFirstOffloadableFilter) {
 
   // No filters to offload
   RunUntilIdle();
-  EXPECT_FALSE(packet_filter.IsOffloadingFilters());
+  EXPECT_FALSE(packet_filter.IsUsingOffloadedFiltering());
   EXPECT_FALSE(test_device()->packet_filter_state().enabled);
 
   // A filter with no attributes that can be offloaded
@@ -180,7 +180,7 @@ TEST_F(AdvertisingPacketFilterTest, OffloadingEnabledOnFirstOffloadableFilter) {
   filter_1.set_connectable(true);
   packet_filter.SetPacketFilters(0, {filter_1});
   RunUntilIdle();
-  EXPECT_FALSE(packet_filter.IsOffloadingFilters());
+  EXPECT_FALSE(packet_filter.IsUsingOffloadedFiltering());
   EXPECT_FALSE(test_device()->packet_filter_state().enabled);
 
   // First offloadable filter enables offloading
@@ -188,7 +188,7 @@ TEST_F(AdvertisingPacketFilterTest, OffloadingEnabledOnFirstOffloadableFilter) {
   filter_2.set_name_substring("bort");
   packet_filter.SetPacketFilters(0, {filter_2});
   RunUntilIdle();
-  EXPECT_TRUE(packet_filter.IsOffloadingFilters());
+  EXPECT_TRUE(packet_filter.IsUsingOffloadedFiltering());
   EXPECT_TRUE(test_device()->packet_filter_state().enabled);
 }
 
@@ -203,7 +203,7 @@ TEST_F(AdvertisingPacketFilterTest, OffloadingDisabledIfMemoryUnavailable) {
   packet_filter.SetPacketFilters(0, {filter_a});
   RunUntilIdle();
 
-  EXPECT_TRUE(packet_filter.IsOffloadingFilters());
+  EXPECT_TRUE(packet_filter.IsUsingOffloadedFiltering());
   EXPECT_TRUE(test_device()->packet_filter_state().enabled);
 
   DiscoveryFilter filter_b;
@@ -211,7 +211,7 @@ TEST_F(AdvertisingPacketFilterTest, OffloadingDisabledIfMemoryUnavailable) {
   packet_filter.SetPacketFilters(1, {filter_b});
   RunUntilIdle();
 
-  EXPECT_FALSE(packet_filter.IsOffloadingFilters());
+  EXPECT_FALSE(packet_filter.IsUsingOffloadedFiltering());
   EXPECT_FALSE(test_device()->packet_filter_state().enabled);
 }
 
@@ -232,13 +232,13 @@ TEST_F(AdvertisingPacketFilterTest, OffloadingReenabledIfMemoryAvailable) {
   packet_filter.SetPacketFilters(1, {filter_b});
   RunUntilIdle();
 
-  EXPECT_FALSE(packet_filter.IsOffloadingFilters());
+  EXPECT_FALSE(packet_filter.IsUsingOffloadedFiltering());
   EXPECT_FALSE(test_device()->packet_filter_state().enabled);
 
   packet_filter.UnsetPacketFilters(1);
   RunUntilIdle();
 
-  EXPECT_TRUE(packet_filter.IsOffloadingFilters());
+  EXPECT_TRUE(packet_filter.IsUsingOffloadedFiltering());
   EXPECT_TRUE(test_device()->packet_filter_state().enabled);
 }
 
@@ -417,7 +417,7 @@ TEST_F(AdvertisingPacketFilterTest, UnsetFiltersDoesntInadvertentlyEnable) {
   filter_a.set_name_substring("bluetooth");
   packet_filter.SetPacketFilters(0, {filter_a});
   RunUntilIdle();
-  ASSERT_TRUE(packet_filter.IsOffloadingFilters());
+  ASSERT_TRUE(packet_filter.IsUsingOffloadedFiltering());
   ASSERT_TRUE(test_device()->packet_filter_state().enabled);
 
   DiscoveryFilter filter_b;
@@ -427,14 +427,14 @@ TEST_F(AdvertisingPacketFilterTest, UnsetFiltersDoesntInadvertentlyEnable) {
 
   // Offloading should now be disabled because max_filters is 1 but two filters
   // were added
-  ASSERT_FALSE(packet_filter.IsOffloadingFilters());
+  ASSERT_FALSE(packet_filter.IsUsingOffloadedFiltering());
   ASSERT_FALSE(test_device()->packet_filter_state().enabled);
 
   packet_filter.SetPacketFilters(0, {});
   RunUntilIdle();
 
   // Offloading should still be disabled because filter_b is still present
-  ASSERT_FALSE(packet_filter.IsOffloadingFilters());
+  ASSERT_FALSE(packet_filter.IsUsingOffloadedFiltering());
   ASSERT_FALSE(test_device()->packet_filter_state().enabled);
 }
 

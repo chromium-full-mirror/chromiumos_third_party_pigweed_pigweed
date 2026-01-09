@@ -84,7 +84,7 @@ void AdvertisingPacketFilter::SetPacketFilters(
     return;
   }
 
-  if (!is_offloading_filters_) {
+  if (filtering_state_ == FilteringState::kHostFiltering) {
     bt_log(INFO, "hci-le", "controller filter memory available");
     EnableOffloadedFiltering();
     return;
@@ -121,11 +121,7 @@ void AdvertisingPacketFilter::UnsetPacketFilters(ScanId scan_id) {
     return;
   }
 
-  if (is_offloading_filters_) {
-    return;
-  }
-
-  if (MemoryAvailable()) {
+  if (filtering_state_ == FilteringState::kHostFiltering && MemoryAvailable()) {
     bt_log(INFO, "hci-le", "controller filter memory available");
     EnableOffloadedFiltering();
   }
@@ -145,7 +141,7 @@ void AdvertisingPacketFilter::UnsetPacketFiltersInternal(ScanId scan_id,
     return;
   }
 
-  if (!is_offloading_filters_) {
+  if (filtering_state_ == FilteringState::kHostFiltering) {
     return;
   }
 
@@ -385,7 +381,7 @@ bool AdvertisingPacketFilter::MemoryAvailableForSlots(
 }
 
 void AdvertisingPacketFilter::EnableOffloadedFiltering() {
-  if (is_offloading_filters_) {
+  if (filtering_state_ == FilteringState::kOffloadedFiltering) {
     return;
   }
 
@@ -414,11 +410,11 @@ void AdvertisingPacketFilter::EnableOffloadedFiltering() {
     }
   });
 
-  is_offloading_filters_ = true;
+  filtering_state_ = FilteringState::kOffloadedFiltering;
 }
 
 void AdvertisingPacketFilter::DisableOffloadedFiltering() {
-  if (!is_offloading_filters_) {
+  if (filtering_state_ == FilteringState::kHostFiltering) {
     return;
   }
 
@@ -437,7 +433,7 @@ void AdvertisingPacketFilter::DisableOffloadedFiltering() {
   ResetOpenSlots();
   last_filter_index_ = kStartFilterIndex;
   scan_id_to_index_.clear();
-  is_offloading_filters_ = false;
+  filtering_state_ = FilteringState::kHostFiltering;
 }
 
 bool AdvertisingPacketFilter::IsOffloadable(const DiscoveryFilter& filter) {

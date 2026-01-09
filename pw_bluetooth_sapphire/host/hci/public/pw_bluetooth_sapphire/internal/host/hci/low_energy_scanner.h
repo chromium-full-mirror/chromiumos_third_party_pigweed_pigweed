@@ -246,8 +246,8 @@ class LowEnergyScanner : public LocalAddressClient {
   bool IsPassiveScanning() const { return state() == State::kPassiveScanning; }
   bool IsScanning() const { return IsActiveScanning() || IsPassiveScanning(); }
   bool IsInitiating() const { return state() == State::kInitiating; }
-  bool IsOffloadingFilters() const {
-    return packet_filter_.IsOffloadingFilters();
+  bool IsUsingOffloadedFiltering() const {
+    return packet_filter_.IsUsingOffloadedFiltering();
   }
 
   // LocalAddressClient override:
