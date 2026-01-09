@@ -18,7 +18,7 @@
 pub mod __private {
     pub use colors::log_level_tag;
     use pw_status::Result;
-    pub use pw_tokenizer::{tokenize_core_fmt_to_writer, tokenize_printf_to_writer};
+    pub use pw_tokenizer::{MessageWriter, tokenize_core_fmt_to_writer, tokenize_printf_to_writer};
     use syscall_user::SysCallInterface;
     pub use tokenized_writer::Base64TokenizedMessageWriter;
 
@@ -27,9 +27,27 @@ pub mod __private {
         unsafe { syscall_user::SysCall::debug_log(buffer.as_ptr(), buffer.len()) }
     }
 
-    type TokenizedWriter = Base64TokenizedMessageWriter<fn(&[u8]) -> Result<()>>;
-    pub fn new_writer() -> TokenizedWriter {
-        TokenizedWriter::new(write)
+    pub type WriterCallback = fn(&[u8]) -> Result<()>;
+    pub struct TokenizedWriter(Base64TokenizedMessageWriter<WriterCallback>);
+
+    impl Default for TokenizedWriter {
+        fn default() -> Self {
+            Self(Base64TokenizedMessageWriter::new(write))
+        }
+    }
+
+    impl MessageWriter for TokenizedWriter {
+        fn write(&mut self, data: &[u8]) -> Result<()> {
+            self.0.write(data)
+        }
+
+        fn remaining(&self) -> usize {
+            self.0.remaining()
+        }
+
+        fn finalize(self) -> Result<()> {
+            self.0.finalize()
+        }
     }
 }
 
@@ -45,7 +63,7 @@ pub mod __private {
 macro_rules! pw_log_backend {
   ($log_level:expr, $format_string:literal $(, $args:expr)* $(,)?) => {{
     let _ = $crate::__private::tokenize_core_fmt_to_writer!(
-      $crate::__private::new_writer(),
+      $crate::__private::TokenizedWriter,
       "[{}] " PW_FMT_CONCAT $format_string,
       $crate::__private::log_level_tag($log_level) as &str,
       $($args),*);
@@ -56,7 +74,7 @@ macro_rules! pw_log_backend {
 macro_rules! pw_logf_backend {
   ($log_level:expr, $format_string:literal $(, $args:expr)* $(,)?) => {{
     let _ = $crate::__private::tokenize_printf_to_writer!(
-      $crate::__private::new_writer(),
+      $crate::__private::TokenizedWriter,
       "[%s] " PW_FMT_CONCAT $format_string,
       $crate::__private::log_level_tag($log_level),
       $($args),*);

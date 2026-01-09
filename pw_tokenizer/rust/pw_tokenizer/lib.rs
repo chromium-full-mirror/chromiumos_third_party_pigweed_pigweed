@@ -227,6 +227,11 @@ macro_rules! tokenize_to_buffer {
 /// tokenization will be written to a shared/ambient resource like stdio, a
 /// UART, or a shared buffer.
 ///
+/// The `writer_type` should implement [`MessageWriter`] and [`Default`] traits.
+/// The writer is instantiated with the [`Default`] allowing any intermediate
+/// buffers to be declared on the stack of the internal writing engine instead
+/// of the caller's stack.
+///
 /// See [`token`] for an explanation on how strings are tokenized and entries
 /// are added to the token database.  The token's domain is set to `""`.
 ///
@@ -266,8 +271,8 @@ macro_rules! tokenize_to_buffer {
 ///   cursor: Cursor<[u8; BUFFER_LEN]>,
 /// }
 ///
-/// impl TestMessageWriter {
-///   fn new() -> Self {
+/// impl Default for TestMessageWriter {
+///   fn default() -> Self {
 ///       Self {
 ///           cursor: Cursor::new([0u8; BUFFER_LEN]),
 ///       }
@@ -293,7 +298,7 @@ macro_rules! tokenize_to_buffer {
 ///
 /// // Tokenize a format string and argument into the writer.  Note how we
 /// // pass in the message writer's type, not an instance of it.
-/// let len = tokenize_core_fmt_to_writer!(TestMessageWriter::new(), "The answer is {}", 42 as i32)?;
+/// let len = tokenize_core_fmt_to_writer!(TestMessageWriter, "The answer is {}", 42 as i32)?;
 /// # Ok::<(), pw_status::Error>(())
 /// ```
 #[macro_export]
@@ -311,6 +316,11 @@ macro_rules! tokenize_core_fmt_to_writer {
 /// provide an optimized API for use cases like logging where the output of the
 /// tokenization will be written to a shared/ambient resource like stdio, a
 /// UART, or a shared buffer.
+///
+/// The `writer_type` should implement [`MessageWriter`] and [`Default`] traits.
+/// The writer is instantiated with the [`Default`] allowing any intermediate
+/// buffers to be declared on the stack of the internal writing engine instead
+/// of the caller's stack.
 ///
 /// See [`token`] for an explanation on how strings are tokenized and entries
 /// are added to the token database.  The token's domain is set to `""`.
@@ -351,14 +361,13 @@ macro_rules! tokenize_core_fmt_to_writer {
 ///   cursor: Cursor<[u8; BUFFER_LEN]>,
 /// }
 ///
-/// impl TestMessageWriter {
-///   fn new() -> Self {
+/// impl Default for TestMessageWriter {
+///   fn default() -> Self {
 ///       Self {
 ///           cursor: Cursor::new([0u8; BUFFER_LEN]),
 ///       }
 ///   }
 /// }
-///
 ///
 /// impl MessageWriter for TestMessageWriter {
 ///   fn write(&mut self, data: &[u8]) -> Result<()> {
@@ -379,7 +388,7 @@ macro_rules! tokenize_core_fmt_to_writer {
 ///
 /// // Tokenize a format string and argument into the writer.  Note how we
 /// // pass in the message writer's type, not an instance of it.
-/// let len = tokenize_printf_to_writer!(TestMessageWriter::new(), "The answer is %d", 42)?;
+/// let len = tokenize_printf_to_writer!(TestMessageWriter, "The answer is %d", 42)?;
 /// # Ok::<(), pw_status::Error>(())
 /// ```
 #[macro_export]
@@ -473,8 +482,8 @@ mod tests {
             cursor: Cursor<[u8; $buffer_len]>,
         }
 
-        impl TestMessageWriter {
-          fn new() -> Self {
+        impl Default for TestMessageWriter {
+          fn default() -> Self {
               Self {
                   cursor: Cursor::new([0u8; $buffer_len]),
               }
@@ -501,7 +510,7 @@ mod tests {
 
         if $printf_fmt != "" {
           TEST_OUTPUT.with(|output| *output.borrow_mut() = None);
-          tokenize_printf_to_writer!(TestMessageWriter::new(), $printf_fmt, $($args),*).unwrap();
+          tokenize_printf_to_writer!(TestMessageWriter, $printf_fmt, $($args),*).unwrap();
           TEST_OUTPUT.with(|output| {
               assert_eq!(
                   *output.borrow(),
@@ -512,7 +521,7 @@ mod tests {
 
         if $core_fmt != "" {
           TEST_OUTPUT.with(|output| *output.borrow_mut() = None);
-          tokenize_core_fmt_to_writer!(TestMessageWriter::new(), $core_fmt, $($args),*).unwrap();
+          tokenize_core_fmt_to_writer!(TestMessageWriter, $core_fmt, $($args),*).unwrap();
           TEST_OUTPUT.with(|output| {
               assert_eq!(
                   *output.borrow(),

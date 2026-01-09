@@ -249,18 +249,18 @@ pub fn _tokenize_printf_to_buffer(tokens: TokenStream) -> TokenStream {
 //   ($ty:ty, $format_string:literal, $($args:expr),*)
 #[derive(Debug)]
 struct TokenizeToWriterArgs<T: FormatStringParser> {
-    writer: Expr,
+    writer_type: Expr,
     format_and_args: FormatAndArgsFlavor<T>,
 }
 
 impl<T: FormatStringParser> Parse for TokenizeToWriterArgs<T> {
     fn parse(input: ParseStream) -> syn::parse::Result<Self> {
-        let writer: Expr = input.parse()?;
+        let writer_type: Expr = input.parse()?;
         input.parse::<Token![,]>()?;
         let format_and_args: FormatAndArgsFlavor<_> = input.parse()?;
 
         Ok(Self {
-            writer,
+            writer_type,
             format_and_args,
         })
     }
@@ -270,15 +270,15 @@ impl<T: FormatStringParser> Parse for TokenizeToWriterArgs<T> {
 // the `tokenize_to_writer!` macro.
 struct TokenizeToWriterGenerator<'a> {
     domain: &'a str,
-    writer: &'a Expr,
+    writer_type: &'a Expr,
     encoding_fragments: Vec<TokenStream2>,
 }
 
 impl<'a> TokenizeToWriterGenerator<'a> {
-    fn new(domain: &'a str, writer: &'a Expr) -> Self {
+    fn new(domain: &'a str, writer_type: &'a Expr) -> Self {
         Self {
             domain,
-            writer,
+            writer_type,
             encoding_fragments: Vec::new(),
         }
     }
@@ -290,7 +290,7 @@ impl PrintfFormatMacroGenerator for TokenizeToWriterGenerator<'_> {
         format_string_fragments: &[PrintfFormatStringFragment],
     ) -> Result<TokenStream2> {
         // Locally scoped aliases so we can refer to them in `quote!()`
-        let writer = self.writer;
+        let writer_type = self.writer_type;
         let encoding_fragments = self.encoding_fragments;
 
         let format_string_pieces: Vec<_> = format_string_fragments
@@ -304,26 +304,26 @@ impl PrintfFormatMacroGenerator for TokenizeToWriterGenerator<'_> {
 
         if encoding_fragments.is_empty() {
             Ok(quote! {
-              {
-                __pw_tokenizer_crate::internal::tokenize_to_writer_no_args(#writer, #token)
-              }
+                {
+                    __pw_tokenizer_crate::internal::tokenize_to_default_writer_no_args::<#writer_type>(#token)
+                }
             })
         } else {
             Ok(quote! {
-              {
+                {
+                #![allow(clippy::unnecessary_cast)]
+                use __pw_tokenizer_crate::internal::Argument;
+                let args = &[#(#encoding_fragments),*];
                 // A limitation of the tokenizer macro is that untyped formats
                 // are not supported, so instead of ("{}", x), the following
                 // ("{}", x as type) must be used  instead.  This
                 // can lead to clippy errors about unnecessary casts, so ensure
                 // it's disabled inside this macro.
-                #![allow(clippy::unnecessary_cast)]
-                use __pw_tokenizer_crate::internal::Argument;
-                __pw_tokenizer_crate::internal::tokenize_to_writer(
-                  #writer,
-                  #token,
-                  &[#(#encoding_fragments),*]
+                __pw_tokenizer_crate::internal::tokenize_to_default_writer::<#writer_type>(
+                #token,
+                args
                 )
-              }
+                }
             })
         }
     }
@@ -371,7 +371,7 @@ pub fn _tokenize_core_fmt_to_writer(tokens: TokenStream) -> TokenStream {
     let input = parse_macro_input!(tokens as TokenizeToWriterArgs<CoreFmtFormatStringParser>);
 
     // Hard codes domain to "".
-    let generator = TokenizeToWriterGenerator::new("", &input.writer);
+    let generator = TokenizeToWriterGenerator::new("", &input.writer_type);
 
     match generate_printf(generator, input.format_and_args.into()) {
         Ok(token_stream) => token_stream.into(),
@@ -387,7 +387,7 @@ pub fn _tokenize_printf_to_writer(tokens: TokenStream) -> TokenStream {
     let input = parse_macro_input!(tokens as TokenizeToWriterArgs<PrintfFormatStringParser>);
 
     // Hard codes domain to "".
-    let generator = TokenizeToWriterGenerator::new("", &input.writer);
+    let generator = TokenizeToWriterGenerator::new("", &input.writer_type);
 
     match generate_printf(generator, input.format_and_args.into()) {
         Ok(token_stream) => token_stream.into(),
