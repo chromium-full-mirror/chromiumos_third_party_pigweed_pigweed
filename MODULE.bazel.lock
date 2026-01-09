@@ -317,7 +317,7 @@
     },
     "//pw_toolchain/rust:extensions.bzl%pw_rust": {
       "general": {
-        "bzlTransitiveDigest": "uBtSy2FcZhZ+INb/hYSBX625y0ktLNAqtD0CO+0H7c0=",
+        "bzlTransitiveDigest": "+GbeEfcV2l7J6eSb6X7OCVpNEObHA5OEog8Q1AATOIc=",
         "usagesDigest": "Y7GFqj1chUi7/H6p5/UlEr18h9aUEhnWtDc5zT6V99k=",
         "recordedFileInputs": {},
         "recordedDirentsInputs": {},

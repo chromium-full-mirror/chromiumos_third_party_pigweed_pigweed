@@ -93,7 +93,7 @@ EXTRA_TARGETS = [
 
 CHANNELS = [
     {
-        "extra_rustc_flags": ["-Dwarnings", "-Zmacro-backtrace"],
+        "extra_rustc_flags": ["-Dwarnings", "-Zemit-stack-sizes", "-Zmacro-backtrace"],
         "name": "nightly",
         "target_settings": ["@rules_rust//rust/toolchain/channel:nightly"],
     },
@@ -114,6 +114,8 @@ CHANNELS = [
         "extra_rustc_flags": [
             "-Dwarnings",
             "-Zallow-features=core_intrinsics,error_generic_member_access,proc_macro_span,rustc_attrs",
+            "-Zemit-stack-sizes",
+            "-Zmacro-backtrace",
         ],
         "name": "stable",
         "target_settings": ["@rules_rust//rust/toolchain/channel:stable"],
