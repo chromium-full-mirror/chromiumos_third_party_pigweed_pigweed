@@ -122,9 +122,6 @@ pw_add_library_generic(pw_build.pedantic_warnings INTERFACE
     # supported prior and permitted by the Google style guide.
     "-Wno-c++20-designator"
 
-    # TODO: https://pwbug.dev/456551524 - Remove workaround after toolchain
-    # is rolled to recognize the c2y-extensions flag.
-    "-Wno-unknown-warning-option"
     # __COUNTER__ is a GCC extension until C++26. Using it results in
     # -Wc2y-extensions warnings, which must be disabled.
     "-Wno-c2y-extensions"
@@ -146,9 +143,6 @@ pw_add_library_generic(pw_build.pedantic_warnings INTERFACE
     # warning introduced by Clang produces warnings in third party code.
     # Remove this warning suppression after addressing the root cause.
     "-Wno-missing-template-arg-list-after-template-kw"
-
-    # TODO: b/356689444 - Remove no-unknown-warning-option after Clang roll.
-    "-Wno-unknown-warning-option"
 )
 # LINT.ThenChange(//pw_toolchain/cc/args/BUILD.bazel:internal_strict_warnings,//pw_toolchain/cc/args/BUILD.gn:internal_strict_warnings)
 
