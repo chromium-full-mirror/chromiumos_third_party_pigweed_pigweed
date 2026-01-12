@@ -206,8 +206,10 @@ if (dir_pw_third_party_llvm_libc != "") {
 
 pw_static_library("noop_io") {
   sources = [ "noop_io.cc" ]
+  deps = [ dir_pw_preprocessor ]
 }
 
 pw_static_library("errno") {
   sources = [ "errno.cc" ]
+  deps = [ dir_pw_preprocessor ]
 }
