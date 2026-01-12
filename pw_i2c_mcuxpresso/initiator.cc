@@ -126,7 +126,16 @@ Status McuxpressoInitiator::InitiateNonBlockingTransferUntil(
   }
 
   if (!callback_complete_notification_.try_acquire_until(deadline)) {
-    I2C_MasterTransferAbort(base_, &handle_);
+    // If we're going to restart the interface for this bus, ignore trying to
+    // abort the transfer. Otherwise, we need to keep things synced, so wait
+    // for the transfer to abort.
+    if (!config_.auto_restart_interface) {
+      // Caveat emptor: this busy-waits for the controller to reset to the
+      // idle state, which means potentially this could be an unbounded wait
+      // if a peripheral is stuck! See also I2C_RETRY_WAIT.
+      I2C_MasterTransferAbort(base_, &handle_);
+    }
+
     return Status::DeadlineExceeded();
   }
 
