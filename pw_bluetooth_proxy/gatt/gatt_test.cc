@@ -77,16 +77,23 @@ constexpr uint16_t kAttFixedChannelId =
 
 using SpanReceiveFunction = L2capChannelManagerInterface::SpanReceiveFunction;
 
+using CharacteristicInfo = Gatt::CharacteristicInfo;
+
 class FakeChannel final : public ChannelProxy {
+ public:
+  FakeChannel(Function<StatusWithMultiBuf(FlatConstMultiBuf&&)> write_cb)
+      : write_cb_(std::move(write_cb)) {}
+
  private:
   StatusWithMultiBuf DoWrite(FlatConstMultiBuf&& buf) override {
-    FlatConstMultiBufInstance _ = std::move(buf);
-    return {Status::Unimplemented(), std::nullopt};
+    return write_cb_(std::move(buf));
   }
   Status DoIsWriteAvailable() override { return Status::Unimplemented(); }
   Status DoSendAdditionalRxCredits(uint16_t) override {
     return Status::Unimplemented();
   }
+
+  Function<StatusWithMultiBuf(FlatConstMultiBuf&&)> write_cb_;
 };
 
 struct Notification {
@@ -116,6 +123,30 @@ class FakeClientDelegate final : public Client::Delegate {
 
   Vector<Notification, 15> notifications_;
   Vector<std::pair<Error, ConnectionHandle>, 10> errors_;
+};
+
+class FakeServerDelegate final : public Server::Delegate {
+ public:
+  FakeServerDelegate() = default;
+
+  FakeServerDelegate(Function<void(ConnectionHandle)> write_available_fn)
+      : write_available_fn_(std::move(write_available_fn)) {}
+
+ private:
+  void DoHandleWriteWithoutResponse(ConnectionHandle /*connection_handle*/,
+                                    AttributeHandle /*value_handle*/,
+                                    FlatConstMultiBuf&& /*value*/) override {}
+
+  void DoHandleWriteAvailable(ConnectionHandle connection_handle) override {
+    if (write_available_fn_) {
+      write_available_fn_(connection_handle);
+    }
+  }
+
+  void DoHandleError(Error /*error*/,
+                     ConnectionHandle /*connection_handle*/) override {}
+
+  Function<void(ConnectionHandle)> write_available_fn_;
 };
 
 class GattTest : public ::testing::Test, public L2capChannelManagerInterface {
@@ -159,6 +190,18 @@ class GattTest : public ::testing::Test, public L2capChannelManagerInterface {
     intercept_channel_status_ = status;
   }
 
+  MultiBufAllocator& multibuf_allocator() {
+    return allocator_context_.GetAllocator();
+  }
+
+  const Vector<FlatConstMultiBufInstance>& write_buffers() const {
+    return write_buffers_;
+  }
+
+  void set_simulate_channel_write_failures(bool enable) {
+    simulate_channel_write_failures_ = enable;
+  }
+
  private:
   Result<UniquePtr<ChannelProxy>> DoInterceptBasicModeChannel(
       ConnectionHandle /*connection_handle*/,
@@ -180,7 +223,16 @@ class GattTest : public ::testing::Test, public L2capChannelManagerInterface {
         static_cast<uint16_t>(emboss::L2capFixedCid::LE_U_ATTRIBUTE_PROTOCOL));
     EXPECT_EQ(transport, AclTransportType::kLe);
 
-    UniquePtr<ChannelProxy> channel = allocator_.MakeUnique<FakeChannel>();
+    auto write_cb = [this](FlatConstMultiBuf&& buf) -> StatusWithMultiBuf {
+      if (simulate_channel_write_failures_) {
+        return {Status::Unavailable(), std::move(buf)};
+      }
+      write_buffers_.emplace_back(std::move(buf));
+      return {OkStatus()};
+    };
+
+    UniquePtr<ChannelProxy> channel =
+        allocator_.MakeUnique<FakeChannel>(std::move(write_cb));
     PW_CHECK(channel != nullptr);
     payload_from_controller_fns_.emplace_back(
         std::move(std::get<SpanReceiveFunction>(payload_from_controller_fn)));
@@ -196,7 +248,9 @@ class GattTest : public ::testing::Test, public L2capChannelManagerInterface {
   Vector<SpanReceiveFunction, 10> payload_from_controller_fns_;
   Vector<SpanReceiveFunction, 10> payload_from_host_fns_;
   Vector<ChannelEventCallback, 10> event_callbacks_;
+  Vector<FlatConstMultiBufInstance, 15> write_buffers_;
   Status intercept_channel_status_ = OkStatus();
+  bool simulate_channel_write_failures_ = false;
 };
 
 TEST_F(
@@ -518,6 +572,204 @@ TEST_F(GattTest, InterceptBasicModeChannelReturnsError) {
   FakeClientDelegate delegate;
   Result<Client> client = gatt().CreateClient(kConnectionHandle1, delegate);
   EXPECT_EQ(client.status(), Status::Unavailable());
+}
+
+TEST_F(GattTest, ServerSendNotification) {
+  FakeServerDelegate delegate;
+  std::array<CharacteristicInfo, 1> characteristic_info = {
+      CharacteristicInfo{kAttributeHandle1}};
+  Result<Server> server =
+      gatt().CreateServer(kConnectionHandle1, characteristic_info, delegate);
+  PW_TEST_ASSERT_OK(server);
+
+  std::array<std::byte, 2> payload = {std::byte{0x09}, std::byte{0x0a}};
+  std::optional<FlatMultiBufInstance> value_buf =
+      MultiBufAdapter::Create(multibuf_allocator(), 2);
+  ASSERT_TRUE(value_buf.has_value());
+  MultiBufAdapter::Copy(*value_buf, /*dst_offset=*/0, payload);
+
+  StatusWithMultiBuf result = server->SendNotification(
+      kAttributeHandle1, std::move(MultiBufAdapter::Unwrap(*value_buf)));
+  PW_TEST_ASSERT_OK(result.status);
+  ASSERT_EQ(write_buffers().size(), 1u);
+  std::array<uint8_t, 5> kExpectedPacket = {
+      0x1b,  // opcode (ATT_HANDLE_VALUE_NTF)
+      0x01,
+      0x00,  // attribute handle
+      0x09,
+      0x0a,  // payload
+  };
+  span<const uint8_t> actual_packet =
+      MultiBufAdapter::AsSpan(write_buffers()[0]);
+  EXPECT_TRUE(std::equal(actual_packet.begin(),
+                         actual_packet.end(),
+                         kExpectedPacket.begin(),
+                         kExpectedPacket.end()));
+  server->Close();
+}
+
+TEST_F(GattTest, ServerSendNotificationForUnownedCharacteristicFails) {
+  FakeServerDelegate delegate;
+  std::array<CharacteristicInfo, 1> characteristic_info = {
+      CharacteristicInfo{kAttributeHandle1}};
+  Result<Server> server =
+      gatt().CreateServer(kConnectionHandle1, characteristic_info, delegate);
+  PW_TEST_ASSERT_OK(server);
+
+  std::array<std::byte, 2> payload = {std::byte{0x09}, std::byte{0x0a}};
+  std::optional<FlatMultiBufInstance> value_buf =
+      MultiBufAdapter::Create(multibuf_allocator(), 2);
+  ASSERT_TRUE(value_buf.has_value());
+  MultiBufAdapter::Copy(*value_buf, /*dst_offset=*/0, payload);
+
+  StatusWithMultiBuf send_result = server->SendNotification(
+      kAttributeHandle2, std::move(MultiBufAdapter::Unwrap(*value_buf)));
+  EXPECT_FALSE(send_result.status.ok());
+  EXPECT_TRUE(send_result.buf.has_value());
+  server->Close();
+}
+
+TEST_F(GattTest, ServerSendNotificationForCharacteristicOwnedByOtherServer) {
+  FakeServerDelegate delegate;
+
+  std::array<CharacteristicInfo, 1> characteristic_info_0 = {
+      CharacteristicInfo{kAttributeHandle1}};
+  Result<Server> server_0 =
+      gatt().CreateServer(kConnectionHandle1, characteristic_info_0, delegate);
+  PW_TEST_ASSERT_OK(server_0);
+
+  std::array<CharacteristicInfo, 1> characteristic_info_1 = {
+      CharacteristicInfo{kAttributeHandle2}};
+  Result<Server> server_1 =
+      gatt().CreateServer(kConnectionHandle1, characteristic_info_1, delegate);
+  PW_TEST_ASSERT_OK(server_1);
+
+  std::array<std::byte, 2> payload = {std::byte{0x09}, std::byte{0x0a}};
+  std::optional<FlatMultiBufInstance> value_buf =
+      MultiBufAdapter::Create(multibuf_allocator(), 2);
+  ASSERT_TRUE(value_buf.has_value());
+  MultiBufAdapter::Copy(*value_buf, /*dst_offset=*/0, payload);
+
+  StatusWithMultiBuf send_result = server_0->SendNotification(
+      kAttributeHandle2, std::move(MultiBufAdapter::Unwrap(*value_buf)));
+  EXPECT_FALSE(send_result.status.ok());
+  EXPECT_TRUE(send_result.buf.has_value());
+  server_0->Close();
+}
+
+TEST_F(GattTest, CreateClientAndServerForSameConnection) {
+  FakeClientDelegate client_delegate;
+  Result<Client> client =
+      gatt().CreateClient(kConnectionHandle1, client_delegate);
+  PW_TEST_ASSERT_OK(client);
+
+  FakeServerDelegate server_delegate;
+  std::array<CharacteristicInfo, 1> characteristic_info = {
+      CharacteristicInfo{kAttributeHandle1}};
+  Result<Server> server = gatt().CreateServer(
+      kConnectionHandle1, characteristic_info, server_delegate);
+  PW_TEST_ASSERT_OK(server);
+
+  client->Close();
+  server->Close();
+}
+
+TEST_F(GattTest, ServerSendNotificationInsideHandleWriteAvailable) {
+  struct {
+    GattTest* test;
+    Result<Server> server;
+    int write_available_count = 0;
+  } capture;
+  capture.test = this;
+
+  auto write_available_cb = [&capture](ConnectionHandle handle) {
+    ++capture.write_available_count;
+    EXPECT_EQ(handle, kConnectionHandle1);
+
+    std::array<std::byte, 2> payload = {std::byte{0x09}, std::byte{0x0a}};
+    std::optional<FlatMultiBufInstance> value_buf =
+        MultiBufAdapter::Create(capture.test->multibuf_allocator(), 2);
+    ASSERT_TRUE(value_buf.has_value());
+    MultiBufAdapter::Copy(*value_buf, /*dst_offset=*/0, payload);
+
+    StatusWithMultiBuf result = capture.server.value().SendNotification(
+        kAttributeHandle1, std::move(MultiBufAdapter::Unwrap(*value_buf)));
+    PW_TEST_ASSERT_OK(result.status);
+  };
+
+  FakeServerDelegate delegate(std::move(write_available_cb));
+  std::array<CharacteristicInfo, 1> characteristic_info = {
+      CharacteristicInfo{kAttributeHandle1}};
+  capture.server =
+      gatt().CreateServer(kConnectionHandle1, characteristic_info, delegate);
+  PW_TEST_ASSERT_OK(capture.server);
+
+  SendEvent(L2capChannelEvent::kWriteAvailable);
+  EXPECT_EQ(capture.write_available_count, 1);
+  ASSERT_EQ(write_buffers().size(), 1u);
+  capture.server->Close();
+}
+
+TEST_F(GattTest, ServerWriteAvailableFor2Servers) {
+  struct {
+    int write_available_count = 0;
+  } capture_0;
+
+  auto write_available_cb_0 = [&capture_0](ConnectionHandle handle) {
+    ++capture_0.write_available_count;
+    EXPECT_EQ(handle, kConnectionHandle1);
+  };
+
+  FakeServerDelegate delegate_0(std::move(write_available_cb_0));
+  std::array<CharacteristicInfo, 1> characteristic_info_0 = {
+      CharacteristicInfo{kAttributeHandle1}};
+  Result<Server> server_0 = gatt().CreateServer(
+      kConnectionHandle1, characteristic_info_0, delegate_0);
+  PW_TEST_ASSERT_OK(server_0);
+
+  struct {
+    int write_available_count = 0;
+  } capture_1;
+
+  auto write_available_cb_1 = [&capture_1](ConnectionHandle handle) {
+    ++capture_1.write_available_count;
+    EXPECT_EQ(handle, kConnectionHandle1);
+  };
+
+  FakeServerDelegate delegate_1(std::move(write_available_cb_1));
+  std::array<CharacteristicInfo, 1> characteristic_info_1 = {
+      CharacteristicInfo{kAttributeHandle2}};
+  Result<Server> server_1 = gatt().CreateServer(
+      kConnectionHandle1, characteristic_info_1, delegate_1);
+  PW_TEST_ASSERT_OK(server_1);
+
+  SendEvent(L2capChannelEvent::kWriteAvailable);
+  EXPECT_EQ(capture_0.write_available_count, 1);
+  EXPECT_EQ(capture_1.write_available_count, 1);
+  server_1->Close();
+}
+
+TEST_F(GattTest, ServerSendNotificationWriteFails) {
+  set_simulate_channel_write_failures(true);
+
+  FakeServerDelegate delegate;
+  std::array<CharacteristicInfo, 1> characteristic_info = {
+      CharacteristicInfo{kAttributeHandle1}};
+  Result<Server> server =
+      gatt().CreateServer(kConnectionHandle1, characteristic_info, delegate);
+  PW_TEST_ASSERT_OK(server);
+
+  std::array<std::byte, 2> payload = {std::byte{0x09}, std::byte{0x0a}};
+  std::optional<FlatMultiBufInstance> value_buf =
+      MultiBufAdapter::Create(multibuf_allocator(), 2);
+  ASSERT_TRUE(value_buf.has_value());
+  MultiBufAdapter::Copy(*value_buf, /*dst_offset=*/0, payload);
+
+  StatusWithMultiBuf result = server->SendNotification(
+      kAttributeHandle1, std::move(MultiBufAdapter::Unwrap(*value_buf)));
+  EXPECT_EQ(result.status, Status::Unavailable());
+  EXPECT_TRUE(result.buf.has_value());
+  server->Close();
 }
 
 }  // namespace
