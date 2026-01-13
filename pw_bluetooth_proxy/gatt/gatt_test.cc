@@ -79,8 +79,6 @@ constexpr uint16_t kAttFixedChannelId =
 
 using SpanReceiveFunction = L2capChannelManagerInterface::SpanReceiveFunction;
 
-using CharacteristicInfo = Gatt::CharacteristicInfo;
-
 class FakeChannel final : public ChannelProxy {
  public:
   FakeChannel(Function<StatusWithMultiBuf(FlatConstMultiBuf&&)> write_cb)
@@ -209,6 +207,8 @@ class GattTest : public ::testing::Test, public L2capChannelManagerInterface {
   MultiBufAllocator& multibuf_allocator() {
     return allocator_context_.GetAllocator();
   }
+
+  auto& allocator() { return allocator_; }
 
   const Vector<FlatConstMultiBufInstance>& write_buffers() const {
     return write_buffers_;
@@ -874,6 +874,60 @@ TEST_F(GattTest, ServerReceivesWriteWithoutResponseWhileAllocatorExhausted) {
   };
   EXPECT_TRUE(ReceiveFromController(att_packet));
   ASSERT_EQ(delegate.write_without_responses().size(), 0u);
+  server->Close();
+}
+
+TEST_F(GattTest, ServerAddCharacteristic) {
+  FakeServerDelegate delegate;
+  Result<Server> server =
+      gatt().CreateServer(kConnectionHandle1, /*characteristics=*/{}, delegate);
+  PW_TEST_ASSERT_OK(server);
+  PW_TEST_ASSERT_OK(
+      server->AddCharacteristic(CharacteristicInfo{kAttributeHandle1}));
+  std::array<std::byte, 5> att_packet = {
+      std::byte{0x52},  // opcode (ATT_WRITE_CMD)
+      std::byte{0x01},
+      std::byte{0x00},  // handle
+      std::byte{0x09},
+      std::byte{0x0a}  // value
+  };
+  ReceiveFromController(att_packet);
+  ASSERT_EQ(delegate.write_without_responses().size(), 1u);
+  server->Close();
+}
+
+TEST_F(GattTest, ServerAddCharacteristicAlreadyExists) {
+  FakeServerDelegate delegate;
+  std::array<CharacteristicInfo, 1> characteristic_info = {
+      CharacteristicInfo{kAttributeHandle1}};
+  Result<Server> server =
+      gatt().CreateServer(kConnectionHandle1, characteristic_info, delegate);
+  PW_TEST_ASSERT_OK(server);
+  EXPECT_EQ(server->AddCharacteristic(characteristic_info[0]),
+            Status::AlreadyExists());
+  server->Close();
+}
+
+TEST_F(GattTest, ServerAddCharacteristicConnectionNotFound) {
+  FakeServerDelegate delegate;
+  std::array<CharacteristicInfo, 1> characteristic_info = {
+      CharacteristicInfo{kAttributeHandle1}};
+  Result<Server> server =
+      gatt().CreateServer(kConnectionHandle1, characteristic_info, delegate);
+  PW_TEST_ASSERT_OK(server);
+  SendEvent(L2capChannelEvent::kChannelClosedByOther);
+  EXPECT_EQ(server->AddCharacteristic(characteristic_info[0]),
+            Status::FailedPrecondition());
+  server->Close();
+}
+
+TEST_F(GattTest, ServerAddCharacteristicAllocationFailure) {
+  FakeServerDelegate delegate;
+  Result<Server> server = gatt().CreateServer(kConnectionHandle1, {}, delegate);
+  PW_TEST_ASSERT_OK(server);
+  allocator().Exhaust();
+  EXPECT_EQ(server->AddCharacteristic(CharacteristicInfo{kAttributeHandle1}),
+            Status::ResourceExhausted());
   server->Close();
 }
 

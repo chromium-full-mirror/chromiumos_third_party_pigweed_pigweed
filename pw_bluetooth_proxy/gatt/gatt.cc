@@ -138,6 +138,15 @@ void Server::Close() {
   gatt_ = nullptr;
 }
 
+Status Server::AddCharacteristic(CharacteristicInfo characteristic) {
+  if (gatt_ == nullptr) {
+    return Status::FailedPrecondition();
+    ;
+  }
+  return gatt_->AddCharacteristic(
+      server_id_, connection_handle_, characteristic);
+}
+
 StatusWithMultiBuf Server::SendNotification(AttributeHandle value_handle,
                                             FlatConstMultiBuf&& value) {
   if (gatt_ == nullptr) {
@@ -767,6 +776,38 @@ bool Gatt::OnAttWriteCmdFromController(ConstByteSpan payload,
 
   // The command was intercepted.
   return true;
+}
+
+Status Gatt::AddCharacteristic(internal::ServerId server_id,
+                               ConnectionHandle connection_handle,
+                               CharacteristicInfo characteristic) {
+  std::lock_guard lock(mutex_);
+  auto conn_iter = connections_.find(cpp23::to_underlying(connection_handle));
+  if (conn_iter == connections_.end()) {
+    return Status::FailedPrecondition();
+  }
+
+  auto server_iter = conn_iter->servers.find(cpp23::to_underlying(server_id));
+  if (server_iter == conn_iter->servers.end()) {
+    return Status::FailedPrecondition();
+  }
+
+  auto char_iter = conn_iter->characteristics.find(
+      cpp23::to_underlying(characteristic.value_handle));
+  if (char_iter != conn_iter->characteristics.end()) {
+    return Status::AlreadyExists();
+  }
+
+  UniquePtr<CharacteristicState> characteristic_ptr =
+      allocator_.MakeUnique<CharacteristicState>(characteristic.value_handle,
+                                                 server_id);
+  if (characteristic_ptr == nullptr) {
+    return Status::ResourceExhausted();
+  }
+  auto [_, inserted] =
+      conn_iter->characteristics.insert(*characteristic_ptr.Release());
+  PW_CHECK(inserted);
+  return OkStatus();
 }
 
 }  // namespace pw::bluetooth::proxy::gatt

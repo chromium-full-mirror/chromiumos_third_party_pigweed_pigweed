@@ -41,6 +41,10 @@ enum class Error : uint8_t {
   kClosedByClient,
 };
 
+struct CharacteristicInfo {
+  AttributeHandle value_handle;
+};
+
 class Gatt;
 
 /// Client represents the client role of a GATT connection to a remote device.
@@ -178,6 +182,16 @@ class Server {
   /// The delegate will be notified with a kClosedByClient error.
   void Close();
 
+  /// Add a characteristic to this Server's set of offloaded characteristics.
+  ///
+  /// @returns
+  /// * @OK: Success.
+  /// * @ALREADY_EXISTS: The characteristic is already being handled by a
+  /// Server.
+  /// * @RESOURCE_EXHAUSTED: A memory allocation failed.
+  /// * @FAILED_PRECONDITION: The connection or Server is no longer registered.
+  Status AddCharacteristic(CharacteristicInfo characteristic);
+
   /// Send a GATT notification for `value_handle` with payload `value` to the
   /// remote device. On failure (e.g. queue full), returns an error status and
   /// the `value`.
@@ -209,10 +223,6 @@ class Server {
 /// This class is thread-safe.
 class Gatt {
  public:
-  struct CharacteristicInfo {
-    AttributeHandle value_handle;
-  };
-
   /// @param l2cap The L2CAP interface to be used to obtain ATT channels. This
   /// is normally ProxyHost/L2capChannelManager, but a fake can be used for
   /// tests.
@@ -384,6 +394,10 @@ class Gatt {
   bool OnAttWriteCmdFromController(ConstByteSpan payload,
                                    ConnectionMap::iterator conn_iter)
       PW_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
+
+  Status AddCharacteristic(internal::ServerId server_id,
+                           ConnectionHandle connection_handle,
+                           CharacteristicInfo characteristic);
 
   sync::Mutex write_available_mutex_;
   sync::Mutex mutex_ PW_ACQUIRED_AFTER(write_available_mutex_);
