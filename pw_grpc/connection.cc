@@ -821,7 +821,7 @@ Status Connection::Reader::ProcessDataFrame(const FrameHeader& frame) {
           std::min(5 - static_cast<size_t>(stream->assembly.prefix.received),
                    payload.size());
       std::copy(payload.begin(),
-                payload.begin() + read,
+                payload.begin() + static_cast<ptrdiff_t>(read),
                 stream->assembly.prefix.buffer.data() +
                     stream->assembly.prefix.received);
       stream->assembly.prefix.received += read;

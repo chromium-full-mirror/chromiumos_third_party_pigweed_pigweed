@@ -34,22 +34,23 @@
       "name": "all_host",
       "use_config": "bazel_default",
       "targets": [
-        "//..."
+        "//...",
+        "//pw_toolchain:cpp_20_check"
       ]
     },
     {
-      "name": "all_host_cpp20",
+      "name": "all_host_cpp17",
       "build_config": {
-        "name": "bazel_default_cpp20",
-        "description": "Host C++20 build",
+        "name": "bazel_default_cpp17",
+        "description": "Host C++17 build",
         "build_type": "bazel",
         "args": [
-          "--//pw_toolchain/cc:cxx_standard=20"
+          "--//pw_toolchain/cc:cxx_standard=17"
         ]
       },
       "targets": [
         "//...",
-        "//pw_toolchain:cpp_20_check"
+        "//pw_toolchain:cpp_17_check"
       ]
     },
     {
@@ -628,7 +629,7 @@
       ],
       "builds": [
         "all_host",
-        "all_host_cpp20",
+        "all_host_cpp17",
         "lm3s6965evb",
         "jni",
         "rust_nightly",

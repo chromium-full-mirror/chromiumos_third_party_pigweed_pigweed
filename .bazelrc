@@ -49,9 +49,8 @@ common --host_per_file_copt=external.*picotool.*@-fexceptions,-frtti
 # RP2xxx PIO assembler also needs exceptions.
 common --host_per_file_copt=external.*pioasm.*@-fexceptions,-frtti
 
-# Default to C++17 to ensure compatibility.
-common --//pw_toolchain/cc:cxx_standard=17
-common:cxx20 --//pw_toolchain/cc:cxx_standard=20
+# C++ standard compatibility configs.
+common:cxx17 --//pw_toolchain/cc:cxx_standard=17
 
 # Silence compiler warnings from external repositories.
 #
