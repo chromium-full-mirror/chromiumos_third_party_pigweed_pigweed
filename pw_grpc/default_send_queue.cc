@@ -12,13 +12,13 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 
-#include "pw_grpc/send_queue.h"
+#include "pw_grpc/default_send_queue.h"
 
 #include "pw_log/log.h"
 
 namespace pw::grpc {
 
-UniquePtr<std::byte[]> SendQueue::PopNext() {
+UniquePtr<std::byte[]> DefaultSendQueue::PopNext() {
   std::lock_guard lock(send_mutex_);
   if (queue_.empty()) {
     return nullptr;
@@ -28,19 +28,19 @@ UniquePtr<std::byte[]> SendQueue::PopNext() {
   return buffer;
 }
 
-void SendQueue::NotifyOnError(Status status) {
+void DefaultSendQueue::NotifyOnError(Status status) {
   std::lock_guard lock(send_mutex_);
   if (on_error_) {
     on_error_(status);
   }
 }
 
-void SendQueue::set_on_error(ErrorHandler&& error_handler) {
+void DefaultSendQueue::set_on_error(ErrorHandler&& error_handler) {
   std::lock_guard lock(send_mutex_);
   on_error_ = std::move(error_handler);
 }
 
-void SendQueue::ProcessSendQueue(async::Context&, Status task_status) {
+void DefaultSendQueue::ProcessSendQueue(async::Context&, Status task_status) {
   if (!task_status.ok()) {
     return;
   }
@@ -49,7 +49,8 @@ void SendQueue::ProcessSendQueue(async::Context&, Status task_status) {
   while (buffer != nullptr) {
     if (Status status = socket_.Write(pw::span(buffer.get(), buffer.size()));
         !status.ok()) {
-      PW_LOG_ERROR("Failed to write to socket in SendQueue: %s", status.str());
+      PW_LOG_ERROR("Failed to write to socket in DefaultSendQueue: %s",
+                   status.str());
       NotifyOnError(status);
       return;
     }
@@ -57,7 +58,7 @@ void SendQueue::ProcessSendQueue(async::Context&, Status task_status) {
   }
 }
 
-bool SendQueue::QueueSend(UniquePtr<std::byte[]>&& buffer) {
+bool DefaultSendQueue::QueueSend(UniquePtr<std::byte[]>&& buffer) {
   std::lock_guard lock(send_mutex_);
   if (!queue_.try_push_back(std::move(buffer))) {
     return false;

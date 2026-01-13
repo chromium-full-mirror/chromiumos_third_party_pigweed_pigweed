@@ -51,8 +51,11 @@ pw_source_set("connection") {
 }
 
 pw_source_set("send_queue") {
-  sources = [ "send_queue.cc" ]
-  public = [ "public/pw_grpc/send_queue.h" ]
+  sources = [ "default_send_queue.cc" ]
+  public = [
+    "public/pw_grpc/default_send_queue.h",
+    "public/pw_grpc/send_queue.h",
+  ]
   public_configs = [ ":public_include_path" ]
   deps = [
     "$dir_pw_allocator",

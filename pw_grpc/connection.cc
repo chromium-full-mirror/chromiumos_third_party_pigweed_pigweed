@@ -176,24 +176,40 @@ constexpr std::array<T, N> MakeArrayWithValue(Args&&... args) {
 
 }  // namespace
 
+// TODO(b/475261598): remove after transitioning
 Connection::Connection(stream::ReaderWriter& socket,
                        RequestCallbacks& callbacks,
                        Allocator* message_assembly_allocator,
                        Allocator& send_allocator)
-    : socket_(socket),
+    : default_send_queue_(std::in_place, socket, send_allocator_),
+      send_queue_(*default_send_queue_),
       send_allocator_(send_allocator),
-      send_queue_(socket, send_allocator_),
       shared_state_(std::in_place,
                     message_assembly_allocator,
                     send_allocator_,
-                    send_queue_),
-      reader_(*this, callbacks),
+                    *default_send_queue_),
+      reader_(*this, callbacks, socket.as_reader()),
+      writer_(*this) {}
+
+Connection::Connection(stream::Reader& reader,
+                       SendQueueBase& send_queue,
+                       RequestCallbacks& callbacks,
+                       Allocator* message_assembly_allocator,
+                       Allocator& send_allocator)
+    : default_send_queue_(std::nullopt),
+      send_queue_(send_queue),
+      send_allocator_(send_allocator),
+      shared_state_(std::in_place,
+                    message_assembly_allocator,
+                    send_allocator_,
+                    send_queue),
+      reader_(*this, callbacks, reader),
       writer_(*this) {}
 
 Connection::SharedState::SharedState(
     allocator::Allocator* message_assembly_allocator,
     Allocator& send_allocator,
-    SendQueue& send_queue)
+    SendQueueBase& send_queue)
     : streams_(
           MakeArrayWithValue<Stream, kMaxConcurrentStreams>(send_allocator)),
       message_assembly_allocator_(message_assembly_allocator),
@@ -239,7 +255,7 @@ Status Connection::Reader::ProcessFrame() {
     return Status::FailedPrecondition();
   }
 
-  PW_TRY_ASSIGN(auto frame, ReadFrameHeader(connection_.socket_.as_reader()));
+  PW_TRY_ASSIGN(auto frame, ReadFrameHeader(reader_));
   switch (frame.type) {
     // Frames that we handle.
     case FrameType::DATA:
@@ -656,7 +672,7 @@ Status Connection::Reader::ProcessConnectionPreface() {
   auto literal = span{payload_scratch_}.subspan(
       0, kExpectedConnectionPrefaceLiteral.size());
 
-  PW_TRY(ReadExactly(connection_.socket_.as_reader(), literal));
+  PW_TRY(ReadExactly(reader_, literal));
   if (std::memcmp(literal.data(),
                   kExpectedConnectionPrefaceLiteral.data(),
                   kExpectedConnectionPrefaceLiteral.size()) != 0) {
@@ -667,8 +683,7 @@ Status Connection::Reader::ProcessConnectionPreface() {
   PW_LOG_DEBUG("Conn.Preface received literal");
 
   // Client must send a SETTINGS frames.
-  PW_TRY_ASSIGN(auto client_frame,
-                ReadFrameHeader(connection_.socket_.as_reader()));
+  PW_TRY_ASSIGN(auto client_frame, ReadFrameHeader(reader_));
   if (client_frame.type != FrameType::SETTINGS) {
     PW_LOG_ERROR(
         "Connection preface missing SETTINGS frame, found frame.type=%d",
@@ -1384,7 +1399,7 @@ Status Connection::Reader::ProcessIgnoredFrame(const FrameHeader& frame) {
   while (to_read > 0) {
     auto chunk = span{payload_scratch_}.subspan(
         0, std::min(payload_scratch_.size(), to_read));
-    PW_TRY(ReadExactly(connection_.socket_.as_reader(), chunk));
+    PW_TRY(ReadExactly(reader_, chunk));
     to_read -= chunk.size();
   }
   return OkStatus();
@@ -1404,7 +1419,7 @@ Result<ByteSpan> Connection::Reader::ReadFramePayload(
     return Status::Internal();
   }
   auto payload = span{payload_scratch_}.subspan(0, frame.payload_length);
-  PW_TRY(ReadExactly(connection_.socket_.as_reader(), payload));
+  PW_TRY(ReadExactly(reader_, payload));
   return payload;
 }
 

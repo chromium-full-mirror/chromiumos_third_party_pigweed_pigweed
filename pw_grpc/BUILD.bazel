@@ -93,10 +93,14 @@ cc_library(
     ],
 )
 
+#TODO(b/475261598): split into send_queue and default_send_queue after the transition
 cc_library(
     name = "send_queue",
-    srcs = ["send_queue.cc"],
-    hdrs = ["public/pw_grpc/send_queue.h"],
+    srcs = ["default_send_queue.cc"],
+    hdrs = [
+        "public/pw_grpc/default_send_queue.h",
+        "public/pw_grpc/send_queue.h",
+    ],
     local_defines = log_defines,
     strip_include_prefix = "public",
     deps = [
