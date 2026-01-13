@@ -40,10 +40,11 @@ class BlockingTask : public Task {
       : Task(PW_ASYNC_TASK_NAME("BlockingTask")),
         result_to_return_(result_to_return) {}
 
-  Poll<> DoPend(Context&) override {
+  Poll<> DoPend(Context& cx) override {
     ready_to_deregister_.release();
     wait_for_deregister_.acquire();
-    // Don't bother storing a waker; the test will be deregistered immediately.
+    // Store a waker in case the task completes before it is deregistered.
+    PW_ASYNC_STORE_WAKER(cx, waker_, "BlockingTask");
     return result_to_return_;
   }
 
@@ -56,6 +57,7 @@ class BlockingTask : public Task {
   pw::sync::BinarySemaphore wait_for_deregister_;
 
   Poll<> result_to_return_ = Pending();
+  Waker waker_;
 };
 
 class SleepingTask : public Task {
