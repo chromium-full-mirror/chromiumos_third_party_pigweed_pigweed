@@ -636,7 +636,8 @@ pw_source_set("channel") {
 }
 
 pw_test("channel_test") {
-  enable_if = pw_async2_DISPATCHER_FOR_TEST_BACKEND != ""
+  # TODO: b/474661031 - Disable test on Windows since it crashes the compiler.
+  enable_if = host_os != "win" && pw_async2_DISPATCHER_FOR_TEST_BACKEND != ""
   sources = [ "channel_test.cc" ]
   deps = [
     ":channel",

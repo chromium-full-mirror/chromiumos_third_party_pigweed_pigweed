@@ -177,6 +177,20 @@ class FutureCore : public IntrusiveForwardList<FutureCore>::Item {
     state_ = State::kReady;
   }
 
+  /// Provides direct access to the waker for future implementations that
+  /// manually store a waker.
+  ///
+  /// @warning Do not use this function when `FutureCore::DoPend` is used.
+  /// `FutureCore::DoPend` stores the waker when `Pend()` returns `Pending`.
+  Waker& waker() { return waker_; }
+
+  /// Mark the future as complete, which indicates that a future has returned
+  /// `Ready` from its `Pend` function.
+  ///
+  /// @warning Do not use this function when `FutureCore::DoPend` is used.
+  /// `FutureCore::DoPend` calls `MarkComplete` when `Pend()` returns `Ready`.
+  void MarkComplete() { state_ = State::kComplete; }
+
   /// Removes this future from its list, if it is in one.
   void Unlist() { unlist(); }
 
@@ -186,6 +200,9 @@ class FutureCore : public IntrusiveForwardList<FutureCore>::Item {
   /// - Asserts that the future is pendable.
   /// - If the future's `DoPend` returns `Pending`, stores a waker.
   /// - If the future's `DoPend` returns `Ready`, marks the future as complete.
+  ///
+  /// It is recommended for `Pend` to use `FutureCore::DoPend`, but not
+  /// required. Custom `Pend` implementations must enforce the same semantics.
   template <typename FutureType>
   auto DoPend(FutureType& future, Context& cx) PW_NO_LOCK_SAFETY_ANALYSIS {
     PW_ASSERT(is_pendable());
@@ -194,7 +211,7 @@ class FutureCore : public IntrusiveForwardList<FutureCore>::Item {
     if (poll.IsPending()) {
       PW_ASYNC_STORE_WAKER(cx, waker_, FutureType::kWaitReason);
     } else {
-      state_ = State::kComplete;
+      MarkComplete();
     }
 
     return poll;

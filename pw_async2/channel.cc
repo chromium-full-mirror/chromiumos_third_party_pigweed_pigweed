@@ -53,15 +53,13 @@ void BaseChannelFuture::MoveFrom(BaseChannelFuture& other) {
   }
   std::lock_guard lock(*other.channel_);
   channel_ = std::exchange(other.channel_, nullptr);
-  waker_ = std::move(other.waker_);
-  completed_ = other.completed_;
-  this->replace(other);
+  core_ = std::move(other.core_);
 }
 
 void BaseChannelFuture::RemoveFromChannel() {
   if (channel_ != nullptr) {
     channel_->lock();
-    unlist();
+    core_.Unlist();
     channel_->RemoveRefAndDestroyIfUnreferenced();
   }
 }
@@ -72,8 +70,8 @@ bool BaseChannelFuture::StoreWakerForReceiveIfOpen(Context& cx) {
     return false;
   }
 
-  PW_ASYNC_STORE_WAKER(cx, waker_, "Receiver::Receive");
-  if (unlisted()) {
+  PW_ASYNC_STORE_WAKER(cx, core_.waker(), "Receiver::Receive");
+  if (!core_.in_list()) {
     channel_->add_receive_future(*this);
   }
   channel_->unlock();
@@ -81,16 +79,16 @@ bool BaseChannelFuture::StoreWakerForReceiveIfOpen(Context& cx) {
 }
 
 void BaseChannelFuture::StoreWakerForSend(Context& cx) {
-  PW_ASYNC_STORE_WAKER(cx, waker_, "Sender::Send");
-  if (unlisted()) {
+  PW_ASYNC_STORE_WAKER(cx, core_.waker(), "Sender::Send");
+  if (!core_.in_list()) {
     channel_->add_send_future(*this);
   }
   channel_->unlock();
 }
 
 void BaseChannelFuture::StoreWakerForReserveSend(Context& cx) {
-  PW_ASYNC_STORE_WAKER(cx, waker_, "Sender::ReserveSend");
-  if (unlisted()) {
+  PW_ASYNC_STORE_WAKER(cx, core_.waker(), "Sender::ReserveSend");
+  if (!core_.in_list()) {
     channel_->add_send_future(*this);
   }
   channel_->unlock();
@@ -110,22 +108,8 @@ void BaseChannel::RemoveRefAndDestroyIfUnreferenced() {
 
 void BaseChannel::CloseLocked() {
   closed_ = true;
-  PopAndWakeAll(send_futures_);
-  PopAndWakeAll(receive_futures_);
-}
-
-void BaseChannel::PopAndWakeAll(
-    IntrusiveForwardList<BaseChannelFuture>& futures) {
-  while (!futures.empty()) {
-    PopAndWakeOne(futures);
-  }
-}
-
-void BaseChannel::PopAndWakeOneIfAvailable(
-    IntrusiveForwardList<BaseChannelFuture>& futures) {
-  if (!futures.empty()) {
-    PopAndWakeOne(futures);
-  }
+  send_futures_.ResolveAll();
+  receive_futures_.ResolveAll();
 }
 
 void BaseChannel::DropReservationAndRemoveRef() {
