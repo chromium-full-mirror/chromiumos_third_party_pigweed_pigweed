@@ -931,5 +931,73 @@ TEST_F(GattTest, ServerAddCharacteristicAllocationFailure) {
   server->Close();
 }
 
+TEST_F(GattTest, ServerRemoveCharacteristic) {
+  FakeServerDelegate delegate;
+  std::array<CharacteristicInfo, 1> characteristic_info = {
+      CharacteristicInfo{kAttributeHandle1}};
+  Result<Server> server =
+      gatt().CreateServer(kConnectionHandle1, characteristic_info, delegate);
+  PW_TEST_ASSERT_OK(server);
+  PW_TEST_ASSERT_OK(server->RemoveCharacteristic(characteristic_info[0]));
+  // Write commands for the removed characteristic should be ignored and
+  // forwarded.
+  std::array<std::byte, 5> att_packet = {
+      std::byte{0x52},  // opcode (ATT_WRITE_CMD)
+      std::byte{0x01},
+      std::byte{0x00},  // handle
+      std::byte{0x09},
+      std::byte{0x0a}  // value
+  };
+  EXPECT_FALSE(ReceiveFromController(att_packet));
+  ASSERT_EQ(delegate.write_without_responses().size(), 0u);
+  server->Close();
+}
+
+TEST_F(GattTest, ServerRemoveCharacteristicConnectionClosed) {
+  FakeServerDelegate delegate;
+  std::array<CharacteristicInfo, 1> characteristic_info = {
+      CharacteristicInfo{kAttributeHandle1}};
+  Result<Server> server =
+      gatt().CreateServer(kConnectionHandle1, characteristic_info, delegate);
+  PW_TEST_ASSERT_OK(server);
+  SendEvent(L2capChannelEvent::kChannelClosedByOther);
+  EXPECT_EQ(server->RemoveCharacteristic(characteristic_info[0]),
+            Status::FailedPrecondition());
+  server->Close();
+}
+
+TEST_F(GattTest, ServerRemoveCharacteristicThatIsNotOffloaded) {
+  FakeServerDelegate delegate;
+  std::array<CharacteristicInfo, 1> characteristic_info = {
+      CharacteristicInfo{kAttributeHandle1}};
+  Result<Server> server =
+      gatt().CreateServer(kConnectionHandle1, characteristic_info, delegate);
+  PW_TEST_ASSERT_OK(server);
+  EXPECT_EQ(server->RemoveCharacteristic(CharacteristicInfo{kAttributeHandle2}),
+            Status::NotFound());
+  server->Close();
+}
+
+TEST_F(GattTest, ServerRemoveCharacteristicOffloadedByDifferentServer) {
+  FakeServerDelegate delegate;
+
+  std::array<CharacteristicInfo, 1> characteristic_info_0 = {
+      CharacteristicInfo{kAttributeHandle1}};
+  Result<Server> server_0 =
+      gatt().CreateServer(kConnectionHandle1, characteristic_info_0, delegate);
+  PW_TEST_ASSERT_OK(server_0);
+
+  std::array<CharacteristicInfo, 1> characteristic_info_1 = {
+      CharacteristicInfo{kAttributeHandle2}};
+  Result<Server> server_1 =
+      gatt().CreateServer(kConnectionHandle1, characteristic_info_1, delegate);
+  PW_TEST_ASSERT_OK(server_1);
+
+  EXPECT_EQ(
+      server_1->RemoveCharacteristic(CharacteristicInfo{kAttributeHandle1}),
+      Status::NotFound());
+  server_1->Close();
+}
+
 }  // namespace
 }  // namespace pw::bluetooth::proxy::gatt

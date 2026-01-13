@@ -147,6 +147,14 @@ Status Server::AddCharacteristic(CharacteristicInfo characteristic) {
       server_id_, connection_handle_, characteristic);
 }
 
+Status Server::RemoveCharacteristic(CharacteristicInfo characteristic) {
+  if (gatt_ == nullptr) {
+    return Status::FailedPrecondition();
+  }
+  return gatt_->RemoveCharacteristic(
+      server_id_, connection_handle_, characteristic);
+}
+
 StatusWithMultiBuf Server::SendNotification(AttributeHandle value_handle,
                                             FlatConstMultiBuf&& value) {
   if (gatt_ == nullptr) {
@@ -807,6 +815,26 @@ Status Gatt::AddCharacteristic(internal::ServerId server_id,
   auto [_, inserted] =
       conn_iter->characteristics.insert(*characteristic_ptr.Release());
   PW_CHECK(inserted);
+  return OkStatus();
+}
+
+Status Gatt::RemoveCharacteristic(internal::ServerId server_id,
+                                  ConnectionHandle connection_handle,
+                                  CharacteristicInfo characteristic) {
+  std::lock_guard lock(mutex_);
+  auto conn_iter = connections_.find(cpp23::to_underlying(connection_handle));
+  if (conn_iter == connections_.end()) {
+    return Status::FailedPrecondition();
+  }
+
+  auto char_iter = conn_iter->characteristics.find(
+      cpp23::to_underlying(characteristic.value_handle));
+  if (char_iter == conn_iter->characteristics.end() ||
+      char_iter->server_id != server_id) {
+    return Status::NotFound();
+  }
+
+  conn_iter->characteristics.erase(char_iter);
   return OkStatus();
 }
 

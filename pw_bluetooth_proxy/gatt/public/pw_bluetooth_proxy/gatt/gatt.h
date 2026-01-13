@@ -192,6 +192,16 @@ class Server {
   /// * @FAILED_PRECONDITION: The connection or Server is no longer registered.
   Status AddCharacteristic(CharacteristicInfo characteristic);
 
+  /// Remove a characteristic from this Server's set of offloaded
+  /// characteristics.
+  ///
+  /// @returns
+  /// * @OK: Success.
+  /// * @FAILED_PRECONDITION: The connection or Server is no longer registered.
+  /// * @NOT_FOUND: The characteristic was already not being offloaded by this
+  /// Server.
+  Status RemoveCharacteristic(CharacteristicInfo characteristic);
+
   /// Send a GATT notification for `value_handle` with payload `value` to the
   /// remote device. On failure (e.g. queue full), returns an error status and
   /// the `value`.
@@ -398,6 +408,10 @@ class Gatt {
   Status AddCharacteristic(internal::ServerId server_id,
                            ConnectionHandle connection_handle,
                            CharacteristicInfo characteristic);
+
+  Status RemoveCharacteristic(internal::ServerId server_id,
+                              ConnectionHandle connection_handle,
+                              CharacteristicInfo characteristic);
 
   sync::Mutex write_available_mutex_;
   sync::Mutex mutex_ PW_ACQUIRED_AFTER(write_available_mutex_);
