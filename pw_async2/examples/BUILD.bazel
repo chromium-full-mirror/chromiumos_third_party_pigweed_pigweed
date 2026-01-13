@@ -163,6 +163,7 @@ pw_cc_test(
         "//pw_async2:pend_func_task",
         "//pw_digital_io",
         "//pw_sync:interrupt_spin_lock",
+        "//pw_sync:lock_annotations",
         "//pw_unit_test",
     ],
 )

@@ -18,6 +18,7 @@
 #include "pw_async2/pend_func_task.h"
 #include "pw_digital_io/digital_io.h"
 #include "pw_sync/interrupt_spin_lock.h"
+#include "pw_sync/lock_annotations.h"
 #include "pw_unit_test/framework.h"
 
 namespace {
@@ -25,44 +26,36 @@ namespace {
 // DOCSTAG: [pw_async2-examples-custom-future]
 class ButtonReceiver;
 
-class ButtonFuture
-    : public pw::async2::ListableFutureWithWaker<ButtonFuture, void> {
+class ButtonFuture {
  public:
   // Provide a descriptive reason which can be used to debug blocked tasks.
   static constexpr const char kWaitReason[] = "Waiting for button press";
 
-  // You are required to implement move semantics for your custom future,
-  // and to call `Base::MoveFrom` to ensure the intrusive list is updated.
-  ButtonFuture(ButtonFuture&& other) : Base(Base::kMovedFrom) {
-    Base::MoveFrom(other);
-  }
-  ButtonFuture& operator=(ButtonFuture&& other) {
-    Base::MoveFrom(other);
-    return *this;
+  // FutureCore is movable and handles list management automatically.
+  ButtonFuture(ButtonFuture&&) = default;
+  ButtonFuture& operator=(ButtonFuture&&) = default;
+
+  // Polls the future to see if the button has been pressed.
+  pw::async2::Poll<> Pend(pw::async2::Context& cx) {
+    return core_.DoPend(*this, cx);
   }
 
  private:
-  using Base = pw::async2::ListableFutureWithWaker<ButtonFuture, void>;
-  friend Base;
   friend class ButtonReceiver;
+  friend class pw::async2::FutureCore;
 
-  explicit ButtonFuture(
-      pw::async2::SingleFutureProvider<ButtonFuture>& provider)
-      : Base(provider) {}
+  // Private constructor used by ButtonReceiver.
+  explicit ButtonFuture() : core_(pw::async2::FutureCore::kPending) {}
 
-  void HandlePress() {
-    pressed_ = true;
-    Base::Wake();
-  }
-
+  // Callback invoked by FutureCore::DoPend.
   pw::async2::Poll<> DoPend(pw::async2::Context&) {
-    if (pressed_) {
+    if (core_.is_ready()) {
       return pw::async2::Ready();
     }
     return pw::async2::Pending();
   }
 
-  bool pressed_ = false;
+  pw::async2::FutureCore core_;
 };
 
 class ButtonReceiver {
@@ -77,23 +70,62 @@ class ButtonReceiver {
 
   // Returns a future that completes when the button is pressed.
   ButtonFuture WaitForPress() {
-    PW_ASSERT(!provider_.has_future());
-    return ButtonFuture(provider_);
+    std::lock_guard lock(lock_);
+    ButtonFuture future;
+    // Only allow one waiter at a time.
+    list_.PushRequireEmpty(future);
+    return future;
   }
 
  private:
   // Executed in interrupt context.
-  // `SingleFutureProvider` is internally synchronized and interrupt-safe.
   void HandleInterrupt() {
-    if (auto future = provider_.Take()) {
-      future->get().HandlePress();
-    }
+    std::lock_guard lock(lock_);
+    list_.ResolveAll();
   }
 
   pw::digital_io::DigitalInterrupt& line_;
-  pw::async2::SingleFutureProvider<ButtonFuture> provider_;
+  pw::sync::InterruptSpinLock lock_;
+  pw::async2::FutureList<&ButtonFuture::core_> list_ PW_GUARDED_BY(lock_);
 };
 // DOCSTAG: [pw_async2-examples-custom-future]
+
+// DOCSTAG: [pw_async2-examples-future-list]
+class MyFuture {
+ public:
+  // Future API: value_type, Pend(), is_completed()
+
+ private:
+  friend class MyFutureProvider;
+
+  void Resolve(int) { /* ... */ }
+
+  // The FutureCore is a member of the future.
+  pw::async2::FutureCore core_;
+};
+
+class MyFutureProvider {
+ public:
+  MyFuture Get() {
+    MyFuture future;
+    std::lock_guard lock(lock_);
+    futures_.Push(future);
+    return future;
+  }
+
+  void ResolveOne() {
+    std::lock_guard lock(lock_);
+    // Pop the future from the list as a MyFuture&.
+    futures_.Pop().Resolve(123);
+  }
+
+ private:
+  pw::sync::InterruptSpinLock lock_;
+
+  // FutureList is declared with a pointer to the future type's FutureCore.
+  pw::async2::FutureList<&MyFuture::core_> futures_ PW_GUARDED_BY(lock_);
+};
+// DOCSTAG: [pw_async2-examples-future-list]
 
 class DigitalInterruptMock : public pw::digital_io::DigitalInterrupt {
  public:
@@ -139,6 +171,12 @@ TEST(CustomFuture, CompilesAndRuns) {
   line.Trigger();
 
   dispatcher.RunToCompletion();
+}
+
+TEST(FutureList, Compiles) {
+  MyFutureProvider provider;
+  MyFuture future = provider.Get();
+  provider.ResolveOne();
 }
 
 }  // namespace
