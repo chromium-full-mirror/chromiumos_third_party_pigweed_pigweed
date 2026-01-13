@@ -24,6 +24,7 @@
 #include "pw_containers/internal/var_len_entry.h"
 #include "pw_containers/internal/var_len_entry_queue_iterator.h"
 #include "pw_containers/internal/wrap.h"
+#include "pw_preprocessor/compiler.h"
 #include "pw_span/cast.h"
 #include "pw_span/span.h"
 #include "pw_varint/varint.h"
@@ -354,7 +355,11 @@ GenericVarLenEntryQueueBase::GetInfo(ConstByteSpan bytes,
 }
 
 constexpr size_t GenericVarLenEntryQueueBase::AvailableBytes(
-    ConstByteSpan bytes, size_t head, size_t tail) {
+    ConstByteSpan bytes, size_t head, size_t tail)
+    // TODO(b/475326753): Remove this sanitize ignore modifier once the function
+    // logic is refactored to not cause unsigned integer overflow in scenarios
+    // where head == tail.
+    PW_NO_SANITIZE("unsigned-integer-overflow") {
   size_t available_bytes = head - tail - 1;
   if (head <= tail) {
     available_bytes += bytes.size();
