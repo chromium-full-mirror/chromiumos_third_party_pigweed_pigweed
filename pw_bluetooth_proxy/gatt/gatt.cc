@@ -403,63 +403,19 @@ bool Gatt::OnSpanReceivedFromController(ConstByteSpan payload,
     return false;
   }
 
-  if (payload[0] != std::byte{static_cast<uint8_t>(
-                        emboss::AttOpcode::ATT_HANDLE_VALUE_NTF)}) {
-    return false;
+  const emboss::AttOpcode op_code{static_cast<uint8_t>(payload[0])};
+
+  PW_MODIFY_DIAGNOSTICS_PUSH();
+  PW_MODIFY_DIAGNOSTIC(ignored, "-Wswitch-enum");
+  switch (op_code) {
+    case emboss::AttOpcode::ATT_WRITE_CMD:
+      return OnAttWriteCmdFromController(payload, conn_iter);
+    case emboss::AttOpcode::ATT_HANDLE_VALUE_NTF:
+      return OnAttHandleValueNtfFromController(payload, conn_iter);
+    default:
+      return false;
   }
-
-  const size_t attribute_size =
-      payload.size() - emboss::AttHandleValueNtf::MinSizeInBytes();
-
-  Result<emboss::AttHandleValueNtfView> view =
-      MakeEmbossView<emboss::AttHandleValueNtfView>(
-          attribute_size,
-          reinterpret_cast<const uint8_t*>(payload.data()),
-          payload.size());
-  if (!view.ok()) {
-    PW_LOG_WARN("Received invalid ATT_HANDLE_VALUE_NTF");
-    return false;
-  }
-
-  PW_CHECK(view->attribute_opcode().Read() ==
-           emboss::AttOpcode::ATT_HANDLE_VALUE_NTF);
-
-  AttributeHandle att_handle{view->attribute_handle().Read()};
-
-  bool intercepted = false;
-  for (auto& [intercepted_handle, client_id] :
-       conn_iter->intercepted_notifications_) {
-    if (att_handle != intercepted_handle) {
-      continue;
-    }
-    intercepted = true;
-
-    auto client_iter = conn_iter->clients.find(cpp23::to_underlying(client_id));
-    PW_CHECK(client_iter != conn_iter->clients.end());
-
-    std::optional<FlatMultiBufInstance> buffer =
-        MultiBufAdapter::Create(multibuf_allocator_, attribute_size);
-    if (!buffer.has_value()) {
-      PW_LOG_WARN("Failed to allocate multibuf for attribute value");
-      return true;
-    }
-
-    pw::span<const uint8_t> backing_storage(
-        view->attribute_value().BackingStorage().data(),
-        view->attribute_value().SizeInBytes());
-    size_t bytes_copied = MultiBufAdapter::Copy(
-        /*dst=*/buffer.value(),
-        /*dst_offset=*/0,
-        /*src=*/as_bytes(backing_storage));
-    PW_CHECK_UINT_EQ(bytes_copied, attribute_size);
-
-    client_iter->delegate.HandleNotification(
-        ConnectionHandle{connection_handle},
-        att_handle,
-        std::move(MultiBufAdapter::Unwrap(buffer.value())));
-  }
-
-  return intercepted;
+  PW_MODIFY_DIAGNOSTICS_POP();
 }
 
 bool Gatt::OnSpanReceivedFromHost(ConstByteSpan /*payload*/,
@@ -697,6 +653,120 @@ void Gatt::DrainCharacteristics(CharacteristicMap& characteristics) {
     characteristics.erase(char_iter);
     allocator_.Delete(&char_state);
   }
+}
+
+bool Gatt::OnAttHandleValueNtfFromController(
+    ConstByteSpan payload, ConnectionMap::iterator conn_iter) {
+  const size_t attribute_size =
+      payload.size() - emboss::AttHandleValueNtf::MinSizeInBytes();
+
+  Result<emboss::AttHandleValueNtfView> view =
+      MakeEmbossView<emboss::AttHandleValueNtfView>(
+          attribute_size,
+          reinterpret_cast<const uint8_t*>(payload.data()),
+          payload.size());
+  if (!view.ok()) {
+    PW_LOG_WARN("Received invalid ATT_HANDLE_VALUE_NTF");
+    return false;
+  }
+
+  PW_CHECK(view->attribute_opcode().Read() ==
+           emboss::AttOpcode::ATT_HANDLE_VALUE_NTF);
+
+  AttributeHandle att_handle{view->attribute_handle().Read()};
+
+  bool intercepted = false;
+  for (auto& [intercepted_handle, client_id] :
+       conn_iter->intercepted_notifications_) {
+    if (att_handle != intercepted_handle) {
+      continue;
+    }
+    intercepted = true;
+
+    auto client_iter = conn_iter->clients.find(cpp23::to_underlying(client_id));
+    PW_CHECK(client_iter != conn_iter->clients.end());
+
+    std::optional<FlatMultiBufInstance> buffer =
+        MultiBufAdapter::Create(multibuf_allocator_, attribute_size);
+    if (!buffer.has_value()) {
+      PW_LOG_WARN("Failed to allocate multibuf for attribute value");
+      return true;
+    }
+
+    pw::span<const uint8_t> backing_storage(
+        view->attribute_value().BackingStorage().data(),
+        view->attribute_value().SizeInBytes());
+    size_t bytes_copied = MultiBufAdapter::Copy(
+        /*dst=*/buffer.value(),
+        /*dst_offset=*/0,
+        /*src=*/as_bytes(backing_storage));
+    PW_CHECK_UINT_EQ(bytes_copied, attribute_size);
+
+    client_iter->delegate.HandleNotification(
+        ConnectionHandle{conn_iter->key()},
+        att_handle,
+        std::move(MultiBufAdapter::Unwrap(buffer.value())));
+  }
+
+  return intercepted;
+}
+
+bool Gatt::OnAttWriteCmdFromController(ConstByteSpan payload,
+                                       ConnectionMap::iterator conn_iter) {
+  if (payload.size() < emboss::AttWriteCmd::MinSizeInBytes()) {
+    PW_LOG_WARN("Received invalid ATT_WRITE_CMD");
+    return false;
+  }
+  const size_t attribute_size =
+      payload.size() - emboss::AttWriteCmd::MinSizeInBytes();
+
+  Result<emboss::AttWriteCmdView> view =
+      MakeEmbossView<emboss::AttWriteCmdView>(
+          attribute_size,
+          reinterpret_cast<const uint8_t*>(payload.data()),
+          payload.size());
+  if (!view.ok()) {
+    PW_LOG_WARN("Received invalid ATT_WRITE_CMD");
+    return false;
+  }
+
+  PW_CHECK(view->attribute_opcode().Read() == emboss::AttOpcode::ATT_WRITE_CMD);
+
+  AttributeHandle att_handle{view->attribute_handle().Read()};
+
+  auto char_iter =
+      conn_iter->characteristics.find(cpp23::to_underlying(att_handle));
+  if (char_iter == conn_iter->characteristics.end()) {
+    return false;
+  }
+
+  auto server_iter =
+      conn_iter->servers.find(cpp23::to_underlying(char_iter->server_id));
+  PW_CHECK(server_iter != conn_iter->servers.end());
+
+  std::optional<FlatMultiBufInstance> buffer =
+      MultiBufAdapter::Create(multibuf_allocator_, attribute_size);
+  if (!buffer.has_value()) {
+    PW_LOG_WARN("Failed to allocate multibuf for attribute value");
+    return true;
+  }
+
+  pw::span<const uint8_t> backing_storage(
+      view->attribute_value().BackingStorage().data(),
+      view->attribute_value().SizeInBytes());
+  size_t bytes_copied = MultiBufAdapter::Copy(
+      /*dst=*/buffer.value(),
+      /*dst_offset=*/0,
+      /*src=*/as_bytes(backing_storage));
+  PW_CHECK_UINT_EQ(bytes_copied, attribute_size);
+
+  server_iter->delegate.HandleWriteWithoutResponse(
+      ConnectionHandle{conn_iter->key()},
+      att_handle,
+      std::move(MultiBufAdapter::Unwrap(buffer.value())));
+
+  // The command was intercepted.
+  return true;
 }
 
 }  // namespace pw::bluetooth::proxy::gatt

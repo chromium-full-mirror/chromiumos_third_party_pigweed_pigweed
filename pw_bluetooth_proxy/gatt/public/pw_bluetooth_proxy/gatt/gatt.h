@@ -145,6 +145,10 @@ class Server {
     void HandleError(Error error, ConnectionHandle connection_handle);
 
    private:
+    /// Called when a Write Without Response (ATT_WRITE_CMD) PDU is received for
+    /// an offloaded characteristic with value handle `value_handle`. It is NOT
+    /// SAFE to call other Server/Gatt/Client APIs from within this method.
+    /// Re-entrant calls will result in deadlock.
     virtual void DoHandleWriteWithoutResponse(
         ConnectionHandle connection_handle,
         AttributeHandle value_handle,
@@ -372,6 +376,14 @@ class Gatt {
       ConnectionHandle connection_handle) PW_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
   void DrainCharacteristics(CharacteristicMap& characteristics);
+
+  bool OnAttHandleValueNtfFromController(ConstByteSpan payload,
+                                         ConnectionMap::iterator conn_iter)
+      PW_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
+
+  bool OnAttWriteCmdFromController(ConstByteSpan payload,
+                                   ConnectionMap::iterator conn_iter)
+      PW_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
   sync::Mutex write_available_mutex_;
   sync::Mutex mutex_ PW_ACQUIRED_AFTER(write_available_mutex_);

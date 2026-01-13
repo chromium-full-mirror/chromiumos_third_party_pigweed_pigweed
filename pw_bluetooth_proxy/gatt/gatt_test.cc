@@ -36,6 +36,8 @@ namespace pw::bluetooth::proxy::gatt {
 
 namespace {
 
+constexpr size_t kMultiBufAllocatorCapacity = 500;
+
 /// Helper class that can produce an initialized MultiBufAllocator for either
 /// Multibuf V1 or V2, depending on the `PW_BLUETOOTH_PROXY_MULTIBUF` config
 /// option.
@@ -127,15 +129,28 @@ class FakeClientDelegate final : public Client::Delegate {
 
 class FakeServerDelegate final : public Server::Delegate {
  public:
+  struct WriteWithoutResponse {
+    ConnectionHandle connection_handle;
+    AttributeHandle value_handle;
+    FlatConstMultiBufInstance value;
+  };
+
   FakeServerDelegate() = default;
 
   FakeServerDelegate(Function<void(ConnectionHandle)> write_available_fn)
       : write_available_fn_(std::move(write_available_fn)) {}
 
+  const Vector<WriteWithoutResponse>& write_without_responses() {
+    return write_without_responses_;
+  }
+
  private:
-  void DoHandleWriteWithoutResponse(ConnectionHandle /*connection_handle*/,
-                                    AttributeHandle /*value_handle*/,
-                                    FlatConstMultiBuf&& /*value*/) override {}
+  void DoHandleWriteWithoutResponse(ConnectionHandle connection_handle,
+                                    AttributeHandle value_handle,
+                                    FlatConstMultiBuf&& value) override {
+    write_without_responses_.emplace_back(WriteWithoutResponse{
+        connection_handle, value_handle, std::move(value)});
+  }
 
   void DoHandleWriteAvailable(ConnectionHandle connection_handle) override {
     if (write_available_fn_) {
@@ -147,6 +162,7 @@ class FakeServerDelegate final : public Server::Delegate {
                      ConnectionHandle /*connection_handle*/) override {}
 
   Function<void(ConnectionHandle)> write_available_fn_;
+  Vector<WriteWithoutResponse, 15> write_without_responses_;
 };
 
 class GattTest : public ::testing::Test, public L2capChannelManagerInterface {
@@ -243,7 +259,7 @@ class GattTest : public ::testing::Test, public L2capChannelManagerInterface {
   }
 
   allocator::test::AllocatorForTest<1000> allocator_;
-  MultiBufAllocatorContext<500> allocator_context_;
+  MultiBufAllocatorContext<kMultiBufAllocatorCapacity> allocator_context_;
   std::optional<Gatt> gatt_;
   Vector<SpanReceiveFunction, 10> payload_from_controller_fns_;
   Vector<SpanReceiveFunction, 10> payload_from_host_fns_;
@@ -769,6 +785,95 @@ TEST_F(GattTest, ServerSendNotificationWriteFails) {
       kAttributeHandle1, std::move(MultiBufAdapter::Unwrap(*value_buf)));
   EXPECT_EQ(result.status, Status::Unavailable());
   EXPECT_TRUE(result.buf.has_value());
+  server->Close();
+}
+
+TEST_F(GattTest, ServerReceivesWriteWithoutResponse) {
+  FakeServerDelegate delegate;
+  std::array<CharacteristicInfo, 1> characteristic_info = {
+      CharacteristicInfo{kAttributeHandle1}};
+  Result<Server> server =
+      gatt().CreateServer(kConnectionHandle1, characteristic_info, delegate);
+  PW_TEST_ASSERT_OK(server);
+
+  const std::array<uint8_t, 2> kExpectedValue = {0x09, 0x0a};
+  std::array<std::byte, 5> att_packet = {
+      std::byte{0x52},  // opcode (ATT_WRITE_CMD)
+      std::byte{0x01},
+      std::byte{0x00},  // handle
+      std::byte{0x09},
+      std::byte{0x0a}  // value
+  };
+  ReceiveFromController(att_packet);
+  ASSERT_EQ(delegate.write_without_responses().size(), 1u);
+  EXPECT_EQ(delegate.write_without_responses()[0].connection_handle,
+            kConnectionHandle1);
+  EXPECT_EQ(delegate.write_without_responses()[0].value_handle,
+            kAttributeHandle1);
+  span<const uint8_t> value_span =
+      MultiBufAdapter::AsSpan(delegate.write_without_responses()[0].value);
+  EXPECT_TRUE(std::equal(value_span.begin(),
+                         value_span.end(),
+                         kExpectedValue.begin(),
+                         kExpectedValue.end()));
+  server->Close();
+}
+
+TEST_F(GattTest, ServerReceivesInvalidWriteWithoutResponse) {
+  FakeServerDelegate delegate;
+  std::array<CharacteristicInfo, 1> characteristic_info = {
+      CharacteristicInfo{kAttributeHandle1}};
+  Result<Server> server =
+      gatt().CreateServer(kConnectionHandle1, characteristic_info, delegate);
+  PW_TEST_ASSERT_OK(server);
+  std::array<std::byte, 2> att_packet = {
+      std::byte{0x52},  // opcode (ATT_WRITE_CMD)
+      std::byte{0x01},  // first half of handle
+  };
+  EXPECT_FALSE(ReceiveFromController(att_packet));
+  ASSERT_EQ(delegate.write_without_responses().size(), 0u);
+  server->Close();
+}
+
+TEST_F(GattTest, ServerReceivesWriteWithoutResponseForUnknownHandle) {
+  FakeServerDelegate delegate;
+  std::array<CharacteristicInfo, 1> characteristic_info = {
+      CharacteristicInfo{kAttributeHandle1}};
+  Result<Server> server =
+      gatt().CreateServer(kConnectionHandle1, characteristic_info, delegate);
+  PW_TEST_ASSERT_OK(server);
+  std::array<std::byte, 5> att_packet = {
+      std::byte{0x52},  // opcode (ATT_WRITE_CMD)
+      std::byte{0x09},
+      std::byte{0x00},  // handle (9 is not offloaded)
+      std::byte{0x09},
+      std::byte{0x0a}  // value
+  };
+  EXPECT_FALSE(ReceiveFromController(att_packet));
+  ASSERT_EQ(delegate.write_without_responses().size(), 0u);
+  server->Close();
+}
+
+TEST_F(GattTest, ServerReceivesWriteWithoutResponseWhileAllocatorExhausted) {
+  std::optional<FlatMultiBufInstance> buffer =
+      MultiBufAdapter::Create(multibuf_allocator(), kMultiBufAllocatorCapacity);
+  ASSERT_TRUE(buffer.has_value());
+
+  FakeServerDelegate delegate;
+  std::array<CharacteristicInfo, 1> characteristic_info = {
+      CharacteristicInfo{kAttributeHandle1}};
+  Result<Server> server =
+      gatt().CreateServer(kConnectionHandle1, characteristic_info, delegate);
+  PW_TEST_ASSERT_OK(server);
+  std::array<std::byte, 5> att_packet = {
+      std::byte{0x52},  // opcode (ATT_WRITE_CMD)
+      std::byte{0x01},
+      std::byte{0x00},  // handle
+      std::byte{0x09},
+      std::byte{0x0a}  // value
+  };
+  EXPECT_TRUE(ReceiveFromController(att_packet));
+  ASSERT_EQ(delegate.write_without_responses().size(), 0u);
   server->Close();
 }
 
