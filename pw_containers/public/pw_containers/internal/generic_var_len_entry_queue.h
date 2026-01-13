@@ -355,16 +355,13 @@ GenericVarLenEntryQueueBase::GetInfo(ConstByteSpan bytes,
 }
 
 constexpr size_t GenericVarLenEntryQueueBase::AvailableBytes(
-    ConstByteSpan bytes, size_t head, size_t tail)
-    // TODO(b/475326753): Remove this sanitize ignore modifier once the function
-    // logic is refactored to not cause unsigned integer overflow in scenarios
-    // where head == tail.
-    PW_NO_SANITIZE("unsigned-integer-overflow") {
-  size_t available_bytes = head - tail - 1;
+    ConstByteSpan bytes, size_t head, size_t tail) {
+  PW_ASSERT(head < bytes.size());
+  PW_ASSERT(tail < bytes.size());
   if (head <= tail) {
-    available_bytes += bytes.size();
+    head += bytes.size();
   }
-  return available_bytes;
+  return head - tail - 1;
 }
 
 constexpr bool GenericVarLenEntryQueueBase::Push(ConstByteSpan data,
