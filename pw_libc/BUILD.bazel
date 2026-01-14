@@ -67,6 +67,19 @@ cc_library(
     alwayslink = True,
 )
 
+cc_library(
+    name = "exit",
+    srcs = [
+        "exit.cc",
+    ],
+    target_compatible_with = if_compiler_is_clang(
+        [],
+        otherwise = ["@platforms//:incompatible"],
+    ),
+    deps = ["//pw_assert:check"],
+    alwayslink = True,
+)
+
 sphinx_docs_library(
     name = "docs",
     srcs = [
