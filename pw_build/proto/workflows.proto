@@ -210,30 +210,10 @@ message TaskGroup {
   repeated string analyzers = 4;
 }
 
-// These options are used when loading ProtoJSON files since JSON doesn't
-// have any inherent mechanism for sharing/reusing snippets from other files.
-message ConfigLoaderOptions {
-  message ImportedConfigFragment {
-    // The file to import entries from.
-    // This path is the result of strip/import_prefix of any dependent
-    // configurations.
-    string config_path = 1;
-
-    // The `name`s that should be imported into the current config.
-    // Note that all transitive requirements are also imported. i.e.
-    // importing a LaunchableWorkflow will import all referenced builds,
-    // analyzers, build configs, etc.
-    repeated string imported_ids = 2;
-  }
-
-  // Config fragments that should be imported from another externally-provided
-  // file.
-  repeated ImportedConfigFragment imports = 1;
-}
-
 // The launcher config.
 message WorkflowSuite {
-  ConfigLoaderOptions loader_options = 1;
+  // Reserved for config loader options. See https://pwrev.dev/363612.
+  reserved 1;
   repeated BuildConfig configs = 2;
   repeated Build builds = 3;
   repeated Tool tools = 4;
