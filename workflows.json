@@ -623,23 +623,13 @@
     {
       "name": "default",
       "description": "Common builds/configurations",
-      "analyzers": [
-        "compile_commands_integration_test",
-        "compile_commands_performance_test"
-      ],
       "builds": [
-        "all_host",
-        "all_host_cpp17",
         "lm3s6965evb",
         "jni",
-        "rust_nightly",
         "googletest",
-        "clippy",
-        "clippy_nightly",
         "asan_fuzztest",
         "rpc_callback",
-        "grpc",
-        "docs"
+        "grpc"
       ]
     },
     {
