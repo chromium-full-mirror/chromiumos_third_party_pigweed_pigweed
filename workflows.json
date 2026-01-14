@@ -622,7 +622,7 @@
     },
     {
       "name": "default",
-      "description": "Most common builds/configurations",
+      "description": "Common builds/configurations",
       "analyzers": [
         "compile_commands_integration_test",
         "compile_commands_performance_test"
@@ -640,6 +640,28 @@
         "rpc_callback",
         "grpc",
         "docs"
+      ]
+    },
+    {
+      "name": "host",
+      "description": "Most common host builds/configurations",
+      "analyzers": [
+        "compile_commands_integration_test",
+        "compile_commands_performance_test"
+      ],
+      "builds": [
+        "all_host",
+        "all_host_cpp17",
+        "docs"
+      ]
+    },
+    {
+      "name": "rust",
+      "description": "Rust builds/configurations",
+      "builds": [
+        "rust_nightly",
+        "clippy",
+        "clippy_nightly"
       ]
     },
     {
