@@ -235,13 +235,6 @@ pw_add_library(pw_sync.binary_semaphore_timed_thread_notification_backend INTERF
     pw_sync.binary_semaphore_thread_notification_backend
 )
 
-pw_add_library(pw_sync.yield_core INTERFACE
-  HEADERS
-    public/pw_sync/yield_core.h
-  PUBLIC_INCLUDES
-    public
-)
-
 pw_add_facade(pw_sync.condition_variable INTERFACE
   BACKEND
     pw_sync.condition_variable_BACKEND

@@ -230,11 +230,6 @@ pw_source_set("binary_semaphore_timed_thread_notification_backend") {
   ]
 }
 
-pw_source_set("yield_core") {
-  public = [ "public/pw_sync/yield_core.h" ]
-  public_configs = [ ":public_include_path" ]
-}
-
 pw_facade("condition_variable") {
   backend = pw_sync_CONDITION_VARIABLE_BACKEND
   public_configs = [ ":public_include_path" ]
