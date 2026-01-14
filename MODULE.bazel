@@ -417,6 +417,13 @@ git_repository(
     remote = "https://github.com/antmicro/mcuxpresso-sdk.git",
 )
 
+git_repository(
+    name = "smartfusion_mss",
+    build_file = "//third_party/smartfusion_mss:smartfusion_mss.BUILD.bazel",
+    commit = "052a2ed78fa2c7a1a7cdac5e4a988b03269d2b42",
+    remote = "https://github.com/seank/smartfusion_mss",
+)
+
 # Other Pigweed-specific dependencies
 # ===================================
 cipd_repository(

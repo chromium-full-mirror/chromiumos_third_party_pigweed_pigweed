@@ -89,7 +89,10 @@ if (dir_pw_third_party_smartfusion_mss != "") {
     include_dirs = [
       "$dir_pw_third_party_smartfusion_mss/exported_firmware/CMSIS/V4.5/Include",
       "$dir_pw_third_party_smartfusion_mss/exported_firmware/drivers",
+      "$dir_pw_third_party_smartfusion_mss/exported_firmware/drivers_config/sys_config",
       "$dir_pw_third_party_smartfusion_mss/exported_firmware/CMSIS",
+      "$dir_pw_third_party_smartfusion_mss/exported_firmware/hal",
+      "$dir_pw_third_party_smartfusion_mss/exported_firmware/hal/CortexM3",
       "$pw_external_smartfusion_mss",
     ]
     cflags = [
