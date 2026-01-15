@@ -20,6 +20,7 @@
 #include "pw_async2/pendable.h"
 #include "pw_async2/poll.h"
 #include "pw_async2/value_future.h"
+#include "pw_unit_test/constexpr.h"
 #include "pw_unit_test/framework.h"
 
 namespace {
@@ -288,15 +289,26 @@ TEST(Selector, MultiplePendables_OutOfOrderCompletion) {
 
 PW_MODIFY_DIAGNOSTICS_POP();
 
+struct LiteralFuture {
+  using value_type = int;
+  constexpr LiteralFuture() = default;
+  constexpr bool is_complete() const { return false; }
+  constexpr pw::async2::Poll<int> Pend(pw::async2::Context&) {
+    return pw::async2::Pending();
+  }
+};
+
+static_assert(pw::async2::Future<
+              SelectFuture<LiteralFuture, LiteralFuture, LiteralFuture>>);
 static_assert(
     pw::async2::Future<
         SelectFuture<ValueFuture<int>, ValueFuture<int>, ValueFuture<char>>>);
 
-TEST(SelectFuture, DefaultConstruct) {
-  SelectFuture<ValueFuture<int>, ValueFuture<int>, ValueFuture<char>> future;
-  EXPECT_FALSE(future.is_pendable());
-  EXPECT_FALSE(future.is_complete());
-}
+PW_CONSTEXPR_TEST(SelectFuture, DefaultConstruct, {
+  SelectFuture<LiteralFuture, LiteralFuture, LiteralFuture> future;
+  PW_TEST_EXPECT_FALSE(future.is_pendable());
+  PW_TEST_EXPECT_FALSE(future.is_complete());
+});
 
 TEST(SelectFuture, Pend_OneReady) {
   DispatcherForTest dispatcher;
@@ -391,7 +403,11 @@ class SimpleFuture {
 
 class SimpleFutureProvider {
  public:
-  SimpleFuture Get();
+  SimpleFuture Get() {
+    SimpleFuture future(pw::async2::FutureCore::kPending);
+    futures_.Push(future);
+    return future;
+  }
 
   bool has_active_futures() const { return !futures_.empty(); }
 
@@ -404,12 +420,6 @@ class SimpleFutureProvider {
  private:
   pw::async2::FutureList<&SimpleFuture::core_> futures_;
 };
-
-SimpleFuture SimpleFutureProvider::Get() {
-  SimpleFuture future(pw::async2::FutureCore::kPending);
-  futures_.Push(future);
-  return future;
-}
 
 TEST(SelectFuture, DestroysFuturesOnCompletion) {
   DispatcherForTest dispatcher;

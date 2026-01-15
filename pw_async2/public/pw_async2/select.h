@@ -245,8 +245,12 @@ class SelectFuture {
     return Pending();
   }
 
-  bool is_pendable() const { return state_ == State::kPendable; }
-  bool is_complete() const { return state_ == State::kComplete; }
+  [[nodiscard]] constexpr bool is_pendable() const {
+    return state_ == State::kPendable;
+  }
+  [[nodiscard]] constexpr bool is_complete() const {
+    return state_ == State::kComplete;
+  }
 
  private:
   static constexpr auto kTupleIndexSequence =

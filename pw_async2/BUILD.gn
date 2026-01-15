@@ -594,6 +594,7 @@ pw_test("select_test") {
     ":select",
     ":testing",
     ":value_future",
+    "$dir_pw_unit_test:constexpr",
   ]
 }
 

@@ -47,7 +47,7 @@ class ValueFuture {
  public:
   using value_type = T;
 
-  ValueFuture() = default;
+  constexpr ValueFuture() = default;
 
   ValueFuture(ValueFuture&& other) noexcept
       PW_LOCKS_EXCLUDED(internal::ValueProviderLock()) {
@@ -140,7 +140,7 @@ class ValueFuture<void> {
  public:
   using value_type = ReadyType;
 
-  ValueFuture() = default;
+  constexpr ValueFuture() = default;
 
   ValueFuture(ValueFuture&& other) = default;
 
@@ -156,6 +156,7 @@ class ValueFuture<void> {
     return core_.DoPend<ValueFuture<void>>(*this, cx);
   }
 
+  [[nodiscard]] bool is_pendable() const { return core_.is_pendable(); }
   [[nodiscard]] bool is_complete() const { return core_.is_complete(); }
 
   static ValueFuture Resolved() {

@@ -577,6 +577,7 @@ pw_add_test(pw_async2.select_test
     pw_async2.select
     pw_async2.testing
     pw_async2.value_future
+    pw_unit_test.constexpr
   GROUPS
     modules
     pw_async2

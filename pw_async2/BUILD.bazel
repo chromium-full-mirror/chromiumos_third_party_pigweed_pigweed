@@ -760,6 +760,7 @@ pw_cc_test(
         ":select",
         ":testing",
         ":value_future",
+        "//pw_unit_test:constexpr",
     ],
 )
 
