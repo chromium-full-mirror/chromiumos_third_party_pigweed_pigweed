@@ -131,14 +131,14 @@ template <
     typename = std::enable_if_t<!std::is_lvalue_reference_v<TimeoutFuture>>,
     typename = std::enable_if_t<!std::is_lvalue_reference_v<TimeoutResolution>>>
 class [[nodiscard]] FutureWithTimeout
-    : public Future<
+    : public internal::FutureBase<
           FutureWithTimeout<T, PrimaryFuture, TimeoutFuture, TimeoutResolution>,
           T> {
   static_assert(
-      is_future_v<PrimaryFuture>,
+      Future<PrimaryFuture>,
       "FutureWithTimeout can only be used when PrimaryFuture is a Future type");
   static_assert(
-      is_future_v<TimeoutFuture>,
+      Future<TimeoutFuture>,
       "FutureWithTimeout can only be used when TimeoutFuture is a Future type");
 
  public:
@@ -151,7 +151,7 @@ class [[nodiscard]] FutureWithTimeout
                      .timeout_resolution_ = std::move(timeout_resolution)}} {}
 
  private:
-  using Base = Future<
+  using Base = internal::FutureBase<
       FutureWithTimeout<T, PrimaryFuture, TimeoutFuture, TimeoutResolution>,
       T>;
   friend Base;

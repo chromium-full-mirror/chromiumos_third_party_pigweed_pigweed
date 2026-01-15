@@ -20,17 +20,32 @@ Futures operate using the
 ``pw_async2`` is built. This model is summarized below, but it is recommended to
 read the full description for important background knowledge.
 
-A ``Future<T>`` exposes two member functions:
 
-- ``Poll<T> Pend(Context& cx)``: Drives the asynchronous operation, returning
-  its result on completion. After returning ``Ready``, the future cannot be
-  polled again.
+Future API
+==========
+Futures use a standard API. There is no `Future` class; futures are unique types
+with a common interface, but no shared base. In C++20 and later,
+``pw::async2::Future`` is a C++ concept that describes the future interface.
 
+A ``Future<T>`` exposes the following API:
+
+- ``value_type``: Type alias for the value produced by the future.
+- ``Poll<value_type> Pend(Context& cx)``: Calling ``Pend`` advances the
+  asynchronous operation until no further progress is possible. Returns
+  :cc:`Ready <pw::async2::Ready>` if the operation completes. Otherwise, uses
+  the provided :cc:`Context <pw::async2::Context>` to store a waker and returns
+  :cc:`Pending <pw::async2::Pending>`. The waker wakes the task when ``Pend``
+  should be called again.
 - ``bool is_complete()``: Returns whether the future has already completed and
-  had its result consumed. Can be called after the future returns ``Ready``.
+  had its result consumed.
 
-The base ``Future<T>`` class is an abstract interface. Specific asynchronous
-operations return various concrete future types.
+Futures are single-use and track their completion status. It is an error
+to poll a future after it has already completed.
+
+``pw_async2`` provides a ``pw::async2::Future`` `concept
+<http://go/cppref/cpp/language/constraints.html>`_ that future implementations
+must satisfy. Futures do not share a common base class, but may use common
+helpers such as :cc:`FutureCore <pw::async2::FutureCore>`.
 
 Ownership and lifetime
 ======================
@@ -44,7 +59,8 @@ Polling
 =======
 Futures are lazy and do nothing on their own. The task owning a future must poll
 it to drive it to completion. Calling a future's ``Pend`` function advances its
-operation and returns a :cc:`Poll` containing one of two values:
+operation and returns a :cc:`Poll <pw::async2::Poll>` containing one of two
+values:
 
 * ``Pending()``: The asynchronous operation has not yet finished. The value is
   not available. The task polling the future is be scheduled to wake when the

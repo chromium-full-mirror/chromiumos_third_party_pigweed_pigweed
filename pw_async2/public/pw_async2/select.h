@@ -222,15 +222,15 @@ void VisitSelectResult(
       std::make_index_sequence<sizeof...(ReadyHandler)>{});
 }
 template <typename... Futures>
-class SelectFuture
-    : public Future<SelectFuture<Futures...>,
-                    OptionalTuple<typename Futures::value_type...>> {
+class SelectFuture : public internal::FutureBase<
+                         SelectFuture<Futures...>,
+                         OptionalTuple<typename Futures::value_type...>> {
  public:
   static_assert(sizeof...(Futures) > 0,
                 "Cannot select over an empty set of futures");
 
   using ResultTuple = OptionalTuple<typename Futures::value_type...>;
-  using Base = Future<SelectFuture<Futures...>, ResultTuple>;
+  using Base = internal::FutureBase<SelectFuture<Futures...>, ResultTuple>;
 
   explicit SelectFuture(Futures&&... futures)
       : futures_(std::move(futures)...) {}
@@ -299,7 +299,7 @@ SelectFuture(Futures&&...) -> SelectFuture<Futures...>;
 /// which stores the results of all the sub-futures which managed to complete.
 template <typename... Futures>
 SelectFuture<Futures...> Select(Futures&&... futures) {
-  static_assert(std::conjunction_v<is_future<Futures>...>,
+  static_assert((Future<Futures> && ...),
                 "All arguments to Select must be Future types");
   return SelectFuture(std::forward<Futures>(futures)...);
 }

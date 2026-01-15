@@ -67,7 +67,7 @@ Example
    void PostTaskToDispatcher(pw::async2::Task& task);
 
    // The async2 function we'd like to call.
-   pw::async2::Future<pw::Result<int>> ReadValue();
+   ValueFuture<pw::Result<int>> ReadValue();
 
    // Non-async2 code.
    void ReadAndPrintAsyncValue() {
@@ -173,8 +173,8 @@ When a task has completed all work, it should return :cc:`Ready
 
    How does a task wake back up? Tasks are not directly involved in this
    process. The task invokes one or more asynchronous operations that return
-   :cc:`futures <pw::async2::Future>`, which are values that may not be complete
-   yet. When invoking the async operation, the task provides its
+   :ref:`futures <module-pw_async2-futures>`, which are values that may not be
+   complete yet. When invoking the async operation, the task provides its
    :cc:`context <pw::async2::Context>`. The future grabs a :cc:`waker
    <pw::async2::Waker>` from the context. When the future's value is ready, the
    asynchronous operation invokes the waker to inform the dispatcher that the

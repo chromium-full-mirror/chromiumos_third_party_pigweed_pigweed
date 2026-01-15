@@ -25,11 +25,11 @@ The central idea is that asynchronous work is encapsulated in :cc:`Tasks
 registering callbacks for different events, a central :cc:`Dispatcher
 <pw::async2::Dispatcher>` *polls* tasks to see if they can make progress.
 Tasks drive one or more asynchronous operations to completion. The async
-operations communicate whether or not their values are ready via :cc:`Futures
-<pw::async2::Future>`, the basic async primitive in ``pw_async2``.  When none
-of the future values are ready, the task notifies the dispatcher that it can't
-progress, and the dispatcher sleeps the task. When a future's value becomes
-ready, the future uses a :cc:`Waker <pw::async2::Waker>` to *inform* the
+operations communicate whether or not their values are ready via :ref:`futures
+<module-pw_async2-futures>`, the basic async primitive in ``pw_async2``.  When
+none of the future values are ready, the task notifies the dispatcher that it
+can't progress, and the dispatcher sleeps the task. When a future's value
+becomes ready, the future uses a :cc:`Waker <pw::async2::Waker>` to *inform* the
 dispatcher that its parent task can make more progress and therefore should be
 polled again.
 
@@ -126,8 +126,8 @@ these values in its ``Pend()`` implementation:
 
 Futures: The basic async primitive
 ==================================
-Tasks invoke asynchronous operations that return :cc:`Futures
-<pw::async2::Future>`, which are values that may not be ready yet. In the
+Tasks invoke asynchronous operations that return :ref:`futures
+<module-pw_async2-futures>`, which are values that may not be ready yet. In the
 vending machine example mentioned in
 :ref:`module-pw_async2-informed-poll-components-task`, coin insertions, item
 selections, motor control, and item drop detection are all examples of async

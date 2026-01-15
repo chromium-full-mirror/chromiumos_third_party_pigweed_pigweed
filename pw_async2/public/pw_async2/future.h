@@ -13,6 +13,10 @@
 // the License.
 #pragma once
 
+#ifdef __cpp_concepts
+#include <concepts>
+#endif  // __cpp_concepts
+
 #include <mutex>
 #include <optional>
 #include <type_traits>
@@ -24,45 +28,71 @@
 #include "pw_memory/container_of.h"
 #include "pw_sync/interrupt_spin_lock.h"
 
-namespace pw::async2 {
-
 /// @submodule{pw_async2,futures}
 
+namespace pw::async2 {
+
+#ifdef __cpp_concepts
+
+/// @concept pw::async2::Future
+///
 /// A `Future` is an abstract handle to an asynchronous operation that is polled
 /// to completion. On completion, futures may return a value representing the
 /// result of the operation.
 ///
-/// Futures are single-use and track their completion status. It is an error
-/// to poll a future after it has already completed.
-///
-/// # Implementing
-///
-/// The future class does not contain any members itself, providing only a core
-/// interface and delegating management to specific implementations.
-///
-/// In practice, developers will rarely derive from `Future` directly. Instead,
-/// they should use a more specific abstract future type like
-/// `ListableFutureWithWaker`, which manages common behaviors like waker
-/// storage.
-///
-/// Deriving from `Future` directly is necessary when these behaviors are not
-/// required; for example, when implementing a future that composes other
-/// futures.
-///
-/// Implementations derived directly from `Future` are required to provide the
-/// following member functions:
-///
-/// - `Poll<T> DoPend(Context& cx)`: Implements the asynchronous operation.
-/// - `void DoMarkComplete()`: Marks the future as complete.
-/// - `bool DoIsComplete() const`: Returns `true` if `DoMarkCompleted` has
-///    previously been called. This must always return a value, even if the
-///    future's provider has been destroyed.
-///
-/// @tparam Derived The concrete class that implements this `Future`.
-/// @tparam T       The type of the value returned by `Pend` upon completion.
-///                 Use `void` for futures that do not return a value.
+/// The `Future` concept describes the future API. All future implementations
+/// must satisfy this concept.
+template <typename T>
+concept Future = requires {
+  /// value_type refers to the type produced by the future.
+  typename T::value_type;
+
+  /// `bool is_complete() const` returns whether the future completed.
+  static_cast<bool (T::*)() const>(&T::is_complete);
+
+  /// `Poll<value_type> Pend(Context&)` advances the future. Returns `Ready`
+  /// when the operation completes. Uses the `Context` to store a waker and
+  /// returns `Pending` if there is more work to do. Must not be called again
+  /// after completing.
+  static_cast<Poll<typename T::value_type> (T::*)(Context&)>(&T::Pend);
+} && std::movable<T>;
+
+#else  // C++17 version
+
+namespace internal {
+
+template <typename T, typename = void>
+struct is_future : std::false_type {};
+
+template <typename T>
+struct is_future<
+    T,
+    std::void_t<typename T::value_type,
+                decltype(std::declval<T&>().Pend(std::declval<Context&>())),
+                decltype(std::declval<const T&>().is_complete())>>
+    : std::conjunction<
+          std::is_convertible<decltype(&T::is_complete), bool (T::*)() const>,
+          std::is_convertible<decltype(&T::Pend),
+                              Poll<typename T::value_type> (T::*)(Context&)>> {
+};
+
+}  // namespace internal
+
+// This variable is named as a type to match the C++20 concept. This makes it
+// possible to use `Future` in static asserts in either C++17 or C++20.
+template <typename T>
+constexpr bool Future =
+    internal::is_future<std::remove_cv_t<std::remove_reference_t<T>>>::value;
+
+#endif  // __cpp_concepts
+
+namespace internal {
+
+/// Optional future base class for future implementations. Provides
+/// `value_type`, `Pend()`, and `is_complete()`. Requires the derived class to
+/// implement `DoPend(), `DoMarkComplete()`, and `DoIsComplete()`.
 template <typename Derived, typename T>
-class Future {
+class FutureBase {
  public:
   using value_type = std::conditional_t<std::is_void_v<T>, ReadyType, T>;
 
@@ -88,28 +118,14 @@ class Future {
   bool is_complete() const { return derived().DoIsComplete(); }
 
  protected:
-  constexpr Future() = default;
+  constexpr FutureBase() = default;
 
  private:
   Derived& derived() { return static_cast<Derived&>(*this); }
   const Derived& derived() const { return static_cast<const Derived&>(*this); }
 };
 
-template <typename T, typename = void>
-struct is_future : std::false_type {};
-
-template <typename T>
-struct is_future<
-    T,
-    std::void_t<typename T::value_type,
-                decltype(std::declval<T&>().Pend(std::declval<Context&>())),
-                decltype(std::declval<const T&>().is_complete())>>
-    : std::is_convertible<decltype(&T::Pend),
-                          Poll<typename T::value_type> (T::*)(Context&)> {};
-
-template <typename T>
-constexpr bool is_future_v =
-    is_future<std::remove_cv_t<std::remove_reference_t<T>>>::value;
+}  // namespace internal
 
 /// `FutureCore` provides common functionality for futures that need to be
 /// wakeable and stored in a list.

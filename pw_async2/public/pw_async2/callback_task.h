@@ -45,7 +45,7 @@ class CallbackTask final : public Task {
  public:
   using value_type = typename FutureType::value_type;
 
-  static_assert(is_future_v<FutureType>,
+  static_assert(Future<FutureType>,
                 "CallbackTask can only be used with Future types");
 
   /// Creates a new `CallbackTask` which will run the `future` to completion

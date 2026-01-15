@@ -120,7 +120,8 @@ class TimeProvider : public chrono::VirtualClock<Clock> {
 /// used with any `TimeProvider` with a compatible `Clock` type.
 template <typename Clock>
 class [[nodiscard]] TimeFuture
-    : public Future<TimeFuture<Clock>, typename Clock::time_point>,
+    : public internal::FutureBase<TimeFuture<Clock>,
+                                  typename Clock::time_point>,
       public IntrusiveForwardList<TimeFuture<Clock>>::Item {
  public:
   TimeFuture() : provider_(nullptr) {}
@@ -180,7 +181,8 @@ class [[nodiscard]] TimeFuture
   }
 
  private:
-  using Base = Future<TimeFuture<Clock>, typename Clock::time_point>;
+  using Base =
+      internal::FutureBase<TimeFuture<Clock>, typename Clock::time_point>;
   friend Base;
   friend class TimeProvider<Clock>;
 

@@ -24,14 +24,14 @@ namespace {
 
 using pw::async2::Context;
 using pw::async2::DispatcherForTest;
-using pw::async2::is_future_v;
+using pw::async2::Future;
 using pw::async2::PendFuncTask;
 using pw::async2::Pending;
 using pw::async2::Poll;
 using pw::async2::Ready;
 
-static_assert(!is_future_v<int>);
-static_assert(!is_future_v<pw::async2::FutureCore>);
+static_assert(!Future<int>);
+static_assert(!Future<pw::async2::FutureCore>);
 
 class FakeFuture {
  public:
@@ -39,28 +39,44 @@ class FakeFuture {
   Poll<int> Pend(Context& cx);
   bool is_complete() const;
 };
-static_assert(is_future_v<FakeFuture>);
+static_assert(Future<FakeFuture>);
 
 class MissingValueType {
  public:
   Poll<int> Pend(Context& cx);
   bool is_complete() const;
 };
-static_assert(!is_future_v<MissingValueType>);
+static_assert(!Future<MissingValueType>);
 
 class MissingPend {
  public:
   using value_type = int;
   bool is_complete() const;
 };
-static_assert(!is_future_v<MissingPend>);
+static_assert(!Future<MissingPend>);
+
+class ExtraArgIsComplete {
+ public:
+  using value_type = int;
+  Poll<int> Pend(Context& cx);
+  bool is_complete(bool maybe_not = false) const;
+};
+static_assert(!Future<ExtraArgIsComplete>);
+
+class NonConstIsComplete {
+ public:
+  using value_type = int;
+  Poll<int> Pend(Context& cx);
+  bool is_complete();
+};
+static_assert(!Future<NonConstIsComplete>);
 
 class MissingIsComplete {
  public:
   using value_type = int;
   Poll<int> Pend(Context& cx);
 };
-static_assert(!is_future_v<MissingIsComplete>);
+static_assert(!Future<MissingIsComplete>);
 
 class WrongPendSignature {
  public:
@@ -68,7 +84,7 @@ class WrongPendSignature {
   Poll<int> Pend();  // Missing Context&
   bool is_complete() const;
 };
-static_assert(!is_future_v<WrongPendSignature>);
+static_assert(!Future<WrongPendSignature>);
 
 class WrongPendReturnType {
  public:
@@ -76,7 +92,7 @@ class WrongPendReturnType {
   void Pend(Context& cx);
   bool is_complete() const;
 };
-static_assert(!is_future_v<WrongPendReturnType>);
+static_assert(!Future<WrongPendReturnType>);
 
 class ExtraArgPend {
  public:
@@ -84,7 +100,7 @@ class ExtraArgPend {
   Poll<int> Pend(Context& cx, int extra = 0);
   bool is_complete() const;
 };
-static_assert(!is_future_v<ExtraArgPend>);
+static_assert(!Future<ExtraArgPend>);
 
 #if PW_NC_TEST(FutureWaitReasonMustBeProvided)
 PW_NC_EXPECT("kWaitReason");
@@ -197,7 +213,7 @@ Poll<int> TestIntFuture::DoPend(Context&) {
   return Pending();
 }
 
-static_assert(is_future_v<TestIntFuture>);
+static_assert(Future<TestIntFuture>);
 
 TEST(FutureCore, Pend) {
   DispatcherForTest dispatcher;

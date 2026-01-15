@@ -21,15 +21,16 @@ namespace pw::async2 {
 /// @submodule{pw_async2,combinators}
 
 template <typename... Futures>
-class JoinFuture
-    : public Future<JoinFuture<Futures...>,
-                    std::tuple<typename Futures::value_type&&...>> {
+class JoinFuture : public internal::FutureBase<
+                       JoinFuture<Futures...>,
+                       std::tuple<typename Futures::value_type&&...>> {
  private:
   static constexpr auto kTupleIndexSequence =
       std::make_index_sequence<sizeof...(Futures)>();
   using TupleOfOutputRvalues = std::tuple<typename Futures::value_type&&...>;
 
-  using Base = Future<JoinFuture<Futures...>, TupleOfOutputRvalues>;
+  using Base =
+      internal::FutureBase<JoinFuture<Futures...>, TupleOfOutputRvalues>;
   friend Base;
 
   template <typename... Fs>
@@ -86,7 +87,7 @@ class JoinFuture
     return std::move(std::get<kTupleIndex>(outputs_).value());
   }
 
-  static_assert(std::conjunction_v<is_future<Futures>...>,
+  static_assert((Future<Futures> && ...),
                 "All types in JoinFuture must be Future types");
   std::optional<std::tuple<Futures...>> futures_;
   std::tuple<Poll<internal::PendOutputOf<Futures>>...> outputs_;
@@ -102,7 +103,7 @@ JoinFuture(Futures&&...) -> JoinFuture<Futures...>;
 /// output in the order the futures were provided.
 template <typename... Futures>
 constexpr auto Join(Futures&&... futures) {
-  static_assert(std::conjunction_v<is_future<Futures>...>,
+  static_assert((Future<Futures> && ...),
                 "All arguments to Join must be Future types");
   return JoinFuture(std::forward<Futures>(futures)...);
 }
