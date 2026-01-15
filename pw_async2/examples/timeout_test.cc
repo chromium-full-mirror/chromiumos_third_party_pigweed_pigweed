@@ -82,7 +82,7 @@ Result<T> RunFutureToCompletionWithTimeout(
     auto& future, pw::chrono::SystemClock::duration delay) {
   auto timeout = GetSystemTimeProvider().WaitFor(delay);
   auto select = SelectFuture(std::move(future), std::move(timeout));
-  typename decltype(select)::ResultTuple select_result;
+  typename decltype(select)::value_type select_result;
 
   BasicDispatcher dispatcher;
   auto task = PendFuncTask([&](Context cx) -> Poll<> {

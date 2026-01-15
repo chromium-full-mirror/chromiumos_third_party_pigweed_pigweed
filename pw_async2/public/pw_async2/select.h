@@ -222,59 +222,51 @@ void VisitSelectResult(
       std::make_index_sequence<sizeof...(ReadyHandler)>{});
 }
 template <typename... Futures>
-class SelectFuture : public internal::FutureBase<
-                         SelectFuture<Futures...>,
-                         OptionalTuple<typename Futures::value_type...>> {
+class SelectFuture {
  public:
   static_assert(sizeof...(Futures) > 0,
                 "Cannot select over an empty set of futures");
 
-  using ResultTuple = OptionalTuple<typename Futures::value_type...>;
-  using Base = internal::FutureBase<SelectFuture<Futures...>, ResultTuple>;
+  using value_type = OptionalTuple<typename Futures::value_type...>;
+
+  constexpr SelectFuture() : state_(State::kDefaultConstructed) {}
 
   explicit SelectFuture(Futures&&... futures)
-      : futures_(std::move(futures)...) {}
+      : futures_(std::move(futures)...), state_(State::kPendable) {}
 
- private:
-  friend Base;
-
-  static constexpr auto kTupleIndexSequence =
-      std::make_index_sequence<sizeof...(Futures)>();
-
-  Poll<ResultTuple> DoPend(Context& cx) {
-    ResultTuple tuple;
+  Poll<value_type> Pend(Context& cx) {
+    value_type tuple;
     PendAll(cx, kTupleIndexSequence, tuple);
     if (!tuple.empty()) {
+      state_ = State::kComplete;
+      futures_ = std::tuple<Futures...>();
       return tuple;
     }
     return Pending();
   }
 
-  void DoMarkComplete() {}
-  bool DoIsComplete() const { return IsComplete<0>(); }
+  bool is_pendable() const { return state_ == State::kPendable; }
+  bool is_complete() const { return state_ == State::kComplete; }
 
-  template <size_t kTupleIndex>
-  bool IsComplete() const {
-    if constexpr (kTupleIndex < sizeof...(Futures)) {
-      auto& future = std::get<kTupleIndex>(futures_);
-      if (future.is_complete()) {
-        return true;
-      }
-      return IsComplete<kTupleIndex + 1>();
-    } else {
-      return false;
-    }
-  }
+ private:
+  static constexpr auto kTupleIndexSequence =
+      std::make_index_sequence<sizeof...(Futures)>();
+
+  enum State : uint8_t {
+    kDefaultConstructed,
+    kPendable,
+    kComplete,
+  };
 
   /// Pends every sub-future, storing the results of each that is ready in the
   /// provided result tuple.
   template <size_t... Is>
-  void PendAll(Context& cx, std::index_sequence<Is...>, ResultTuple& result) {
+  void PendAll(Context& cx, std::index_sequence<Is...>, value_type& result) {
     (PendFuture<Is>(cx, result), ...);
   }
 
   template <size_t kTupleIndex>
-  void PendFuture(Context& cx, ResultTuple& result) {
+  void PendFuture(Context& cx, value_type& result) {
     auto& future = std::get<kTupleIndex>(futures_);
     if (future.is_complete()) {
       return;
@@ -287,6 +279,7 @@ class SelectFuture : public internal::FutureBase<
   }
 
   std::tuple<Futures...> futures_;
+  State state_;
 };
 
 template <typename... Futures>
