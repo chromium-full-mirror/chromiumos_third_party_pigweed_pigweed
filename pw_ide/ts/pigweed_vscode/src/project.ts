@@ -68,14 +68,8 @@ export async function findPigweedJsonBelow(
  *
  * The presence of a pigweed.json file is the sentinel for the Pigweed root.
  * The heuristic is to first search in the current directory or above ("are
- * we inside of a Pigweed directory?"), and failing that, to search in the
- * directories below ("does this project contain a Pigweed directory?").
- *
- * Note that this logic presumes that there's only one Pigweed project
- * directory. In a hypothetical project setup that contained multiple Pigweed
- * projects, this would continue to work when invoked inside of one of those
- * Pigweed directories, but would have inconsistent results when invoked
- * in a parent directory.
+ * we inside of a Pigweed directory?"), and failing that, we just assume current
+ * directory is the root dir.
  */
 export async function inferPigweedProjectRoot(
   workingDir: string,
@@ -83,10 +77,7 @@ export async function inferPigweedProjectRoot(
   const rootAbove = findPigweedJsonAbove(workingDir);
   if (rootAbove) return rootAbove;
 
-  const rootsBelow = await findPigweedJsonBelow(workingDir);
-  if (rootsBelow) return rootsBelow[0];
-
-  return null;
+  return workingDir;
 }
 
 /**
