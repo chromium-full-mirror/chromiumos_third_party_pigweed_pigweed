@@ -35,7 +35,7 @@ from typing import (
     Sequence,
     TYPE_CHECKING,
 )
-import urllib
+import urllib.parse
 
 import pw_cli.color
 import pw_cli.env
