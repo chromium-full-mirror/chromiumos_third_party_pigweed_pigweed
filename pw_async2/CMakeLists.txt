@@ -72,8 +72,10 @@ pw_add_library(pw_async2 STATIC
     pw_memory
     pw_sync.interrupt_spin_lock
     pw_sync.lock_annotations
+    pw_third_party.fuchsia.stdcompat
     pw_tokenizer
     pw_toolchain.no_destructor
+
   PRIVATE_DEPS
     pw_assert.check
     pw_async2.config

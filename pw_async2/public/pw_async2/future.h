@@ -21,6 +21,7 @@
 #include <optional>
 #include <type_traits>
 
+#include "lib/stdcompat/utility.h"
 #include "pw_assert/assert.h"
 #include "pw_async2/context.h"
 #include "pw_async2/poll.h"
@@ -28,9 +29,9 @@
 #include "pw_memory/container_of.h"
 #include "pw_sync/interrupt_spin_lock.h"
 
-/// @submodule{pw_async2,futures}
-
 namespace pw::async2 {
+
+/// @submodule{pw_async2,futures}
 
 #ifdef __cpp_concepts
 
@@ -127,6 +128,98 @@ class FutureBase {
 
 }  // namespace internal
 
+/// Standard pw_async2 future states. Used by `FutureCore` and may be used by
+/// custom future implementations.
+class FutureState {
+ public:
+  /// Tag for constructing an active future, for which `Pend` may be called.
+  enum Pending { kPending };
+
+  /// Tag for constructing a future that is guaranteed to return `Ready` from
+  /// the next `Pend` call.
+  enum ReadyForCompletion { kReadyForCompletion };
+
+  /// Represents an empty future. The future does not yet represent an
+  /// asynchronous operation and `Pend` may not be called.
+  constexpr FutureState() : state_(State::kEmpty) {}
+
+  /// Represents an active future, for which `Pend` may be called.
+  constexpr FutureState(Pending) : state_(State::kPending) {}
+
+  /// Represents a future that is guaranteed to return `Ready` from the next
+  /// `Pend` call. Use of the `ReadyForCompletion" state is optional---future
+  /// implementations may skip from `Pending` to `Complete` if desired.
+  constexpr FutureState(ReadyForCompletion) : state_(State::kReady) {}
+
+  constexpr FutureState(const FutureState&) = delete;
+  constexpr FutureState& operator=(const FutureState&) = delete;
+
+  /// Move constructs a `FutureState`, leaving the other in its default
+  /// constructed / empty state.
+  constexpr FutureState(FutureState&& other)
+      : state_(cpp20::exchange(other.state_, State::kEmpty)) {}
+
+  constexpr FutureState& operator=(FutureState&& other) {
+    state_ = cpp20::exchange(other.state_, State::kEmpty);
+    return *this;
+  }
+
+  friend constexpr bool operator==(const FutureState& lhs,
+                                   const FutureState& rhs) {
+    return lhs.state_ == rhs.state_;
+  }
+
+  friend constexpr bool operator!=(const FutureState& lhs,
+                                   const FutureState& rhs) {
+    return lhs.state_ != rhs.state_;
+  }
+
+  /// @returns Whether the future's `Pend()` function can be called.
+  [[nodiscard]] constexpr bool is_pendable() const {
+    return state_ > State::kComplete;
+  }
+
+  /// @returns Whether the future has completed: the future's `Pend()` returned
+  /// `Ready`.
+  [[nodiscard]] constexpr bool is_complete() const {
+    return state_ == State::kComplete;
+  }
+
+  /// @returns `true` if the next `Pend()` call is guaranteed to return `Ready`.
+  /// Not all future implementations use the ready state; `Pend()` may return
+  /// `Ready` even though `is_ready` is `false`.
+  [[nodiscard]] constexpr bool is_ready() const {
+    return state_ == State::kReady;
+  }
+
+  /// @returns `true` if the future was NOT default constructed. The future
+  /// either represents an active or completed asynchronous operation.
+  [[nodiscard]] constexpr bool is_initialized() const {
+    return state_ != State::kEmpty;
+  }
+
+  void MarkReady() { state_ = State::kReady; }
+
+  void MarkComplete() { state_ = State::kComplete; }
+
+ private:
+  enum class State : unsigned char {
+    // The future is in a default constructed, empty state. It does not
+    // represent an async operation and `Pend()` cannot be called.
+    kEmpty,
+
+    // A previous call to `Pend()` returned `Ready()`.
+    kComplete,
+
+    // The next call to `Pend()` will return `Ready()`.
+    kReady,
+
+    // `Pend()` may be called to advance the operation represented by this
+    // future. `Pend()` may return `Ready()` or `Pending()`.
+    kPending,
+  } state_;
+};
+
 /// `FutureCore` provides common functionality for futures that need to be
 /// wakeable and stored in a list.
 ///
@@ -140,47 +233,52 @@ class FutureBase {
 /// object lifetime.
 class FutureCore : public IntrusiveForwardList<FutureCore>::Item {
  public:
-  constexpr FutureCore() : state_(State::kNull) {}
+  constexpr FutureCore() = default;
 
   FutureCore(FutureCore&& other) noexcept;
 
   FutureCore& operator=(FutureCore&& other) noexcept;
-
-  /// Tag type to construct a `FutureCore` for which the next call to `Pend`
-  /// will return `Ready`.
-  enum ReadyForCompletion { kReadyForCompletion };
-
-  /// Tag type to construct an active `FutureCore`. `Pend` may be called.
-  enum Pending { kPending };
 
   /// Constructs a pending `FutureCore` that represents an async operation.
   /// `Pend` must be called until it returns `Ready`.
   ///
   /// A pending `FutureCore` must be tracked by its provider (e.g. in a
   /// `FutureList`).
-  explicit constexpr FutureCore(Pending) : state_(State::kPending) {}
+  explicit constexpr FutureCore(FutureState::Pending)
+      : state_(FutureState::kPending) {}
 
   /// Creates a wakeable future that is ready for completion. The next call to
   /// `Pend` must return `Ready`.
-  explicit constexpr FutureCore(ReadyForCompletion) : state_(State::kReady) {}
+  explicit constexpr FutureCore(FutureState::ReadyForCompletion)
+      : state_(FutureState::kReadyForCompletion) {}
 
   FutureCore(const FutureCore&) = delete;
   FutureCore& operator=(const FutureCore&) = delete;
 
   ~FutureCore() = default;
 
-  /// @returns Whether the future's `Pend()` function can be called.
-  [[nodiscard]] bool is_pendable() const { return state_ > State::kComplete; }
+  /// @copydoc FutureState::is_pendable
+  [[nodiscard]] constexpr bool is_pendable() const {
+    return state_.is_pendable();
+  }
 
-  /// @returns Whether the future has completed: the future's `Pend()` returned
-  /// `Ready`.
-  [[nodiscard]] bool is_complete() const { return state_ == State::kComplete; }
+  /// @copydoc FutureState::is_complete
+  [[nodiscard]] constexpr bool is_complete() const {
+    return state_.is_complete();
+  }
 
   /// @returns `true` if the next `Pend()` call is guaranteed to return `Ready`.
   /// Depending on the implementation, `Pend()` may return `Ready` while
-  /// `is_ready` is `false`. Future implementations call `WakeAndMarkReady` to
-  /// set `is_ready` to `true`.
-  [[nodiscard]] bool is_ready() const { return state_ == State::kReady; }
+  /// `is_ready` is `false`.
+  ///
+  /// Future implementations call `WakeAndMarkReady` to set `is_ready` to
+  /// `true`.
+  [[nodiscard]] constexpr bool is_ready() const { return state_.is_ready(); }
+
+  /// @copydoc FutureState::is_initialized
+  [[nodiscard]] constexpr bool is_initialized() const {
+    return state_.is_initialized();
+  }
 
   /// Wakes the task waiting on the future, if any. The future must be pended in
   /// order to make progress.
@@ -190,7 +288,7 @@ class FutureCore : public IntrusiveForwardList<FutureCore>::Item {
   /// this if the next call to to the future's `Pend()` will return `Ready`.
   void WakeAndMarkReady() {
     Wake();
-    state_ = State::kReady;
+    state_.MarkReady();
   }
 
   /// Provides direct access to the waker for future implementations that
@@ -205,10 +303,16 @@ class FutureCore : public IntrusiveForwardList<FutureCore>::Item {
   ///
   /// @warning Do not use this function when `FutureCore::DoPend` is used.
   /// `FutureCore::DoPend` calls `MarkComplete` when `Pend()` returns `Ready`.
-  void MarkComplete() { state_ = State::kComplete; }
+  void MarkComplete() { state_.MarkComplete(); }
 
   /// Removes this future from its list, if it is in one.
   void Unlist() { unlist(); }
+
+  /// Unlists the `FutureCore` and resets it to the empty state.
+  void Reset() {
+    Unlist();
+    state_ = FutureState();
+  }
 
   /// Optional `Pend()` function that defers to the future implementation's
   /// `DoPend(Context&)` function. `FutureCore::DoPend` does the following:
@@ -239,26 +343,8 @@ class FutureCore : public IntrusiveForwardList<FutureCore>::Item {
  private:
   friend class BaseFutureList;  // for IntrusiveForwardList::Item functions
 
-  /// @returns `true` if the `FutureCore` was NOT default constructed.
-  [[nodiscard]] bool is_initialized() const { return state_ != State::kNull; }
-
   Waker waker_;
-
-  enum class State : unsigned char {
-    /// The FutureCore is in a default constructed state. It does not yet
-    /// represent an async operation and `Pend()` cannot be called.
-    kNull,
-
-    /// A previous call to `Pend()` returned `Ready()`.
-    kComplete,
-
-    /// The next call to `Pend()` will return `Ready()`.
-    kReady,
-
-    /// `Pend()` may be called to advance the operation represented by this
-    /// future. `Pend()` may return `Ready()` or `Pending()`.
-    kPending,
-  } state_;
+  FutureState state_;
 };
 
 /// A list of `FutureCore`s with common future-related operations. Future

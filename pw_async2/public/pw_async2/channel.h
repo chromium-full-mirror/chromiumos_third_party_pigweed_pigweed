@@ -76,7 +76,8 @@ class BaseChannelFuture {
 
   // Creates a new future, but does NOT check if the channel is open.
   BaseChannelFuture(BaseChannel* channel, AllowClosed)
-      PW_LOCKS_EXCLUDED(*channel) {
+      PW_LOCKS_EXCLUDED(*channel)
+      : core_(FutureState::kPending) {
     StoreAndAddRefIfNonnull(channel);
   }
 

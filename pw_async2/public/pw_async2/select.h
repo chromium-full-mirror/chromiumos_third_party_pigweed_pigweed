@@ -229,16 +229,16 @@ class SelectFuture {
 
   using value_type = OptionalTuple<typename Futures::value_type...>;
 
-  constexpr SelectFuture() : state_(State::kDefaultConstructed) {}
+  constexpr SelectFuture() = default;
 
   explicit SelectFuture(Futures&&... futures)
-      : futures_(std::move(futures)...), state_(State::kPendable) {}
+      : futures_(std::move(futures)...), state_(FutureState::kPending) {}
 
   Poll<value_type> Pend(Context& cx) {
     value_type tuple;
     PendAll(cx, kTupleIndexSequence, tuple);
     if (!tuple.empty()) {
-      state_ = State::kComplete;
+      state_.MarkComplete();
       futures_ = std::tuple<Futures...>();
       return tuple;
     }
@@ -246,10 +246,10 @@ class SelectFuture {
   }
 
   [[nodiscard]] constexpr bool is_pendable() const {
-    return state_ == State::kPendable;
+    return state_.is_pendable();
   }
   [[nodiscard]] constexpr bool is_complete() const {
-    return state_ == State::kComplete;
+    return state_.is_complete();
   }
 
  private:
@@ -283,7 +283,7 @@ class SelectFuture {
   }
 
   std::tuple<Futures...> futures_;
-  State state_;
+  FutureState state_;
 };
 
 template <typename... Futures>

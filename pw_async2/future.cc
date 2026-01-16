@@ -19,8 +19,7 @@
 namespace pw::async2 {
 
 FutureCore::FutureCore(FutureCore&& other) noexcept
-    : waker_(std::move(other.waker_)),
-      state_(std::exchange(other.state_, State::kNull)) {
+    : waker_(std::move(other.waker_)), state_(std::move(other.state_)) {
   if (!other.unlisted()) {
     this->replace(other);
   }
@@ -33,8 +32,7 @@ FutureCore& FutureCore::operator=(FutureCore&& other) noexcept {
 
   Unlist();
 
-  state_ = std::exchange(
-      other.state_, other.is_initialized() ? State::kComplete : State::kNull);
+  state_ = std::move(other.state_);
   waker_ = std::move(other.waker_);
 
   this->replace(other);

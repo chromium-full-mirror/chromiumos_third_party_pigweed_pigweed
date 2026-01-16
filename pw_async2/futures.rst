@@ -20,7 +20,6 @@ Futures operate using the
 ``pw_async2`` is built. This model is summarized below, but it is recommended to
 read the full description for important background knowledge.
 
-
 Future API
 ==========
 Futures use a standard API. There is no `Future` class; futures are unique types
@@ -199,7 +198,7 @@ This class provides the essential machinery for most custom leaf futures:
 
 - It stores the :cc:`Waker <pw::async2::Waker>` of the task that polls it.
 - It manages its membership in an intrusive list of futures.
-- It tracks completion internally.
+- It tracks future state with a :cc:`FutureState <pw::async2::FutureState>`.
 
 Future implementations typically have a :cc:`FutureCore
 <pw::async2::FutureCore>` member.

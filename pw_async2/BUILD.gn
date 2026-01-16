@@ -79,6 +79,7 @@ pw_source_set("pw_async2") {
     "$dir_pw_log",
     "$dir_pw_log:args",
     "$dir_pw_sync:lock_annotations",
+    "$pw_external_fuchsia:stdcompat",
     dir_pw_memory,
     dir_pw_tokenizer,
   ]

@@ -106,10 +106,10 @@ class ValueFuture {
 
   template <typename... Args>
   explicit ValueFuture(std::in_place_t, Args&&... args)
-      : core_(FutureCore::kReadyForCompletion),
+      : core_(FutureState::kReadyForCompletion),
         value_(std::in_place, std::forward<Args>(args)...) {}
 
-  ValueFuture(FutureCore::Pending) : core_(FutureCore::kPending) {}
+  ValueFuture(FutureState::Pending) : core_(FutureState::kPending) {}
 
   Poll<T> DoPend(Context&)
       PW_EXCLUSIVE_LOCKS_REQUIRED(internal::ValueProviderLock()) {
@@ -160,7 +160,7 @@ class ValueFuture<void> {
   [[nodiscard]] bool is_complete() const { return core_.is_complete(); }
 
   static ValueFuture Resolved() {
-    return ValueFuture(FutureCore::kReadyForCompletion);
+    return ValueFuture(FutureState::kReadyForCompletion);
   }
 
   static constexpr char kWaitReason[] = "ValueFuture<void>";
@@ -170,10 +170,10 @@ class ValueFuture<void> {
   friend class ValueProvider<void>;
   friend class BroadcastValueProvider<void>;
 
-  explicit ValueFuture(FutureCore::ReadyForCompletion)
-      : core_(FutureCore::kReadyForCompletion) {}
+  explicit ValueFuture(FutureState::ReadyForCompletion)
+      : core_(FutureState::kReadyForCompletion) {}
 
-  explicit ValueFuture(FutureCore::Pending) : core_(FutureCore::kPending) {}
+  explicit ValueFuture(FutureState::Pending) : core_(FutureState::kPending) {}
 
   Poll<> DoPend(Context&) {
     if (!core_.is_ready()) {
@@ -207,7 +207,7 @@ class BroadcastValueProvider {
   ///
   /// Multiple futures can be retrieved and will pend concurrently.
   ValueFuture<T> Get() {
-    ValueFuture<T> future(FutureCore::kPending);
+    ValueFuture<T> future(FutureState::kPending);
     {
       std::lock_guard lock(internal::ValueProviderLock());
       list_.Push(future.core_);
@@ -253,7 +253,7 @@ class ValueProvider {
   ///
   /// If a future has already been vended and is still pending, this crashes.
   ValueFuture<T> Get() {
-    ValueFuture<T> future(FutureCore::kPending);
+    ValueFuture<T> future(FutureState::kPending);
     {
       std::lock_guard lock(internal::ValueProviderLock());
       list_.PushRequireEmpty(future);
@@ -266,7 +266,7 @@ class ValueProvider {
   /// If a future has already been vended and is still pending, this will
   /// return `std::nullopt`.
   std::optional<ValueFuture<T>> TryGet() {
-    ValueFuture<T> future(FutureCore::kPending);
+    ValueFuture<T> future(FutureState::kPending);
     {
       std::lock_guard lock(internal::ValueProviderLock());
       if (!list_.PushIfEmpty(future.core_)) {

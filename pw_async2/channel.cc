@@ -18,7 +18,8 @@
 
 namespace pw::async2::internal {
 
-BaseChannelFuture::BaseChannelFuture(BaseChannel* channel) {
+BaseChannelFuture::BaseChannelFuture(BaseChannel* channel)
+    : core_(FutureState::kPending) {
   if (channel != nullptr) {
     std::lock_guard lock(*channel);
     if (channel->is_open_locked()) {
@@ -28,6 +29,7 @@ BaseChannelFuture::BaseChannelFuture(BaseChannel* channel) {
     }
   }
   channel_ = nullptr;  // channel is nullptr or closed
+  core_.Reset();
 }
 
 BaseChannelFuture& BaseChannelFuture::MoveAssignFrom(BaseChannelFuture& other) {
@@ -53,7 +55,6 @@ void BaseChannelFuture::MoveFrom(BaseChannelFuture& other) {
   }
   std::lock_guard lock(*other.channel_);
   channel_ = std::exchange(other.channel_, nullptr);
-  core_ = std::move(other.core_);
 }
 
 void BaseChannelFuture::RemoveFromChannel() {

@@ -45,7 +45,7 @@ class ButtonFuture {
   friend class pw::async2::FutureCore;
 
   // Private constructor used by ButtonReceiver.
-  explicit ButtonFuture() : core_(pw::async2::FutureCore::kPending) {}
+  explicit ButtonFuture() : core_(pw::async2::FutureState::kPending) {}
 
   // Callback invoked by FutureCore::DoPend.
   pw::async2::Poll<> DoPend(pw::async2::Context&) {

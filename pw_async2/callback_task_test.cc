@@ -17,6 +17,7 @@
 #include <optional>
 
 #include "pw_async2/dispatcher_for_test.h"
+#include "pw_async2/future.h"
 #include "pw_async2/value_future.h"
 #include "pw_unit_test/framework.h"
 
@@ -84,23 +85,27 @@ TEST(CallbackTask, VoidFuture) {
 
 class TestFuture {
  public:
+  TestFuture() = default;
+
   using value_type = int;
 
   TestFuture(int number_one, int number_two)
-      : number_one_(number_one), number_two_(number_two) {}
+      : state_(pw::async2::FutureState::kPending),
+        number_one_(number_one),
+        number_two_(number_two) {}
 
   pw::async2::Poll<value_type> Pend(pw::async2::Context&) {
-    PW_ASSERT(!completed_);
-    completed_ = true;
+    PW_ASSERT(state_.is_pendable());
+    state_.MarkComplete();
     return number_one_ + number_two_;
   }
 
-  bool is_complete() const { return completed_; }
+  bool is_complete() const { return state_.is_complete(); }
 
  private:
+  pw::async2::FutureState state_;
   int number_one_;
   int number_two_;
-  bool completed_ = false;
 };
 
 TEST(CallbackTask, Emplace) {

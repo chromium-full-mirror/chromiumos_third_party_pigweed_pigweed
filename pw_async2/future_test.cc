@@ -129,6 +129,8 @@ class TestIntFuture {
  public:
   using value_type = int;
 
+  TestIntFuture() = default;
+
   TestIntFuture(TestIntFuture&& other) noexcept
       : core_(std::move(other.core_)),
         async_int_(std::exchange(other.async_int_, nullptr)) {}
@@ -157,8 +159,8 @@ class TestIntFuture {
   TestIntFuture(TestAsyncInt& async_int);
 
   TestIntFuture(TestAsyncInt& async_int,
-                pw::async2::FutureCore::ReadyForCompletion)
-      : core_(pw::async2::FutureCore::kReadyForCompletion),
+                pw::async2::FutureState::ReadyForCompletion)
+      : core_(pw::async2::FutureState::kReadyForCompletion),
         async_int_(&async_int) {}
 
   Poll<int> DoPend(Context&);
@@ -174,7 +176,7 @@ class TestAsyncInt {
   TestIntFuture SetAndGet(int value) {
     PW_ASSERT(!value_.has_value());
     value_ = value;
-    return TestIntFuture(*this, pw::async2::FutureCore::kReadyForCompletion);
+    return TestIntFuture(*this, pw::async2::FutureState::kReadyForCompletion);
   }
 
   void Set(int value) {
@@ -198,7 +200,7 @@ class TestAsyncInt {
 };
 
 TestIntFuture::TestIntFuture(TestAsyncInt& async_int)
-    : core_(pw::async2::FutureCore::kPending), async_int_(&async_int) {
+    : core_(pw::async2::FutureState::kPending), async_int_(&async_int) {
   async_int_->list_.Push(core_);
 }
 
@@ -366,6 +368,127 @@ TEST(FutureCore, RelistsItselfOnPending) {
   dispatcher.RunToCompletion();
   EXPECT_EQ(dispatcher.tasks_polled(), 3u);
   EXPECT_EQ(result, 88);
+}
+
+TEST(FutureCore, Unlist) {
+  pw::async2::BaseFutureList list;
+  pw::async2::FutureCore core(pw::async2::FutureState::kPending);
+  list.Push(core);
+  EXPECT_TRUE(core.in_list());
+
+  core.Unlist();
+  EXPECT_FALSE(core.in_list());
+  EXPECT_TRUE(core.is_initialized());
+  EXPECT_TRUE(list.empty());
+}
+
+TEST(FutureCore, Reset) {
+  pw::async2::BaseFutureList list;
+  pw::async2::FutureCore core(pw::async2::FutureState::kPending);
+
+  list.Push(core);
+  EXPECT_TRUE(core.in_list());
+
+  core.Reset();
+  EXPECT_FALSE(core.in_list());
+  EXPECT_FALSE(core.is_initialized());
+  EXPECT_TRUE(list.empty());
+}
+
+TEST(FutureCore, WakeAndMarkReady) {
+  pw::async2::FutureCore core(pw::async2::FutureState::kPending);
+  EXPECT_FALSE(core.is_ready());
+
+  core.WakeAndMarkReady();
+  EXPECT_TRUE(core.is_ready());
+  EXPECT_TRUE(core.is_pendable());
+}
+
+TEST(FutureState, DefaultConstruction) {
+  pw::async2::FutureState state;
+  EXPECT_FALSE(state.is_initialized());
+  EXPECT_FALSE(state.is_pendable());
+  EXPECT_FALSE(state.is_ready());
+  EXPECT_FALSE(state.is_complete());
+}
+
+TEST(FutureState, PendingConstruction) {
+  pw::async2::FutureState state(pw::async2::FutureState::kPending);
+  EXPECT_TRUE(state.is_initialized());
+  EXPECT_TRUE(state.is_pendable());
+  EXPECT_FALSE(state.is_ready());
+  EXPECT_FALSE(state.is_complete());
+}
+
+TEST(FutureState, ReadyForCompletionConstruction) {
+  pw::async2::FutureState state(pw::async2::FutureState::kReadyForCompletion);
+  EXPECT_TRUE(state.is_initialized());
+  EXPECT_TRUE(state.is_pendable());
+  EXPECT_TRUE(state.is_ready());
+  EXPECT_FALSE(state.is_complete());
+}
+
+TEST(FutureState, MarkReady) {
+  pw::async2::FutureState state(pw::async2::FutureState::kPending);
+  state.MarkReady();
+  EXPECT_TRUE(state.is_ready());
+  EXPECT_TRUE(state.is_pendable());
+  EXPECT_FALSE(state.is_complete());
+}
+
+TEST(FutureState, MarkComplete) {
+  pw::async2::FutureState state(pw::async2::FutureState::kPending);
+  state.MarkComplete();
+  EXPECT_TRUE(state.is_complete());
+  EXPECT_FALSE(state.is_pendable());
+  EXPECT_FALSE(state.is_ready());
+}
+
+TEST(FutureState, MarkCompleteFromReady) {
+  pw::async2::FutureState state(pw::async2::FutureState::kReadyForCompletion);
+  state.MarkComplete();
+  EXPECT_TRUE(state.is_complete());
+  EXPECT_FALSE(state.is_pendable());
+  EXPECT_FALSE(state.is_ready());
+}
+
+TEST(FutureState, Equality) {
+  pw::async2::FutureState s1;
+  pw::async2::FutureState s2;
+  EXPECT_EQ(s1, s2);
+
+  pw::async2::FutureState p1(pw::async2::FutureState::kPending);
+  pw::async2::FutureState p2(pw::async2::FutureState::kPending);
+  EXPECT_EQ(p1, p2);
+  EXPECT_NE(s1, p1);
+
+  pw::async2::FutureState r1(pw::async2::FutureState::kReadyForCompletion);
+  pw::async2::FutureState r2(pw::async2::FutureState::kReadyForCompletion);
+  EXPECT_EQ(r1, r2);
+  EXPECT_NE(p1, r1);
+
+  p1.MarkComplete();
+  r1.MarkComplete();
+  EXPECT_EQ(p1, r1);
+}
+
+TEST(FutureState, Move) {
+  pw::async2::FutureState s1(pw::async2::FutureState::kPending);
+  pw::async2::FutureState s2 = std::move(s1);
+
+  EXPECT_FALSE(s1.is_initialized());  // NOLINT(bugprone-use-after-move)
+  EXPECT_TRUE(s2.is_initialized());
+  EXPECT_TRUE(s2.is_pendable());
+}
+
+TEST(FutureState, MoveAssignment) {
+  pw::async2::FutureState s1(pw::async2::FutureState::kPending);
+  pw::async2::FutureState s2;
+  s2 = std::move(s1);
+
+  EXPECT_FALSE(s1.is_initialized());  // NOLINT(bugprone-use-after-move)
+  EXPECT_TRUE(s2.is_initialized());
+  EXPECT_TRUE(s2.is_pendable());
 }
 
 }  // namespace

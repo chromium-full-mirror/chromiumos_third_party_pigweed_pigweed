@@ -382,8 +382,8 @@ class SimpleFuture {
 
   static constexpr char kWaitReason[] = "SimpleFuture";
 
-  explicit SimpleFuture(pw::async2::FutureCore::Pending)
-      : core_(pw::async2::FutureCore::kPending) {}
+  explicit SimpleFuture(pw::async2::FutureState::Pending)
+      : core_(pw::async2::FutureState::kPending) {}
 
   pw::async2::Poll<int> DoPend(pw::async2::Context&) {
     if (ready_) {
@@ -404,7 +404,7 @@ class SimpleFuture {
 class SimpleFutureProvider {
  public:
   SimpleFuture Get() {
-    SimpleFuture future(pw::async2::FutureCore::kPending);
+    SimpleFuture future(pw::async2::FutureState::kPending);
     futures_.Push(future);
     return future;
   }
