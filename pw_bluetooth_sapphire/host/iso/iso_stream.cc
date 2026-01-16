@@ -383,66 +383,72 @@ void IsoStreamImpl::SetupDataPath(
   WeakSelf<IsoStreamImpl>::WeakPtr self = weak_self_.GetWeakPtr();
 
   bt_log(INFO, "iso", "sending LE_Setup_ISO_Data_Path command");
-  (void)hci_->command_channel()->SendCommand(
-      std::move(cmd_packet),
-      [on_complete_callback = std::move(on_complete_cb),
-       self,
-       cis_handle = cis_hci_handle_,
-       target_data_path_state,
-       direction,
-       on_incoming_data_available_callback =
-           std::move(on_incoming_data_available_cb)](
-          auto, const hci::EventPacket& cmd_complete) mutable {
-        if (!self.is_alive()) {
-          on_complete_callback(kStreamClosed);
-          return;
-        }
+  hci_->command_channel()
+      ->SendCommand(
+          std::move(cmd_packet),
+          [on_complete_callback = std::move(on_complete_cb),
+           self,
+           cis_handle = cis_hci_handle_,
+           target_data_path_state,
+           direction,
+           on_incoming_data_available_callback =
+               std::move(on_incoming_data_available_cb)](
+              auto, const hci::EventPacket& cmd_complete) mutable {
+            if (!self.is_alive()) {
+              on_complete_callback(kStreamClosed);
+              return;
+            }
 
-        auto return_params =
-            cmd_complete.view<pw::bluetooth::emboss::
-                                  LESetupISODataPathCommandCompleteEventView>();
-        pw::bluetooth::emboss::StatusCode status =
-            return_params.status().Read();
-        hci_spec::ConnectionHandle connection_handle =
-            return_params.connection_handle().Read();
+            auto return_params =
+                cmd_complete
+                    .view<pw::bluetooth::emboss::
+                              LESetupISODataPathCommandCompleteEventView>();
+            pw::bluetooth::emboss::StatusCode status =
+                return_params.status().Read();
+            hci_spec::ConnectionHandle connection_handle =
+                return_params.connection_handle().Read();
 
-        if (status != pw::bluetooth::emboss::StatusCode::SUCCESS) {
-          bt_log(ERROR,
-                 "iso",
-                 "failed to setup ISO data path for handle 0x%x (status: 0x%x)",
-                 connection_handle,
-                 static_cast<uint8_t>(status));
-          *target_data_path_state = DataPathState::kNotSetUp;
-          on_complete_callback(kStreamRejectedByController);
-          return;
-        }
+            if (status != pw::bluetooth::emboss::StatusCode::SUCCESS) {
+              bt_log(ERROR,
+                     "iso",
+                     "failed to setup ISO data path for handle 0x%x (status: "
+                     "0x%x)",
+                     connection_handle,
+                     static_cast<uint8_t>(status));
+              *target_data_path_state = DataPathState::kNotSetUp;
+              on_complete_callback(kStreamRejectedByController);
+              return;
+            }
 
-        // It's hard to know what is the right thing to do here. The controller
-        // accepted our request, but we don't agree on the connection handle ID.
-        // Something is amiss, so we will refuse to consider the data path
-        // setup even though the controller may think otherwise.
-        if (connection_handle != cis_handle) {
-          bt_log(ERROR,
-                 "iso",
-                 "handle mismatch in ISO data path setup completion (expected: "
-                 "0x%x, actual: %x)",
-                 cis_handle,
-                 connection_handle);
-          *target_data_path_state = DataPathState::kNotSetUp;
-          on_complete_callback(kStreamRejectedByController);
-          return;
-        }
+            // It's hard to know what is the right thing to do here. The
+            // controller accepted our request, but we don't agree on the
+            // connection handle ID. Something is amiss, so we will refuse to
+            // consider the data path setup even though the controller may think
+            // otherwise.
+            if (connection_handle != cis_handle) {
+              bt_log(ERROR,
+                     "iso",
+                     "handle mismatch in ISO data path setup completion "
+                     "(expected: "
+                     "0x%x, actual: %x)",
+                     cis_handle,
+                     connection_handle);
+              *target_data_path_state = DataPathState::kNotSetUp;
+              on_complete_callback(kStreamRejectedByController);
+              return;
+            }
 
-        // Note that |direction| is a spec-defined value of dataflow direction
-        // relative to the controller, so this may look backwards.
-        if (direction == pw::bluetooth::emboss::DataPathDirection::OUTPUT) {
-          self->on_incoming_data_available_cb_ =
-              std::move(on_incoming_data_available_callback);
-        }
-        *target_data_path_state = DataPathState::kSetUp;
-        bt_log(INFO, "iso", "successfully set up data path");
-        on_complete_callback(kSuccess);
-      });
+            // Note that |direction| is a spec-defined value of dataflow
+            // direction relative to the controller, so this may look backwards.
+            if (direction == pw::bluetooth::emboss::DataPathDirection::OUTPUT) {
+              self->on_incoming_data_available_cb_ =
+                  std::move(on_incoming_data_available_callback);
+            }
+            *target_data_path_state = DataPathState::kSetUp;
+            bt_log(INFO, "iso", "successfully set up data path");
+            on_complete_callback(kSuccess);
+          })
+      .IgnoreError();
 }
 
 void IsoStreamImpl::ReceiveInboundPacket(pw::span<const std::byte> packet) {

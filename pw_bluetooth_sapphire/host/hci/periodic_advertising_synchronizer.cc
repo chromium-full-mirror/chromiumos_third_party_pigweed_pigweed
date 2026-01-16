@@ -411,37 +411,40 @@ void PeriodicAdvertisingSynchronizer::SendCreateSyncCommand(
   state_ = State::kCreateSyncPending;
   // Complete on the Command Status event because there is a separate event
   // handler for LE Periodic Advertising Sync Established.
-  (void)transport_->command_channel()->SendCommand(
-      std::move(*create_cmd),
-      [self, advertiser_list_full](auto, const EventPacket& event) {
-        if (!self.is_alive()) {
-          return;
-        }
+  transport_->command_channel()
+      ->SendCommand(
+          std::move(*create_cmd),
+          [self, advertiser_list_full](auto, const EventPacket& event) {
+            if (!self.is_alive()) {
+              return;
+            }
 
-        Result<> result = event.ToResult();
-        if (result.is_error()) {
-          bt_log(WARN,
-                 "hci",
-                 "Create Sync command failed: %s",
-                 bt_str(result.error_value()));
+            Result<> result = event.ToResult();
+            if (result.is_error()) {
+              bt_log(WARN,
+                     "hci",
+                     "Create Sync command failed: %s",
+                     bt_str(result.error_value()));
 
-          if (result.error_value().is(StatusCode::MEMORY_CAPACITY_EXCEEDED)) {
-            // The controller has insufficient resources to handle more periodic
-            // advertising trains, so fail all requests.
-            self->state_ = State::kIdle;
-            self->FailAllRequests(Error(HostError::kFailed));
-            self->MaybeUpdateAdvertiserList();
-            return;
-          }
+              if (result.error_value().is(
+                      StatusCode::MEMORY_CAPACITY_EXCEEDED)) {
+                // The controller has insufficient resources to handle more
+                // periodic advertising trains, so fail all requests.
+                self->state_ = State::kIdle;
+                self->FailAllRequests(Error(HostError::kFailed));
+                self->MaybeUpdateAdvertiserList();
+                return;
+              }
 
-          self->state_ = State::kBadState;
-          self->FailAllRequests(Error(HostError::kFailed));
-          return;
-        }
+              self->state_ = State::kBadState;
+              self->FailAllRequests(Error(HostError::kFailed));
+              return;
+            }
 
-        self->MaybeUpdateAdvertiserList(advertiser_list_full);
-      },
-      hci_spec::kCommandStatusEventCode);
+            self->MaybeUpdateAdvertiserList(advertiser_list_full);
+          },
+          hci_spec::kCommandStatusEventCode)
+      .IgnoreError();
 }
 
 void PeriodicAdvertisingSynchronizer::SendCreateSyncCancelCommand() {
@@ -455,29 +458,32 @@ void PeriodicAdvertisingSynchronizer::SendCreateSyncCancelCommand() {
       pw::bluetooth::emboss::OpCode::
           LE_PERIODIC_ADVERTISING_CREATE_SYNC_CANCEL);
   state_ = State::kCreateSyncCancelPending;
-  (void)transport_->command_channel()->SendCommand(
-      std::move(cancel_cmd), [self](auto, const EventPacket& event) {
-        if (!self.is_alive()) {
-          return;
-        }
-        Result<> result = event.ToResult();
+  transport_->command_channel()
+      ->SendCommand(std::move(cancel_cmd),
+                    [self](auto, const EventPacket& event) {
+                      if (!self.is_alive()) {
+                        return;
+                      }
+                      Result<> result = event.ToResult();
 
-        if (result.is_error()) {
-          bt_log(WARN,
-                 "hci",
-                 "Create Sync Cancel command failed: %s",
-                 bt_str(result.error_value()));
+                      if (result.is_error()) {
+                        bt_log(WARN,
+                               "hci",
+                               "Create Sync Cancel command failed: %s",
+                               bt_str(result.error_value()));
 
-          // The only specified error is Command Disallowed, which indicates
-          // that no Create Sync command was pending (possibly due to a race
-          // with the Sync Established event). Thus, we should continue to wait
-          // for Sync Established.
-          return;
-        }
+                        // The only specified error is Command Disallowed, which
+                        // indicates that no Create Sync command was pending
+                        // (possibly due to a race with the Sync Established
+                        // event). Thus, we should continue to wait for Sync
+                        // Established.
+                        return;
+                      }
 
-        // Create Sync will be pending until a Sync Established event is
-        // received with status "canceled by host".
-      });
+                      // Create Sync will be pending until a Sync Established
+                      // event is received with status "canceled by host".
+                    })
+      .IgnoreError();
 }
 
 void PeriodicAdvertisingSynchronizer::SendAddDeviceToListCommand(
@@ -499,43 +505,49 @@ void PeriodicAdvertisingSynchronizer::SendAddDeviceToListCommand(
       DeviceAddress::DeviceAddrToLePeerAddrNoAnon(entry.address.type()));
   view.advertiser_address().CopyFrom(entry.address.value().view());
   view.advertising_sid().Write(entry.advertising_sid);
-  (void)transport_->command_channel()->SendCommand(
-      std::move(add_cmd), [self, entry](auto, const EventPacket& event) {
-        if (!self.is_alive()) {
-          return;
-        }
+  transport_->command_channel()
+      ->SendCommand(
+          std::move(add_cmd),
+          [self, entry](auto, const EventPacket& event) {
+            if (!self.is_alive()) {
+              return;
+            }
 
-        Result<> result = event.ToResult();
-        if (result.is_error()) {
-          if (result.error_value().is(StatusCode::MEMORY_CAPACITY_EXCEEDED)) {
-            if (self->advertiser_list_.empty()) {
+            Result<> result = event.ToResult();
+            if (result.is_error()) {
+              if (result.error_value().is(
+                      StatusCode::MEMORY_CAPACITY_EXCEEDED)) {
+                if (self->advertiser_list_.empty()) {
+                  bt_log(WARN,
+                         "hci",
+                         "periodic advertiser list is full when empty");
+                  self->state_ = State::kIdle;
+                  self->FailAllRequests(Error(HostError::kFailed));
+                  return;
+                }
+
+                bt_log(INFO, "hci", "periodic advertiser list is full");
+
+                self->state_ = State::kIdle;
+                self->MaybeUpdateAdvertiserList(/*advertiser_list_full=*/true);
+                return;
+              }
+
               bt_log(
-                  WARN, "hci", "periodic advertiser list is full when empty");
-              self->state_ = State::kIdle;
+                  WARN,
+                  "hci",
+                  "Add Device to Periodic Advertiser List command failed: %s",
+                  bt_str(result.error_value()));
+              self->state_ = State::kBadState;
               self->FailAllRequests(Error(HostError::kFailed));
               return;
             }
 
-            bt_log(INFO, "hci", "periodic advertiser list is full");
-
+            self->advertiser_list_.emplace(entry);
             self->state_ = State::kIdle;
-            self->MaybeUpdateAdvertiserList(/*advertiser_list_full=*/true);
-            return;
-          }
-
-          bt_log(WARN,
-                 "hci",
-                 "Add Device to Periodic Advertiser List command failed: %s",
-                 bt_str(result.error_value()));
-          self->state_ = State::kBadState;
-          self->FailAllRequests(Error(HostError::kFailed));
-          return;
-        }
-
-        self->advertiser_list_.emplace(entry);
-        self->state_ = State::kIdle;
-        self->MaybeUpdateAdvertiserList();
-      });
+            self->MaybeUpdateAdvertiserList();
+          })
+      .IgnoreError();
 }
 
 void PeriodicAdvertisingSynchronizer::SendRemoveDeviceFromListCommand(
@@ -560,28 +572,30 @@ void PeriodicAdvertisingSynchronizer::SendRemoveDeviceFromListCommand(
   view.advertiser_address().CopyFrom(entry.address.value().view());
   view.advertising_sid().Write(entry.advertising_sid);
 
-  (void)transport_->command_channel()->SendCommand(
-      std::move(remove_cmd), [self, entry](auto, const EventPacket& event) {
-        if (!self.is_alive()) {
-          return;
-        }
+  transport_->command_channel()
+      ->SendCommand(std::move(remove_cmd),
+                    [self, entry](auto, const EventPacket& event) {
+                      if (!self.is_alive()) {
+                        return;
+                      }
 
-        Result<> result = event.ToResult();
-        if (result.is_error()) {
-          bt_log(
-              WARN,
-              "hci",
-              "Remove Device from Periodic Advertiser List command failed: %s",
-              bt_str(result.error_value()));
-          self->state_ = State::kBadState;
-          self->FailAllRequests(Error(HostError::kFailed));
-          return;
-        }
+                      Result<> result = event.ToResult();
+                      if (result.is_error()) {
+                        bt_log(WARN,
+                               "hci",
+                               "Remove Device from Periodic Advertiser List "
+                               "command failed: %s",
+                               bt_str(result.error_value()));
+                        self->state_ = State::kBadState;
+                        self->FailAllRequests(Error(HostError::kFailed));
+                        return;
+                      }
 
-        self->advertiser_list_.erase(entry);
-        self->state_ = State::kIdle;
-        self->MaybeUpdateAdvertiserList();
-      });
+                      self->advertiser_list_.erase(entry);
+                      self->state_ = State::kIdle;
+                      self->MaybeUpdateAdvertiserList();
+                    })
+      .IgnoreError();
 }
 
 void PeriodicAdvertisingSynchronizer::OnSyncEstablished(
@@ -629,19 +643,20 @@ void PeriodicAdvertisingSynchronizer::OnSyncEstablished(
         pw::bluetooth::emboss::LEPeriodicAdvertisingTerminateSyncCommandWriter>(
         pw::bluetooth::emboss::OpCode::LE_PERIODIC_ADVERTISING_TERMINATE_SYNC);
     command.view_t().sync_handle().Write(parsed_event->sync_handle);
-    (void)transport_->command_channel()->SendCommand(
-        std::move(command),
-        [self = weak_self_.GetWeakPtr()](auto,
-                                         const EventPacket& complete_event) {
-          Result<> result = complete_event.ToResult();
-          if (result.is_error()) {
-            bt_log(WARN,
-                   "hci",
-                   "failed to terminate unexpected sync: %s",
-                   bt_str(result.error_value()));
-            return;
-          }
-        });
+    transport_->command_channel()
+        ->SendCommand(std::move(command),
+                      [self = weak_self_.GetWeakPtr()](
+                          auto, const EventPacket& complete_event) {
+                        Result<> result = complete_event.ToResult();
+                        if (result.is_error()) {
+                          bt_log(WARN,
+                                 "hci",
+                                 "failed to terminate unexpected sync: %s",
+                                 bt_str(result.error_value()));
+                          return;
+                        }
+                      })
+        .IgnoreError();
     MaybeUpdateAdvertiserList();
     return;
   }
@@ -840,8 +855,9 @@ bool PeriodicAdvertisingSynchronizer::CancelEstablishedSync(SyncId sync_id) {
     }
   };
 
-  (void)transport_->command_channel()->SendCommand(std::move(command),
-                                                   std::move(cb));
+  transport_->command_channel()
+      ->SendCommand(std::move(command), std::move(cb))
+      .IgnoreError();
   return true;
 }
 

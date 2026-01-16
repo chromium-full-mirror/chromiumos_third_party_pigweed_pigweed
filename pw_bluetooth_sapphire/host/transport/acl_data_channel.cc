@@ -456,21 +456,23 @@ void AclDataChannelImpl::RequestAclPriority(
         auto packet_data = packet.mutable_data();
         encoded.Copy(&packet_data);
 
-        (void)transport_->command_channel()->SendCommand(
-            std::move(packet),
-            [cb = std::move(request_cb), priority](
-                auto, const hci::EventPacket& event) mutable {
-              if (HCI_IS_ERROR(event, WARN, "hci", "acl priority failed")) {
-                cb(fit::failed());
-                return;
-              }
+        transport_->command_channel()
+            ->SendCommand(
+                std::move(packet),
+                [cb = std::move(request_cb), priority](
+                    auto, const hci::EventPacket& event) mutable {
+                  if (HCI_IS_ERROR(event, WARN, "hci", "acl priority failed")) {
+                    cb(fit::failed());
+                    return;
+                  }
 
-              bt_log(DEBUG,
-                     "hci",
-                     "acl priority updated (priority: %#.8x)",
-                     static_cast<uint32_t>(priority));
-              cb(fit::ok());
-            });
+                  bt_log(DEBUG,
+                         "hci",
+                         "acl priority updated (priority: %#.8x)",
+                         static_cast<uint32_t>(priority));
+                  cb(fit::ok());
+                })
+            .IgnoreError();
       });
 }
 

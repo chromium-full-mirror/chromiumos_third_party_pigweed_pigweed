@@ -888,29 +888,31 @@ void LogicalLink::SetBrEdrAutomaticFlushTimeout(
   write_timeout_view.connection_handle().Write(handle_);
   write_timeout_view.flush_timeout().Write(converted_flush_timeout);
 
-  (void)cmd_channel_->SendCommand(
-      std::move(write_timeout),
-      [cb = std::move(callback_wrapper), handle = handle_, flush_timeout](
-          auto, const hci::EventPacket& event) mutable {
-        if (event.ToResult().is_error()) {
-          bt_log(WARN,
-                 "hci",
-                 "WriteAutomaticFlushTimeout command failed (result: %s, "
-                 "handle: %#.4x)",
-                 bt_str(event.ToResult()),
-                 handle);
-        } else {
-          bt_log(DEBUG,
-                 "hci",
-                 "automatic flush timeout updated (handle: %#.4x, timeout: "
-                 "%lld ms)",
-                 handle,
-                 std::chrono::duration_cast<std::chrono::milliseconds>(
-                     flush_timeout)
-                     .count());
-        }
-        cb(event.ToResult());
-      });
+  cmd_channel_
+      ->SendCommand(
+          std::move(write_timeout),
+          [cb = std::move(callback_wrapper), handle = handle_, flush_timeout](
+              auto, const hci::EventPacket& event) mutable {
+            if (event.ToResult().is_error()) {
+              bt_log(WARN,
+                     "hci",
+                     "WriteAutomaticFlushTimeout command failed (result: %s, "
+                     "handle: %#.4x)",
+                     bt_str(event.ToResult()),
+                     handle);
+            } else {
+              bt_log(DEBUG,
+                     "hci",
+                     "automatic flush timeout updated (handle: %#.4x, timeout: "
+                     "%lld ms)",
+                     handle,
+                     std::chrono::duration_cast<std::chrono::milliseconds>(
+                         flush_timeout)
+                         .count());
+            }
+            cb(event.ToResult());
+          })
+      .IgnoreError();
 }
 
 void LogicalLink::AttachInspect(inspect::Node& parent, std::string name) {

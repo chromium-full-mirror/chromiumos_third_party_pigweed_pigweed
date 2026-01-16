@@ -113,9 +113,11 @@ void Autosniff::ResetTimeout() {
   auto view = exit_sniff_mode_cmd.view_t();
   view.connection_handle().Write(handle_);
   mode_transition_ = true;
-  (void)cmd_channel_->SendCommand(
-      std::move(exit_sniff_mode_cmd),
-      ChangeModesCallback(GetWeakPtr(), AclConnectionMode::ACTIVE));
+  cmd_channel_
+      ->SendCommand(
+          std::move(exit_sniff_mode_cmd),
+          ChangeModesCallback(GetWeakPtr(), AclConnectionMode::ACTIVE))
+      .IgnoreError();
 }
 
 hci::CommandChannel::EventCallbackResult Autosniff::OnModeChange(
@@ -190,9 +192,10 @@ RecurringDisposition Autosniff::OnTimeout() {
   view.sniff_attempt().Write(params_.sniff_attempt);
   view.sniff_timeout().Write(params_.sniff_timeout);
   mode_transition_ = true;
-  (void)cmd_channel_->SendCommand(
-      std::move(sniff_mode_cmd),
-      ChangeModesCallback(GetWeakPtr(), AclConnectionMode::SNIFF));
+  cmd_channel_
+      ->SendCommand(std::move(sniff_mode_cmd),
+                    ChangeModesCallback(GetWeakPtr(), AclConnectionMode::SNIFF))
+      .IgnoreError();
 
   // Note, we don't disarm here, we disarm once we come back here and know for a
   // fact we are in sniff mode as the HCI command may have failed.

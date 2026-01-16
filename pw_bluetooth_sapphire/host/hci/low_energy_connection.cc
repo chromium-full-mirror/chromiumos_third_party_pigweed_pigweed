@@ -168,7 +168,10 @@ LowEnergyConnection::OnLELongTermKeyRequestEvent(const EventPacket& event) {
     cmd_view.connection_handle().Write(handle);
     cmd_view.long_term_key().CopyFrom(
         pw::bluetooth::emboss::LinkKeyView(&ltk()->value()));
-    (void)hci()->command_channel()->SendCommand(cmd, std::move(status_cb));
+    hci()
+        ->command_channel()
+        ->SendCommand(cmd, std::move(status_cb))
+        .IgnoreError();
   } else {
     bt_log(DEBUG, "hci-le", "LTK request rejected");
 
@@ -177,7 +180,10 @@ LowEnergyConnection::OnLELongTermKeyRequestEvent(const EventPacket& event) {
         hci_spec::kLELongTermKeyRequestNegativeReply);
     auto cmd_view = cmd.view_t();
     cmd_view.connection_handle().Write(handle);
-    (void)hci()->command_channel()->SendCommand(cmd, std::move(status_cb));
+    hci()
+        ->command_channel()
+        ->SendCommand(cmd, std::move(status_cb))
+        .IgnoreError();
   }
 
   return CommandChannel::EventCallbackResult::kContinue;

@@ -131,47 +131,50 @@ void A2dpOffloadManager::StartA2dpOffload(
     autosniff_suppress_ = sniff_suppress_cb_("A2DP Offload");
   }
 
-  (void)cmd_channel_->SendCommand(
-      std::move(packet),
-      [cb = std::move(callback),
-       id = local_id,
-       handle = link_handle,
-       self = weak_self_.GetWeakPtr(),
-       this](auto /*transaction_id*/, const hci::EventPacket& event) mutable {
-        if (!self.is_alive()) {
-          return;
-        }
+  cmd_channel_
+      ->SendCommand(
+          std::move(packet),
+          [cb = std::move(callback),
+           id = local_id,
+           handle = link_handle,
+           self = weak_self_.GetWeakPtr(),
+           this](auto /*transaction_id*/,
+                 const hci::EventPacket& event) mutable {
+            if (!self.is_alive()) {
+              return;
+            }
 
-        if (event.ToResult().is_error()) {
-          bt_log(WARN,
-                 "l2cap",
-                 "Start A2DP offload command failed (result: %s, handle: "
-                 "%#.4x, local id: %#.4x)",
-                 bt_str(event.ToResult()),
-                 handle,
-                 id);
-          a2dp_offload_status_ = A2dpOffloadStatus::kStopped;
-        } else {
-          bt_log(INFO,
-                 "l2cap",
-                 "A2DP offload started (handle: %#.4x, local id: %#.4x",
-                 handle,
-                 id);
-          a2dp_offload_status_ = A2dpOffloadStatus::kStarted;
-        }
-        cb(event.ToResult());
+            if (event.ToResult().is_error()) {
+              bt_log(WARN,
+                     "l2cap",
+                     "Start A2DP offload command failed (result: %s, handle: "
+                     "%#.4x, local id: %#.4x)",
+                     bt_str(event.ToResult()),
+                     handle,
+                     id);
+              a2dp_offload_status_ = A2dpOffloadStatus::kStopped;
+            } else {
+              bt_log(INFO,
+                     "l2cap",
+                     "A2DP offload started (handle: %#.4x, local id: %#.4x",
+                     handle,
+                     id);
+              a2dp_offload_status_ = A2dpOffloadStatus::kStarted;
+            }
+            cb(event.ToResult());
 
-        // If we tried to stop while A2DP was still starting, perform the stop
-        // command now
-        if (pending_stop_a2dp_offload_request_.has_value()) {
-          auto pending_request_callback =
-              std::move(pending_stop_a2dp_offload_request_.value());
-          pending_stop_a2dp_offload_request_.reset();
+            // If we tried to stop while A2DP was still starting, perform the
+            // stop command now
+            if (pending_stop_a2dp_offload_request_.has_value()) {
+              auto pending_request_callback =
+                  std::move(pending_stop_a2dp_offload_request_.value());
+              pending_stop_a2dp_offload_request_.reset();
 
-          RequestStopA2dpOffload(
-              id, handle, std::move(pending_request_callback));
-        }
-      });
+              RequestStopA2dpOffload(
+                  id, handle, std::move(pending_request_callback));
+            }
+          })
+      .IgnoreError();
 }
 
 void A2dpOffloadManager::RequestStopA2dpOffload(
@@ -223,37 +226,41 @@ void A2dpOffloadManager::RequestStopA2dpOffload(
   packet_view.vendor_command().sub_opcode().Write(
       android_hci::kStopA2dpOffloadCommandSubopcode);
 
-  (void)cmd_channel_->SendCommand(
-      std::move(packet),
-      [cb = std::move(callback),
-       self = weak_self_.GetWeakPtr(),
-       id = local_id,
-       handle = link_handle,
-       this](auto /*transaction_id*/, const hci::EventPacket& event) mutable {
-        if (!self.is_alive()) {
-          return;
-        }
+  cmd_channel_
+      ->SendCommand(
+          std::move(packet),
+          [cb = std::move(callback),
+           self = weak_self_.GetWeakPtr(),
+           id = local_id,
+           handle = link_handle,
+           this](auto /*transaction_id*/,
+                 const hci::EventPacket& event) mutable {
+            if (!self.is_alive()) {
+              return;
+            }
 
-        if (event.ToResult().is_error()) {
-          bt_log(WARN,
-                 "l2cap",
-                 "Stop A2DP offload command failed (result: %s, handle: %#.4x, "
-                 "local id: %#.4x)",
-                 bt_str(event.ToResult()),
-                 handle,
-                 id);
-        } else {
-          bt_log(INFO,
-                 "l2cap",
-                 "A2DP offload stopped (handle: %#.4x, local id: %#.4x",
-                 handle,
-                 id);
-        }
-        cb(event.ToResult());
+            if (event.ToResult().is_error()) {
+              bt_log(WARN,
+                     "l2cap",
+                     "Stop A2DP offload command failed (result: %s, handle: "
+                     "%#.4x, "
+                     "local id: %#.4x)",
+                     bt_str(event.ToResult()),
+                     handle,
+                     id);
+            } else {
+              bt_log(INFO,
+                     "l2cap",
+                     "A2DP offload stopped (handle: %#.4x, local id: %#.4x",
+                     handle,
+                     id);
+            }
+            cb(event.ToResult());
 
-        a2dp_offload_status_ = A2dpOffloadStatus::kStopped;
-        autosniff_suppress_.reset();
-      });
+            a2dp_offload_status_ = A2dpOffloadStatus::kStopped;
+            autosniff_suppress_.reset();
+          })
+      .IgnoreError();
 }
 
 bool A2dpOffloadManager::IsChannelOffloaded(

@@ -833,12 +833,14 @@ void AdapterImpl::SetDeviceClass(DeviceClass dev_class,
       hci_spec::kWriteClassOfDevice);
   write_dev_class.view_t().class_of_device().BackingStorage().WriteUInt(
       dev_class.to_int());
-  (void)hci_->command_channel()->SendCommand(
-      std::move(write_dev_class),
-      [cb = std::move(callback)](auto, const hci::EventPacket& event) {
-        HCI_IS_ERROR(event, WARN, "gap", "set device class failed");
-        cb(event.ToResult());
-      });
+  hci_->command_channel()
+      ->SendCommand(
+          std::move(write_dev_class),
+          [cb = std::move(callback)](auto, const hci::EventPacket& event) {
+            HCI_IS_ERROR(event, WARN, "gap", "set device class failed");
+            cb(event.ToResult());
+          })
+      .IgnoreError();
 }
 
 void AdapterImpl::GetSupportedDelayRange(
@@ -882,24 +884,27 @@ void AdapterImpl::GetSupportedDelayRange(
                 codec_configuration_size);
   }
 
-  (void)hci_->command_channel()->SendCommand(
-      std::move(cmd_packet),
-      [callback = std::move(cb)](auto /*id*/, const hci::EventPacket& event) {
-        auto view = event.view<
-            pw::bluetooth::emboss::
-                ReadLocalSupportedControllerDelayCommandCompleteEventView>();
-        if (HCI_IS_ERROR(event,
-                         WARN,
-                         "gap",
-                         "read local supported controller delay failed")) {
-          callback(PW_STATUS_UNKNOWN, /*min=*/0, /*max=*/0);
-          return;
-        }
-        bt_log(INFO, "gap", "controller delay read successfully");
-        callback(PW_STATUS_OK,
-                 view.min_controller_delay().Read(),
-                 view.max_controller_delay().Read());
-      });
+  hci_->command_channel()
+      ->SendCommand(
+          std::move(cmd_packet),
+          [callback = std::move(cb)](auto /*id*/,
+                                     const hci::EventPacket& event) {
+            auto view = event.view<
+                pw::bluetooth::emboss::
+                    ReadLocalSupportedControllerDelayCommandCompleteEventView>();
+            if (HCI_IS_ERROR(event,
+                             WARN,
+                             "gap",
+                             "read local supported controller delay failed")) {
+              callback(PW_STATUS_UNKNOWN, /*min=*/0, /*max=*/0);
+              return;
+            }
+            bt_log(INFO, "gap", "controller delay read successfully");
+            callback(PW_STATUS_OK,
+                     view.min_controller_delay().Read(),
+                     view.max_controller_delay().Read());
+          })
+      .IgnoreError();
 }
 
 void AdapterImpl::AttachInspect(inspect::Node& parent, std::string name) {

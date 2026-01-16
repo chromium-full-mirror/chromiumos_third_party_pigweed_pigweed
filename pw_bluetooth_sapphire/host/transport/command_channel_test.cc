@@ -397,14 +397,14 @@ TEST_F(CommandChannelTest, QueuedCommands) {
   auto reset =
       hci::CommandPacket::New<pw::bluetooth::emboss::ResetCommandWriter>(
           hci_spec::kReset);
-  (void)cmd_channel()->SendCommand(std::move(reset), cb);
+  cmd_channel()->SendCommand(std::move(reset), cb).IgnoreError();
   auto inquiry_cancel = hci::CommandPacket::New<
       pw::bluetooth::emboss::InquiryCancelCommandWriter>(
       hci_spec::kInquiryCancel);
-  (void)cmd_channel()->SendCommand(std::move(inquiry_cancel), cb);
+  cmd_channel()->SendCommand(std::move(inquiry_cancel), cb).IgnoreError();
   reset = hci::CommandPacket::New<pw::bluetooth::emboss::ResetCommandWriter>(
       hci_spec::kReset);
-  (void)cmd_channel()->SendCommand(std::move(reset), cb);
+  cmd_channel()->SendCommand(std::move(reset), cb).IgnoreError();
 
   RunUntilIdle();
 
@@ -1361,8 +1361,9 @@ TEST_F(CommandChannelTest,
   auto packet = CommandPacket::New<pw::bluetooth::emboss::InquiryCommandView>(
       hci_spec::kInquiry,
       pw::bluetooth::emboss::CommandHeader::IntrinsicSizeInBytes());
-  (void)cmd_channel()->SendCommand(
-      std::move(packet), std::move(async_cmd_cb), kTestEventCode);
+  cmd_channel()
+      ->SendCommand(std::move(packet), std::move(async_cmd_cb), kTestEventCode)
+      .IgnoreError();
 
   // clang-format off
   auto event_bytes = StaticByteBuffer(
@@ -1771,8 +1772,8 @@ TEST_F(CommandChannelTest, ExclusiveCommands) {
                   << std::endl;
         packet = CommandPacket::New<pw::bluetooth::emboss::CommandHeaderView>(
             kNonExclusive);
-        (void)cmd_channel->SendCommand(std::move(packet),
-                                       nonexclusive_cb.share());
+        cmd_channel->SendCommand(std::move(packet), nonexclusive_cb.share())
+            .IgnoreError();
 
         break;
       }
@@ -1825,10 +1826,12 @@ TEST_F(CommandChannelTest, ExclusiveCommands) {
       exclusive_cb.share(),
       kExclOneCompleteEvent,
       {kExclusiveTwo});
-  (void)cmd_channel()->SendCommand(
-      CommandPacket::New<pw::bluetooth::emboss::CommandHeaderView>(
-          kNonExclusive),
-      nonexclusive_cb.share());
+  cmd_channel()
+      ->SendCommand(
+          CommandPacket::New<pw::bluetooth::emboss::CommandHeaderView>(
+              kNonExclusive),
+          nonexclusive_cb.share())
+      .IgnoreError();
   RunUntilIdle();
   // Should have received the ExclusiveOne status but not the complete.
   // ExclusiveTwo should be queued.
@@ -1853,10 +1856,12 @@ TEST_F(CommandChannelTest, ExclusiveCommands) {
       test_device(), nonexclusive_cmd, &nonexclusive_complete);
   EXPECT_CMD_PACKET_OUT(test_device(), excl_one_cmd, &rsp_excl_one_status);
   test_device()->SendCommandChannelPacket(rsp_two_complete);
-  (void)cmd_channel()->SendCommand(
-      CommandPacket::New<pw::bluetooth::emboss::CommandHeaderView>(
-          kNonExclusive),
-      nonexclusive_cb.share());
+  cmd_channel()
+      ->SendCommand(
+          CommandPacket::New<pw::bluetooth::emboss::CommandHeaderView>(
+              kNonExclusive),
+          nonexclusive_cb.share())
+      .IgnoreError();
   RunUntilIdle();
   EXPECT_EQ(5u,
             exclusive_cb_count);  // +2: rsp_two_complete, rsp_excl_one_status
@@ -2258,8 +2263,9 @@ TEST_F(CommandChannelTest, InspectHierarchy) {
   view.lap().Write(pw::bluetooth::emboss::InquiryAccessCode::GIAC);
   view.inquiry_length().Write(1);
   view.num_responses().Write(0);
-  (void)cmd_channel()->SendCommand(
-      std::move(packet), cb, hci_spec::kInquiryCompleteEventCode);
+  cmd_channel()
+      ->SendCommand(std::move(packet), cb, hci_spec::kInquiryCompleteEventCode)
+      .IgnoreError();
 
   auto inquiry_matcher = AllOf(NodeMatches(
       AllOf(NameMatches("transaction_1"),

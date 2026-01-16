@@ -217,7 +217,7 @@ void IsoStreamManager::AcceptCisRequest(
                                          self->streams_[id]->GetWeakPtr());
   };
 
-  (void)cmd_->SendCommand(std::move(command), cmd_complete_cb);
+  cmd_->SendCommand(std::move(command), cmd_complete_cb).IgnoreError();
 }
 
 void IsoStreamManager::RejectCisRequest(
@@ -232,15 +232,16 @@ void IsoStreamManager::RejectCisRequest(
   cmd_view.connection_handle().Write(cis_handle);
   cmd_view.reason().Write(pw::bluetooth::emboss::StatusCode::UNSPECIFIED_ERROR);
 
-  (void)cmd_->SendCommand(
-      std::move(command), [cis_handle](auto, const hci::EventPacket& event) {
-        bt_log(INFO, "iso", "LE_Reject_CIS_Request command sent");
-        HCI_IS_ERROR(event,
-                     ERROR,
-                     "bt-iso",
-                     "reject CIS request failed for handle %#x",
-                     cis_handle);
-      });
+  cmd_->SendCommand(std::move(command),
+                    [cis_handle](auto, const hci::EventPacket& event) {
+                      bt_log(INFO, "iso", "LE_Reject_CIS_Request command sent");
+                      HCI_IS_ERROR(event,
+                                   ERROR,
+                                   "bt-iso",
+                                   "reject CIS request failed for handle %#x",
+                                   cis_handle);
+                    })
+      .IgnoreError();
 }
 
 }  // namespace bt::iso

@@ -165,8 +165,10 @@ void BrEdrConnection::ValidateEncryptionKeySize(
     }
     valid_cb(result);
   };
-  (void)hci()->command_channel()->SendCommand(std::move(cmd),
-                                              std::move(event_cb));
+  hci()
+      ->command_channel()
+      ->SendCommand(std::move(cmd), std::move(event_cb))
+      .IgnoreError();
 }
 
 }  // namespace bt::hci

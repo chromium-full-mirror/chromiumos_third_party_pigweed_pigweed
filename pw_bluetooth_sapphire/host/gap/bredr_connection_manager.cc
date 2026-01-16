@@ -123,15 +123,17 @@ void SetPageScanEnabled(bool enabled,
         scan_type & static_cast<uint8_t>(hci_spec::ScanEnableBit::kInquiry));
     write_enable_view.scan_enable().page().Write(
         scan_type & static_cast<uint8_t>(hci_spec::ScanEnableBit::kPage));
-    (void)hci->command_channel()->SendCommand(
-        std::move(write_enable),
-        [callback = std::move(finish_cb)](auto,
-                                          const hci::EventPacket& response) {
-          callback(response.ToResult());
-        });
+    hci->command_channel()
+        ->SendCommand(std::move(write_enable),
+                      [callback = std::move(finish_cb)](
+                          auto, const hci::EventPacket& response) {
+                        callback(response.ToResult());
+                      })
+        .IgnoreError();
   };
-  (void)hci->command_channel()->SendCommand(std::move(read_enable),
-                                            std::move(finish_enable_cb));
+  hci->command_channel()
+      ->SendCommand(std::move(read_enable), std::move(finish_enable_cb))
+      .IgnoreError();
 }
 
 }  // namespace
@@ -629,11 +631,13 @@ void BrEdrConnectionManager::WritePageTimeout(
   auto params = write_page_timeout_cmd.view_t();
   params.page_timeout().Write(raw_page_timeout);
 
-  (void)hci_->command_channel()->SendCommand(
-      std::move(write_page_timeout_cmd),
-      [callback = std::move(cb)](auto, const hci::EventPacket& event) {
-        callback(event.ToResult());
-      });
+  hci_->command_channel()
+      ->SendCommand(
+          std::move(write_page_timeout_cmd),
+          [callback = std::move(cb)](auto, const hci::EventPacket& event) {
+            callback(event.ToResult());
+          })
+      .IgnoreError();
 }
 
 void BrEdrConnectionManager::WritePageScanSettings(uint16_t interval,
@@ -703,11 +707,14 @@ void BrEdrConnectionManager::WritePinType(
   auto params = write_pin_type_cmd.view_t();
   params.pin_type().Write(pin_type);
 
-  (void)hci_->command_channel()->SendCommand(
-      std::move(write_pin_type_cmd), [](auto, const hci::EventPacket& event) {
-        [[maybe_unused]] bool _ = bt_is_error(
-            event.ToResult(), WARN, "gap-bredr", "Write PIN Type failed");
-      });
+  hci_->command_channel()
+      ->SendCommand(
+          std::move(write_pin_type_cmd),
+          [](auto, const hci::EventPacket& event) {
+            [[maybe_unused]] bool _ = bt_is_error(
+                event.ToResult(), WARN, "gap-bredr", "Write PIN Type failed");
+          })
+      .IgnoreError();
 }
 
 std::optional<BrEdrConnectionRequest*>
@@ -2002,11 +2009,15 @@ void BrEdrConnectionManager::SendCreateConnectionCancelCommand(
       hci_spec::kCreateConnectionCancel);
   auto params = cancel.view_t();
   params.bd_addr().CopyFrom(addr.value().view());
-  (void)hci_->command_channel()->SendCommand(
-      std::move(cancel), [](auto, const hci::EventPacket& event) {
-        HCI_IS_ERROR(
-            event, WARN, "hci-bredr", "failed to cancel connection request");
-      });
+  hci_->command_channel()
+      ->SendCommand(std::move(cancel),
+                    [](auto, const hci::EventPacket& event) {
+                      HCI_IS_ERROR(event,
+                                   WARN,
+                                   "hci-bredr",
+                                   "failed to cancel connection request");
+                    })
+      .IgnoreError();
 }
 
 void BrEdrConnectionManager::SendAuthenticationRequested(
@@ -2025,9 +2036,11 @@ void BrEdrConnectionManager::SendAuthenticationRequested(
       callback(event.ToResult());
     };
   }
-  (void)hci_->command_channel()->SendCommand(std::move(auth_request),
-                                             std::move(command_cb),
-                                             hci_spec::kCommandStatusEventCode);
+  hci_->command_channel()
+      ->SendCommand(std::move(auth_request),
+                    std::move(command_cb),
+                    hci_spec::kCommandStatusEventCode)
+      .IgnoreError();
 }
 
 void BrEdrConnectionManager::SendIoCapabilityRequestReply(
@@ -2135,8 +2148,9 @@ void BrEdrConnectionManager::SendCommandWithStatusCallback(
       callback(event.ToResult());
     };
   }
-  (void)hci_->command_channel()->SendCommand(std::move(command_packet),
-                                             std::move(command_cb));
+  hci_->command_channel()
+      ->SendCommand(std::move(command_packet), std::move(command_cb))
+      .IgnoreError();
 }
 
 void BrEdrConnectionManager::SendAcceptConnectionRequest(
@@ -2159,9 +2173,11 @@ void BrEdrConnectionManager::SendAcceptConnectionRequest(
     };
   }
 
-  (void)hci_->command_channel()->SendCommand(std::move(accept),
-                                             std::move(command_cb),
-                                             hci_spec::kCommandStatusEventCode);
+  hci_->command_channel()
+      ->SendCommand(std::move(accept),
+                    std::move(command_cb),
+                    hci_spec::kCommandStatusEventCode)
+      .IgnoreError();
 }
 
 void BrEdrConnectionManager::SendRejectConnectionRequest(
@@ -2183,9 +2199,11 @@ void BrEdrConnectionManager::SendRejectConnectionRequest(
     };
   }
 
-  (void)hci_->command_channel()->SendCommand(std::move(reject),
-                                             std::move(command_cb),
-                                             hci_spec::kCommandStatusEventCode);
+  hci_->command_channel()
+      ->SendCommand(std::move(reject),
+                    std::move(command_cb),
+                    hci_spec::kCommandStatusEventCode)
+      .IgnoreError();
 }
 
 void BrEdrConnectionManager::SendRejectSynchronousRequest(
@@ -2207,9 +2225,11 @@ void BrEdrConnectionManager::SendRejectSynchronousRequest(
     };
   }
 
-  (void)hci_->command_channel()->SendCommand(std::move(reject),
-                                             std::move(command_cb),
-                                             hci_spec::kCommandStatusEventCode);
+  hci_->command_channel()
+      ->SendCommand(std::move(reject),
+                    std::move(command_cb),
+                    hci_spec::kCommandStatusEventCode)
+      .IgnoreError();
 }
 
 void BrEdrConnectionManager::SendPinCodeRequestReply(DeviceAddressBytes bd_addr,
