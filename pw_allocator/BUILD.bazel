@@ -51,6 +51,7 @@ cc_library(
     strip_include_prefix = "public",
     deps = [
         ":config",
+        ":fragmentation",
         ":hardening",
         "//pw_bytes",
         "//pw_multibuf:properties",

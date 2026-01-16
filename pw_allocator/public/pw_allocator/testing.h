@@ -139,6 +139,12 @@ class AllocatorForTest : public Allocator {
   /// Returns the underlying tracking allocator.
   TrackingAllocator<MetricsType>& GetTracker() { return tracker_; }
 
+  /// @copydoc Allocator::DoMeasureFragmentation
+  std::optional<allocator::Fragmentation> DoMeasureFragmentation()
+      const override {
+    return allocator_->MeasureFragmentation();
+  }
+
  private:
   /// @copydoc Allocator::Allocate
   void* DoAllocate(Layout layout) override {

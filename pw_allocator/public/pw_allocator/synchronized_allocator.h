@@ -96,6 +96,13 @@ class SynchronizedAllocator : public Allocator {
     return allocator_.GetAllocated();
   }
 
+  /// @copydoc Allocator::DoMeasureFragmentation
+  std::optional<allocator::Fragmentation> DoMeasureFragmentation()
+      const override {
+    std::lock_guard lock(lock_);
+    return allocator_.MeasureFragmentation();
+  }
+
   /// @copydoc Deallocator::GetInfo
   Result<Layout> DoGetInfo(InfoType info_type, const void* ptr) const override {
     std::lock_guard lock(lock_);

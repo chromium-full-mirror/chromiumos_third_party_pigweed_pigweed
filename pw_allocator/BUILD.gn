@@ -40,6 +40,7 @@ pw_source_set("pw_allocator") {
   ]
   public_deps = [
     ":config",
+    ":fragmentation",
     ":hardening",
     "$dir_pw_multibuf:properties",
     "$dir_pw_numeric:checked_arithmetic",

@@ -14,6 +14,7 @@
 #pragma once
 
 #include <cstddef>
+#include <optional>
 
 #include "pw_allocator/allocator.h"
 #include "pw_allocator/block/basic.h"
@@ -156,6 +157,11 @@ class BlockAllocator : public internal::GenericBlockAllocator {
 
  protected:
   constexpr explicit BlockAllocator() : Base(kCapabilities) {}
+
+  /// @copydoc Allocator::DoMeasureFragmentation
+  std::optional<Fragmentation> DoMeasureFragmentation() const override {
+    return MeasureFragmentation();
+  }
 
   /// Sets the blocks to be used by this allocator.
   ///

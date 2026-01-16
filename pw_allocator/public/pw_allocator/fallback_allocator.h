@@ -55,6 +55,14 @@ class FallbackAllocator : public Allocator {
   /// @copydoc Deallocator::GetInfo
   Result<Layout> DoGetInfo(InfoType info_type, const void* ptr) const override;
 
+ protected:
+  /// @copydoc Allocator::DoMeasureFragmentation
+  std::optional<allocator::Fragmentation> DoMeasureFragmentation()
+      const override {
+    return primary_.MeasureFragmentation();
+  }
+
+ private:
   Allocator& primary_;
   Allocator& secondary_;
 };

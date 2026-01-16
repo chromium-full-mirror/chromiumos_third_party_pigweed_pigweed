@@ -96,6 +96,12 @@ class TrackingAllocator : public Allocator {
   /// @copydoc Allocator::GetAllocated
   size_t DoGetAllocated() const override { return allocator_.GetAllocated(); }
 
+  /// @copydoc Allocator::DoMeasureFragmentation
+  std::optional<allocator::Fragmentation> DoMeasureFragmentation()
+      const override {
+    return allocator_.MeasureFragmentation();
+  }
+
   /// @copydoc Deallocator::GetInfo
   Result<Layout> DoGetInfo(InfoType info_type, const void* ptr) const override {
     return GetInfo(allocator_, info_type, ptr);

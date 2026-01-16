@@ -17,10 +17,12 @@
 #define PW_ALLOCATOR_PUBLIC_PW_ALLOCATOR_ALLOCATOR_H_
 
 #include <cstddef>
+#include <optional>
 
 #include "pw_allocator/capability.h"
 #include "pw_allocator/config.h"
 #include "pw_allocator/deallocator.h"
+#include "pw_allocator/fragmentation.h"
 #include "pw_allocator/layout.h"
 #include "pw_allocator/shared_ptr.h"
 #include "pw_allocator/unique_ptr.h"
@@ -352,12 +354,29 @@ class Allocator : public Deallocator {
   /// `size_t(-1)` if this allocator does not track its total allocated bytes.
   size_t GetAllocated() const { return DoGetAllocated(); }
 
+  /// Returns fragmentation information for the allocator's memory region.
+  // TODO: https://pwbug.dev/475853116 - Make `pw::Deallocator::GetInfo` return
+  // a `std::variant` to avoid this virtual function.
+  std::optional<allocator::Fragmentation> MeasureFragmentation() const {
+    return DoMeasureFragmentation();
+  }
+
  protected:
   /// TODO(b/326509341): Remove when downstream consumers migrate.
   constexpr Allocator() = default;
 
   explicit constexpr Allocator(const Capabilities& capabilities)
       : Deallocator(Capability::kCanAllocateArbitraryLayout | capabilities) {}
+
+  /// Virtual `MeasureFragmentation` function that can be overridden by derived
+  /// classes.
+  ///
+  /// The default implementation simply returns `std::nullopt`, indicating that
+  /// tracking memory fragmentation is not supported.
+  virtual std::optional<allocator::Fragmentation> DoMeasureFragmentation()
+      const {
+    return std::nullopt;
+  }
 
  private:
   /// Virtual `Allocate` function implemented by derived classes.
