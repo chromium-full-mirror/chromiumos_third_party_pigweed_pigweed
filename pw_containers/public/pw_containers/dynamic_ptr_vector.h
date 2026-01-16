@@ -390,6 +390,22 @@ class DynamicPtrVector {
     vector_.clear();
   }
 
+  /// Swaps the contents of this `DynamicPtrVector` with another one.
+  void swap(DynamicPtrVector& other) { vector_.swap(other.vector_); }
+
+  /// Swaps two indices within this vector. This is a trivial swap of two
+  /// pointers; no move assignments or allocations occur.
+  void swap(size_type first, size_type second) {
+    std::swap(vector_[first], vector_[second]);
+  }
+
+  /// Swaps two items within this vector. This is a trivial swap of two
+  /// pointers; no move assignments or allocations occur.
+  void swap(const_iterator first, const_iterator second) {
+    std::swap(const_cast<pointer&>(*first.it_),
+              const_cast<pointer&>(*second.it_));
+  }
+
  private:
   void Delete(T* ptr) { vector_.get_allocator().Delete(ptr); }
 
