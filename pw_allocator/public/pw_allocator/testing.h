@@ -79,7 +79,9 @@ class AllocatorForTest : public Allocator {
   static constexpr size_t kMinSize = BlockType::kAlignment;
 
   AllocatorForTest()
-      : Allocator(AllocatorType::kCapabilities), tracker_(kToken, *allocator_) {
+      : Allocator(AllocatorType::kCapabilities),
+        allocator_(),
+        tracker_(kToken, *allocator_) {
     ResetParameters();
     allocator_->Init(allocator_.as_bytes());
   }
@@ -132,6 +134,10 @@ class AllocatorForTest : public Allocator {
   Fragmentation MeasureFragmentation() const {
     return allocator_->MeasureFragmentation();
   }
+
+ protected:
+  /// Returns the underlying tracking allocator.
+  TrackingAllocator<MetricsType>& GetTracker() { return tracker_; }
 
  private:
   /// @copydoc Allocator::Allocate

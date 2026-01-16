@@ -446,4 +446,89 @@ TEST_F(TrackingAllocatorTest, CorrectlyAccountsForShiftedBytes) {
   EXPECT_METRICS_EQ(expected, metrics);
 }
 
+// A test allocator that does not provide layout information for its
+// allocations.
+//
+// This class is used to verify that `TrackingAllocator` can still provide
+// useful metrics even when the underlying allocator does not have
+// the `kImplementsGetAllocatedLayout` capability.
+template <size_t kCapacity>
+class AllocatorForTestWithoutInfo
+    : public pw::allocator::test::AllocatorForTest<kCapacity> {
+ public:
+  using Base = pw::allocator::test::AllocatorForTest<kCapacity>;
+  using BlockType = typename Base::BlockType;
+
+ private:
+  pw::Result<Layout> DoGetInfo(pw::Deallocator::InfoType,
+                               const void*) const final {
+    return pw::Status::Unimplemented();
+  }
+
+  void* DoReallocate(void* ptr, Layout new_layout) override {
+    return Base::GetTracker().Reallocate(ptr, new_layout);
+  }
+
+  bool DoResize(void*, size_t) override { return false; }
+};
+
+TEST(TrackingAllocator, ReallocateWithoutLayoutInfo) {
+  constexpr size_t kCapacity = 256;
+  using AllocatorType = AllocatorForTestWithoutInfo<kCapacity>;
+
+  AllocatorType allocator;
+
+  const TestMetrics& metrics = allocator.metrics();
+  ExpectedValues expected;
+
+  // Perform an initial allocation.
+  constexpr Layout layout1 = Layout::Of<uintptr_t[2]>();
+  void* ptr1 = allocator.Allocate(layout1);
+  ASSERT_NE(ptr1, nullptr);
+
+  auto* block1 = AllocatorType::BlockType::FromUsableSpace(ptr1);
+  size_t ptr1_allocated = block1->OuterSize();
+
+  expected.AddRequestedBytes(layout1.size());
+  expected.AddAllocatedBytes(ptr1_allocated);
+  expected.num_allocations += 1;
+  EXPECT_METRICS_EQ(expected, metrics);
+
+  // Allocate another block to block resizing and force a move during
+  // reallocation.
+  constexpr Layout layout_block = Layout::Of<uintptr_t>();
+  void* ptr_block = allocator.Allocate(layout_block);
+  ASSERT_NE(ptr_block, nullptr);
+  auto* block_ptr_block = AllocatorType::BlockType::FromUsableSpace(ptr_block);
+  size_t ptr_block_allocated = block_ptr_block->OuterSize();
+
+  expected.AddRequestedBytes(layout_block.size());
+  expected.AddAllocatedBytes(ptr_block_allocated);
+  expected.num_allocations += 1;
+  EXPECT_METRICS_EQ(expected, metrics);
+
+  // Reallocate the first block. Since it's blocked by the second allocation,
+  // it must be moved.
+  constexpr Layout layout2 = Layout::Of<uintptr_t[4]>();
+  void* ptr2 = allocator.Reallocate(ptr1, layout2);
+  ASSERT_NE(ptr2, nullptr);
+  EXPECT_NE(ptr2, ptr1);  // Should have moved
+
+  auto* block2 = AllocatorType::BlockType::FromUsableSpace(ptr2);
+  ASSERT_NE(block2, nullptr);
+  size_t ptr_block_allocated2 = block2->OuterSize();
+
+  // The metrics should reflect the move: new bytes allocated, old bytes
+  // deallocated.
+  expected.AddRequestedBytes(layout2.size() - layout1.size());
+  expected.AddAllocatedBytes(ptr_block_allocated2);
+  expected.allocated_bytes -= ptr1_allocated;
+
+  expected.num_reallocations += 1;
+  EXPECT_METRICS_EQ(expected, metrics);
+
+  allocator.Deallocate(ptr_block);
+  allocator.Deallocate(ptr2);
+}
+
 }  // namespace
