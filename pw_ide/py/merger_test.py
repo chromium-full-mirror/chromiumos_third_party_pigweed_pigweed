@@ -334,6 +334,45 @@ class MergerTest(fake_filesystem_unittest.TestCase):
         self.assertEqual(data[0]['file'], expected_file)
         self.assertEqual(data[0]['arguments'], expected_args)
 
+    def test_external_repo_symlinks(self):
+        """Test that symlinks in external repos are resolved."""
+        real_repo_path = self.workspace_root / 'real_repo'
+        self.fs.create_dir(real_repo_path)
+        real_file_path = real_repo_path / 'a.cc'
+        self.fs.create_file(real_file_path)
+
+        # Create a symlink in the external directory pointing to the real repo
+        external_repo_path = self.output_base / 'external/my_repo'
+        self.fs.create_dir(self.output_base / 'external')
+        self.fs.create_symlink(external_repo_path, real_repo_path)
+
+        _create_fragment(
+            self.fs,
+            self.output_path,
+            't1',
+            'k8-fastbuild',
+            [
+                {
+                    'file': 'external/my_repo/a.cc',
+                    'directory': '__WORKSPACE_ROOT__',
+                    'arguments': [],
+                }
+            ],
+        )
+        self.assertEqual(merger.main(), 0)
+        merged_path = (
+            self.workspace_root
+            / '.compile_commands'
+            / 'k8-fastbuild'
+            / 'compile_commands.json'
+        )
+        with open(merged_path, 'r') as f:
+            data = json.load(f)
+
+        # The expected path should be the real path, not the symlink path
+        expected_file = str(real_file_path)
+        self.assertEqual(data[0]['file'], expected_file)
+
     def test_empty_fragment_file(self):
         """Test that an empty fragment file doesn't cause issues."""
         _create_fragment(self.fs, self.output_path, 'empty', 'k8-fastbuild', [])

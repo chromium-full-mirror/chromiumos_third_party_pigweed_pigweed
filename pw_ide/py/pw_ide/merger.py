@@ -703,6 +703,11 @@ def resolve_external_paths(
         new_file = str(
             output_base.joinpath('external', *path_suffix.split('/'))
         )
+        # Verify if it is a symlink and resolve it.
+        # This fixes issues where local repositories are symlinked in the
+        # bazel cache, causing editors to open the cached version instead
+        # of the source version.
+        new_file = str(Path(new_file).resolve())
 
     return command._replace(arguments=new_args, file=new_file)
 

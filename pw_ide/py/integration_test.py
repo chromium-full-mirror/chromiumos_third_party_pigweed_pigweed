@@ -87,7 +87,10 @@ _HOST_OR_DEVICE = f'({_HOST_PLATFORM})|({_DEVICE_PLATFORM})'
 _TEST_PACKAGE = r'.*pw_ide/bazel/compile_commands/test/'
 
 # All tested rules hosted in an external repo live in this package.
-_EXTERNAL_PACKAGE = r'.*pw_cc_compile_commands_test_external/'
+_EXTERNAL_PACKAGE = (
+    r'.*(pw_cc_compile_commands_test_external|'
+    r'pw_ide/bazel/compile_commands/test/external_repo)/'
+)
 
 # Anything in the external or local test packages.
 _ANY_TEST_PACKAGE = '(' + _TEST_PACKAGE + '|' + _EXTERNAL_PACKAGE + ')'
