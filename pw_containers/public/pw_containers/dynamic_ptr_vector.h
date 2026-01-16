@@ -240,9 +240,20 @@ class DynamicPtrVector {
     return try_emplace_back(value);
   }
 
-  /// Attempts to append a new element by moving `value`.
-  [[nodiscard]] bool try_push_back(T&& value) {
-    return try_emplace_back(std::move(value));
+  /// Appends a new element by taking ownership of the object in `value`.
+  ///
+  /// If `value` was allocated using this vector's allocator, the pointer is
+  /// transferred directly without reallocation. Otherwise, a new object is
+  /// move-constructed from `*value`.
+  void push_back(UniquePtr<T>&& value) {
+    PW_ASSERT(value != nullptr);
+    if (value.deallocator()->IsEqual(get_allocator())) {
+      vector_.push_back(value.get());
+      value.Release();
+    } else {
+      emplace_back(std::move(*value));
+      value.Reset();
+    }
   }
 
   void pop_back() {
@@ -339,13 +350,27 @@ class DynamicPtrVector {
     return emplace(pos, std::move(value));
   }
 
+  /// Inserts a new element by taking ownership of the object in `value`.
+  ///
+  /// If `value` was allocated using this vector's allocator, the pointer is
+  /// transferred directly without reallocation. Otherwise, a new object is
+  /// move-constructed from `*value`.
+  iterator insert(const_iterator pos, UniquePtr<T>&& value) {
+    PW_ASSERT(value != nullptr);
+    if (value.deallocator()->IsEqual(get_allocator())) {
+      iterator it = iterator(vector_.insert(pos.it_, value.get()));
+      value.Release();
+      return it;
+    }
+
+    iterator it = emplace(pos, std::move(*value));
+    value.Reset();
+    return it;
+  }
+
   [[nodiscard]] std::optional<iterator> try_insert(const_iterator pos,
                                                    const T& value) {
     return try_emplace(pos, value);
-  }
-  [[nodiscard]] std::optional<iterator> try_insert(const_iterator pos,
-                                                   T&& value) {
-    return try_emplace(pos, std::move(value));
   }
 
   iterator erase(const_iterator pos) { return erase(pos, pos + 1); }

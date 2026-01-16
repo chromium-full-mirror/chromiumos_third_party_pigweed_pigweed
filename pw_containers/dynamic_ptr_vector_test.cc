@@ -317,4 +317,80 @@ TEST_F(DynamicPtrVectorTest, Take) {
   EXPECT_LT(allocated_after_reset, allocated_before_reset);
 }
 
+TEST_F(DynamicPtrVectorTest, PushBackUniquePtr_SameAllocator) {
+  pw::DynamicPtrVector<Counter> vec(allocator_);
+  auto ptr = allocator_.MakeUnique<Counter>(100);
+  Counter* const raw_ptr = ptr.get();
+
+  vec.push_back(std::move(ptr));
+  EXPECT_EQ(vec.size(), 1u);
+  EXPECT_EQ(vec[0].value, 100);
+
+  EXPECT_EQ(&vec[0], raw_ptr);
+}
+
+TEST_F(DynamicPtrVectorTest, PushBackUniquePtr_DifferentAllocator) {
+  pw::DynamicPtrVector<Counter> vec(allocator_);
+  pw::allocator::test::AllocatorForTest<256> other_allocator;
+  auto ptr = other_allocator.MakeUnique<Counter>(200);
+  Counter* const raw_ptr = ptr.get();
+
+  vec.push_back(std::move(ptr));
+  EXPECT_EQ(vec.size(), 1u);
+  EXPECT_EQ(vec[0].value, 200);
+
+  EXPECT_NE(&vec[0], raw_ptr);
+}
+
+TEST_F(DynamicPtrVectorTest, InsertUniquePtr_SameAllocator) {
+  pw::DynamicPtrVector<Counter> vec(allocator_);
+  vec.emplace_back(1);
+  vec.emplace_back(3);
+
+  auto ptr = allocator_.MakeUnique<Counter>(2);
+  Counter* const raw_ptr = ptr.get();
+
+  auto it = vec.insert(vec.begin() + 1, std::move(ptr));
+  EXPECT_EQ(it->value, 2);
+  EXPECT_EQ(vec[0].value, 1);
+  EXPECT_EQ(vec[1].value, 2);
+  EXPECT_EQ(vec[2].value, 3);
+
+  EXPECT_EQ(&vec[1], raw_ptr);
+}
+
+TEST_F(DynamicPtrVectorTest, InsertUniquePtr_DifferentAllocator) {
+  pw::DynamicPtrVector<Counter> vec(allocator_);
+  vec.emplace_back(1);
+  vec.emplace_back(3);
+
+  pw::allocator::test::AllocatorForTest<256> other_allocator;
+  auto ptr = other_allocator.MakeUnique<Counter>(2);
+  Counter* const raw_ptr = ptr.get();
+
+  auto it = vec.insert(vec.begin() + 1, std::move(ptr));
+  EXPECT_EQ(it->value, 2);
+  EXPECT_EQ(vec[0].value, 1);
+  EXPECT_EQ(vec[1].value, 2);
+  EXPECT_EQ(vec[2].value, 3);
+
+  EXPECT_NE(&vec[1], raw_ptr);
+}
+
+TEST_F(DynamicPtrVectorTest, PushBackUniquePtr_Derived) {
+  struct Base {
+    virtual ~Base() = default;
+    int val = 0;
+  };
+  struct Derived : Base {
+    Derived() { val = 1; }
+  };
+
+  pw::DynamicPtrVector<Base> vec(allocator_);
+  auto ptr = allocator_.MakeUnique<Derived>();
+
+  vec.push_back(std::move(ptr));
+  EXPECT_EQ(vec[0].val, 1);
+}
+
 }  // namespace
