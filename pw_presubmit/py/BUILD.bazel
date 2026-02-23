@@ -460,6 +460,13 @@ pw_py_binary(
     deps = [":pw_presubmit"],
 )
 
+pw_py_binary(
+    name = "keep_sorted",
+    srcs = ["pw_presubmit/keep_sorted.py"],
+    main = "pw_presubmit/keep_sorted.py",
+    deps = [":pw_presubmit"],
+)
+
 pw_py_test(
     name = "bazel_parser_test",
     srcs = ["bazel_parser_test.py"],

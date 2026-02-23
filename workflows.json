@@ -573,6 +573,12 @@
       "target": "@pigweed//:format"
     },
     {
+      "name": "keep-sorted",
+      "description": "Keep specified lists sorted.",
+      "use_config": "bazel_default",
+      "target": "//pw_presubmit/py:keep_sorted"
+    },
+    {
       "name": "pw_presubmit_checks",
       "description": "Run checks that use the pw_presubmit framework",
       "use_config": "bazel_default",
