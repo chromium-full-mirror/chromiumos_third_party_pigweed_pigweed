@@ -168,6 +168,12 @@ TEST(ByteBufferTest, DynamicByteBufferConstructFromString) {
   EXPECT_TRUE(ContainersEqual(kExpected, buffer));
 }
 
+TEST(ByteBufferTest, DynamicByteBufferConstructFromEmptyString) {
+  std::string str = std::string("");
+  DynamicByteBuffer buffer(str);
+  EXPECT_TRUE(buffer.empty());
+}
+
 TEST(ByteBufferTest, DynamicByteBufferShrink) {
   std::string data = "abcdef";
   DynamicByteBuffer buffer(data);

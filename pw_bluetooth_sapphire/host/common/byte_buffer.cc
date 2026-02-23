@@ -202,6 +202,10 @@ DynamicByteBuffer::DynamicByteBuffer(const DynamicByteBuffer& buffer)
     : DynamicByteBuffer(static_cast<const ByteBuffer&>(buffer)) {}
 
 DynamicByteBuffer::DynamicByteBuffer(const std::string& buffer) {
+  if (buffer.empty()) {
+    return;
+  }
+
   buffer_ = pw::allocator::GetLibCAllocator().MakeUnique<std::byte[]>(
       buffer.length());
   PW_CHECK(buffer_ != nullptr, "failed to allocate buffer");
