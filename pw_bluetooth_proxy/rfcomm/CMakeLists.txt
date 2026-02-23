@@ -37,12 +37,12 @@ set(RFCOMM_HEADERS
 set(RFCOMM_PUBLIC_DEPS
   pw_allocator
   pw_bluetooth_proxy
+  pw_bluetooth.emboss_rfcomm_frames
   pw_checksum
 )
 
 set(RFCOMM_PRIVATE_DEPS
   pw_bluetooth.emboss_util
-  pw_bluetooth.emboss_rfcomm_frames
 )
 
 set(RFCOMM_SOURCES
