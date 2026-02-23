@@ -90,4 +90,10 @@ void SystemTimer::InvokeAt(SystemClock::time_point timestamp) {
   sys_mutex_unlock(&native_type_.mutex);
 }
 
+void SystemTimer::Cancel() {
+  sys_mutex_lock(&native_type_.mutex, K_FOREVER);
+  k_work_cancel_delayable(&native_type_.work_wrapper.work);
+  sys_mutex_unlock(&native_type_.mutex);
+}
+
 }  // namespace pw::chrono
