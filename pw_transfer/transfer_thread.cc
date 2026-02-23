@@ -530,18 +530,18 @@ void TerminateTransfers(span<T> contexts,
                         TransferType type,
                         EventType event_type,
                         Status status) {
+  Event event;
+  event.type = event_type;
   for (Context& context : contexts) {
     if (context.active() && context.type() == type) {
-      context.HandleEvent(Event{
-          .type = event_type,
-          .end_transfer =
-              EndTransferEvent{
-                  .id_type = IdentifierType::Session,
-                  .id = context.session_id(),
-                  .status = status.code(),
-                  .send_status_chunk = false,
-              },
-      });
+      event.end_transfer = EndTransferEvent{
+          .id_type = IdentifierType::Session,
+          .id = context.session_id(),
+          .status = status.code(),
+          .send_status_chunk = false,
+      };
+
+      context.HandleEvent(event);
     }
   }
 }
