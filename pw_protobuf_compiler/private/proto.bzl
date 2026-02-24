@@ -243,6 +243,7 @@ def _proto_compiler_aspect_impl(target, ctx):
             transitive = [proto_info.transitive_descriptor_sets],
         ),
         progress_message = "Generating %s C++ files for %s" % (ctx.attr._extensions, ctx.label.name),
+        mnemonic = "PwProtoCompile",
         tools = all_tools,
         outputs = srcs + hdrs,
         executable = ctx.executable._protoc,
