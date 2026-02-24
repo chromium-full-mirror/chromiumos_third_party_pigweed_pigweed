@@ -23,3 +23,8 @@ src:*/absl/meta/type_traits.h
 
 [undef]
 src:*/google/protobuf/port_def.inc
+
+[switch-enum]
+# TODO: https://pwbug.dev/479918154 - Can be removed after protobuf is updated
+# to a version with the fix.
+src:*/protobuf/google/protobuf/map_field.h
