@@ -369,10 +369,8 @@ class FakeSearchResults : public fidlbredr::testing::SearchResults_TestBase {
     peer_id_ = peer_id;
     attributes_ = std::move(attributes);
     if (result_cb_) {
-      result_cb_();
+      result_cb_(std::move(callback));
     }
-    callback(fidlbredr::SearchResults_ServiceFound_Result::WithResponse(
-        fidlbredr::SearchResults_ServiceFound_Response()));
   }
 
   bool closed() const { return closed_; }
@@ -384,7 +382,20 @@ class FakeSearchResults : public fidlbredr::testing::SearchResults_TestBase {
     return attributes_;
   }
 
-  void set_result_cb(fit::function<void()> cb) { result_cb_ = std::move(cb); }
+  using ResultCallback = fit::function<void(ServiceFoundCallback)>;
+  void set_result_cb(ResultCallback cb) { result_cb_ = std::move(cb); }
+  void set_result_cb(fit::function<void()> cb) {
+    result_cb_ = [result_cb =
+                      std::move(cb)](ServiceFoundCallback service_found_cb) {
+      if (result_cb) {
+        result_cb();
+      }
+      service_found_cb(
+          fidlbredr::SearchResults_ServiceFound_Result::WithResponse(
+              fidlbredr::SearchResults_ServiceFound_Response()));
+      return;
+    };
+  }
 
  private:
   bool closed_ = false;
@@ -392,7 +403,7 @@ class FakeSearchResults : public fidlbredr::testing::SearchResults_TestBase {
   std::optional<fuchsia::bluetooth::PeerId> peer_id_;
   std::optional<std::vector<fidlbredr::Attribute>> attributes_;
   size_t service_found_count_ = 0;
-  fit::function<void()> result_cb_;
+  ResultCallback result_cb_;
 
   void NotImplemented_(const std::string& name) override {
     FAIL() << name << " is not implemented";
@@ -3613,6 +3624,126 @@ TEST_F(ProfileServerTestFakeAdapter, FullUuidSearchResultRelayedToFidlClient) {
   EXPECT_EQ(search_results.attributes().value()[0].id(), attr_id);
   EXPECT_EQ(search_results.attributes().value()[0].element().url(),
             std::string("https://foobar.dev"));
+}
+
+TEST_F(ProfileServerTestFakeAdapter, SearchResultsFlowControl) {
+  fidlbredr::SearchResultsHandle search_results_handle;
+  FakeSearchResults search_results(search_results_handle.NewRequest(),
+                                   dispatcher());
+
+  std::deque<FakeSearchResults::ServiceFoundCallback> result_cbs;
+  search_results.set_result_cb([this, &result_cbs](auto&& cb) {
+    EXPECT_NE(lease_provider().lease_count(), 0u);
+    result_cbs.push_back(std::move(cb));
+  });
+
+  auto complete_one_cb = [&result_cbs] {
+    ASSERT_FALSE(result_cbs.empty());
+    auto cb = std::move(result_cbs.front());
+    result_cbs.pop_front();
+    cb(fidlbredr::SearchResults_ServiceFound_Result::WithResponse(
+        fidlbredr::SearchResults_ServiceFound_Response()));
+  };
+
+  fidlbredr::ServiceClassProfileIdentifier search_uuid =
+      fidlbredr::ServiceClassProfileIdentifier::AUDIO_SINK;
+
+  EXPECT_EQ(adapter()->fake_bredr()->registered_searches().size(), 0u);
+  EXPECT_EQ(search_results.service_found_count(), 0u);
+
+  // FIDL client registers a service search.
+  fidlbredr::ProfileSearchRequest request;
+  request.set_service_uuid(search_uuid);
+  request.set_attr_ids({});
+  request.set_results(std::move(search_results_handle));
+  client()->Search(std::move(request));
+  RunLoopUntilIdle();
+  EXPECT_EQ(lease_provider().lease_count(), 0u);
+  EXPECT_EQ(adapter()->fake_bredr()->registered_searches().size(), 1u);
+
+  // Trigger a match on the service search with some data. Should be received by
+  // the FIDL client.
+  bt::PeerId peer_id = bt::PeerId{10};
+  bt::UUID uuid(static_cast<uint32_t>(search_uuid));
+
+  // Send max unacked results.
+  for (size_t i = 0; i < ProfileServer::kMaxUnackedSearchResults; ++i) {
+    bt::sdp::AttributeId attr_id = 50 + i;  // Random Attribute ID
+    bt::sdp::DataElement elem = bt::sdp::DataElement();
+    elem.SetUrl("https://foobar.dev/" + std::to_string(i));
+    auto attributes = std::map<bt::sdp::AttributeId, bt::sdp::DataElement>();
+    attributes.emplace(attr_id, std::move(elem));
+
+    adapter()->fake_bredr()->TriggerServiceFound(
+        peer_id, uuid, std::move(attributes));
+    RunLoopUntilIdle();
+
+    EXPECT_EQ(result_cbs.size(), i + 1);
+    EXPECT_EQ(search_results.service_found_count(), i + 1);
+    EXPECT_EQ(search_results.attributes().value()[0].id(), attr_id);
+    EXPECT_EQ(search_results.attributes().value()[0].element().url(),
+              "https://foobar.dev/" + std::to_string(i));
+  }
+
+  // Send two more results. These should be queued and not sent to the client.
+  bt::sdp::AttributeId attr_id_excess_1 = 100;
+  bt::sdp::DataElement elem_excess_1 = bt::sdp::DataElement();
+  elem_excess_1.SetUrl("https://foobar.dev/excess_1");
+  auto attributes_excess_1 =
+      std::map<bt::sdp::AttributeId, bt::sdp::DataElement>();
+  attributes_excess_1.emplace(attr_id_excess_1, std::move(elem_excess_1));
+  adapter()->fake_bredr()->TriggerServiceFound(
+      peer_id, uuid, std::move(attributes_excess_1));
+  RunLoopUntilIdle();
+
+  EXPECT_EQ(result_cbs.size(), ProfileServer::kMaxUnackedSearchResults);
+  EXPECT_EQ(search_results.service_found_count(),
+            ProfileServer::kMaxUnackedSearchResults);
+
+  bt::sdp::AttributeId attr_id_excess_2 = 101;
+  bt::sdp::DataElement elem_excess_2 = bt::sdp::DataElement();
+  elem_excess_2.SetUrl("https://foobar.dev/excess_2");
+  auto attributes_excess_2 =
+      std::map<bt::sdp::AttributeId, bt::sdp::DataElement>();
+  attributes_excess_2.emplace(attr_id_excess_2, std::move(elem_excess_2));
+  adapter()->fake_bredr()->TriggerServiceFound(
+      peer_id, uuid, std::move(attributes_excess_2));
+  RunLoopUntilIdle();
+
+  EXPECT_EQ(result_cbs.size(), ProfileServer::kMaxUnackedSearchResults);
+  EXPECT_EQ(search_results.service_found_count(),
+            ProfileServer::kMaxUnackedSearchResults);
+
+  // Ack one result. The first excess result should now be sent.
+  complete_one_cb();
+  RunLoopUntilIdle();
+
+  EXPECT_EQ(result_cbs.size(), ProfileServer::kMaxUnackedSearchResults);
+  EXPECT_EQ(search_results.service_found_count(),
+            ProfileServer::kMaxUnackedSearchResults + 1);
+  EXPECT_EQ(search_results.attributes().value()[0].id(), attr_id_excess_1);
+  EXPECT_EQ(search_results.attributes().value()[0].element().url(),
+            "https://foobar.dev/excess_1");
+
+  // Ack another result. The second excess result should now be sent.
+  complete_one_cb();
+  RunLoopUntilIdle();
+
+  EXPECT_EQ(result_cbs.size(), ProfileServer::kMaxUnackedSearchResults);
+  EXPECT_EQ(search_results.service_found_count(),
+            ProfileServer::kMaxUnackedSearchResults + 2);
+  EXPECT_EQ(search_results.attributes().value()[0].id(), attr_id_excess_2);
+  EXPECT_EQ(search_results.attributes().value()[0].element().url(),
+            "https://foobar.dev/excess_2");
+
+  // Ack all remaining results.
+  while (!result_cbs.empty()) {
+    complete_one_cb();
+    RunLoopUntilIdle();
+  }
+
+  EXPECT_EQ(search_results.service_found_count(),
+            ProfileServer::kMaxUnackedSearchResults + 2);
 }
 
 TEST_F(ProfileServerTestFakeAdapter, SearchWithMissingUuidFails) {

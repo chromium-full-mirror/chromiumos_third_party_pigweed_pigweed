@@ -31,6 +31,8 @@ namespace bthost {
 // Implements the bredr::Profile FIDL interface.
 class ProfileServer : public ServerBase<fuchsia::bluetooth::bredr::Profile> {
  public:
+  static constexpr uint16_t kMaxUnackedSearchResults = 8;
+
   ProfileServer(
       bt::gap::Adapter::WeakPtr adapter,
       pw::bluetooth_sapphire::LeaseProvider& wake_lease_provider,
@@ -258,6 +260,8 @@ class ProfileServer : public ServerBase<fuchsia::bluetooth::bredr::Profile> {
       uint64_t search_id,
       bt::PeerId peer_id,
       const std::map<bt::sdp::AttributeId, bt::sdp::DataElement>& attributes);
+  void OnServiceFoundComplete(
+      bt::gap::BrEdrConnectionManager::SearchId search_id);
 
   // Callback for SCO connections requests.
   static void OnScoConnectionResult(
@@ -316,6 +320,23 @@ class ProfileServer : public ServerBase<fuchsia::bluetooth::bredr::Profile> {
   uint64_t advertised_total_;
   std::map<uint64_t, AdvertisedService> current_advertised_;
 
+  // Search results pending
+  struct PendingSearchResult {
+    PendingSearchResult(
+        fuchsia::bluetooth::PeerId peer_id,
+        fidl::VectorPtr<fuchsia::bluetooth::bredr::ProtocolDescriptor>
+            descriptor_list,
+        std::vector<fuchsia::bluetooth::bredr::Attribute> attributes)
+        : peer_id(peer_id),
+          descriptor_list(std::move(descriptor_list)),
+          attributes(std::move(attributes)) {}
+
+    fuchsia::bluetooth::PeerId peer_id;
+    fidl::VectorPtr<fuchsia::bluetooth::bredr::ProtocolDescriptor>
+        descriptor_list;
+    std::vector<fuchsia::bluetooth::bredr::Attribute> attributes;
+  };
+
   // Searches registered
   struct RegisteredSearch {
     RegisteredSearch(
@@ -326,7 +347,11 @@ class ProfileServer : public ServerBase<fuchsia::bluetooth::bredr::Profile> {
     bt::gap::BrEdrConnectionManager::SearchId search_id;
     uint16_t unacknowledged_search_results_count = 0;
     std::optional<pw::bluetooth_sapphire::Lease> wake_lease;
+    std::deque<PendingSearchResult> pending_search_results;
   };
+
+  // Send or queue for sending a service found.
+  void SendServiceFound(RegisteredSearch& search, PendingSearchResult result);
 
   uint64_t searches_total_;
   std::map<uint64_t, RegisteredSearch> searches_;
