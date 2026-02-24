@@ -503,6 +503,7 @@ def watch_setup(  # pylint: disable=too-many-locals
     debug_logging: bool = False,
     source_path: Path | None = None,
     default_build_system: str | None = None,
+    dry_run: bool = False,
     # pylint: enable=unused-argument
     # pylint: disable=too-many-arguments
 ) -> tuple[PigweedBuildWatcher, list[Path]]:

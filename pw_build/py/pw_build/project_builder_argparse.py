@@ -125,11 +125,6 @@ def add_project_builder_option_arguments(
         ),
     )
     build_options_group.add_argument(
-        '--dry-run',
-        action='store_true',
-        help='Print build commands without running them.',
-    )
-    build_options_group.add_argument(
         '--parallel',
         action='store_true',
         help='Run all builds in parallel.',
@@ -142,6 +137,11 @@ def add_project_builder_option_arguments(
             'How many builds may run at the same time when --parallel is '
             'enabled. Default: 0 meaning run all in parallel.'
         ),
+    )
+    build_options_group.add_argument(
+        '--dry-run',
+        action='store_true',
+        help='Print build commands without running them.',
     )
 
     logfile_group = parser.add_argument_group(title='Log File Options')
