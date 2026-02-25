@@ -24,10 +24,10 @@ cc_library_static {
     export_include_dirs: [
         "public",
     ],
-    header_libs: [
+    static_libs: [
         "pw_memory",
     ],
-    export_header_lib_headers: [
+    export_static_lib_headers: [
         "pw_memory",
     ],
 }
