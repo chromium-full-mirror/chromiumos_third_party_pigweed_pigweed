@@ -290,10 +290,12 @@ impl From<Result<WaitReturn>> for SysCallReturnValue {
 pub enum SysCallId {
     // IDs are not ABI stable yet and are subject to change.
     ObjectWait = 0x0000,
-    ChannelTransact = 0x0001,
-    ChannelRead = 0x0002,
-    ChannelRespond = 0x0003,
-    InterruptAck = 0x0004,
+    WaitGroupAdd = 0x0001,
+    WaitGroupRemove = 0x0002,
+    ChannelTransact = 0x0003,
+    ChannelRead = 0x0004,
+    ChannelRespond = 0x0005,
+    InterruptAck = 0x0006,
 
     // System calls prefixed with 0xF000 are reserved development/debugging use.
     DebugPutc = 0xf000,
@@ -362,15 +364,13 @@ impl Signals {
 }
 
 /// Return value from the [`object_wait()`] syscall.
-///
-/// TODO: This is a bit heavy.  Define exact syscall ABI for this data.
 #[derive(Copy, Clone)]
 #[repr(C)]
 pub struct WaitReturn {
     /// `user_data` of the wait group member.
     pub user_data: usize,
 
-    /// Signals pending on the wait group member.
+    /// Signals pending on the object.
     pub pending_signals: Signals,
 }
 
@@ -522,7 +522,8 @@ unsafe extern "C" {
     ///
     /// # Returns
     /// - `WaitReturn.status >= 0`: Returns object specific metadata
-    /// - [`Error::InvalidArgument`]: `object_handle` is not a valid object.
+    /// - [`Error::InvalidArgument`]: `object_handle` is not a valid object or the object is a
+    ///   wait group and there are no members in the wait group.
     /// - [`Error::DeadlineExceeded`]: The handler side did not respond before
     ///   `deadline` was exceeded.
     pub fn object_wait(object_handle: u32, signal_mask: Signals, deadline: u64) -> WaitReturn;
@@ -531,7 +532,10 @@ unsafe extern "C" {
     ///
     /// Add `object` to `wait_group`.  `wait_group` will signal when one of the
     /// signals in `signal_mask` is raised on `object`.  `user_data` is passed,
-    /// untouched by the kernel to the return value of `wait()`.
+    /// untouched by the kernel to the return value of `object_wait()`.
+    ///
+    /// The order in which the object is added does not affect the order in
+    /// which objects in the `wait_group` are signaled.
     ///
     /// # Returns
     /// `0`: Success
@@ -557,6 +561,15 @@ unsafe extern "C" {
 
 pub trait SysCallInterface {
     fn object_wait(handle: u32, signal_mask: u32, deadline: u64) -> Result<WaitReturn>;
+
+    fn wait_group_add(
+        wait_group: u32,
+        object: u32,
+        signal_mask: Signals,
+        user_data: usize,
+    ) -> Result<()>;
+
+    fn wait_group_remove(wait_group: u32, object: u32) -> Result<()>;
 
     #[expect(clippy::missing_safety_doc)]
     unsafe fn channel_transact(

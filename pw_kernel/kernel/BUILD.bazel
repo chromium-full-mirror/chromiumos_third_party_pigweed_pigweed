@@ -34,6 +34,7 @@ rust_library(
         "object/buffer.rs",
         "object/channel.rs",
         "object/interrupt.rs",
+        "object/wait_group.rs",
         "panic.rs",
         "scheduler.rs",
         "scheduler/algorithm.rs",

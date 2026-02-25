@@ -41,6 +41,10 @@ impl<K: Kernel> ChannelHandlerObject<K> {
 }
 
 impl<K: Kernel> KernelObject<K> for ChannelHandlerObject<K> {
+    fn base(&self) -> Option<&ObjectBase<K>> {
+        Some(&self.base)
+    }
+
     fn object_wait(
         &self,
         kernel: K,
@@ -75,8 +79,13 @@ impl<K: Kernel> KernelObject<K> for ChannelHandlerObject<K> {
         response_buffer.copy_into(0, &mut transaction.recv_buffer)?;
 
         transaction.recv_buffer.truncate(response_buffer.size());
-        self.base.state.lock(kernel).active_signals -= Signals::READABLE | Signals::WRITEABLE;
-        transaction.initiator.base.signal(kernel, Signals::READABLE);
+        self.base.signal(kernel, |signals| {
+            signals - (Signals::READABLE | Signals::WRITEABLE)
+        });
+        transaction
+            .initiator
+            .base
+            .signal(kernel, |_| Signals::READABLE);
         Ok(())
     }
 }
@@ -97,6 +106,10 @@ impl<K: Kernel> ChannelInitiatorObject<K> {
 }
 
 impl<K: Kernel> KernelObject<K> for ChannelInitiatorObject<K> {
+    fn base(&self) -> Option<&ObjectBase<K>> {
+        Some(&self.base)
+    }
+
     fn object_wait(
         &self,
         kernel: K,
@@ -137,16 +150,18 @@ impl<K: Kernel> KernelObject<K> for ChannelInitiatorObject<K> {
 
         // Clear Readable, Writable, and Error signals  on our side before
         // signaling the handler.
-        self.base.state.lock(kernel).active_signals -=
-            Signals::READABLE | Signals::WRITEABLE | Signals::ERROR;
+        self.base.signal(kernel, |signals| {
+            signals - (Signals::READABLE | Signals::WRITEABLE | Signals::ERROR)
+        });
 
-        self.handler.base.signal(kernel, Signals::READABLE);
+        self.handler.base.signal(kernel, |_| Signals::READABLE);
 
         // Result processing is deferred until the object is in a coherent state.
         let wait_result = self.object_wait(kernel, Signals::READABLE | Signals::ERROR, deadline);
 
         // TODO: konkers - Rationalize signal behavior with syscall_defs.rs.
-        self.base.state.lock(kernel).active_signals |= Signals::WRITEABLE;
+        self.base
+            .signal(kernel, |signals| signals | Signals::WRITEABLE);
 
         let mut active_transaction = self.handler.active_transaction.lock();
 

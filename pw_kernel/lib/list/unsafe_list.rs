@@ -131,6 +131,12 @@ pub struct UnsafeList<T, A: Adapter<T>> {
     _phantom_adapter: PhantomData<A>,
 }
 
+// Safety:
+// All operations on the UnsafeList are unsafe and it is up to the caller to
+// ensure it's safe to send or share the list and its members between threads.
+unsafe impl<T, A: Adapter<T>> Send for UnsafeList<T, A> {}
+unsafe impl<T, A: Adapter<T>> Sync for UnsafeList<T, A> {}
+
 // We separate this out so that most logic can be implemented as methods on this
 // type. These methods are concrete (with no generic type parameters), and
 // equivalent, generic methods on `UnsafeList` call into them. By keeping most
@@ -332,6 +338,18 @@ impl<T, A: Adapter<T>> UnsafeList<T, A> {
                 callback(element.as_mut())
             })
         }
+    }
+
+    /// Return a reference to the first element in the list without removing it.
+    ///
+    /// # Safety
+    /// It is up to the caller to ensure exclusive access to the list and its
+    /// members.
+    #[must_use]
+    pub unsafe fn peek_head(&self) -> Option<NonNull<T>> {
+        self.inner
+            .peek_head()
+            .map(|link_ptr| unsafe { A::get_element(link_ptr) })
     }
 
     /// Return a reference to the first element in the list, clearing the
@@ -569,6 +587,11 @@ impl UnsafeListInner {
         }
     }
 
+    /// Return a reference to the first element in the list without removing it.
+    pub fn peek_head(&self) -> Option<NonNull<Link>> {
+        self.head
+    }
+
     /// Return a reference to the first element in the list, clearing the
     /// prev/next fields in the element.
     pub fn pop_head(&mut self) -> Option<NonNull<Link>> {
@@ -780,6 +803,29 @@ mod tests {
         unsafe { list.unlink_element_unchecked(element1) };
 
         unsafe { validate_list(&list, &[2, 3]) }
+    }
+
+    #[test]
+    fn peek_head_returns_head_without_removing() -> unittest::Result<()> {
+        let mut element1 = TestMember {
+            value: 1,
+            link: Link::new(),
+        };
+        let mut element2 = TestMember {
+            value: 2,
+            link: Link::new(),
+        };
+
+        let mut list = UnsafeList::<TestMember, TestAdapter>::new();
+        unsafe { list.push_front_unchecked(NonNull::from(&mut element2)) };
+        unsafe { list.push_front_unchecked(NonNull::from(&mut element1)) };
+
+        let head = unsafe { list.peek_head() };
+        unittest::assert_true!(head.is_some());
+        unittest::assert_eq!(unsafe { head.unwrap().as_ref() }.value, 1);
+        unittest::assert_false!(unsafe { list.is_empty() });
+
+        unsafe { validate_list(&list, &[1, 2]) }
     }
 
     #[test]

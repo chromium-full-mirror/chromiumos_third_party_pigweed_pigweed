@@ -138,6 +138,16 @@ macro_rules! syscall_veneer {
 }
 
 syscall_veneer!(ObjectWait, 2_u64, object_wait(handle: u32, signals: u32, deadline: u64));
+syscall_veneer!(WaitGroupAdd, 4, wait_group_add(
+    wait_group: u32,
+    object: u32,
+    signal_mask: Signals,
+    user_data: usize
+));
+syscall_veneer!(WaitGroupRemove, 2, wait_group_remove(
+    wait_group: u32,
+    object: u32
+));
 syscall_veneer!(ChannelTransact, 5_u64, channel_transact(
     object_handle: u32,
     send_data: *const u8,
@@ -168,6 +178,24 @@ impl SysCallInterface for SysCall {
     #[inline(always)]
     fn object_wait(handle: u32, signals: u32, deadline: u64) -> Result<WaitReturn> {
         SysCallReturnValue::from(unsafe { object_wait(handle, signals, deadline) }).into()
+    }
+
+    #[inline(always)]
+    fn wait_group_add(
+        wait_group: u32,
+        object: u32,
+        signal_mask: Signals,
+        user_data: usize,
+    ) -> Result<()> {
+        SysCallReturnValue::from(unsafe {
+            wait_group_add(wait_group, object, signal_mask, user_data)
+        })
+        .into()
+    }
+
+    #[inline(always)]
+    fn wait_group_remove(wait_group: u32, object: u32) -> Result<()> {
+        SysCallReturnValue::from(unsafe { wait_group_remove(wait_group, object) }).into()
     }
 
     #[inline(always)]

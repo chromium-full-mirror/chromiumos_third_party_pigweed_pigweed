@@ -72,6 +72,7 @@ def target_codegen(
             "object_channel_handler": "@pigweed//pw_kernel/tooling/system_generator/templates/objects:channel_handler.rs.jinja",
             "object_channel_initiator": "@pigweed//pw_kernel/tooling/system_generator/templates/objects:channel_initiator.rs.jinja",
             "object_interrupt": "@pigweed//pw_kernel/tooling/system_generator/templates/objects:interrupt.rs.jinja",
+            "object_wait_group": "@pigweed//pw_kernel/tooling/system_generator/templates/objects:wait_group.rs.jinja",
             "system": "@pigweed//pw_kernel/tooling/system_generator/templates:system.rs.jinja",
         },
         **kwargs):

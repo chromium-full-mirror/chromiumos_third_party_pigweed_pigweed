@@ -69,7 +69,6 @@ pub fn start() {
     ]);
 
     {%- for object in app.process.objects %}
-
         let object_{{app.name}}_{{object.name | lower}} =
         {% if object.type == "channel_handler" -%}
                 // Reference to handler object already declared above.
@@ -78,6 +77,8 @@ pub fn start() {
             {% include "object_channel_initiator" %}
         {% elif object.type == "interrupt" -%}
             {% include "object_interrupt" %}
+        {% elif object.type == "wait_group" -%}
+            {% include "object_wait_group" %}
         {%- endif -%}
         ;
     {%- endfor %}
@@ -88,7 +89,7 @@ pub fn start() {
             [
             {%- for object in app.process.objects %}
                 object_{{app.name}}_{{object.name | lower}},
-            {%- endfor -%}
+            {%- endfor %}
             ]
         )
     };

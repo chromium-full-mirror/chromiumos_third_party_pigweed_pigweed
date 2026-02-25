@@ -157,6 +157,7 @@ pub enum ObjectConfig {
     ChannelInitiator(ChannelInitiatorConfig),
     ChannelHandler(ChannelHandlerConfig),
     Interrupt(InterruptConfig),
+    WaitGroup(WaitGroupConfig),
 }
 
 impl ObjectConfig {
@@ -166,6 +167,7 @@ impl ObjectConfig {
             ObjectConfig::ChannelInitiator(c) => &c.name,
             ObjectConfig::ChannelHandler(c) => &c.name,
             ObjectConfig::Interrupt(c) => &c.name,
+            ObjectConfig::WaitGroup(c) => &c.name,
         }
     }
 }
@@ -202,6 +204,12 @@ pub struct InterruptConfig {
     pub object_ref_name: String,
     #[serde(skip_deserializing)]
     pub interrupt_signal_map: HashMap<String, String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct WaitGroupConfig {
+    pub name: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

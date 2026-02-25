@@ -23,6 +23,21 @@ impl SysCallInterface for SysCall {
     }
 
     #[inline(always)]
+    fn wait_group_add(
+        _wait_group: u32,
+        _object: u32,
+        _signal_mask: Signals,
+        _user_data: usize,
+    ) -> Result<()> {
+        Err(pw_status::Error::Unimplemented)
+    }
+
+    #[inline(always)]
+    fn wait_group_remove(_wait_group: u32, _object: u32) -> Result<()> {
+        Err(pw_status::Error::Unimplemented)
+    }
+
+    #[inline(always)]
     unsafe fn channel_transact(
         _handle: u32,
         _send_data: *const u8,

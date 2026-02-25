@@ -30,6 +30,21 @@ pub fn object_wait(
 }
 
 #[inline(always)]
+pub fn wait_group_add(
+    wait_group: u32,
+    object: u32,
+    signal_mask: Signals,
+    user_data: usize,
+) -> Result<()> {
+    SysCall::wait_group_add(wait_group, object, signal_mask, user_data)
+}
+
+#[inline(always)]
+pub fn wait_group_remove(wait_group: u32, object: u32) -> Result<()> {
+    SysCall::wait_group_remove(wait_group, object)
+}
+
+#[inline(always)]
 pub fn channel_transact(
     object_handle: u32,
     send_data: &[u8],

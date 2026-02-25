@@ -23,7 +23,6 @@ use time::{Clock, Instant};
 use crate::Kernel;
 use crate::interrupt_controller::InterruptController;
 use crate::object::{KernelObject, SyscallBuffer};
-
 const SYSCALL_DEBUG: bool = false;
 
 /// An arch-specific collection of syscall arguments
@@ -103,6 +102,57 @@ fn handle_object_wait<'a, K: Kernel>(
     let ret = object.object_wait(kernel, signal_mask, deadline);
     log_if::debug_if!(SYSCALL_DEBUG, "syscall: object_wait complete");
     ret
+}
+
+fn handle_wait_group_add<'a, K: Kernel>(kernel: K, mut args: K::SyscallArgs<'a>) -> Result<u64> {
+    let wait_group_handle = args.next_u32()?;
+    let object_handle = args.next_u32()?;
+    let signals = args.next_u32()?;
+    let user_data = args.next_usize()?;
+
+    log_if::debug_if!(
+        SYSCALL_DEBUG,
+        "syscall: handling wait_group_add {:#010x} {:#010x} {:#010x} {:#x}",
+        wait_group_handle as u32,
+        object_handle as u32,
+        signals as u32,
+        user_data as usize
+    );
+
+    let wait_group = lookup_handle(kernel, wait_group_handle)?;
+    let object = lookup_handle(kernel, object_handle)?;
+    let Some(signal_mask) = Signals::from_bits(signals) else {
+        log_if::debug_if!(
+            SYSCALL_DEBUG,
+            "syscall: WaitGroupAdd invalid signal mask: {:#010x}",
+            signals as u32
+        );
+
+        return Err(Error::InvalidArgument);
+    };
+
+    // Safety: `wait_group` is returned from lookup_handle() as a ForeignRc.
+    let ret = unsafe { wait_group.wait_group_add(kernel, &*object, signal_mask, user_data) };
+    log_if::debug_if!(SYSCALL_DEBUG, "syscall: wait_group_add complete");
+    ret.map(|_| 0)
+}
+
+fn handle_wait_group_remove<'a, K: Kernel>(kernel: K, mut args: K::SyscallArgs<'a>) -> Result<u64> {
+    let wait_group_handle = args.next_u32()?;
+    let object_handle = args.next_u32()?;
+
+    log_if::debug_if!(
+        SYSCALL_DEBUG,
+        "syscall: handling wait_group_remove {:#010x} {:#010x}",
+        wait_group_handle as u32,
+        object_handle as u32
+    );
+
+    let wait_group = lookup_handle(kernel, wait_group_handle)?;
+    let object = lookup_handle(kernel, object_handle)?;
+    let ret = wait_group.wait_group_remove(kernel, &*object);
+    log_if::debug_if!(SYSCALL_DEBUG, "syscall: wait_group_remove complete");
+    ret.map(|_| 0)
 }
 
 fn handle_channel_transact<'a, K: Kernel>(kernel: K, mut args: K::SyscallArgs<'a>) -> Result<u64> {
@@ -262,6 +312,8 @@ pub fn handle_syscall<'a, K: Kernel>(
     let res = {
         match id {
             SysCallId::ObjectWait => handle_object_wait(kernel, args).into(),
+            SysCallId::WaitGroupAdd => handle_wait_group_add(kernel, args).into(),
+            SysCallId::WaitGroupRemove => handle_wait_group_remove(kernel, args).into(),
             SysCallId::ChannelTransact => handle_channel_transact(kernel, args).into(),
             SysCallId::ChannelRead => handle_channel_read(kernel, args).into(),
             SysCallId::ChannelRespond => handle_channel_respond(kernel, args).into(),

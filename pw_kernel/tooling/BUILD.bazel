@@ -72,8 +72,10 @@ code_size(
     binaries = [
         "//pw_kernel/target/mps2_an505/threads/kernel:threads",
         "//pw_kernel/target/mps2_an505/ipc/user:ipc",
+        "//pw_kernel/target/mps2_an505/wait_group:wait_group",
         "//pw_kernel/target/qemu_virt_riscv32/threads/kernel:threads",
         "//pw_kernel/target/qemu_virt_riscv32/ipc/user:ipc",
+        "//pw_kernel/target/qemu_virt_riscv32/wait_group:wait_group",
     ],
     tags = ["kernel"],
 )

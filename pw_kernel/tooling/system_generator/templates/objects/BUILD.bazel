@@ -17,5 +17,6 @@ exports_files(
         "channel_handler.rs.jinja",
         "channel_initiator.rs.jinja",
         "interrupt.rs.jinja",
+        "wait_group.rs.jinja",
     ],
 )
