@@ -58,6 +58,7 @@ class BorrowedL2capChannel {
 
  private:
   friend class GenericL2capChannelImpl;
+  friend class pw::bluetooth::proxy::L2capChannel;
 
   BorrowedL2capChannel(L2capChannelImpl& impl);
 

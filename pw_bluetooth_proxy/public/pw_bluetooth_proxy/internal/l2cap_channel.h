@@ -157,6 +157,14 @@ class L2capChannel final : public internal::TxEngine::Delegate {
   void Close(
       L2capChannelEvent event = L2capChannelEvent::kChannelClosedByOther);
 
+#if PW_BLUETOOTH_PROXY_ASYNC == 0
+  /// Returns a borrowed L2CAP channel, which can be dereferenced to get the
+  /// L2CAP channel. The channel is guaranteed not to be destroyed as long as
+  /// the `BorrowedL2capChannel` is in scope.
+  internal::BorrowedL2capChannel Borrow() {
+    return internal::BorrowedL2capChannel(impl_);
+  }
+#endif
   //-------------
   //  Tx (public)
   //-------------
