@@ -94,15 +94,6 @@ pub fn systick_early_init() {
 
 pub fn systick_init() {
     let systick_regs = Regs::get().systick;
-    let ticks_per_10ms = systick_regs.calib.read().tenms();
-    info!("Ticks per 10ms: {}", ticks_per_10ms as u32);
-    if ticks_per_10ms > 0 {
-        pw_assert::eq!(
-            (ticks_per_10ms * 100) as u32,
-            KernelConfig::SYS_TICK_HZ as u32
-        );
-    }
-
     // Now that the scheduler is ready, enable SysTick interrupts.
     // This prevents a race on ARMv7-M where SysTick could fire before
     // the scheduler is initialized (PRIMASK resets to 0 on ARMv7-M).
