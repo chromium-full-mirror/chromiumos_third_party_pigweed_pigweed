@@ -54,20 +54,45 @@ What's going on here is that the exact versions of external dependencies that
 enter the build vary depending on the OS or CPU architecture of the system
 Bazel is running on.
 
-Fortunately, we have some builders meant to help you in this situation.
 
-What do I do?
-=============
+Automated Tryjobs
+=================
+Fortunately, we have tryjob builders to help with the platform-specific
+updates, though they are not run automatically. You must manually trigger them
+through the Gerrit UI.
+
 #. Upload your change to Gerrit.
-#. Use the "CHOOSE TRYJOBS" dialog to run the "pigweed-linux-bazel-lockfile" tryjob.
-#. If the job fails, the result will include the diff that you need to apply to
-   your CL (via ``git apply``) to update the Bazel lockfile for Linux. (You can
-   find it under "lockfile_check" > "logs" > "git_diff.txt".) Apply the patch
-   and upload a new patchset to Gerrit. If the job passes, the lockfile is
-   already up to date on this host platform and no patching is necessary!
+#. Use the **Choose Tryjobs** link to add the lockfile tryjobs.
 
-   Here's an example tryjob: http://ci.chromium.org/b/8728814798922152993.
-#. Run the "pigweed-mac-arm-bazel-lockfile" tryjob, and apply the patch it
-   generates.
-#. Run the "pigweed-mac-x86-bazel-lockfile" tryjob, and apply the patch it
-   generates.
+   * ``pigweed-linux-bazel-lockfile``
+   * ``pigweed-mac-arm-bazel-lockfile``
+
+   .. image:: https://www.gstatic.com/pigweed/gerrit_choose_tryjobs.png
+      :width: 800
+      :alt: Choose Tryjobs link in Gerrit
+
+#. If any jobs fail, the post-failure **logs** step will contain a
+   **git_diff.txt** file with the patch that is needed.
+
+   You can easily apply the patch locally by running the command just below,
+   updating the ``$BBID`` value to the BuildBucket ID for your failure:
+
+   .. code-block:: console
+
+      $ curl https://logs.chromium.org/logs/pigweed/buildbucket/cr-buildbucket/$BBID/+/u/lockfile_check/logs/git_diff.txt/git_diff.txt?format=raw | git apply
+
+   .. tip::
+      Here is an example of constraints tryjob failure:
+
+      * https://ci.chromium.org/b/8690767152267268145
+
+      The ``8690767152267268145`` in the URL is the BuildBucket ID.
+
+   You can then upload a new patchset to Gerrit with the updates from the
+   failing builds. Note that failures from each of the tryjobs may result in
+   overlapping changes to the ``MODULE.bazel.lockfile``. You may want to only
+   apply the changes from one of the targets, then re-run to get any additional
+   changes needed from the remaining targets.
+
+#. If the job passes, the lockfile is already up to date on this host platform
+   and no patching is necessary!

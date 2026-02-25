@@ -562,26 +562,44 @@ times: once on Linux, once on macOS, and once on Windows. See the warning
 about caching Python packages for multiple platforms in
 :ref:`docs-python-build-downloading-packages`.
 
-Fortunately, we have builders to help with this. The procedure is:
+
+Automated Tryjobs
+=================
+Fortunately, we have tryjob builders to help with the platform-specific
+updates, though they are not run automatically. You must manually trigger them
+through the Gerrit UI.
 
 #. Upload your change to Gerrit.
-#. Use the **CHOOSE TRYJOBS** dialog to run the following tryjobs:
+#. Use the **Choose Tryjobs** link to add the constraint tryjobs:
 
-   * **pigweed-linux-python-constraints**
-   * **pigweed-mac-x86-python-constraints**
-   * **pigweed-windows-python-constraints**
+   * ``pigweed-linux-python-constraints``
+   * ``pigweed-mac-arm64-python-constraints``
+   * ``pigweed-windows-python-constraints``
 
-#. If any jobs fail, their results will include the diff that you need to apply
-   to your CL (via ``git apply``) to update the constraints and requirements
-   lockfiles. (You can find it under **diff_upstream_python_constraints** >
-   **logs** > **git_diff.txt**.) Apply the patch, e.g. by running:
+   .. image:: https://www.gstatic.com/pigweed/gerrit_choose_tryjobs.png
+      :width: 800
+      :alt: Choose Tryjobs link in Gerrit
+
+#. If any jobs fail, the post-failure **logs** step will contain a
+   **git_diff.txt** file with the patch that is needed.
+
+   You can easily apply the patch locally by running the command just below,
+   updating the ``$BBID`` value to the BuildBucket ID for your failure:
 
    .. code-block:: console
 
-      curl https://logs.chromium.org/logs/pigweed/buildbucket/cr-buildbucket/${BBID}/+/u/diff_upstream_python_constraints/logs/git_diff.txt/git_diff.txt | git apply
+      $ curl https://logs.chromium.org/logs/pigweed/buildbucket/cr-buildbucket/$BBID/+/u/diff_upstream_python_constraints/logs/git_diff.txt/git_diff.txt?format=raw | git apply
 
-   Where ``${BBID}`` is the BuildBucket ID of the build. Then upload a new
-   patchset to Gerrit.
+   .. tip::
+      Here is an example of constraints tryjob failure:
 
-#. If the job passes, the lockfile is already up-to-date on this host
-   platform and no patching is necessary!
+      * https://ci.chromium.org/b/8690768987505461249
+
+      The ``8690768987505461249`` in the URL is the BuildBucket ID.
+
+   You can then upload a new patchset to Gerrit with the updates from the
+   failing builds. Note that failures from each of the tryjobs should result in
+   changes to different files.
+
+#. If the job passes, the files are already up-to-date on this host platform
+   and no patching is necessary!
