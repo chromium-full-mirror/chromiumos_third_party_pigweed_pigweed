@@ -37,6 +37,8 @@ pub enum RescheduleReason {
     Woken,
     /// A thread has been started and is being added to the scheduler for the first time.
     Started,
+    /// A thread has been terminated
+    Terminated,
 }
 
 /// Per-thread state used by the scheduling algorithm.
@@ -109,7 +111,7 @@ impl<K: Kernel> SchedulerAlgorithm<K> {
         self.ready_bitmask.set_priority(priority);
         let run_queue = &mut self.run_queues[priority as usize];
         match reason {
-            RescheduleReason::Preempted => {
+            RescheduleReason::Preempted | RescheduleReason::Terminated => {
                 run_queue.push_front(thread);
             }
             RescheduleReason::Started | RescheduleReason::Ticked | RescheduleReason::Woken => {

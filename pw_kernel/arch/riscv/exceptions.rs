@@ -32,7 +32,8 @@ use crate::MemoryConfig;
 #[cfg(not(feature = "veer_pic"))]
 use crate::plic as pic;
 use crate::regs::{
-    Cause, Exception, Interrupt, MCause, MCauseVal, MStatus, MtVal, MtVec, MtVecMode,
+    Cause, Exception, Interrupt, MCause, MCauseVal, MStatus, MStatusVal, MtVal, MtVec, MtVecMode,
+    PrivilegeLevel,
 };
 use crate::timer;
 #[cfg(feature = "veer_pic")]
@@ -145,6 +146,10 @@ fn handle_ecall(frame: &mut TrapFrame) {
     frame.epc = frame.epc.wrapping_add(4);
 }
 
+fn is_exception_from_kernel(frame: &TrapFrame) -> bool {
+    MStatusVal(frame.status).mpp() != PrivilegeLevel::User
+}
+
 fn exception_handler(exception: Exception, mepc: usize, frame: &mut TrapFrame) {
     // For now, always dump the exception we've received and halt.
     debug_if!(
@@ -161,14 +166,16 @@ fn exception_handler(exception: Exception, mepc: usize, frame: &mut TrapFrame) {
         }
         Exception::Breakpoint => {
             dump_exception_frame(frame);
-            #[allow(clippy::empty_loop)]
-            loop {}
+            kernel::scheduler::handle_terminal_exception(
+                super::Arch,
+                is_exception_from_kernel(frame),
+            );
         }
         _ => {
             dump_exception_frame(frame);
-            pw_assert::panic!(
-                "Unhandled exception: exception_number={:#010x}",
-                exception as usize
+            kernel::scheduler::handle_terminal_exception(
+                super::Arch,
+                is_exception_from_kernel(frame),
             );
         }
     };

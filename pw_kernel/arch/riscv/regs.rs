@@ -141,6 +141,7 @@ rw_csr_reg!(MtVal, MtValVal, "mtval", "Machine Trap Value Register");
 ///
 /// Only Machine mode is guaranteed to be implemented.
 #[allow(dead_code)]
+#[derive(Clone, Copy, PartialEq)]
 #[repr(usize)]
 pub enum PrivilegeLevel {
     User = 0b00,

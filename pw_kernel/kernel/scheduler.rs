@@ -583,7 +583,7 @@ impl<K: Kernel> SpinLockGuard<'_, K, SchedulerState<K>> {
         thread.join_event = None;
     }
 
-    fn thread_exit(mut self, kernel: K) -> ! {
+    fn thread_exit(mut self, kernel: K) {
         let mut current_thread = self.take_current_thread();
         let current_thread_id = current_thread.id();
 
@@ -609,9 +609,7 @@ impl<K: Kernel> SpinLockGuard<'_, K, SchedulerState<K>> {
 
         self.termination_queue.push_back(current_thread);
 
-        let _ = block(kernel, self, current_thread_id);
-
-        pw_assert::panic!("thread_exit returned unexpectedly");
+        let _ = context_switch(kernel, self, current_thread_id);
     }
 
     fn thread_is_terminating(&self, thread: &ThreadRef<K>) -> bool {
@@ -747,7 +745,27 @@ pub fn tick<K: Kernel>(kernel: K, now: Instant<K::Clock>) {
 /// references to be dropped, then wait to be joined.
 #[allow(dead_code)]
 pub fn exit_thread<K: Kernel>(kernel: K) -> ! {
-    kernel.get_scheduler().lock(kernel).thread_exit(kernel)
+    kernel.get_scheduler().lock(kernel).thread_exit(kernel);
+
+    // This thread should never get scheduled again at this point.  This assert
+    // firing indicates a scheduler or context switch bug.
+    pw_assert::panic!("thread_exit returned unexpectedly");
+}
+
+/// Handle a terminal exception in the current thread.
+///
+/// This should only be called from an architecture specific exception handler.
+/// `in_kernel` should be true if the exception occurred while executing in
+/// kernel mode.
+///
+/// If the exception occurred in user mode, the process will be terminated.
+/// If the exception occurred in kernel mode, the kernel will panic.
+pub fn handle_terminal_exception<K: Kernel>(kernel: K, in_kernel: bool) {
+    if in_kernel {
+        pw_assert::panic!("Terminal exception in kernel mode");
+    } else {
+        kernel.get_scheduler().lock(kernel).thread_exit(kernel);
+    }
 }
 
 pub fn sleep_until<K: Kernel>(kernel: K, deadline: Instant<K::Clock>) -> Result<()> {
