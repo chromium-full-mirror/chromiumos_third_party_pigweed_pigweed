@@ -3245,9 +3245,14 @@ TEST_F(PairingStateTest, Inspect) {
                                   StringIs("key_type", "kCombination"))))));
 
   auto pairing_state_matcher =
-      AllOf(NodeMatches(AllOf(NameMatches("pairing_state"),
-                              PropertyList(UnorderedElementsAre(
-                                  StringIs("encryption_status", "OFF"))))),
+      AllOf(NodeMatches(AllOf(
+                NameMatches("pairing_state"),
+                PropertyList(UnorderedElementsAre(
+                    StringIs("encryption_status", "OFF"),
+                    UintIs("central_lmp_transaction_collision", 0),
+                    UintIs("peripheral_lmp_transaction_collision", 0),
+                    UintIs("central_different_transaction_collision", 0),
+                    UintIs("peripheral_different_transaction_collision", 0))))),
             ChildrenMatch(UnorderedElementsAre(security_properties_matcher)));
 
   inspect::Hierarchy hierarchy = bt::testing::ReadInspect(inspector);

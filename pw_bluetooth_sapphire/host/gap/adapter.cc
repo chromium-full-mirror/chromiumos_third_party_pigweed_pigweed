@@ -571,11 +571,11 @@ class AdapterImpl final : public Adapter {
       UintMetricCounter start_discovery_events;
     } le;
     struct BrEdrMetrics {
+      UintMetricCounter open_l2cap_channel_requests;
       UintMetricCounter outgoing_connection_requests;
       UintMetricCounter pair_requests;
       UintMetricCounter set_connectable_true_events;
       UintMetricCounter set_connectable_false_events;
-      UintMetricCounter open_l2cap_channel_requests;
     } bredr;
   };
   AdapterMetrics metrics_;
@@ -1158,9 +1158,9 @@ void AdapterImpl::InitializeStep2() {
         pw::bluetooth::emboss::WriteDefaultLinkPolicySettingsCommandWriter>(
         hci_spec::kWriteDefaultLinkPolicySettings);
     auto view = write_default_link_policy_cmd.view_t();
-    view.default_link_policy_settings().enable_role_switch().Write(1);
-    view.default_link_policy_settings().enable_hold_mode().Write(0);
-    view.default_link_policy_settings().enable_sniff_mode().Write(1);
+    view.default_link_policy_settings().enable_role_switch().Write(true);
+    view.default_link_policy_settings().enable_hold_mode().Write(false);
+    view.default_link_policy_settings().enable_sniff_mode().Write(true);
     init_seq_runner_->QueueCommand(
         write_default_link_policy_cmd,
         [](const hci::EventPacket& cmd_complete) {

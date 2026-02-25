@@ -509,6 +509,10 @@ class SecureSimplePairingState final {
 
   void OnCrossTransportKeyDerivationComplete(sm::Result<> result);
 
+  enum class ActionOnError { kIgnore, kRetry, kFail };
+  ActionOnError GetActionOnError(
+      const bt::Error<pw::bluetooth::emboss::StatusCode>& error);
+
   PeerId peer_id_;
   Peer::WeakPtr peer_;
 
@@ -570,6 +574,15 @@ class SecureSimplePairingState final {
     inspect::StringProperty encryption_status;
   };
   InspectProperties inspect_properties_;
+
+  struct InspectMetrics {
+    UintMetricCounter central_lmp_transaction_collision;
+    UintMetricCounter peripheral_lmp_transaction_collision;
+    UintMetricCounter central_different_transaction_collision;
+    UintMetricCounter peripheral_different_transaction_collision;
+  };
+  InspectMetrics inspect_metrics_;
+
   inspect::Node inspect_node_;
 
   WeakSelf<SecureSimplePairingState> weak_self_{this};

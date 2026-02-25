@@ -300,6 +300,10 @@ class LegacyPairingState final {
   // identification.
   void FailWithUnexpectedEvent(const char* handler_name);
 
+  enum class ActionOnError { kIgnore, kRetry, kFail };
+  ActionOnError GetActionOnError(
+      const bt::Error<pw::bluetooth::emboss::StatusCode>& error);
+
   static const char* ToString(State state);
 
   PeerId peer_id_;
@@ -355,6 +359,15 @@ class LegacyPairingState final {
     inspect::StringProperty encryption_status;
   };
   InspectProperties inspect_properties_;
+
+  struct InspectMetrics {
+    UintMetricCounter central_lmp_transaction_collision;
+    UintMetricCounter peripheral_lmp_transaction_collision;
+    UintMetricCounter central_different_transaction_collision;
+    UintMetricCounter peripheral_different_transaction_collision;
+  };
+  InspectMetrics inspect_metrics_;
+
   inspect::Node inspect_node_;
 
   BT_DISALLOW_COPY_AND_ASSIGN_ALLOW_MOVE(LegacyPairingState);

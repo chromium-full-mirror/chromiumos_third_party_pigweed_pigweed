@@ -500,7 +500,6 @@ void LegacyPairingState::OnAuthenticationComplete(
   EnableEncryption();
 }
 
-enum class ActionOnError { kIgnore, kRetry, kFail };
 // Bluetooth core specification Version 6.0, Volume 2, Part C, Section 2.5.1:
 // An LMP Transaction Collision indicates that both the Central and the
 // Peripheral initiated the same LMP transaction at the same time. We only
@@ -513,13 +512,13 @@ enum class ActionOnError { kIgnore, kRetry, kFail };
 // Controller will respond with Different Transaction Collision and the
 // Central's procedure will take precedence. We should then retry our failed
 // transaction at a later time.
-static ActionOnError GetActionOnError(
-    bool is_central,
+LegacyPairingState::ActionOnError LegacyPairingState::GetActionOnError(
     const bt::Error<pw::bluetooth::emboss::StatusCode>& error) {
   if (!error.is_protocol_error()) {
     return ActionOnError::kFail;
   }
 
+  bool is_central = outgoing_connection();
   if (error.protocol_error() ==
       pw::bluetooth::emboss::StatusCode::LMP_ERROR_TRANSACTION_COLLISION) {
     if (is_central) {
@@ -528,11 +527,13 @@ static ActionOnError GetActionOnError(
              "LMP transaction collision while attempting to enable encryption. "
              "We are the central and should never have gotten this "
              "notification from the Controller.");
+      inspect_metrics_.central_lmp_transaction_collision.Add();
     } else {
       bt_log(INFO,
              "gap-bredr",
              "LMP transaction collision while attempting to enable encryption. "
              "Waiting for local LM to resolve the collision.");
+      inspect_metrics_.peripheral_lmp_transaction_collision.Add();
     }
 
     return ActionOnError::kIgnore;
@@ -546,12 +547,14 @@ static ActionOnError GetActionOnError(
              "Different transaction collision while attempting to enable "
              "encryption as the central. Ignoring and letting the LM complete "
              "the Central's operation.");
+      inspect_metrics_.central_different_transaction_collision.Add();
       return ActionOnError::kIgnore;
     } else {
       bt_log(WARN,
              "gap-bredr",
              "Different transaction collision while attempting to enable "
              "encryption. Will retry the original operation shortly.");
+      inspect_metrics_.peripheral_different_transaction_collision.Add();
       return ActionOnError::kRetry;
     }
   }
@@ -605,7 +608,7 @@ void LegacyPairingState::OnEncryptionChange(hci::Result<bool> result) {
         });
 
     const auto& error = result.error_value();
-    ActionOnError action = GetActionOnError(outgoing_connection(), error);
+    ActionOnError action = GetActionOnError(error);
     switch (action) {
       case ActionOnError::kRetry:
         current_pairing_->retry_enable_encryption_task.PostAfter(
@@ -876,6 +879,15 @@ void LegacyPairingState::AttachInspect(inspect::Node& parent,
         kInspectEncryptionStatusPropertyName,
         EncryptionStatusToString(link_->encryption_status()));
   }
+
+  inspect_metrics_.central_lmp_transaction_collision.AttachInspect(
+      inspect_node_, "central_lmp_transaction_collision");
+  inspect_metrics_.peripheral_lmp_transaction_collision.AttachInspect(
+      inspect_node_, "peripheral_lmp_transaction_collision");
+  inspect_metrics_.central_different_transaction_collision.AttachInspect(
+      inspect_node_, "central_different_transaction_collision");
+  inspect_metrics_.peripheral_different_transaction_collision.AttachInspect(
+      inspect_node_, "peripheral_different_transaction_collision");
 
   bredr_security_.AttachInspect(inspect_node_,
                                 kInspectSecurityPropertiesPropertyName);
