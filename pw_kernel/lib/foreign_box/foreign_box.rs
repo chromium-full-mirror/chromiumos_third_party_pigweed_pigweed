@@ -254,8 +254,10 @@ impl<A: AtomicUsize, T: ?Sized> ForeignRc<A, T> {
         self,
         map: impl Fn(&ForeignRcState<A, T>) -> &ForeignRcState<A, U>,
     ) -> ForeignRc<A, U> {
+        // Ensure the destructor is not run to avoid decrementing the refcount.
+        let this = core::mem::ManuallyDrop::new(self);
         ForeignRc {
-            state: map(self.state),
+            state: map(this.state),
         }
     }
 }
@@ -313,10 +315,11 @@ impl<A: AtomicUsize, T: ?Sized> Drop for ForeignRc<A, T> {
 macro_rules! upcast_foreign_rc {
     ($rc:expr => dyn $trait:ident $(<$($trait_tyvar:ident),*>)? ) => {{
         use $crate::ForeignRcState;
+        let rc = $rc;
         // SAFETY: The closure passed to `.map()` fulfils the precondition that
         // the returned reference points to the same place as the passed in reference.
         unsafe {
-            $rc.map(|inner: &ForeignRcState<_, _>|
+            rc.map(|inner: &ForeignRcState<_, _>|
                 -> &ForeignRcState<_, dyn $trait $(<$($trait_tyvar),*>)?> { inner })
         }
     }};
@@ -565,5 +568,31 @@ mod tests {
         let rc = unsafe { state.create_first_ref() };
 
         assert_eq!(*rc, 0xdecafbad_u32);
+    }
+
+    #[test]
+    fn rc_upcast_compiles_and_has_coherent_refcount() {
+        trait UpcastTestTrait {
+            fn number(&self) -> u32;
+        }
+
+        struct UpcastTestStruct {
+            val: u32,
+        }
+
+        impl UpcastTestTrait for UpcastTestStruct {
+            fn number(&self) -> u32 {
+                self.val
+            }
+        }
+
+        let val = UpcastTestStruct { val: 42 };
+        let state = ForeignRcState::<core::sync::atomic::AtomicUsize, _>::new(val);
+        let state = Box::leak(Box::new(state));
+        let rc = unsafe { state.create_first_ref() };
+
+        let upcasted = upcast_foreign_rc!(rc => dyn UpcastTestTrait);
+        assert_eq!(upcasted.number(), 42);
+        assert_eq!(upcasted.state.ref_count.load(Ordering::SeqCst), 1);
     }
 }
