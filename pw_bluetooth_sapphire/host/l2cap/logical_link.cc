@@ -168,7 +168,8 @@ LogicalLink::LogicalLink(
         signaling_channel_.get(),
         fit::bind_member<&LogicalLink::OnChannelDisconnectRequest>(this),
         fit::bind_member<&LogicalLink::OnServiceRequest>(this),
-        random_channel_ids);
+        random_channel_ids,
+        pw_dispatcher_);
 
     SendFixedChannelsSupportedInformationRequest();
   }

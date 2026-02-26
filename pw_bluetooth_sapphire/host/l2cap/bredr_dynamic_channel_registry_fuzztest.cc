@@ -90,7 +90,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
       &sig_chan,
       close_cb,
       service_cb,
-      /*random_channel_ids=*/false);
+      /*random_channel_ids=*/false,
+      dispatcher);
 
   while (provider.remaining_bytes() > 0) {
     // Receive an l2cap packet.

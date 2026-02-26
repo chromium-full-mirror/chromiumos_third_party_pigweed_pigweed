@@ -230,6 +230,26 @@ const StaticByteBuffer kRejectConnRsp(
     0x00,
     0x00);
 
+auto MakeConnectionResponseWithResultNoResources(ChannelId src_id,
+                                                 ChannelId dst_id) {
+  return StaticByteBuffer(
+      // Destination CID
+      LowerBits(dst_id),
+      UpperBits(dst_id),
+
+      // Source CID
+      LowerBits(src_id),
+      UpperBits(src_id),
+
+      // Result (No Resources)
+      0x04,
+      0x00,
+
+      // Status (No further information available)
+      0x00,
+      0x00);
+}
+
 const StaticByteBuffer kInboundOkConnRsp(
     // Destination CID
     LowerBits(kLocalCId),
@@ -721,7 +741,8 @@ class BrEdrDynamicChannelTest : public pw::async::test::FakeDispatcherFixture {
         sig(),
         fit::bind_member<&BrEdrDynamicChannelTest::OnChannelClose>(this),
         fit::bind_member<&BrEdrDynamicChannelTest::OnServiceRequest>(this),
-        /*random_channel_ids=*/false);
+        /*random_channel_ids=*/false,
+        dispatcher());
   }
 
   void TearDown() override {
@@ -884,7 +905,7 @@ TEST_F(BrEdrDynamicChannelTest,
       {SignalingChannel::Status::kSuccess, kOkConnRspSamePeerCId.view()});
 
   auto channel = BrEdrDynamicChannel::MakeOutbound(
-      registry(), sig(), kPsm, kLocalCId2, kChannelParams, false);
+      registry(), sig(), kPsm, kLocalCId2, kChannelParams, false, dispatcher());
   EXPECT_FALSE(channel->IsConnected());
   EXPECT_FALSE(channel->IsOpen());
 
@@ -1050,7 +1071,7 @@ TEST_F(BrEdrDynamicChannelTest, ChannelDeletedBeforeConnectionResponse) {
 
   // Build channel and operate it directly to be able to delete it.
   auto channel = BrEdrDynamicChannel::MakeOutbound(
-      registry(), sig(), kPsm, kLocalCId, kChannelParams, false);
+      registry(), sig(), kPsm, kLocalCId, kChannelParams, false, dispatcher());
   ASSERT_TRUE(channel);
 
   int open_result_cb_count = 0;
@@ -1080,7 +1101,7 @@ TEST_F(BrEdrDynamicChannelTest, FailConnectChannel) {
   // Build channel and operate it directly to be able to inspect it in the
   // connected but not open state.
   auto channel = BrEdrDynamicChannel::MakeOutbound(
-      registry(), sig(), kPsm, kLocalCId, kChannelParams, false);
+      registry(), sig(), kPsm, kLocalCId, kChannelParams, false, dispatcher());
   EXPECT_FALSE(channel->IsConnected());
   EXPECT_FALSE(channel->IsOpen());
   EXPECT_EQ(kLocalCId, channel->local_cid());
@@ -1126,7 +1147,7 @@ TEST_F(BrEdrDynamicChannelTest, ConnectChannelFailConfig) {
   // Build channel and operate it directly to be able to inspect it in the
   // connected but not open state.
   auto channel = BrEdrDynamicChannel::MakeOutbound(
-      registry(), sig(), kPsm, kLocalCId, kChannelParams, false);
+      registry(), sig(), kPsm, kLocalCId, kChannelParams, false, dispatcher());
   EXPECT_FALSE(channel->IsConnected());
   EXPECT_FALSE(channel->IsOpen());
   EXPECT_EQ(kLocalCId, channel->local_cid());
@@ -1169,7 +1190,7 @@ TEST_F(BrEdrDynamicChannelTest, ConnectChannelFailInvalidResponse) {
   // Build channel and operate it directly to be able to inspect it in the
   // connected but not open state.
   auto channel = BrEdrDynamicChannel::MakeOutbound(
-      registry(), sig(), kPsm, kLocalCId, kChannelParams, false);
+      registry(), sig(), kPsm, kLocalCId, kChannelParams, false, dispatcher());
 
   int open_result_cb_count = 0;
   auto open_result_cb = [&open_result_cb_count, &channel] {
@@ -1655,7 +1676,7 @@ TEST_F(BrEdrDynamicChannelTest,
 
   // Build channel and operate it directly to be able to disconnect it.
   auto channel = BrEdrDynamicChannel::MakeOutbound(
-      registry(), sig(), kPsm, kLocalCId, kChannelParams, false);
+      registry(), sig(), kPsm, kLocalCId, kChannelParams, false, dispatcher());
   ASSERT_TRUE(channel);
   channel->Open([] {});
 
@@ -1703,6 +1724,81 @@ TEST_F(BrEdrDynamicChannelTest, OpenChannelConfigWrongId) {
 
   RETURN_IF_FATAL(sig()->ReceiveExpectRejectInvalidChannelId(
       kConfigurationRequest, kInboundConfigReq, kLocalCId, kInvalidChannelId));
+
+  EXPECT_EQ(1, open_cb_count);
+}
+
+TEST_F(BrEdrDynamicChannelTest, OpenChannelNoResourcesThenPendingThenSuccess) {
+  auto conn_req = MakeConnectionRequest(kLocalCId, kAVDTP);
+
+  auto conn_rsp_no_resources =
+      MakeConnectionResponseWithResultNoResources(kLocalCId, 0x0000);
+  auto conn_rsp_pending =
+      MakeConnectionResponseWithResultPending(kLocalCId, 0x0000);
+  auto conn_rsp_success = MakeConnectionResponse(kLocalCId, kRemoteCId);
+
+  EXPECT_OUTBOUND_REQ(
+      *sig(),
+      kConnectionRequest,
+      conn_req.view(),
+      {SignalingChannel::Status::kSuccess, conn_rsp_no_resources.view()},
+      {SignalingChannel::Status::kSuccess, conn_rsp_pending.view()},
+      {SignalingChannel::Status::kSuccess, conn_rsp_success.view()});
+
+  EXPECT_OUTBOUND_REQ(
+      *sig(),
+      kConfigurationRequest,
+      kOutboundConfigReq.view(),
+      {SignalingChannel::Status::kSuccess, kInboundEmptyConfigRsp.view()});
+
+  int open_cb_count = 0;
+  auto open_cb = [&open_cb_count](auto chan) {
+    if (open_cb_count == 0) {
+      ASSERT_TRUE(chan);
+      EXPECT_TRUE(chan->IsOpen());
+      EXPECT_TRUE(chan->IsConnected());
+      EXPECT_EQ(kLocalCId, chan->local_cid());
+      EXPECT_EQ(kRemoteCId, chan->remote_cid());
+    }
+    open_cb_count++;
+  };
+
+  registry()->OpenOutbound(kAVDTP, kChannelParams, std::move(open_cb));
+  RETURN_IF_FATAL(RunUntilIdle());
+
+  // Simulate config request from remote.
+  sig()->ReceiveExpect(kConfigurationRequest,
+                       kInboundConfigReq.view(),
+                       kOutboundOkConfigRsp.view());
+
+  RETURN_IF_FATAL(RunUntilIdle());
+
+  EXPECT_EQ(1, open_cb_count);
+}
+
+TEST_F(BrEdrDynamicChannelTest, OpenChannelNoResourcesTimeout) {
+  auto conn_req = MakeConnectionRequest(kLocalCId, kAVDTP);
+
+  auto conn_rsp_no_resources =
+      MakeConnectionResponseWithResultNoResources(kLocalCId, 0x0000);
+
+  EXPECT_OUTBOUND_REQ(
+      *sig(),
+      kConnectionRequest,
+      conn_req.view(),
+      {SignalingChannel::Status::kSuccess, conn_rsp_no_resources.view()});
+
+  int open_cb_count = 0;
+  auto open_cb = [&open_cb_count](auto chan) {
+    if (open_cb_count == 0) {
+      EXPECT_FALSE(chan);
+    }
+    open_cb_count++;
+  };
+
+  registry()->OpenOutbound(kAVDTP, kChannelParams, std::move(open_cb));
+  RETURN_IF_FATAL(RunUntilIdle());
+  RunFor(std::chrono::seconds(2));
 
   EXPECT_EQ(1, open_cb_count);
 }

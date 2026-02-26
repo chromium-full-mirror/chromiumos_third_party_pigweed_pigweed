@@ -39,6 +39,9 @@ WriteRfcOutboundTimeouts(
 constexpr uint16_t kBrEdrDynamicChannelCount =
     kLastACLDynamicChannelId - kFirstDynamicChannelId + 1;
 
+constexpr pw::chrono::SystemClock::duration
+    kNoResourcesResponseTimeoutDuration = std::chrono::seconds(2);
+
 const uint8_t kMaxNumBasicConfigRequests = 2;
 }  // namespace
 
@@ -46,13 +49,15 @@ BrEdrDynamicChannelRegistry::BrEdrDynamicChannelRegistry(
     SignalingChannelInterface* sig,
     DynamicChannelCallback close_cb,
     ServiceRequestCallback service_request_cb,
-    bool random_channel_ids)
+    bool random_channel_ids,
+    pw::async::Dispatcher& dispatcher)
     : DynamicChannelRegistry(kBrEdrDynamicChannelCount,
                              std::move(close_cb),
                              std::move(service_request_cb),
                              random_channel_ids),
       state_(0u),
-      sig_(sig) {
+      sig_(sig),
+      dispatcher_(dispatcher) {
   PW_DCHECK(sig_);
   BrEdrCommandHandler cmd_handler(sig_);
   cmd_handler.ServeConnectionRequest(
@@ -66,19 +71,25 @@ BrEdrDynamicChannelRegistry::BrEdrDynamicChannelRegistry(
   SendInformationRequests();
 }
 
-DynamicChannelPtr BrEdrDynamicChannelRegistry::MakeOutbound(
+std::unique_ptr<DynamicChannel> BrEdrDynamicChannelRegistry::MakeOutbound(
     Psm psm, ChannelId local_cid, ChannelParameters params) {
   return BrEdrDynamicChannel::MakeOutbound(
-      this, sig_, psm, local_cid, params, PeerSupportsERTM());
+      this, sig_, psm, local_cid, params, PeerSupportsERTM(), dispatcher_);
 }
 
-DynamicChannelPtr BrEdrDynamicChannelRegistry::MakeInbound(
+std::unique_ptr<DynamicChannel> BrEdrDynamicChannelRegistry::MakeInbound(
     Psm psm,
     ChannelId local_cid,
     ChannelId remote_cid,
     ChannelParameters params) {
-  return BrEdrDynamicChannel::MakeInbound(
-      this, sig_, psm, local_cid, remote_cid, params, PeerSupportsERTM());
+  return BrEdrDynamicChannel::MakeInbound(this,
+                                          sig_,
+                                          psm,
+                                          local_cid,
+                                          remote_cid,
+                                          params,
+                                          PeerSupportsERTM(),
+                                          dispatcher_);
 }
 
 void BrEdrDynamicChannelRegistry::OnRxConnReq(
@@ -329,7 +340,8 @@ BrEdrDynamicChannelPtr BrEdrDynamicChannel::MakeOutbound(
     Psm psm,
     ChannelId local_cid,
     ChannelParameters params,
-    std::optional<bool> peer_supports_ertm) {
+    std::optional<bool> peer_supports_ertm,
+    pw::async::Dispatcher& dispatcher) {
   return std::unique_ptr<BrEdrDynamicChannel>(
       new BrEdrDynamicChannel(registry,
                               signaling_channel,
@@ -337,7 +349,8 @@ BrEdrDynamicChannelPtr BrEdrDynamicChannel::MakeOutbound(
                               local_cid,
                               kInvalidChannelId,
                               params,
-                              peer_supports_ertm));
+                              peer_supports_ertm,
+                              dispatcher));
 }
 
 BrEdrDynamicChannelPtr BrEdrDynamicChannel::MakeInbound(
@@ -347,7 +360,8 @@ BrEdrDynamicChannelPtr BrEdrDynamicChannel::MakeInbound(
     ChannelId local_cid,
     ChannelId remote_cid,
     ChannelParameters params,
-    std::optional<bool> peer_supports_ertm) {
+    std::optional<bool> peer_supports_ertm,
+    pw::async::Dispatcher& dispatcher) {
   auto channel = std::unique_ptr<BrEdrDynamicChannel>(
       new BrEdrDynamicChannel(registry,
                               signaling_channel,
@@ -355,7 +369,8 @@ BrEdrDynamicChannelPtr BrEdrDynamicChannel::MakeInbound(
                               local_cid,
                               remote_cid,
                               params,
-                              peer_supports_ertm));
+                              peer_supports_ertm,
+                              dispatcher));
   channel->state_ |= kConnRequested;
   return channel;
 }
@@ -841,12 +856,14 @@ BrEdrDynamicChannel::BrEdrDynamicChannel(
     ChannelId local_cid,
     ChannelId remote_cid,
     ChannelParameters params,
-    std::optional<bool> peer_supports_ertm)
+    std::optional<bool> peer_supports_ertm,
+    pw::async::Dispatcher& dispatcher)
     : DynamicChannel(registry, psm, local_cid, remote_cid),
       signaling_channel_(signaling_channel),
       parameters_(params),
       state_(0u),
       peer_supports_ertm_(peer_supports_ertm),
+      dispatcher_(dispatcher),
       weak_self_(this) {
   PW_DCHECK(signaling_channel_);
   PW_DCHECK(local_cid != kInvalidChannelId);
@@ -1269,6 +1286,11 @@ BrEdrDynamicChannel::ResponseHandlerAction BrEdrDynamicChannel::OnRxConnRsp(
     return ResponseHandlerAction::kCompleteOutboundTransaction;
   }
 
+  if (conn_rsp_no_resources_timer_.is_pending() &&
+      rsp.result() != ConnectionResult::kNoResources) {
+    conn_rsp_no_resources_timer_.Cancel();
+  }
+
   if (rsp.result() == ConnectionResult::kPending) {
     bt_log(TRACE,
            "l2cap-bredr",
@@ -1301,6 +1323,39 @@ BrEdrDynamicChannel::ResponseHandlerAction BrEdrDynamicChannel::OnRxConnRsp(
   }
 
   if (rsp.result() != ConnectionResult::kSuccess) {
+    // Workaround for AirPods 4 interop bug: when opening an AVDTP channel,
+    // the device initially responds with "Refused - no resources available",
+    // but subsequently sends "Pending" and then "Success" responses. Wait
+    // for a short duration instead of failing the connection immediately.
+    // TODO: https://fxbug.dev/477697118 - Remove this once Apple fixes the
+    // firmware bug.
+    if (rsp.result() == ConnectionResult::kNoResources && psm() == kAVDTP) {
+      bt_log(WARN,
+             "l2cap-bredr",
+             "Channel %#.4x: Connection Response indicates 'no resources', "
+             "but continuing to wait due to interop bug",
+             local_cid());
+      if (!conn_rsp_no_resources_timer_.is_pending()) {
+        conn_rsp_no_resources_timer_.set_function([self =
+                                                       weak_self_.GetWeakPtr()](
+                                                      pw::async::
+                                                          Context& /*ctx*/,
+                                                      pw::Status status) {
+          if (self.is_alive() && status.ok()) {
+            bt_log(WARN,
+                   "l2cap-bredr",
+                   "Channel %#.4x: Timed out waiting for subsequent Connection "
+                   "Responses after 'no resources' workaround",
+                   self->local_cid());
+            self->PassOpenError();
+          }
+        });
+        conn_rsp_no_resources_timer_.PostAfter(
+            kNoResourcesResponseTimeoutDuration);
+      }
+      return ResponseHandlerAction::kExpectAdditionalResponse;
+    }
+
     bt_log(ERROR,
            "l2cap-bredr",
            "Channel %#.4x: Unsuccessful Connection Response result %#.4hx, "
