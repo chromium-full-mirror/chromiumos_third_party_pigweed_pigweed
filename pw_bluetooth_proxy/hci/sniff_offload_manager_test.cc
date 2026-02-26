@@ -261,6 +261,11 @@ class SniffOffloadManagerTest : public ::testing::Test {
   MultiBuf::Instance MakeCommandStatus(CommandOpcode opcode,
                                        emboss::StatusCode status);
   MultiBuf::Instance MakeZeroBuffer(size_t size = 0);
+  ControllerEvent MakeLeGetVendorCapabilitiesCommandCompleteEvent(
+      size_t size,
+      emboss::StatusCode status = emboss::StatusCode::SUCCESS,
+      uint8_t version_major = 0,
+      uint8_t version_minor = 0);
 
   bool CheckSniffSubratingSent(
       std::optional<uint16_t> connection_handle = std::nullopt);
@@ -273,6 +278,14 @@ class SniffOffloadManagerTest : public ::testing::Test {
   bool CheckCommandStatusEventSent(
       std::optional<CommandOpcode> opcode = std::nullopt,
       std::optional<emboss::StatusCode> status = std::nullopt);
+
+  bool CheckLeGetVendorCapabilitiesCommandCompleteEvent(
+      const MultiBuf& event,
+      std::optional<emboss::StatusCode> expected_status = std::nullopt,
+      std::optional<vendor::android_hci::Capability>
+          expected_sniff_offload_support = std::nullopt,
+      std::optional<uint8_t> expected_version_major = std::nullopt,
+      std::optional<uint8_t> expected_version_minor = std::nullopt);
 
   bool NoErrors() {
     auto was_empty = errors_.empty();
@@ -944,6 +957,8 @@ TEST_F(SniffOffloadManagerTest, ErrorInvalidPacket) {
       emboss::DisconnectionCompleteEvent::IntrinsicSizeInBytes();
   constexpr size_t kSniffSubratingEventSize =
       emboss::EventHeader::IntrinsicSizeInBytes();
+  constexpr size_t kCommandCompleteEventSize =
+      emboss::CommandCompleteEvent::IntrinsicSizeInBytes();
 
   EXPECT_EQ(SimulateEvent(MakeZeroBuffer(), EventCode::MODE_CHANGE),
             kPassthroughResume);
@@ -976,6 +991,15 @@ TEST_F(SniffOffloadManagerTest, ErrorInvalidPacket) {
                           EventCode::SNIFF_SUBRATING),
             kPassthroughResume);
   EXPECT_EQ(PopLastError(), Error({ErrorReason::kInvalidPacket, std::nullopt}));
+
+  EXPECT_EQ(SimulateEvent(MakeZeroBuffer(), EventCode::COMMAND_COMPLETE),
+            HandlerAction{});
+  EXPECT_EQ(PopLastError(), Error({ErrorReason::kInvalidPacket, std::nullopt}));
+
+  EXPECT_EQ(Simulate(MakeLeGetVendorCapabilitiesCommandCompleteEvent(
+                kCommandCompleteEventSize)),
+            HandlerAction{});
+  EXPECT_TRUE(NoErrors());
 
   EXPECT_TRUE(NoErrors());
   EXPECT_TRUE(packets_to_controller().empty());
@@ -1060,6 +1084,143 @@ TEST_F(SniffOffloadManagerTest, ProcessCommandStatus) {
   EXPECT_TRUE(NoErrors());
   EXPECT_TRUE(packets_to_controller().empty());
   EXPECT_TRUE(packets_to_host().empty());
+}
+
+TEST_F(SniffOffloadManagerTest, ProcessLeGetVendorCapabilities) {
+  static constexpr size_t v0_55_size =
+      vendor::android_hci::LEGetVendorCapabilitiesCommandCompleteEventView::
+          version_0_55_size()
+              .Read();
+  static constexpr size_t v0_95_size =
+      vendor::android_hci::LEGetVendorCapabilitiesCommandCompleteEventView::
+          version_0_95_size()
+              .Read();
+  static constexpr size_t v1_05_size =
+      vendor::android_hci::LEGetVendorCapabilitiesCommandCompleteEventView::
+          version_1_05_size()
+              .Read();
+
+  // Test with version 0.55 size
+  {
+    auto event = MakeLeGetVendorCapabilitiesCommandCompleteEvent(v0_55_size);
+    EXPECT_EQ(sniff_offload_manager().ProcessEvent(event.buf, event.event_code),
+              kPassthroughResume);
+    EXPECT_TRUE(NoErrors());
+    EXPECT_TRUE(packets_to_host().empty());
+    EXPECT_TRUE(CheckLeGetVendorCapabilitiesCommandCompleteEvent(
+        event.buf,
+        emboss::StatusCode::SUCCESS,
+        vendor::android_hci::Capability::CAPABLE,
+        1,
+        5));
+  }
+
+  // Test with version 0.95 size (0.95 overridden to 1.05)
+  {
+    auto event = MakeLeGetVendorCapabilitiesCommandCompleteEvent(
+        v0_95_size, emboss::StatusCode::SUCCESS, 0, 95);
+    EXPECT_EQ(sniff_offload_manager().ProcessEvent(event.buf, event.event_code),
+              kPassthroughResume);
+    EXPECT_TRUE(NoErrors());
+    EXPECT_TRUE(packets_to_host().empty());
+    EXPECT_TRUE(CheckLeGetVendorCapabilitiesCommandCompleteEvent(
+        event.buf,
+        emboss::StatusCode::SUCCESS,
+        vendor::android_hci::Capability::CAPABLE,
+        1,
+        5));
+  }
+
+  // Test with version 1.05 size but version 1.04 reported (overridden to 1.05)
+  {
+    auto event = MakeLeGetVendorCapabilitiesCommandCompleteEvent(
+        v1_05_size, emboss::StatusCode::SUCCESS, 1, 4);
+    EXPECT_EQ(sniff_offload_manager().ProcessEvent(event.buf, event.event_code),
+              kPassthroughResume);
+    EXPECT_TRUE(NoErrors());
+    EXPECT_TRUE(packets_to_host().empty());
+    EXPECT_TRUE(CheckLeGetVendorCapabilitiesCommandCompleteEvent(
+        event.buf,
+        emboss::StatusCode::SUCCESS,
+        vendor::android_hci::Capability::CAPABLE,
+        1,
+        5));
+  }
+
+  // Test with version 1.05 size and version 1.05 reported (not overridden)
+  {
+    auto event = MakeLeGetVendorCapabilitiesCommandCompleteEvent(
+        v1_05_size, emboss::StatusCode::SUCCESS, 1, 5);
+    EXPECT_EQ(sniff_offload_manager().ProcessEvent(event.buf, event.event_code),
+              kPassthroughResume);
+    EXPECT_TRUE(NoErrors());
+    EXPECT_TRUE(packets_to_host().empty());
+    EXPECT_TRUE(CheckLeGetVendorCapabilitiesCommandCompleteEvent(
+        event.buf,
+        emboss::StatusCode::SUCCESS,
+        vendor::android_hci::Capability::CAPABLE,
+        1,
+        5));
+  }
+
+  // Test with version 1.05 size and version 1.06 reported (not overridden)
+  {
+    auto event = MakeLeGetVendorCapabilitiesCommandCompleteEvent(
+        v1_05_size, emboss::StatusCode::SUCCESS, 1, 6);
+    EXPECT_EQ(sniff_offload_manager().ProcessEvent(event.buf, event.event_code),
+              kPassthroughResume);
+    EXPECT_TRUE(NoErrors());
+    EXPECT_TRUE(packets_to_host().empty());
+    EXPECT_TRUE(CheckLeGetVendorCapabilitiesCommandCompleteEvent(
+        event.buf,
+        emboss::StatusCode::SUCCESS,
+        vendor::android_hci::Capability::CAPABLE,
+        1,
+        6));
+  }
+
+  // Test with version 1.05 size and version 2.0 reported (not overridden)
+  {
+    auto event = MakeLeGetVendorCapabilitiesCommandCompleteEvent(
+        v1_05_size, emboss::StatusCode::SUCCESS, 2, 0);
+    EXPECT_EQ(sniff_offload_manager().ProcessEvent(event.buf, event.event_code),
+              kPassthroughResume);
+    EXPECT_TRUE(NoErrors());
+    EXPECT_TRUE(packets_to_host().empty());
+    EXPECT_TRUE(CheckLeGetVendorCapabilitiesCommandCompleteEvent(
+        event.buf,
+        emboss::StatusCode::SUCCESS,
+        vendor::android_hci::Capability::CAPABLE,
+        2,
+        0));
+  }
+
+  // Test with UNKNOWN_COMMAND status
+  {
+    constexpr size_t short_size = 6;
+    auto event = MakeLeGetVendorCapabilitiesCommandCompleteEvent(
+        short_size, emboss::StatusCode::UNKNOWN_COMMAND);
+    EXPECT_EQ(sniff_offload_manager().ProcessEvent(event.buf, event.event_code),
+              kPassthroughResume);
+    EXPECT_TRUE(NoErrors());
+    EXPECT_TRUE(packets_to_host().empty());
+    EXPECT_TRUE(CheckLeGetVendorCapabilitiesCommandCompleteEvent(
+        event.buf,
+        emboss::StatusCode::SUCCESS,
+        vendor::android_hci::Capability::CAPABLE,
+        1,
+        5));
+  }
+
+  // Test with HARDWARE_FAILURE status
+  {
+    auto event = MakeLeGetVendorCapabilitiesCommandCompleteEvent(
+        v1_05_size, emboss::StatusCode::HARDWARE_FAILURE);
+    EXPECT_EQ(sniff_offload_manager().ProcessEvent(event.buf, event.event_code),
+              HandlerAction{});
+    EXPECT_TRUE(NoErrors());
+    EXPECT_TRUE(packets_to_host().empty());
+  }
 }
 
 std::optional<SniffOffloadManager::CommandOpcode>
@@ -1332,6 +1493,56 @@ void SniffOffloadManagerTest::SimulateAclActivity(
   SyncWithDispatcher();
 }
 
+SniffOffloadManagerTest::ControllerEvent
+SniffOffloadManagerTest::MakeLeGetVendorCapabilitiesCommandCompleteEvent(
+    size_t size,
+    emboss::StatusCode status,
+    uint8_t version_major,
+    uint8_t version_minor) {
+  auto alloc = internal_allocator().MakeUnique<std::byte[]>(size);
+  PW_CHECK(alloc != nullptr, "Test alloc failed");
+  memset(alloc.get(), 0, alloc.size());
+
+  MultiBuf::Instance buf{internal_allocator()};
+  PW_CHECK(buf->TryReserveForPushBack());
+
+  vendor::android_hci::LEGetVendorCapabilitiesCommandCompleteEventWriter writer(
+      alloc.get(), size);
+
+  // We do not check IsComplete() for the entire writer because the buffer is
+  // artificially small. Instead check IsComplete() per-field before writing.
+  if (writer.command_complete().header().event_code().IsComplete()) {
+    writer.command_complete().header().event_code().Write(
+        emboss::EventCode::COMMAND_COMPLETE);
+  }
+  if (writer.command_complete().header().parameter_total_size().IsComplete()) {
+    writer.command_complete().header().parameter_total_size().Write(size - 2);
+  }
+  if (writer.command_complete().num_hci_command_packets().IsComplete()) {
+    writer.command_complete().num_hci_command_packets().Write(1);
+  }
+  if (writer.command_complete().command_opcode().IsComplete()) {
+    writer.command_complete().command_opcode().Write(
+        emboss::OpCode::ANDROID_LE_GET_VENDOR_CAPABILITIES);
+  }
+  if (writer.status().IsComplete()) {
+    writer.status().Write(status);
+  }
+  if (writer.sniff_offload_support().IsComplete()) {
+    writer.sniff_offload_support().Write(
+        vendor::android_hci::Capability::NOT_CAPABLE);
+  }
+  if (writer.version_supported().IsComplete()) {
+    writer.version_supported().major_number().Write(version_major);
+    writer.version_supported().minor_number().Write(version_minor);
+  }
+
+  buf->PushBack(std::move(alloc));
+  return ControllerEvent{
+      std::move(buf),
+      EventCode{cpp23::to_underlying(emboss::EventCode::COMMAND_COMPLETE)}};
+}
+
 MultiBuf::Instance SniffOffloadManagerTest::MakeZeroBuffer(size_t size) {
   MultiBuf::Instance buf{internal_allocator()};
   PW_CHECK(buf->TryReserveForPushBack());
@@ -1459,6 +1670,49 @@ bool SniffOffloadManagerTest::CheckCommandStatusEventSent(
   }
 
   packets_to_host().pop_front();
+  return true;
+}
+
+bool SniffOffloadManagerTest::CheckLeGetVendorCapabilitiesCommandCompleteEvent(
+    const MultiBuf& event,
+    std::optional<emboss::StatusCode> expected_status,
+    std::optional<vendor::android_hci::Capability>
+        expected_sniff_offload_support,
+    std::optional<uint8_t> expected_version_major,
+    std::optional<uint8_t> expected_version_minor) {
+  std::array<std::byte,
+             vendor::android_hci::LEGetVendorCapabilitiesCommandCompleteEvent::
+                 IntrinsicSizeInBytes()>
+      scratch;
+  auto span = event.Get(scratch);
+  vendor::android_hci::LEGetVendorCapabilitiesCommandCompleteEventView view(
+      span.data(), span.size());
+
+  VERIFY_OR_RETURN(view.Ok());
+  VERIFY_OR_RETURN(view.command_complete().header().event_code().Read() ==
+                   emboss::EventCode::COMMAND_COMPLETE);
+  VERIFY_OR_RETURN(view.command_complete().command_opcode().Read() ==
+                   emboss::OpCode::ANDROID_LE_GET_VENDOR_CAPABILITIES);
+
+  if (expected_status.has_value()) {
+    VERIFY_OR_RETURN(view.status().Read() == *expected_status);
+  }
+
+  if (expected_sniff_offload_support.has_value()) {
+    VERIFY_OR_RETURN(view.sniff_offload_support().Read() ==
+                     *expected_sniff_offload_support);
+  }
+
+  if (expected_version_major.has_value()) {
+    VERIFY_OR_RETURN(view.version_supported().major_number().Read() ==
+                     *expected_version_major);
+  }
+
+  if (expected_version_minor.has_value()) {
+    VERIFY_OR_RETURN(view.version_supported().minor_number().Read() ==
+                     *expected_version_minor);
+  }
+
   return true;
 }
 

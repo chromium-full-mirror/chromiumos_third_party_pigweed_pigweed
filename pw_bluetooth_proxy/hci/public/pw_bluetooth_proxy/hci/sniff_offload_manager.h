@@ -164,12 +164,13 @@ class SniffOffloadManager final {
       PW_LOCKS_EXCLUDED(mutex_);
 
   /// Process an event packet. Forward all
+  ///   * `HCI_Command_Complete` for `ANDROID_Le_Get_Vendor_Capabilities`,
   ///   * `HCI_Mode_Change`,
   ///   * `HCI_Connection_Complete`,
   ///   * `HCI_Disconnection_Complete`, and
   ///   * `HCI_Sniff_Subrating`
   /// events. All others will do nothing and return `{.resume = kStop}`.
-  HandlerAction ProcessEvent(const MultiBuf& event_packet, EventCode event_code)
+  HandlerAction ProcessEvent(MultiBuf& event_packet, EventCode event_code)
       PW_LOCKS_EXCLUDED(mutex_);
 
  private:
@@ -207,6 +208,12 @@ class SniffOffloadManager final {
       PW_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
   HandlerAction ProcessSniffSubrating(const MultiBuf& event_packet)
       PW_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
+  HandlerAction ProcessCommandComplete(MultiBuf& event_packet)
+      PW_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
+
+  // Command complete event interceptors.
+  HandlerAction ProcessLeGetVendorCapabilitiesCommandComplete(
+      MultiBuf& event_packet) PW_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
   // Internal types.
   struct Disabled final {};

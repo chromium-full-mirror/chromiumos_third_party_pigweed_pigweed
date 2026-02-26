@@ -54,6 +54,8 @@ constexpr auto kExitSniffModeOpcode =
     cpp23::to_underlying(emboss::OpCode::EXIT_SNIFF_MODE);
 constexpr auto kSniffSubratingOpcode =
     cpp23::to_underlying(emboss::OpCode::SNIFF_SUBRATING);
+constexpr auto kLeGetVendorCapabilitiesOpcode =
+    cpp23::to_underlying(emboss::OpCode::ANDROID_LE_GET_VENDOR_CAPABILITIES);
 
 constexpr auto kModeChangeEventCode =
     cpp23::to_underlying(emboss::EventCode::MODE_CHANGE);
@@ -63,6 +65,8 @@ constexpr auto kDisconnectionCompleteEventCode =
     cpp23::to_underlying(emboss::EventCode::DISCONNECTION_COMPLETE);
 constexpr auto kSniffSubratingEventCode =
     cpp23::to_underlying(emboss::EventCode::SNIFF_SUBRATING);
+constexpr auto kCommandCompleteEventCode =
+    cpp23::to_underlying(emboss::EventCode::COMMAND_COMPLETE);
 
 namespace WriteSniffOffloadEnableCommand =
     vendor::android_hci::WriteSniffOffloadEnableCommand;
@@ -326,7 +330,7 @@ Status SniffOffloadManager::ProcessCommandStatus(const MultiBuf& event_packet) {
 }
 
 SniffOffloadManager::HandlerAction SniffOffloadManager::ProcessEvent(
-    const MultiBuf& event_packet, EventCode event_code) {
+    MultiBuf& event_packet, EventCode event_code) {
   std::lock_guard lock(mutex_);
   switch (cpp23::to_underlying(event_code)) {
     case kModeChangeEventCode:
@@ -337,6 +341,8 @@ SniffOffloadManager::HandlerAction SniffOffloadManager::ProcessEvent(
       return ProcessDisconnectionComplete(event_packet);
     case kSniffSubratingEventCode:
       return ProcessSniffSubrating(event_packet);
+    case kCommandCompleteEventCode:
+      return ProcessCommandComplete(event_packet);
     default:
       return kIgnorePacket;
   }
@@ -587,6 +593,134 @@ SniffOffloadManager::HandlerAction SniffOffloadManager::ProcessSniffSubrating(
   // Do nothing and respect sniff subrating suppression.
   return {.intercept =
               HandlerAction::Interception{suppress_sniff_subrating_event_}};
+}
+
+SniffOffloadManager::HandlerAction SniffOffloadManager::ProcessCommandComplete(
+    MultiBuf& event_packet) {
+  Scratch<emboss::CommandCompleteEvent::IntrinsicSizeInBytes()> scratch;
+  auto span = event_packet.Get(scratch);
+  auto view = MakeEmbossView<emboss::CommandCompleteEventView>(span);
+
+  if (!view.ok() || view->header().event_code().Read() !=
+                        emboss::EventCode::COMMAND_COMPLETE) {
+    PW_LOG_ERROR("Invalid CommandCompleteEvent packet.");
+    OnError(ErrorReason::kInvalidPacket);
+    return {};
+  }
+
+  switch (view->command_opcode_uint().Read()) {
+    case kLeGetVendorCapabilitiesOpcode:
+      return ProcessLeGetVendorCapabilitiesCommandComplete(event_packet);
+    default:
+      return kIgnorePacket;
+  }
+}
+
+SniffOffloadManager::HandlerAction
+SniffOffloadManager::ProcessLeGetVendorCapabilitiesCommandComplete(
+    MultiBuf& event_packet) {
+  // We use a slightly different approach here than normal. Because the size can
+  // vary by version, and not all controllers report the version matching the
+  // packet size, we have to copy into the maximum size buffer. If the
+  // controller was not supplying a 1.05 or higher value, we need to extend the
+  // packet to include that. Fortunately all existing fields up to 1.05 are
+  // valid to be `0` when not supported.
+  //
+  // We do not overwrite the version number if it is too low, however, because
+  // that implies additional feature support that isn't controllable by a
+  // capability flag, unfortunately (mainly BQR).
+  //
+  // For an example of the complexity here, see:
+  //   * pw_bluetooth_sapphire/host/gap/android_vendor_capabilities.cc, and
+  //   * ParseLEGetVendorCapabilitiesCommandComplete in
+  //     pw_bluetooth_sapphire/host/gap/adapter.cc
+  //
+  // For the spec, see:
+  //   * https://source.android.com/docs/core/connect/bluetooth/hci_requirements#vendor-specific-capabilities
+
+  Scratch<vendor::android_hci::LEGetVendorCapabilitiesCommandCompleteEvent::
+              IntrinsicSizeInBytes()>
+      scratch;
+  std::memset(scratch.data(), 0, scratch.size());
+  ByteSpan original_multibuf_span{scratch.data(), event_packet.CopyTo(scratch)};
+
+  auto writer = MakeEmbossWriter<
+      vendor::android_hci::LEGetVendorCapabilitiesCommandCompleteEventWriter>(
+      scratch);
+
+  if (!writer.ok() ||
+      writer->command_complete().header().event_code().Read() !=
+          emboss::EventCode::COMMAND_COMPLETE ||
+      writer->command_complete().command_opcode_uint().Read() !=
+          kLeGetVendorCapabilitiesOpcode) {
+    PW_LOG_ERROR("Invalid LeGetVendorCapabilitiesCommandComplete packet.");
+    OnError(ErrorReason::kInvalidPacket);
+    return {};
+  }
+
+  bool dirty = false;
+  switch (cpp23::to_underlying(writer->status().Read())) {
+    case cpp23::to_underlying(emboss::StatusCode::SUCCESS):
+      break;
+    case cpp23::to_underlying(emboss::StatusCode::UNKNOWN_COMMAND):
+      writer->status().Write(emboss::StatusCode::SUCCESS);
+      dirty = true;
+      break;
+    default:
+      PW_LOG_WARN(
+          "Got failure response for LeGetVendorCapabilitiesCommandComplete, "
+          "passing on to host.");
+      return {};
+  }
+
+  if (writer->sniff_offload_support().Read() !=
+      vendor::android_hci::Capability::CAPABLE) {
+    writer->sniff_offload_support().Write(
+        vendor::android_hci::Capability::CAPABLE);
+    dirty = true;
+  } else {
+    PW_LOG_WARN(
+        "Controller supports sniff offload. Will intercept and override the "
+        "controller's behavior.");
+  }
+
+  auto version_major = writer->version_supported().major_number().Read();
+  auto version_minor = writer->version_supported().minor_number().Read();
+  if (version_major < 1 || (version_major == 1 && version_minor < 5)) {
+    PW_LOG_INFO("Overriding vendor capability version from %d.%d to 1.05.",
+                version_major,
+                version_minor);
+    writer->version_supported().major_number().Write(1);
+    writer->version_supported().minor_number().Write(5);
+    dirty = true;
+  }
+
+  static constexpr auto v1_05_size =
+      vendor::android_hci::LEGetVendorCapabilitiesCommandCompleteEventView::
+          version_1_05_size()
+              .Read();
+  if (original_multibuf_span.size() < v1_05_size) {
+    ByteSpan extended_data{scratch.data() + original_multibuf_span.size(),
+                           v1_05_size - original_multibuf_span.size()};
+    writer->command_complete().header().parameter_total_size().Write(
+        v1_05_size - EventHeader::IntrinsicSizeInBytes());
+    dirty = true;
+    auto status = AppendBuffer(event_packet, extended_data);
+    if (!status.ok()) {
+      PW_LOG_WARN(
+          "Failed to allocate additional buffer for "
+          "LeGetVendorCapabilitiesCommandComplete event. The upper level host "
+          "may not realize that sniff offload support is enabled.");
+      OnError(ErrorReason::kCannotAllocateBuffer);
+      return {};
+    }
+  }
+
+  if (dirty) {
+    event_packet.CopyFrom(original_multibuf_span);
+  }
+
+  return {};
 }
 
 void SniffOffloadManager::SendCommandComplete(uint16_t opcode) {
