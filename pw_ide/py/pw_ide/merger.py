@@ -361,14 +361,7 @@ def _build_and_collect_fragments_from_groups(
     yield from known_fragments.keys()
 
 
-def _collect_fragments_via_glob(bazel_output_path: Path) -> Iterator[Path]:
-    """Collects fragments by globbing the output directory."""
-    _LOG.info("Searching for existing compile command fragments...")
-    yield from bazel_output_path.rglob(f"*{_FRAGMENT_SUFFIX}")
-
-
 def _collect_fragments(
-    bazel_output_path: Path,
     execution_root: Path,
     forwarded_args: list[str],
     verbose: bool,
@@ -388,7 +381,8 @@ def _collect_fragments(
             execution_root,
         )
     else:
-        yield from _collect_fragments_via_glob(bazel_output_path)
+        _LOG.error("No compile command groups or bazel arguments provided.")
+        return
 
 
 class PrettyFormatter(logging.Formatter):
@@ -549,7 +543,6 @@ def main() -> int:
     # Search for fragments with our unique suffix.
     all_fragments = list(
         _collect_fragments(
-            bazel_output_path,
             execution_root_path,
             args.bazel_args,
             args.verbose,

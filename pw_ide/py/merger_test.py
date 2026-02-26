@@ -105,6 +105,50 @@ class MergerTest(fake_filesystem_unittest.TestCase):
 
         self.mock_run_bazel.side_effect = run_bazel_side_effect
 
+        # Mock collection for tests that rely on pre-existing fragments
+        # (simulating the old globbing behavior).
+        self.mock_collect_fragments = self.enterContext(
+            mock.patch('pw_ide.merger._collect_fragments')
+        )
+
+        def collect_fragments_side_effect(
+            execution_root,
+            forwarded_args,
+            verbose,
+            compile_command_groups=None,
+        ):
+            # If arguments are provided, use the real implementation (which
+            # delegates to other internal functions like
+            # _build_and_collect_fragments).
+            # But here we are mocking the top-level dispatch function.
+            # So, for tests that want to test collection logic (like
+            # test_build_and_collect_fragments), they must unpatch this or we
+            # must implement the dispatch here. Implementing dispatch is
+            # cleaner.
+
+            # pylint: disable=protected-access
+            if compile_command_groups:
+                yield from merger._build_and_collect_fragments_from_groups(
+                    compile_command_groups,
+                    verbose,
+                    execution_root,
+                )
+            elif forwarded_args:
+                yield from merger._build_and_collect_fragments(
+                    forwarded_args,
+                    verbose,
+                    execution_root,
+                )
+            else:
+                # Fallback to globbing for tests that don't invoke Bazel.
+                # This mimics the old behavior solely for the purpose of testing
+                # the merging logic on pre-existing files.
+                yield from execution_root.joinpath('bazel-out').rglob(
+                    f'*{_FRAGMENT_SUFFIX}'
+                )
+
+        self.mock_collect_fragments.side_effect = collect_fragments_side_effect
+
     def test_no_fragments_found(self):
         with io.StringIO() as buf, redirect_stderr(buf):
             self.assertEqual(merger.main(), 1)
