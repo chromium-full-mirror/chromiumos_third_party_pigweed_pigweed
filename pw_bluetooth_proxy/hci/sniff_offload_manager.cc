@@ -626,10 +626,6 @@ SniffOffloadManager::ProcessLeGetVendorCapabilitiesCommandComplete(
   // packet to include that. Fortunately all existing fields up to 1.05 are
   // valid to be `0` when not supported.
   //
-  // We do not overwrite the version number if it is too low, however, because
-  // that implies additional feature support that isn't controllable by a
-  // capability flag, unfortunately (mainly BQR).
-  //
   // For an example of the complexity here, see:
   //   * pw_bluetooth_sapphire/host/gap/android_vendor_capabilities.cc, and
   //   * ParseLEGetVendorCapabilitiesCommandComplete in
