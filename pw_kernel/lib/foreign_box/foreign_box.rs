@@ -595,4 +595,40 @@ mod tests {
         assert_eq!(upcasted.number(), 42);
         assert_eq!(upcasted.state.ref_count.load(Ordering::SeqCst), 1);
     }
+
+    #[test]
+    fn rc_ref_from_inner_increments_ref_count() {
+        let val = 42;
+        let state = ForeignRcState::<core::sync::atomic::AtomicUsize, _>::new(val);
+        let state = Box::leak(Box::new(state));
+        let rc = unsafe { state.create_first_ref() };
+
+        let inner: &i32 = &rc;
+        let rc2 = unsafe {
+            ForeignRcState::<core::sync::atomic::AtomicUsize, i32>::create_ref_from_inner(inner)
+        };
+
+        assert_eq!(*rc, 42);
+        assert_eq!(*rc2, 42);
+        assert_eq!(rc.state.ref_count.load(Ordering::SeqCst), 2);
+    }
+
+    #[test]
+    fn static_foreign_box_can_be_created_and_consumed() {
+        let b = unsafe { static_foreign_box!(u32, 42) };
+        assert_eq!(*b, 42);
+        let ptr = b.consume();
+        assert_eq!(unsafe { ptr.read() }, 42);
+    }
+
+    #[test]
+    fn static_foreign_rc_ref_count_is_correct() {
+        let rc = unsafe { static_foreign_rc!(core::sync::atomic::AtomicUsize, u32, 42) };
+        assert_eq!(*rc, 42);
+        assert_eq!(rc.state.ref_count.load(Ordering::SeqCst), 1);
+        let rc2 = rc.clone();
+        assert_eq!(rc.state.ref_count.load(Ordering::SeqCst), 2);
+        drop(rc2);
+        assert_eq!(rc.state.ref_count.load(Ordering::SeqCst), 1);
+    }
 }
