@@ -158,8 +158,7 @@ class SocketClient:
         return init_args, address
 
     def __del__(self):
-        if self._connected:
-            self.socket.close()
+        self.close()
 
     def write(self, data: ReadableBuffer) -> None:
         """Writes data and detects disconnects."""
@@ -194,10 +193,15 @@ class SocketClient:
         self.socket.connect(self._address)
         self._connected = True
 
+    def close(self) -> None:
+        """Closes socket connection."""
+        if self._connected:
+            self.socket.close()
+            self._connected = False
+
     def _handle_disconnect(self):
         """Escalates a socket disconnect to the user."""
-        self.socket.close()
-        self._connected = False
+        self.close()
         if self._on_disconnect:
             self._on_disconnect(self)
 
