@@ -236,6 +236,8 @@ class SniffOffloadManager final {
   void DoEnable(Enabled&& enabled) PW_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
   Result<MultiBuf::Instance> AllocateBuffer(ConstByteSpan span)
       PW_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
+  Status AppendBuffer(MultiBuf& buf, ConstByteSpan span)
+      PW_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
   // Utility members.
   sync::Mutex mutex_;

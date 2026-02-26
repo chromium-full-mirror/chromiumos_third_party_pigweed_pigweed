@@ -700,20 +700,25 @@ void SniffOffloadManager::DoEnable(Enabled&& enabled) {
 
 Result<MultiBuf::Instance> SniffOffloadManager::AllocateBuffer(
     ConstByteSpan span) {
+  MultiBuf::Instance buf(allocator_);
+
+  PW_TRY(AppendBuffer(buf, span));
+  return buf;
+}
+
+Status SniffOffloadManager::AppendBuffer(MultiBuf& buf, ConstByteSpan span) {
   auto alloc = allocator_.MakeUnique<std::byte[]>(span.size());
   if (alloc == nullptr) {
     return Status::ResourceExhausted();
   }
 
   memcpy(alloc.get(), span.data(), span.size());
-  MultiBuf::Instance buf(allocator_);
-
-  if (!buf->TryReserveForPushBack()) {
+  if (!buf.TryReserveForPushBack()) {
     return Status::ResourceExhausted();
   }
 
-  buf->PushBack(std::move(alloc));
-  return buf;
+  buf.PushBack(std::move(alloc));
+  return OkStatus();
 }
 
 void SniffOffloadManager::ConnectionFsm::Start() {
