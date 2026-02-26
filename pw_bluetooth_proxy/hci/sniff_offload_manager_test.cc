@@ -147,21 +147,22 @@ class SniffOffloadManagerTest : public ::testing::Test {
 
   HandlerAction SimulateCommand(MultiBuf::Instance&& buf,
                                 CommandOpcode opcode) {
-    auto action =
-        sniff_offload_manager().ProcessCommand(std::move(buf), opcode);
+    MultiBuf::Instance moved_buf = std::move(buf);
+    auto action = sniff_offload_manager().ProcessCommand(moved_buf, opcode);
     SyncWithDispatcher();
     return action;
   }
 
   HandlerAction SimulateEvent(MultiBuf::Instance&& buf, EventCode event_code) {
-    auto action =
-        sniff_offload_manager().ProcessEvent(std::move(buf), event_code);
+    MultiBuf::Instance moved_buf = std::move(buf);
+    auto action = sniff_offload_manager().ProcessEvent(moved_buf, event_code);
     SyncWithDispatcher();
     return action;
   }
 
   Status SimulateCommandStatus(MultiBuf::Instance&& buf) {
-    auto status = sniff_offload_manager().ProcessCommandStatus(std::move(buf));
+    MultiBuf::Instance moved_buf = std::move(buf);
+    auto status = sniff_offload_manager().ProcessCommandStatus(moved_buf);
     SyncWithDispatcher();
     return status;
   }
