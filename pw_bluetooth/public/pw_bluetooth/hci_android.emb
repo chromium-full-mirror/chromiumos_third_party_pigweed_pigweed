@@ -150,8 +150,9 @@ struct LEGetVendorCapabilitiesCommandCompleteEvent:
   let version_1_04_size = version_1_03_size+1
   $next             [+1]           Capability                a2dp_offload_v2_support
   # Version 1.05
-  let version_1_05_size = version_1_04_size+1
+  let version_1_05_size = version_1_04_size+2
   $next             [+1]           Capability                iso_link_feedback_support
+  $next             [+1]           Capability                sniff_offload_support
 
 # ----------------------- A2DP Offloading --------------------------------------
 
