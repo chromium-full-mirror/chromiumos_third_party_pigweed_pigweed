@@ -130,6 +130,40 @@ Run on-device tests
 On-device tests are only supported for the Raspberry Pi RP2040. See
 :ref:`target-rp2-upstream-tests`.
 
+.. _docs-contributing-build-bazel-debug:
+
+Debug
+=====
+This section contains workflows related to debugging the upstream Pigweed
+Bazel build.
+
+.. _docs-contributing-build-bazel-debug-print:
+
+Log print() statements to stdout
+--------------------------------
+.. _print(): https://bazel.build/rules/lib/globals/all#print
+.. _ui_event_filters: https://bazel.build/reference/command-line-reference#common_options-flag--ui_event_filters
+
+To log `print()`_ output to ``stdout`` when running an upstream Pigweed
+Bazel build, use the `ui_event_filters`_ flag. Example:
+
+.. code-block:: console
+
+   bazelisk build //pw_async2 --ui_event_filters=+debug
+
+A value of ``+debug`` adds debug output to the default output settings, whereas
+a value of ``debug`` overrides the default settings and *only* shows debug
+output.
+
+.. note::
+
+   Upstream Pigweed hides Bazel's noisy ``DEBUG`` output by default. See
+   :cs:`pw_build/pigweed_recommended.bazelrc`:
+
+   .. literalinclude:: ../pw_build/pigweed_recommended.bazelrc
+      :start-at: # Suppress the DEBUG: log messages from bazel.
+      :end-at: build --ui_event_filters=-debug
+
 .. _docs-contributing-build-gn:
 
 --
