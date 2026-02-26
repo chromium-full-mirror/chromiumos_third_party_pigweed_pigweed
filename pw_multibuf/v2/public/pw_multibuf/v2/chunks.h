@@ -68,7 +68,7 @@ class ChunksImpl {
   constexpr const_iterator cend() const { return end_; }
 
  private:
-  friend class internal::GenericMultiBuf;
+  friend class GenericMultiBuf;
 
   // For unit testing.
   friend class test::IteratorTest;

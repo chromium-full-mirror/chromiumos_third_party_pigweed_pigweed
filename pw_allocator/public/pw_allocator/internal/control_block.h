@@ -26,23 +26,24 @@ namespace pw {
 class Allocator;
 class Deallocator;
 
-// Forward declarations for friending.
-template <typename T>
-class SharedPtr;
-
-namespace multibuf {
-
-namespace v1_adapter::internal {
-class ChunkAllocator;
-}  // namespace v1_adapter::internal
-
-namespace v2::internal {
-class GenericMultiBuf;
-}  // namespace v2::internal
-
-}  // namespace multibuf
-
 namespace allocator::internal {
+
+/// For internal use only, DO NOT USE!
+///
+/// This empty class is used as an access token for certain
+/// `ControlBlock`-related methods. This allows other modules in upstream
+/// Pigweed to be effectively friended by `ControlBlock` without needing a list
+/// friendship declarations.
+///
+/// This type and its implementation is unstable and unavailable to downstream
+/// consumers of Pigweed. DO NOT USE!
+class ControlBlockHandle {
+ public:
+  static const ControlBlockHandle& GetInstance_DO_NOT_USE();
+
+ private:
+  constexpr ControlBlockHandle() = default;
+};
 
 /// Object metadata used to track ref counts of shared and weak pointers.
 ///
@@ -64,6 +65,40 @@ class ControlBlock final {
     /// and the associated memory can be deallocated.
     kFree,
   };
+
+  /// Factory method for allocating memory with an attached control block.
+  ///
+  /// If allocation fails, this call will return null.
+  ///
+  /// The handle parameter is used to limit access to this method to upstream
+  /// Pigweed types only. This method MUST only be called from upstream Pigweed.
+  ///
+  /// @param  handle      Access token to allow calling.
+  /// @param  allocator   Allocator to use to provide memory.
+  /// @param  layout      Layout of an object to allocate and associate with a
+  ///                     control block.
+  static ControlBlock* Create(const ControlBlockHandle&,
+                              Allocator* allocator,
+                              Layout layout);
+
+  /// Factory method for allocating a control block for previously allocated
+  /// memory.
+  ///
+  /// If allocation fails, this call will return null.
+  ///
+  /// The handle parameter is used to limit access to this method to upstream
+  /// Pigweed types only. This method MUST only be called from upstream Pigweed.
+  ///
+  /// @param  handle      Access token to allow calling.
+  /// @param  deallocator Deallocator to use to provide memory. Must have the
+  ///                     `kCanAllocateArbitraryLayout` capability, i.e. be an
+  ///                     upcast allocator.
+  /// @param  data        Previously allocated memory.
+  /// @param  size        Size of the previously allocated memory, in bytes.
+  static ControlBlock* Create(const ControlBlockHandle&,
+                              Deallocator* deallocator,
+                              void* data,
+                              size_t size);
 
   /// Destructor.
   ///
@@ -115,37 +150,6 @@ class ControlBlock final {
   Action DecrementWeak();
 
  private:
-  // Allow SharedPtrs and MultiBufs to create control blocks.
-  template <typename T>
-  friend class ::pw::SharedPtr;
-  friend class ::pw::multibuf::v1_adapter::internal::ChunkAllocator;
-  friend class ::pw::multibuf::v2::internal::GenericMultiBuf;
-
-  /// Factory method for allocating memory with an attached control block.
-  ///
-  /// If allocation fails, this call will return null.
-  ///
-  /// @param  allocator   Allocator to use to provide memory.
-  /// @param  layout      Layout of an object to allocate and associate with a
-  ///                     control block.
-  static ControlBlock* Create(Allocator* allocator, Layout layout);
-
-  /// Factory method for allocating a control block for previously allocated
-  /// memory.
-  ///
-  /// The parameters are expected to come from a `UniquePtr`.
-  ///
-  /// If allocation fails, this call will return null.
-  ///
-  /// @param  deallocator Deallocator to use to provide memory. Must have the
-  ///                     `kCanAllocateArbitraryLayout` capability, i.e. be an
-  ///                     upcast allocator.
-  /// @param  data        Previously allocated memory.
-  /// @param  size        Size of the previously allocated memory, in bytes.
-  static ControlBlock* Create(Deallocator* deallocator,
-                              void* data,
-                              size_t size);
-
   /// Creates a new control block with an initial shared pointer count of 1.
   ControlBlock(Allocator* allocator, void* data, size_t size, bool coallocated);
 

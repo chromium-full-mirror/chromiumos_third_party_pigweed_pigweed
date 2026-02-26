@@ -31,7 +31,6 @@
 #include "pw_allocator/internal/managed_ptr.h"
 #include "pw_allocator/layout.h"
 #include "pw_allocator/unique_ptr.h"
-#include "pw_multibuf/v2/properties.h"
 
 namespace pw {
 
@@ -49,19 +48,6 @@ constexpr SharedPtr<To> const_pointer_cast(const SharedPtr<From>& p) noexcept;
 
 template <typename T>
 class WeakPtr;
-
-namespace multibuf {
-
-namespace v1_adapter {
-class MultiBuf;
-}  // namespace v1_adapter
-
-namespace v2 {
-template <Property...>
-class BasicMultiBuf;
-}  // namespace v2
-
-}  // namespace multibuf
 
 /// A `std::shared_ptr<T>`-like type that integrates with `pw::Allocator`.
 ///
@@ -83,6 +69,7 @@ class SharedPtr final : public ::pw::allocator::internal::ManagedPtr<T> {
  private:
   using Base = ::pw::allocator::internal::ManagedPtr<T>;
   using ControlBlock = ::pw::allocator::internal::ControlBlock;
+  using ControlBlockHandle = ::pw::allocator::internal::ControlBlockHandle;
 
  public:
   using element_type = typename Base::element_type;
@@ -306,7 +293,7 @@ class SharedPtr final : public ::pw::allocator::internal::ManagedPtr<T> {
   /// control blocks.
   template <typename PtrType>
   bool owner_before(const PtrType& other) const noexcept {
-    return control_block_ < other.control_block();
+    return std::less{}(control_block_, other.control_block_);
   }
 
   // Mutators
@@ -327,22 +314,23 @@ class SharedPtr final : public ::pw::allocator::internal::ManagedPtr<T> {
     return control_block_ == nullptr ? nullptr : control_block_->allocator();
   }
 
+  /// Returns the control block for this shared pointer.
+  ///
+  /// Requires the caller to be able to construct a control block handle, which
+  /// effectively restricts this to upstream Pigweed.
+  ControlBlock* GetControlBlock(const ControlBlockHandle&) const {
+    return control_block_;
+  }
+
  private:
   using Layout = allocator::Layout;
 
-  // Allow SharedPtrs, WeakPtrs, and MultiBufs to access control blocks.
+  // Allow other SharedPtrs and WeakPtrs to access control blocks directly.
   template <typename>
   friend class SharedPtr;
 
   template <typename>
   friend class WeakPtr;
-
-  friend class multibuf::v1_adapter::MultiBuf;
-
-  template <multibuf::v2::Property...>
-  friend class multibuf::v2::BasicMultiBuf;
-
-  ControlBlock* control_block() const { return control_block_; }
 
   /// Copies details from another object without releasing it.
   template <typename U,
@@ -370,7 +358,12 @@ SharedPtr<T>::SharedPtr(UniquePtr<T>& owned) noexcept {
   if constexpr (std::is_array_v<T>) {
     size *= owned.size();
   }
-  control_block_ = ControlBlock::Create(owned.deallocator(), owned.get(), size);
+
+  // Create the shared pointer's control block using the restricted method.
+  const auto& handle = ControlBlockHandle::GetInstance_DO_NOT_USE();
+  control_block_ =
+      ControlBlock::Create(handle, owned.deallocator(), owned.get(), size);
+
   if (control_block_ != nullptr) {
     Base::CopyFrom(owned);
     owned.Release();
@@ -381,7 +374,12 @@ template <typename T>
 template <typename... Args>
 SharedPtr<T> SharedPtr<T>::Create(Allocator* allocator, Args&&... args) {
   static_assert(!std::is_array_v<T>);
-  auto* control_block = ControlBlock::Create(allocator, Layout::Of<T>());
+
+  // Create the shared pointer's control block using the restricted method.
+  const auto& handle = ControlBlockHandle::GetInstance_DO_NOT_USE();
+  auto* control_block =
+      ControlBlock::Create(handle, allocator, Layout::Of<T>());
+
   if (control_block == nullptr) {
     return nullptr;
   }
@@ -395,7 +393,11 @@ SharedPtr<T> SharedPtr<T>::Create(Allocator* allocator,
                                   size_t alignment) {
   static_assert(allocator::internal::is_unbounded_array_v<T>);
   Layout layout = Layout::Of<T>(count).Align(alignment);
-  auto* control_block = ControlBlock::Create(allocator, layout);
+
+  // Create the shared pointer's control block using the restricted method.
+  const auto& handle = ControlBlockHandle::GetInstance_DO_NOT_USE();
+  auto* control_block = ControlBlock::Create(handle, allocator, layout);
+
   if (control_block == nullptr) {
     return nullptr;
   }

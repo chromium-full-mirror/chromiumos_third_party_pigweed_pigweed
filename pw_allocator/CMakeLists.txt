@@ -33,7 +33,6 @@ pw_add_library(pw_allocator STATIC
   PUBLIC_DEPS
     pw_allocator.config
     pw_allocator.hardening
-    pw_multibuf.v2.properties
     pw_numeric.checked_arithmetic
     pw_bytes
     pw_preprocessor

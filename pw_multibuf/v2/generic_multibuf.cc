@@ -113,31 +113,37 @@ auto GenericMultiBuf::Insert(const_iterator pos, ConstByteSpan bytes)
 }
 
 auto GenericMultiBuf::Insert(const_iterator pos,
-                             ConstByteSpan bytes,
-                             size_t offset,
-                             size_t length,
-                             Deallocator* deallocator) -> iterator {
+                             UniquePtr<const std::byte[]>&& owned) -> iterator {
+  ConstByteSpan bytes(owned.get(), owned.size());
   PW_CHECK(TryReserveForInsert(pos));
-  auto [iter, chunk] = Insert(pos, bytes, offset, length);
-  if (deallocator != nullptr) {
-    deque_[memory_context_index(chunk)].deallocator = deallocator;
-    deque_[base_view_index(chunk)].base_view.owned = true;
+  auto [iter, chunk] = Insert(pos, bytes, 0, bytes.size());
+  if (owned == nullptr) {
+    return iter;
   }
+  deque_[memory_context_index(chunk)].deallocator = owned.deallocator();
+  deque_[base_view_index(chunk)].base_view.owned = true;
+  owned.Release();
   return iter;
 }
 
 auto GenericMultiBuf::Insert(const_iterator pos,
-                             ConstByteSpan bytes,
+                             const SharedPtr<const std::byte[]>& shared,
                              size_t offset,
-                             size_t length,
-                             ControlBlock* control_block) -> iterator {
+                             size_t length) -> iterator {
+  ConstByteSpan bytes(shared.get(), shared.size());
   PW_CHECK(TryReserveForInsert(pos));
   auto [iter, chunk] = Insert(pos, bytes, offset, length);
-  if (control_block != nullptr) {
-    control_block->IncrementShared();
-    deque_[memory_context_index(chunk)].control_block = control_block;
-    deque_[base_view_index(chunk)].base_view.shared = true;
+  if (shared == nullptr) {
+    return iter;
   }
+
+  // Extract the shared pointer's control block using a restricted method.
+  const auto& handle = ControlBlockHandle::GetInstance_DO_NOT_USE();
+  ControlBlock* control_block = shared.GetControlBlock(handle);
+
+  deque_[memory_context_index(chunk)].control_block = control_block;
+  deque_[base_view_index(chunk)].base_view.shared = true;
+  control_block->IncrementShared();
   return iter;
 }
 
@@ -477,8 +483,12 @@ bool GenericMultiBuf::TryConvertToShared(size_type chunk) {
   Deallocator& deallocator = GetDeallocator(chunk);
   std::byte* data = GetData(chunk);
   Entry::BaseView& base_view = deque_[base_view_index(chunk)].base_view;
+
+  // Create a new control block using a restricted method.
+  const auto& handle = ControlBlockHandle::GetInstance_DO_NOT_USE();
   auto* control_block =
-      ControlBlock::Create(&deallocator, data, base_view.length);
+      ControlBlock::Create(handle, &deallocator, data, base_view.length);
+
   if (control_block == nullptr) {
     return false;
   }

@@ -1057,6 +1057,7 @@ class GenericMultiBuf final
                             Property::kObservable> {
  private:
   using ControlBlock = allocator::internal::ControlBlock;
+  using ControlBlockHandle = allocator::internal::ControlBlockHandle;
   using typename BasicMultiBuf<>::Deque;
 
  public:
@@ -1159,17 +1160,20 @@ class GenericMultiBuf final
   /// @{
   iterator Insert(const_iterator pos, GenericMultiBuf&& mb);
   iterator Insert(const_iterator pos, ConstByteSpan bytes);
+  iterator Insert(const_iterator pos, UniquePtr<const std::byte[]>&& owned);
+  iterator Insert(const_iterator pos, UniquePtr<std::byte[]>&& owned) {
+    return Insert(pos, UniquePtr<const std::byte[]>(std::move(owned)));
+  }
   iterator Insert(const_iterator pos,
-                  ConstByteSpan bytes,
+                  const SharedPtr<const std::byte[]>& shared,
                   size_t offset,
-                  size_t length,
-                  Deallocator* deallocator);
+                  size_t length);
   iterator Insert(const_iterator pos,
-                  ConstByteSpan bytes,
+                  const SharedPtr<std::byte[]>& shared,
                   size_t offset,
-                  size_t length,
-                  ControlBlock* control_block);
-  /// @}
+                  size_t length) {
+    return Insert(pos, SharedPtr<const std::byte[]>(shared), offset, length);
+  }
 
   /// @copydoc BasicMultiBuf<>::IsRemovable
   [[nodiscard]] constexpr bool IsRemovable(const_iterator pos,
@@ -1643,11 +1647,7 @@ template <Property... kProperties>
 auto BasicMultiBuf<kProperties...>::Insert(const_iterator pos,
                                            UniquePtr<std::byte[]>&& bytes)
     -> iterator {
-  ConstByteSpan chunk(bytes.get(), bytes.size());
-  iterator iter =
-      generic().Insert(pos, chunk, 0, bytes.size(), bytes.deallocator());
-  bytes.Release();
-  return iter;
+  return generic().Insert(pos, std::move(bytes));
 }
 
 template <Property... kProperties>
@@ -1656,11 +1656,7 @@ auto BasicMultiBuf<kProperties...>::Insert(const_iterator pos,
     -> iterator {
   static_assert(is_const(),
                 "Cannot `Insert` read-only bytes into mutable MultiBuf");
-  ConstByteSpan chunk(bytes.get(), bytes.size());
-  iterator iter =
-      generic().Insert(pos, chunk, 0, bytes.size(), bytes.deallocator());
-  bytes.Release();
-  return iter;
+  return generic().Insert(pos, std::move(bytes));
 }
 
 template <Property... kProperties>
@@ -1668,8 +1664,7 @@ auto BasicMultiBuf<kProperties...>::Insert(const_iterator pos,
                                            const SharedPtr<std::byte[]>& bytes,
                                            size_t offset,
                                            size_t length) -> iterator {
-  ConstByteSpan chunk(bytes.get(), bytes.size());
-  return generic().Insert(pos, chunk, offset, length, bytes.control_block());
+  return generic().Insert(pos, bytes, offset, length);
 }
 
 template <Property... kProperties>
@@ -1680,8 +1675,7 @@ auto BasicMultiBuf<kProperties...>::Insert(
     size_t length) -> iterator {
   static_assert(is_const(),
                 "Cannot `Insert` read-only bytes into mutable MultiBuf");
-  ConstByteSpan chunk(bytes.get(), bytes.size());
-  return generic().Insert(pos, chunk, offset, length, bytes.control_block());
+  return generic().Insert(pos, bytes, offset, length);
 }
 
 template <Property... kProperties>

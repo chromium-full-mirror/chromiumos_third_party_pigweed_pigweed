@@ -50,7 +50,13 @@ std::optional<OwnedChunk> ChunkAllocator::AllocateChunk(size_t min_size,
     return std::nullopt;
   }
   region->size = std::min(region->size, static_cast<uint32_t>(desired_size));
-  auto* control_block = ControlBlock::Create(this, region->data, region->size);
+
+  // Create a new control block using a restricted method.
+  const auto& handle =
+      allocator::internal::ControlBlockHandle::GetInstance_DO_NOT_USE();
+  auto* control_block =
+      ControlBlock::Create(handle, this, region->data, region->size);
+
   if (control_block == nullptr) {
     size_t size = region->size;
     PW_CHECK_UINT_EQ(TryDeallocateRegion(region->data), size);
