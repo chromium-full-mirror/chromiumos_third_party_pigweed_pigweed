@@ -176,6 +176,7 @@ AndroidVendorCapabilities AndroidVendorCapabilities::New(
   // Version 1.05
   if (c.SupportsVersion(1, 05)) {
     c.iso_link_feedback_support_ = AsBool(e.iso_link_feedback_support().Read());
+    c.sniff_offload_support_ = AsBool(e.sniff_offload_support().Read());
   }
 
   return c;

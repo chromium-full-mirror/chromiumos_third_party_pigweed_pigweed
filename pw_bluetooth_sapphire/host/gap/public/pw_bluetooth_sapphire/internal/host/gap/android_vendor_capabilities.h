@@ -109,6 +109,8 @@ class AndroidVendorCapabilities final {
     return iso_link_feedback_support_;
   }
 
+  bool supports_sniff_offload() const { return sniff_offload_support_; }
+
  private:
   AndroidVendorCapabilities() = default;
 
@@ -138,5 +140,6 @@ class AndroidVendorCapabilities final {
   uint32_t supports_dynamic_audio_buffer_ = 0;
   bool a2dp_offload_v2_support_ = false;
   bool iso_link_feedback_support_ = false;
+  bool sniff_offload_support_ = false;
 };
 }  // namespace bt::gap

@@ -64,6 +64,7 @@ TEST(AndroidVendorCapabilitiesTest, NonSuccess) {
   EXPECT_EQ(0u, capabilities.supports_dynamic_audio_buffer());
   EXPECT_EQ(false, capabilities.supports_a2dp_offload_v2());
   EXPECT_EQ(false, capabilities.supports_iso_link_feedback_event());
+  EXPECT_EQ(false, capabilities.supports_sniff_offload());
 }
 
 TEST(AndroidVendorCapabilitiesTest, Version055) {
@@ -104,6 +105,7 @@ TEST(AndroidVendorCapabilitiesTest, Version055) {
   EXPECT_EQ(0u, capabilities.supports_dynamic_audio_buffer());
   EXPECT_EQ(false, capabilities.supports_a2dp_offload_v2());
   EXPECT_EQ(false, capabilities.supports_iso_link_feedback_event());
+  EXPECT_EQ(false, capabilities.supports_sniff_offload());
 }
 
 TEST(AndroidVendorCapabilitiesTest, Version095) {
@@ -155,6 +157,7 @@ TEST(AndroidVendorCapabilitiesTest, Version095) {
   EXPECT_EQ(0u, capabilities.supports_dynamic_audio_buffer());
   EXPECT_EQ(false, capabilities.supports_a2dp_offload_v2());
   EXPECT_EQ(false, capabilities.supports_iso_link_feedback_event());
+  EXPECT_EQ(false, capabilities.supports_sniff_offload());
 }
 
 TEST(AndroidVendorCapabilitiesTest, Version096) {
@@ -210,6 +213,7 @@ TEST(AndroidVendorCapabilitiesTest, Version096) {
   EXPECT_EQ(0u, capabilities.supports_dynamic_audio_buffer());
   EXPECT_EQ(false, capabilities.supports_a2dp_offload_v2());
   EXPECT_EQ(false, capabilities.supports_iso_link_feedback_event());
+  EXPECT_EQ(false, capabilities.supports_sniff_offload());
 }
 
 TEST(AndroidVendorCapabilitiesTest, Version098) {
@@ -271,6 +275,7 @@ TEST(AndroidVendorCapabilitiesTest, Version098) {
   EXPECT_EQ(0u, capabilities.supports_dynamic_audio_buffer());
   EXPECT_EQ(false, capabilities.supports_a2dp_offload_v2());
   EXPECT_EQ(false, capabilities.supports_iso_link_feedback_event());
+  EXPECT_EQ(false, capabilities.supports_sniff_offload());
 }
 
 TEST(AndroidVendorCapabilitiesTest, Version099) {
@@ -325,6 +330,7 @@ TEST(AndroidVendorCapabilitiesTest, Version099) {
   EXPECT_EQ(false, capabilities.supports_bluetooth_quality_report());
   EXPECT_EQ(0u, capabilities.supports_dynamic_audio_buffer());
   EXPECT_EQ(false, capabilities.supports_a2dp_offload_v2());
+  EXPECT_EQ(false, capabilities.supports_sniff_offload());
 }
 
 TEST(AndroidVendorCapabilitiesTest, Version099asOverridden) {
@@ -381,6 +387,7 @@ TEST(AndroidVendorCapabilitiesTest, Version099asOverridden) {
   EXPECT_EQ(false, capabilities.supports_bluetooth_quality_report());
   EXPECT_EQ(0u, capabilities.supports_dynamic_audio_buffer());
   EXPECT_EQ(false, capabilities.supports_a2dp_offload_v2());
+  EXPECT_EQ(false, capabilities.supports_sniff_offload());
 }
 
 TEST(AndroidVendorCapabilitiesTest, Version103) {
@@ -447,6 +454,7 @@ TEST(AndroidVendorCapabilitiesTest, Version103) {
   EXPECT_EQ(7u, capabilities.supports_dynamic_audio_buffer());
   EXPECT_EQ(false, capabilities.supports_a2dp_offload_v2());
   EXPECT_EQ(false, capabilities.supports_iso_link_feedback_event());
+  EXPECT_EQ(false, capabilities.supports_sniff_offload());
 }
 
 TEST(AndroidVendorCapabilitiesTest, Version104) {
@@ -516,6 +524,7 @@ TEST(AndroidVendorCapabilitiesTest, Version104) {
   EXPECT_EQ(7u, capabilities.supports_dynamic_audio_buffer());
   EXPECT_EQ(true, capabilities.supports_a2dp_offload_v2());
   EXPECT_EQ(false, capabilities.supports_iso_link_feedback_event());
+  EXPECT_EQ(false, capabilities.supports_sniff_offload());
 }
 
 TEST(AndroidVendorCapabilitiesTest, Version105) {
@@ -568,6 +577,9 @@ TEST(AndroidVendorCapabilitiesTest, Version105) {
   ASSERT_TRUE(view.has_iso_link_feedback_support().ValueOr(false));
   view.iso_link_feedback_support().Write(Capability::CAPABLE);
 
+  ASSERT_TRUE(view.has_sniff_offload_support().ValueOr(false));
+  view.sniff_offload_support().Write(Capability::CAPABLE);
+
   AndroidVendorCapabilities capabilities =
       AndroidVendorCapabilities::New(view, 0);
   EXPECT_EQ(1u, capabilities.max_simultaneous_advertisements());
@@ -588,6 +600,7 @@ TEST(AndroidVendorCapabilitiesTest, Version105) {
   EXPECT_EQ(7u, capabilities.supports_dynamic_audio_buffer());
   EXPECT_EQ(true, capabilities.supports_a2dp_offload_v2());
   EXPECT_EQ(true, capabilities.supports_iso_link_feedback_event());
+  EXPECT_EQ(true, capabilities.supports_sniff_offload());
 }
 
 TEST(AndroidVendorCapabilitiesTest, Version9999) {
@@ -640,6 +653,9 @@ TEST(AndroidVendorCapabilitiesTest, Version9999) {
   ASSERT_TRUE(view.has_iso_link_feedback_support().ValueOr(false));
   view.iso_link_feedback_support().Write(Capability::CAPABLE);
 
+  ASSERT_TRUE(view.has_sniff_offload_support().ValueOr(false));
+  view.sniff_offload_support().Write(Capability::CAPABLE);
+
   AndroidVendorCapabilities capabilities =
       AndroidVendorCapabilities::New(view, 0);
   EXPECT_EQ(1u, capabilities.max_simultaneous_advertisements());
@@ -660,6 +676,7 @@ TEST(AndroidVendorCapabilitiesTest, Version9999) {
   EXPECT_EQ(7u, capabilities.supports_dynamic_audio_buffer());
   EXPECT_EQ(true, capabilities.supports_a2dp_offload_v2());
   EXPECT_EQ(true, capabilities.supports_iso_link_feedback_event());
+  EXPECT_EQ(true, capabilities.supports_sniff_offload());
 }
 
 }  // namespace
