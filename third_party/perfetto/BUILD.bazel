@@ -37,6 +37,7 @@ py_proto_library(
 rust_prost_library(
     name = "trace_rust_pb2",
     proto = ":trace_proto",
+    target_compatible_with = incompatible_with_mcu(),
 )
 
 sphinx_docs_library(
