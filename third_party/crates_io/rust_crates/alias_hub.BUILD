@@ -325,12 +325,10 @@ alias(
 alias(
     name = "protoc-gen-prost",
     target_compatible_with = select({
-        "@pigweed//pw_build/constraints/rust:no_std": [],
         "@pigweed//pw_build/constraints/rust:std": [],
         "//conditions:default": ["@platforms//:incompatible"],
     }),
     actual = select({
-        "@pigweed//pw_build/constraints/rust:no_std": "@crates_no_std//:protoc-gen-prost",
         "@pigweed//pw_build/constraints/rust:std": "@crates_std//:protoc-gen-prost",
     }),
     visibility = ["//visibility:public"],
@@ -344,6 +342,18 @@ alias(
     }),
     actual = select({
         "@pigweed//pw_build/constraints/rust:std": "@crates_std//:protoc-gen-prost__protoc-gen-prost",
+    }),
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "psm",
+    target_compatible_with = select({
+        "@pigweed//pw_build/constraints/rust:std": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
+    actual = select({
+        "@pigweed//pw_build/constraints/rust:std": "@crates_std//:psm",
     }),
     visibility = ["//visibility:public"],
 )
@@ -518,6 +528,18 @@ alias(
     }),
     actual = select({
         "@pigweed//pw_build/constraints/rust:std": "@crates_std//:toml",
+    }),
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "zngur",
+    target_compatible_with = select({
+        "@pigweed//pw_build/constraints/rust:std": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
+    actual = select({
+        "@pigweed//pw_build/constraints/rust:std": "@crates_std//:zngur",
     }),
     visibility = ["//visibility:public"],
 )
