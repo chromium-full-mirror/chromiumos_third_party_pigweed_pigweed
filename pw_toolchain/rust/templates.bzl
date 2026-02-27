@@ -190,6 +190,7 @@ rust_analyzer_toolchain(
     rustc_srcs_path = "lib/rustlib/src/rust/library",
     target_compatible_with = {target_compatible_with},
     visibility = ["//visibility:public"],
+    rust_analyzer = "{rust_analyzer_repo}//:rust-analyzer",
 )
 
 toolchain(
@@ -205,12 +206,14 @@ toolchain(
 def rust_analyzer_toolchain_template(
         name,
         toolchain_repo,
+        rust_analyzer_repo,
         exec_compatible_with,
         target_compatible_with,
         target_settings):
     return _rust_analyzer_toolchain_template.format(
         name = name,
         toolchain_repo = toolchain_repo,
+        rust_analyzer_repo = rust_analyzer_repo,
         exec_compatible_with = json.encode(exec_compatible_with),
         target_compatible_with = json.encode(target_compatible_with),
         target_settings = json.encode(target_settings),

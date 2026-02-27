@@ -17,7 +17,7 @@ load("//pw_env_setup/bazel/cipd_setup:cipd_rules.bzl", "cipd_repository")
 load(":templates.bzl", "rust_analyzer_toolchain_template", "rust_toolchain_no_prebuilt_template", "rust_toolchain_template", "rustfmt_toolchain_template", "toolchain_template")
 load(":toolchains.bzl", "CHANNELS", "EXTRA_TARGETS", "HOSTS")
 
-def _module_cipd_tag(module):
+def _module_cipd_tag(module, toolchain_attr):
     """\
     Returns the `cipd_tag` tag for the given module.
 
@@ -25,11 +25,11 @@ def _module_cipd_tag(module):
     """
     cipd_tag = None
     for toolchain in module.tags.toolchain:
-        cipd_tag = toolchain.cipd_tag
+        cipd_tag = getattr(toolchain, toolchain_attr)
 
     return cipd_tag
 
-def _find_cipd_tag(ctx):
+def _find_cipd_tag(ctx, toolchain_attr):
     """\
     Returns the CIPD tag specified in either the root or pigweed modules.
 
@@ -42,14 +42,14 @@ def _find_cipd_tag(ctx):
 
     for module in ctx.modules:
         if module.is_root:
-            root_tag = _module_cipd_tag(module)
+            root_tag = _module_cipd_tag(module, toolchain_attr = toolchain_attr)
         if module.name == "pigweed":
             pigweed_module = module
 
     if pigweed_module == None:
         fail("Unable to find pigweed module")
 
-    return root_tag or _module_cipd_tag(pigweed_module)
+    return root_tag or _module_cipd_tag(pigweed_module, toolchain_attr = toolchain_attr)
 
 def _normalize_os_to_cipd(os):
     """\
@@ -95,7 +95,8 @@ def _tags_to_channels(tags):
     ]
 
 def _pw_rust_impl(ctx):
-    cipd_tag = _find_cipd_tag(ctx)
+    rust_toolchain_cipd_tag = _find_cipd_tag(ctx, "cipd_tag")
+    rust_analyzer_cipd_tag = _find_cipd_tag(ctx, "rust_analyzer_cipd_tag")
 
     hosts = None
     extra_targets = None
@@ -151,14 +152,21 @@ def _pw_rust_impl(ctx):
             name = "rust_toolchain_host_{}_{}".format(host["os"], host["cpu"]),
             build_file = "//pw_toolchain/rust:rust_toolchain.BUILD",
             path = "fuchsia/third_party/rust/host/{}-{}".format(cipd_os, host["cipd_arch"]),
-            tag = cipd_tag,
+            tag = rust_toolchain_cipd_tag,
         )
 
         cipd_repository(
             name = "rust_toolchain_target_{}_{}".format(host["triple"], host["cpu"]),
             build_file = "//pw_toolchain/rust:rust_stdlib.BUILD",
             path = "fuchsia/third_party/rust/target/{}".format(host["triple"]),
-            tag = cipd_tag,
+            tag = rust_toolchain_cipd_tag,
+        )
+
+        cipd_repository(
+            name = "rust_analyzer_{}_{}".format(host["os"], host["cpu"]),
+            build_file = "//pw_toolchain/rust:rust_analyzer.BUILD",
+            path = "fuchsia/third_party/rust-analyzer/{}-{}".format(cipd_os, host["cipd_arch"]),
+            tag = rust_analyzer_cipd_tag,
         )
 
     for target in extra_targets:
@@ -168,7 +176,7 @@ def _pw_rust_impl(ctx):
                 name = "rust_toolchain_target_{}_{}".format(target["triple"], target["cpu"]),
                 build_file = "//pw_toolchain/rust:rust_stdlib.BUILD",
                 path = "fuchsia/third_party/rust/target/{}".format(target["triple"]),
-                tag = cipd_tag,
+                tag = rust_toolchain_cipd_tag,
             )
 
     _toolchain_repository_hub(
@@ -182,6 +190,9 @@ _RUST_TOOLCHAIN_TAG = tag_class(
     attrs = dict(
         cipd_tag = attr.string(
             doc = "The CIPD tag to use when fetching the Rust toolchain.",
+        ),
+        rust_analyzer_cipd_tag = attr.string(
+            doc = "The CIPD tag to use when fetching the Rust analyzer toolchain.",
         ),
     ),
 )
@@ -307,6 +318,7 @@ def _pw_rust_toolchain(
         target_compatible_with,
         target_settings,
         extra_rustc_flags,
+        rust_analyzer_repo = None,
         analyzer_toolchain_name = None,
         rustfmt_toolchain_name = None,
         build_std = False,
@@ -348,6 +360,7 @@ def _pw_rust_toolchain(
         build_file += rust_analyzer_toolchain_template(
             name = analyzer_toolchain_name,
             toolchain_repo = toolchain_repo,
+            rust_analyzer_repo = rust_analyzer_repo,
             exec_compatible_with = exec_compatible_with,
             target_compatible_with = target_compatible_with,
             target_settings = target_settings,
@@ -388,6 +401,7 @@ def _BUILD_for_toolchain_repo(hosts, extra_targets, channels):
                 dylib_ext = host["dylib_ext"],
                 target_repo = "@rust_toolchain_target_{}_{}".format(host["triple"], host["cpu"]),
                 toolchain_repo = "@rust_toolchain_host_{}_{}".format(host["os"], host["cpu"]),
+                rust_analyzer_repo = "@rust_analyzer_{}_{}".format(host["os"], host["cpu"]),
                 exec_triple = host["triple"],
                 target_triple = host["triple"],
                 extra_rustc_flags = channel["extra_rustc_flags"],
