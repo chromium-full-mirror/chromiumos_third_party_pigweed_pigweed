@@ -1,2 +1,5 @@
 include chromiumos/owners:v1:/firmware/OWNERS.pigweed
+
+# Include OWNERS.zephyr for the combined Zephyr-Pigweed downstreaming rotation
+include chromiumos/owners:v1:/firmware/OWNERS.zephyr #{LAST_RESORT_SUGGESTION}
 include chromiumos/owners:v1:/bots/OWNERS.copybot #{LAST_RESORT_SUGGESTION}
