@@ -164,6 +164,7 @@ pw_facade("aes") {
     "public/pw_crypto/aes_backend_defs.h",
   ]
   public_deps = [
+    "$dir_pw_assert:assert",
     "$dir_pw_bytes",
     "$dir_pw_log",
     "$dir_pw_status",
