@@ -10,7 +10,7 @@
         "windows-amd64"
       ],
       "tags": [
-        "git_revisions:c043085801b7a884054add21a94882216df5971c,3603038c09a94f112a477a51a6eb4061bea674fd"
+        "git_revisions:eeb94be79adc9df7a09ad0b2421f16e60e6d932c,cb3d7ffb09e8be115da1fd57a6c09860e89f5449"
       ]
     },
     {
@@ -19,7 +19,7 @@
         "linux-arm64"
       ],
       "tags": [
-        "git_revisions:c043085801b7a884054add21a94882216df5971c,3603038c09a94f112a477a51a6eb4061bea674fd"
+        "git_revisions:eeb94be79adc9df7a09ad0b2421f16e60e6d932c,cb3d7ffb09e8be115da1fd57a6c09860e89f5449"
       ]
     },
     {
@@ -28,7 +28,7 @@
         "linux-amd64"
       ],
       "tags": [
-        "git_revisions:c043085801b7a884054add21a94882216df5971c,3603038c09a94f112a477a51a6eb4061bea674fd"
+        "git_revisions:eeb94be79adc9df7a09ad0b2421f16e60e6d932c,cb3d7ffb09e8be115da1fd57a6c09860e89f5449"
       ]
     },
     {
@@ -37,7 +37,7 @@
         "mac-arm64"
       ],
       "tags": [
-        "git_revisions:c043085801b7a884054add21a94882216df5971c,3603038c09a94f112a477a51a6eb4061bea674fd"
+        "git_revisions:eeb94be79adc9df7a09ad0b2421f16e60e6d932c,cb3d7ffb09e8be115da1fd57a6c09860e89f5449"
       ]
     },
     {
@@ -46,7 +46,7 @@
         "windows-amd64"
       ],
       "tags": [
-        "git_revisions:c043085801b7a884054add21a94882216df5971c,3603038c09a94f112a477a51a6eb4061bea674fd"
+        "git_revisions:eeb94be79adc9df7a09ad0b2421f16e60e6d932c,cb3d7ffb09e8be115da1fd57a6c09860e89f5449"
       ]
     },
     {
@@ -55,7 +55,7 @@
         "mac-amd64"
       ],
       "tags": [
-        "git_revisions:c043085801b7a884054add21a94882216df5971c,3603038c09a94f112a477a51a6eb4061bea674fd"
+        "git_revisions:eeb94be79adc9df7a09ad0b2421f16e60e6d932c,cb3d7ffb09e8be115da1fd57a6c09860e89f5449"
       ]
     },
     {
@@ -67,7 +67,7 @@
         "mac-arm64"
       ],
       "tags": [
-        "git_revisions:c043085801b7a884054add21a94882216df5971c,3603038c09a94f112a477a51a6eb4061bea674fd"
+        "git_revisions:eeb94be79adc9df7a09ad0b2421f16e60e6d932c,cb3d7ffb09e8be115da1fd57a6c09860e89f5449"
       ]
     },
     {
