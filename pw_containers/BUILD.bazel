@@ -461,6 +461,19 @@ cc_library(
     strip_include_prefix = "public",
 )
 
+cc_library(
+    name = "optional",
+    hdrs = [
+        "public/pw_containers/internal/optional_data.h",
+    ],
+    strip_include_prefix = "public",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//pw_assert:assert",
+        "//pw_preprocessor",
+    ],
+)
+
 # Unit tests
 
 pw_cc_test(

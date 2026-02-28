@@ -42,6 +42,7 @@
 #include <type_traits>
 #include <utility>
 
+#include "pw_containers/internal/optional_data.h"
 #include "pw_preprocessor/compiler.h"
 #include "pw_result/internal/result_internal.h"
 #include "pw_status/status.h"
@@ -136,15 +137,16 @@ class [[nodiscard]] Result;
 ///  }
 /// @endcode
 template <typename T>
-class Result : private internal_result::StatusOrData<T>,
-               private internal_result::CopyCtorBase<T>,
-               private internal_result::MoveCtorBase<T>,
-               private internal_result::CopyAssignBase<T>,
-               private internal_result::MoveAssignBase<T> {
+class Result
+    : private containers::internal::OptionalData<T, pw_Status, PW_STATUS_OK>,
+      private containers::internal::CopyCtorBase<T>,
+      private containers::internal::MoveCtorBase<T>,
+      private containers::internal::CopyAssignBase<T>,
+      private containers::internal::MoveAssignBase<T> {
   template <typename U>
   friend class Result;
 
-  using Base = internal_result::StatusOrData<T>;
+  using Base = containers::internal::OptionalData<T, pw_Status, PW_STATUS_OK>;
 
  public:
   /// This instance data provides a generic `value_type` member for use within
@@ -308,7 +310,8 @@ class Result : private internal_result::StatusOrData<T>,
               std::negation<internal_result::
                                 HasConversionOperatorToResult<T, U&&>>>::value,
           int> = 0>
-  constexpr Result(U&& v) : Base(std::forward<U>(v)) {}
+  constexpr Result(U&& v)
+      : Base(static_cast<Status>(std::forward<U>(v)).code()) {}
 
   template <
       typename U = Status,
@@ -322,7 +325,8 @@ class Result : private internal_result::StatusOrData<T>,
               std::negation<internal_result::
                                 HasConversionOperatorToResult<T, U&&>>>::value,
           int> = 0>
-  constexpr explicit Result(U&& v) : Base(std::forward<U>(v)) {}
+  constexpr explicit Result(U&& v)
+      : Base(static_cast<Status>(std::forward<U>(v)).code()) {}
 
   template <
       typename U = Status,
@@ -337,7 +341,7 @@ class Result : private internal_result::StatusOrData<T>,
                                 HasConversionOperatorToResult<T, U&&>>>::value,
           int> = 0>
   constexpr Result& operator=(U&& v) {
-    this->AssignStatus(std::forward<U>(v));
+    this->AssignState(static_cast<Status>(std::forward<U>(v)).code());
     return *this;
   }
 
@@ -444,7 +448,9 @@ class Result : private internal_result::StatusOrData<T>,
   ///      // Handle error
   ///   }
   /// @endcode
-  [[nodiscard]] constexpr bool ok() const { return this->status_.ok(); }
+  [[nodiscard]] constexpr bool ok() const {
+    return this->state_ == OkStatus().code();
+  }
 
   /// @returns The current `pw::Status` code contained within the `Result<T>`.
   /// If `pw::Result<T>` contains a `T`, then this function returns @OK.
@@ -538,7 +544,7 @@ class Result : private internal_result::StatusOrData<T>,
       this->MakeValue(std::forward<Args>(args)...);
     } else {
       this->MakeValue(std::forward<Args>(args)...);
-      this->status_ = OkStatus();
+      this->state_ = OkStatus().code();
     }
     return this->data_;
   }
@@ -555,7 +561,7 @@ class Result : private internal_result::StatusOrData<T>,
       this->MakeValue(ilist, std::forward<Args>(args)...);
     } else {
       this->MakeValue(ilist, std::forward<Args>(args)...);
-      this->status_ = OkStatus();
+      this->state_ = OkStatus().code();
     }
     return this->data_;
   }
@@ -766,7 +772,7 @@ constexpr bool operator!=(const Result<T>& lhs, const Result<T>& rhs) {
 //------------------------------------------------------------------------------
 
 template <typename T>
-constexpr Result<T>::Result() : Base(Status::Unknown()) {}
+constexpr Result<T>::Result() : Base(Status::Unknown().code()) {}
 
 template <typename T>
 template <typename U>
@@ -774,7 +780,7 @@ constexpr inline void Result<T>::Assign(const Result<U>& other) {
   if (other.ok()) {
     this->Assign(*other);
   } else {
-    this->AssignStatus(other.status());
+    this->AssignState(other.status().code());
   }
 }
 
@@ -784,7 +790,7 @@ constexpr inline void Result<T>::Assign(Result<U>&& other) {
   if (other.ok()) {
     this->Assign(*std::move(other));
   } else {
-    this->AssignStatus(std::move(other).status());
+    this->AssignState(std::move(other).status().code());
   }
 }
 template <typename T>
@@ -801,66 +807,66 @@ constexpr Result<T>::Result(std::in_place_t,
 
 template <typename T>
 constexpr Status Result<T>::status() const {
-  return this->status_;
+  return this->state_;
 }
 
 template <typename T>
 constexpr const T& Result<T>::value() const& {
-  PW_ASSERT(this->status_.ok());
+  PW_ASSERT(ok());
   return this->data_;
 }
 
 template <typename T>
 constexpr T& Result<T>::value() & {
-  PW_ASSERT(this->status_.ok());
+  PW_ASSERT(ok());
   return this->data_;
 }
 
 template <typename T>
 constexpr const T&& Result<T>::value() const&& {
-  PW_ASSERT(this->status_.ok());
+  PW_ASSERT(ok());
   return std::move(this->data_);
 }
 
 template <typename T>
 constexpr T&& Result<T>::value() && {
-  PW_ASSERT(this->status_.ok());
+  PW_ASSERT(ok());
   return std::move(this->data_);
 }
 
 template <typename T>
 constexpr const T& Result<T>::operator*() const& {
-  PW_ASSERT(this->status_.ok());
+  PW_ASSERT(ok());
   return this->data_;
 }
 
 template <typename T>
 constexpr T& Result<T>::operator*() & {
-  PW_ASSERT(this->status_.ok());
+  PW_ASSERT(ok());
   return this->data_;
 }
 
 template <typename T>
 constexpr const T&& Result<T>::operator*() const&& {
-  PW_ASSERT(this->status_.ok());
+  PW_ASSERT(ok());
   return std::move(this->data_);
 }
 
 template <typename T>
 constexpr T&& Result<T>::operator*() && {
-  PW_ASSERT(this->status_.ok());
+  PW_ASSERT(ok());
   return std::move(this->data_);
 }
 
 template <typename T>
 constexpr const T* Result<T>::operator->() const {
-  PW_ASSERT(this->status_.ok());
+  PW_ASSERT(ok());
   return &this->data_;
 }
 
 template <typename T>
 constexpr T* Result<T>::operator->() {
-  PW_ASSERT(this->status_.ok());
+  PW_ASSERT(ok());
   return &this->data_;
 }
 

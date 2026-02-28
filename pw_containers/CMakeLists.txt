@@ -465,6 +465,16 @@ pw_add_library(pw_containers.intrusive_set INTERFACE
     pw_containers.aa_tree
 )
 
+pw_add_library(pw_containers.optional INTERFACE
+  HEADERS
+    public/pw_containers/internal/optional_data.h
+  PUBLIC_INCLUDES
+    public
+  PUBLIC_DEPS
+    pw_assert
+    pw_preprocessor
+)
+
 pw_add_library(pw_containers.optional_tuple INTERFACE
   HEADERS
     public/pw_containers/optional_tuple.h
