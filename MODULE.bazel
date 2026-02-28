@@ -280,16 +280,56 @@ python.toolchain(
 use_repo(python, "pythons_hub")
 
 pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
+pip.default(
+    # This special "none_any_mcu" pip platform allows rules_python to find PIP
+    # packages when the target platform is an MCU. However the MCU is not
+    # actually expected to run any Python code.
+    #
+    # We must associate this platform with requirements files. We do so with
+    # the pip configurations below, using upstream_requirements_linux_lock.txt.
+    # The
+    #
+    # Behind the scenes rules_python is creating Bazel alias rules that
+    # map each Python package to a repo using a select expression that uses
+    # the targets (filtered to those that match the "target_platform" setting).
+    #
+    # The default for those select expressions is a special internal
+    # "_no_matching_repository" match that generates an error. This is meant
+    # to catch the pip repo not having a build for a given host target, but
+    # isn't great for an MCU target that will never have a match.
+    #
+    # The only way to stop Bazel from triggering the error otherwise requires
+    # ensuring no rules build anything that require the deps, using perhaps
+    # a "target_compatible_with = incompatible_with_mcu()" attribute, but that
+    # requires rules that support that attribute. With rules_python 1.8.3, its
+    # own "py_console_script_binary" does not, which is why workaround is being
+    # used.
+
+    # A valid arch_name is required, but the value does not matter since this
+    # configuration is for any target with @platforms//os:none
+    arch_name = "aarch32",
+    config_settings = [
+        "@platforms//os:none",
+    ],
+    os_name = "none",
+    platform = "none_any_mcu",
+)
 pip.parse(
     envsubst = ["PIGWEED_PIP_INDEX_URL"],
     experimental_index_url = "${PIGWEED_PIP_INDEX_URL:-https://pypi.org/simple}",
     hub_name = "pigweed_python_packages",
     python_version = "3.10",
     requirements_by_platform = {
+        # All supported target_platforms, including none_any_mcu must have an
+        # associated requirements file.
         "//pw_env_setup/py:pw_env_setup/virtualenv_setup/upstream_requirements_darwin_lock.txt": "osx_aarch64",
-        "//pw_env_setup/py:pw_env_setup/virtualenv_setup/upstream_requirements_linux_lock.txt": "linux_x86_64,linux_aarch64",
-        "//pw_env_setup/py:pw_env_setup/virtualenv_setup/upstream_requirements_windows_lock.txt": "windows_x86_64, windows_aarch64",
+        "//pw_env_setup/py:pw_env_setup/virtualenv_setup/upstream_requirements_linux_lock.txt": "linux_x86_64,linux_aarch64,none_any_mcu",
+        "//pw_env_setup/py:pw_env_setup/virtualenv_setup/upstream_requirements_windows_lock.txt": "windows_x86_64,windows_aarch64",
     },
+    target_platforms = [
+        "{os}_{arch}",
+        "none_any_mcu",
+    ],
 )
 pip.parse(
     envsubst = ["PIGWEED_PIP_INDEX_URL"],
@@ -297,10 +337,16 @@ pip.parse(
     hub_name = "pigweed_python_packages",
     python_version = "3.11",
     requirements_by_platform = {
+        # All supported target_platforms, including none_any_mcu must have an
+        # associated requirements file.
         "//pw_env_setup/py:pw_env_setup/virtualenv_setup/upstream_requirements_darwin_lock.txt": "osx_aarch64",
-        "//pw_env_setup/py:pw_env_setup/virtualenv_setup/upstream_requirements_linux_lock.txt": "linux_x86_64,linux_aarch64",
-        "//pw_env_setup/py:pw_env_setup/virtualenv_setup/upstream_requirements_windows_lock.txt": "windows_x86_64, window_aarch64",
+        "//pw_env_setup/py:pw_env_setup/virtualenv_setup/upstream_requirements_linux_lock.txt": "linux_x86_64,linux_aarch64,none_any_mcu",
+        "//pw_env_setup/py:pw_env_setup/virtualenv_setup/upstream_requirements_windows_lock.txt": "windows_x86_64,windows_aarch64",
     },
+    target_platforms = [
+        "{os}_{arch}",
+        "none_any_mcu",
+    ],
 )
 pip.parse(
     envsubst = ["PIGWEED_PIP_INDEX_URL"],
@@ -308,10 +354,16 @@ pip.parse(
     hub_name = "pigweed_python_packages",
     python_version = "3.12",
     requirements_by_platform = {
+        # All supported target_platforms, including none_any_mcu must have an
+        # associated requirements file.
         "//pw_env_setup/py:pw_env_setup/virtualenv_setup/upstream_requirements_darwin_lock.txt": "osx_aarch64",
-        "//pw_env_setup/py:pw_env_setup/virtualenv_setup/upstream_requirements_linux_lock.txt": "linux_x86_64,linux_aarch64",
+        "//pw_env_setup/py:pw_env_setup/virtualenv_setup/upstream_requirements_linux_lock.txt": "linux_x86_64,linux_aarch64,none_any_mcu",
         "//pw_env_setup/py:pw_env_setup/virtualenv_setup/upstream_requirements_windows_lock.txt": "windows_x86_64,windows_aarch64",
     },
+    target_platforms = [
+        "{os}_{arch}",
+        "none_any_mcu",
+    ],
 )
 use_repo(pip, "pigweed_python_packages")
 
