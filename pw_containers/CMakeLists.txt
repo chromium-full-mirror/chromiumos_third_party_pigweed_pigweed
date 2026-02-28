@@ -467,6 +467,7 @@ pw_add_library(pw_containers.intrusive_set INTERFACE
 
 pw_add_library(pw_containers.optional INTERFACE
   HEADERS
+    public/pw_containers/internal/optional.h
     public/pw_containers/internal/optional_data.h
   PUBLIC_INCLUDES
     public
@@ -890,6 +891,18 @@ pw_add_test(pw_containers.optional_tuple_test
     pw_containers._test_helpers
     pw_containers.optional_tuple
     pw_polyfill
+    pw_unit_test.constexpr
+  GROUPS
+    modules
+    pw_containers
+)
+
+pw_add_test(pw_containers.optional_test
+  SOURCES
+    optional_test.cc
+  PRIVATE_DEPS
+    pw_containers.optional
+    pw_containers._test_helpers
     pw_unit_test.constexpr
   GROUPS
     modules

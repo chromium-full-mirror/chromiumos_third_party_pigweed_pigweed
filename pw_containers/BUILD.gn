@@ -417,7 +417,10 @@ pw_source_set("intrusive_multiset") {
 
 pw_source_set("optional") {
   public_configs = [ ":public_include_path" ]
-  public = [ "public/pw_containers/internal/optional_data.h" ]
+  public = [
+    "public/pw_containers/internal/optional.h",
+    "public/pw_containers/internal/optional_data.h",
+  ]
   public_deps = [
     "$dir_pw_assert:assert",
     dir_pw_preprocessor,
@@ -472,6 +475,7 @@ pw_test_group("tests") {
     ":wrapped_iterator_test",
     ":ptr_iterator_test",
     ":optional_tuple_test",
+    ":optional_test",
   ]
   group_deps = [ "examples" ]
 }
@@ -827,6 +831,15 @@ pw_test("intrusive_item_test") {
     ":intrusive_set",
   ]
   negative_compilation_tests = true
+}
+
+pw_test("optional_test") {
+  sources = [ "optional_test.cc" ]
+  deps = [
+    ":optional",
+    ":test_helpers",
+    "$dir_pw_unit_test:constexpr",
+  ]
 }
 
 pw_test("optional_tuple_test") {
