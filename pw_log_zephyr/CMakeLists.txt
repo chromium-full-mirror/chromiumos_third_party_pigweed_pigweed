@@ -52,6 +52,12 @@ pw_add_library(pw_log_zephyr.pigweed_overrides INTERFACE
 pw_zephyrize_libraries_ifdef(CONFIG_PIGWEED_LOG_PIGWEED_OVERRIDES
     pw_log_zephyr.pigweed_overrides
 )
+if(DEFINED Zephyr_FOUND)
+  if(${CONFIG_PIGWEED_LOG_PIGWEED_OVERRIDES})
+    zephyr_link_libraries(pw_log_zephyr.pigweed_overrides)
+    zephyr_link_libraries(pw_log.facade)
+  endif()
+endif()
 
 pw_add_library(pw_log_zephyr.tokenized_lib INTERFACE
   PUBLIC_DEPS
