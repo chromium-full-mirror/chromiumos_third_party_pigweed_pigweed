@@ -291,6 +291,28 @@ when the operation completes, the provider is used to retrieve the future, and
 its ``Wake()`` function is called. This notifies the dispatcher that the task
 waiting on this future is ready to make progress and should be polled again.
 
+Setting up wakers
+=================
+Futures typically store a waker. When the future is ready to advance, that wake
+the task that pended them with this waker. Wakers can be set using one of these
+four macros:
+
+- :cc:`PW_ASYNC_STORE_WAKER` and :cc:`PW_ASYNC_CLONE_WAKER`
+
+  The first creates a waker for a given context. The second clones an
+  existing waker, allowing the original and/or the clone to wake the task.
+
+  This pair of macros ensure a single task will be woken. They will assert if
+  a waker for a different task is created (or cloned) when the destination
+  waker already is set up for some task.
+
+- :cc:`PW_ASYNC_TRY_STORE_WAKER` and :cc:`PW_ASYNC_TRY_CLONE_WAKER`
+
+  These are alternatives to :cc:`PW_ASYNC_STORE_WAKER` and
+  cc:`PW_ASYNC_CLONE_WAKER` that return ``false`` instead of crashing if the
+  waker is already set. This allows the caller to handle cases when the waker is
+  already in use.
+
 .. _module-pw_async2-futures-implementing-example:
 
 Example: Waiting for a GPIO interrupt
@@ -377,27 +399,34 @@ completing the task re-running, the tuple stores all of their results.
 
 .. _module-pw_async2-guides-primitives-wakers:
 
-Setting up wakers
-=================
-Futures typically store a waker. When the future is ready to advance, that wake
-the task that pended them with this waker. Wakers can be set using one of these
-four macros:
+.. _module-pw_async2-futures-type-erasure:
 
-- :cc:`PW_ASYNC_STORE_WAKER` and :cc:`PW_ASYNC_CLONE_WAKER`
+-----------------------------
+Type erasure with BoxedFuture
+-----------------------------
+Because ``pw_async2`` futures heavily use C++ templates, and Future combinators
+create complex nested future types, it can become difficult to name the return
+type of an async function to store it in a task.
 
-  The first creates a waker for a given context. The second clones an
-  existing waker, allowing the original and/or the clone to wake the task.
+``pw_async2`` provides :cc:`BoxedFuture <pw::async2::BoxedFuture>` for type
+erasure when working with futures that return some value type ``T``.
 
-  This pair of macros ensure a single task will be woken. They will assert if
-  a waker for a different task is created (or cloned) when the destination
-  waker already is set up for some task.
+Some scenarios where a ``BoxedFuture`` can be useful include:
 
-- :cc:`PW_ASYNC_TRY_STORE_WAKER` and :cc:`PW_ASYNC_TRY_CLONE_WAKER`
+1. Complex combinators. If you use future combinators, the resulting type is
+   often complex and difficult or impossible to spell out (especially if it
+   relies on a local lambda).
+2. Returning different future types from a single function. If you have
+   conditional logic that performs different operations with underlying future
+   implementations, you can use ``BoxedFuture`` to unify them.
+3. Writing virtual interfaces. If you are defining an abstract base
+   class with asynchronous operations, ``BoxedFuture`` allows implementers to
+   choose their own future types to return.
 
-  These are alternatives to :cc:`PW_ASYNC_STORE_WAKER` and
-  cc:`PW_ASYNC_CLONE_WAKER` that return ``false`` instead of crashing if the
-  waker is already set. This allows the caller to handle cases when the waker is
-  already in use.
+.. note::
+
+  ``pw_async2`` is designed to be allocation-free by default. However,
+  ``BoxedFuture`` requires dynamic memory allocation via ``pw::Allocator``.
 
 .. _module-pw_async2-futures-timeout:
 

@@ -259,6 +259,28 @@ pw_add_test(pw_async2.value_future_thread_test
     pw_thread.thread
 )
 
+pw_add_library(pw_async2.box INTERFACE
+  HEADERS
+    public/pw_async2/box.h
+  PUBLIC_DEPS
+    pw_allocator.allocator
+    pw_async2
+  PUBLIC_INCLUDES
+    public
+)
+
+pw_add_test(pw_async2.box_test
+  SOURCES
+    box_test.cc
+  PRIVATE_DEPS
+    pw_async2
+    pw_async2.box
+    pw_async2.select
+    pw_async2.testing
+    pw_async2.value_future
+    pw_allocator.testing
+)
+
 # TODO: b/481069684 - Remove deprecated alias.
 pw_add_library(pw_async2.func_task INTERFACE
   PUBLIC_DEPS

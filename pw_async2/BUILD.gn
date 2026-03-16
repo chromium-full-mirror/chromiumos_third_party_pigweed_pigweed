@@ -260,6 +260,28 @@ pw_test("future_timeout_test") {
   sources = [ "future_timeout_test.cc" ]
 }
 
+pw_source_set("box") {
+  public_configs = [ ":public_include_path" ]
+  public = [ "public/pw_async2/box.h" ]
+  public_deps = [
+    ":pw_async2",
+    "$dir_pw_allocator:allocator",
+  ]
+}
+
+pw_test("box_test") {
+  enable_if = pw_async2_DISPATCHER_FOR_TEST_BACKEND != ""
+  deps = [
+    ":box",
+    ":pw_async2",
+    ":select",
+    ":testing",
+    ":value_future",
+    "$dir_pw_allocator:testing",
+  ]
+  sources = [ "box_test.cc" ]
+}
+
 pw_source_set("value_future") {
   public_configs = [ ":public_include_path" ]
   public = [ "public/pw_async2/value_future.h" ]
@@ -664,6 +686,7 @@ if (pw_toolchain_CXX_STANDARD >= pw_toolchain_STANDARD.CXX20) {
 pw_test_group("tests") {
   tests = [
     ":allocate_task_test",
+    ":box_test",
     ":callback_task_test",
     ":cancellable_task_test",
     ":channel_test",

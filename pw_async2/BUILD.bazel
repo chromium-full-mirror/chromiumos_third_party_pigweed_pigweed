@@ -439,6 +439,31 @@ pw_cc_test(
 )
 
 cc_library(
+    name = "box",
+    hdrs = [
+        "public/pw_async2/box.h",
+    ],
+    strip_include_prefix = "public",
+    deps = [
+        ":pw_async2",
+        "//pw_allocator:allocator",
+    ],
+)
+
+pw_cc_test(
+    name = "box_test",
+    srcs = ["box_test.cc"],
+    deps = [
+        ":box",
+        ":pw_async2",
+        ":select",
+        ":testing",
+        ":value_future",
+        "//pw_allocator:testing",
+    ],
+)
+
+cc_library(
     name = "coro",
     srcs = [
         "coro.cc",
@@ -801,6 +826,7 @@ filegroup(
     srcs = [
         "public/pw_async2/await.h",
         "public/pw_async2/basic_dispatcher.h",
+        "public/pw_async2/box.h",
         "public/pw_async2/callback_task.h",
         "public/pw_async2/cancellable_task.h",
         "public/pw_async2/channel.h",
