@@ -80,6 +80,7 @@ pw_add_library(pw_async2 STATIC
     pw_third_party.fuchsia.stdcompat
   PRIVATE_DEPS
     pw_assert.check
+    pw_async2._yield
     pw_thread.sleep
   SOURCES
     context.cc
@@ -88,6 +89,16 @@ pw_add_library(pw_async2 STATIC
     runnable_dispatcher.cc
     task.cc
     waker.cc
+)
+
+pw_add_library(pw_async2._yield INTERFACE
+  HEADERS
+    private/pw_async2_private/yield.h
+  PUBLIC_INCLUDES
+    private
+  PUBLIC_DEPS
+    pw_chrono.system_clock
+    pw_thread.sleep
 )
 
 pw_add_library(pw_async2.dispatcher INTERFACE

@@ -64,17 +64,33 @@ namespace pw::async2 {
 /// but their use is optional. C++20 coroutines can be posted to a `Dispatcher`
 /// with `Post` if C++20 is supported and the build target depends on
 /// `//pw_async2:coro`.
+///
+/// **Destruction:**
+/// There cannot be any tasks registered when the `Dispatcher` goes out of
+/// scope. Call `Terminate()` to ensure this. The base destructor can't call
+/// `Terminate()` because the class is already partially destroyed at that
+/// point, and registered tasks might call `DoWake()` on it. Call `Terminate()`
+/// in the derived destructor if there is a desire to support destructors
+/// going out of scope with registered tasks.
 class Dispatcher {
  public:
-  Dispatcher(Dispatcher&) = delete;
-  Dispatcher& operator=(Dispatcher&) = delete;
+  Dispatcher(const Dispatcher&) = delete;
+  Dispatcher& operator=(const Dispatcher&) = delete;
 
   Dispatcher(Dispatcher&&) = delete;
   Dispatcher& operator=(Dispatcher&&) = delete;
 
+  virtual ~Dispatcher() PW_LOCKS_EXCLUDED(internal::lock());
+
   /// Removes references to this `Dispatcher` from all linked `Task`s and
-  /// `Waker`s.
-  virtual ~Dispatcher() PW_LOCKS_EXCLUDED(internal::lock()) { Destroy(); }
+  /// `Waker`s. Call before destroying the `Dispatcher` to ensure no tasks are
+  /// referencing it.
+  ///
+  /// @warning Calling `Terminate()` indicates that the dispatcher is about to
+  /// be destroyed. It is illegal to post tasks to or otherwise access the
+  /// dispatcher after `Terminate()` has been called, just as it would be to
+  /// access a dispatcher after its destructor has been called.
+  void Terminate() PW_LOCKS_EXCLUDED(internal::lock());
 
   /// Tells the `Dispatcher` to run `Task` to completion. This method does not
   /// block.
@@ -85,13 +101,7 @@ class Dispatcher {
   /// completes.
   ///
   /// This method is thread-safe and interrupt-safe.
-  void Post(Task& task) PW_LOCKS_EXCLUDED(internal::lock()) {
-    {
-      std::lock_guard lock(internal::lock());
-      PostLocked(task);
-    }
-    Wake();
-  }
+  void Post(Task& task) PW_LOCKS_EXCLUDED(internal::lock());
 
   /// Posts a dynamically allocated task to the dispatcher. Functions the same
   /// as `Post`, except the dispatcher takes shared reference to the task, which
@@ -291,7 +301,7 @@ class Dispatcher {
   /// `PopAndRunAllReadyTasks` to run multiple tasks.
   Task* PopSingleTaskForThisWake() PW_LOCKS_EXCLUDED(internal::lock()) {
     std::lock_guard lock(internal::lock());
-    SetWantsWake();
+    wants_wake_ = true;
     return PopTaskToRunLocked();
   }
 
@@ -314,10 +324,6 @@ class Dispatcher {
   template <typename>
   friend class DispatcherForTestFacade;
 
-  // Posts a task, but does not wake the dispatcher, which is done after the
-  // lock is released.
-  void PostLocked(Task& task) PW_EXCLUSIVE_LOCKS_REQUIRED(internal::lock());
-
   /// Sends a wakeup signal to this `Dispatcher`.
   ///
   /// This method's implementation must ensure that the `Dispatcher` runs at
@@ -334,19 +340,19 @@ class Dispatcher {
   /// acquired.
   virtual void DoWake() PW_LOCKS_EXCLUDED(internal::lock()) = 0;
 
-  // Prefer to call Wake() without the lock held, but it can be called with it
-  // when necessary (see WakeTask()).
-  void Wake() {
-    if (wants_wake_.exchange(false, std::memory_order_relaxed)) {
-      DoWake();
+  void Wake(Task* task_to_release = nullptr)
+      PW_UNLOCK_FUNCTION(internal::lock());
+
+  // Removes a task, waking the dispatcher if it is the last task.
+  void DeregisterTask(Task& task) PW_UNLOCK_FUNCTION(internal::lock()) {
+    if (has_tasks()) {
+      task.UnpostAndReleaseRef();
+    } else {
+      Wake(&task);
     }
   }
 
   Task* PopTaskToRunLocked() PW_EXCLUSIVE_LOCKS_REQUIRED(internal::lock());
-
-  // Removes references to this `Dispatcher` from all linked `Task`s and
-  // `Waker`s. Use a separate function so thread safety analysis applies.
-  void Destroy() PW_LOCKS_EXCLUDED(internal::lock());
 
   static void UnpostTaskList(IntrusiveForwardList<Task>& list)
       PW_EXCLUSIVE_LOCKS_REQUIRED(internal::lock());
@@ -363,21 +369,18 @@ class Dispatcher {
       PW_EXCLUSIVE_LOCKS_REQUIRED(internal::lock()) {
     sleeping_.push_front(task);
   }
+  void AddWokenTaskLocked(Task& task)
+      PW_EXCLUSIVE_LOCKS_REQUIRED(internal::lock()) {
+    containers::PushBackSlow(woken_, task);
+  }
 
-  // For use by `Waker`.
-  void WakeTask(Task& task) PW_EXCLUSIVE_LOCKS_REQUIRED(internal::lock());
+  // True if any tasks are registered with the dispatcher.
+  bool has_tasks() const PW_EXCLUSIVE_LOCKS_REQUIRED(internal::lock()) {
+    return !woken_.empty() || !sleeping_.empty();
+  }
 
   void LogTaskWakers(const Task& task)
       PW_EXCLUSIVE_LOCKS_REQUIRED(internal::lock());
-
-  // Indicates that this Dispatcher should be woken when Wake() is called. This
-  // prevents unnecessary wakes when, for example, multiple wakers wake the same
-  // task or multiple tasks are posted before the dipsatcher runs.
-  //
-  // Must be called while the lock is held to prevent missed wakes.
-  void SetWantsWake() PW_EXCLUSIVE_LOCKS_REQUIRED(internal::lock()) {
-    wants_wake_.store(true, std::memory_order_relaxed);
-  }
 
   // Checks if `task` contains a value and posts it to the dispatcher as an
   // allocated task. Returns true if the task posted successfully.
@@ -398,7 +401,8 @@ class Dispatcher {
   template <auto kCoroMemberFunc, typename Receiver, typename... Args>
   [[nodiscard]] auto PostSharedMemberCoro(CoroContext coro_cx,
                                           Receiver&& receiver,
-                                          Args&&... args) {
+                                          Args&&... args)
+      PW_LOCKS_EXCLUDED(internal::lock()) {
     return Post(coro_cx.allocator(),
                 std::invoke(kCoroMemberFunc,
                             std::forward<Receiver>(receiver),
@@ -412,8 +416,16 @@ class Dispatcher {
   IntrusiveForwardList<Task> woken_ PW_GUARDED_BY(internal::lock());
   IntrusiveForwardList<Task> sleeping_ PW_GUARDED_BY(internal::lock());
 
-  // Latches wake requests to avoid duplicate DoWake calls.
-  std::atomic<bool> wants_wake_ = false;
+  // Counts pending DoWake() calls (really should only ever be 1). This is
+  // necessary to prevent the Dispatcher from being destroyed while DoWake() is
+  // running, since the lock is not held at that time.
+  std::atomic<uint8_t> wakes_pending_ = 0;
+
+  // Indicates that this Dispatcher should be woken when Wake() is called. This
+  // prevents unnecessary wakes when, for example, multiple wakers wake the same
+  // task or multiple tasks are posted before the dipsatcher runs.
+  bool wants_wake_ PW_GUARDED_BY(internal::lock()) = false;
+  bool terminated_ PW_GUARDED_BY(internal::lock()) = false;
 };
 
 /// @endsubmodule

@@ -17,7 +17,6 @@
 #include <mutex>
 
 #include "pw_async2/context.h"
-#include "pw_async2/dispatcher.h"
 #include "pw_async2/task.h"
 
 namespace pw::async2 {
@@ -54,10 +53,13 @@ Waker& Waker::operator=(Waker&& other) noexcept {
 }
 
 void Waker::Wake() {
-  std::lock_guard lock(internal::lock());
-  if (task_ != nullptr) {
-    task_->dispatcher_->WakeTask(*task_);
-    RemoveTaskIfSet();
+  internal::lock().lock();
+  if (task_ == nullptr) {
+    internal::lock().unlock();
+  } else {
+    Task& task = *task_;
+    RemoveTask();
+    task.Wake();
   }
 }
 

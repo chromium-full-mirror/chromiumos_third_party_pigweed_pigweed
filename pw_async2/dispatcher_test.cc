@@ -243,6 +243,8 @@ TEST(DispatcherForTest, UnscheduleAllowsRepost) {
 
 class WakeCounter final : public pw::async2::Dispatcher {
  public:
+  ~WakeCounter() override { Terminate(); }
+
   int wake_count() const { return wake_count_; }
 
   using pw::async2::Dispatcher::PopAndRunAllReadyTasks;

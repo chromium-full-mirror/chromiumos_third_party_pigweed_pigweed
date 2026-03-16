@@ -213,15 +213,13 @@ class Task : public IntrusiveList<Task>::Item {
   // as running.
   RunTaskResult RunInDispatcher() PW_LOCKS_EXCLUDED(internal::lock());
 
-  // Called by the dispatcher to wake this task. Returns whether the task
-  // actually needed to be woken.
-  [[nodiscard]] bool Wake() PW_EXCLUSIVE_LOCKS_REQUIRED(internal::lock());
+  // Called by a waker to wake this task.
+  void Wake() PW_UNLOCK_FUNCTION(internal::lock());
 
   // Unlinks all `Waker` objects associated with this `Task.`
   void RemoveAllWakersLocked() PW_EXCLUSIVE_LOCKS_REQUIRED(internal::lock());
 
-  // Adds a `Waker` to the linked list of `Waker` s tracked by this
-  // `Task`.
+  // Adds a `Waker` to the linked list of `Waker`s tracked by this `Task`.
   void AddWakerLocked(Waker& waker)
       PW_EXCLUSIVE_LOCKS_REQUIRED(internal::lock()) {
     wakers_.push_front(waker);
@@ -246,8 +244,11 @@ class Task : public IntrusiveList<Task>::Item {
     SharedPtr<Task> temp(this, control_block);
   }
 
-  void set_control_block(allocator::internal::ControlBlock& control_block)
-      PW_EXCLUSIVE_LOCKS_REQUIRED(internal::lock()) {
+  // Sets the control block for an allocated BEFORE the task is posted. Since
+  // the task hasn't been posted yet, it's not necessary to hold the lock.
+  void SetControlBlockBeforePosted(
+      allocator::internal::ControlBlock& control_block)
+      PW_NO_LOCK_SAFETY_ANALYSIS {
     control_block_ = &control_block;
   }
 

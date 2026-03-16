@@ -78,6 +78,7 @@ cc_library(
         "public/pw_async2/waker.h",
     ],
     implementation_deps = [
+        ":yield",
         "//pw_assert:check",
         "//pw_thread:sleep",
     ],
@@ -102,6 +103,18 @@ cc_library(
         "//pw_sync:lock_annotations",
         "//pw_tokenizer",
         "//third_party/fuchsia:stdcompat",
+    ],
+)
+
+cc_library(
+    name = "yield",
+    hdrs = ["private/pw_async2_private/yield.h"],
+    strip_include_prefix = "private",
+    visibility = ["//visibility:private"],
+    deps = [
+        ":internal",
+        "//pw_chrono:system_clock",
+        "//pw_thread:sleep",
     ],
 )
 

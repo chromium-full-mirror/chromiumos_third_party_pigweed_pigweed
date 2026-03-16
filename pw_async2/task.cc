@@ -23,23 +23,13 @@
 #include "pw_async2/dispatcher.h"
 #include "pw_async2/internal/config.h"
 #include "pw_async2/task.h"
+#include "pw_async2_private/yield.h"
 #include "pw_log/log.h"
 #include "pw_thread/sleep.h"
 
 #define PW_TASK_NAME_FMT() PW_LOG_TOKEN_FMT("pw_async2")
 
 namespace pw::async2 {
-namespace {
-
-void YieldToAnyThread() {
-  // Sleep to yield the CPU in case work must be completed in a lower priority
-  // priority thread to make progress. Depending on the RTOS, yield may not
-  // allow lower priority threads to be scheduled.
-  // TODO: b/456506369 - Switch to pw::this_thread::yield when it is updated.
-  this_thread::sleep_for(chrono::SystemClock::duration(1));
-}
-
-}  // namespace
 
 Task::~Task() {
   PW_DCHECK_INT_EQ(
@@ -65,7 +55,7 @@ bool Task::IsRegistered() const {
 
 void Task::Deregister() {
   while (!TryDeregister()) {
-    YieldToAnyThread();
+    internal::YieldToAnyThread();
   }
 }
 
@@ -95,13 +85,7 @@ bool Task::TryDeregister() {
       break;
   }
 
-  // Wake the dispatcher up if this was the last task so that it can see that
-  // all tasks have completed.
-  if (dispatcher_->woken_.empty() && dispatcher_->sleeping_.empty()) {
-    dispatcher_->Wake();
-  }
-
-  UnpostAndReleaseRef();
+  dispatcher_->DeregisterTask(*this);
   return true;
 }
 
@@ -113,7 +97,7 @@ void Task::Join() {
         return;
       }
     }
-    YieldToAnyThread();
+    internal::YieldToAnyThread();
   }
 }
 
@@ -217,7 +201,7 @@ RunTaskResult Task::RunInDispatcher() {
   return RunTaskResult::kActive;
 }
 
-bool Task::Wake() {
+void Task::Wake() {
   PW_LOG_DEBUG("Dispatcher waking task " PW_TASK_NAME_FMT() ":%p",
                name_,
                static_cast<const void*>(this));
@@ -225,7 +209,8 @@ bool Task::Wake() {
   switch (state_) {
     case State::kWoken:
       // Do nothing: this has already been woken.
-      return false;
+      internal::lock().unlock();
+      return;
     case State::kUnposted:
       // This should be unreachable.
       PW_CHECK(false);
@@ -235,14 +220,16 @@ bool Task::Wake() {
       // started running.
       break;
     case State::kDeregisteredButRunning:
-      return false;  // Do nothing: will be deregistered when the run finishes
+      internal::lock().unlock();
+      return;  // Do nothing: will be deregistered when the run finishes
     case State::kSleeping:
       dispatcher_->RemoveSleepingTaskLocked(*this);
       // Wake away!
       break;
   }
   state_ = State::kWoken;
-  return true;
+  dispatcher_->AddWokenTaskLocked(*this);
+  dispatcher_->Wake();
 }
 
 }  // namespace pw::async2

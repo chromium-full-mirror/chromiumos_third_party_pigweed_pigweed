@@ -34,6 +34,7 @@ cc_library_static {
     ],
     header_libs: [
         "pw_assert",
+        "pw_async2_yield",
         "pw_chrono",
         "pw_log",
         "pw_sync",
@@ -54,4 +55,11 @@ cc_library_static {
         "pw_memory",
         "pw_string",
     ],
+}
+
+cc_library_headers {
+    name: "pw_async2_yield",
+    export_include_dirs: ["private"],
+    vendor_available: true,
+    host_supported: true,
 }
