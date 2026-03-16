@@ -309,6 +309,7 @@ typename BlockAllocator<BlockType>::Range BlockAllocator<BlockType>::blocks()
 template <typename BlockType>
 void BlockAllocator<BlockType>::Init(ByteSpan region) {
   Result<BlockType*> result = BlockType::Init(region);
+  PW_ASSERT(result.ok());
   Init(*result);
 }
 
