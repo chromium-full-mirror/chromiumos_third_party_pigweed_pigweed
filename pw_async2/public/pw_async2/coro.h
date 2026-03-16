@@ -18,7 +18,6 @@
 #include <cstddef>
 #include <type_traits>
 #include <utility>
-#include <variant>
 
 #include "pw_allocator/allocator.h"
 #include "pw_allocator/layout.h"
@@ -399,7 +398,15 @@ class Awaitable final {
   using value_type = typename await_type::value_type;
 
   Awaitable(CoroOrFuture&& coro_or_future)
-      : state_(std::in_place_index<0>, std::move(coro_or_future)) {}
+      : state_(std::move(coro_or_future)), is_ready_(false) {}
+
+  ~Awaitable() {
+    if (is_ready_) {
+      state_.result.~Value();
+    } else {
+      state_.coro_or_future.~CoroOrFuture();
+    }
+  }
 
   // Confirms that `await_suspend` must be invoked.
   bool await_ready() { return false; }
@@ -447,7 +454,7 @@ class Awaitable final {
   {
     // await_resume() is never called after allocation failure because the
     // coroutine is destroyed instead of being resumed again.
-    return std::move(std::get<1>(state_));
+    return std::move(state_.result);
   }
 
   void await_resume()
@@ -467,11 +474,9 @@ class Awaitable final {
     if (poll_res.IsPending()) {
       return CoroPollState::kPending;
     }
-    if constexpr (std::is_void_v<value_type>) {
-      state_.template emplace<1>();
-    } else {
-      state_.template emplace<1>(std::move(*poll_res));
-    }
+    state_.coro_or_future.~CoroOrFuture();
+    new (&state_.result) Value(std::move(*poll_res));
+    is_ready_ = true;
     return CoroPollState::kReady;
   }
 
@@ -483,28 +488,33 @@ class Awaitable final {
     }
     auto result = get().Pend(cx);
     if (result.state() == CoroPollState::kReady) {
-      if constexpr (std::is_void_v<value_type>) {
-        state_.template emplace<1>();
-      } else {
-        state_.template emplace<1>(std::move(*result));
-      }
+      state_.coro_or_future.~CoroOrFuture();
+      new (&state_.result) Value(std::move(*result));
+      is_ready_ = true;
     }
     return result.state();
   }
 
  private:
+  using Value =  // Use ReadyType instead of void
+      std::conditional_t<std::is_void_v<value_type>, ReadyType, value_type>;
+
   await_type& get() {
     if constexpr (std::is_pointer_v<CoroOrFuture>) {
-      return *std::get<0>(state_);
+      return *state_.coro_or_future;
     } else {
-      return std::get<0>(state_);
+      return state_.coro_or_future;
     }
   }
 
-  struct Empty {};
-  using VariantValueType =
-      std::conditional_t<std::is_void_v<value_type>, Empty, value_type>;
-  std::variant<CoroOrFuture, VariantValueType> state_;
+  union State {
+    State(CoroOrFuture&& c_or_f) : coro_or_future(std::move(c_or_f)) {}
+    ~State() {}
+
+    CoroOrFuture coro_or_future;
+    Value result;
+  } state_;
+  bool is_ready_;  // Tracks whether state_ contains a coro/future or its value
 };
 
 }  // namespace internal
