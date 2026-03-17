@@ -1149,10 +1149,11 @@ void ProfileServer::OnServiceFound(
   if (search_it->second.unacknowledged_search_results_count >=
           kMaxUnackedSearchResults ||
       !search_it->second.pending_search_results.empty()) {
-    bt_log(ERROR,
-           "fidl",
-           "Unacknowledged search results limit exceeded for peer %s.",
-           bt_str(peer_id));
+    bt_log(
+        TRACE,
+        "fidl",
+        "Queueing search result due to unacked previous results for peer %s.",
+        bt_str(peer_id));
     search_it->second.pending_search_results.push_back(PendingSearchResult(
         {peer_id.value()}, std::move(descriptor_list), std::move(fidl_attrs)));
     return;
