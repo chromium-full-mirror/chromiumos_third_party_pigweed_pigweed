@@ -19,9 +19,9 @@
 #include "pw_bluetooth_proxy/config.h"
 #include "pw_bluetooth_proxy/internal/l2cap_channel.h"
 #include "pw_bluetooth_proxy/internal/logical_transport.h"
-#include "pw_bluetooth_proxy/internal/multibuf.h"
 #include "pw_bluetooth_proxy/internal/mutex.h"
 #include "pw_bluetooth_proxy/l2cap_channel_common.h"
+#include "pw_multibuf/multibuf.h"
 #include "pw_status/status.h"
 #include "pw_sync/lock_annotations.h"
 
@@ -70,7 +70,7 @@ class GenericL2capChannel {
   /// * @INVALID_ARGUMENT: Payload is too large.
   /// * @FAILED_PRECONDITION: Channel is not `State::kRunning`.
   /// * @UNIMPLEMENTED: Channel does not support `Write(MultiBuf)`.
-  StatusWithMultiBuf Write(FlatConstMultiBuf&& payload);
+  StatusWithMultiBuf Write(multibuf::MultiBuf&& payload);
 
   /// Determine if channel is ready to accept one or more Write payloads.
   ///
@@ -138,7 +138,7 @@ class GenericL2capChannel {
   friend class pw::bluetooth::proxy::L2capChannelManager;
 
   /// Check if the passed Write parameter is acceptable.
-  virtual Status DoCheckWriteParameter(const FlatConstMultiBuf& payload) = 0;
+  virtual Status DoCheckWriteParameter(const multibuf::MultiBuf& payload) = 0;
 
   // ACL connection handle.
   uint16_t connection_handle_ = 0;

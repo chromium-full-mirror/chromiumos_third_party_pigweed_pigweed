@@ -28,12 +28,12 @@ class ChannelProxyImpl final : public ChannelProxy,
 
  private:
   // ChannelProxy overrides:
-  StatusWithMultiBuf DoWrite(FlatConstMultiBuf&& payload) override;
+  StatusWithMultiBuf DoWrite(multibuf::MultiBuf&& payload) override;
   Status DoIsWriteAvailable() override;
   Status DoSendAdditionalRxCredits(uint16_t additional_rx_credits) override;
 
   // GenericL2capChannel overrides:
-  Status DoCheckWriteParameter(const FlatConstMultiBuf& payload) override;
+  Status DoCheckWriteParameter(const multibuf::MultiBuf& payload) override;
 
   uint16_t max_l2cap_payload_size_ = 0;
 };

@@ -18,10 +18,10 @@
 #include "pw_bluetooth_proxy/direction.h"
 #include "pw_bluetooth_proxy/internal/l2cap_channel.h"
 #include "pw_bluetooth_proxy/internal/logical_transport.h"
-#include "pw_bluetooth_proxy/internal/multibuf.h"
 #include "pw_bluetooth_proxy/internal/mutex.h"
 #include "pw_bluetooth_proxy/l2cap_status_delegate.h"
 #include "pw_containers/vector.h"
+#include "pw_multibuf/multibuf.h"
 #include "pw_sync/lock_annotations.h"
 #include "pw_sync/mutex.h"
 
@@ -94,9 +94,10 @@ class L2capSignalingChannel final {
   // * @UNAVAILABLE: Send could not be queued due to lack of memory in the
   //   client-provided `multibuf_allocator` (transient error).
   // * @FAILED_PRECONDITION: Channel is not `State::kRunning`.
-  Status SendFlowControlCreditInd(uint16_t cid,
-                                  uint16_t credits,
-                                  MultiBufAllocator& multibuf_allocator);
+  Status SendFlowControlCreditInd(
+      uint16_t cid,
+      uint16_t credits,
+      multibuf::MultiBufAllocator& multibuf_allocator);
 
  private:
   struct PendingConnection {

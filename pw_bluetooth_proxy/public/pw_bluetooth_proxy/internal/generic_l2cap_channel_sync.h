@@ -22,7 +22,7 @@
 #include "pw_allocator/allocator.h"
 #include "pw_bluetooth_proxy/config.h"
 #include "pw_bluetooth_proxy/internal/l2cap_channel.h"
-#include "pw_bluetooth_proxy/internal/multibuf.h"
+#include "pw_multibuf/multibuf.h"
 #include "pw_status/status.h"
 #include "pw_sync/mutex.h"
 
@@ -50,7 +50,7 @@ class GenericL2capChannelImpl {
   Status Init() PW_LOCKS_EXCLUDED(L2capChannelImpl::mutex());
 
   /// @copydoc GenericL2capChannel::Write
-  StatusWithMultiBuf Write(FlatConstMultiBuf&& payload)
+  StatusWithMultiBuf Write(multibuf::MultiBuf&& payload)
       PW_LOCKS_EXCLUDED(L2capChannelImpl::mutex());
 
   /// @copydoc GenericL2capChannel::IsWriteAvailable

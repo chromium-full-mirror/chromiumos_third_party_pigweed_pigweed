@@ -22,9 +22,9 @@
 
 namespace pw::multibuf {
 
-std::optional<MultiBuf> FromSpan(Allocator& metadata_allocator,
-                                 ByteSpan region,
-                                 Function<void(ByteSpan)>&& deleter) {
+inline std::optional<MultiBuf> FromSpan(Allocator& metadata_allocator,
+                                        ByteSpan region,
+                                        Function<void(ByteSpan)>&& deleter) {
   return v1::FromSpan(metadata_allocator, region, std::move(deleter));
 }
 
@@ -39,9 +39,9 @@ std::optional<MultiBuf> FromSpan(Allocator& metadata_allocator,
 
 namespace pw::multibuf {
 
-std::optional<MultiBuf> FromSpan(Allocator& metadata_allocator,
-                                 ByteSpan region,
-                                 Function<void(ByteSpan)>&& deleter) {
+inline std::optional<MultiBuf> FromSpan(Allocator& metadata_allocator,
+                                        ByteSpan region,
+                                        Function<void(ByteSpan)>&& deleter) {
   return v1_adapter::FromSpan(metadata_allocator, region, std::move(deleter));
 }
 

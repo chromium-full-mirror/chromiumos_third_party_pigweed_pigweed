@@ -15,7 +15,8 @@
 #pragma once
 
 #include "pw_bluetooth_proxy/h4_packet.h"
-#include "pw_bluetooth_proxy/internal/multibuf.h"
+#include "pw_multibuf/multibuf.h"
+#include "pw_result/result.h"
 #include "pw_span/span.h"
 #include "pw_status/status.h"
 
@@ -43,11 +44,11 @@ class TxEngine {
 
   // Returns UNAVAILABLE if there is nothing to send.
   virtual Result<H4PacketWithH4> GenerateNextPacket(
-      const FlatConstMultiBuf& payload, bool& keep_payload) = 0;
+      const multibuf::MultiBuf& payload, bool& keep_payload) = 0;
 
   // Returns FAILED_PRECONDITION if the maximum size is not yet known.
   // Returns INVALID_ARGUMENT if the payload is too large.
-  virtual Status CheckWriteParameter(const FlatConstMultiBuf& payload) = 0;
+  virtual Status CheckWriteParameter(const multibuf::MultiBuf& payload) = 0;
 
   // Add send credits. No-op if the TxEngine is creditless.
   // Returns true if the previous number of credits was 0 and the channel needs

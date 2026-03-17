@@ -109,7 +109,7 @@ void L2capChannel::Close(L2capChannelEvent event) {
   impl_.Close();
 }
 
-StatusWithMultiBuf L2capChannel::Write(FlatConstMultiBuf&& payload) {
+StatusWithMultiBuf L2capChannel::Write(multibuf::MultiBuf&& payload) {
   StatusWithMultiBuf result = WriteDuringRx(std::move(payload));
   DrainChannelQueuesIfNewTx();
   return result;
@@ -144,13 +144,13 @@ bool L2capChannel::HandlePduFromController(pw::span<uint8_t> l2cap_pdu) {
             // Consume the packet that caused the event.
             return true;
           },
-          [this](FlatMultiBufInstance&& buffer) {
+          [this](multibuf::MultiBuf&& buffer) {
             // MultiBufs are only returned by CreditBasedFlowControlRxEngine,
             // which is used with PayloadReceiveCallback.
             if (auto* receive_fn =
                     std::get_if<MultiBufReceiveFunction>(&from_controller_fn_);
                 *receive_fn != nullptr) {
-              (*receive_fn)(std::move(MultiBufAdapter::Unwrap(buffer)));
+              (*receive_fn)(std::move(buffer));
             }
             return true;
           },
@@ -191,7 +191,7 @@ L2capChannel::State L2capChannel::state() const {
 }
 
 L2capChannel::L2capChannel(L2capChannelManager& l2cap_channel_manager,
-                           MultiBufAllocator* rx_multibuf_allocator,
+                           multibuf::MultiBufAllocator* rx_multibuf_allocator,
                            uint16_t connection_handle,
                            AclTransportType transport,
                            uint16_t local_cid,
@@ -339,8 +339,7 @@ bool L2capChannel::SendPayloadToClient(pw::span<uint8_t> payload,
     return false;
   }
 
-  auto result =
-      MultiBufAdapter::Create(*rx_multibuf_allocator_, payload.size());
+  auto result = rx_multibuf_allocator_->AllocateContiguous(payload.size());
   if (!result.has_value()) {
     PW_LOG_ERROR(
         "btproxy: rx_multibuf_allocator_ is out of memory. So stopping "
@@ -352,27 +351,29 @@ bool L2capChannel::SendPayloadToClient(pw::span<uint8_t> payload,
     return true;
   }
 
-  FlatMultiBufInstance buffer = std::move(result.value());
-  MultiBufAdapter::Copy(buffer, 0, as_bytes(payload));
+  multibuf::MultiBuf buffer = std::move(result.value());
+  auto bytes_copied = buffer.CopyFrom(as_bytes(payload));
+  PW_CHECK(bytes_copied.ok());
 
   // If client returned multibuf to us, we copy it to the payload and indicate
   // to the caller that packet should be forwarded.
   // In the future when whole path is operating with multibuf's, we could pass
   // it back up to container to be forwarded and avoid the two copies of
   // payload.
-  auto client_multibuf = std::visit(
-      Visitors{[&buffer](OptionalPayloadReceiveCallback* cb) {
-                 return (*cb)(std::move(MultiBufAdapter::Unwrap(buffer)));
-               },
-               [this, &buffer](OptionalBufferReceiveFunction* fn) {
-                 return (*fn)(std::move(MultiBufAdapter::Unwrap(buffer)),
-                              ConnectionHandle{connection_handle()},
-                              local_cid(),
-                              remote_cid());
-               }},
-      callback);
+  auto client_multibuf =
+      std::visit(Visitors{[&buffer](OptionalPayloadReceiveCallback* cb) {
+                            return (*cb)(std::move(buffer));
+                          },
+                          [this, &buffer](OptionalBufferReceiveFunction* fn) {
+                            return (*fn)(std::move(buffer),
+                                         ConnectionHandle{connection_handle()},
+                                         local_cid(),
+                                         remote_cid());
+                          }},
+                 callback);
   if (client_multibuf.has_value()) {
-    MultiBufAdapter::Copy(as_writable_bytes(payload), client_multibuf.value());
+    bytes_copied = client_multibuf->CopyTo(as_writable_bytes(payload));
+    PW_CHECK_UINT_EQ(bytes_copied.size(), payload.size());
     return false;
   }
   return true;
@@ -381,7 +382,7 @@ bool L2capChannel::SendPayloadToClient(pw::span<uint8_t> payload,
 pw::Status L2capChannel::StartRecombinationBuf(Direction direction,
                                                size_t payload_size,
                                                size_t extra_header_size) {
-  std::optional<MultiBufInstance>& buf_optref =
+  std::optional<multibuf::MultiBuf>& buf_optref =
       GetRecombinationBufOptRef(direction);
   PW_CHECK(!buf_optref.has_value());
 
@@ -396,11 +397,12 @@ pw::Status L2capChannel::StartRecombinationBuf(Direction direction,
     return Status::FailedPrecondition();
   }
 
-  buf_optref = MultiBufAdapter::Create(
-      *rx_multibuf_allocator_, extra_header_size, payload_size);
+  buf_optref = rx_multibuf_allocator_->AllocateContiguous(extra_header_size +
+                                                          payload_size);
   if (!buf_optref.has_value()) {
     return Status::ResourceExhausted();
   }
+  buf_optref->DiscardPrefix(extra_header_size);
 
   return pw::OkStatus();
 }
@@ -575,7 +577,7 @@ Status L2capChannel::SendAdditionalRxCredits(uint16_t additional_rx_credits) {
 }
 
 std::optional<H4PacketWithH4> L2capChannel::GenerateNextTxPacket(
-    const FlatConstMultiBuf& payload, bool& keep_payload) {
+    const multibuf::MultiBuf& payload, bool& keep_payload) {
   Result<H4PacketWithH4> result =
       tx_engine().GenerateNextPacket(payload, keep_payload);
   if (!result.ok()) {

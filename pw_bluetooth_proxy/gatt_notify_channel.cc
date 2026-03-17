@@ -43,7 +43,7 @@ GattNotifyChannel::GattNotifyChannel(L2capChannel& channel,
 }
 
 Status GattNotifyChannel::DoCheckWriteParameter(
-    const FlatConstMultiBuf& payload) {
+    const multibuf::MultiBuf& payload) {
   if (max_attribute_size_ == 0) {
     PW_LOG_WARN("Channel created before LE_Read_Buffer_Size processed.");
     return Status::FailedPrecondition();

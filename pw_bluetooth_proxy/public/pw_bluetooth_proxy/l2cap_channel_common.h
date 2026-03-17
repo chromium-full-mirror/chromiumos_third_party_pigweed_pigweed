@@ -17,8 +17,8 @@
 #include <optional>
 
 #include "pw_bluetooth_proxy/connection_handle.h"
-#include "pw_bluetooth_proxy/internal/multibuf.h"
 #include "pw_function/function.h"
+#include "pw_multibuf/multibuf.h"
 #include "pw_status/status.h"
 
 namespace pw::bluetooth::proxy {
@@ -65,7 +65,7 @@ using ChannelEventCallback = pw::InlineFunction<
 // `std::expected` can't be used because it only has a value OR a status.
 struct StatusWithMultiBuf {
   pw::Status status;
-  std::optional<FlatConstMultiBufInstance> buf = std::nullopt;
+  std::optional<multibuf::MultiBuf> buf = std::nullopt;
 };
 
 /// Alias for a client provided callback function for that can receive data from
@@ -79,15 +79,15 @@ struct StatusWithMultiBuf {
 /// 2. Return the payload as-is, to be forwarded.
 /// 3. Modify and return the payload to be forwarded.
 using OptionalPayloadReceiveCallback =
-    Function<std::optional<FlatConstMultiBufInstance>(FlatMultiBuf&& payload)>;
+    Function<std::optional<multibuf::MultiBuf>(multibuf::MultiBuf&& payload)>;
 using OptionalBufferReceiveFunction =
-    Function<std::optional<FlatConstMultiBufInstance>(
-        FlatMultiBuf&& payload,
+    Function<std::optional<multibuf::MultiBuf>(
+        multibuf::MultiBuf&& payload,
         ConnectionHandle connection_handle,
         uint16_t local_channel_id,
         uint16_t remote_channel_id)>;
 
 /// Client provided callback for data received from a channel.
-using MultiBufReceiveFunction = Function<void(FlatConstMultiBuf&& payload)>;
+using MultiBufReceiveFunction = Function<void(multibuf::MultiBuf&& payload)>;
 
 }  // namespace pw::bluetooth::proxy

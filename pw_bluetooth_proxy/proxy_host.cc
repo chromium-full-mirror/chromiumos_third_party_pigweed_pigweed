@@ -312,11 +312,11 @@ void ProxyHost::HandleAclFromHost(H4PacketWithH4&& h4_packet) {
 }
 
 pw::Result<L2capCoc> ProxyHost::DoAcquireL2capCoc(
-    MultiBufAllocator& rx_multibuf_allocator,
+    multibuf::MultiBufAllocator& rx_multibuf_allocator,
     uint16_t connection_handle,
     L2capCoc::CocConfig rx_config,
     L2capCoc::CocConfig tx_config,
-    Function<void(FlatConstMultiBuf&& payload)>&& receive_fn,
+    Function<void(multibuf::MultiBuf&& payload)>&& receive_fn,
     ChannelEventCallback&& event_fn) {
   return l2cap_channel_manager_.AcquireL2capCoc(rx_multibuf_allocator,
                                                 connection_handle,
@@ -327,7 +327,7 @@ pw::Result<L2capCoc> ProxyHost::DoAcquireL2capCoc(
 }
 
 pw::Result<BasicL2capChannel> ProxyHost::DoAcquireBasicL2capChannel(
-    MultiBufAllocator& rx_multibuf_allocator,
+    multibuf::MultiBufAllocator& rx_multibuf_allocator,
     uint16_t connection_handle,
     uint16_t local_cid,
     uint16_t remote_cid,

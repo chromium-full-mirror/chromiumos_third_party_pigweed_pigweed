@@ -30,6 +30,7 @@
 #include "pw_bluetooth_proxy/l2cap_coc.h"
 #include "pw_containers/intrusive_map.h"
 #include "pw_function/function.h"
+#include "pw_multibuf/simple_allocator.h"
 #include "pw_sync/lock_annotations.h"
 #include "pw_sync/mutex.h"
 #include "pw_sync/thread_notification.h"
@@ -42,10 +43,6 @@
 #else
 #include "pw_bluetooth_proxy/internal/l2cap_channel_manager_async.h"
 #endif  // PW_BLUETOOTH_PROXY_ASYNC
-
-#if PW_MULTIBUF_VERSION == 1
-#include "pw_multibuf/simple_allocator.h"  // nogncheck
-#endif
 
 namespace pw::bluetooth::proxy {
 
@@ -68,17 +65,17 @@ class L2capChannelManager final : public L2capChannelManagerInterface {
   ~L2capChannelManager() override;
 
   pw::Result<L2capCoc> AcquireL2capCoc(
-      MultiBufAllocator& rx_multibuf_allocator,
+      multibuf::MultiBufAllocator& rx_multibuf_allocator,
       uint16_t connection_handle,
       ConnectionOrientedChannelConfig rx_config,
       ConnectionOrientedChannelConfig tx_config,
-      Function<void(FlatConstMultiBuf&& payload)>&& receive_fn,
+      Function<void(multibuf::MultiBuf&& payload)>&& receive_fn,
       ChannelEventCallback&& event_fn)
       PW_LOCKS_EXCLUDED(links_mutex_, channels_mutex());
 
   /// @deprecated Use InterceptBasicModeChannel() instead.
   pw::Result<BasicL2capChannel> AcquireBasicL2capChannel(
-      MultiBufAllocator& rx_multibuf_allocator,
+      multibuf::MultiBufAllocator& rx_multibuf_allocator,
       uint16_t connection_handle,
       uint16_t local_cid,
       uint16_t remote_cid,
@@ -196,10 +193,11 @@ class L2capChannelManager final : public L2capChannelManagerInterface {
   // * @UNAVAILABLE: Send could not be queued due to lack of memory in the
   //   client-provided `multibuf_allocator` (transient error).
   // * @FAILED_PRECONDITION: Channel is not `State::kRunning`.
-  Status SendFlowControlCreditInd(uint16_t connection_handle,
-                                  uint16_t channel_id,
-                                  uint16_t credits,
-                                  MultiBufAllocator& multibuf_allocator);
+  Status SendFlowControlCreditInd(
+      uint16_t connection_handle,
+      uint16_t channel_id,
+      uint16_t credits,
+      multibuf::MultiBufAllocator& multibuf_allocator);
 
   // Returns the max ACL payload size if the Read Buffer Size command complete
   // event was received.
@@ -295,15 +293,11 @@ class L2capChannelManager final : public L2capChannelManagerInterface {
   IntrusiveMap<uint16_t, internal::L2capLogicalLinkInterface> logical_links_
       PW_GUARDED_BY(links_mutex_);
 
-#if PW_MULTIBUF_VERSION == 1
   // This buffer is small because it is only used with ChannelProxy, which has
-  // no MultiBuf clients other than tests, and MultiBuf v1 will soon be removed.
+  // no MultiBuf clients other than tests.
   std::array<std::byte, 200> allocator_buffer_;
   multibuf::SimpleAllocator multibuf_allocator_{allocator_buffer_,
                                                 impl_.allocator()};
-#elif PW_MULTIBUF_VERSION == 2
-  MultiBufAllocator multibuf_allocator_{impl_.allocator(), impl_.allocator()};
-#endif
 };
 
 }  // namespace pw::bluetooth::proxy

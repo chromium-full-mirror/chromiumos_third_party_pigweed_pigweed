@@ -30,30 +30,25 @@ pw_bluetooth_proxy_rfcomm_library(
 )
 
 pw_bluetooth_proxy_rfcomm_library(
-    name = "rfcomm_v1",
+    name = "rfcomm_sync",
     testonly = True,
-    versioned_deps = ["//pw_bluetooth_proxy:pw_bluetooth_proxy_sync_mbv1"],
+    versioned_deps = ["//pw_bluetooth_proxy:pw_bluetooth_proxy_sync"],
     visibility = ["//visibility:private"],
 )
 
 pw_bluetooth_proxy_rfcomm_library(
-    name = "rfcomm_v2",
+    name = "rfcomm_async",
     testonly = True,
-    versioned_deps = ["//pw_bluetooth_proxy:pw_bluetooth_proxy_sync_mbv2"],
+    versioned_deps = ["//pw_bluetooth_proxy:pw_bluetooth_proxy_async"],
     visibility = ["//visibility:private"],
 )
 
 pw_bluetooth_proxy_rfcomm_test(
-    name = "rfcomm_v1_test",
-    versioned_deps = [
-        ":rfcomm_v1",
-        "//pw_multibuf:simple_allocator",
-    ],
+    name = "rfcomm_sync_test",
+    versioned_deps = [":rfcomm_sync"],
 )
 
 pw_bluetooth_proxy_rfcomm_test(
-    name = "rfcomm_v2_test",
-    versioned_deps = [
-        ":rfcomm_v2",
-    ],
+    name = "rfcomm_async_test",
+    versioned_deps = [":rfcomm_async"],
 )

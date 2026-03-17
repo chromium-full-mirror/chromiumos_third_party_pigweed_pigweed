@@ -16,8 +16,8 @@
 
 #include <variant>
 
-#include "pw_bluetooth_proxy/internal/multibuf.h"
 #include "pw_bluetooth_proxy/l2cap_channel_common.h"
+#include "pw_multibuf/multibuf.h"
 #include "pw_span/span.h"
 
 namespace pw::bluetooth::proxy::internal {
@@ -27,7 +27,7 @@ namespace pw::bluetooth::proxy::internal {
 class RxEngine {
  public:
   using HandlePduFromControllerReturnValue = std::variant<std::monostate,
-                                                          FlatMultiBufInstance,
+                                                          multibuf::MultiBuf,
                                                           pw::span<uint8_t>,
                                                           L2capChannelEvent>;
 

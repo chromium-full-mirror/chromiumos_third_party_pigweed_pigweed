@@ -23,7 +23,7 @@
 #include "pw_async2/channel.h"
 #include "pw_bluetooth_proxy/internal/l2cap_channel.h"
 #include "pw_bluetooth_proxy/internal/l2cap_channel_async.h"
-#include "pw_bluetooth_proxy/internal/multibuf.h"
+#include "pw_multibuf/multibuf.h"
 #include "pw_result/result.h"
 #include "pw_status/status.h"
 #include "pw_thread/id.h"
@@ -51,7 +51,7 @@ class GenericL2capChannelImpl {
   Status Init();
 
   /// @copydoc GenericL2capChannel::Write
-  StatusWithMultiBuf Write(FlatConstMultiBuf&& payload);
+  StatusWithMultiBuf Write(multibuf::MultiBuf&& payload);
 
   /// @copydoc GenericL2capChannel::IsWriteAvailable
   Status IsWriteAvailable();
@@ -99,9 +99,8 @@ class GenericL2capChannelImpl {
   mutable async2::Sender<Request> request_sender_;
 
   // Channel for sending payloads to write.
-  async2::Sender<FlatConstMultiBufInstance> payload_sender_;
-  std::optional<async2::SendReservation<FlatConstMultiBufInstance>>
-      send_reservation_;
+  async2::Sender<multibuf::MultiBuf> payload_sender_;
+  std::optional<async2::SendReservation<multibuf::MultiBuf>> send_reservation_;
 };
 
 }  // namespace pw::bluetooth::proxy::internal

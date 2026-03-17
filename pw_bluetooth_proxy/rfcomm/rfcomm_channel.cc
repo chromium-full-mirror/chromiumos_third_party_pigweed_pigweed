@@ -38,7 +38,7 @@ RfcommChannel& RfcommChannel::operator=(RfcommChannel&& other) noexcept {
 
 RfcommChannel::~RfcommChannel() { Reset(); }
 
-StatusWithMultiBuf RfcommChannel::Write(FlatConstMultiBuf&& payload) {
+StatusWithMultiBuf RfcommChannel::Write(multibuf::MultiBuf&& payload) {
   if (!manager_) {
     return {Status::FailedPrecondition(), std::move(payload)};
   }

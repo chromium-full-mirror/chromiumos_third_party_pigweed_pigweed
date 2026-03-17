@@ -28,7 +28,7 @@ class BasicL2capChannel final : public internal::GenericL2capChannel {
   explicit BasicL2capChannel(L2capChannel& channel);
 
   /// @copydoc internal::GenericL2capChannel::DoCheckWriteParameter
-  Status DoCheckWriteParameter(const FlatConstMultiBuf& payload) override;
+  Status DoCheckWriteParameter(const multibuf::MultiBuf& payload) override;
 
   uint16_t max_l2cap_payload_size_ = 0;
 };

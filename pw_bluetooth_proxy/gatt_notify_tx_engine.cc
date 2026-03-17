@@ -37,7 +37,7 @@ constexpr size_t H4SizeForL2capData(uint16_t data_length) {
 }  // namespace
 
 Result<H4PacketWithH4> GattNotifyTxEngine::GenerateNextPacket(
-    const FlatConstMultiBuf& attribute_value, bool& keep_payload) {
+    const multibuf::MultiBuf& attribute_value, bool& keep_payload) {
   keep_payload = true;
   std::optional<uint16_t> max_l2cap_payload_size =
       delegate_.MaxL2capPayloadSize();
@@ -87,7 +87,13 @@ Result<H4PacketWithH4> GattNotifyTxEngine::GenerateNextPacket(
   PW_CHECK_OK(att_notify);
   att_notify->attribute_opcode().Write(emboss::AttOpcode::ATT_HANDLE_VALUE_NTF);
   att_notify->attribute_handle().Write(attribute_handle_);
-  MultiBufAdapter::Copy(att_notify->attribute_value(), attribute_value);
+
+  auto attr_val = att_notify->attribute_value();
+  span<uint8_t> backing_storage(attr_val.BackingStorage().data(),
+                                attr_val.SizeInBytes());
+  auto bytes_copied =
+      attribute_value.CopyTo(as_writable_bytes(backing_storage));
+  PW_CHECK_UINT_EQ(bytes_copied.size(), backing_storage.size());
   PW_CHECK(att_notify->Ok());
 
   // All content has been copied from the front payload, so release it.
@@ -96,7 +102,7 @@ Result<H4PacketWithH4> GattNotifyTxEngine::GenerateNextPacket(
 }
 
 Status GattNotifyTxEngine::CheckWriteParameter(
-    const FlatConstMultiBuf& payload) {
+    const multibuf::MultiBuf& payload) {
   std::optional<uint16_t> max_l2cap_payload_size =
       delegate_.MaxL2capPayloadSize();
   if (!max_l2cap_payload_size) {

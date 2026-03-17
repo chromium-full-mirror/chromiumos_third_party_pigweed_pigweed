@@ -14,8 +14,8 @@
 
 #pragma once
 
-#include "pw_bluetooth_proxy/internal/multibuf.h"
 #include "pw_function/function.h"
+#include "pw_multibuf/multibuf.h"
 
 namespace pw::bluetooth::proxy::rfcomm {
 
@@ -44,7 +44,7 @@ inline constexpr uint8_t MakeDlci(uint8_t channel_number,
                               static_cast<uint8_t>(direction));
 }
 
-using RfcommReceiveCallback = Function<void(FlatMultiBuf&& payload)>;
+using RfcommReceiveCallback = Function<void(multibuf::MultiBuf&& payload)>;
 using RfcommEventCallback = Function<void(RfcommEvent event)>;
 
 }  // namespace pw::bluetooth::proxy::rfcomm

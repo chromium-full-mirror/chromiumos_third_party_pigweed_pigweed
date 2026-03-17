@@ -23,7 +23,7 @@ ChannelProxyImpl::ChannelProxyImpl(uint16_t max_l2cap_payload_size,
     : GenericL2capChannel(channel),
       max_l2cap_payload_size_(max_l2cap_payload_size) {}
 
-StatusWithMultiBuf ChannelProxyImpl::DoWrite(FlatConstMultiBuf&& payload) {
+StatusWithMultiBuf ChannelProxyImpl::DoWrite(multibuf::MultiBuf&& payload) {
   return GenericL2capChannel::Write(std::move(payload));
 }
 
@@ -37,7 +37,7 @@ Status ChannelProxyImpl::DoSendAdditionalRxCredits(
 }
 
 Status ChannelProxyImpl::DoCheckWriteParameter(
-    const FlatConstMultiBuf& payload) {
+    const multibuf::MultiBuf& payload) {
   if (max_l2cap_payload_size_ == 0) {
     return Status::FailedPrecondition();
   }

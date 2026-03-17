@@ -200,8 +200,7 @@ TEST_F(GattNotifyTest, Send1ByteAttribute) {
   GattNotifyChannel channel = BuildGattNotifyChannel(
       proxy,
       {.handle = capture.handle, .attribute_handle = capture.attribute_handle});
-  FlatMultiBufInstance mbuf_inst = MultiBufFromArray(capture.attribute_value);
-  FlatMultiBuf& mbuf = MultiBufAdapter::Unwrap(mbuf_inst);
+  multibuf::MultiBuf mbuf = MultiBufFromArray(capture.attribute_value);
   PW_TEST_EXPECT_OK(channel.Write(std::move(mbuf)).status);
   RunDispatcher();
 
@@ -288,8 +287,7 @@ TEST_F(GattNotifyTest, Send2ByteAttribute) {
   GattNotifyChannel channel = BuildGattNotifyChannel(
       proxy,
       {.handle = capture.handle, .attribute_handle = capture.attribute_handle});
-  FlatMultiBufInstance mbuf_inst = MultiBufFromArray(capture.attribute_value);
-  FlatMultiBuf& mbuf = MultiBufAdapter::Unwrap(mbuf_inst);
+  multibuf::MultiBuf mbuf = MultiBufFromArray(capture.attribute_value);
   PW_TEST_EXPECT_OK(channel.Write(std::move(mbuf)).status);
   RunDispatcher();
 
@@ -320,8 +318,7 @@ TEST_F(GattNotifyTest, ReturnsErrorIfAttributeTooLarge) {
                  emboss::AttHandleValueNtf::MinSizeInBytes() + 1>
       attribute_value_too_large;
   GattNotifyChannel channel = BuildGattNotifyChannel(proxy, {});
-  FlatMultiBufInstance mbuf_inst = MultiBufFromArray(attribute_value_too_large);
-  FlatMultiBuf& mbuf = MultiBufAdapter::Unwrap(mbuf_inst);
+  multibuf::MultiBuf mbuf = MultiBufFromArray(attribute_value_too_large);
   EXPECT_EQ(channel.Write(std::move(mbuf)).status, Status::InvalidArgument());
 }
 
@@ -369,14 +366,12 @@ TEST_F(GattNotifyTest, PayloadIsReturnedOnError) {
   const std::array<const uint8_t, 2> attribute_value = {5};
 
   GattNotifyChannel channel = BuildGattNotifyChannel(proxy, {});
-  FlatMultiBufInstance mbuf_inst = MultiBufFromSpan(pw::span{attribute_value});
-  FlatMultiBuf& mbuf = MultiBufAdapter::Unwrap(mbuf_inst);
+  multibuf::MultiBuf mbuf = MultiBufFromSpan(pw::span{attribute_value});
   StatusWithMultiBuf result = channel.Write(std::move(mbuf));
   ASSERT_EQ(result.status, Status::FailedPrecondition());
-  FlatConstMultiBuf& result_buf = MultiBufAdapter::Unwrap(result.buf.value());
-  auto bytes = MultiBufAdapter::AsSpan(result_buf);
+  auto bytes = result.buf->ContiguousSpan().value();
   EXPECT_EQ(bytes.size(), attribute_value.size());
-  EXPECT_EQ(bytes[0], attribute_value[0]);
+  EXPECT_EQ(bytes[0], static_cast<const std::byte>(attribute_value[0]));
 }
 
 }  // namespace

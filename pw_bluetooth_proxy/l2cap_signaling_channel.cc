@@ -22,10 +22,10 @@
 #include "pw_bluetooth/l2cap_frames.emb.h"
 #include "pw_bluetooth_proxy/direction.h"
 #include "pw_bluetooth_proxy/internal/l2cap_channel_manager.h"
-#include "pw_bluetooth_proxy/internal/multibuf.h"
 #include "pw_bluetooth_proxy/l2cap_channel_common.h"
 #include "pw_bytes/span.h"
 #include "pw_log/log.h"
+#include "pw_multibuf/multibuf.h"
 #include "pw_span/cast.h"
 #include "pw_status/status.h"
 
@@ -456,15 +456,18 @@ bool L2capSignalingChannel::HandleFlowControlCreditInd(
 }
 
 Status L2capSignalingChannel::SendFlowControlCreditInd(
-    uint16_t cid, uint16_t credits, MultiBufAllocator& multibuf_allocator) {
+    uint16_t cid,
+    uint16_t credits,
+    multibuf::MultiBufAllocator& multibuf_allocator) {
   if (cid == 0) {
     PW_LOG_ERROR("Tried to send signaling packet on invalid CID 0x0.");
     return Status::InvalidArgument();
   }
 
-  std::optional<FlatMultiBufInstance> command = MultiBufAdapter::Create(
-      multibuf_allocator,
-      emboss::L2capFlowControlCreditInd::IntrinsicSizeInBytes());
+  size_t command_size =
+      emboss::L2capFlowControlCreditInd::IntrinsicSizeInBytes();
+  std::optional<multibuf::MultiBuf> command =
+      multibuf_allocator.AllocateContiguous(command_size);
   if (!command.has_value()) {
     PW_LOG_ERROR(
         "btproxy: SendFlowControlCreditInd unable to allocate command buffer "
@@ -473,7 +476,8 @@ Status L2capSignalingChannel::SendFlowControlCreditInd(
         credits);
     return Status::Unavailable();
   }
-  span<uint8_t> command_span = MultiBufAdapter::AsSpan(command.value());
+  span<uint8_t> command_span =
+      span_cast<uint8_t>(command->ContiguousSpan().value());
 
   Result<emboss::L2capFlowControlCreditIndWriter> command_view =
       MakeEmbossWriter<emboss::L2capFlowControlCreditIndWriter>(command_span);
@@ -490,8 +494,7 @@ Status L2capSignalingChannel::SendFlowControlCreditInd(
   command_view->credits().Write(credits);
   PW_CHECK(command_view->Ok());
 
-  StatusWithMultiBuf s = channel_->WriteDuringRx(
-      std::move(MultiBufAdapter::Unwrap(command.value())));
+  StatusWithMultiBuf s = channel_->WriteDuringRx(std::move(*command));
 
   return s.status;
 }

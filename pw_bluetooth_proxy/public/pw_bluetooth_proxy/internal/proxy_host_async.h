@@ -26,13 +26,13 @@
 #include "pw_bluetooth_proxy/basic_l2cap_channel.h"
 #include "pw_bluetooth_proxy/gatt_notify_channel.h"
 #include "pw_bluetooth_proxy/internal/l2cap_channel.h"
-#include "pw_bluetooth_proxy/internal/multibuf.h"
 #include "pw_bluetooth_proxy/l2cap_channel_common.h"
 #include "pw_bluetooth_proxy/l2cap_channel_manager_interface.h"
 #include "pw_bluetooth_proxy/l2cap_coc.h"
 #include "pw_bluetooth_proxy/l2cap_coc_config.h"
 #include "pw_bluetooth_proxy/l2cap_status_delegate.h"
 #include "pw_function/function.h"
+#include "pw_multibuf/multibuf.h"
 #include "pw_status/status.h"
 
 namespace pw::bluetooth::proxy {
@@ -52,7 +52,7 @@ namespace internal {
 class ProxyHostImpl {
  public:
   /// Callback for forwarding payloads to an L2capCoc client.
-  using PayloadReceiveCallback = Function<void(FlatConstMultiBuf&& payload)>;
+  using PayloadReceiveCallback = Function<void(multibuf::MultiBuf&& payload)>;
 
   /// Callback for forwarding payloads to a generic L2CAP client.
   using ReceiveFn = std::variant<std::monostate,
@@ -91,7 +91,7 @@ class ProxyHostImpl {
   /// "Channel" methods are those that involve acquiring a client channel.
   struct ChannelRequest {
     struct BasicL2capParams {
-      MultiBufAllocator* rx_multibuf_allocator = nullptr;
+      multibuf::MultiBufAllocator* rx_multibuf_allocator = nullptr;
       uint16_t connection_handle = 0;
       uint16_t local_cid = 0;
       uint16_t remote_cid = 0;
@@ -118,7 +118,7 @@ class ProxyHostImpl {
     };
 
     struct L2capCocParams {
-      MultiBufAllocator* rx_multibuf_allocator = nullptr;
+      multibuf::MultiBufAllocator* rx_multibuf_allocator = nullptr;
       uint16_t connection_handle = 0;
       ConnectionOrientedChannelConfig rx_config = {0, 0, 0, 0};
       ConnectionOrientedChannelConfig tx_config = {0, 0, 0, 0};

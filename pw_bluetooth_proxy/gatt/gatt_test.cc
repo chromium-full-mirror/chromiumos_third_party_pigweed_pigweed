@@ -19,57 +19,19 @@
 #include "pw_allocator/libc_allocator.h"
 #include "pw_allocator/testing.h"
 #include "pw_assert/check.h"
-#include "pw_bluetooth_proxy/internal/multibuf.h"
 #include "pw_containers/vector.h"
+#include "pw_multibuf/multibuf.h"
+#include "pw_multibuf/simple_allocator.h"
+#include "pw_span/cast.h"
 #include "pw_span/span.h"
 #include "pw_sync/no_lock.h"
 #include "pw_unit_test/framework.h"
-
-#if PW_MULTIBUF_VERSION == 1
-#include "pw_multibuf/simple_allocator.h"
-#else  // PW_MULTIBUF_VERSION
-#include "pw_allocator/synchronized_allocator.h"
-#include "pw_allocator/testing.h"
-#endif  // PW_MULTIBUF_VERSION
 
 namespace pw::bluetooth::proxy::gatt {
 
 namespace {
 
 constexpr size_t kMultiBufAllocatorCapacity = 500;
-
-/// Helper class that can produce an initialized MultiBufAllocator for either
-/// Multibuf V1 or V2, depending on the `PW_MULTIBUF_VERSION` config
-/// option.
-template <size_t kDataCapacity, typename Lock = sync::NoLock>
-class MultiBufAllocatorContext {
- public:
-  MultiBufAllocator& GetAllocator() { return allocator_; }
-
- private:
-  // Use libc allocators so msan can detect use after frees.
-#if PW_MULTIBUF_VERSION == 1
-
-  std::array<std::byte, kDataCapacity> buffer_{};
-  pw::multibuf::SimpleAllocator allocator_{
-      /*data_area=*/buffer_,
-      /*metadata_alloc=*/allocator::GetLibCAllocator()};
-
-#elif PW_MULTIBUF_VERSION == 2
-  using BlockType = allocator::test::AllocatorForTest<0>::BlockType;
-
-  static constexpr size_t kDataSize =
-      AlignUp(kDataCapacity + BlockType::kBlockOverhead, BlockType::kAlignment);
-
-  allocator::test::AllocatorForTest<kDataSize> data_alloc_;
-  allocator::SynchronizedAllocator<Lock> synced_{data_alloc_};
-  MultiBufAllocator allocator_{
-      /*data_alloc=*/synced_,
-      /*metadata_alloc=*/allocator::GetLibCAllocator()};
-
-#endif  // PW_MULTIBUF_VERSION
-};
-
 constexpr ConnectionHandle kConnectionHandle1{0x0001};
 constexpr ConnectionHandle kConnectionHandle2{0x0002};
 constexpr AttributeHandle kAttributeHandle1{0x0001};
@@ -81,11 +43,11 @@ using SpanReceiveFunction = L2capChannelManagerInterface::SpanReceiveFunction;
 
 class FakeChannel final : public ChannelProxy {
  public:
-  FakeChannel(Function<StatusWithMultiBuf(FlatConstMultiBuf&&)> write_cb)
+  FakeChannel(Function<StatusWithMultiBuf(multibuf::MultiBuf&&)> write_cb)
       : write_cb_(std::move(write_cb)) {}
 
  private:
-  StatusWithMultiBuf DoWrite(FlatConstMultiBuf&& buf) override {
+  StatusWithMultiBuf DoWrite(multibuf::MultiBuf&& buf) override {
     return write_cb_(std::move(buf));
   }
   Status DoIsWriteAvailable() override { return Status::Unimplemented(); }
@@ -93,13 +55,13 @@ class FakeChannel final : public ChannelProxy {
     return Status::Unimplemented();
   }
 
-  Function<StatusWithMultiBuf(FlatConstMultiBuf&&)> write_cb_;
+  Function<StatusWithMultiBuf(multibuf::MultiBuf&&)> write_cb_;
 };
 
 struct Notification {
   ConnectionHandle connection_handle;
   AttributeHandle value_handle;
-  FlatConstMultiBufInstance value;
+  multibuf::MultiBuf value;
 };
 
 class FakeClientDelegate final : public Client::Delegate {
@@ -112,7 +74,7 @@ class FakeClientDelegate final : public Client::Delegate {
  private:
   void DoHandleNotification(ConnectionHandle connection_handle,
                             AttributeHandle value_handle,
-                            FlatConstMultiBuf&& value) override {
+                            multibuf::MultiBuf&& value) override {
     notifications_.push_back(
         {connection_handle, value_handle, std::move(value)});
   }
@@ -130,7 +92,7 @@ class FakeServerDelegate final : public Server::Delegate {
   struct WriteWithoutResponse {
     ConnectionHandle connection_handle;
     AttributeHandle value_handle;
-    FlatConstMultiBufInstance value;
+    multibuf::MultiBuf value;
   };
 
   FakeServerDelegate() = default;
@@ -145,7 +107,7 @@ class FakeServerDelegate final : public Server::Delegate {
  private:
   void DoHandleWriteWithoutResponse(ConnectionHandle connection_handle,
                                     AttributeHandle value_handle,
-                                    FlatConstMultiBuf&& value) override {
+                                    multibuf::MultiBuf&& value) override {
     write_without_responses_.emplace_back(WriteWithoutResponse{
         connection_handle, value_handle, std::move(value)});
   }
@@ -166,7 +128,7 @@ class FakeServerDelegate final : public Server::Delegate {
 class GattTest : public ::testing::Test, public L2capChannelManagerInterface {
  public:
   void SetUp() override {
-    gatt_.emplace(*this, allocator_, allocator_context_.GetAllocator());
+    gatt_.emplace(*this, allocator_, multibuf_allocator_);
   }
 
   Gatt& gatt() { return gatt_.value(); }
@@ -204,13 +166,13 @@ class GattTest : public ::testing::Test, public L2capChannelManagerInterface {
     intercept_channel_status_ = status;
   }
 
-  MultiBufAllocator& multibuf_allocator() {
-    return allocator_context_.GetAllocator();
+  multibuf::MultiBufAllocator& multibuf_allocator() {
+    return multibuf_allocator_;
   }
 
   auto& allocator() { return allocator_; }
 
-  const Vector<FlatConstMultiBufInstance>& write_buffers() const {
+  const Vector<multibuf::MultiBuf>& write_buffers() const {
     return write_buffers_;
   }
 
@@ -223,7 +185,7 @@ class GattTest : public ::testing::Test, public L2capChannelManagerInterface {
       ConnectionHandle,
       ConnectionOrientedChannelConfig,
       ConnectionOrientedChannelConfig,
-      Function<void(FlatConstMultiBuf&& payload)>&&,
+      Function<void(multibuf::MultiBuf&& payload)>&&,
       ChannelEventCallback&&) override {
     return Status::Unimplemented();
   }
@@ -248,7 +210,7 @@ class GattTest : public ::testing::Test, public L2capChannelManagerInterface {
         static_cast<uint16_t>(emboss::L2capFixedCid::LE_U_ATTRIBUTE_PROTOCOL));
     EXPECT_EQ(transport, AclTransportType::kLe);
 
-    auto write_cb = [this](FlatConstMultiBuf&& buf) -> StatusWithMultiBuf {
+    auto write_cb = [this](multibuf::MultiBuf&& buf) -> StatusWithMultiBuf {
       if (simulate_channel_write_failures_) {
         return {Status::Unavailable(), std::move(buf)};
       }
@@ -268,12 +230,18 @@ class GattTest : public ::testing::Test, public L2capChannelManagerInterface {
   }
 
   allocator::test::AllocatorForTest<1000> allocator_;
-  MultiBufAllocatorContext<kMultiBufAllocatorCapacity> allocator_context_;
+
+  // Use libc allocators so msan can detect use after frees.
+  std::array<std::byte, kMultiBufAllocatorCapacity> packet_buffer_{};
+  pw::multibuf::SimpleAllocator multibuf_allocator_{
+      /*data_area=*/packet_buffer_,
+      /*metadata_alloc=*/allocator::GetLibCAllocator()};
+
   std::optional<Gatt> gatt_;
   Vector<SpanReceiveFunction, 10> payload_from_controller_fns_;
   Vector<SpanReceiveFunction, 10> payload_from_host_fns_;
   Vector<ChannelEventCallback, 10> event_callbacks_;
-  Vector<FlatConstMultiBufInstance, 15> write_buffers_;
+  Vector<multibuf::MultiBuf, 15> write_buffers_;
   Status intercept_channel_status_ = OkStatus();
   bool simulate_channel_write_failures_ = false;
 };
@@ -301,8 +269,8 @@ TEST_F(
   EXPECT_EQ(delegate.notifications()[0].connection_handle, kConnectionHandle1);
   EXPECT_EQ(delegate.notifications()[0].value_handle, kAttributeHandle1);
 
-  span<const std::byte> value_0 =
-      as_bytes(MultiBufAdapter::AsSpan(delegate.notifications()[0].value));
+  ConstByteSpan value_0 =
+      delegate.notifications()[0].value.ContiguousSpan().value();
   EXPECT_TRUE(std::equal(value_0.begin(),
                          value_0.end(),
                          expected_value_0.begin(),
@@ -322,8 +290,8 @@ TEST_F(
   EXPECT_EQ(delegate.notifications()[1].connection_handle, kConnectionHandle1);
   EXPECT_EQ(delegate.notifications()[1].value_handle, kAttributeHandle1);
 
-  span<const std::byte> value_1 =
-      as_bytes(MultiBufAdapter::AsSpan(delegate.notifications()[1].value));
+  ConstByteSpan value_1 =
+      delegate.notifications()[1].value.ContiguousSpan().value();
   EXPECT_TRUE(std::equal(value_1.begin(),
                          value_1.end(),
                          expected_value_1.begin(),
@@ -425,8 +393,8 @@ TEST_F(GattTest, CancelInterceptNotification) {
   EXPECT_EQ(delegate.notifications()[0].connection_handle, kConnectionHandle1);
   EXPECT_EQ(delegate.notifications()[0].value_handle, kAttributeHandle1);
 
-  span<const std::byte> value_0 =
-      as_bytes(MultiBufAdapter::AsSpan(delegate.notifications()[0].value));
+  ConstByteSpan value_0 =
+      delegate.notifications()[0].value.ContiguousSpan().value();
   EXPECT_TRUE(std::equal(value_0.begin(),
                          value_0.end(),
                          expected_value_0.begin(),
@@ -565,8 +533,8 @@ TEST_F(GattTest, InterceptNotificationOn2Connections) {
             kConnectionHandle1);
   EXPECT_EQ(delegate_0.notifications()[0].value_handle, kAttributeHandle1);
 
-  span<const std::byte> value_0 =
-      as_bytes(MultiBufAdapter::AsSpan(delegate_0.notifications()[0].value));
+  ConstByteSpan value_0 =
+      delegate_0.notifications()[0].value.ContiguousSpan().value();
   EXPECT_TRUE(std::equal(value_0.begin(),
                          value_0.end(),
                          expected_value_0.begin(),
@@ -608,13 +576,13 @@ TEST_F(GattTest, ServerSendNotification) {
   PW_TEST_ASSERT_OK(server);
 
   std::array<std::byte, 2> payload = {std::byte{0x09}, std::byte{0x0a}};
-  std::optional<FlatMultiBufInstance> value_buf =
-      MultiBufAdapter::Create(multibuf_allocator(), 2);
+  std::optional<multibuf::MultiBuf> value_buf =
+      multibuf_allocator().AllocateContiguous(2);
   ASSERT_TRUE(value_buf.has_value());
-  MultiBufAdapter::Copy(*value_buf, /*dst_offset=*/0, payload);
+  ASSERT_EQ(value_buf->CopyFrom(payload).status(), pw::OkStatus());
 
-  StatusWithMultiBuf result = server->SendNotification(
-      kAttributeHandle1, std::move(MultiBufAdapter::Unwrap(*value_buf)));
+  StatusWithMultiBuf result =
+      server->SendNotification(kAttributeHandle1, std::move(*value_buf));
   PW_TEST_ASSERT_OK(result.status);
   ASSERT_EQ(write_buffers().size(), 1u);
   std::array<uint8_t, 5> kExpectedPacket = {
@@ -624,8 +592,8 @@ TEST_F(GattTest, ServerSendNotification) {
       0x09,
       0x0a,  // payload
   };
-  span<const uint8_t> actual_packet =
-      MultiBufAdapter::AsSpan(write_buffers()[0]);
+  auto contiguous = write_buffers()[0].ContiguousSpan();
+  span<const uint8_t> actual_packet = span_cast<const uint8_t>(*contiguous);
   EXPECT_TRUE(std::equal(actual_packet.begin(),
                          actual_packet.end(),
                          kExpectedPacket.begin(),
@@ -642,13 +610,13 @@ TEST_F(GattTest, ServerSendNotificationForUnownedCharacteristicFails) {
   PW_TEST_ASSERT_OK(server);
 
   std::array<std::byte, 2> payload = {std::byte{0x09}, std::byte{0x0a}};
-  std::optional<FlatMultiBufInstance> value_buf =
-      MultiBufAdapter::Create(multibuf_allocator(), 2);
+  std::optional<multibuf::MultiBuf> value_buf =
+      multibuf_allocator().AllocateContiguous(2);
   ASSERT_TRUE(value_buf.has_value());
-  MultiBufAdapter::Copy(*value_buf, /*dst_offset=*/0, payload);
+  ASSERT_EQ(value_buf->CopyFrom(payload).status(), pw::OkStatus());
 
-  StatusWithMultiBuf send_result = server->SendNotification(
-      kAttributeHandle2, std::move(MultiBufAdapter::Unwrap(*value_buf)));
+  StatusWithMultiBuf send_result =
+      server->SendNotification(kAttributeHandle2, std::move(*value_buf));
   EXPECT_FALSE(send_result.status.ok());
   EXPECT_TRUE(send_result.buf.has_value());
   server->Close();
@@ -670,13 +638,13 @@ TEST_F(GattTest, ServerSendNotificationForCharacteristicOwnedByOtherServer) {
   PW_TEST_ASSERT_OK(server_1);
 
   std::array<std::byte, 2> payload = {std::byte{0x09}, std::byte{0x0a}};
-  std::optional<FlatMultiBufInstance> value_buf =
-      MultiBufAdapter::Create(multibuf_allocator(), 2);
+  std::optional<multibuf::MultiBuf> value_buf =
+      multibuf_allocator().AllocateContiguous(2);
   ASSERT_TRUE(value_buf.has_value());
-  MultiBufAdapter::Copy(*value_buf, /*dst_offset=*/0, payload);
+  ASSERT_EQ(value_buf->CopyFrom(payload).status(), pw::OkStatus());
 
-  StatusWithMultiBuf send_result = server_0->SendNotification(
-      kAttributeHandle2, std::move(MultiBufAdapter::Unwrap(*value_buf)));
+  StatusWithMultiBuf send_result =
+      server_0->SendNotification(kAttributeHandle2, std::move(*value_buf));
   EXPECT_FALSE(send_result.status.ok());
   EXPECT_TRUE(send_result.buf.has_value());
   server_0->Close();
@@ -712,13 +680,13 @@ TEST_F(GattTest, ServerSendNotificationInsideHandleWriteAvailable) {
     EXPECT_EQ(handle, kConnectionHandle1);
 
     std::array<std::byte, 2> payload = {std::byte{0x09}, std::byte{0x0a}};
-    std::optional<FlatMultiBufInstance> value_buf =
-        MultiBufAdapter::Create(capture.test->multibuf_allocator(), 2);
+    std::optional<multibuf::MultiBuf> value_buf =
+        capture.test->multibuf_allocator().AllocateContiguous(2);
     ASSERT_TRUE(value_buf.has_value());
-    MultiBufAdapter::Copy(*value_buf, /*dst_offset=*/0, payload);
+    ASSERT_EQ(value_buf->CopyFrom(payload).status(), pw::OkStatus());
 
     StatusWithMultiBuf result = capture.server.value().SendNotification(
-        kAttributeHandle1, std::move(MultiBufAdapter::Unwrap(*value_buf)));
+        kAttributeHandle1, std::move(*value_buf));
     PW_TEST_ASSERT_OK(result.status);
   };
 
@@ -785,13 +753,13 @@ TEST_F(GattTest, ServerSendNotificationWriteFails) {
   PW_TEST_ASSERT_OK(server);
 
   std::array<std::byte, 2> payload = {std::byte{0x09}, std::byte{0x0a}};
-  std::optional<FlatMultiBufInstance> value_buf =
-      MultiBufAdapter::Create(multibuf_allocator(), 2);
+  std::optional<multibuf::MultiBuf> value_buf =
+      multibuf_allocator().AllocateContiguous(2);
   ASSERT_TRUE(value_buf.has_value());
-  MultiBufAdapter::Copy(*value_buf, /*dst_offset=*/0, payload);
+  ASSERT_EQ(value_buf->CopyFrom(payload).status(), pw::OkStatus());
 
-  StatusWithMultiBuf result = server->SendNotification(
-      kAttributeHandle1, std::move(MultiBufAdapter::Unwrap(*value_buf)));
+  StatusWithMultiBuf result =
+      server->SendNotification(kAttributeHandle1, std::move(*value_buf));
   EXPECT_EQ(result.status, Status::Unavailable());
   EXPECT_TRUE(result.buf.has_value());
   server->Close();
@@ -819,8 +787,9 @@ TEST_F(GattTest, ServerReceivesWriteWithoutResponse) {
             kConnectionHandle1);
   EXPECT_EQ(delegate.write_without_responses()[0].value_handle,
             kAttributeHandle1);
-  span<const uint8_t> value_span =
-      MultiBufAdapter::AsSpan(delegate.write_without_responses()[0].value);
+  auto contiguous =
+      delegate.write_without_responses()[0].value.ContiguousSpan();
+  span<const uint8_t> value_span = span_cast<const uint8_t>(*contiguous);
   EXPECT_TRUE(std::equal(value_span.begin(),
                          value_span.end(),
                          kExpectedValue.begin(),
@@ -864,8 +833,8 @@ TEST_F(GattTest, ServerReceivesWriteWithoutResponseForUnknownHandle) {
 }
 
 TEST_F(GattTest, ServerReceivesWriteWithoutResponseWhileAllocatorExhausted) {
-  std::optional<FlatMultiBufInstance> buffer =
-      MultiBufAdapter::Create(multibuf_allocator(), kMultiBufAllocatorCapacity);
+  std::optional<multibuf::MultiBuf> buffer =
+      multibuf_allocator().AllocateContiguous(kMultiBufAllocatorCapacity);
   ASSERT_TRUE(buffer.has_value());
 
   FakeServerDelegate delegate;

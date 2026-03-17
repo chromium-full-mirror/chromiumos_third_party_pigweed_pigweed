@@ -44,7 +44,7 @@ class L2capCoc final : public internal::GenericL2capChannel {
   explicit L2capCoc(L2capChannel& channel, uint16_t tx_mtu);
 
   /// @copydoc internal::GenericL2capChannel::DoCheckWriteParameter
-  Status DoCheckWriteParameter(const FlatConstMultiBuf& payload) override;
+  Status DoCheckWriteParameter(const multibuf::MultiBuf& payload) override;
 
   uint16_t tx_mtu_ = 0;
 };

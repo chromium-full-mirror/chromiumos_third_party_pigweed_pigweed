@@ -37,7 +37,7 @@ L2capCoc::L2capCoc(L2capChannel& channel, uint16_t tx_mtu)
   }
 }
 
-Status L2capCoc::DoCheckWriteParameter(const FlatConstMultiBuf& payload) {
+Status L2capCoc::DoCheckWriteParameter(const multibuf::MultiBuf& payload) {
   if (payload.size() > tx_mtu_) {
     PW_LOG_ERROR(
         "Payload (%zu bytes) exceeds MTU (%d bytes). So will not process. "

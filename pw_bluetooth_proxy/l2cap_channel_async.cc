@@ -41,7 +41,7 @@ Allocator& L2capChannelImpl::allocator() {
 
 Status L2capChannelImpl::Init() {
   // One payload is held in `payload_`, the rest in the payload channel.
-  auto result = async2::CreateMpscChannel<FlatConstMultiBufInstance>(
+  auto result = async2::CreateMpscChannel<multibuf::MultiBuf>(
       allocator(), kQueueCapacity - 1);
   if (!result.has_value()) {
     return Status::ResourceExhausted();
@@ -74,7 +74,7 @@ Status L2capChannelImpl::Connect(
 }
 
 void L2capChannelImpl::Connect(
-    async2::Sender<FlatConstMultiBufInstance>& payload_sender) {
+    async2::Sender<multibuf::MultiBuf>& payload_sender) {
   payload_sender = payload_handle_.CreateSender();
 }
 
@@ -86,7 +86,7 @@ void L2capChannelImpl::Close() {
   request_handle_ = async2::SpscChannelHandle<Request>();
 }
 
-StatusWithMultiBuf L2capChannelImpl::Write(FlatConstMultiBuf&& payload) {
+StatusWithMultiBuf L2capChannelImpl::Write(multibuf::MultiBuf&& payload) {
   if (channel_.state() != L2capChannel::State::kRunning) {
     PW_LOG_WARN(
         "btproxy: L2capChannel::Write called when not running. "
@@ -160,7 +160,7 @@ void L2capChannelImpl::ReportNewTxPacketsOrCredits() {
 
 void L2capChannelImpl::ClearQueue() {
   payload_handle_.Close();
-  payload_future_ = async2::ReceiveFuture<FlatConstMultiBufInstance>();
+  payload_future_ = async2::ReceiveFuture<multibuf::MultiBuf>();
   payload_.reset();
 }
 

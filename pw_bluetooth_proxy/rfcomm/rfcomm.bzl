@@ -49,11 +49,17 @@ def pw_bluetooth_proxy_rfcomm_library(name, versioned_deps, **kwargs):
         # LINT.ThenChange(BUILD.gn, CMakeLists.txt)
         strip_include_prefix = "public",
         # LINT.IfChange
+        implementation_deps = [
+            "//pw_assert:check",
+            "//pw_bluetooth:emboss_util",
+            "//pw_span:cast",
+        ],
         deps = [
+            "//pw_allocator",
+            "//pw_bluetooth:emboss_rfcomm_frames",
+            "//pw_containers:intrusive_map",
             "//pw_checksum",
             "//pw_multibuf",
-            "//pw_bluetooth:emboss_util",
-            "//pw_bluetooth:emboss_rfcomm_frames",
         ] + versioned_deps,
         # LINT.ThenChange(Android.bp, BUILD.gn, CMakeLists.txt)
         **kwargs

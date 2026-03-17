@@ -54,6 +54,7 @@ def pw_bluetooth_proxy_gatt_library(name, versioned_deps, **kwargs):
             "//pw_containers:dynamic_vector",
             "//pw_containers:intrusive_map",
             "//pw_log",
+            "//pw_span:cast",
         ] + versioned_deps,
         # LINT.ThenChange(Android.bp, BUILD.gn, CMakeLists.txt)
         **kwargs
@@ -80,6 +81,7 @@ def pw_bluetooth_proxy_gatt_test(name, versioned_deps, **kwargs):
             "//pw_allocator:testing",
             "//pw_multibuf:simple_allocator",
             "//pw_containers:vector",
+            "//pw_span:cast",
             "//pw_sync:no_lock",
         ] + versioned_deps,
         # LINT.ThenChange(BUILD.gn, CMakeLists.txt)

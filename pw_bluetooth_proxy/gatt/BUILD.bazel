@@ -31,47 +31,38 @@ pw_bluetooth_proxy_gatt_library(
 )
 
 pw_bluetooth_proxy_gatt_library(
-    name = "gatt_v1",
+    name = "gatt_sync",
     testonly = True,
-    versioned_deps = ["//pw_bluetooth_proxy:pw_bluetooth_proxy_sync_mbv1"],
+    versioned_deps = ["//pw_bluetooth_proxy:pw_bluetooth_proxy_sync"],
     visibility = ["//visibility:private"],
 )
 
 pw_bluetooth_proxy_gatt_library(
-    name = "gatt_v2",
+    name = "gatt_async",
     testonly = True,
-    versioned_deps = ["//pw_bluetooth_proxy:pw_bluetooth_proxy_sync_mbv2"],
-    visibility = ["//visibility:private"],
-)
-
-pw_bluetooth_proxy_gatt_library(
-    name = "gatt_async_mbv2",
-    testonly = True,
-    versioned_deps = ["//pw_bluetooth_proxy:pw_bluetooth_proxy_async_mbv2"],
+    versioned_deps = ["//pw_bluetooth_proxy:pw_bluetooth_proxy_async"],
     visibility = ["//visibility:private"],
 )
 
 pw_bluetooth_proxy_gatt_test(
-    name = "gatt_v1_test",
-    versioned_deps = [
-        ":gatt_v1",
-    ],
+    name = "gatt_sync_test",
+    versioned_deps = [":gatt_sync"],
 )
 
 pw_bluetooth_proxy_gatt_test(
-    name = "gatt_v2_test",
-    versioned_deps = [
-        ":gatt_v2",
-    ],
+    name = "gatt_async_test",
+    versioned_deps = [":gatt_async"],
 )
 
 pw_cc_test(
     name = "gatt_integration_test",
     srcs = ["gatt_integration_test.cc"],
     deps = [
-        ":gatt_async_mbv2",
+        ":gatt_async",
         "//pw_allocator:testing",
-        "//pw_bluetooth_proxy:test_utils_async_mbv2",
+        "//pw_bluetooth_proxy:test_utils_async",
         "//pw_containers:vector",
+        "//pw_multibuf:from_span",
+        "//pw_span:cast",
     ],
 )

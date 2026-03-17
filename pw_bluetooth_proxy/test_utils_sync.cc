@@ -12,7 +12,6 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 
-#include "pw_bluetooth_proxy/config.h"
 #include "pw_bluetooth_proxy_private/test_utils.h"
 
 namespace pw::bluetooth::proxy {

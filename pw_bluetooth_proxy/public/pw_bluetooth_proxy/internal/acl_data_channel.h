@@ -21,10 +21,10 @@
 #include "pw_bluetooth_proxy/direction.h"
 #include "pw_bluetooth_proxy/internal/hci_transport.h"
 #include "pw_bluetooth_proxy/internal/logical_transport.h"
-#include "pw_bluetooth_proxy/internal/multibuf.h"
 #include "pw_bluetooth_proxy/internal/mutex.h"
 #include "pw_containers/intrusive_map.h"
 #include "pw_containers/vector.h"
+#include "pw_multibuf/multibuf.h"
 #include "pw_sync/lock_annotations.h"
 
 namespace pw::bluetooth::proxy {
@@ -48,7 +48,7 @@ class AclDataChannel {
       /// If this ACL packet was the last fragment of a fragmented PDU, an ACL
       /// packet containing the recombined PDU should be returned if it was not
       /// consumed and needs to be forwarded.
-      std::optional<MultiBufInstance> recombined_buffer;
+      std::optional<multibuf::MultiBuf> recombined_buffer;
     };
 
     virtual ~ConnectionDelegate() = default;

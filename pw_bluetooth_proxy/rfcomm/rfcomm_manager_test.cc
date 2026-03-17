@@ -17,20 +17,13 @@
 #include "pw_allocator/libc_allocator.h"
 #include "pw_allocator/testing.h"
 #include "pw_bluetooth_proxy/config.h"
-#include "pw_bluetooth_proxy/internal/multibuf.h"
 #include "pw_bluetooth_proxy/l2cap_channel_common.h"
 #include "pw_bluetooth_proxy/l2cap_channel_manager_interface.h"
 #include "pw_bytes/span.h"
 #include "pw_containers/vector.h"
 #include "pw_multibuf/multibuf.h"
-#include "pw_unit_test/framework.h"
-
-#if PW_MULTIBUF_VERSION == 1
 #include "pw_multibuf/simple_allocator.h"
-#else
-#include "pw_allocator/synchronized_allocator.h"
-#include "pw_sync/mutex.h"
-#endif  // PW_MULTIBUF_VERSION
+#include "pw_unit_test/framework.h"
 
 namespace pw::bluetooth::proxy::rfcomm {
 namespace testing {
@@ -42,11 +35,11 @@ class MockChannelProxy : public ChannelProxy {
   }
 
  private:
-  StatusWithMultiBuf DoWrite(FlatConstMultiBuf&& payload) override {
+  StatusWithMultiBuf DoWrite(multibuf::MultiBuf&& payload) override {
     last_written_payload_data_.resize(payload.size());
-    MultiBufAdapter::Copy(
-        as_writable_bytes(span(last_written_payload_data_)), payload, 0);
-    return {OkStatus()};
+    auto bytes_copied =
+        payload.CopyTo(as_writable_bytes(span(last_written_payload_data_)));
+    return {bytes_copied.status()};
   }
 
   Status DoIsWriteAvailable() override { return OkStatus(); }
@@ -64,7 +57,7 @@ class MockL2capChannelManager final : public L2capChannelManagerInterface {
   MockL2capChannelManager() = default;
 
   // Triggers the from_controller callback to simulate an incoming L2CAP PDU.
-  bool TriggerControllerPdu(FlatMultiBuf&& pdu,
+  bool TriggerControllerPdu(multibuf::MultiBuf&& pdu,
                             ConnectionHandle handle,
                             uint16_t local_cid,
                             uint16_t remote_cid) {
@@ -138,18 +131,12 @@ class RfcommManagerTest : public ::testing::Test {
 
   allocator::test::AllocatorForTest<4096> allocator_;
   static constexpr size_t kDataSize = 4096;
-#if PW_MULTIBUF_VERSION == 1
+
   std::array<std::byte, kDataSize> buffer_{};
   multibuf::SimpleAllocator multibuf_allocator_{
       /*data_area=*/buffer_,
       /*metadata_alloc=*/allocator::GetLibCAllocator()};
-#else
-  allocator::test::AllocatorForTest<kDataSize> data_alloc_;
-  allocator::SynchronizedAllocator<pw::sync::Mutex> synced_{data_alloc_};
-  MultiBufAllocator multibuf_allocator_{
-      /*data_alloc=*/synced_,
-      /*metadata_alloc=*/allocator::GetLibCAllocator()};
-#endif
+
   testing::MockL2capChannelManager l2cap_manager_;
   RfcommManager manager_;
 };
@@ -276,19 +263,19 @@ TEST_F(RfcommManagerTest, HandlePdu) {
       true,
       kDefaultConfig,
       kDefaultConfig,
-      [&](FlatMultiBuf&& pdu) {
+      [&](multibuf::MultiBuf&& pdu) {
         received_pdu1.resize(pdu.size());
-        MultiBufAdapter::Copy(as_writable_bytes(span(received_pdu1)), pdu, 0);
+        std::ignore = pdu.CopyTo(as_writable_bytes(span(received_pdu1)));
       },
       [&](RfcommEvent event) { last_event = event; });
   EXPECT_TRUE(channel_result.ok());
 
   // Valid UIH frame for channel_number 2.
   const pw::Vector<uint8_t, 5> kPdu1 = {0x11, 0xEF, 0x03, 0x01, 0xbf};
-  auto mbuf1_result =
-      MultiBufAdapter::Create(multibuf_allocator_, kPdu1.size());
+  auto mbuf1_result = multibuf_allocator_.AllocateContiguous(kPdu1.size());
   ASSERT_TRUE(mbuf1_result.has_value());
-  MultiBufAdapter::Copy(*mbuf1_result, 0, as_bytes(span(kPdu1)));
+  ASSERT_EQ(mbuf1_result->CopyFrom(as_bytes(span(kPdu1))).status(),
+            pw::OkStatus());
   bool handled1 = l2cap_manager_.TriggerControllerPdu(std::move(*mbuf1_result),
                                                       kConnectionHandle1,
                                                       kDefaultConfig.cid,
@@ -314,19 +301,19 @@ TEST_F(RfcommManagerTest, HandlePdu) {
       true,
       kDefaultConfig,
       kDefaultConfig,
-      [&](FlatMultiBuf&& pdu) {
+      [&](multibuf::MultiBuf&& pdu) {
         received_pdu2.resize(pdu.size());
-        MultiBufAdapter::Copy(as_writable_bytes(span(received_pdu2)), pdu, 0);
+        std::ignore = pdu.CopyTo(as_writable_bytes(span(received_pdu2)));
       },
       nullptr);
   EXPECT_TRUE(channel2_result.ok());
 
   // Valid UIH frame for channel_number 3.
   const pw::Vector<uint8_t, 5> kPdu2 = {0x19, 0xEF, 0x03, 0x02, 0x55};
-  auto mbuf2_result =
-      MultiBufAdapter::Create(multibuf_allocator_, kPdu2.size());
+  auto mbuf2_result = multibuf_allocator_.AllocateContiguous(kPdu2.size());
   ASSERT_TRUE(mbuf2_result.has_value());
-  MultiBufAdapter::Copy(*mbuf2_result, 0, as_bytes(span(kPdu2)));
+  ASSERT_EQ(mbuf2_result->CopyFrom(as_bytes(span(kPdu2))).status(),
+            pw::OkStatus());
   l2cap_manager_.TriggerControllerPdu(std::move(*mbuf2_result),
                                       kConnectionHandle1,
                                       kDefaultConfig.cid,
@@ -343,10 +330,10 @@ TEST_F(RfcommManagerTest, HandlePdu) {
 
   // DISC frame should close channel.
   const pw::Vector<uint8_t, 4> kPdu3 = {0x11, 0x43, 0x01, 0x03};
-  auto mbuf3_result =
-      MultiBufAdapter::Create(multibuf_allocator_, kPdu3.size());
+  auto mbuf3_result = multibuf_allocator_.AllocateContiguous(kPdu3.size());
   ASSERT_TRUE(mbuf3_result.has_value());
-  MultiBufAdapter::Copy(*mbuf3_result, 0, as_bytes(span(kPdu3)));
+  ASSERT_EQ(mbuf3_result->CopyFrom(as_bytes(span(kPdu3))).status(),
+            pw::OkStatus());
   bool handled3 = l2cap_manager_.TriggerControllerPdu(std::move(*mbuf3_result),
                                                       kConnectionHandle1,
                                                       kDefaultConfig.cid,
@@ -368,9 +355,10 @@ TEST_F(RfcommManagerTest, UnhandledPduShouldBeForwarded) {
                                     nullptr);
   // PDU for a channel_number that is not registered.
   const pw::Vector<uint8_t, 5> kPdu = {0x09, 0xEF, 0x03, 0x01, 0x40};
-  auto mbuf_result = MultiBufAdapter::Create(multibuf_allocator_, kPdu.size());
+  auto mbuf_result = multibuf_allocator_.AllocateContiguous(kPdu.size());
   ASSERT_TRUE(mbuf_result.has_value());
-  MultiBufAdapter::Copy(*mbuf_result, 0, as_bytes(span(kPdu)));
+  ASSERT_EQ(mbuf_result->CopyFrom(as_bytes(span(kPdu))).status(),
+            pw::OkStatus());
   bool handled = l2cap_manager_.TriggerControllerPdu(std::move(*mbuf_result),
                                                      kConnectionHandle1,
                                                      kDefaultConfig.cid,
@@ -393,9 +381,10 @@ TEST_F(RfcommManagerTest, InvalidFcsPduShouldBeForwarded) {
 
   // Valid UIH frame for channel_number 2 with invalid FCS.
   const pw::Vector<uint8_t, 5> kPdu = {0x11, 0xEF, 0x03, 0x01, 0x00};
-  auto mbuf_result = MultiBufAdapter::Create(multibuf_allocator_, kPdu.size());
+  auto mbuf_result = multibuf_allocator_.AllocateContiguous(kPdu.size());
   ASSERT_TRUE(mbuf_result.has_value());
-  MultiBufAdapter::Copy(*mbuf_result, 0, as_bytes(span(kPdu)));
+  ASSERT_EQ(mbuf_result->CopyFrom(as_bytes(span(kPdu))).status(),
+            pw::OkStatus());
   bool handled = l2cap_manager_.TriggerControllerPdu(std::move(*mbuf_result),
                                                      kConnectionHandle1,
                                                      kDefaultConfig.cid,
@@ -510,14 +499,14 @@ TEST_F(RfcommManagerTest, L2capChannelReset) {
 
 TEST_F(RfcommManagerTest, CallbacksAreSafe) {
   std::optional<RfcommEvent> event;
-  auto mbuf = MultiBufAdapter::Create(multibuf_allocator_, 1);
+  auto mbuf = multibuf_allocator_.AllocateContiguous(1);
   ASSERT_TRUE(mbuf.has_value());
-  FlatMultiBufInstance& flat_mbuf_instance = mbuf.value();
+  multibuf::MultiBuf& flat_mbuf_instance = mbuf.value();
 
   struct {
     RfcommManager* manager;
     std::optional<RfcommEvent>* event;
-    FlatMultiBufInstance* mbuf;
+    multibuf::MultiBuf* mbuf;
   } capture = {&manager_, &event, &flat_mbuf_instance};
 
   auto channel_result = manager_.AcquireRfcommChannel(
@@ -536,7 +525,7 @@ TEST_F(RfcommManagerTest, CallbacksAreSafe) {
                       ->Write(kConnectionHandle1,
                               kChannelNumber1,
                               RfcommDirection::kInitiator,
-                              std::move(MultiBufAdapter::Unwrap(*capture.mbuf)))
+                              std::move(*capture.mbuf))
                       .status,
                   Status::NotFound());
         EXPECT_EQ(
@@ -549,9 +538,10 @@ TEST_F(RfcommManagerTest, CallbacksAreSafe) {
 
   // Send a DISC frame.
   const pw::Vector<uint8_t, 4> kPdu = {0x17, 0x43, 0x01, 0xa0};
-  auto mbuf_result = MultiBufAdapter::Create(multibuf_allocator_, kPdu.size());
+  auto mbuf_result = multibuf_allocator_.AllocateContiguous(kPdu.size());
   ASSERT_TRUE(mbuf_result.has_value());
-  MultiBufAdapter::Copy(*mbuf_result, 0, as_bytes(span(kPdu)));
+  ASSERT_EQ(mbuf_result->CopyFrom(as_bytes(span(kPdu))).status(),
+            pw::OkStatus());
   bool handled = l2cap_manager_.TriggerControllerPdu(std::move(*mbuf_result),
                                                      kConnectionHandle1,
                                                      kDefaultConfig.cid,

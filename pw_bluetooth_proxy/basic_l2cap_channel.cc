@@ -31,7 +31,7 @@ BasicL2capChannel::BasicL2capChannel(L2capChannel& channel)
 }
 
 Status BasicL2capChannel::DoCheckWriteParameter(
-    const FlatConstMultiBuf& payload) {
+    const multibuf::MultiBuf& payload) {
   if (max_l2cap_payload_size_ == 0) {
     return Status::FailedPrecondition();
   }

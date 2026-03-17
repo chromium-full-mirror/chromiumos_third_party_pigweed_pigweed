@@ -32,7 +32,7 @@ namespace pw::bluetooth::proxy::rfcomm::internal {
 class RfcommChannelInternal
     : public IntrusiveMap<uint8_t, RfcommChannelInternal>::Item {
  public:
-  RfcommChannelInternal(MultiBufAllocator& multibuf_allocator,
+  RfcommChannelInternal(multibuf::MultiBufAllocator& multibuf_allocator,
                         ChannelProxy& l2cap_channel_proxy,
                         ConnectionHandle connection_handle,
                         uint8_t channel_number,
@@ -51,7 +51,7 @@ class RfcommChannelInternal
 
   // Writes a payload to the RFCOMM channel. If no credits are available, the
   // payload is queued.
-  StatusWithMultiBuf Write(FlatConstMultiBuf&& payload);
+  StatusWithMultiBuf Write(multibuf::MultiBuf&& payload);
 
   // Handles an RFCOMM PDU from the controller.
   // Returns false if the PDU was handled, true is for forwarded to the
@@ -75,7 +75,7 @@ class RfcommChannelInternal
   // Tries to send a packet if credits are available.
   void TryToSendPacket() PW_EXCLUSIVE_LOCKS_REQUIRED(tx_mutex_);
 
-  MultiBufAllocator& multibuf_allocator_;
+  multibuf::MultiBufAllocator& multibuf_allocator_;
   ChannelProxy& l2cap_channel_proxy_;
   const ConnectionHandle connection_handle_;
   const uint8_t channel_number_;
@@ -97,11 +97,10 @@ class RfcommChannelInternal
   // The offset into the current packet that will be sent next.
   size_t send_packet_offset_ PW_GUARDED_BY(tx_mutex_) = 0;
   // The pending credit frame to be sent to the controller.
-  std::optional<FlatConstMultiBufInstance> pending_credit_tx_
-      PW_GUARDED_BY(tx_mutex_);
+  std::optional<multibuf::MultiBuf> pending_credit_tx_ PW_GUARDED_BY(tx_mutex_);
   // The maximum number of packets that can be queued for transmit.
   static constexpr size_t kDefaultTxQueueSize = 10;
-  InlineQueue<FlatConstMultiBufInstance, kDefaultTxQueueSize> tx_queue_
+  InlineQueue<multibuf::MultiBuf, kDefaultTxQueueSize> tx_queue_
       PW_GUARDED_BY(tx_mutex_);
 
   sync::Mutex rx_mutex_ PW_ACQUIRED_AFTER(tx_mutex_);

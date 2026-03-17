@@ -16,7 +16,7 @@
 
 #include "pw_assert/assert.h"
 #include "pw_bluetooth_proxy/internal/locked_l2cap_channel.h"
-#include "pw_bluetooth_proxy/internal/multibuf.h"
+#include "pw_multibuf/multibuf.h"
 #include "pw_span/span.h"
 #include "pw_status/status.h"
 
@@ -85,8 +85,8 @@ class Recombiner {
   // This is static method so that it can be called outside of the connection
   // mutex. It can be called once after IsComplete is returned by the relevant
   // Recombiner instance.
-  static MultiBufInstance TakeBuf(std::optional<LockedL2capChannel>& channel,
-                                  Direction direction);
+  static multibuf::MultiBuf TakeBuf(std::optional<LockedL2capChannel>& channel,
+                                    Direction direction);
 
   // Ends recombination.
   //

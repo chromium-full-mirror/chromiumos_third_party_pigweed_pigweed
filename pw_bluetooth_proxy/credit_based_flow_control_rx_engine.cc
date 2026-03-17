@@ -113,8 +113,8 @@ CreditBasedFlowControlRxEngine::HandlePduFromController(
       return L2capChannelEvent::kRxInvalid;
     }
 
-    rx_sdu_ = MultiBufAdapter::Create(*rx_multibuf_allocator_,
-                                      rx_sdu_bytes_remaining_);
+    rx_sdu_ =
+        rx_multibuf_allocator_->AllocateContiguous(rx_sdu_bytes_remaining_);
     if (!rx_sdu_) {
       PW_LOG_ERROR(
           "(CID %#x) Rx MultiBuf allocator out of memory. So stopping channel "
@@ -129,8 +129,7 @@ CreditBasedFlowControlRxEngine::HandlePduFromController(
   }
 
   // Copy segment into rx_sdu_.
-  size_t copied =
-      MultiBufAdapter::Copy(rx_sdu_.value(), rx_sdu_offset_, kframe_payload);
+  size_t copied = rx_sdu_->CopyFrom(kframe_payload, rx_sdu_offset_).size();
   if (copied < kframe_payload.size()) {
     // Core Spec v6.0 Vol 3, Part A, 3.4.3: "If the sum of the payload sizes
     // for the K-frames exceeds the specified SDU length, the receiver shall
@@ -147,8 +146,7 @@ CreditBasedFlowControlRxEngine::HandlePduFromController(
 
   if (rx_sdu_bytes_remaining_ == 0) {
     // We have a full SDU, so invoke client callback.
-    FlatMultiBufInstance send_to_client =
-        std::move(MultiBufAdapter::Unwrap(rx_sdu_.value()));
+    multibuf::MultiBuf send_to_client = std::move(rx_sdu_.value());
     rx_sdu_ = std::nullopt;
     rx_sdu_offset_ = 0;
     return send_to_client;

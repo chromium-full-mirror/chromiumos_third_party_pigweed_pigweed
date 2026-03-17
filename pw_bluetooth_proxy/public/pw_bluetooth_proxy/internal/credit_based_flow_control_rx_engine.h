@@ -16,6 +16,7 @@
 
 #include "pw_bluetooth_proxy/internal/rx_engine.h"
 #include "pw_bluetooth_proxy/l2cap_coc_config.h"
+#include "pw_multibuf/allocator.h"
 
 namespace pw::bluetooth::proxy::internal {
 
@@ -25,7 +26,7 @@ class CreditBasedFlowControlRxEngine final : public RxEngine {
  public:
   CreditBasedFlowControlRxEngine(
       ConnectionOrientedChannelConfig config,
-      MultiBufAllocator& rx_multibuf_allocator,
+      multibuf::MultiBufAllocator& rx_multibuf_allocator,
       Function<Status(uint16_t)> replenish_rx_credits_fn)
       : local_cid_(config.cid),
         rx_mtu_(config.mtu),
@@ -52,12 +53,12 @@ class CreditBasedFlowControlRxEngine final : public RxEngine {
   uint16_t rx_mtu_;
   uint16_t rx_mps_;
   Function<Status(uint16_t)> replenish_rx_credits_fn_;
-  std::optional<FlatMultiBufInstance> rx_sdu_ = std::nullopt;
+  std::optional<multibuf::MultiBuf> rx_sdu_ = std::nullopt;
   uint16_t rx_sdu_offset_ = 0;
   uint16_t rx_sdu_bytes_remaining_ = 0;
   uint16_t rx_remaining_credits_;
   uint16_t rx_total_credits_;
-  MultiBufAllocator* rx_multibuf_allocator_;
+  multibuf::MultiBufAllocator* rx_multibuf_allocator_;
 };
 
 }  // namespace pw::bluetooth::proxy::internal

@@ -16,19 +16,21 @@
 
 #include <limits>
 
+#include "pw_assert/check.h"
 #include "pw_bluetooth/emboss_util.h"
 #include "pw_bluetooth/rfcomm_frames.emb.h"
 #include "pw_bluetooth_proxy/internal/l2cap_channel.h"
-#include "pw_bluetooth_proxy/internal/multibuf.h"
 #include "pw_bluetooth_proxy/rfcomm/rfcomm_common.h"
 #include "pw_log/log.h"
+#include "pw_multibuf/multibuf.h"
+#include "pw_span/cast.h"
 #include "pw_sync/lock_annotations.h"
 #include "pw_sync/mutex.h"
 
 namespace pw::bluetooth::proxy::rfcomm::internal {
 
 RfcommChannelInternal::RfcommChannelInternal(
-    MultiBufAllocator& multibuf_allocator,
+    multibuf::MultiBufAllocator& multibuf_allocator,
     ChannelProxy& l2cap_channel_proxy,
     ConnectionHandle connection_handle,
     uint8_t channel_number,
@@ -57,7 +59,7 @@ RfcommChannelInternal::RfcommChannelInternal(
               static_cast<uint8_t>(direction_));
 }
 
-StatusWithMultiBuf RfcommChannelInternal::Write(FlatConstMultiBuf&& payload) {
+StatusWithMultiBuf RfcommChannelInternal::Write(multibuf::MultiBuf&& payload) {
   std::lock_guard lock(mutex_);
   std::lock_guard tx_lock(tx_mutex_);
   if (state_ == State::kClosed) {
@@ -117,8 +119,9 @@ void RfcommChannelInternal::TryToSendPacket()
     PW_EXCLUSIVE_LOCKS_REQUIRED(tx_mutex_) {
   // Prioritize sending credits over data.
   if (pending_credit_tx_.has_value()) {
-    auto credit_pdu_span = MultiBufAdapter::AsSpan(pending_credit_tx_.value());
-    uint16_t credits_sent = credit_pdu_span[credit_pdu_span.size() - 2];
+    auto credit_pdu_span = pending_credit_tx_->ContiguousSpan().value();
+    auto credits_sent =
+        static_cast<uint16_t>(credit_pdu_span[credit_pdu_span.size() - 2]);
     StatusWithMultiBuf write_status =
         l2cap_channel_proxy_.Write(std::move(pending_credit_tx_.value()));
     if (!write_status.status.ok()) {
@@ -135,7 +138,7 @@ void RfcommChannelInternal::TryToSendPacket()
   while (tx_credits_ > 0 && !tx_queue_.empty()) {
     // Get the first payload in the queue and the offset into the payload that
     // will be sent next.
-    FlatConstMultiBuf& payload = tx_queue_.front();
+    multibuf::MultiBuf& payload = tx_queue_.front();
     size_t offset = send_packet_offset_;
 
     // Calculate the size of the chunk to send. The chunk size is the minimum of
@@ -153,16 +156,16 @@ void RfcommChannelInternal::TryToSendPacket()
                 : emboss::RfcommDataFrameOverhead::WITH_SHORT_HEADER);
 
     // Allocate a buffer for the RFCOMM packet.
-    auto result = MultiBufAdapter::Create(multibuf_allocator_, frame_size);
+    auto result = multibuf_allocator_.AllocateContiguous(frame_size);
     if (!result.has_value()) {
       PW_LOG_ERROR(
           "RFCOMM channel %u: Failed to allocate buffer for RFCOMM packet",
           channel_number_);
       break;
     }
-    FlatMultiBufInstance new_buffer = std::move(result.value());
+    multibuf::MultiBuf new_buffer = std::move(result.value());
     span<uint8_t> buffer =
-        MultiBufAdapter::AsSpan(MultiBufAdapter::Unwrap(new_buffer));
+        span_cast<uint8_t>(new_buffer.ContiguousSpan().value());
 
     auto frame_writer =
         emboss::MakeRfcommFrameView(buffer.data(), buffer.size());
@@ -184,16 +187,21 @@ void RfcommChannelInternal::TryToSendPacket()
       frame_writer.length().Write(chunk_size);
     }
 
-    MultiBufAdapter::Copy(
-        frame_writer.information(), payload, offset, chunk_size);
+    auto information = frame_writer.information();
+    span<uint8_t> backing_storage(information.BackingStorage().data(),
+                                  information.SizeInBytes());
+    backing_storage = backing_storage.subspan(0, chunk_size);
+    auto bytes_copied =
+        payload.CopyTo(as_writable_bytes(backing_storage), offset);
+    PW_CHECK_UINT_EQ(bytes_copied.size(), backing_storage.size());
 
     frame_writer.fcs().Write(crc_calculator_.Calculate(as_bytes(span(
         buffer.data(),
         static_cast<size_t>(emboss::RfcommHeaderLength::WITHOUT_LENGTH)))));
 
     // Write the packet to the L2CAP channel.
-    StatusWithMultiBuf write_status = l2cap_channel_proxy_.Write(
-        std::move(MultiBufAdapter::Unwrap(new_buffer)));
+    StatusWithMultiBuf write_status =
+        l2cap_channel_proxy_.Write(std::move(new_buffer));
     if (!write_status.status.ok()) {
       // L2CAP channel is busy, we will retry later. The packet remains in the
       // queue with its current offset.
@@ -234,18 +242,18 @@ void RfcommChannelInternal::Close(RfcommEvent event) {
 // Sends credits (UIH frame with P-bit set) to the controller.
 Status RfcommChannelInternal::SendCredits(uint8_t credits) {
   // RFCOMM frame with 1-byte length field and 1-byte credit.
-  auto result = MultiBufAdapter::Create(
-      multibuf_allocator_,
-      static_cast<size_t>(emboss::RfcommDataFrameOverhead::WITH_LONG_HEADER));
+  auto frame_size =
+      static_cast<size_t>(emboss::RfcommDataFrameOverhead::WITH_LONG_HEADER);
+  auto result = multibuf_allocator_.AllocateContiguous(frame_size);
   if (!result.has_value()) {
     PW_LOG_ERROR("RFCOMM channel %u: Failed to allocate buffer for credits",
                  channel_number_);
     return Status::ResourceExhausted();
   }
-  FlatMultiBufInstance new_buffer = std::move(result.value());
+  multibuf::MultiBuf new_buffer = std::move(result.value());
 
   span<uint8_t> buffer =
-      MultiBufAdapter::AsSpan(MultiBufAdapter::Unwrap(new_buffer));
+      span_cast<uint8_t>(new_buffer.ContiguousSpan().value());
   auto frame_writer = emboss::MakeRfcommFrameView(buffer.data(), buffer.size());
 
   frame_writer.extended_address().Write(true);
@@ -268,7 +276,7 @@ Status RfcommChannelInternal::SendCredits(uint8_t credits) {
            static_cast<size_t>(emboss::RfcommHeaderLength::WITHOUT_LENGTH)))));
 
   std::lock_guard lock(tx_mutex_);
-  pending_credit_tx_ = std::move(MultiBufAdapter::Unwrap(new_buffer));
+  pending_credit_tx_ = std::move(new_buffer);
   TryToSendPacket();
   return OkStatus();
 }
@@ -285,17 +293,18 @@ bool RfcommChannelInternal::HandlePduFromController(uint8_t credits,
     // TODO: https://pwbug.dev/478981478 - Rather than creating another
     // MultiBuf when a MultiBuf already exists for this packet in
     // RfcommChannelManager, return the payload part of the buffer.
-    auto result = MultiBufAdapter::Create(multibuf_allocator_, pdu.size());
+    auto result = multibuf_allocator_.AllocateContiguous(pdu.size());
     if (!result.has_value()) {
       PW_LOG_ERROR("Failed to allocate buffer for RFCOMM channel number %u",
                    channel_number_);
       return true;
     }
 
-    FlatMultiBufInstance& flat_mbuf_instance = result.value();
-    MultiBufAdapter::Copy(flat_mbuf_instance, /*dst_offset=*/0, pdu);
+    multibuf::MultiBuf& mbuf = result.value();
+    auto bytes_copied = mbuf.CopyFrom(pdu);
+    PW_CHECK(bytes_copied.ok());
 
-    receive_fn_(std::move(flat_mbuf_instance));
+    receive_fn_(std::move(mbuf));
 
     std::lock_guard lock(rx_mutex_);
     if (rx_credits_ > 0) {

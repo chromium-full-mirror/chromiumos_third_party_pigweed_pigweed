@@ -25,7 +25,7 @@ GenericL2capChannel::GenericL2capChannel(L2capChannel& channel)
       remote_cid_(channel.remote_cid()),
       impl_(channel) {}
 
-StatusWithMultiBuf GenericL2capChannel::Write(FlatConstMultiBuf&& payload) {
+StatusWithMultiBuf GenericL2capChannel::Write(multibuf::MultiBuf&& payload) {
   if (auto status = DoCheckWriteParameter(payload); !status.ok()) {
     return {status, std::move(payload)};
   }

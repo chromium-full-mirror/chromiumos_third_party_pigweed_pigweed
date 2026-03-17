@@ -42,7 +42,7 @@ class L2capLogicalLinkInterface
   virtual Status SendFlowControlCreditInd(
       uint16_t channel_id,
       uint16_t credits,
-      MultiBufAllocator& multibuf_allocator) = 0;
+      multibuf::MultiBufAllocator& multibuf_allocator) = 0;
 
   // The connection handle.
   virtual uint16_t key() const = 0;
@@ -70,7 +70,7 @@ class L2capLogicalLink final : public L2capLogicalLinkInterface,
   Status SendFlowControlCreditInd(
       uint16_t channel_id,
       uint16_t credits,
-      MultiBufAllocator& multibuf_allocator) override {
+      multibuf::MultiBufAllocator& multibuf_allocator) override {
     return signaling_channel_.SendFlowControlCreditInd(
         channel_id, credits, multibuf_allocator);
   }

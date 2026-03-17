@@ -39,7 +39,7 @@ class ChannelProxy {
   /// * @INVALID_ARGUMENT: Payload is too large.
   /// * @FAILED_PRECONDITION: Channel is not `State::kRunning`.
   /// * @UNIMPLEMENTED: Channel does not support `Write(MultiBuf)`.
-  StatusWithMultiBuf Write(FlatConstMultiBuf&& payload) {
+  StatusWithMultiBuf Write(multibuf::MultiBuf&& payload) {
     return DoWrite(std::move(payload));
   }
 
@@ -70,7 +70,7 @@ class ChannelProxy {
   }
 
  private:
-  virtual StatusWithMultiBuf DoWrite(FlatConstMultiBuf&& payload) = 0;
+  virtual StatusWithMultiBuf DoWrite(multibuf::MultiBuf&& payload) = 0;
 
   virtual Status DoIsWriteAvailable() = 0;
 

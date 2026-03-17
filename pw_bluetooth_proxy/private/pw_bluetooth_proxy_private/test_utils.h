@@ -32,21 +32,15 @@
 #include "pw_bluetooth_proxy/gatt_notify_channel.h"
 #include "pw_bluetooth_proxy/h4_packet.h"
 #include "pw_bluetooth_proxy/internal/logical_transport.h"
-#include "pw_bluetooth_proxy/internal/multibuf.h"
 #include "pw_bluetooth_proxy/l2cap_channel_common.h"
 #include "pw_bluetooth_proxy/l2cap_coc.h"
 #include "pw_bluetooth_proxy/proxy_host.h"
 #include "pw_function/function.h"
+#include "pw_multibuf/multibuf.h"
+#include "pw_multibuf/simple_allocator.h"
 #include "pw_status/status.h"
 #include "pw_status/try.h"
 #include "pw_unit_test/framework.h"
-
-#if PW_MULTIBUF_VERSION == 1
-#include "pw_multibuf/simple_allocator.h"
-#else  // PW_MULTIBUF_VERSION
-#include "pw_allocator/synchronized_allocator.h"
-#include "pw_allocator/testing.h"
-#endif  // PW_MULTIBUF_VERSION
 
 #if PW_BLUETOOTH_PROXY_ASYNC != 0
 #include "pw_async2/notified_dispatcher.h"
@@ -164,12 +158,12 @@ struct CocParameters {
   uint16_t tx_mtu = 100;
   uint16_t tx_mps = 100;
   uint16_t tx_credits = 1;
-  Function<void(FlatConstMultiBuf&& payload)>&& receive_fn = nullptr;
+  Function<void(multibuf::MultiBuf&& payload)>&& receive_fn = nullptr;
   ChannelEventCallback&& event_fn = nullptr;
 };
 
 struct BasicL2capParameters {
-  MultiBufAllocator* rx_multibuf_allocator = nullptr;
+  multibuf::MultiBufAllocator* rx_multibuf_allocator = nullptr;
   uint16_t handle = 123;
   uint16_t local_cid = 234;
   uint16_t remote_cid = 456;
@@ -195,38 +189,6 @@ struct GattNotifyChannelParameters {
   uint16_t handle = 123;
   uint16_t attribute_handle = 0xBC;
   ChannelEventCallback&& event_fn = nullptr;
-};
-
-/// Helper class that can produce an initialized MultiBufAllocator for either
-/// Multibuf V1 or V2, depending on the `PW_MULTIBUF_VERSION` config
-/// option.
-template <size_t kDataCapacity, typename Lock = sync::NoLock>
-class MultiBufAllocatorContext {
- public:
-  MultiBufAllocator& GetAllocator() { return allocator_; }
-
- private:
-  // Use libc allocators so msan can detect use after frees.
-#if PW_MULTIBUF_VERSION == 1
-
-  std::array<std::byte, kDataCapacity> buffer_{};
-  pw::multibuf::SimpleAllocator allocator_{
-      /*data_area=*/buffer_,
-      /*metadata_alloc=*/allocator::GetLibCAllocator()};
-
-#elif PW_MULTIBUF_VERSION == 2
-  using BlockType = allocator::test::AllocatorForTest<0>::BlockType;
-
-  static constexpr size_t kDataSize =
-      AlignUp(kDataCapacity + BlockType::kBlockOverhead, BlockType::kAlignment);
-
-  allocator::test::AllocatorForTest<kDataSize> data_alloc_;
-  allocator::SynchronizedAllocator<Lock> synced_{data_alloc_};
-  MultiBufAllocator allocator_{
-      /*data_alloc=*/synced_,
-      /*metadata_alloc=*/allocator::GetLibCAllocator()};
-
-#endif  // PW_MULTIBUF_VERSION
 };
 
 // ########## Async support
@@ -463,28 +425,27 @@ class ProxyHostTest : public testing::Test {
   // MultiBuf utilities.
 
   template <typename T, size_t N>
-  static FlatMultiBufInstance MultiBufFromSpan(span<T, N> buf,
-                                               MultiBufAllocator& allocator) {
+  static multibuf::MultiBuf MultiBufFromSpan(
+      span<T, N> buf, multibuf::MultiBufAllocator& allocator) {
     ConstByteSpan bytes = as_bytes(buf);
-    auto result = MultiBufAdapter::Create(allocator, bytes.size());
+    auto result = allocator.AllocateContiguous(bytes.size());
     PW_ASSERT(result.has_value());
-    FlatMultiBufInstance buffer = std::move(result.value());
-    FlatMultiBuf& mbuf = MultiBufAdapter::Unwrap(buffer);
-    EXPECT_EQ(MultiBufAdapter::Copy(mbuf, 0, bytes), bytes.size());
-    return buffer;
+    multibuf::MultiBuf mbuf = std::move(result.value());
+    PW_ASSERT(mbuf.CopyFrom(bytes).ok());
+    return mbuf;
   }
 
   template <typename T, size_t N>
-  FlatMultiBufInstance MultiBufFromSpan(span<T, N> buf) {
+  multibuf::MultiBuf MultiBufFromSpan(span<T, N> buf) {
     return MultiBufFromSpan(buf, test_multibuf_allocator_);
   }
 
   template <typename T, size_t N>
-  FlatMultiBufInstance MultiBufFromArray(const std::array<T, N>& arr) {
+  multibuf::MultiBuf MultiBufFromArray(const std::array<T, N>& arr) {
     return MultiBufFromSpan(pw::span{arr});
   }
 
-  FlatMultiBufInstance MakeEmptyMultiBuf() {
+  multibuf::MultiBuf MakeEmptyMultiBuf() {
     return MultiBufFromSpan(span<uint8_t>{});
   }
 
@@ -495,15 +456,17 @@ class ProxyHostTest : public testing::Test {
 
   // MultiBuf allocator for creating objects to pass to the system under
   // test (e.g. creating test packets to send to proxy host).
-  MultiBufAllocatorContext<2048> test_allocator_context_;
-  MultiBufAllocator& test_multibuf_allocator_ =
-      test_allocator_context_.GetAllocator();
+  std::array<std::byte, 2048> test_packet_buffer_{};
+  pw::multibuf::SimpleAllocator test_multibuf_allocator_{
+      /*data_area=*/test_packet_buffer_,
+      /*metadata_alloc=*/allocator::GetLibCAllocator()};
 
   // Default MultiBuf allocator to be passed to system under test (e.g.
   // to pass to AcquireL2capCoc).
-  MultiBufAllocatorContext<2048> sut_allocator_context_;
-  MultiBufAllocator& sut_multibuf_allocator_ =
-      sut_allocator_context_.GetAllocator();
+  std::array<std::byte, 2048> sut_packet_buffer_{};
+  pw::multibuf::SimpleAllocator sut_multibuf_allocator_{
+      /*data_area=*/sut_packet_buffer_,
+      /*metadata_alloc=*/allocator::GetLibCAllocator()};
 };
 
 }  // namespace pw::bluetooth::proxy

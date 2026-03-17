@@ -36,9 +36,9 @@ class BasicModeTxEngine final : public TxEngine {
 
   // TxEngine overrides:
 
-  Result<H4PacketWithH4> GenerateNextPacket(const FlatConstMultiBuf& payload,
+  Result<H4PacketWithH4> GenerateNextPacket(const multibuf::MultiBuf& payload,
                                             bool& keep_payload) override;
-  Status CheckWriteParameter(const FlatConstMultiBuf& payload) override;
+  Status CheckWriteParameter(const multibuf::MultiBuf& payload) override;
   Result<bool> AddCredits(uint16_t) override {
     // Basic mode does not use credits.
     return false;

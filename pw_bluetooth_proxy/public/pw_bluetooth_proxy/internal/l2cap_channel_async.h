@@ -22,10 +22,10 @@
 
 #include "pw_async2/channel.h"
 #include "pw_bluetooth_proxy/h4_packet.h"
-#include "pw_bluetooth_proxy/internal/multibuf.h"
 #include "pw_bluetooth_proxy/internal/mutex.h"
 #include "pw_bluetooth_proxy/l2cap_channel_common.h"
 #include "pw_function/function.h"
+#include "pw_multibuf/multibuf.h"
 #include "pw_status/status.h"
 #include "pw_sync/no_lock.h"
 
@@ -93,7 +93,7 @@ class L2capChannelImpl {
                  async2::Sender<Request>& request_sender);
 
   /// Provides a connection to send payloads from a client channel.
-  void Connect(async2::Sender<FlatConstMultiBufInstance>& payload_sender);
+  void Connect(async2::Sender<multibuf::MultiBuf>& payload_sender);
 
   /// Trivial implementation since channels are not borrowed in async mode.
   void BlockWhileBorrowed(std::unique_lock<internal::Mutex>&) {}
@@ -102,7 +102,7 @@ class L2capChannelImpl {
   void Close();
 
   /// @copydoc L2capChannel::Write
-  StatusWithMultiBuf Write(FlatConstMultiBuf&& payload);
+  StatusWithMultiBuf Write(multibuf::MultiBuf&& payload);
 
   /// Request a "write available" event be sent when space become available in
   /// the payload queue.
@@ -157,13 +157,13 @@ class L2capChannelImpl {
   std::optional<async2::SpscChannelHandle<Request>> request_handle_;
 
   /// Channel for reading payloads from the client.
-  async2::MpscChannelHandle<FlatConstMultiBufInstance> payload_handle_;
-  async2::Sender<FlatConstMultiBufInstance> payload_sender_;
-  async2::Receiver<FlatConstMultiBufInstance> payload_receiver_;
-  async2::ReceiveFuture<FlatConstMultiBufInstance> payload_future_;
+  async2::MpscChannelHandle<multibuf::MultiBuf> payload_handle_;
+  async2::Sender<multibuf::MultiBuf> payload_sender_;
+  async2::Receiver<multibuf::MultiBuf> payload_receiver_;
+  async2::ReceiveFuture<multibuf::MultiBuf> payload_future_;
 
   /// An L2CAP SDU that is being segmented into one or more L2CAP PDUs.
-  std::optional<FlatConstMultiBufInstance> payload_;
+  std::optional<multibuf::MultiBuf> payload_;
 
   /// Wakes the drain tasks when new tx packets or credits are reported.
   async2::Waker waker_;

@@ -12,13 +12,15 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 
-#include "../pw_bluetooth_proxy_private/test_utils.h"
 #include "pw_allocator/testing.h"
 #include "pw_bluetooth/l2cap_frames.emb.h"
 #include "pw_bluetooth_proxy/gatt/gatt.h"
-#include "pw_bluetooth_proxy/internal/multibuf.h"
 #include "pw_bluetooth_proxy/proxy_host.h"
+#include "pw_bluetooth_proxy_private/test_utils.h"
 #include "pw_containers/vector.h"
+#include "pw_multibuf/from_span.h"
+#include "pw_multibuf/multibuf.h"
+#include "pw_span/cast.h"
 #include "pw_span/span.h"
 #include "pw_unit_test/framework.h"
 
@@ -35,7 +37,7 @@ constexpr uint16_t kAttFixedChannelId =
 struct Notification {
   ConnectionHandle connection_handle;
   AttributeHandle value_handle;
-  FlatConstMultiBufInstance value;
+  multibuf::MultiBuf value;
 };
 
 class FakeClientDelegate final : public Client::Delegate {
@@ -48,7 +50,7 @@ class FakeClientDelegate final : public Client::Delegate {
  private:
   void DoHandleNotification(ConnectionHandle connection_handle,
                             AttributeHandle value_handle,
-                            FlatConstMultiBuf&& value) override {
+                            multibuf::MultiBuf&& value) override {
     notifications_.push_back(
         {connection_handle, value_handle, std::move(value)});
   }
@@ -71,7 +73,7 @@ class FakeServerDelegate final : public Server::Delegate {
  private:
   void DoHandleWriteWithoutResponse(ConnectionHandle,
                                     AttributeHandle,
-                                    FlatConstMultiBuf&&) override {}
+                                    multibuf::MultiBuf&&) override {}
 
   void DoHandleWriteAvailable(ConnectionHandle connection_handle) override {
     if (write_available_fn_) {
@@ -88,9 +90,9 @@ class FakeServerDelegate final : public Server::Delegate {
 class GattIntegrationTest : public ProxyHostTest {};
 
 TEST_F(GattIntegrationTest, ReceiveNotification) {
-  allocator::test::AllocatorForTest<4000> allocator;
-  pw::bluetooth::proxy::MultiBufAllocator multibuf_allocator{allocator,
-                                                             allocator};
+  std::array<std::byte, 1024> packet_buffer;
+  allocator::test::AllocatorForTest<3072> allocator;
+  multibuf::SimpleAllocator multibuf_allocator{packet_buffer, allocator};
 
   Function<void(H4PacketWithHci&&)> send_to_host_fn([](H4PacketWithHci&&) {});
   Function<void(H4PacketWithH4&&)> send_to_controller_fn(
@@ -134,15 +136,15 @@ TEST_F(GattIntegrationTest, ReceiveNotification) {
   ASSERT_EQ(delegate.notifications().size(), 1u);
   EXPECT_EQ(delegate.notifications()[0].connection_handle, kConnectionHandle1);
   EXPECT_EQ(delegate.notifications()[0].value_handle, kAttributeHandle1);
-  span<const uint8_t> received_value =
-      MultiBufAdapter::AsSpan(delegate.notifications()[0].value);
+  auto contiguous = delegate.notifications()[0].value.ContiguousSpan();
+  span<const uint8_t> received_value = span_cast<const uint8_t>(*contiguous);
   EXPECT_EQ(received_value[0], expected_value);
 }
 
 TEST_F(GattIntegrationTest, SendNotifications) {
-  allocator::test::AllocatorForTest<4000> allocator;
-  pw::bluetooth::proxy::MultiBufAllocator multibuf_allocator{allocator,
-                                                             allocator};
+  std::array<std::byte, 1024> packet_buffer;
+  allocator::test::AllocatorForTest<5120> allocator;
+  multibuf::SimpleAllocator multibuf_allocator{packet_buffer, allocator};
 
   struct {
     Vector<H4PacketWithH4, 20> packets_sent_to_controller;
@@ -178,9 +180,10 @@ TEST_F(GattIntegrationTest, SendNotifications) {
       gatt.CreateServer(kConnectionHandle1, characteristic_info, delegate);
   PW_TEST_ASSERT_OK(server);
 
-  FlatConstMultiBuf::Instance buffer(allocator);
   std::array<std::byte, 2> data = {std::byte{0x09}, std::byte{0x0a}};
-  buffer->PushBack(data);
+  auto mbuf_result = multibuf::FromSpan(allocator, data, [](ByteSpan) {});
+  ASSERT_TRUE(mbuf_result.has_value());
+  multibuf::MultiBuf buffer = std::move(*mbuf_result);
 
   StatusWithMultiBuf send_result =
       server->SendNotification(kAttributeHandle1, std::move(buffer));
@@ -212,8 +215,9 @@ TEST_F(GattIntegrationTest, SendNotifications) {
       std::equal(sent.begin(), sent.end(), kExpected.begin(), kExpected.end()));
 
   do {
-    FlatConstMultiBuf::Instance temp_buffer(allocator);
-    temp_buffer->PushBack(data);
+    mbuf_result = multibuf::FromSpan(allocator, data, [](ByteSpan) {});
+    ASSERT_TRUE(mbuf_result.has_value());
+    multibuf::MultiBuf temp_buffer = std::move(*mbuf_result);
     send_result =
         server->SendNotification(kAttributeHandle1, std::move(temp_buffer));
   } while (send_result.status.ok());

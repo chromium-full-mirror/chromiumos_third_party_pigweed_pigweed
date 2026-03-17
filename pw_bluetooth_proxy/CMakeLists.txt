@@ -27,8 +27,21 @@ if("${dir_pw_third_party_emboss}" STREQUAL "")
   return()
 endif()
 
+# Module configuration
+
 # TODO(b/448714138): Find a better way of creating and testing specific module
 # configurations.
+
+pw_add_module_config(pw_bluetooth_proxy_CONFIG)
+
+pw_add_library(pw_bluetooth_proxy.config INTERFACE
+  HEADERS
+    public/pw_bluetooth_proxy/config.h
+  PUBLIC_INCLUDES
+    public
+  PUBLIC_DEPS
+    ${pw_bluetooth_proxy_CONFIG}
+)
 
 # LINT.IfChange
 set(PW_BLUETOOTH_PROXY_HEADERS
@@ -97,7 +110,8 @@ set(PW_BLUETOOTH_PROXY_PUBLIC_DEPS
   pw_containers.intrusive_map
   pw_containers.vector
   pw_function
-  pw_bluetooth_proxy.multibuf
+  pw_multibuf
+  pw_multibuf.simple_allocator
   pw_result
   pw_span
   pw_span.cast
@@ -150,18 +164,7 @@ set(PW_BLUETOOTH_PROXY_SOURCES
 )
 # LINT.ThenChange(Android.bp, bt-proxy.bzl, BUILD.gn)
 
-# Module configuration
-
-pw_add_module_config(pw_bluetooth_proxy_CONFIG)
-
-pw_add_library(pw_bluetooth_proxy.config INTERFACE
-  HEADERS
-    public/pw_bluetooth_proxy/config.h
-  PUBLIC_INCLUDES
-    public
-  PUBLIC_DEPS
-    ${pw_bluetooth_proxy_CONFIG}
-)
+# LINT.IfChange
 
 # Libraries
 
@@ -172,142 +175,45 @@ pw_add_library(pw_bluetooth_proxy STATIC
     public
   PUBLIC_DEPS
     ${PW_BLUETOOTH_PROXY_PUBLIC_DEPS}
-    pw_bluetooth_proxy.multibuf
   PRIVATE_DEPS
     ${PW_BLUETOOTH_PROXY_PRIVATE_DEPS}
   SOURCES
     ${PW_BLUETOOTH_PROXY_SOURCES}
 )
 
-pw_add_library(pw_bluetooth_proxy.multibuf STATIC
-
-# LINT.IfChange
-  HEADERS
-    public/pw_bluetooth_proxy/internal/multibuf.h
-  PUBLIC_DEPS
-    pw_allocator
-    pw_bluetooth_proxy.config
-    pw_bytes
-    pw_multibuf.allocator
-    pw_multibuf
-  PRIVATE_DEPS
-    pw_assert.check
-    pw_span.cast
-  SOURCES
-    multibuf_v1.cc
-    multibuf_v2.cc
-# LINT.ThenChange(Android.bp, bt-proxy.bzl, BUILD.gn)
-
-)
-
-pw_add_library(pw_bluetooth_proxy._multibuf_v1 STATIC
-  HEADERS
-    public/pw_bluetooth_proxy/internal/multibuf.h
-  PUBLIC_DEPS
-    pw_bluetooth_proxy.config
-    pw_bytes
-    pw_multibuf.allocator
-    pw_multibuf
-  PRIVATE_DEPS
-    pw_assert.check
-    pw_span.cast
-  SOURCES
-    multibuf_v1.cc
-)
-target_compile_definitions(pw_bluetooth_proxy._multibuf_v1 PUBLIC
-  PW_MULTIBUF_VERSION=1
-)
-
-pw_add_library(pw_bluetooth_proxy._multibuf_v2 STATIC
-  HEADERS
-    public/pw_bluetooth_proxy/internal/multibuf.h
-  PUBLIC_DEPS
-    pw_allocator
-    pw_bluetooth_proxy.config
-    pw_bytes
-    pw_multibuf
-  PRIVATE_DEPS
-    pw_assert.check
-    pw_span.cast
-  SOURCES
-    multibuf_v2.cc
-)
-target_compile_definitions(pw_bluetooth_proxy._multibuf_v2 PUBLIC
-  PW_MULTIBUF_VERSION=2
-)
-
-pw_add_library(pw_bluetooth_proxy._sync_mbv1 STATIC
+pw_add_library(pw_bluetooth_proxy._sync STATIC
   HEADERS
     ${PW_BLUETOOTH_PROXY_HEADERS}
   PUBLIC_INCLUDES
     public
   PUBLIC_DEPS
     ${PW_BLUETOOTH_PROXY_PUBLIC_DEPS}
-    pw_bluetooth_proxy._multibuf_v1
   PRIVATE_DEPS
     ${PW_BLUETOOTH_PROXY_PRIVATE_DEPS}
   SOURCES
     ${PW_BLUETOOTH_PROXY_SOURCES}
 
 )
-target_compile_definitions(pw_bluetooth_proxy._sync_mbv1 PUBLIC
+target_compile_definitions(pw_bluetooth_proxy._sync PUBLIC
   PW_BLUETOOTH_PROXY_ASYNC=0
-  PW_MULTIBUF_VERSION=1
 )
 
-pw_add_library(pw_bluetooth_proxy._async_mbv1 STATIC
+pw_add_library(pw_bluetooth_proxy._async STATIC
   HEADERS
     ${PW_BLUETOOTH_PROXY_HEADERS}
   PUBLIC_INCLUDES
     public
   PUBLIC_DEPS
     ${PW_BLUETOOTH_PROXY_PUBLIC_DEPS}
-    pw_bluetooth_proxy._multibuf_v1
   PRIVATE_DEPS
     ${PW_BLUETOOTH_PROXY_PRIVATE_DEPS}
   SOURCES
     ${PW_BLUETOOTH_PROXY_SOURCES}
 )
-target_compile_definitions(pw_bluetooth_proxy._async_mbv1 PUBLIC
+target_compile_definitions(pw_bluetooth_proxy._async PUBLIC
   PW_BLUETOOTH_PROXY_ASYNC=1
-  PW_MULTIBUF_VERSION=1
 )
-
-pw_add_library(pw_bluetooth_proxy._sync_mbv2 STATIC
-  HEADERS
-    ${PW_BLUETOOTH_PROXY_HEADERS}
-  PUBLIC_INCLUDES
-    public
-  PUBLIC_DEPS
-    ${PW_BLUETOOTH_PROXY_PUBLIC_DEPS}
-    pw_bluetooth_proxy._multibuf_v2
-  PRIVATE_DEPS
-    ${PW_BLUETOOTH_PROXY_PRIVATE_DEPS}
-  SOURCES
-    ${PW_BLUETOOTH_PROXY_SOURCES}
-)
-target_compile_definitions(pw_bluetooth_proxy._sync_mbv2 PUBLIC
-  PW_BLUETOOTH_PROXY_ASYNC=0
-  PW_MULTIBUF_VERSION=2
-)
-
-pw_add_library(pw_bluetooth_proxy._async_mbv2 STATIC
-  HEADERS
-    ${PW_BLUETOOTH_PROXY_HEADERS}
-  PUBLIC_INCLUDES
-    public
-  PUBLIC_DEPS
-    ${PW_BLUETOOTH_PROXY_PUBLIC_DEPS}
-    pw_bluetooth_proxy._multibuf_v2
-  PRIVATE_DEPS
-    ${PW_BLUETOOTH_PROXY_PRIVATE_DEPS}
-  SOURCES
-    ${PW_BLUETOOTH_PROXY_SOURCES}
-)
-target_compile_definitions(pw_bluetooth_proxy._async_mbv2 PUBLIC
-  PW_BLUETOOTH_PROXY_ASYNC=1
-  PW_MULTIBUF_VERSION=2
-)
+# LINT.ThenChange(bt-proxy.bzl, BUILD.gn)
 
 # GATT depends on the above targets, so add_subdirectory() must be called last.
 add_subdirectory(gatt)
@@ -321,35 +227,18 @@ if(("${pw_thread.thread_BACKEND}" STREQUAL "") OR
   return()
 endif()
 
+# LINT.IfChange
+
 set(PW_BLUETOOTH_PROXY_TEST_PRIVATE_DEPS
-  pw_allocator
-  pw_allocator.libc_allocator
-  pw_allocator.null_allocator
-  pw_allocator.synchronized_allocator
   pw_allocator.testing
   pw_assert.check
   pw_bluetooth.emboss_att
   pw_bluetooth.emboss_hci_commands
-  pw_bluetooth.emboss_hci_common
-  pw_bluetooth.emboss_hci_events
-  pw_bluetooth.emboss_hci_h4
-  pw_bluetooth.emboss_l2cap_frames
-  pw_bluetooth.emboss_util
-  pw_containers.to_array
-  pw_function
-  pw_multibuf.simple_allocator
+  pw_multibuf.from_span
   pw_span.cast
-  pw_status
-  pw_sync.mutex
-  pw_sync.thread_notification
-  pw_third_party.fuchsia.stdcompat
-  pw_thread.thread
-  pw_thread.test_thread_context
-  pw_unit_test
 )
 
 set(PW_BLUETOOTH_PROXY_TEST_SOURCES
-  pw_bluetooth_proxy_private/test_utils.h
   basic_mode_channel_proxy_test.cc
   basic_mode_tx_engine_test.cc
   basic_mode_rx_engine_test.cc
@@ -363,60 +252,75 @@ set(PW_BLUETOOTH_PROXY_TEST_SOURCES
   l2cap_coc_test.cc
   proxy_host_test.cc
   recombiner_test.cc
-  test_utils.cc
-  test_utils_async.cc
-  test_utils_sync.cc
   utils_test.cc
 )
 
-pw_add_library(pw_bluetooth_proxy._test_utils_async_mbv2 STATIC
-  PUBLIC_DEPS
+pw_add_test(pw_bluetooth_proxy.pw_bluetooth_proxy_sync_test
+  PRIVATE_DEPS
     ${PW_BLUETOOTH_PROXY_TEST_PRIVATE_DEPS}
-    pw_bluetooth_proxy._async_mbv2
+    pw_bluetooth_proxy._sync
+    pw_bluetooth_proxy._test_utils_sync
+  SOURCES
+    ${PW_BLUETOOTH_PROXY_TEST_SOURCES}
+  GROUPS
+    modules
+)
+
+pw_add_test(pw_bluetooth_proxy.pw_bluetooth_proxy_async_test
+  PRIVATE_DEPS
+    ${PW_BLUETOOTH_PROXY_TEST_PRIVATE_DEPS}
+    pw_bluetooth_proxy._async
+    pw_bluetooth_proxy._test_utils_async
+  SOURCES
+    ${PW_BLUETOOTH_PROXY_TEST_SOURCES}
+  GROUPS
+    modules
+)
+
+set(PW_BLUETOOTH_PROXY_TEST_UTILS_PRIVATE_DEPS
+  pw_allocator.testing
+  pw_assert.check
+  pw_bluetooth.emboss_util
+  pw_thread.test_thread_context
+  pw_thread.thread
+  pw_allocator.libc_allocator
+  pw_async2.notified_dispatcher
+)
+
+set(PW_BLUETOOTH_PROXY_TEST_UTILS_PRIVATE_SRCS
+  test_utils.cc
+  test_utils_async.cc
+  test_utils_sync.cc
+)
+
+pw_add_library(pw_bluetooth_proxy._test_utils_sync STATIC
   HEADERS
-    pw_bluetooth_proxy_private/test_utils.h
+    private/pw_bluetooth_proxy_private/test_utils.h
+  PUBLIC_INCLUDES
+    private
+  PUBLIC_DEPS
+    ${PW_BLUETOOTH_PROXY_TEST_UTILS_PRIVATE_DEPS}
+    pw_bluetooth_proxy._sync
   SOURCES
-    test_utils.cc
-    test_utils_async.cc
-    test_utils_sync.cc
+    ${PW_BLUETOOTH_PROXY_TEST_UTILS_PRIVATE_SRCS}
+)
+target_compile_definitions(pw_bluetooth_proxy._test_utils_sync PUBLIC
+  PW_BLUETOOTH_PROXY_ASYNC=0
 )
 
-pw_add_test(pw_bluetooth_proxy.pw_bluetooth_proxy_sync_mbv1_test
-  PRIVATE_DEPS
-    ${PW_BLUETOOTH_PROXY_TEST_PRIVATE_DEPS}
-    pw_bluetooth_proxy._sync_mbv1
+pw_add_library(pw_bluetooth_proxy._test_utils_async STATIC
+  HEADERS
+    private/pw_bluetooth_proxy_private/test_utils.h
+  PUBLIC_INCLUDES
+    private
+  PUBLIC_DEPS
+    ${PW_BLUETOOTH_PROXY_TEST_UTILS_PRIVATE_DEPS}
+    pw_bluetooth_proxy._async
   SOURCES
-    ${PW_BLUETOOTH_PROXY_TEST_SOURCES}
-  GROUPS
-    modules
+    ${PW_BLUETOOTH_PROXY_TEST_UTILS_PRIVATE_SRCS}
+)
+target_compile_definitions(pw_bluetooth_proxy._test_utils_async PUBLIC
+  PW_BLUETOOTH_PROXY_ASYNC=1
 )
 
-pw_add_test(pw_bluetooth_proxy.pw_bluetooth_proxy_async_mbv1_test
-  PRIVATE_DEPS
-    ${PW_BLUETOOTH_PROXY_TEST_PRIVATE_DEPS}
-    pw_bluetooth_proxy._async_mbv1
-  SOURCES
-    ${PW_BLUETOOTH_PROXY_TEST_SOURCES}
-  GROUPS
-    modules
-)
-
-pw_add_test(pw_bluetooth_proxy.pw_bluetooth_proxy_sync_mbv2_test
-  PRIVATE_DEPS
-    ${PW_BLUETOOTH_PROXY_TEST_PRIVATE_DEPS}
-    pw_bluetooth_proxy._sync_mbv2
-  SOURCES
-    ${PW_BLUETOOTH_PROXY_TEST_SOURCES}
-  GROUPS
-    modules
-)
-
-pw_add_test(pw_bluetooth_proxy.pw_bluetooth_proxy_async_mbv2_test
-  PRIVATE_DEPS
-    ${PW_BLUETOOTH_PROXY_TEST_PRIVATE_DEPS}
-    pw_bluetooth_proxy._async_mbv2
-  SOURCES
-    ${PW_BLUETOOTH_PROXY_TEST_SOURCES}
-  GROUPS
-    modules
-)
+# LINT.ThenChange(bt-proxy.bzl, BUILD.gn)

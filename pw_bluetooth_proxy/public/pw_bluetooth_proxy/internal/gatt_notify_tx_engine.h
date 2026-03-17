@@ -36,8 +36,8 @@ class GattNotifyTxEngine final : public TxEngine {
   // TxEngine overrides:
 
   Result<H4PacketWithH4> GenerateNextPacket(
-      const FlatConstMultiBuf& attribute_value, bool& keep_payload) override;
-  Status CheckWriteParameter(const FlatConstMultiBuf& payload) override;
+      const multibuf::MultiBuf& attribute_value, bool& keep_payload) override;
+  Status CheckWriteParameter(const multibuf::MultiBuf& payload) override;
   Result<bool> AddCredits(uint16_t) override {
     // ATT does not use credits.
     return false;

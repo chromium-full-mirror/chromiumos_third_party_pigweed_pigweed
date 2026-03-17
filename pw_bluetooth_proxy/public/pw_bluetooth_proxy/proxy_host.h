@@ -18,11 +18,11 @@
 #include "pw_bluetooth_proxy/internal/acl_data_channel.h"
 #include "pw_bluetooth_proxy/internal/hci_transport.h"
 #include "pw_bluetooth_proxy/internal/l2cap_channel_manager.h"
-#include "pw_bluetooth_proxy/internal/multibuf.h"
 #include "pw_bluetooth_proxy/l2cap_channel_common.h"
 #include "pw_bluetooth_proxy/l2cap_coc.h"
 #include "pw_bluetooth_proxy/l2cap_status_delegate.h"
 #include "pw_function/function.h"
+#include "pw_multibuf/multibuf.h"
 #include "pw_status/status.h"
 
 #if PW_BLUETOOTH_PROXY_ASYNC == 0
@@ -197,11 +197,11 @@ class ProxyHost : public L2capChannelManagerInterface {
   ///
   /// @deprecated use InterceptCreditBasedFlowControlChannel instead.
   pw::Result<L2capCoc> AcquireL2capCoc(
-      MultiBufAllocator& rx_multibuf_allocator,
+      multibuf::MultiBufAllocator& rx_multibuf_allocator,
       uint16_t connection_handle,
       L2capCoc::CocConfig rx_config,
       L2capCoc::CocConfig tx_config,
-      Function<void(FlatConstMultiBuf&& payload)>&& receive_fn,
+      Function<void(multibuf::MultiBuf&& payload)>&& receive_fn,
       ChannelEventCallback&& event_fn);
 
   /// Returns an L2CAP channel operating in basic mode that supports writing to
@@ -254,7 +254,7 @@ class ProxyHost : public L2capChannelManagerInterface {
   ///
   /// @deprecated use InterceptBasicModeChannel instead.
   pw::Result<BasicL2capChannel> AcquireBasicL2capChannel(
-      MultiBufAllocator& rx_multibuf_allocator,
+      multibuf::MultiBufAllocator& rx_multibuf_allocator,
       uint16_t connection_handle,
       uint16_t local_cid,
       uint16_t remote_cid,
@@ -330,16 +330,16 @@ class ProxyHost : public L2capChannelManagerInterface {
 
   /// @copydoc ProxyHost::AcquireL2capCoc
   pw::Result<L2capCoc> DoAcquireL2capCoc(
-      MultiBufAllocator& rx_multibuf_allocator,
+      multibuf::MultiBufAllocator& rx_multibuf_allocator,
       uint16_t connection_handle,
       L2capCoc::CocConfig rx_config,
       L2capCoc::CocConfig tx_config,
-      Function<void(FlatConstMultiBuf&& payload)>&& receive_fn,
+      Function<void(multibuf::MultiBuf&& payload)>&& receive_fn,
       ChannelEventCallback&& event_fn);
 
   /// @copydoc ProxyHost::AcquireBasicL2capChannel
   pw::Result<BasicL2capChannel> DoAcquireBasicL2capChannel(
-      MultiBufAllocator& rx_multibuf_allocator,
+      multibuf::MultiBufAllocator& rx_multibuf_allocator,
       uint16_t connection_handle,
       uint16_t local_cid,
       uint16_t remote_cid,

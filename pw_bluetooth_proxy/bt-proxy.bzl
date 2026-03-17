@@ -21,14 +21,13 @@ with a third version that uses a module configuration option.
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("//pw_unit_test:pw_cc_test.bzl", "pw_cc_test")
 
-def pw_bluetooth_proxy_library(name, versioned_deps, **kwargs):
+def pw_bluetooth_proxy_library(name, **kwargs):
     """Creates a cc_library for bt-proxy with a specific version of some deps.
 
     TODO(b/448714138): This really ought to be achieved using an aspect.
 
     Args:
       name:           Name of the target.
-      versioned_deps: List of labels of a version-specific dependencies.
       **kwargs:       Additional arguments to pass to cc_library.
     """
     cc_library(
@@ -53,8 +52,6 @@ def pw_bluetooth_proxy_library(name, versioned_deps, **kwargs):
             "l2cap_signaling_channel.cc",
             "l2cap_status_tracker.cc",
             "l2cap_logical_link.cc",
-            "multibuf_v1.cc",
-            "multibuf_v2.cc",
             "proxy_host.cc",
             "proxy_host_async.cc",
             "proxy_host_sync.cc",
@@ -98,7 +95,6 @@ def pw_bluetooth_proxy_library(name, versioned_deps, **kwargs):
             "public/pw_bluetooth_proxy/internal/l2cap_status_tracker.h",
             "public/pw_bluetooth_proxy/internal/locked_l2cap_channel.h",
             "public/pw_bluetooth_proxy/internal/logical_transport.h",
-            "public/pw_bluetooth_proxy/internal/multibuf.h",
             "public/pw_bluetooth_proxy/internal/mutex.h",
             "public/pw_bluetooth_proxy/internal/proxy_host_async.h",
             "public/pw_bluetooth_proxy/internal/proxy_host_sync.h",
@@ -115,6 +111,7 @@ def pw_bluetooth_proxy_library(name, versioned_deps, **kwargs):
         ],
         features = ["-conversion_warnings"],
         # LINT.ThenChange(BUILD.gn, CMakeLists.txt)
+        # LINT.IfChange
         implementation_deps = [
             "//pw_assert:check",
             "//pw_bluetooth:emboss_att",
@@ -124,6 +121,7 @@ def pw_bluetooth_proxy_library(name, versioned_deps, **kwargs):
             "//pw_log",
             "//pw_span:cast",
         ],
+        # LINT.ThenChange(Android.bp, BUILD.gn, CMakeLists.txt)
         strip_include_prefix = "public",
 
         # LINT.IfChange
@@ -147,6 +145,7 @@ def pw_bluetooth_proxy_library(name, versioned_deps, **kwargs):
             "//pw_containers:intrusive_map",
             "//pw_function",
             "//pw_multibuf:allocator",
+            "//pw_multibuf:simple_allocator",
             "//pw_multibuf",
             "//pw_result",
             "//pw_span",
@@ -155,7 +154,7 @@ def pw_bluetooth_proxy_library(name, versioned_deps, **kwargs):
             "//pw_sync:mutex",
             "//pw_sync:thread_notification",
             "//pw_thread:id",
-        ] + versioned_deps,
+        ],
         # LINT.ThenChange(Android.bp, BUILD.gn, CMakeLists.txt)
         **kwargs
     )
@@ -173,7 +172,6 @@ def pw_bluetooth_proxy_test(name, versioned_deps, **kwargs):
 
         # LINT.IfChange
         srcs = [
-            "pw_bluetooth_proxy_private/test_utils.h",
             "basic_mode_tx_engine_test.cc",
             "basic_mode_rx_engine_test.cc",
             "basic_mode_channel_proxy_test.cc",
@@ -187,33 +185,18 @@ def pw_bluetooth_proxy_test(name, versioned_deps, **kwargs):
             "l2cap_coc_test.cc",
             "proxy_host_test.cc",
             "recombiner_test.cc",
-            "test_utils.cc",
-            "test_utils_async.cc",
-            "test_utils_sync.cc",
             "utils_test.cc",
         ],
         features = ["-conversion_warnings"],
         deps = [
-            "//pw_allocator:libc_allocator",
-            "//pw_allocator:null_allocator",
-            "//pw_allocator:synchronized_allocator",
             "//pw_allocator:testing",
-            "//pw_async2:notified_dispatcher",
             "//pw_assert:check",
             "//pw_bluetooth:emboss_att",
             "//pw_bluetooth:emboss_hci_commands",
-            "//pw_bluetooth:emboss_hci_common",
-            "//pw_bluetooth:emboss_hci_events",
-            "//pw_bluetooth:emboss_hci_h4",
-            "//pw_bluetooth:emboss_util",
+            "//pw_multibuf:from_span",
             "//pw_span:cast",
-            "//pw_sync:mutex",
-            "//pw_sync:thread_notification",
-            "//pw_thread:test_thread_context",
-            "//pw_thread:thread",
-            "//pw_unit_test",
         ] + versioned_deps,
-        # LINT.ThenChange(BUILD.gn)
+        # LINT.ThenChange(BUILD.gn, CMakeLists.txt)
         **kwargs
     )
 
@@ -228,39 +211,26 @@ def pw_bluetooth_proxy_test_utils(name, versioned_deps, **kwargs):
     cc_library(
         name = name,
         testonly = True,
-        hdrs = [
-            "pw_bluetooth_proxy_private/test_utils.h",
-        ],
-
         # LINT.IfChange
         srcs = [
             "test_utils.cc",
             "test_utils_async.cc",
             "test_utils_sync.cc",
         ],
+        hdrs = [
+            "private/pw_bluetooth_proxy_private/test_utils.h",
+        ],
+        strip_include_prefix = "private",
         features = ["-conversion_warnings"],
         deps = [
-            "//pw_allocator:null_allocator",
-            "//pw_allocator:synchronized_allocator",
             "//pw_allocator:testing",
             "//pw_assert:check",
-            "//pw_bluetooth:emboss_att",
-            "//pw_bluetooth:emboss_hci_commands",
-            "//pw_bluetooth:emboss_hci_common",
-            "//pw_bluetooth:emboss_hci_events",
-            "//pw_bluetooth:emboss_hci_h4",
-            "//pw_bluetooth:emboss_l2cap_frames",
             "//pw_bluetooth:emboss_util",
-            "//pw_unit_test",
-            "//pw_sync:thread_notification",
             "//pw_thread:test_thread_context",
             "//pw_thread:thread",
-            "//pw_function",
             "//pw_allocator:libc_allocator",
             "//pw_async2:notified_dispatcher",
-            "//pw_span:cast",
-            "//pw_sync:mutex",
         ] + versioned_deps,
-        # LINT.ThenChange(BUILD.gn)
+        # LINT.ThenChange(BUILD.gn, CMakeLists.txt)
         **kwargs
     )

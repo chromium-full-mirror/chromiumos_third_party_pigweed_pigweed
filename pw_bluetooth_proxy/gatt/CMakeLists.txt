@@ -23,76 +23,123 @@ if("${dir_pw_third_party_emboss}" STREQUAL "")
   return()
 endif()
 
+# LINT.IfChange
+set(PW_BLUETOOTH_PROXY_GATT_PUBLIC_DEPS
+    pw_allocator
+    pw_assert.check
+    pw_containers.dynamic_vector
+    pw_containers.intrusive_map
+    pw_log
+)
 
+set(PW_BLUETOOTH_PROXY_GATT_PRIVATE_DEPS
+    pw_bluetooth.emboss_att
+    pw_bluetooth.emboss_util
+    pw_span.cast
+)
+
+set(PW_BLUETOOTH_PROXY_GATT_SRCS
+    gatt.cc
+)
+
+# LINT.ThenChange(Android.bp, gatt.bzl, BUILD.gn)
+
+# LINT.IfChange
 pw_add_library(pw_bluetooth_proxy.gatt STATIC
-# LINT.IfChange
   HEADERS
     public/pw_bluetooth_proxy/gatt/gatt.h
   PUBLIC_INCLUDES
     public
   PUBLIC_DEPS
-    pw_allocator
-    pw_assert.check
+    ${PW_BLUETOOTH_PROXY_GATT_PUBLIC_DEPS}
     pw_bluetooth_proxy
-    pw_containers.dynamic_vector
-    pw_containers.intrusive_map
-    pw_log
   PRIVATE_DEPS
-    pw_bluetooth.emboss_att
-    pw_bluetooth.emboss_util
+    ${PW_BLUETOOTH_PROXY_GATT_PRIVATE_DEPS}
   SOURCES
-    gatt.cc
-# LINT.ThenChange(Android.bp, gatt.bzl, BUILD.gn)
+    ${PW_BLUETOOTH_PROXY_GATT_SRCS}
 )
 
-pw_add_library(pw_bluetooth_proxy.gatt._async_mbv2 STATIC
-# LINT.IfChange
+# Exit early if missing test requirements.
+if(("${pw_thread.thread_BACKEND}" STREQUAL "") OR
+   ("${pw_thread.test_thread_context_BACKEND}" STREQUAL ""))
+  return()
+endif()
+
+pw_add_library(pw_bluetooth_proxy.gatt._sync STATIC
   HEADERS
     public/pw_bluetooth_proxy/gatt/gatt.h
   PUBLIC_INCLUDES
     public
   PUBLIC_DEPS
-    pw_allocator
-    pw_assert.check
-    pw_bluetooth_proxy._async_mbv2
-    pw_containers.dynamic_vector
-    pw_containers.intrusive_map
-    pw_log
+    ${PW_BLUETOOTH_PROXY_GATT_PUBLIC_DEPS}
+    pw_bluetooth_proxy._sync
   PRIVATE_DEPS
-    pw_bluetooth.emboss_att
-    pw_bluetooth.emboss_util
+    ${PW_BLUETOOTH_PROXY_GATT_PRIVATE_DEPS}
   SOURCES
-    gatt.cc
-# LINT.ThenChange(Android.bp, gatt.bzl, BUILD.gn)
+    ${PW_BLUETOOTH_PROXY_GATT_SRCS}
+)
+target_compile_definitions(pw_bluetooth_proxy.gatt._sync PUBLIC
+  PW_BLUETOOTH_PROXY_ASYNC=0
 )
 
-pw_add_test(pw_bluetooth_proxy.gatt.gatt_test
-# LINT.IfChange
+pw_add_library(pw_bluetooth_proxy.gatt._async STATIC
+  HEADERS
+    public/pw_bluetooth_proxy/gatt/gatt.h
+  PUBLIC_INCLUDES
+    public
+  PUBLIC_DEPS
+    ${PW_BLUETOOTH_PROXY_GATT_PUBLIC_DEPS}
+    pw_bluetooth_proxy._async
   PRIVATE_DEPS
-    pw_bluetooth_proxy.gatt
-    pw_allocator.libc_allocator
-    pw_allocator.testing
-    pw_allocator.synchronized_allocator
-    pw_containers.vector
-    pw_multibuf.simple_allocator
-    pw_sync.no_lock
+    ${PW_BLUETOOTH_PROXY_GATT_PRIVATE_DEPS}
+  SOURCES
+    ${PW_BLUETOOTH_PROXY_GATT_SRCS}
+)
+target_compile_definitions(pw_bluetooth_proxy.gatt._async PUBLIC
+  PW_BLUETOOTH_PROXY_ASYNC=1
+)
+
+set(PW_BLUETOOTH_PROXY_GATT_TEST_DEPS
+  pw_allocator.libc_allocator
+  pw_allocator.testing
+  pw_allocator.synchronized_allocator
+  pw_containers.vector
+  pw_multibuf.simple_allocator
+  pw_span.cast
+  pw_sync.no_lock
+)
+
+pw_add_test(pw_bluetooth_proxy.gatt.gatt_sync_test
+  PRIVATE_DEPS
+    ${PW_BLUETOOTH_PROXY_GATT_TEST_DEPS}
+    pw_bluetooth_proxy.gatt._sync
   SOURCES
     gatt_test.cc
   GROUPS
     modules
-# LINT.ThenChange(Android.bp, BUILD.bazel, BUILD.gn)
+)
+
+pw_add_test(pw_bluetooth_proxy.gatt.gatt_async_test
+  PRIVATE_DEPS
+    ${PW_BLUETOOTH_PROXY_GATT_TEST_DEPS}
+    pw_bluetooth_proxy.gatt._async
+  SOURCES
+    gatt_test.cc
+  GROUPS
+    modules
 )
 
 pw_add_test(pw_bluetooth_proxy.gatt.gatt_integration_test
-# LINT.IfChange
   PRIVATE_DEPS
-    pw_bluetooth_proxy.gatt._async_mbv2
     pw_allocator.testing
+    pw_bluetooth_proxy.gatt._async
+    pw_bluetooth_proxy._test_utils_async
     pw_containers.vector
-    pw_bluetooth_proxy._test_utils_async_mbv2
+    pw_multibuf.from_span
+    pw_span.cast
   SOURCES
     gatt_integration_test.cc
   GROUPS
     modules
-# LINT.ThenChange(Android.bp, BUILD.bazel, BUILD.gn)
 )
+# LINT.ThenChange(gatt.bzl, BUILD.gn)

@@ -22,10 +22,10 @@
 #include <optional>
 
 #include "pw_bluetooth_proxy/h4_packet.h"
-#include "pw_bluetooth_proxy/internal/multibuf.h"
 #include "pw_bluetooth_proxy/l2cap_channel_common.h"
 #include "pw_containers/inline_queue.h"
 #include "pw_function/function.h"
+#include "pw_multibuf/multibuf.h"
 #include "pw_status/status.h"
 #include "pw_sync/mutex.h"
 #include "pw_sync/thread_notification.h"
@@ -118,7 +118,7 @@ class L2capChannelImpl {
   void DisconnectLocked() PW_EXCLUSIVE_LOCKS_REQUIRED(static_mutex_);
 
   /// @copydoc L2capChannel::Write
-  StatusWithMultiBuf Write(FlatConstMultiBuf&& payload)
+  StatusWithMultiBuf Write(multibuf::MultiBuf&& payload)
       PW_LOCKS_EXCLUDED(mutex_);
 
   /// Determine if channel is ready to accept one or more Write payloads.
@@ -157,7 +157,7 @@ class L2capChannelImpl {
   std::optional<GenericL2capChannelImpl*> client_ PW_GUARDED_BY(static_mutex_);
 
   // Stores client Tx payload buffers.
-  InlineQueue<FlatConstMultiBufInstance, kQueueCapacity> payload_queue_
+  InlineQueue<multibuf::MultiBuf, kQueueCapacity> payload_queue_
       PW_GUARDED_BY(mutex_);
 
   // True if the last queue attempt didn't have space. Will be cleared on

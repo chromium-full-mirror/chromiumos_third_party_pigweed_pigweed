@@ -51,11 +51,11 @@ L2capChannelManager::~L2capChannelManager() {
 }
 
 Result<L2capCoc> L2capChannelManager::AcquireL2capCoc(
-    MultiBufAllocator& rx_multibuf_allocator,
+    multibuf::MultiBufAllocator& rx_multibuf_allocator,
     uint16_t connection_handle,
     ConnectionOrientedChannelConfig rx_config,
     ConnectionOrientedChannelConfig tx_config,
-    Function<void(FlatConstMultiBuf&& payload)>&& receive_fn,
+    Function<void(multibuf::MultiBuf&& payload)>&& receive_fn,
     ChannelEventCallback&& event_fn) {
   std::lock_guard links_lock(links_mutex_);
   auto link_iter = logical_links_.find(connection_handle);
@@ -95,7 +95,7 @@ Result<L2capCoc> L2capChannelManager::AcquireL2capCoc(
 }
 
 Result<BasicL2capChannel> L2capChannelManager::AcquireBasicL2capChannel(
-    MultiBufAllocator& rx_multibuf_allocator,
+    multibuf::MultiBufAllocator& rx_multibuf_allocator,
     uint16_t connection_handle,
     uint16_t local_cid,
     uint16_t remote_cid,
@@ -435,7 +435,7 @@ Status L2capChannelManager::SendFlowControlCreditInd(
     uint16_t connection_handle,
     uint16_t channel_id,
     uint16_t credits,
-    MultiBufAllocator& multibuf_allocator) {
+    multibuf::MultiBufAllocator& multibuf_allocator) {
   std::lock_guard lock(links_mutex_);
   auto iter = logical_links_.find(connection_handle);
   if (iter == logical_links_.end()) {

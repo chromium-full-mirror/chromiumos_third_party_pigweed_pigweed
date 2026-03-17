@@ -153,11 +153,11 @@ class BasicModeChannelProxyTest : public ProxyHostTest {
   Result<UniquePtr<ChannelProxy>> CreateChannelWithMultiBufCallbacks(
       ProxyHost& proxy_host) {
     MultiBufReceiveFn from_controllerr_fn =
-        [this](FlatMultiBuf&& payload,
-               ConnectionHandle connection_handle,
-               uint16_t local_channel_id,
-               uint16_t remote_channel_id)
-        -> std::optional<FlatConstMultiBufInstance> {
+        [this](
+            multibuf::MultiBuf&& payload,
+            ConnectionHandle connection_handle,
+            uint16_t local_channel_id,
+            uint16_t remote_channel_id) -> std::optional<multibuf::MultiBuf> {
       ++payloads_from_controller_count_;
       EXPECT_EQ(connection_handle, ConnectionHandle{kConnectionHandle});
       EXPECT_EQ(local_channel_id, kLocalChannelId);
@@ -172,11 +172,12 @@ class BasicModeChannelProxyTest : public ProxyHostTest {
       return std::move(payload);
     };
 
-    MultiBufReceiveFn from_host_fn = [this](FlatMultiBuf&& payload,
-                                            ConnectionHandle connection_handle,
-                                            uint16_t local_channel_id,
-                                            uint16_t remote_channel_id)
-        -> std::optional<FlatConstMultiBufInstance> {
+    MultiBufReceiveFn from_host_fn =
+        [this](
+            multibuf::MultiBuf&& payload,
+            ConnectionHandle connection_handle,
+            uint16_t local_channel_id,
+            uint16_t remote_channel_id) -> std::optional<multibuf::MultiBuf> {
       ++payloads_from_host_count_;
       EXPECT_EQ(connection_handle, ConnectionHandle{kConnectionHandle});
       EXPECT_EQ(local_channel_id, kLocalChannelId);
@@ -239,8 +240,7 @@ TEST_F(BasicModeChannelProxyTest, WriteSuccess) {
   UniquePtr<ChannelProxy> channel = std::move(channel_result.value());
 
   std::array<uint8_t, 3> payload = kExpectedPayload;
-  FlatMultiBufInstance mbuf_inst = MultiBufFromSpan(span(payload));
-  FlatMultiBuf& mbuf = MultiBufAdapter::Unwrap(mbuf_inst);
+  multibuf::MultiBuf mbuf = MultiBufFromSpan(span(payload));
   PW_TEST_EXPECT_OK(channel->IsWriteAvailable());
   PW_TEST_EXPECT_OK(channel->Write(std::move(mbuf)).status);
   RunDispatcher();
@@ -265,8 +265,7 @@ TEST_F(BasicModeChannelProxyTest,
   Status write_status = OkStatus();
   while (write_status.ok()) {
     std::array<uint8_t, 3> payload = kExpectedPayload;
-    FlatMultiBufInstance mbuf_inst = MultiBufFromSpan(span(payload));
-    FlatMultiBuf& mbuf = MultiBufAdapter::Unwrap(mbuf_inst);
+    multibuf::MultiBuf mbuf = MultiBufFromSpan(span(payload));
     write_status = channel->Write(std::move(mbuf)).status;
     RunDispatcher();
   }
@@ -474,8 +473,7 @@ TEST_F(BasicModeChannelProxyTest, CheckWriteParameterFailsPayloadTooLarge) {
 
   std::array<uint8_t, kMaxAclPacketLength> payload = {};
   payload.fill(0xFF);
-  FlatMultiBufInstance mbuf_inst = MultiBufFromSpan(span(payload));
-  FlatMultiBuf& mbuf = MultiBufAdapter::Unwrap(mbuf_inst);
+  multibuf::MultiBuf mbuf = MultiBufFromSpan(span(payload));
   PW_TEST_EXPECT_OK(channel->IsWriteAvailable());
   EXPECT_EQ(channel->Write(std::move(mbuf)).status, Status::InvalidArgument());
   RunDispatcher();

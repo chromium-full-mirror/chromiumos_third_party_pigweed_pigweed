@@ -62,7 +62,8 @@ Status GenericL2capChannelImpl::Init() {
   return borrowed->Start();
 }
 
-StatusWithMultiBuf GenericL2capChannelImpl::Write(FlatConstMultiBuf&& payload) {
+StatusWithMultiBuf GenericL2capChannelImpl::Write(
+    multibuf::MultiBuf&& payload) {
   auto result = BorrowL2capChannel();
   if (!result.ok()) {
     return {result.status(), std::move(payload)};

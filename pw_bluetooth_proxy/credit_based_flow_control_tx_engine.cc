@@ -47,7 +47,7 @@ CreditBasedFlowControlTxEngine::CreditBasedFlowControlTxEngine(
       credits_(config.credits) {}
 
 Result<H4PacketWithH4> CreditBasedFlowControlTxEngine::GenerateNextPacket(
-    const FlatConstMultiBuf& sdu, bool& keep_payload) {
+    const multibuf::MultiBuf& sdu, bool& keep_payload) {
   keep_payload = true;
   constexpr uint8_t kSduLengthFieldSize =
       emboss::FirstKFrame::MinSizeInBytes() -
@@ -92,6 +92,7 @@ Result<H4PacketWithH4> CreditBasedFlowControlTxEngine::GenerateNextPacket(
       emboss::AclDataPacketBroadcastFlag::POINT_TO_POINT);
   acl.data_total_length().Write(l2cap_packet_size);
 
+  span<uint8_t> backing_storage;
   if (!is_continuing_segment_) {
     Result<emboss::FirstKFrameWriter> first_kframe_writer =
         MakeEmbossWriter<emboss::FirstKFrameWriter>(
@@ -102,8 +103,9 @@ Result<H4PacketWithH4> CreditBasedFlowControlTxEngine::GenerateNextPacket(
     first_kframe_writer->sdu_length().Write(sdu.size());
     PW_CHECK(first_kframe_writer->Ok());
 
-    MultiBufAdapter::Copy(
-        first_kframe_writer->payload(), sdu, sdu_offset_, sdu_bytes_in_segment);
+    auto payload = first_kframe_writer->payload();
+    backing_storage =
+        span<uint8_t>(payload.BackingStorage().data(), payload.SizeInBytes());
   } else {
     Result<emboss::SubsequentKFrameWriter> subsequent_kframe_writer =
         MakeEmbossWriter<emboss::SubsequentKFrameWriter>(
@@ -111,12 +113,15 @@ Result<H4PacketWithH4> CreditBasedFlowControlTxEngine::GenerateNextPacket(
     PW_CHECK(subsequent_kframe_writer.ok());
     subsequent_kframe_writer->pdu_length().Write(pdu_data_size);
     subsequent_kframe_writer->channel_id().Write(remote_cid_);
-    MultiBufAdapter::Copy(subsequent_kframe_writer->payload(),
-                          sdu,
-                          sdu_offset_,
-                          sdu_bytes_in_segment);
+    auto payload = subsequent_kframe_writer->payload();
+    backing_storage =
+        span<uint8_t>(payload.BackingStorage().data(), payload.SizeInBytes());
   }
 
+  backing_storage = backing_storage.subspan(0, sdu_bytes_in_segment);
+  auto bytes_copied =
+      sdu.CopyTo(as_writable_bytes(backing_storage), sdu_offset_);
+  PW_CHECK_UINT_EQ(bytes_copied.size(), sdu_bytes_in_segment);
   sdu_offset_ += sdu_bytes_in_segment;
 
   if (sdu_offset_ == sdu.size()) {
@@ -134,7 +139,7 @@ Result<H4PacketWithH4> CreditBasedFlowControlTxEngine::GenerateNextPacket(
 }
 
 Status CreditBasedFlowControlTxEngine::CheckWriteParameter(
-    const FlatConstMultiBuf& payload) {
+    const multibuf::MultiBuf& payload) {
   if (payload.size() > mtu_) {
     PW_LOG_ERROR(
         "Payload (%zu bytes) exceeds MTU (%d bytes). So will not process. "

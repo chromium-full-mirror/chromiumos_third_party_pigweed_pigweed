@@ -16,11 +16,11 @@
 
 #include "pw_allocator/testing.h"
 #include "pw_bluetooth_proxy/h4_packet.h"
-#include "pw_bluetooth_proxy/internal/multibuf.h"
 #include "pw_bluetooth_proxy/l2cap_channel_common.h"
 #include "pw_bluetooth_proxy/proxy_host.h"
 #include "pw_bluetooth_proxy_private/test_utils.h"
 #include "pw_function/function.h"
+#include "pw_multibuf/multibuf.h"
 
 namespace pw::bluetooth::proxy {
 
@@ -32,7 +32,7 @@ constexpr uint16_t kConnectionHandle = 123;
 
 // See BuildOneOfEachChannel
 struct OneOfEachChannelParameters {
-  Function<void(FlatConstMultiBuf&& payload)>&& receive_fn = nullptr;
+  Function<void(multibuf::MultiBuf&& payload)>&& receive_fn = nullptr;
   ChannelEventCallback&& event_fn = nullptr;
 };
 

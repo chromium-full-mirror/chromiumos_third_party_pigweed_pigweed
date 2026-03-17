@@ -36,11 +36,11 @@ void ProxyHost::HandleH4HciFromController(H4PacketWithHci&& h4_packet) {
 void ProxyHost::Reset() { DoReset(); }
 
 pw::Result<L2capCoc> ProxyHost::AcquireL2capCoc(
-    MultiBufAllocator& rx_multibuf_allocator,
+    multibuf::MultiBufAllocator& rx_multibuf_allocator,
     uint16_t connection_handle,
     L2capCoc::CocConfig rx_config,
     L2capCoc::CocConfig tx_config,
-    Function<void(FlatConstMultiBuf&& payload)>&& receive_fn,
+    Function<void(multibuf::MultiBuf&& payload)>&& receive_fn,
     ChannelEventCallback&& event_fn) {
   return DoAcquireL2capCoc(rx_multibuf_allocator,
                            connection_handle,
@@ -51,7 +51,7 @@ pw::Result<L2capCoc> ProxyHost::AcquireL2capCoc(
 }
 
 pw::Result<BasicL2capChannel> ProxyHost::AcquireBasicL2capChannel(
-    MultiBufAllocator& rx_multibuf_allocator,
+    multibuf::MultiBufAllocator& rx_multibuf_allocator,
     uint16_t connection_handle,
     uint16_t local_cid,
     uint16_t remote_cid,

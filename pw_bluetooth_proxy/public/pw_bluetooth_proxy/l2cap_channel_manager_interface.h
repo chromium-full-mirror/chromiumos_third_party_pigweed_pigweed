@@ -41,8 +41,8 @@ class L2capChannelManagerInterface {
                                             uint16_t remote_channel_id)>;
 
   using OptionalBufferReceiveFunction =
-      Function<std::optional<FlatConstMultiBufInstance>(
-          FlatMultiBuf&& payload,
+      Function<std::optional<multibuf::MultiBuf>(
+          multibuf::MultiBuf&& payload,
           ConnectionHandle connection_handle,
           uint16_t local_channel_id,
           uint16_t remote_channel_id)>;
@@ -165,7 +165,7 @@ class L2capChannelManagerInterface {
       ConnectionHandle connection_handle,
       ConnectionOrientedChannelConfig rx_config,
       ConnectionOrientedChannelConfig tx_config,
-      Function<void(FlatConstMultiBuf&& payload)>&& receive_fn,
+      Function<void(multibuf::MultiBuf&& payload)>&& receive_fn,
       ChannelEventCallback&& event_fn) = 0;
 };
 

@@ -116,11 +116,11 @@ void ProxyHost::Reset() {
 }
 
 Result<L2capCoc> ProxyHost::AcquireL2capCoc(
-    MultiBufAllocator& rx_multibuf_allocator,
+    multibuf::MultiBufAllocator& rx_multibuf_allocator,
     uint16_t connection_handle,
     L2capCoc::CocConfig rx_config,
     L2capCoc::CocConfig tx_config,
-    Function<void(FlatConstMultiBuf&& payload)>&& receive_fn,
+    Function<void(multibuf::MultiBuf&& payload)>&& receive_fn,
     ChannelEventCallback&& event_fn) {
   if (l2cap_channel_manager_.impl().IsRunningOnDispatcherThread()) {
     return DoAcquireL2capCoc(rx_multibuf_allocator,
@@ -146,7 +146,7 @@ Result<L2capCoc> ProxyHost::AcquireL2capCoc(
 }
 
 Result<BasicL2capChannel> ProxyHost::AcquireBasicL2capChannel(
-    MultiBufAllocator& rx_multibuf_allocator,
+    multibuf::MultiBufAllocator& rx_multibuf_allocator,
     uint16_t connection_handle,
     uint16_t local_cid,
     uint16_t remote_cid,

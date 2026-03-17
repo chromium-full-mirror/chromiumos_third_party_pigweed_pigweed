@@ -28,10 +28,10 @@
 #include "pw_bluetooth_proxy/internal/gatt_notify_rx_engine.h"
 #include "pw_bluetooth_proxy/internal/gatt_notify_tx_engine.h"
 #include "pw_bluetooth_proxy/internal/logical_transport.h"
-#include "pw_bluetooth_proxy/internal/multibuf.h"
 #include "pw_bluetooth_proxy/internal/mutex.h"
 #include "pw_bluetooth_proxy/l2cap_channel_common.h"
 #include "pw_containers/intrusive_map.h"
+#include "pw_multibuf/multibuf.h"
 #include "pw_result/result.h"
 #include "pw_status/status.h"
 #include "pw_status/try.h"
@@ -101,7 +101,7 @@ class L2capChannel final : public internal::TxEngine::Delegate {
 
   // Precondition: AreValidParameters() is true
   explicit L2capChannel(L2capChannelManager& l2cap_channel_manager,
-                        MultiBufAllocator* rx_multibuf_allocator,
+                        multibuf::MultiBufAllocator* rx_multibuf_allocator,
                         uint16_t connection_handle,
                         AclTransportType transport,
                         uint16_t local_cid,
@@ -190,12 +190,12 @@ class L2capChannel final : public internal::TxEngine::Delegate {
   /// * @UNIMPLEMENTED: Channel does not support `Write(MultiBuf)`.
   // TODO: https://pwbug.dev/388082771 - Plan to eventually move this to
   // ClientChannel.
-  StatusWithMultiBuf Write(FlatConstMultiBuf&& payload);
+  StatusWithMultiBuf Write(multibuf::MultiBuf&& payload);
 
   /// Channels that need to send a payload during handling a received packet
   /// directly (for instance to replenish credits) should use this function
   /// which does not take the L2capChannelManager channels lock.
-  StatusWithMultiBuf WriteDuringRx(FlatConstMultiBuf&& payload) {
+  StatusWithMultiBuf WriteDuringRx(multibuf::MultiBuf&& payload) {
     return impl_.Write(std::move(payload));
   }
 
@@ -306,7 +306,7 @@ class L2capChannel final : public internal::TxEngine::Delegate {
   // Subclasses should override to generate correct H4 packet from their
   // payload.
   std::optional<H4PacketWithH4> GenerateNextTxPacket(
-      const FlatConstMultiBuf& payload, bool& keep_payload)
+      const multibuf::MultiBuf& payload, bool& keep_payload)
       PW_EXCLUSIVE_LOCKS_REQUIRED(impl_.mutex_);
 
   Status SendAdditionalRxCredits(uint16_t additional_rx_credits);
@@ -315,7 +315,7 @@ class L2capChannel final : public internal::TxEngine::Delegate {
   //  Rx (private)
   //--------------
 
-  constexpr MultiBufAllocator* rx_multibuf_allocator() const {
+  constexpr multibuf::MultiBufAllocator* rx_multibuf_allocator() const {
     return rx_multibuf_allocator_;
   }
 
@@ -348,7 +348,7 @@ class L2capChannel final : public internal::TxEngine::Delegate {
   // Return the recombination buf to the caller.
   //
   // Channel no longer has buf after this call.
-  MultiBufInstance TakeRecombinationBuf(Direction direction) {
+  multibuf::MultiBuf TakeRecombinationBuf(Direction direction) {
     PW_ASSERT(GetRecombinationBufOptRef(direction).has_value());
     return std::exchange(GetRecombinationBufOptRef(direction), std::nullopt)
         .value();
@@ -362,15 +362,15 @@ class L2capChannel final : public internal::TxEngine::Delegate {
                                     uint16_t write_offset) {
     PW_ASSERT(HasRecombinationBuf(direction));
     auto& bufopt_ref = GetRecombinationBufOptRef(direction);
-    MultiBuf& mbuf = MultiBufAdapter::Unwrap(bufopt_ref.value());
-    size_t copied = MultiBufAdapter::Copy(mbuf, write_offset, as_bytes(data));
-    return copied < data.size() ? Status::ResourceExhausted() : OkStatus();
+    auto bytes_copied = bufopt_ref->CopyFrom(data, write_offset);
+    return bytes_copied.size() < data.size() ? Status::ResourceExhausted()
+                                             : OkStatus();
   }
 
   // Return reference to the recombination MultiBuf.
   //
   // Intended for use just within L2capChannel functions.
-  std::optional<MultiBufInstance>& GetRecombinationBufOptRef(
+  std::optional<multibuf::MultiBuf>& GetRecombinationBufOptRef(
       Direction direction) {
     return recombination_mbufs_[cpp23::to_underlying(direction)];
   }
@@ -454,7 +454,7 @@ class L2capChannel final : public internal::TxEngine::Delegate {
   const ChannelEventCallback event_fn_;
 
   // Optional client-provided allocator for MultiBufs.
-  MultiBufAllocator* rx_multibuf_allocator_ = nullptr;
+  multibuf::MultiBufAllocator* rx_multibuf_allocator_ = nullptr;
 
   // Client-provided controller read callback.
   FromControllerFn from_controller_fn_;
@@ -479,7 +479,7 @@ class L2capChannel final : public internal::TxEngine::Delegate {
   // payloads when they are being recombined.
   // They are stored here so that they can be allocated with the channel's
   // allocator and also properly destroyed with the channel.
-  std::array<std::optional<MultiBufInstance>, kNumDirections>
+  std::array<std::optional<multibuf::MultiBuf>, kNumDirections>
       recombination_mbufs_{};
 
   // Implementation-specific details that may vary between sync and async modes.

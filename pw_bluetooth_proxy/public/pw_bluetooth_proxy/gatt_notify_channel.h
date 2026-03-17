@@ -34,7 +34,7 @@ class GattNotifyChannel final : public internal::GenericL2capChannel {
   explicit GattNotifyChannel(L2capChannel& channel, uint16_t attribute_handle);
 
   /// @copydoc internal::GenericL2capChannel::DoCheckWriteParameter
-  Status DoCheckWriteParameter(const FlatConstMultiBuf& payload) override;
+  Status DoCheckWriteParameter(const multibuf::MultiBuf& payload) override;
 
   uint16_t attribute_handle_;
   uint16_t max_attribute_size_ = 0;

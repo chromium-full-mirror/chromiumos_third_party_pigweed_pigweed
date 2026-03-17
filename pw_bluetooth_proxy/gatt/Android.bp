@@ -33,11 +33,13 @@ cc_library_static {
         "pw_allocator",
         "pw_bluetooth_proxy",
         "pw_containers",
+        "pw_span_cast",
     ],
     export_static_lib_headers: [
         "pw_allocator",
         "pw_bluetooth_proxy",
         "pw_containers",
+        "pw_span_cast",
     ],
     header_libs: [
         "emboss_runtime_headers",

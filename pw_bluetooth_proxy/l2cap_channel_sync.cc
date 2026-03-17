@@ -77,7 +77,7 @@ void L2capChannelImpl::Close() {
   client_ = nullptr;
 }
 
-StatusWithMultiBuf L2capChannelImpl::Write(FlatConstMultiBuf&& payload)
+StatusWithMultiBuf L2capChannelImpl::Write(multibuf::MultiBuf&& payload)
     PW_NO_LOCK_SAFETY_ANALYSIS {
   std::lock_guard lock(mutex_);
   if (channel_.state_ != L2capChannel::State::kRunning) {
@@ -127,7 +127,7 @@ std::optional<H4PacketWithH4> L2capChannelImpl::DequeuePacket()
     if (payload_queue_.empty()) {
       return std::nullopt;
     }
-    const FlatConstMultiBuf& payload = payload_queue_.front();
+    const multibuf::MultiBuf& payload = payload_queue_.front();
 
     // Create a packet from the payload.
     bool keep_payload = false;
