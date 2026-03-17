@@ -27,6 +27,8 @@ pub trait BareSpinLock: Send + Sync {
 
     fn try_lock(&self) -> Option<Self::Guard<'_>>;
 
+    // This default implementation of `lock()` will usually be overridden by
+    // architecture-specific implementations.
     #[inline(always)]
     fn lock(&self) -> Self::Guard<'_> {
         loop {
