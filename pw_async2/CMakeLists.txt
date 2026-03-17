@@ -648,6 +648,25 @@ pw_add_test(pw_async2.dispatcher_thread_test
     pw_thread.thread
 )
 
+pw_add_test(pw_async2.dispatcher_stress_test
+  SOURCES
+    dispatcher_stress_test.cc
+  PRIVATE_DEPS
+    pw_assert
+    pw_async2
+    pw_async2.notified_dispatcher
+    pw_allocator.libc_allocator
+    pw_containers.dynamic_queue
+    pw_containers.dynamic_vector
+    pw_log
+    pw_sync.lock_annotations
+    pw_sync.mutex
+    pw_sync.thread_notification
+    pw_thread.test_thread_context
+    pw_thread.thread
+    pw_thread.yield
+)
+
 if("cxx_std_20" IN_LIST CMAKE_CXX_COMPILE_FEATURES)
   pw_add_test(pw_async2.channel_coro_test
     SOURCES
