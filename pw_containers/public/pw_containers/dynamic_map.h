@@ -302,8 +302,7 @@ class DynamicMap {
   }
 
   iterator erase(const_iterator pos) {
-    auto it = find(pos->first);
-    return erase(it);
+    return erase(iterator(typename Map::iterator(pos.it_)));
   }
 
   /// Removes elements in the range `[first, last)`.
