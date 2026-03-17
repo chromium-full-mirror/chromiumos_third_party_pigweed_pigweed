@@ -185,14 +185,16 @@ fn test_termination_from_outside<K: Kernel>(
     info!("🔄 ├─ All threads terminated");
 
     // 7. Join threads to clean up
-    for thread in &mut thread_refs {
+    for (i, thread) in thread_refs.iter_mut().enumerate() {
         let Some(thread_ref) = thread.take() else {
             pw_assert::panic!("Thread ref is None during join");
         };
+        info!("🔄 ├─ joining thread {}", i as usize);
         let thread = thread_ref.join(kernel)?;
         let _ = thread.consume();
     }
 
+    info!("🔄 ├─ All threads joined");
     // 8. Verify process is terminated
     let Ok(process) = process_ref.join(kernel) else {
         pw_assert::panic!("Process join failed");

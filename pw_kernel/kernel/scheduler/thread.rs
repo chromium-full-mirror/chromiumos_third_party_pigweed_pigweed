@@ -13,7 +13,7 @@
 // the License.
 
 use core::cell::UnsafeCell;
-use core::mem::MaybeUninit;
+use core::mem::{ManuallyDrop, MaybeUninit};
 use core::ops::Range;
 use core::ptr::NonNull;
 use core::sync::atomic::Ordering;
@@ -33,8 +33,9 @@ use crate::Kernel;
 #[cfg(feature = "user_space")]
 use crate::object::{KernelObject, ObjectTable};
 use crate::scheduler::algorithm::SchedulerAlgorithmThreadState;
-use crate::scheduler::{JoinResult, Priority, TryJoinResult, WaitQueue, WaitType};
+use crate::scheduler::{JoinResult, Priority, SchedulerState, TryJoinResult, WaitQueue, WaitType};
 use crate::sync::event::{Event, EventConfig, EventSignaler};
+use crate::sync::spinlock::SpinLockGuard;
 
 /// The memory backing a thread's stack before it has been started.
 ///
@@ -344,26 +345,6 @@ impl<K: Kernel> Process<K> {
         }
     }
 
-    /// # Safety
-    /// Caller must ensure that the thread is already in the processes thread list and the
-    /// scheduler lock is held
-    pub unsafe fn remove_from_thread_list(&mut self, thread: &mut Thread<K>) {
-        // SAFETY: Scheduler lock is held so it is safe to manipulate the process
-        // list and the caller guarantees that the thread is in said list so it
-        // is safe to remove it.
-        unsafe {
-            self.thread_list
-                .unlink_element_unchecked(NonNull::from(thread));
-
-            if self.state == ProcessState::Terminating && self.thread_list.is_empty() {
-                self.state = ProcessState::Terminated;
-                if let Some(signaler) = self.join_event.take() {
-                    signaler.signal();
-                }
-            }
-        }
-    }
-
     pub fn range_has_access(&self, access_type: MemoryRegionType, range: Range<usize>) -> bool {
         self.memory_config
             .range_has_access(access_type, range.start, range.end)
@@ -506,6 +487,34 @@ impl<K: Kernel> ProcessRef<K> {
             }
         }
     }
+
+    /// Drop the `ProcessRef` while the scheduler lock is held.
+    ///
+    /// This is an internal version for use by the scheduler while it is holding
+    /// the scheduler lock.
+    pub(super) fn drop_locked(
+        mut self,
+        mut sched: SpinLockGuard<'_, K, SchedulerState<K>>,
+    ) -> SpinLockGuard<'_, K, SchedulerState<K>> {
+        unsafe {
+            let prev_value = self
+                .process
+                .as_ref()
+                .ref_count
+                .fetch_sub(1, Ordering::Release);
+
+            // If this ref was one of two outstanding references to the process,
+            // the other reference may be attempting to join.  Let the scheduler
+            // notify the join request if it is outstanding.
+            if prev_value == 2 {
+                sched = sched.process_signal_join(&mut self);
+            }
+        }
+
+        // Ensure that the trait version of drop is not run.
+        let _ = ManuallyDrop::new(self);
+        sched
+    }
 }
 
 impl<K: Kernel> Clone for ProcessRef<K> {
@@ -537,7 +546,8 @@ impl<K: Kernel> Drop for ProcessRef<K> {
             // the other reference may be attempting to join.  Let the scheduler
             // notify the join request if it is outstanding.
             if prev_value == 2 {
-                self.kernel
+                let _ = self
+                    .kernel
                     .get_scheduler()
                     .lock(self.kernel)
                     .process_signal_join(self);
@@ -589,11 +599,11 @@ impl<K: Kernel> ThreadRef<K> {
     pub fn join_until(mut self, kernel: K, deadline: Instant<K::Clock>) -> JoinResult<K> {
         let join_event = Event::new(kernel, EventConfig::ManualReset);
         loop {
-            self = match kernel
+            let (_, res) = kernel
                 .get_scheduler()
                 .lock(kernel)
-                .thread_try_join(self, join_event.get_signaler())
-            {
+                .thread_try_join(self, join_event.get_signaler());
+            self = match res {
                 TryJoinResult::Err {
                     error: e,
                     thread: thread_ref,
@@ -911,16 +921,6 @@ impl<K: Kernel> Thread<K> {
         // and a null pointer is defined to be at address 0 (see
         // https://doc.rust-lang.org/beta/core/ptr/fn.null.html).
         0usize
-    }
-
-    /// # Safety
-    /// Must be called with scheduler lock held.
-    pub(super) unsafe fn remove_from_parent_process(&mut self) {
-        let Some(process_ref) = self.process.as_mut() else {
-            pw_assert::panic!("Thread does not have a process");
-        };
-        unsafe { process_ref.process.as_mut().remove_from_thread_list(self) };
-        self.process = None;
     }
 }
 

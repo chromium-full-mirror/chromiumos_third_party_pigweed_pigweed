@@ -19,8 +19,8 @@ use pw_atomic::{AtomicAdd, AtomicLoad, AtomicSub, AtomicZero};
 use pw_status::Result;
 use time::Instant;
 
-use crate::Kernel;
-use crate::scheduler::{WaitQueueLock, WaitType};
+use crate::scheduler::{WaitQueueLock, WaitQueueLockGuard, WaitType};
+use crate::{Kernel, SchedulerState, SpinLockGuard};
 
 /// Configuration for the behavior of an [`Event`].
 #[derive(Eq, PartialEq)]
@@ -118,6 +118,27 @@ impl<K: Kernel> EventSignaler<K> {
         unsafe { self.event.as_ref().signal() };
     }
 
+    /// Sets the `Event`'s state to signaled.
+    ///
+    /// Behaves like `signal()` but allows passing in a scheduler lock.  This
+    /// exists because the scheduler uses Events to handle signaling and joining
+    /// of process and thread termination.  It is intentionally only visible
+    /// to the kernel crate as no external crates can take the scheduler lock.
+    ///
+    /// # Interrupt context
+    ///
+    /// This method *is* safe to call in an interrupt context.
+    pub(crate) fn signal_locked<'a>(
+        &self,
+        sched: SpinLockGuard<'a, K, SchedulerState<K>>,
+    ) -> SpinLockGuard<'a, K, SchedulerState<K>> {
+        // SAFETY: Event will panic if there are outstanding signalers referencing it.
+        let event = unsafe { self.event.as_ref() };
+        let state = event.state.inherit_sched_lock(sched);
+        let state = event.signal_locked(state);
+        state.into_sched()
+    }
+
     /// Sets the `Event`'s state to un-signaled.
     ///
     /// # Interrupt context
@@ -199,21 +220,30 @@ impl<K: Kernel> Event<K> {
     }
 
     fn signal(&self) {
-        let mut state = self.state.lock();
+        self.signal_locked(self.state.lock());
+    }
+
+    fn signal_locked<'a>(
+        &self,
+        mut state: WaitQueueLockGuard<'a, K, EventState>,
+    ) -> WaitQueueLockGuard<'a, K, EventState> {
         if !state.signaled {
-            match self.config {
+            state = match self.config {
                 EventConfig::AutoReset => {
                     let (mut state, result) = state.wake_one();
                     if result == crate::scheduler::WakeResult::QueueEmpty {
                         state.signaled = true;
                     }
+                    state
                 }
                 EventConfig::ManualReset => {
                     state.signaled = true;
-                    state.wake_all();
+                    state.wake_all()
                 }
-            }
+            };
         }
+
+        state
     }
 
     fn unsignal(&self) {

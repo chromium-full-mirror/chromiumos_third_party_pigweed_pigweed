@@ -61,7 +61,7 @@ pub mod thread;
 pub mod timer;
 
 use algorithm::{RescheduleReason, SchedulerAlgorithm};
-pub use locks::{SchedLockGuard, WaitQueueLock};
+pub use locks::{SchedLockGuard, WaitQueueLock, WaitQueueLockGuard};
 pub use priority::Priority;
 use thread::*;
 
@@ -621,17 +621,19 @@ impl<K: Kernel> SpinLockGuard<'_, K, SchedulerState<K>> {
         }
     }
 
-    fn thread_signal_join(&self, thread: &mut ThreadRef<K>) {
+    fn thread_signal_join(mut self, thread: &mut ThreadRef<K>) -> Self {
         if let Some(signaler) = unsafe { thread.thread.as_mut() }.join_event.take() {
-            signaler.signal();
+            self = signaler.signal_locked(self);
         }
+
+        self
     }
 
     fn thread_try_join(
-        &mut self,
+        mut self,
         mut thread_ref: ThreadRef<K>,
         signaler: EventSignaler<K>,
-    ) -> TryJoinResult<K> {
+    ) -> (Self, TryJoinResult<K>) {
         // SAFETY: Exclusive access to thread is guaranteed by scheduler lock
         let thread = unsafe { thread_ref.thread.as_mut() };
 
@@ -644,8 +646,7 @@ impl<K: Kernel> SpinLockGuard<'_, K, SchedulerState<K>> {
             // thread is in the Terminated state, it *must* be in the termination_queue.
             thread.state = State::Joined;
 
-            // SAFETY: Scheduler lock is held per precondition.
-            unsafe { thread.remove_from_parent_process() };
+            self = self.thread_remove_from_parent_process(thread);
 
             // Reset thread state.
             thread.terminating = false;
@@ -653,25 +654,29 @@ impl<K: Kernel> SpinLockGuard<'_, K, SchedulerState<K>> {
 
             // SAFETY: Thread is guaranteed to be in the termination queue by
             // the fact that it is in the terminated state.
-            return TryJoinResult::Joined(unsafe {
+            let thread = unsafe {
                 self.termination_queue
                     .remove_element(thread_ref.thread)
                     .unwrap_unchecked()
-            });
+            };
+            return (self, TryJoinResult::Joined(thread));
         }
 
         // Only one call to join is allowed to wait thread termination
         if thread.join_event.is_some() {
-            return TryJoinResult::Err {
-                error: Error::AlreadyExists,
-                thread: thread_ref,
-            };
+            return (
+                self,
+                TryJoinResult::Err {
+                    error: Error::AlreadyExists,
+                    thread: thread_ref,
+                },
+            );
         }
 
         // Register the signaler and return None indicating the thread is not yet
         // joinable.
         thread.join_event = Some(signaler);
-        TryJoinResult::Wait(thread_ref)
+        (self, TryJoinResult::Wait(thread_ref))
     }
 
     fn thread_cancel_try_join(&mut self, thread_ref: &mut ThreadRef<K>) {
@@ -698,7 +703,7 @@ impl<K: Kernel> SpinLockGuard<'_, K, SchedulerState<K>> {
         // reschedule.
         let guard = PreemptDisableGuard::new(kernel);
         if let Some(signaler) = current_thread.as_mut().join_event.take() {
-            signaler.signal();
+            self = signaler.signal_locked(self);
         }
         drop(guard);
 
@@ -715,6 +720,21 @@ impl<K: Kernel> SpinLockGuard<'_, K, SchedulerState<K>> {
     fn thread_is_terminating(&self, thread: &ThreadRef<K>) -> bool {
         // SAFETY: Exclusive access to thread is guaranteed by scheduler lock
         unsafe { thread.thread.as_ref().terminating }
+    }
+
+    fn thread_remove_from_parent_process(mut self, thread: &mut Thread<K>) -> Self {
+        let Some(mut process_ref) = thread.process.take() else {
+            pw_assert::panic!("Thread does not have a process");
+        };
+
+        // SAFETY: Thread is guaranteed to be in the process because the process
+        // was just taken from the thread.
+        self = unsafe { self.process_remove_from_thread_list(&mut process_ref, thread) };
+
+        // ProcessRef's drop takes the scheduler lock.  Since that is already
+        // held, `drop_locked()` needs to be used instead to avoid recursively
+        // locking the scheduler lock.
+        process_ref.drop_locked(self)
     }
 }
 
@@ -745,10 +765,16 @@ impl<K: Kernel> SpinLockGuard<'_, K, SchedulerState<K>> {
         Ok(())
     }
 
-    pub fn process_signal_join(&self, process: &mut ProcessRef<K>) {
-        if let Some(signaler) = unsafe { process.process.as_mut() }.join_event.take() {
-            signaler.signal();
+    #[must_use]
+    pub fn process_signal_join(mut self, process: &mut ProcessRef<K>) -> Self {
+        // SAFETY: inner process is protected by the scheduler lock and the
+        // mutable reference does not live beyond the unsafe taking the signaler
+        let signaler = unsafe { process.process.as_mut().join_event.take() };
+        if let Some(signaler) = signaler {
+            self = signaler.signal_locked(self);
         }
+
+        self
     }
 
     pub fn process_try_join(
@@ -794,6 +820,39 @@ impl<K: Kernel> SpinLockGuard<'_, K, SchedulerState<K>> {
         let process = unsafe { process_ref.process.as_mut() };
         pw_assert::assert!(process.join_event.is_some());
         process.join_event = None;
+    }
+
+    /// # Safety
+    ///
+    /// Caller must ensure that the thread is already in the processes thread list.
+    unsafe fn process_remove_from_thread_list(
+        mut self,
+        process_ref: &mut ProcessRef<K>,
+        thread: &mut Thread<K>,
+    ) -> Self {
+        // SAFETY: Scheduler lock is held so it is safe to manipulate the process
+        // list and the caller guarantees that the thread is in said list so it
+        // is safe to remove it.
+
+        // SAFETY: The scheduler lock ensure mutual excludsion and the mutable
+        // reference does not live out side this function.
+        let process = unsafe { process_ref.process.as_mut() };
+
+        // SAFETY: Caller guarantees that the thread is in the process' thread list
+        // and the list is protected by the scheduler lock.
+        let empty = unsafe {
+            process
+                .thread_list
+                .unlink_element_unchecked(NonNull::from(thread));
+
+            process.thread_list.is_empty()
+        };
+
+        if process.state == ProcessState::Terminating && empty {
+            process.state = ProcessState::Terminated;
+            self = self.process_signal_join(process_ref);
+        }
+        self
     }
 }
 

@@ -187,6 +187,19 @@ impl<K: Kernel, T> WaitQueueLock<K, T> {
             inner: self.state.lock(),
         }
     }
+
+    pub(crate) fn inherit_sched_lock<'lock>(
+        &self,
+        guard: SpinLockGuard<'lock, K, SchedulerState<K>>,
+    ) -> WaitQueueLockGuard<'lock, K, T> {
+        WaitQueueLockGuard {
+            inner: SchedLockGuard {
+                inner: unsafe { &mut *self.state.inner.get() },
+                guard,
+                kernel: self.state.kernel,
+            },
+        }
+    }
 }
 
 pub struct WaitQueueLockGuard<'lock, K: Kernel, T> {
@@ -198,11 +211,16 @@ impl<'lock, K: Kernel, T> WaitQueueLockGuard<'lock, K, T> {
         &self.inner.guard
     }
 
+    pub fn into_sched(self) -> SpinLockGuard<'lock, K, SchedulerState<K>> {
+        self.inner.guard
+    }
+
     #[allow(dead_code)]
     pub fn sched_mut(&mut self) -> &mut SpinLockGuard<'lock, K, SchedulerState<K>> {
         &mut self.inner.guard
     }
 
+    #[must_use]
     pub fn operate_on_wait_queue<F, R>(mut self, f: F) -> (Self, R)
     where
         F: FnOnce(
@@ -233,10 +251,12 @@ impl<'lock, K: Kernel, T> WaitQueueLockGuard<'lock, K, T> {
         self.operate_on_wait_queue(|guard| guard.wait(wait_type))
     }
 
+    #[must_use]
     pub fn wake_one(self) -> (Self, super::WakeResult) {
         self.operate_on_wait_queue(|guard| guard.wake_one())
     }
 
+    #[must_use]
     pub fn wake_all(self) -> Self {
         self.operate_on_wait_queue(|guard| (guard.wake_all(), ())).0
     }
