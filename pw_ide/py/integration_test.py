@@ -59,6 +59,11 @@ _TEST_COMPILE_COMMANDS_GENERATOR = (
     '//pw_ide/bazel/compile_commands/test:test_compile_commands_generator'
 )
 
+_TEST_PREFIX_COMPILE_COMMANDS_GENERATOR = (
+    '//pw_ide/bazel/compile_commands/test:'
+    'test_prefix_compile_commands_generator'
+)
+
 # pylint: enable=line-too-long
 
 
@@ -117,7 +122,7 @@ def _format_clangd_error(
 
 
 class CompileCommandsTestBase(unittest.TestCase):
-    """A base class with tests for compile commands integration."""
+    """A base class with helpers for compile commands integration."""
 
     _all_compile_commands: dict[Path, list]
     temp_dir: tempfile.TemporaryDirectory
@@ -126,8 +131,6 @@ class CompileCommandsTestBase(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        if cls is CompileCommandsTestBase:
-            raise unittest.SkipTest('Tests are skipped on this base class')
 
         cls.runfiles = runfiles.Create()
         cls.clangd_path = cls.runfiles.Rlocation(*clangd_binary.RLOCATION)
@@ -253,6 +256,16 @@ class CompileCommandsTestBase(unittest.TestCase):
             f'No command found for "{file_pattern}" in config '
             f'"{platform_pattern}"',
         )
+
+
+class StandardCompileCommandsTests(CompileCommandsTestBase):
+    """The standard suite of integration tests for compile commands."""
+
+    @classmethod
+    def setUpClass(cls):
+        if cls is StandardCompileCommandsTests:
+            raise unittest.SkipTest('Tests are skipped on this base class')
+        super().setUpClass()
 
     def test_files_are_valid(self):
         """Checks various file's compile command with clangd."""
@@ -570,7 +583,7 @@ class CompileCommandsTestBase(unittest.TestCase):
         cls.temp_dir.cleanup()
 
 
-class CompileCommandsViaBuildTest(CompileCommandsTestBase):
+class CompileCommandsViaBuildTest(StandardCompileCommandsTests):
     """Tests compile commands generated via a forwarded `bazel build` call."""
 
     @classmethod
@@ -598,7 +611,7 @@ class CompileCommandsViaBuildTest(CompileCommandsTestBase):
         cls._load_databases()
 
 
-class CompileCommandsViaGroupsTest(CompileCommandsTestBase):
+class CompileCommandsViaGroupsTest(StandardCompileCommandsTests):
     """Tests compile commands generated via command groups."""
 
     @classmethod
@@ -625,6 +638,152 @@ class CompileCommandsViaGroupsTest(CompileCommandsTestBase):
             )
 
         cls._load_databases()
+
+
+class CompileCommandsWithSymlinkPrefixTest(CompileCommandsTestBase):
+    """Tests compile commands generated with a custom symlink prefix."""
+
+    @classmethod
+    def setUpClass(cls):
+        super(CompileCommandsWithSymlinkPrefixTest, cls).setUpClass()
+
+        # Run a bazel build with the custom symlink prefix to generate real
+        # symlinks.
+        subprocess.run(
+            [
+                'bazel',
+                'build',
+                '--symlink_prefix=custom_out/',
+                '//pw_ide/bazel/compile_commands/test:basic_binary',
+            ],
+            capture_output=True,
+            cwd=cls.project_root,
+            check=False,
+        )
+
+        cls.custom_out_dir = cls.project_root / 'custom_out'
+        cls.prefix_symlink = cls.custom_out_dir / 'out'
+        cls.external_symlink = cls.custom_out_dir / 'external'
+
+        # Bazel creates 'custom_out/out' pointing to 'bazel-out'.
+        # We also want an 'external' symlink for testing full remapping.
+        if not cls.external_symlink.exists():
+            target = cls.output_base / 'external'
+            if target.exists():
+                cls.external_symlink.symlink_to(
+                    target, target_is_directory=True
+                )
+
+        # Run the compile commands generator target with the prefix.
+        update_result = subprocess.run(
+            [
+                'bazel',
+                'run',
+                _TEST_PREFIX_COMPILE_COMMANDS_GENERATOR,
+                '--',
+                f'--out-dir={cls.temp_dir.name}',
+            ],
+            capture_output=True,
+            cwd=cls.project_root,
+            text=True,
+            check=False,
+        )
+
+        if update_result.returncode != 0:
+            raise RuntimeError(
+                'update_compile_commands with prefix failed: '
+                f'{update_result.stderr}'
+            )
+
+        cls._load_databases()
+
+    @classmethod
+    def tearDownClass(cls):
+        # Clean up the custom symlink and directory
+        if hasattr(cls, 'prefix_symlink') and cls.prefix_symlink.is_symlink():
+            cls.prefix_symlink.unlink()
+        if (
+            hasattr(cls, 'external_symlink')
+            and cls.external_symlink.is_symlink()
+        ):
+            cls.external_symlink.unlink()
+        if hasattr(cls, 'custom_out_dir') and cls.custom_out_dir.exists():
+            # Only remove if empty, just to be safe
+            try:
+                cls.custom_out_dir.rmdir()
+            except OSError:
+                pass
+        super(CompileCommandsWithSymlinkPrefixTest, cls).tearDownClass()
+
+    def test_paths_use_custom_prefix(self):
+        """Verify that paths in the DB use the custom symlink prefix."""
+        # Find any command for basic_binary_test.cc
+        matches = self._find_commands_for_file(
+            r'.*basic_binary_test\.cc',
+        )
+
+        self.assertGreater(
+            len(matches), 0, 'No commands found for test file with prefix.'
+        )
+
+        expected_out_prefix = 'custom_out/out/'
+        expected_external_prefix = 'custom_out/external/'
+
+        # Check the compiler path (first argument)
+        for _, command in matches:
+            compiler_path = command['arguments'][0]
+            if '/toolchain/' in compiler_path or '/llvm/' in compiler_path:
+                is_prefixed = compiler_path.startswith(
+                    expected_out_prefix
+                ) or compiler_path.startswith(expected_external_prefix)
+                self.assertTrue(
+                    is_prefixed,
+                    f'Compiler path {compiler_path} does not start with '
+                    f'{expected_out_prefix} or {expected_external_prefix}',
+                )
+
+                # Verify that the remapped compiler path EXISTS
+                full_compiler_path = self.project_root / compiler_path
+                self.assertTrue(
+                    full_compiler_path.exists(),
+                    f'Compiler path {full_compiler_path} does not exist',
+                )
+
+        for _, command in matches:
+            file_path = command['file']
+            # External paths might still be absolute or use project root
+            # depending on how they are configured, but bazel-out paths
+            # MUST use the prefix.
+            if '/k8-fastbuild/' in file_path:  # More robust check for bazel-out
+                self.assertTrue(
+                    file_path.startswith(expected_out_prefix),
+                    f'Path {file_path} does not start with '
+                    f'{expected_out_prefix}',
+                )
+                # Verify existence
+                self.assertTrue(
+                    (self.project_root / file_path).exists(),
+                    f'File path {file_path} does not exist',
+                )
+
+            for arg in command['arguments']:
+                if '/k8-fastbuild/' in arg:
+                    # Arg could be -Icustom_out/out/...
+                    self.assertIn(
+                        expected_out_prefix,
+                        arg,
+                        f'Argument {arg} does not contain '
+                        f'{expected_out_prefix}',
+                    )
+                    # Extract path from arg (e.g. -Ipath)
+                    for flag in ('-I', '-iquote', '-isystem'):
+                        if arg.startswith(flag):
+                            arg_path = arg[len(flag) :].strip()
+                            self.assertTrue(
+                                (self.project_root / arg_path).exists(),
+                                f'Argument path {arg_path} does not exist',
+                            )
+                            break
 
 
 if __name__ == '__main__':

@@ -41,9 +41,10 @@ _FRAGMENT_SUFFIX = '.pw_aspect.compile_commands.json'
 
 _COMPILE_COMMANDS_OUTPUT_GROUP = 'pw_cc_compile_commands_fragments'
 
-# pylint: disable=line-too-long
-_COMPILE_COMMANDS_ASPECT = '@pigweed//pw_ide/bazel/compile_commands:pw_cc_compile_commands_aspect.bzl%pw_cc_compile_commands_aspect'
-# pylint: enable=line-too-long
+_COMPILE_COMMANDS_ASPECT = (
+    '//pw_ide/bazel/compile_commands:pw_cc_compile_commands_aspect.bzl'
+    '%pw_cc_compile_commands_aspect'
+)
 
 # Supported architectures for clangd, based on the provided list.
 # TODO(b/442862617): A better way than this than hardcoded list.
@@ -144,6 +145,15 @@ def _parse_args() -> argparse.Namespace:
         '--compile-command-groups',
         type=Path,
         help='Path to a JSON file with compile command patterns.',
+    )
+    parser.add_argument(
+        '--symlink-prefix',
+        default='bazel-',
+        help=(
+            'The prefix used for Bazel convenience symlinks '
+            '(e.g. \"out/\"). This informs where to look for '
+            '\"out\" and \"external\" symlinks.'
+        ),
     )
     parser.add_argument(
         '--verbose',
@@ -651,6 +661,7 @@ def _process_platform(
     workspace_root: Path,
     output_dir: Path,
     bazel_paths: tuple[Path, Path, Path],
+    symlink_prefix: str = '',
 ) -> None:
     """Processes a single platform, merging fragments and writing output files.
 
@@ -661,6 +672,8 @@ def _process_platform(
         output_dir: Path to the output directory.
         bazel_paths: Tuple of (bazel_output_path, output_base_path,
                      execution_root_path).
+        symlink_prefix: Prefix to use for symlinked directories like bazel-out
+                        and external.
 
     Raises:
         SystemExit: If loading commands fails.
@@ -697,13 +710,25 @@ def _process_platform(
             arguments=command_dict["arguments"],
         )
         cmd = remap_virtual_includes(
-            cmd, all_vrmaps, bazel_output_path, execution_root_path
+            cmd,
+            all_vrmaps,
+            output_base_path,
+            bazel_output_path,
+            execution_root_path,
+            relative_to=relative_to,
+            symlink_prefix=symlink_prefix,
         )
         resolved_cmd = resolve_external_paths(
-            cmd, output_base_path, relative_to=relative_to
+            cmd,
+            output_base_path,
+            relative_to=relative_to,
+            symlink_prefix=symlink_prefix,
         )
         resolved_cmd = resolve_bazel_out_paths(
-            resolved_cmd, bazel_output_path, relative_to=relative_to
+            resolved_cmd,
+            bazel_output_path,
+            relative_to=relative_to,
+            symlink_prefix=symlink_prefix,
         )
         resolved_cmd = filter_unsupported_march_args(resolved_cmd)
         processed_commands.append(resolved_cmd._asdict())
@@ -725,6 +750,7 @@ def _process_platform(
             output_base_path,
             relative_to,
             platform_dir,
+            symlink_prefix,
         )
 
     (output_dir / 'pw_lastGenerationTime.txt').write_text(str(int(time.time())))
@@ -754,6 +780,7 @@ def _process_target_infos(
     output_base_path: Path,
     relative_to: Path | None,
     platform_dir: Path,
+    symlink_prefix: str = '',
 ) -> None:
     """Processes target infos and writes deps_mapping.json."""
     final_target_infos: dict[str, Any] = {}
@@ -769,6 +796,7 @@ def _process_target_infos(
             bazel_output_path,
             output_base_path,
             relative_to=relative_to,
+            symlink_prefix=symlink_prefix,
         )
 
         if label in final_target_infos:
@@ -854,6 +882,7 @@ def main() -> int:
             workspace_root,
             output_dir,
             (bazel_output_path, output_base_path, execution_root_path),
+            args.symlink_prefix,
         )
 
     (output_dir / 'pw_lastGenerationTime.txt').write_text(str(int(time.time())))
@@ -864,7 +893,12 @@ def main() -> int:
 
 
 def _resolve_virtual_include_dynamic(
-    abs_v_dir: Path, execution_root_path: Path, prefix: str
+    abs_v_dir: Path,
+    output_base: Path,
+    execution_root_path: Path,
+    relative_to: Path | None,
+    prefix: str,
+    symlink_prefix: str = '',
 ) -> str | None:
     """Helper to dynamically resolve a virtual include directory's real path."""
     try:
@@ -874,11 +908,19 @@ def _resolve_virtual_include_dynamic(
                 rel_parts = f.relative_to(abs_v_dir).parts
                 real_dir = real_f.parents[len(rel_parts) - 1]
 
+                # First try to resolve it as an external path
+                resolved = _resolve_single_external_path(
+                    real_dir, output_base, relative_to, symlink_prefix
+                )
+                if resolved:
+                    return prefix + str(resolved)
+
                 try:
                     rel_real_dir = real_dir.relative_to(execution_root_path)
                     return prefix + str(rel_real_dir)
                 except ValueError:
-                    # Not relative to execroot, maybe it's external?
+                    # Not relative to execroot, and not an external path?
+                    # Fall back to absolute path.
                     return prefix + str(real_dir)
     except OSError:
         # rglob errors (e.g. permission denied) are possible.
@@ -889,8 +931,11 @@ def _resolve_virtual_include_dynamic(
 def remap_virtual_includes(
     command: CompileCommand,
     virtual_mappings_map: dict[str, str],
+    output_base: Path,
     bazel_output_path: Path,
     execution_root_path: Path,
+    relative_to: Path | None = None,
+    symlink_prefix: str = '',
 ) -> CompileCommand:
     """Remaps virtual includes using a map or dynamic symlink resolution.
 
@@ -949,7 +994,12 @@ def remap_virtual_includes(
 
         if abs_v_dir.exists() and abs_v_dir.is_dir():
             resolved_arg = _resolve_virtual_include_dynamic(
-                abs_v_dir, execution_root_path, prefix
+                abs_v_dir,
+                output_base,
+                execution_root_path,
+                relative_to,
+                prefix,
+                symlink_prefix,
             )
             if resolved_arg:
                 new_args.append(resolved_arg)
@@ -961,10 +1011,36 @@ def remap_virtual_includes(
     return command._replace(arguments=new_args)
 
 
+def _resolve_bazel_out_path_str(
+    path_suffix: str,
+    relative_to: Path | None,
+    symlink_prefix: str,
+    bazel_output_path: Path,
+) -> str:
+    """Helper to resolve a 'bazel-out/' path suffix to a real or symlinked
+    path."""
+    if relative_to:
+        # Resolve via symlink (e.g. 'bazel-out' or 'out/out')
+        # Bazel creates symlinks as [prefix]out, [prefix]bin, etc.
+        symlink_name = symlink_prefix + 'out'
+        symlink_path = relative_to / symlink_name
+
+        if symlink_path.exists():
+            return f"{symlink_name}/{path_suffix}"
+
+        # Fallback to standard 'bazel-out' if it exists.
+        standard_symlink = relative_to / 'bazel-out'
+        if standard_symlink.exists():
+            return f"bazel-out/{path_suffix}"
+
+    return str(bazel_output_path.joinpath(*path_suffix.split('/')))
+
+
 def resolve_bazel_out_paths(
     command: CompileCommand,
     bazel_output_path: Path,
     relative_to: Path | None = None,
+    symlink_prefix: str = '',
 ) -> CompileCommand:
     """Replaces bazel-out paths with their real paths."""
     marker = 'bazel-out/'
@@ -978,26 +1054,20 @@ def resolve_bazel_out_paths(
             parts = arg.split(marker, 1)
             prefix = parts[0]
             suffix = parts[1]
-            if relative_to:
-                new_path_str = f"bazel-out/{suffix}"
-            else:
-                new_path_str = str(
-                    bazel_output_path.joinpath(*suffix.split('/'))
-                )
-            new_arg = prefix + new_path_str
-            new_args.append(new_arg)
+            new_path_str = _resolve_bazel_out_path_str(
+                suffix, relative_to, symlink_prefix, bazel_output_path
+            )
+            new_args.append(prefix + new_path_str)
         else:
             new_args.append(arg)
 
     new_file = command.file
     if command.file.startswith(marker):
         path_suffix = command.file[len(marker) :]
-        if relative_to:
-            new_file = f"bazel-out/{path_suffix}"
-            # Need to normalize path (remove ../) but keep it relative
-            # If it's just bazel-out/..., it's already refined.
-        else:
-            new_file = str(bazel_output_path.joinpath(*path_suffix.split('/')))
+        new_file = _resolve_bazel_out_path_str(
+            path_suffix, relative_to, symlink_prefix, bazel_output_path
+        )
+        if not relative_to:
             # Treat bazel-out files as generated and resolve symlinks
             new_file = str(Path(new_file).resolve())
     elif relative_to and Path(command.file).is_absolute():
@@ -1007,174 +1077,142 @@ def resolve_bazel_out_paths(
 
 
 def _resolve_single_external_path(
-    path: Path, output_base: Path, relative_to: Path | None = None
+    path: Path,
+    output_base: Path,
+    relative_to: Path | None = None,
+    symlink_prefix: str = '',
 ) -> Path | None:
     """Resolves a single external path against the output base."""
     external_root = output_base / 'external'
 
-    # Check if inside external root
-    if path.is_relative_to(external_root):
-        rel_path = path.relative_to(external_root)
+    # Ensure we have an absolute path to work with
+    if path.is_absolute():
+        abs_path = path
+    elif path.is_relative_to('external'):
+        abs_path = external_root / path.relative_to('external')
     else:
-        # Try resolving the path (e.g. handle /var vs /private/var)
-        path = path.resolve()
-        if not path.is_relative_to(external_root):
-            return None
-        rel_path = path.relative_to(external_root)
+        return None
 
-    full_path = external_root / rel_path
+    # Resolve symlinks (handles local repository overrides)
+    resolved_path = abs_path.resolve()
 
     if relative_to:
-        if full_path.is_relative_to(relative_to):
-            return full_path.relative_to(relative_to)
-        # If we can't be relative to the workspace root (e.g.
-        # output_base is entirely outside), we still want "external/..."
-        # because that's how Bazel (and our symlinks) structure the
-        # world.
-        return Path(f"external/{rel_path}")
-    return full_path
+        relative_to = Path(relative_to).resolve()
+
+        # If it's inside the workspace, return workspace-relative path
+        # Use string prefix check as it's more robust in some environments
+        # and mock filesystems.
+        path_str = str(resolved_path)
+        base_str = str(relative_to)
+        if path_str == base_str:
+            return Path('.')
+        if path_str.startswith(base_str + os.sep):
+            return Path(path_str[len(base_str) + 1 :])
+
+        # If it's NOT in the workspace, check for 'external' symlink in the
+        # workspace. If it exists, we can use the "external/..." prefix.
+
+        # Check first at the prefix (e.g. 'out/external')
+        symlink_path = relative_to / symlink_prefix / 'external'
+
+        # If prefix doesn't have it, check at sibling of bazel-out in prefix
+        # (e.g. if prefix is 'out/bazel-', look for 'out/external')
+        if not symlink_path.exists() and symlink_prefix.endswith('bazel-'):
+            symlink_path = (
+                relative_to / symlink_prefix[: -len('bazel-')] / 'external'
+            )
+
+        # Fallback to workspace root
+        if not symlink_path.exists():
+            symlink_path = relative_to / 'external'
+
+        if symlink_path.exists():
+            # Try to see if it's relative to the REAL external root
+            try:
+                if resolved_path.is_relative_to(external_root):
+                    rel_to_external = resolved_path.relative_to(external_root)
+
+                    # Construct the relative path string
+                    # Use the actual symlink path to determine the prefix
+                    rel_symlink = symlink_path.relative_to(relative_to)
+                    return rel_symlink / rel_to_external
+            except ValueError:
+                pass
+
+    # Fallback to absolute path if we can't relativize it or if the symlink
+    # is missing.
+    return resolved_path
 
 
 def resolve_external_paths(
     command: CompileCommand,
     output_base: Path,
     relative_to: Path | None = None,
+    symlink_prefix: str = '',
 ) -> CompileCommand:
-    """Replaces relative external/ paths with their real paths.
-
-    If a path starts with `external/`, resolving it natively to the Bazel
-    workspace will fail in newer versions of Bazel since the root `external/`
-    symlink tree is no longer created by default.
-    This replaces `external/...` with the absolute resolved path to that
-    external dependency inside the `bazel_output_base`.
-
-    If `relative_to` is provided, it will attempt to make that absolute path
-    relative to `relative_to`. If it cannot be made relative (e.g. the external
-    cache is in a completely different directory tree from the workspace), it
-    safely falls back to returning the absolute path instead of a broken
-    `external/` prefix.
-    """
-    # For now, don't support --experimental_sibling_repository_layout.
-    marker = 'external/'
+    """Replaces external paths with their real paths."""
+    # Standard compiler flags for include paths.
+    # Include both prefix and prefix= to handle both styles.
+    allowed_prefixes = (
+        "-I=",
+        "-I",
+        "-isystem=",
+        "-isystem",
+        "-iquote=",
+        "-iquote",
+        "-isysroot=",
+        "-isysroot",
+        "",
+    )
     new_args = []
 
-    allowed_prefixes = [
-        '--sysroot',
-        '--warning-suppression-mappings',
-        '-fsanitize-blacklist',  # inclusive-language: ignore
-        '-fsanitize-ignorelist',
-        '-I',
-        '-imacros',
-        '-include',
-        '-iquote',
-        '-isysroot',
-        '-isystem',
-        '-L',
-        '-resource-dir',
-        '',
-    ]
+    if relative_to:
+        relative_to = Path(relative_to)
 
     for arg in command.arguments:
         new_arg = arg
 
-        # Check if arg contains an absolute path to external repo
-        # Use simple string checks first for performance
-        if Path(arg).is_absolute() or str(output_base) in arg:
-            # Try to replace absolute path with relative external/ path
-            # We iterate over allowed prefixes to find where the path starts
-            for prefix in allowed_prefixes:
-                # Find start of path
-                if prefix and not arg.startswith(prefix):
-                    continue
-
-                # Assume arg structure is [prefix][path] or [prefix]=[path]
-                is_eq = arg.startswith(prefix + '=') if prefix else False
-                prefix_len = len(prefix) + (1 if is_eq else 0)
-
-                relevant_part = Path(arg[prefix_len:])
-                if not relevant_part.is_absolute():
-                    continue
-
-                resolved = _resolve_single_external_path(
-                    relevant_part, output_base, relative_to
-                )
-                if resolved:
-                    new_arg = arg[:prefix_len] + str(resolved)
-                    break
-
-        # Existing logic for handling relative external/ paths (if any remain)
+        # We iterate over allowed prefixes to find where the path starts
         for prefix in allowed_prefixes:
-            if not arg.startswith(prefix + marker) and not arg.startswith(
-                prefix + '=' + marker
+            if not arg.startswith(prefix):
+                continue
+
+            prefix_len = len(prefix)
+            relevant_part_str = arg[prefix_len:]
+            if not relevant_part_str:
+                continue
+
+            # Optimization: only process if it looks like an absolute path
+            # to output base, or a relative external/ path.
+            if (
+                not relevant_part_str.startswith('/')
+                and not relevant_part_str.startswith('external/')
+                and str(output_base) not in relevant_part_str
             ):
                 continue
 
-            # Extract the actual path part from the argument
-            is_eq = arg.startswith(prefix + '=')
-            prefix_len = len(prefix) + (1 if is_eq else 0)
+            relevant_part = Path(relevant_part_str)
 
-            path_part_with_marker = arg[prefix_len:]
-            path_suffix = path_part_with_marker[len(marker) :]
-
-            abs_path = output_base.joinpath('external', *path_suffix.split('/'))
-            resolved_path = abs_path.resolve()
-
-            if relative_to:
-                try:
-                    new_path_str = str(resolved_path.relative_to(relative_to))
-                except ValueError:
-                    new_path_str = f"external/{path_suffix}"
-            else:
-                new_path_str = str(resolved_path)
-
-            new_arg = arg[:prefix_len] + new_path_str
-            break  # Found a matching prefix, no need to check others
+            resolved = _resolve_single_external_path(
+                relevant_part, output_base, relative_to, symlink_prefix
+            )
+            if resolved:
+                new_arg = arg[:prefix_len] + str(resolved)
+                break
 
         new_args.append(new_arg)
 
-    new_file = command.file
-    # Check if file is absolute path to external repo
-    if Path(command.file).is_absolute():
-        path_obj = Path(command.file)
-        external_root = output_base / 'external'
+    # Resolve as an external path first (handles relative external/...
+    # and absolute paths to external repositories).
+    file_path = Path(command.file)
+    resolved_file = _resolve_single_external_path(
+        file_path, output_base, relative_to, symlink_prefix
+    )
 
-        # If the file is in the external root, using 'external/...' is
-        # preferred over a relative path.
-        is_external = False
-        try:
-            if path_obj.is_relative_to(external_root):
-                new_file = f'external/{path_obj.relative_to(external_root)}'
-                is_external = True
-        except ValueError:
-            pass
+    new_file = str(resolved_file) if resolved_file else command.file
 
-        if not is_external and relative_to:
-            new_file = _relativize_path(command.file, relative_to)
-
-    elif command.file.startswith(marker):
-        path_suffix = command.file[len(marker) :]
-        abs_path = output_base.joinpath('external', *path_suffix.split('/'))
-        resolved_path = abs_path.resolve()
-
-        try:
-            external_root = (output_base / 'external').resolve()
-            if resolved_path.is_relative_to(external_root):
-                new_file = (
-                    f'external/{resolved_path.relative_to(external_root)}'
-                )
-            elif relative_to:
-                try:
-                    new_file = str(resolved_path.relative_to(relative_to))
-                except ValueError:
-                    # Keep it as external/... if we can't relativize
-                    new_file = f"external/{path_suffix}"
-            else:
-                new_file = str(resolved_path)
-        except ValueError:
-            # If resolution fails weirdly, fallback
-            new_file = str(resolved_path)
-    elif relative_to and os.path.isabs(command.file):
-        new_file = _relativize_path(command.file, relative_to)
+    if not resolved_file and relative_to and file_path.is_absolute():
+        new_file = _relativize_path(file_path, relative_to)
 
     return command._replace(arguments=new_args, file=new_file)
 
@@ -1197,6 +1235,7 @@ def resolve_target_info_paths(
     bazel_output_path: Path,
     output_base_path: Path,
     relative_to: Path | None = None,
+    symlink_prefix: str = '',
 ) -> dict:
     """Resolves paths in a target info dictionary."""
     resolved = info.copy()
@@ -1208,10 +1247,16 @@ def resolve_target_info_paths(
             # This is a bit hacky but avoids duplicating logic
             cmd = CompileCommand(file=p, directory="", arguments=[])
             cmd = resolve_external_paths(
-                cmd, output_base_path, relative_to=relative_to
+                cmd,
+                output_base_path,
+                relative_to=relative_to,
+                symlink_prefix=symlink_prefix,
             )
             cmd = resolve_bazel_out_paths(
-                cmd, bazel_output_path, relative_to=relative_to
+                cmd,
+                bazel_output_path,
+                relative_to=relative_to,
+                symlink_prefix=symlink_prefix,
             )
             new_list.append(cmd.file)
         return new_list

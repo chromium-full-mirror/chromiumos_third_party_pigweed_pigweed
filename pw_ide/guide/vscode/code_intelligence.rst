@@ -97,6 +97,35 @@ command. See below for build system-specific details.
              ],
          )
 
+      **Custom Symlink Prefixes**
+
+      By default, Bazel creates symlinks like ``bazel-out`` and ``external`` in
+      your workspace root to point to the build output and external
+      dependencies. ``pw_ide`` utilizes these symlinks to generate **relative
+      paths** (e.g., ``bazel-out/...``) in the resulting compilation databases.
+      Relative paths ensure that the compilation database remains portable and
+      correct across different machines and build environments.
+
+      If you use Bazel's ``--symlink_prefix`` flag (e.g., to support multiple
+      concurrent builds in the same workspace), Bazel will create these
+      symlinks with a custom name (e.g. ``out/out`` instead of ``bazel-out``).
+      If ``pw_ide`` is unaware of this prefix, it may fail to find the
+      necessary symlinks and fall back to using absolute paths, which are
+      not portable and can cause issues with code intelligence tools.
+
+      You can inform ``pw_ide`` of your custom prefix using the
+      ``symlink_prefix`` attribute:
+
+      .. code-block:: bazel
+
+         pw_compile_commands_generator(
+             name = "update_custom_prefix_commands",
+             symlink_prefix = "out/",  # Match your Bazel --symlink_prefix
+             target_patterns = [
+                 "//...",
+             ],
+         )
+
       Example usage:
 
       .. code-block:: console

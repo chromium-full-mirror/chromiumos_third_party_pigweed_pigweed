@@ -168,6 +168,18 @@ class MergerTest(fake_filesystem_unittest.TestCase):
 
         self.mock_collect_fragments.side_effect = collect_fragments_side_effect
 
+    def _create_external_symlink(self):
+        if not self.fs.exists(self.output_base / 'external'):
+            self.fs.create_dir(self.output_base / 'external')
+        self.fs.create_symlink(
+            self.workspace_root / 'external', self.output_base / 'external'
+        )
+
+    def _create_bazel_out_symlink(self):
+        self.fs.create_symlink(
+            self.workspace_root / 'bazel-out', self.output_path
+        )
+
     def test_no_fragments_found(self):
         with io.StringIO() as buf, redirect_stderr(buf):
             with self.assertRaises(SystemExit):
@@ -407,7 +419,7 @@ class MergerTest(fake_filesystem_unittest.TestCase):
             ],
         )
         # Mock the bazel-out symlink so they are relativized
-        self.fs.create_dir(self.workspace_root / 'bazel-out')
+        self._create_bazel_out_symlink()
 
         self.assertEqual(merger.main(), 0)
         merged_path = (
@@ -426,6 +438,7 @@ class MergerTest(fake_filesystem_unittest.TestCase):
 
     def test_external_repo_paths(self):
         """Test that files in external repos are remapped to their real path."""
+        self._create_external_symlink()
         _create_fragment(
             self.fs,
             self.output_path,
@@ -464,7 +477,7 @@ class MergerTest(fake_filesystem_unittest.TestCase):
 
     def test_external_repo_absolute_paths(self):
         """Test that absolute external repo paths are preserved/handled."""
-        # Simulate Bazel providing absolute paths in the fragment (e.g. from
+        self._create_external_symlink()
         # action.argv)
         abs_external_path = self.output_base / 'external/my_repo/a.cc'
         abs_include_path = self.output_base / 'external/my_repo/include'
@@ -505,6 +518,7 @@ class MergerTest(fake_filesystem_unittest.TestCase):
 
     def test_external_repo_absolute_paths_string_match(self):
         """Test that absolute external repo paths are matched by string."""
+        self._create_external_symlink()
         # This simulates the case where the path is logically in the output
         # base, but resolve() might fail or resolve to a different path (e.g.
         # symlinks) or we just want to ensure the string prefix check works.
@@ -1027,6 +1041,8 @@ class MergerTest(fake_filesystem_unittest.TestCase):
             ): "external/foo/include",
         }
 
+        self._create_external_symlink()
+
         # Set up a fake symlink for the dynamic fallback (the second arg)
         v_dir = (
             self.output_path
@@ -1046,8 +1062,10 @@ class MergerTest(fake_filesystem_unittest.TestCase):
         cmd = merger.remap_virtual_includes(
             cmd,
             vrmaps,
+            self.output_base,
             self.output_path,
-            self.workspace_root,
+            self.execution_root,
+            relative_to=self.workspace_root,
         )
 
         self.assertEqual(
@@ -1087,7 +1105,7 @@ class MergerTest(fake_filesystem_unittest.TestCase):
         # Let's verify it produces relative path even if it's ".."
 
         # Create the bazel-out symlink so it gets relativized
-        self.fs.create_dir(self.workspace_root / "bazel-out")
+        self._create_bazel_out_symlink()
 
         cmd = merger.resolve_bazel_out_paths(
             cmd, self.output_path, relative_to=self.workspace_root
@@ -1106,7 +1124,8 @@ class MergerTest(fake_filesystem_unittest.TestCase):
         self.assertEqual(cmd.arguments[0], f"-I{expected_arg_rel}")
 
     def test_resolve_external_paths_relative(self):
-        """Test resolving external paths with relativization."""
+        """Test resolving external paths with relativization (with symlink)."""
+        self._create_external_symlink()
         cmd = merger.CompileCommand(
             file="external/foo/bar.cc",
             directory="",
@@ -1117,18 +1136,152 @@ class MergerTest(fake_filesystem_unittest.TestCase):
             cmd, self.output_base, relative_to=self.workspace_root
         )
 
-        # Since external/foo/... matches expected pattern but is NOT relative
-        # to workspace_root (workspace_root is /workspace, output_base is
-        # /home/somebody/...), it should fall back to absolute paths.
+        # Should use the "external/..." prefix because the symlink exists.
         expected_file = "external/foo/bar.cc"
         expected_arg = "external/foo/include"
 
         self.assertEqual(cmd.file, expected_file)
-
         self.assertEqual(cmd.arguments[0], f"-I{expected_arg}")
+
+    def test_resolve_external_paths_missing_symlink(self):
+        """Test resolving external paths when the 'external' symlink is
+        missing."""
+        # DO NOT call self._create_external_symlink()
+        cmd = merger.CompileCommand(
+            file="external/foo/bar.cc",
+            directory="",
+            arguments=["-Iexternal/foo/include"],
+        )
+
+        cmd = merger.resolve_external_paths(
+            cmd, self.output_base, relative_to=self.workspace_root
+        )
+
+        # Should fall back to absolute paths because the symlink is missing.
+        expected_file = str(
+            (self.output_base / "external/foo/bar.cc").resolve()
+        )
+        expected_arg = str(
+            (self.output_base / "external/foo/include").resolve()
+        )
+
+        self.assertEqual(cmd.file, expected_file)
+        self.assertEqual(cmd.arguments[0], f"-I{expected_arg}")
+
+    def test_resolve_bazel_out_paths_missing_symlink(self):
+        """Test resolving bazel-out paths when 'bazel-out' symlink is
+        missing."""
+        # DO NOT call self._create_bazel_out_symlink()
+        cmd = merger.CompileCommand(
+            file="bazel-out/k8-fastbuild/bin/foo/bar.cc",
+            directory="",
+            arguments=["-Ibazel-out/k8-fastbuild/genfiles/include"],
+        )
+
+        cmd = merger.resolve_bazel_out_paths(
+            cmd, self.output_path, relative_to=self.workspace_root
+        )
+
+        # Should fall back to absolute paths because the symlink is missing.
+        # Note: resolve_bazel_out_paths uses output_path (which is
+        # .../bazel-out) to anchor relative paths.
+        expected_file = str(self.output_path / "k8-fastbuild/bin/foo/bar.cc")
+        expected_arg = str(self.output_path / "k8-fastbuild/genfiles/include")
+
+        self.assertEqual(cmd.file, expected_file)
+        self.assertEqual(cmd.arguments[0], f"-I{expected_arg}")
+
+    def test_resolve_bazel_out_paths_with_bazel_standard_prefix(self):
+        """Test resolving bazel-out paths with a Bazel-standard symlink prefix.
+
+        If prefix is 'out/', Bazel creates 'out/out'.
+        """
+        prefix = "out/"
+        self.fs.create_dir(self.workspace_root / "out")
+        self.fs.create_symlink(
+            self.workspace_root / "out/out", self.output_path
+        )
+
+        cmd = merger.CompileCommand(
+            file="bazel-out/k8-fastbuild/bin/foo/bar.cc",
+            directory="",
+            arguments=["-Ibazel-out/k8-fastbuild/genfiles/include"],
+        )
+
+        cmd = merger.resolve_bazel_out_paths(
+            cmd,
+            self.output_path,
+            relative_to=self.workspace_root,
+            symlink_prefix=prefix,
+        )
+
+        # Should find 'out/out' and use it
+        self.assertEqual(cmd.file, "out/out/k8-fastbuild/bin/foo/bar.cc")
+        self.assertEqual(
+            cmd.arguments[0], "-Iout/out/k8-fastbuild/genfiles/include"
+        )
+
+    def test_resolve_external_paths_with_custom_prefix(self):
+        """Test resolving external paths with a custom symlink prefix."""
+        # Create symlink at out/external
+        prefix = "out/"
+        self.fs.create_dir(self.workspace_root / "out")
+        if not self.fs.exists(self.output_base / 'external'):
+            self.fs.create_dir(self.output_base / 'external')
+
+        self.fs.create_symlink(
+            self.workspace_root / "out/external", self.output_base / "external"
+        )
+
+        cmd = merger.CompileCommand(
+            file="external/foo/bar.cc",
+            directory="",
+            arguments=["-Iexternal/foo/include"],
+        )
+
+        cmd = merger.resolve_external_paths(
+            cmd,
+            self.output_base,
+            relative_to=self.workspace_root,
+            symlink_prefix=prefix,
+        )
+
+        # Should use the custom prefix: out/external/...
+        self.assertEqual(cmd.file, "out/external/foo/bar.cc")
+        self.assertEqual(cmd.arguments[0], "-Iout/external/foo/include")
+
+    def test_resolve_external_paths_with_bazel_prefix(self):
+        """Test resolving external paths with a 'bazel-' style prefix."""
+        # If prefix is 'out/bazel-', look for 'out/external'
+        prefix = "out/bazel-"
+        self.fs.create_dir(self.workspace_root / "out")
+        if not self.fs.exists(self.output_base / 'external'):
+            self.fs.create_dir(self.output_base / 'external')
+
+        self.fs.create_symlink(
+            self.workspace_root / "out/external", self.output_base / "external"
+        )
+
+        cmd = merger.CompileCommand(
+            file="external/foo/bar.cc",
+            directory="",
+            arguments=["-Iexternal/foo/include"],
+        )
+
+        cmd = merger.resolve_external_paths(
+            cmd,
+            self.output_base,
+            relative_to=self.workspace_root,
+            symlink_prefix=prefix,
+        )
+
+        # Should find 'out/external' and use it as the prefix
+        self.assertEqual(cmd.file, "out/external/foo/bar.cc")
+        self.assertEqual(cmd.arguments[0], "-Iout/external/foo/include")
 
     def test_main_with_relative_paths(self):
         """Test that relativization of paths."""
+        self._create_external_symlink()
         _create_fragment(
             self.fs,
             self.output_path,
@@ -1161,6 +1314,7 @@ class MergerTest(fake_filesystem_unittest.TestCase):
 
     def test_resolve_absolute_paths_relative(self):
         """Test resolving absolute paths with relativization."""
+        self._create_external_symlink()
         # Create a fragment with an absolute path that is inside the output base
         abs_path = self.output_base / "external/protobuf/foo.cc"
 
@@ -1247,7 +1401,7 @@ class MergerTest(fake_filesystem_unittest.TestCase):
         # Create a symlink in external/ pointing to it (simulating
         # local_path_override)
         external_dep_path = self.output_base / 'external' / 'dep1'
-        self.fs.create_dir(self.output_base / 'external')
+        self._create_external_symlink()
         self.fs.create_symlink(external_dep_path, local_dep_path)
 
         _create_fragment(

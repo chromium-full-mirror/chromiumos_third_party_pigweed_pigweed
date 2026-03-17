@@ -157,3 +157,14 @@ pw_compile_commands_generator(
         ":external_dep_library",
     ],
 )
+
+pw_compile_commands_generator(
+    name = "test_prefix_compile_commands_generator",
+    platform = "@bazel_tools//tools:host_platform",
+    symlink_prefix = "custom_out/",
+    tags = ["manual"],
+    target_patterns = [
+        "//pw_ide/bazel/compile_commands/test:basic_binary",
+    ],
+    visibility = ["//pw_ide/py:__subpackages__"],
+)
