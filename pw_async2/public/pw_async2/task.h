@@ -257,6 +257,7 @@ class Task : public IntrusiveList<Task>::Item {
     kSleeping,
     kRunning,
     kDeregisteredButRunning,
+    kWokenWhileRunning,
     kWoken,
   };
 

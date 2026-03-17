@@ -25,6 +25,7 @@
 #include "pw_async2/task.h"
 #include "pw_async2_private/yield.h"
 #include "pw_log/log.h"
+#include "pw_preprocessor/compiler.h"
 #include "pw_thread/sleep.h"
 
 #define PW_TASK_NAME_FMT() PW_LOG_TOKEN_FMT("pw_async2")
@@ -72,6 +73,9 @@ bool Task::TryDeregister() {
     case State::kSleeping:
       dispatcher_->RemoveSleepingTaskLocked(*this);
       break;
+    case State::kWokenWhileRunning:
+      dispatcher_->RemoveWokenTaskLocked(*this);
+      [[fallthrough]];
     case State::kRunning:
       // Mark the task as deregistered. The dispatcher thread running the task
       // completes deregistration and moves the task to the unposted state.
@@ -160,6 +164,7 @@ RunTaskResult Task::RunInDispatcher() {
       case State::kRunning:
       case State::kDeregisteredButRunning:
         break;
+      case State::kWokenWhileRunning:
       case State::kWoken:
         dispatcher_->RemoveWokenTaskLocked(*this);
         break;
@@ -191,6 +196,8 @@ RunTaskResult Task::RunInDispatcher() {
       state_ = State::kUnposted;
       dispatcher_ = nullptr;
     }
+  } else if (state_ == State::kWokenWhileRunning) {
+    state_ = State::kWoken;
   }
   internal::lock().unlock();
 
@@ -207,27 +214,28 @@ void Task::Wake() {
                static_cast<const void*>(this));
 
   switch (state_) {
-    case State::kWoken:
-      // Do nothing: this has already been woken.
-      internal::lock().unlock();
-      return;
     case State::kUnposted:
-      // This should be unreachable.
-      PW_CHECK(false);
+      PW_UNREACHABLE;
+    case State::kSleeping:
+      dispatcher_->RemoveSleepingTaskLocked(*this);
+      // Wake away!
+      state_ = State::kWoken;
+      break;
     case State::kRunning:
       // Wake again to indicate that this task should be run once more,
       // as the state of the world may have changed since the task
       // started running.
+      state_ = State::kWokenWhileRunning;
       break;
     case State::kDeregisteredButRunning:
       internal::lock().unlock();
       return;  // Do nothing: will be deregistered when the run finishes
-    case State::kSleeping:
-      dispatcher_->RemoveSleepingTaskLocked(*this);
-      // Wake away!
-      break;
+    case State::kWokenWhileRunning:
+    case State::kWoken:
+      // Do nothing: this has already been woken.
+      internal::lock().unlock();
+      return;
   }
-  state_ = State::kWoken;
   dispatcher_->AddWokenTaskLocked(*this);
   dispatcher_->Wake();
 }
