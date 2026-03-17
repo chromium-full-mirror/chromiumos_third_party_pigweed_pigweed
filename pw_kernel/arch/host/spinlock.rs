@@ -58,4 +58,15 @@ impl kernel::sync::spinlock::BareSpinLock for BareSpinLock {
             .map(|_| AtomicSpinLockGuard { lock: self })
             .ok()
     }
+
+    /// Unconditionally break the lock.
+    ///
+    /// Do not call directly.
+    ///
+    /// # Safety
+    /// See [`kernel::sync::spinlock::SpinLock::break_lock()`] for use and
+    /// safety information.
+    unsafe fn break_lock(&self) {
+        self.locked.store(false, Ordering::Release);
+    }
 }

@@ -36,6 +36,14 @@ pub trait BareSpinLock: Send + Sync {
         }
     }
 
+    /// Unconditionally break the lock.
+    ///
+    /// Do not call directly.
+    ///
+    /// # Safety
+    /// See [`SpinLock::break_lock()`] for use and safety information.
+    unsafe fn break_lock(&self);
+
     // TODO - konkers: Add optimized path for functions that know they are in
     // atomic context (i.e. interrupt handlers).
 }
@@ -90,6 +98,24 @@ impl<K: Kernel, T> SpinLock<K, T> {
             lock: self,
             _preempt_guard: PreemptDisableGuard::new(kernel),
             _inner_guard: inner_guard,
+        }
+    }
+
+    /// Unconditionally break the lock.
+    ///
+    /// This method is used to forcibly release the lock without dropping the
+    /// guard. This is unsafe because it breaks the lock invariants and can
+    /// lead to data corruption if not used carefully.
+    ///
+    /// # Safety
+    /// This method should only be called in specific scenarios:
+    /// 1. Thread starting: to drop the scheduler lock on thread start.
+    /// 2. Resource access during a system wide crash dump.
+    ///
+    /// The caller must ensure that breaking the lock will not cause data corruption.
+    pub unsafe fn break_lock(&self) {
+        unsafe {
+            self.inner.break_lock();
         }
     }
 }

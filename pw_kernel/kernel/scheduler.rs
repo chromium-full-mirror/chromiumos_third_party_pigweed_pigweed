@@ -992,6 +992,21 @@ pub fn tick<K: Kernel>(kernel: K, now: Instant<K::Clock>) {
 /// The thread will enter `State::Terminated`, wait for all outstanding
 /// references to be dropped, then wait to be joined.
 #[allow(dead_code)]
+/// Break the global scheduler lock.
+///
+/// This method is used to forcibly release the scheduler lock without dropping the
+/// guard. This is unsafe because it breaks the lock invariants and can
+/// lead to data corruption if not used carefully.
+///
+/// # Safety
+/// This method should only be called on thread start.
+/// The caller must ensure that breaking the lock will not cause data corruption.
+pub unsafe fn break_scheduler_lock<K: Kernel>(kernel: K) {
+    unsafe {
+        kernel.get_scheduler().break_lock();
+    }
+}
+
 pub fn exit_thread<K: Kernel>(kernel: K) -> ! {
     kernel.get_scheduler().lock(kernel).thread_exit(kernel);
 

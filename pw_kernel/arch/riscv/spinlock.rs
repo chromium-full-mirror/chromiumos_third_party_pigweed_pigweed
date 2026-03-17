@@ -149,4 +149,15 @@ impl kernel::sync::spinlock::BareSpinLock for BareSpinLock {
             lock: self,
         }
     }
+
+    /// Unconditionally break the lock.
+    ///
+    /// Do not call directly.
+    ///
+    /// # Safety
+    /// See [`kernel::sync::spinlock::SpinLock::break_lock()`] for use and
+    /// safety information.
+    unsafe fn break_lock(&self) {
+        unsafe { self.is_locked.get().write_volatile(false) };
+    }
 }

@@ -253,6 +253,10 @@ pub trait ThreadState: 'static + Sized {
     /// # Safety
     /// Caller guarantees that the `memory_config` pointer remains valid for the
     /// lifetime of the thread.
+    ///
+    /// # Implementation Note
+    /// The implementation is responsible for ensuring that `initial_function`
+    /// is called with interrupts enabled and without the scheduler lock held
     unsafe fn initialize_kernel_frame(
         &mut self,
         kernel_stack: Stack,
@@ -269,6 +273,11 @@ pub trait ThreadState: 'static + Sized {
     /// # Safety
     /// Caller guarantees that the `memory_config` pointer remains valid for the
     /// lifetime of the thread.
+    ///
+    /// # Implementation Note
+    /// The implementation is responsible for ensuring that `initial_function`
+    /// is called with interrupts enabled, memory_config enabled, non-privileged
+    /// mode, and without the scheduler lock held
     #[cfg(feature = "user_space")]
     unsafe fn initialize_user_frame(
         &mut self,
