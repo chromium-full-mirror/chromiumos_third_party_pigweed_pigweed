@@ -86,6 +86,17 @@ results in an assertion.
 This polling model allows a single thread to manage many concurrent operations
 without blocking.
 
+.. admonition:: Completed future lifetime
+   :class: warning
+
+   Once a future yields :cc:`Ready <pw::async2::Ready>`, it is considered
+   complete and its state is final. The async2 framework must be free to destroy
+   the future immediately following a ``Ready`` return without invalidating its
+   result.
+
+   When returning a value from ``Ready``, it must not contain references to the
+   future or its internal state.
+
 Composability
 =============
 The power of futures is their ability to compose to construct complex

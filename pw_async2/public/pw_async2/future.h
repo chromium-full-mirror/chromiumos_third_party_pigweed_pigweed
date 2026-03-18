@@ -58,8 +58,10 @@ concept Future = requires {
 
   /// `Poll<value_type> Pend(Context&)` advances the future. Returns `Ready`
   /// when the operation completes. Uses the `Context` to store a waker and
-  /// returns `Pending` if there is more work to do. Must not be called again
-  /// after completing.
+  /// returns `Pending` if there is more work to do.
+  ///
+  /// Following a `Ready` return, `Pend` must not be called again, and the
+  /// `Future` must be safe to destroy.
   static_cast<Poll<typename T::value_type> (T::*)(Context&)>(&T::Pend);
 
   /// Futures must have a default constructor that initializes them to an empty
