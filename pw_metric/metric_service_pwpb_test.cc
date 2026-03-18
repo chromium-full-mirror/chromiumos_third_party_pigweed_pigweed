@@ -15,10 +15,12 @@
 #include "pw_metric/metric_service_pwpb.h"
 
 #include <limits>
+#include <optional>
 #include <vector>
 
 #include "pw_bytes/span.h"
 #include "pw_function/function.h"
+#include "pw_metric/list.h"
 #include "pw_metric/pwpb_metric_writer.h"
 #include "pw_metric_proto/metric_service.pwpb.h"
 #include "pw_protobuf/decoder.h"
@@ -228,11 +230,11 @@ TEST(MetricService, MaxDepth4) {
   // MetricWalker internally uses: Vector<Token, /*capacity=*/4> path_;
   // pw.metric.proto.Metric.token_path max_count:4
 
-  IntrusiveList<Group> global_groups;    // Simulate pw::metric::global_groups
-  IntrusiveList<Metric> global_metrics;  // Simulate pw::metric::global_metrics
-
   PW_METRIC_GROUP(global_group_lvl1, "level1");
-  global_groups.push_back(global_group_lvl1);
+  GroupList global_groups;    // Simulate pw::metric::global_groups
+  MetricList global_metrics;  // Simulate pw::metric::global_metrics
+
+  global_groups.push_front(global_group_lvl1);
 
   PW_METRIC_GROUP(global_group_lvl1, group_lvl2, "level2");
   PW_METRIC_GROUP(group_lvl2, group_lvl3, "level3");
@@ -430,9 +432,14 @@ TEST(MetricService, WalkWithInvalidCursor) {
   EXPECT_EQ(Status::NotFound(), ctx.status());
 }
 
+struct HasAMetric {
+  PW_METRIC(m0, "m0", 0u);
+};
+
 TEST(MetricService, WalkWithStaleCursorAfterMutation) {
   PW_METRIC_GROUP(root, "/");
-  PW_METRIC(root, m0, "m0", 0u);
+  std::optional<HasAMetric> m0_object(std::in_place);
+  root.Add(m0_object->m0);
   PW_METRIC(root, m1, "m1", 1u);
 
   uint64_t response_cursor = 0;
@@ -474,7 +481,7 @@ TEST(MetricService, WalkWithStaleCursorAfterMutation) {
   // Due to push_front, the list order is [m1, m0]. The walker processes m1,
   // and the cursor for the next page points to m0.
   // Mutate the tree: remove the metric the cursor points to.
-  ASSERT_TRUE(root.metrics().remove(m0));
+  m0_object.reset();
 
   // Second page: Use the now-stale cursor within a new context.
   {

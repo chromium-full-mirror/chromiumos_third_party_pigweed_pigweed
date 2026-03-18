@@ -811,9 +811,9 @@ chosen some points on the tradeoff curve:
 - **Relying on C++ static initialization** - In short, the convenience
   outweighs the cost and risk. Without static initializers, it would be
   impossible to automatically collect the metrics without post-processing the
-  C++ code to find the metrics; a huge and debatably worthwhile approach. We
-  have carefully analyzed the static initializer behaviour of Pigweed's
-  IntrusiveList and are confident it is correct.
+  C++ code to find the metrics; a huge and debatably worthwhile approach.
+  Metrics lists are constant initialized, so can be accessed safely during
+  static initialization.
 
 - **Both local & global support** - Potentially just one approach (the local or
   global one) could be offered, making the module less complex. However, we

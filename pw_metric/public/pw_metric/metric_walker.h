@@ -16,9 +16,9 @@
 #include <optional>
 
 #include "pw_assert/check.h"
-#include "pw_containers/intrusive_list.h"
 #include "pw_containers/vector.h"
 #include "pw_function/function.h"
+#include "pw_metric/list.h"
 #include "pw_metric/metric.h"
 #include "pw_result/result.h"
 #include "pw_status/status.h"
@@ -40,16 +40,16 @@ class MetricWalker {
  public:
   MetricWalker(MetricWriter& writer) : writer_(writer) {}
 
-  Status Walk(const IntrusiveList<Metric>& metrics) {
-    for (const auto& m : metrics) {
+  Status Walk(const MetricList& metrics) {
+    for (const auto& m : metrics.list()) {
       ScopedName scoped_name(m.name(), *this);
       PW_TRY(writer_.Write(m, path_));
     }
     return OkStatus();
   }
 
-  Status Walk(const IntrusiveList<Group>& groups) {
-    for (const auto& g : groups) {
+  Status Walk(const GroupList& groups) {
+    for (const auto& g : groups.list()) {
       PW_TRY(Walk(g));
     }
     return OkStatus();
@@ -95,8 +95,8 @@ class ResumableMetricWalker {
   // Walks the metrics and groups, starting from the metric at the provided
   // cursor address. Returns the address of the next metric, or NOT_FOUND if
   // the provided cursor is invalid.
-  Result<uint64_t> Walk(const IntrusiveList<Metric>& metrics,
-                        const IntrusiveList<Group>& groups,
+  Result<uint64_t> Walk(const MetricList& metrics,
+                        const GroupList& groups,
                         std::optional<uint64_t> cursor);
 
   // When Walk() returns RESOURCE_EXHAUSTED, this method provides the cursor
@@ -108,8 +108,8 @@ class ResumableMetricWalker {
   struct ScopedName;
 
   // Helper that recursively walks the metrics and groups.
-  Status RecursiveWalkHelper(const IntrusiveList<Metric>& metrics,
-                             const IntrusiveList<Group>& groups);
+  Status RecursiveWalkHelper(const MetricList& metrics,
+                             const GroupList& groups);
 
   Vector<Token, /*capacity=*/4> path_;
   UnaryMetricWriter& writer_;

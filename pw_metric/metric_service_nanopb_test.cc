@@ -15,6 +15,7 @@
 #include "pw_metric/metric_service_nanopb.h"
 
 #include <limits>
+#include <optional>
 
 #include "pw_log/log.h"
 #include "pw_metric/metric_walker.h"
@@ -284,12 +285,19 @@ TEST(MetricService, WalkWithInvalidCursor) {
   EXPECT_EQ(Status::NotFound(), ctx.call(request));
 }
 
+struct HasAMetric {
+  PW_METRIC(m0, "m0", 0u);
+};
+
 // This test validates the core reason for using an address-based cursor.
 // It ensures that if the metric tree is mutated between paginated calls,
 // a stale cursor pointing to a now-deleted metric fails gracefully.
 TEST(MetricService, WalkWithStaleCursorAfterMutation) {
   PW_METRIC_GROUP(root, "/");
-  PW_METRIC(root, m0, "m0", 0u);
+
+  std::optional<HasAMetric> m0_object(std::in_place);
+  root.Add(m0_object->m0);
+
   PW_METRIC(root, m1, "m1", 1u);
   PW_METRIC(root, m2, "m2", 2u);
   PW_METRIC(root, m3, "m3", 3u);
@@ -311,10 +319,10 @@ TEST(MetricService, WalkWithStaleCursorAfterMutation) {
   EXPECT_TRUE(response1.has_cursor);
 
   // The cursor will point to the next metric to be processed (m0).
-  EXPECT_EQ(response1.cursor, reinterpret_cast<uint64_t>(&m0));
+  EXPECT_EQ(response1.cursor, reinterpret_cast<uint64_t>(&m0_object->m0));
 
   // Mutate the tree: remove the metric the cursor points to.
-  root.metrics().remove(m0);
+  m0_object.reset();
 
   // Second page: Use the now-stale cursor.
   pw_metric_proto_WalkRequest request = pw_metric_proto_WalkRequest_init_zero;

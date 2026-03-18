@@ -126,20 +126,25 @@ class NanopbUnaryMetricWriter : public UnaryMetricWriter {
 
 // Helper to recursively search the metric tree for a metric at a given memory
 // address. This is used for pre-flight cursor validation.
-bool FindMetricByAddress(const IntrusiveList<Metric>& metrics,
-                         const IntrusiveList<Group>& groups,
+bool FindMetricByAddress(const MetricList& metrics,
+                         const GroupList& groups,
                          uint64_t address) {
-  for (const auto& metric : metrics) {
+  bool found = false;
+  metrics.ForEach([&](const auto& metric) {
     if (reinterpret_cast<uint64_t>(&metric) == address) {
-      return true;
+      found = true;
     }
+  });
+  if (found) {
+    return true;
   }
-  for (const auto& group : groups) {
+
+  groups.ForEach([&](const auto& group) {
     if (FindMetricByAddress(group.metrics(), group.children(), address)) {
-      return true;
+      found = true;
     }
-  }
-  return false;
+  });
+  return found;
 }
 
 }  // namespace

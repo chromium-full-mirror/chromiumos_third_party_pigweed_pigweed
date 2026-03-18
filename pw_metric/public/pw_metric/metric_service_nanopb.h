@@ -15,7 +15,7 @@
 
 #include <cstring>
 
-#include "pw_containers/intrusive_list.h"
+#include "pw_metric/list.h"
 #include "pw_metric/metric.h"
 #include "pw_metric_proto/metric_service.rpc.pb.h"
 #include "pw_span/span.h"
@@ -41,8 +41,7 @@ namespace pw::metric {
 class MetricService final
     : public proto::pw_rpc::nanopb::MetricService::Service<MetricService> {
  public:
-  MetricService(const IntrusiveList<Metric>& metrics,
-                const IntrusiveList<Group>& groups)
+  MetricService(const MetricList& metrics, const GroupList& groups)
       : metrics_(metrics), groups_(groups) {}
 
   // The legacy streaming RPC for fetching metrics. The paginated Walk() RPC is
@@ -55,12 +54,12 @@ class MetricService final
   Status Walk(const pw_metric_proto_WalkRequest& request,
               pw_metric_proto_WalkResponse& response);
 
-  const IntrusiveList<Metric>& metrics() const { return metrics_; }
-  const IntrusiveList<Group>& groups() const { return groups_; }
+  const MetricList& metrics() const { return metrics_; }
+  const GroupList& groups() const { return groups_; }
 
  private:
-  const IntrusiveList<Metric>& metrics_;
-  const IntrusiveList<Group>& groups_;
+  const MetricList& metrics_;
+  const GroupList& groups_;
 };
 
 }  // namespace pw::metric
