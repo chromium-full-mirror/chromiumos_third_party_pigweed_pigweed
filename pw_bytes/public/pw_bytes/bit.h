@@ -42,7 +42,7 @@ constexpr T SignExtend(T nbit_value) {
   constexpr std::size_t extension_bits = SIZE_OF_IN_BIT(SignedT) - kBitWidth;
 
   SignedT nbit_temp = static_cast<SignedT>(nbit_value);
-  return ((nbit_temp << extension_bits) >> extension_bits);
+  return static_cast<T>((nbit_temp << extension_bits) >> extension_bits);
 }
 
 /// Extracts bits between msb and lsb from a value.
