@@ -24,6 +24,7 @@ cc_library_static {
         "pw_thread",
     ],
     export_include_dirs: ["public"],
+    local_include_dirs: ["private"],
     srcs: [
         "context.cc",
         "dispatcher.cc",
@@ -34,10 +35,10 @@ cc_library_static {
     ],
     header_libs: [
         "pw_assert",
-        "pw_async2_yield",
         "pw_chrono",
         "pw_log",
         "pw_sync",
+        "pw_thread",
     ],
     export_header_lib_headers: [
         "pw_assert",
@@ -55,11 +56,4 @@ cc_library_static {
         "pw_memory",
         "pw_string",
     ],
-}
-
-cc_library_headers {
-    name: "pw_async2_yield",
-    export_include_dirs: ["private"],
-    vendor_available: true,
-    host_supported: true,
 }
