@@ -49,12 +49,20 @@ Status Decoder::SkipField() {
 }
 
 uint32_t Decoder::FieldNumber() const {
-  uint64_t key;
-  if (varint::Decode(proto_, &key) == 0 || !FieldKey::IsValidKey(key)) {
+  Result<FieldKey> key = GetFieldKey();
+  if (!key.ok()) {
     return 0;
   }
+  return key.value().field_number();
+}
+
+Result<FieldKey> Decoder::GetFieldKey() const {
+  uint64_t key;
+  if (varint::Decode(proto_, &key) == 0 || !FieldKey::IsValidKey(key)) {
+    return Status::DataLoss();
+  }
   PW_DCHECK(key <= std::numeric_limits<uint32_t>::max());
-  return FieldKey(static_cast<uint32_t>(key)).field_number();
+  return FieldKey(static_cast<uint32_t>(key));
 }
 
 Status Decoder::ReadUint32(uint32_t* out) {

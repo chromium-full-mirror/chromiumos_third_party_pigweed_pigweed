@@ -77,6 +77,20 @@ class Decoder {
   // TODO(frolv): This should be refactored to return a Result<uint32_t>.
   uint32_t FieldNumber() const;
 
+  // Gets the field key of the field at the current cursor position if valid.
+  //
+  // Note: avoid using this function unless you need to examine the field wire
+  // format properties. Using FieldNumber() is enough for manual decoding in
+  // most cases.
+  //
+  // Returns values:
+  //
+  //             OK: The FieldKey is valid.
+  //      DATA_LOSS: The FieldKey is invalid, the decode operation terminated.
+  //                 Any subsequent calls to Next() or Read*() will return
+  //                 DATA_LOSS.
+  Result<FieldKey> GetFieldKey() const;
+
   // Reads a proto int32 value from the current cursor.
   Status ReadInt32(int32_t* out) {
     return ReadUint32(reinterpret_cast<uint32_t*>(out));
