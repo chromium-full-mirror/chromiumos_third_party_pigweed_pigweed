@@ -1869,9 +1869,7 @@ sphinxcontrib-devhelp==1.0.2 \
     # via
     #   -r compiled_requirements.txt
     #   sphinx
-sphinxcontrib-doxylink==1.13.0 \
-    --hash=sha256:06cf63e7e03c335df226fee662ff1c6ebe071c569d7fe47ebba5d79b6b235cd3 \
-    --hash=sha256:c97f46eb86e7c73ca0c8d387511c18163ec988e4bc89d0b588ab6bed1b8c5ff8
+sphinxcontrib-doxylink @ git+https://pigweed.googlesource.com/third_party/github/sphinx-contrib/doxylink
     # via -r compiled_requirements.txt
 sphinxcontrib-htmlhelp==2.0.1 \
     --hash=sha256:0cbdd302815330058422b98a113195c9249825d681e18f11e8b1f78a2f11efff \
