@@ -73,18 +73,8 @@ pw_source_set("handler_allocator") {
   sources = [ "handler_allocator.cc" ]
 }
 
-pw_source_set("client") {
-  public_configs = [ ":public_include_path" ]
-  public_deps = [
-    ":core",
-    ":proto.raw_rpc",
-    dir_pw_assert,
-    dir_pw_function,
-    dir_pw_stream,
-  ]
-  deps = [ dir_pw_log ]
-  public = [ "public/pw_transfer/client.h" ]
-  sources = [ "client.cc" ]
+group("client") {
+  public_deps = [ ":core" ]
 }
 
 pw_source_set("core") {
@@ -92,6 +82,7 @@ pw_source_set("core") {
   public_deps = [
     ":config",
     ":proto.pwpb",
+    ":proto.raw_rpc",
     "$dir_pw_chrono:system_clock",
     "$dir_pw_preprocessor",
     "$dir_pw_rpc:client",
@@ -102,6 +93,7 @@ pw_source_set("core") {
     "$dir_pw_thread:thread_core",
     dir_pw_assert,
     dir_pw_bytes,
+    dir_pw_function,
     dir_pw_result,
     dir_pw_span,
     dir_pw_status,
@@ -114,12 +106,14 @@ pw_source_set("core") {
     dir_pw_varint,
   ]
   public = [
+    "public/pw_transfer/client.h",
     "public/pw_transfer/handler.h",
     "public/pw_transfer/rate_estimate.h",
     "public/pw_transfer/transfer_thread.h",
   ]
   sources = [
     "chunk.cc",
+    "client.cc",
     "client_context.cc",
     "context.cc",
     "public/pw_transfer/internal/chunk.h",

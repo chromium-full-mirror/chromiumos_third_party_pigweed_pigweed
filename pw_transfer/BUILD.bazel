@@ -60,6 +60,7 @@ cc_library(
     name = "core",
     srcs = [
         "chunk.cc",
+        "client.cc",
         "client_context.cc",
         "context.cc",
         "rate_estimate.cc",
@@ -67,6 +68,7 @@ cc_library(
         "transfer_thread.cc",
     ],
     hdrs = [
+        "public/pw_transfer/client.h",
         "public/pw_transfer/handler.h",
         "public/pw_transfer/internal/chunk.h",
         "public/pw_transfer/internal/client_context.h",
@@ -147,22 +149,9 @@ cc_library(
     ],
 )
 
-cc_library(
+alias(
     name = "client",
-    srcs = [
-        "client.cc",
-    ],
-    hdrs = [
-        "public/pw_transfer/client.h",
-    ],
-    features = ["-conversion_warnings"],
-    strip_include_prefix = "public",
-    deps = [
-        ":core",
-        "//pw_function",
-        "//pw_log",
-        "//pw_stream",
-    ],
+    actual = ":core",
 )
 
 cc_library(

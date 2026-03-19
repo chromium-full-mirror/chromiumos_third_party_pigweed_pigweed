@@ -270,7 +270,8 @@ TEST_F(TransferThreadTest, StartTransferExhausted_Server) {
 TEST_F(TransferThreadTest, StartTransferExhausted_Client) {
   rpc::RawClientReaderWriter read_stream = pw_rpc::raw::Transfer::Read(
       rpc_client_context_.client(), rpc_client_context_.channel().id());
-  transfer_thread_.SetClientReadStream(read_stream, [](ConstByteSpan) {});
+  transfer_thread_.SetClientReadStream(
+      read_stream, nullptr, [](ConstByteSpan) {});
 
   Status status3 = Status::Unknown();
   Status status4 = Status::Unknown();

@@ -19,6 +19,7 @@
 
 #include "pw_assert/check.h"
 #include "pw_log/log.h"
+#include "pw_transfer/client.h"
 #include "pw_transfer/internal/chunk.h"
 #include "pw_transfer/internal/client_context.h"
 #include "pw_transfer/internal/config.h"
@@ -176,8 +177,8 @@ void TransferThread::StartTransfer(
   if (is_client_transfer) {
     next_event_.new_transfer.stream = stream;
     next_event_.new_transfer.rpc_writer =
-        &(type == TransferType::kTransmit ? client_write_stream_
-                                          : client_read_stream_)
+        &(type == TransferType::kTransmit ? client_write_stream_.stream
+                                          : client_read_stream_.stream)
              .as_writer();
   } else {
     auto handler = std::find_if(handlers_.begin(),
@@ -349,8 +350,8 @@ void TransferThread::HandleEvent(const internal::Event& event) {
       }
 
       // Cancel/Finish streams.
-      client_read_stream_.Cancel().IgnoreError();
-      client_write_stream_.Cancel().IgnoreError();
+      client_read_stream_.stream.Cancel().IgnoreError();
+      client_write_stream_.stream.Cancel().IgnoreError();
       server_read_stream_.Finish(Status::Aborted()).IgnoreError();
       server_write_stream_.Finish(Status::Aborted()).IgnoreError();
       return;
@@ -546,24 +547,38 @@ void TerminateTransfers(span<T> contexts,
   }
 }
 
+void TransferThread::CancelExistingStream(OwnedClientStream& stream,
+                                          TransferType type) {
+  if (stream.stream.active()) {
+    if (staged_client_stream_.client != nullptr && stream.client != nullptr &&
+        stream.client != staged_client_stream_.client) {
+      stream.client->OnRpcError(Status::Cancelled(), type);
+    }
+    stream.stream.Cancel().IgnoreError();
+  }
+}
+
 void TransferThread::HandleSetStreamEvent(TransferStream stream) {
   switch (stream) {
     case TransferStream::kClientRead:
+      CancelExistingStream(client_read_stream_, TransferType::kReceive);
       TerminateTransfers(client_transfers_,
                          TransferType::kReceive,
                          EventType::kClientEndTransfer,
                          Status::Aborted());
       client_read_stream_ = std::move(staged_client_stream_);
-      client_read_stream_.set_on_next(std::move(staged_client_on_next_));
+      client_read_stream_.stream.set_on_next(std::move(staged_client_on_next_));
       // on_error must be controlled by the client
       break;
     case TransferStream::kClientWrite:
+      CancelExistingStream(client_write_stream_, TransferType::kTransmit);
       TerminateTransfers(client_transfers_,
                          TransferType::kTransmit,
                          EventType::kClientEndTransfer,
                          Status::Aborted());
       client_write_stream_ = std::move(staged_client_stream_);
-      client_write_stream_.set_on_next(std::move(staged_client_on_next_));
+      client_write_stream_.stream.set_on_next(
+          std::move(staged_client_on_next_));
       // on_error must be controlled by the client
       break;
     case TransferStream::kServerRead:
@@ -639,9 +654,9 @@ void TransferThread::GetResourceState(uint32_t resource_id) {
 rpc::Writer& TransferThread::stream_for(TransferStream stream) {
   switch (stream) {
     case TransferStream::kClientRead:
-      return client_read_stream_.as_writer();
+      return client_read_stream_.stream.as_writer();
     case TransferStream::kClientWrite:
-      return client_write_stream_.as_writer();
+      return client_write_stream_.stream.as_writer();
     case TransferStream::kServerRead:
       return server_read_stream_.as_writer();
     case TransferStream::kServerWrite:

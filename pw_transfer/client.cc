@@ -48,7 +48,7 @@ Result<Client::Handle> Client::Read(
           OnRpcError(status, internal::TransferType::kReceive);
         });
     transfer_thread_.SetClientReadStream(
-        read_stream, [this](ConstByteSpan chunk) {
+        read_stream, this, [this](ConstByteSpan chunk) {
           transfer_thread_.ProcessClientChunk(chunk);
         });
     has_read_stream_ = true;
@@ -98,7 +98,7 @@ Result<Client::Handle> Client::Write(
           OnRpcError(status, internal::TransferType::kTransmit);
         });
     transfer_thread_.SetClientWriteStream(
-        write_stream, [this](ConstByteSpan chunk) {
+        write_stream, this, [this](ConstByteSpan chunk) {
           transfer_thread_.ProcessClientChunk(chunk);
         });
     has_write_stream_ = true;

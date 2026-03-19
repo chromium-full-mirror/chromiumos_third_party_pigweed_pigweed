@@ -160,11 +160,13 @@ class TransferThread : public thread::ThreadCore {
   /// If the thread has an existing active client read stream, closes it and
   /// terminates any transfers running on it.
   void SetClientReadStream(rpc::RawClientReaderWriter& read_stream,
+                           Client* client,
                            Function<void(ConstByteSpan)>&& on_next) {
     // Clear the existing callback to prevent incoming chunks from blocking on
     // the transfer thread and preventing the call's cleanup.
-    client_read_stream_.set_on_next(nullptr);
-    staged_client_stream_ = std::move(read_stream);
+    client_read_stream_.stream.set_on_next(nullptr);
+    staged_client_stream_.stream = std::move(read_stream);
+    staged_client_stream_.client = client;
     staged_client_on_next_ = std::move(on_next);
     SetStream(TransferStream::kClientRead);
   }
@@ -178,11 +180,13 @@ class TransferThread : public thread::ThreadCore {
   /// If the thread has an existing active client write stream, closes it and
   /// terminates any transfers running on it.
   void SetClientWriteStream(rpc::RawClientReaderWriter& write_stream,
+                            Client* client,
                             Function<void(ConstByteSpan)>&& on_next) {
     // Clear the existing callback to prevent incoming chunks from blocking on
     // the transfer thread and preventing the call's cleanup.
-    client_write_stream_.set_on_next(nullptr);
-    staged_client_stream_ = std::move(write_stream);
+    client_write_stream_.stream.set_on_next(nullptr);
+    staged_client_stream_.stream = std::move(write_stream);
+    staged_client_stream_.client = client;
     staged_client_on_next_ = std::move(on_next);
     SetStream(TransferStream::kClientWrite);
   }
@@ -396,9 +400,16 @@ class TransferThread : public thread::ThreadCore {
   Event next_event_;
   Function<void(Status)> staged_on_completion_;
 
-  rpc::RawClientReaderWriter client_read_stream_;
-  rpc::RawClientReaderWriter client_write_stream_;
-  rpc::RawClientReaderWriter staged_client_stream_;
+  struct OwnedClientStream {
+    rpc::RawClientReaderWriter stream;
+    Client* client{nullptr};
+  };
+
+  void CancelExistingStream(OwnedClientStream& stream, TransferType type);
+
+  OwnedClientStream client_read_stream_;
+  OwnedClientStream client_write_stream_;
+  OwnedClientStream staged_client_stream_;
   Function<void(ConstByteSpan)> staged_client_on_next_;
 
   rpc::RawServerReaderWriter server_read_stream_;

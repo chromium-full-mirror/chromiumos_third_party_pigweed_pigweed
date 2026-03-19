@@ -1047,6 +1047,43 @@ TEST_F(ReadTransfer, InitialPacketFails_OnCompletedCalledWithDataLoss) {
   EXPECT_EQ(transfer_status, Status::Internal());
 }
 
+TEST_F(ReadTransfer, HijackedStreamIsCancelled) {
+  stream::MemoryWriterBuffer<64> writer1;
+  Status transfer_status1 = Status::Unknown();
+
+  ASSERT_EQ(OkStatus(),
+            legacy_client_
+                .Read(3,
+                      writer1,
+                      [&transfer_status1](Status status) {
+                        transfer_status1 = status;
+                      })
+                .status());
+  transfer_thread_.WaitUntilEventIsProcessed();
+
+  EXPECT_TRUE(legacy_client_.has_read_stream());
+
+  // A new client (client_) attempts a read transfer using the same thread.
+  // This will steal the read stream from legacy_client_.
+  stream::MemoryWriterBuffer<64> writer2;
+  Status transfer_status2 = Status::Unknown();
+
+  Result<Client::Handle> handle =
+      client_.Read(4, writer2, [&transfer_status2](Status status) {
+        transfer_status2 = status;
+      });
+  ASSERT_EQ(OkStatus(), handle.status());
+  transfer_thread_.WaitUntilEventIsProcessed();
+
+  // legacy_client_ should have its read stream cancelled and marked false.
+  EXPECT_FALSE(legacy_client_.has_read_stream());
+  EXPECT_TRUE(client_.has_read_stream());
+  EXPECT_EQ(transfer_status1, Status::Aborted());
+
+  handle->Cancel();
+  transfer_thread_.WaitUntilEventIsProcessed();
+}
+
 class WriteTransfer : public ::testing::Test {
  protected:
   WriteTransfer()
@@ -2793,6 +2830,43 @@ TEST_F(WriteTransfer, Version2_RetryDuringHandshake) {
   EXPECT_EQ(chunk.session_id(), 1u);
 
   EXPECT_EQ(transfer_status, OkStatus());
+}
+
+TEST_F(WriteTransfer, HijackedStreamIsCancelled) {
+  stream::MemoryReader reader1(kData32);
+  Status transfer_status1 = Status::Unknown();
+
+  ASSERT_EQ(OkStatus(),
+            legacy_client_
+                .Write(3,
+                       reader1,
+                       [&transfer_status1](Status status) {
+                         transfer_status1 = status;
+                       })
+                .status());
+  transfer_thread_.WaitUntilEventIsProcessed();
+
+  EXPECT_TRUE(legacy_client_.has_write_stream());
+
+  // A new client (client_) attempts a write transfer using the same thread.
+  // This will steal the write stream from legacy_client_.
+  stream::MemoryReader reader2(kData32);
+  Status transfer_status2 = Status::Unknown();
+
+  Result<Client::Handle> handle =
+      client_.Write(4, reader2, [&transfer_status2](Status status) {
+        transfer_status2 = status;
+      });
+  ASSERT_EQ(OkStatus(), handle.status());
+  transfer_thread_.WaitUntilEventIsProcessed();
+
+  // legacy_client_ should have its write stream cancelled and marked false.
+  EXPECT_FALSE(legacy_client_.has_write_stream());
+  EXPECT_TRUE(client_.has_write_stream());
+  EXPECT_EQ(transfer_status1, Status::Aborted());
+
+  handle->Cancel();
+  transfer_thread_.WaitUntilEventIsProcessed();
 }
 
 TEST_F(WriteTransfer, Version2_RetryAfterHandshake) {
