@@ -106,7 +106,7 @@ pw_add_test(pw_bluetooth_proxy.hci.sniff_offload_manager_test
     pw_bluetooth_proxy.hci.sniff_offload
     pw_allocator.synchronized_allocator
     pw_allocator.testing
-    pw_async2.func_task
+    pw_async2
     pw_async2.simulated_time_provider
     pw_async2.testing
     pw_chrono.system_clock

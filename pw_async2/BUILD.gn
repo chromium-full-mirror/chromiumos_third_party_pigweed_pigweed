@@ -483,7 +483,7 @@ pw_source_set("time_provider") {
   sources = [ "time_provider.cc" ]
   public_configs = [ ":public_include_path" ]
   public_deps = [
-    "$dir_pw_async2:dispatcher",
+    ":pw_async2",
     "$dir_pw_chrono:virtual_clock",
     "$dir_pw_containers:intrusive_list",
     "$dir_pw_sync:interrupt_spin_lock",

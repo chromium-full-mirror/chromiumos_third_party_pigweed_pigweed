@@ -97,9 +97,9 @@ set(PW_BLUETOOTH_PROXY_PUBLIC_DEPS
   pw_allocator
   pw_allocator.best_fit
   pw_allocator.synchronized_allocator
+  pw_async2
   pw_async2.basic_dispatcher
   pw_async2.channel
-  pw_async2.dispatcher
   pw_bluetooth.emboss_hci_data
   pw_bluetooth.emboss_hci_events
   pw_bluetooth.emboss_hci_h4

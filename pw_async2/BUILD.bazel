@@ -802,7 +802,6 @@ pw_cc_test(
     }),
     deps = [
         ":channel",
-        ":dispatcher",
         ":pw_async2",
         ":testing",
         "//pw_allocator:testing",
@@ -818,7 +817,6 @@ pw_cc_test(
     deps = [
         ":channel",
         ":coro",
-        ":dispatcher",
         ":pw_async2",
         ":testing",
         "//pw_allocator:testing",

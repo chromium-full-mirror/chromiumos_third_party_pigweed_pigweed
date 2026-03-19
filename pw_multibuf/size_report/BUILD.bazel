@@ -41,7 +41,6 @@ cc_library(
         "//pw_async2",
         "//pw_async2:basic_dispatcher",
         "//pw_async2:channel",
-        "//pw_async2:poll",
         "//pw_bytes",
         "//pw_checksum",
         "//pw_multibuf/examples:protocol",
