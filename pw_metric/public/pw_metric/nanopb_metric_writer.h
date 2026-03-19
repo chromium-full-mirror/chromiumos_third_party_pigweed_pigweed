@@ -80,7 +80,7 @@ class NanopbMetricWriter : public MetricWriter {
     // The MetricWalker's ScopedName checks that the path depth does not
     // exceed its internal capacity, which is sized to match the proto.
     PW_DCHECK_INT_LE(path.size(), std::size(proto_metric.token_path));
-    proto_metric.token_path_count = path.size();
+    proto_metric.token_path_count = static_cast<pb_size_t>(path.size());
     std::copy(path.begin(), path.end(), proto_metric.token_path);
 
     // Copy the metric value.

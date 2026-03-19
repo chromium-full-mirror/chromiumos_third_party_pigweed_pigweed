@@ -124,7 +124,8 @@ class PwpbUnaryMetricWriter final : public UnaryMetricWriter {
     // Now, calculate the total size of the token_path field within the Metric
     // message, including its tag and length prefix.
     size_t metric_payload_size = protobuf::SizeOfDelimitedField(
-        proto::pwpb::Metric::Fields::kTokenPath, token_path_payload_size);
+        proto::pwpb::Metric::Fields::kTokenPath,
+        static_cast<uint32_t>(token_path_payload_size));
 
     if (metric.is_float()) {
       metric_payload_size +=
@@ -137,7 +138,8 @@ class PwpbUnaryMetricWriter final : public UnaryMetricWriter {
     // Calculate the size of the entire Metric message when encoded as a field
     // within the WalkResponse.
     const size_t required_size_for_field = protobuf::SizeOfDelimitedField(
-        proto::pwpb::WalkResponse::Fields::kMetrics, metric_payload_size);
+        proto::pwpb::WalkResponse::Fields::kMetrics,
+        static_cast<uint32_t>(metric_payload_size));
 
     // Check if the metric AND the final response fields (cursor/done) will fit
     // in the buffer. If not, return RESOURCE_EXHAUSTED to signal the
@@ -175,7 +177,8 @@ bool FindMetricByAddress(const MetricList& metrics,
                          uint64_t address) {
   bool found = false;
   metrics.ForEach([&](const auto& metric) {
-    if (reinterpret_cast<uint64_t>(&metric) == address) {
+    if (static_cast<uint64_t>(reinterpret_cast<uintptr_t>(&metric)) ==
+        address) {
       found = true;
     }
   });

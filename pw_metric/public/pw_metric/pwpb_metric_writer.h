@@ -79,8 +79,8 @@ class PwpbMetricWriter : public MetricWriter {
 
     // 2) Calculate the total on-wire size this metric will consume in the
     // parent encoder, including its own tag and length delimiter.
-    const size_t required_size_for_field =
-        protobuf::SizeOfDelimitedField(field_number_, metric_payload_size);
+    const size_t required_size_for_field = protobuf::SizeOfDelimitedField(
+        field_number_, static_cast<uint32_t>(metric_payload_size));
 
     // 3) Check if the parent encoder can fit this new field.
     if (parent_encoder_.ConservativeWriteLimit() < required_size_for_field) {

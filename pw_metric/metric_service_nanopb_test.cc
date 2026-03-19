@@ -259,7 +259,8 @@ TEST(MetricService, WalkWithPagination) {
   EXPECT_TRUE(response1.has_cursor);
 
   // The cursor should be the address of the next metric to process (m0).
-  EXPECT_EQ(response1.cursor, reinterpret_cast<uint64_t>(&m0));
+  EXPECT_EQ(response1.cursor,
+            static_cast<uint64_t>(reinterpret_cast<uintptr_t>(&m0)));
 
   // Second page.
   pw_metric_proto_WalkRequest request = pw_metric_proto_WalkRequest_init_zero;
@@ -319,7 +320,8 @@ TEST(MetricService, WalkWithStaleCursorAfterMutation) {
   EXPECT_TRUE(response1.has_cursor);
 
   // The cursor will point to the next metric to be processed (m0).
-  EXPECT_EQ(response1.cursor, reinterpret_cast<uint64_t>(&m0_object->m0));
+  EXPECT_EQ(response1.cursor,
+            static_cast<uint64_t>(reinterpret_cast<uintptr_t>(&m0_object->m0)));
 
   // Mutate the tree: remove the metric the cursor points to.
   m0_object.reset();
@@ -356,7 +358,8 @@ TEST(MetricService, WalkPaginatesCorrectlyWhenPageIsFull) {
   EXPECT_EQ(10u, response1.metrics_count);
   EXPECT_FALSE(response1.done);
   EXPECT_TRUE(response1.has_cursor);
-  EXPECT_EQ(response1.cursor, reinterpret_cast<uint64_t>(&m0));
+  EXPECT_EQ(response1.cursor,
+            static_cast<uint64_t>(reinterpret_cast<uintptr_t>(&m0)));
 }
 
 #if GTEST_HAS_DEATH_TEST

@@ -41,7 +41,7 @@ void WriteMetricToResponse(const Metric& metric,
   span<Token> proto_path(proto_metric.token_path);
   PW_CHECK_INT_LE(path.size(), proto_path.size());
   std::copy(path.begin(), path.end(), proto_path.begin());
-  proto_metric.token_path_count = path.size();
+  proto_metric.token_path_count = static_cast<pb_size_t>(path.size());
 
   // Copy the metric value.
   if (metric.is_float()) {
@@ -131,7 +131,8 @@ bool FindMetricByAddress(const MetricList& metrics,
                          uint64_t address) {
   bool found = false;
   metrics.ForEach([&](const auto& metric) {
-    if (reinterpret_cast<uint64_t>(&metric) == address) {
+    if (static_cast<uint64_t>(reinterpret_cast<uintptr_t>(&metric)) ==
+        address) {
       found = true;
     }
   });

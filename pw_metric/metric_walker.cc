@@ -86,7 +86,8 @@ Status ResumableMetricWalker::RecursiveWalkHelper(const MetricList& metrics,
     ScopedName scoped_name(metric.name(), *this);
 
     if (!writing_phase_) {
-      if (reinterpret_cast<uint64_t>(&metric) == start_cursor_) {
+      if (static_cast<uint64_t>(reinterpret_cast<uintptr_t>(&metric)) ==
+          start_cursor_) {
         writing_phase_ = true;
         // Fall through to write the metric on this iteration.
       } else {
@@ -98,7 +99,8 @@ Status ResumableMetricWalker::RecursiveWalkHelper(const MetricList& metrics,
     if (status.IsResourceExhausted()) {
       // The page is full. The current metric could not be written.
       // Its address becomes the cursor for the next request.
-      next_cursor_ = reinterpret_cast<uint64_t>(&metric);
+      next_cursor_ =
+          static_cast<uint64_t>(reinterpret_cast<uintptr_t>(&metric));
       return status;
     }
     PW_TRY(status);

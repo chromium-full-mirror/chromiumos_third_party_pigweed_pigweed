@@ -285,7 +285,8 @@ size_t GetEncodedMetricSize(const Metric& metric, const Vector<Token>& path) {
   // 2) Calculate the size of the *entire* nested Metric message, including
   // its tag and length prefix, as a field in the parent WalkResponse.
   return protobuf::SizeOfDelimitedField(
-      proto::pwpb::WalkResponse::Fields::kMetrics, metric_payload_size);
+      proto::pwpb::WalkResponse::Fields::kMetrics,
+      static_cast<uint32_t>(metric_payload_size));
 }
 
 size_t CountMetricsInWalkResponse(ConstByteSpan serialized_response) {
@@ -559,7 +560,7 @@ TEST(MetricService, WalkPaginatesCorrectlyWhenPageIsFull) {
   // Verify that only two metrics were included.
   EXPECT_EQ(metric_count, 2u);
   // Verify that the cursor points to the metric that didn't fit (m0).
-  EXPECT_EQ(cursor, reinterpret_cast<uint64_t>(&m0));
+  EXPECT_EQ(cursor, static_cast<uint64_t>(reinterpret_cast<uintptr_t>(&m0)));
   EXPECT_FALSE(done);
 }
 

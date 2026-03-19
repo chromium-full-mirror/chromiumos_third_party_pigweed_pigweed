@@ -96,7 +96,6 @@ cc_library(
         "public/pw_metric/metric_service_nanopb.h",
         "public/pw_metric/nanopb_metric_writer.h",
     ],
-    features = ["-conversion_warnings"],
     implementation_deps = [
         "//pw_assert:check",
         "//pw_containers:vector",
@@ -216,7 +215,6 @@ pw_cc_test(
     srcs = [
         "metric_service_nanopb_test.cc",
     ],
-    features = ["-conversion_warnings"],
     deps = [
         ":metric_service_nanopb",
         ":metric_walker",
@@ -230,7 +228,6 @@ pw_cc_test(
     srcs = [
         "metric_service_pwpb_test.cc",
     ],
-    features = ["-conversion_warnings"],
     deps = [
         ":metric_service_pwpb",
         ":metric_walker",
