@@ -33,7 +33,6 @@ cc_library(
 cc_library(
     name = "flat_map",
     hdrs = ["public/pw_containers/size_report/flat_map.h"],
-    features = ["-conversion_warnings"],
     strip_include_prefix = "public",
     deps = [
         ":size_report",
@@ -45,7 +44,6 @@ cc_library(
 cc_library(
     name = "deque",
     hdrs = ["public/pw_containers/size_report/deque.h"],
-    features = ["-conversion_warnings"],
     strip_include_prefix = "public",
     deps = [
         ":size_report",
@@ -57,7 +55,6 @@ cc_library(
 cc_library(
     name = "inline_queue",
     hdrs = ["public/pw_containers/size_report/inline_queue.h"],
-    features = ["-conversion_warnings"],
     strip_include_prefix = "public",
     deps = [
         ":size_report",
@@ -69,7 +66,6 @@ cc_library(
 cc_library(
     name = "intrusive_forward_list",
     hdrs = ["public/pw_containers/size_report/intrusive_forward_list.h"],
-    features = ["-conversion_warnings"],
     strip_include_prefix = "public",
     deps = [
         ":size_report",
@@ -81,7 +77,6 @@ cc_library(
 cc_library(
     name = "intrusive_list",
     hdrs = ["public/pw_containers/size_report/intrusive_list.h"],
-    features = ["-conversion_warnings"],
     strip_include_prefix = "public",
     deps = [
         ":size_report",
@@ -93,7 +88,6 @@ cc_library(
 cc_library(
     name = "intrusive_map",
     hdrs = ["public/pw_containers/size_report/intrusive_map.h"],
-    features = ["-conversion_warnings"],
     strip_include_prefix = "public",
     deps = [
         ":size_report",
@@ -105,7 +99,6 @@ cc_library(
 cc_library(
     name = "intrusive_multimap",
     hdrs = ["public/pw_containers/size_report/intrusive_multimap.h"],
-    features = ["-conversion_warnings"],
     strip_include_prefix = "public",
     deps = [
         ":size_report",
@@ -117,7 +110,6 @@ cc_library(
 cc_library(
     name = "intrusive_multiset",
     hdrs = ["public/pw_containers/size_report/intrusive_multiset.h"],
-    features = ["-conversion_warnings"],
     strip_include_prefix = "public",
     deps = [
         ":size_report",
@@ -129,7 +121,6 @@ cc_library(
 cc_library(
     name = "intrusive_set",
     hdrs = ["public/pw_containers/size_report/intrusive_set.h"],
-    features = ["-conversion_warnings"],
     strip_include_prefix = "public",
     deps = [
         ":size_report",
@@ -141,7 +132,6 @@ cc_library(
 cc_library(
     name = "vector",
     hdrs = ["public/pw_containers/size_report/vector.h"],
-    features = ["-conversion_warnings"],
     strip_include_prefix = "public",
     deps = [
         ":size_report",
@@ -162,7 +152,6 @@ pw_cc_size_binary(
 pw_cc_size_binary(
     name = "flat_map_base",
     srcs = ["flat_map.cc"],
-    features = ["-conversion_warnings"],
     deps = [
         ":flat_map",
         "//pw_bloat:bloat_this_binary",
@@ -176,7 +165,6 @@ pw_cc_size_binary(
         "PW_CONTAINERS_SIZE_REPORT_ALTERNATE_KEY",
         "PW_CONTAINERS_SIZE_REPORT_ALTERNATE_VALUE",
     ],
-    features = ["-conversion_warnings"],
     deps = [
         ":flat_map",
         "//pw_bloat:bloat_this_binary",
@@ -283,7 +271,6 @@ pw_cc_size_binary(
 pw_cc_size_binary(
     name = "inline_deque_base",
     srcs = ["inline_deque.cc"],
-    features = ["-conversion_warnings"],
     deps = [
         ":deque",
         "//pw_bloat:bloat_this_binary",
@@ -295,7 +282,6 @@ pw_cc_size_binary(
     name = "inline_deque_alternate_type",
     srcs = ["inline_deque.cc"],
     defines = ["PW_CONTAINERS_SIZE_REPORT_ALTERNATE_VALUE"],
-    features = ["-conversion_warnings"],
     deps = [
         ":deque",
         "//pw_bloat:bloat_this_binary",
@@ -306,7 +292,6 @@ pw_cc_size_binary(
 pw_cc_size_binary(
     name = "inline_queue_base",
     srcs = ["inline_queue.cc"],
-    features = ["-conversion_warnings"],
     deps = [
         ":inline_queue",
         "//pw_bloat:bloat_this_binary",
@@ -317,7 +302,6 @@ pw_cc_size_binary(
     name = "inline_queue_alternate_type",
     srcs = ["inline_queue.cc"],
     defines = ["PW_CONTAINERS_SIZE_REPORT_ALTERNATE_VALUE"],
-    features = ["-conversion_warnings"],
     deps = [
         ":inline_queue",
         "//pw_bloat:bloat_this_binary",
@@ -327,7 +311,6 @@ pw_cc_size_binary(
 pw_cc_size_binary(
     name = "inline_deque_and_queue",
     srcs = ["inline_deque_and_queue.cc"],
-    features = ["-conversion_warnings"],
     deps = [
         ":deque",
         ":inline_queue",
@@ -339,7 +322,6 @@ pw_cc_size_binary(
 pw_cc_size_binary(
     name = "intrusive_forward_list_base",
     srcs = ["intrusive_forward_list.cc"],
-    features = ["-conversion_warnings"],
     deps = [
         ":intrusive_forward_list",
         "//pw_bloat:bloat_this_binary",
@@ -350,7 +332,6 @@ pw_cc_size_binary(
     name = "intrusive_forward_list_alternate_type",
     srcs = ["intrusive_forward_list.cc"],
     defines = ["PW_CONTAINERS_SIZE_REPORT_ALTERNATE_VALUE"],
-    features = ["-conversion_warnings"],
     deps = [
         ":intrusive_forward_list",
         "//pw_bloat:bloat_this_binary",
@@ -360,7 +341,6 @@ pw_cc_size_binary(
 pw_cc_size_binary(
     name = "intrusive_list_base",
     srcs = ["intrusive_list.cc"],
-    features = ["-conversion_warnings"],
     deps = [
         ":intrusive_list",
         "//pw_bloat:bloat_this_binary",
@@ -371,7 +351,6 @@ pw_cc_size_binary(
     name = "intrusive_list_alternate_type",
     srcs = ["intrusive_list.cc"],
     defines = ["PW_CONTAINERS_SIZE_REPORT_ALTERNATE_VALUE"],
-    features = ["-conversion_warnings"],
     deps = [
         ":intrusive_list",
         "//pw_bloat:bloat_this_binary",
@@ -381,7 +360,6 @@ pw_cc_size_binary(
 pw_cc_size_binary(
     name = "intrusive_list_and_forward_list",
     srcs = ["intrusive_list_and_forward_list.cc"],
-    features = ["-conversion_warnings"],
     deps = [
         ":intrusive_forward_list",
         ":intrusive_list",
@@ -392,7 +370,6 @@ pw_cc_size_binary(
 pw_cc_size_binary(
     name = "intrusive_map_base",
     srcs = ["intrusive_map.cc"],
-    features = ["-conversion_warnings"],
     deps = [
         ":intrusive_map",
         "//pw_bloat:bloat_this_binary",
@@ -403,7 +380,6 @@ pw_cc_size_binary(
     name = "intrusive_map_alternate_key",
     srcs = ["intrusive_map.cc"],
     defines = ["PW_CONTAINERS_SIZE_REPORT_ALTERNATE_KEY"],
-    features = ["-conversion_warnings"],
     deps = [
         ":intrusive_map",
         "//pw_bloat:bloat_this_binary",
@@ -417,7 +393,6 @@ pw_cc_size_binary(
         "PW_CONTAINERS_SIZE_REPORT_ALTERNATE_KEY",
         "PW_CONTAINERS_SIZE_REPORT_ALTERNATE_VALUE",
     ],
-    features = ["-conversion_warnings"],
     deps = [
         ":intrusive_map",
         "//pw_bloat:bloat_this_binary",
@@ -427,7 +402,6 @@ pw_cc_size_binary(
 pw_cc_size_binary(
     name = "intrusive_multimap_base",
     srcs = ["intrusive_multimap.cc"],
-    features = ["-conversion_warnings"],
     deps = [
         ":intrusive_multimap",
         "//pw_bloat:bloat_this_binary",
@@ -438,7 +412,6 @@ pw_cc_size_binary(
     name = "intrusive_multimap_alternate_key",
     srcs = ["intrusive_multimap.cc"],
     defines = ["PW_CONTAINERS_SIZE_REPORT_ALTERNATE_KEY"],
-    features = ["-conversion_warnings"],
     deps = [
         ":intrusive_multimap",
         "//pw_bloat:bloat_this_binary",
@@ -452,7 +425,6 @@ pw_cc_size_binary(
         "PW_CONTAINERS_SIZE_REPORT_ALTERNATE_KEY",
         "PW_CONTAINERS_SIZE_REPORT_ALTERNATE_VALUE",
     ],
-    features = ["-conversion_warnings"],
     deps = [
         ":intrusive_multimap",
         "//pw_bloat:bloat_this_binary",
@@ -462,7 +434,6 @@ pw_cc_size_binary(
 pw_cc_size_binary(
     name = "intrusive_map_and_multimap",
     srcs = ["intrusive_map_and_multimap.cc"],
-    features = ["-conversion_warnings"],
     deps = [
         ":intrusive_map",
         ":intrusive_multimap",
@@ -473,7 +444,6 @@ pw_cc_size_binary(
 pw_cc_size_binary(
     name = "intrusive_set_base",
     srcs = ["intrusive_set.cc"],
-    features = ["-conversion_warnings"],
     deps = [
         ":intrusive_set",
         "//pw_bloat:bloat_this_binary",
@@ -484,7 +454,6 @@ pw_cc_size_binary(
     name = "intrusive_set_alternate_type",
     srcs = ["intrusive_set.cc"],
     defines = ["PW_CONTAINERS_SIZE_REPORT_ALTERNATE_VALUE"],
-    features = ["-conversion_warnings"],
     deps = [
         ":intrusive_set",
         "//pw_bloat:bloat_this_binary",
@@ -494,7 +463,6 @@ pw_cc_size_binary(
 pw_cc_size_binary(
     name = "intrusive_multiset_base",
     srcs = ["intrusive_multiset.cc"],
-    features = ["-conversion_warnings"],
     deps = [
         ":intrusive_multiset",
         "//pw_bloat:bloat_this_binary",
@@ -505,7 +473,6 @@ pw_cc_size_binary(
     name = "intrusive_multiset_alternate_type",
     srcs = ["intrusive_multiset.cc"],
     defines = ["PW_CONTAINERS_SIZE_REPORT_ALTERNATE_VALUE"],
-    features = ["-conversion_warnings"],
     deps = [
         ":intrusive_multiset",
         "//pw_bloat:bloat_this_binary",
@@ -515,7 +482,6 @@ pw_cc_size_binary(
 pw_cc_size_binary(
     name = "intrusive_set_and_multiset",
     srcs = ["intrusive_set_and_multiset.cc"],
-    features = ["-conversion_warnings"],
     deps = [
         ":intrusive_multiset",
         ":intrusive_set",
@@ -526,7 +492,6 @@ pw_cc_size_binary(
 pw_cc_size_binary(
     name = "vector_base",
     srcs = ["vector.cc"],
-    features = ["-conversion_warnings"],
     deps = [
         ":vector",
         "//pw_bloat:bloat_this_binary",
@@ -537,7 +502,6 @@ pw_cc_size_binary(
     name = "vector_alternate_size",
     srcs = ["vector.cc"],
     defines = ["PW_CONTAINERS_SIZE_REPORT_ALTERNATE_SIZE"],
-    features = ["-conversion_warnings"],
     deps = [
         ":vector",
         "//pw_bloat:bloat_this_binary",
@@ -548,7 +512,6 @@ pw_cc_size_binary(
     name = "vector_alternate_type",
     srcs = ["vector.cc"],
     defines = ["PW_CONTAINERS_SIZE_REPORT_ALTERNATE_VALUE"],
-    features = ["-conversion_warnings"],
     deps = [
         ":vector",
         "//pw_bloat:bloat_this_binary",

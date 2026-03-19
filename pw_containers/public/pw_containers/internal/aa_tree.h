@@ -16,6 +16,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <iterator>
 #include <utility>
 
 #include "pw_assert/assert.h"
@@ -385,7 +386,7 @@ void KeyedAATree<K>::merge(KeyedAATree<K>& other) {
 
 template <typename K>
 size_t KeyedAATree<K>::count(Key key) {
-  return std::distance(lower_bound(key), upper_bound(key));
+  return static_cast<size_t>(std::distance(lower_bound(key), upper_bound(key)));
 }
 
 template <typename K>
