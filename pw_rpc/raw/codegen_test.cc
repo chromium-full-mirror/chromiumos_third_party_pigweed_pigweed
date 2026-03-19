@@ -43,7 +43,7 @@ Vector<std::byte, 64> EncodeRequest(int integer, Status status) {
   return buffer;
 }
 
-Vector<std::byte, 64> EncodeResponse(int number) {
+Vector<std::byte, 64> EncodeResponse(uint32_t number) {
   Vector<std::byte, 64> buffer(64);
   TestStreamResponse::MemoryEncoder test_response(buffer);
 
@@ -73,7 +73,8 @@ class TestService final
 
     std::byte response[64] = {};
     TestResponse::MemoryEncoder test_response(response);
-    EXPECT_EQ(OkStatus(), test_response.WriteValue(integer + 1));
+    EXPECT_EQ(OkStatus(),
+              test_response.WriteValue(static_cast<int32_t>(integer + 1)));
 
     ASSERT_EQ(
         OkStatus(),
@@ -97,7 +98,8 @@ class TestService final
     for (int i = 0; i < integer; ++i) {
       std::byte buffer[32] = {};
       TestStreamResponse::MemoryEncoder test_stream_response(buffer);
-      EXPECT_EQ(OkStatus(), test_stream_response.WriteNumber(i));
+      EXPECT_EQ(OkStatus(),
+                test_stream_response.WriteNumber(static_cast<uint32_t>(i)));
       EXPECT_EQ(OkStatus(), writer.Write(test_stream_response));
     }
 
