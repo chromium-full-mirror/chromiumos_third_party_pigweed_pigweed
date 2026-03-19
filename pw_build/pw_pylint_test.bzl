@@ -109,11 +109,16 @@ def _pylint_aspect_test_impl(ctx):
     )
 
     info = target_under_test[PylintAspectForTestInfo]
-    asserts.equals(
-        env,
-        [path.replace("$(BINDIR)", ctx.var["BINDIR"]) for path in ctx.attr.expected_python_path],
-        info.python_path,
-    )
+
+    # Verify that the expected python path items are found in the actual python path.
+    # Exact list match is fragile due to platform-specific wheel paths.
+    for expected in ctx.attr.expected_python_path:
+        expected_resolved = expected.replace("$(BINDIR)", ctx.var["BINDIR"])
+        asserts.true(
+            env,
+            expected_resolved in info.python_path,
+            "Expected python path '{}' not found in actual: {}".format(expected_resolved, info.python_path),
+        )
 
     return analysistest.end(env)
 

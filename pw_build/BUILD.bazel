@@ -14,6 +14,7 @@
 
 load("@com_google_protobuf//bazel:proto_library.bzl", "proto_library")
 load("@com_google_protobuf//bazel:py_proto_library.bzl", "py_proto_library")
+load("@com_google_protobuf//bazel/toolchains:proto_lang_toolchain.bzl", "proto_lang_toolchain")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_python//python/entry_points:py_console_script_binary.bzl", "py_console_script_binary")
 load("@rules_python//sphinxdocs:sphinx_docs_library.bzl", "sphinx_docs_library")
@@ -56,6 +57,26 @@ config_setting(
     values = {
         "define": "kythe_corpus=pigweed.googlesource.com/pigweed/pigweed",
     },
+)
+
+alias(
+    name = "python_protobuf_runtime",
+    actual = select({
+        "@platforms//os:linux": "@pigweed_python_packages//protobuf",
+        "@platforms//os:macos": "@pigweed_python_packages//protobuf",
+        "@platforms//os:windows": "@pigweed_python_packages//protobuf",
+        "//conditions:default": "@com_google_protobuf//:protobuf_python",
+    }),
+)
+
+# This toolchain targets python proto libraries using the python_protobuf_runtime.
+# It is used by py_proto_library to generate python proto code.
+proto_lang_toolchain(
+    name = "pw_python_proto_toolchain",
+    command_line = "--python_out=%s",
+    progress_message = "Generating Python proto_library %{label}",
+    runtime = ":python_protobuf_runtime",
+    toolchain_type = "@com_google_protobuf//bazel/private:python_toolchain_type",
 )
 
 proto_library(
