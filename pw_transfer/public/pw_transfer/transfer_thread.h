@@ -161,14 +161,15 @@ class TransferThread : public thread::ThreadCore {
   /// terminates any transfers running on it.
   void SetClientReadStream(rpc::RawClientReaderWriter& read_stream,
                            Client* client,
-                           Function<void(ConstByteSpan)>&& on_next) {
+                           Function<void(ConstByteSpan)>&& on_next,
+                           internal::SetStreamBehavior behavior) {
     // Clear the existing callback to prevent incoming chunks from blocking on
     // the transfer thread and preventing the call's cleanup.
     client_read_stream_.stream.set_on_next(nullptr);
     staged_client_stream_.stream = std::move(read_stream);
     staged_client_stream_.client = client;
     staged_client_on_next_ = std::move(on_next);
-    SetStream(TransferStream::kClientRead);
+    SetStream(TransferStream::kClientRead, behavior);
   }
 
   /// Updates the transfer thread's client write stream.
@@ -181,14 +182,15 @@ class TransferThread : public thread::ThreadCore {
   /// terminates any transfers running on it.
   void SetClientWriteStream(rpc::RawClientReaderWriter& write_stream,
                             Client* client,
-                            Function<void(ConstByteSpan)>&& on_next) {
+                            Function<void(ConstByteSpan)>&& on_next,
+                            internal::SetStreamBehavior behavior) {
     // Clear the existing callback to prevent incoming chunks from blocking on
     // the transfer thread and preventing the call's cleanup.
     client_write_stream_.stream.set_on_next(nullptr);
     staged_client_stream_.stream = std::move(write_stream);
     staged_client_stream_.client = client;
     staged_client_on_next_ = std::move(on_next);
-    SetStream(TransferStream::kClientWrite);
+    SetStream(TransferStream::kClientWrite, behavior);
   }
 
   /// Updates the transfer thread's server read stream.
@@ -206,7 +208,8 @@ class TransferThread : public thread::ThreadCore {
     server_read_stream_.set_on_next(nullptr);
     staged_server_stream_ = std::move(read_stream);
     staged_server_on_next_ = std::move(on_next);
-    SetStream(TransferStream::kServerRead);
+    SetStream(TransferStream::kServerRead,
+              internal::SetStreamBehavior::kNewClient);
   }
 
   /// Updates the transfer thread's server write stream.
@@ -224,7 +227,8 @@ class TransferThread : public thread::ThreadCore {
     server_write_stream_.set_on_next(nullptr);
     staged_server_stream_ = std::move(write_stream);
     staged_server_on_next_ = std::move(on_next);
-    SetStream(TransferStream::kServerWrite);
+    SetStream(TransferStream::kServerWrite,
+              internal::SetStreamBehavior::kNewClient);
   }
 
   bool AddTransferHandler(Handler& handler) {
@@ -382,8 +386,9 @@ class TransferThread : public thread::ThreadCore {
                    Status status,
                    bool send_status_chunk);
 
-  void SetStream(TransferStream stream);
-  void HandleSetStreamEvent(TransferStream stream);
+  void SetStream(TransferStream stream, internal::SetStreamBehavior behavior);
+  void HandleSetStreamEvent(TransferStream stream,
+                            internal::SetStreamBehavior behavior);
 
   bool TransferHandlerEvent(EventType type, Handler& handler);
 

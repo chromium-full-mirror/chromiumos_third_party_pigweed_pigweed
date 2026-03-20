@@ -221,6 +221,9 @@ class Client {
 
   void OnRpcError(Status status, internal::TransferType type);
 
+  void OpenReadStream(internal::SetStreamBehavior behavior);
+  void OpenWriteStream(internal::SetStreamBehavior behavior);
+
   Handle AssignHandle();
 
   Transfer::Client client_;

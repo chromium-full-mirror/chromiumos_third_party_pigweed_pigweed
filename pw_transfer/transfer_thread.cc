@@ -276,7 +276,8 @@ void TransferThread::EndTransfer(EventType type,
   event_notification_.release();
 }
 
-void TransferThread::SetStream(TransferStream stream) {
+void TransferThread::SetStream(TransferStream stream,
+                               internal::SetStreamBehavior behavior) {
   if (!TryWaitForEventToProcess()) {
     return;
   }
@@ -284,6 +285,7 @@ void TransferThread::SetStream(TransferStream stream) {
   next_event_.type = EventType::kSetStream;
   next_event_.set_stream = {
       .stream = stream,
+      .behavior = behavior,
   };
 
   event_notification_.release();
@@ -383,7 +385,7 @@ void TransferThread::HandleEvent(const internal::Event& event) {
       return;
 
     case EventType::kSetStream:
-      HandleSetStreamEvent(event.set_stream.stream);
+      HandleSetStreamEvent(event.set_stream.stream, event.set_stream.behavior);
       return;
 
     case EventType::kGetResourceStatus:
@@ -530,11 +532,15 @@ template <typename T>
 void TerminateTransfers(span<T> contexts,
                         TransferType type,
                         EventType event_type,
-                        Status status) {
+                        Status status,
+                        bool skip_initiating = false) {
   Event event;
   event.type = event_type;
   for (Context& context : contexts) {
     if (context.active() && context.type() == type) {
+      if (skip_initiating && context.is_initiating()) {
+        continue;
+      }
       event.end_transfer = EndTransferEvent{
           .id_type = IdentifierType::Session,
           .id = context.session_id(),
@@ -558,30 +564,63 @@ void TransferThread::CancelExistingStream(OwnedClientStream& stream,
   }
 }
 
-void TransferThread::HandleSetStreamEvent(TransferStream stream) {
+void TransferThread::HandleSetStreamEvent(
+    TransferStream stream, internal::SetStreamBehavior behavior) {
   switch (stream) {
-    case TransferStream::kClientRead:
+    case TransferStream::kClientRead: {
       CancelExistingStream(client_read_stream_, TransferType::kReceive);
+
+      bool skip_initiating = behavior == internal::SetStreamBehavior::kReopen;
       TerminateTransfers(client_transfers_,
                          TransferType::kReceive,
                          EventType::kClientEndTransfer,
-                         Status::Aborted());
+                         Status::Aborted(),
+                         skip_initiating);
+
       client_read_stream_ = std::move(staged_client_stream_);
       client_read_stream_.stream.set_on_next(std::move(staged_client_on_next_));
       // on_error must be controlled by the client
+
+      if (behavior == internal::SetStreamBehavior::kReopen) {
+        // Restart initiating transfers
+        for (Context& context : client_transfers_) {
+          if (context.active() && context.type() == TransferType::kReceive &&
+              context.is_initiating()) {
+            context.InitiateTransferAsClient();
+          }
+        }
+      }
       break;
-    case TransferStream::kClientWrite:
+    }
+
+    case TransferStream::kClientWrite: {
       CancelExistingStream(client_write_stream_, TransferType::kTransmit);
+
+      bool skip_initiating = behavior == internal::SetStreamBehavior::kReopen;
       TerminateTransfers(client_transfers_,
                          TransferType::kTransmit,
                          EventType::kClientEndTransfer,
-                         Status::Aborted());
+                         Status::Aborted(),
+                         skip_initiating);
+
       client_write_stream_ = std::move(staged_client_stream_);
       client_write_stream_.stream.set_on_next(
           std::move(staged_client_on_next_));
       // on_error must be controlled by the client
+
+      if (behavior == internal::SetStreamBehavior::kReopen) {
+        // Restart initiating transfers
+        for (Context& context : client_transfers_) {
+          if (context.active() && context.type() == TransferType::kTransmit &&
+              context.is_initiating()) {
+            context.InitiateTransferAsClient();
+          }
+        }
+      }
       break;
-    case TransferStream::kServerRead:
+    }
+
+    case TransferStream::kServerRead: {
       TerminateTransfers(server_transfers_,
                          TransferType::kTransmit,
                          EventType::kServerEndTransfer,
@@ -592,7 +631,9 @@ void TransferThread::HandleSetStreamEvent(TransferStream stream) {
         PW_LOG_WARN("Server read stream closed unexpectedly: %s", status.str());
       });
       break;
-    case TransferStream::kServerWrite:
+    }
+
+    case TransferStream::kServerWrite: {
       TerminateTransfers(server_transfers_,
                          TransferType::kReceive,
                          EventType::kServerEndTransfer,
@@ -604,6 +645,7 @@ void TransferThread::HandleSetStreamEvent(TransferStream stream) {
                     status.str());
       });
       break;
+    }
   }
 }
 

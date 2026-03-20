@@ -3698,10 +3698,8 @@ TEST_F(WriteTransfer, Version2_WriteRpcError) {
   EXPECT_EQ(chunk.desired_session_id(), 1u);
   EXPECT_EQ(chunk.resource_id(), 3u);
 
-  // RPC server sends back failed precondition because the stream is not open
-  // (simulated reboot)
-  context_.server().SendServerError<Transfer::Write>(
-      Status::FailedPrecondition());
+  // RPC server sends back an error.
+  context_.server().SendServerError<Transfer::Write>(Status::Internal());
   transfer_thread_.WaitUntilEventIsProcessed();
 
   EXPECT_EQ(client_.has_write_stream(), false);
@@ -3743,10 +3741,8 @@ TEST_F(ReadTransfer, Version2_ReadRpcError) {
   EXPECT_EQ(chunk.window_end_offset(), 37u);
   EXPECT_EQ(chunk.max_chunk_size_bytes(), 37u);
 
-  // RPC server sends back failed precondition because the stream is not open
-  // (simulated reboot)
-  context_.server().SendServerError<Transfer::Read>(
-      Status::FailedPrecondition());
+  // RPC server sends back an error.
+  context_.server().SendServerError<Transfer::Read>(Status::Internal());
   transfer_thread_.WaitUntilEventIsProcessed();
 
   EXPECT_EQ(client_.has_read_stream(), false);

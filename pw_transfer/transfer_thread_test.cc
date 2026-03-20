@@ -271,7 +271,10 @@ TEST_F(TransferThreadTest, StartTransferExhausted_Client) {
   rpc::RawClientReaderWriter read_stream = pw_rpc::raw::Transfer::Read(
       rpc_client_context_.client(), rpc_client_context_.channel().id());
   transfer_thread_.SetClientReadStream(
-      read_stream, nullptr, [](ConstByteSpan) {});
+      read_stream,
+      nullptr,
+      [](ConstByteSpan) {},
+      internal::SetStreamBehavior::kNewClient);
 
   Status status3 = Status::Unknown();
   Status status4 = Status::Unknown();
@@ -317,6 +320,51 @@ TEST_F(TransferThreadTest, StartTransferExhausted_Client) {
 
   transfer_thread_.EndClientTransfer(3, Status::Cancelled());
   transfer_thread_.EndClientTransfer(4, Status::Cancelled());
+}
+
+TEST_F(TransferThreadTest, SetClientReadStream_RestartsInitiatingTransfer) {
+  rpc::RawClientReaderWriter read_stream = pw_rpc::raw::Transfer::Read(
+      rpc_client_context_.client(), rpc_client_context_.channel().id());
+  transfer_thread_.SetClientReadStream(
+      read_stream,
+      nullptr,
+      [](ConstByteSpan) {},
+      internal::SetStreamBehavior::kNewClient);
+
+  Status completion_status = Status::Unknown();
+  stream::MemoryWriterBuffer<16> buffer;
+
+  // Start a client read transfer. It will be in kInitiating state.
+  transfer_thread_.StartClientTransfer(
+      internal::TransferType::kReceive,
+      ProtocolVersion::kVersionTwo,
+      /*resource_id=*/3,
+      /*handle_id=*/27,
+      &buffer,
+      max_parameters_,
+      [&completion_status](Status status) { completion_status = status; },
+      kNeverTimeout,
+      kNeverTimeout,
+      3,
+      10);
+  transfer_thread_.WaitUntilEventIsProcessed();
+
+  EXPECT_EQ(completion_status, Status::Unknown());
+
+  // Reopen the stream.
+  rpc::RawClientReaderWriter new_read_stream = pw_rpc::raw::Transfer::Read(
+      rpc_client_context_.client(), rpc_client_context_.channel().id());
+  transfer_thread_.SetClientReadStream(
+      new_read_stream,
+      nullptr,
+      [](ConstByteSpan) {},
+      internal::SetStreamBehavior::kReopen);
+  transfer_thread_.WaitUntilEventIsProcessed();
+
+  EXPECT_EQ(completion_status, Status::Unknown());
+
+  transfer_thread_.CancelClientTransfer(27);
+  transfer_thread_.WaitUntilEventIsProcessed();
 }
 
 TEST_F(TransferThreadTest, VersionTwo_NoHandler) {
