@@ -1884,7 +1884,7 @@ sphinxcontrib-devhelp==1.0.2 \
     # via
     #   -r compiled_requirements.txt
     #   sphinx
-sphinxcontrib-doxylink @ git+https://pigweed.googlesource.com/third_party/github/sphinx-contrib/doxylink
+sphinxcontrib-doxylink @ git+https://pigweed.googlesource.com/third_party/github/sphinx-contrib/doxylink@main
     # via -r compiled_requirements.txt
 sphinxcontrib-htmlhelp==2.0.1 \
     --hash=sha256:0cbdd302815330058422b98a113195c9249825d681e18f11e8b1f78a2f11efff \
