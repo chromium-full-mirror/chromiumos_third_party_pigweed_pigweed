@@ -309,8 +309,6 @@ doxygen_site_path = "./api/cc"
 doxylink = {
     "cc": (tagfile_path, doxygen_site_path),
 }
-# TODO: b/441605063 - Remove after variadic macro bug is fixed.
-doxylink_parse_error_ignore_regexes = [r"\.\.\."]
 
 # Treat these as valid attributes in function signatures.
 cpp_id_attributes = [

@@ -87,7 +87,7 @@ used in your project.
       #. Right-click the ``PW_LOG()`` invocation (on the line below your cursor)
          and select **Go to Definition** again.
 
-         Your cursor should jump to the line that defines ``PW_LOG``:
+         Your cursor should jump to the line that defines :cc:`PW_LOG`:
 
          .. code-block:: c++
             :emphasize-lines: 2

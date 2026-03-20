@@ -36,7 +36,7 @@ include the following:
   to ``<name><arg_count>(...)``. For example,
   ``PW_DELEGATE_BY_ARG_COUNT(foo_, 1, 2, 3)`` expands to ``foo_3(1, 2, 3)``.
 
-  This example shows how ``PW_DELEGATE_BY_ARG_COUNT`` could be used to log a
+  This example shows how :c:macro:`PW_DELEGATE_BY_ARG_COUNT` could be used to log a
   customized message based on the number of arguments provided.
 
   .. code-block:: cpp

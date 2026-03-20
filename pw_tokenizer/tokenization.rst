@@ -101,13 +101,13 @@ Tokenize string literals outside of expressions
 ``pw_tokenizer`` provides macros for tokenizing string literals with no
 arguments:
 
-* `PW_TOKENIZE_STRING`_
+* :cc:`PW_TOKENIZE_STRING`
 * :cc:`PW_TOKENIZE_STRING_DOMAIN`
 * :cc:`PW_TOKENIZE_STRING_MASK`
 
 The tokenization macros above cannot be used inside other expressions.
 
-.. admonition:: **Yes**: Assign `PW_TOKENIZE_STRING`_ to a ``constexpr`` variable.
+.. admonition:: **Yes**: Assign :cc:`PW_TOKENIZE_STRING` to a ``constexpr`` variable.
   :class: checkmark
 
   .. code-block:: cpp
@@ -118,14 +118,14 @@ The tokenization macros above cannot be used inside other expressions.
        constexpr uint32_t local_token = PW_TOKENIZE_STRING("Wowee Zowee?");
      }
 
-.. admonition:: **No**: Use `PW_TOKENIZE_STRING`_ in another expression.
+.. admonition:: **No**: Use :cc:`PW_TOKENIZE_STRING` in another expression.
   :class: error
 
   .. code-block:: cpp
 
      void BadExample() { ProcessToken(PW_TOKENIZE_STRING("This won't compile!")); }
 
-  Use `PW_TOKENIZE_STRING_EXPR`_ instead.
+  Use :cc:`PW_TOKENIZE_STRING_EXPR` instead.
 
 Tokenize inside expressions
 ===========================
@@ -134,16 +134,16 @@ use of lambda functions, so while they can be used inside expressions, they
 require C++ and cannot be assigned to constexpr variables or be used with
 special function variables like ``__func__``.
 
-* `PW_TOKENIZE_STRING_EXPR`_
+* :cc:`PW_TOKENIZE_STRING_EXPR`
 * :cc:`PW_TOKENIZE_STRING_DOMAIN_EXPR`
 * :cc:`PW_TOKENIZE_STRING_MASK_EXPR`
 
 .. admonition:: When to use these macros
 
-  Use `PW_TOKENIZE_STRING`_ and related macros to tokenize string
+  Use :cc:`PW_TOKENIZE_STRING` and related macros to tokenize string
   literals that do not need %-style arguments encoded.
 
-.. admonition:: **Yes**: Use `PW_TOKENIZE_STRING_EXPR`_ within other expressions.
+.. admonition:: **Yes**: Use :cc:`PW_TOKENIZE_STRING_EXPR` within other expressions.
   :class: checkmark
 
   .. code-block:: cpp
@@ -152,16 +152,16 @@ special function variables like ``__func__``.
        ProcessToken(PW_TOKENIZE_STRING_EXPR("This will compile!"));
      }
 
-.. admonition:: **No**: Assign `PW_TOKENIZE_STRING_EXPR`_ to a ``constexpr`` variable.
+.. admonition:: **No**: Assign :cc:`PW_TOKENIZE_STRING_EXPR` to a ``constexpr`` variable.
   :class: error
 
   .. code-block:: cpp
 
      constexpr uint32_t wont_work = PW_TOKENIZE_STRING_EXPR("This won't compile!"));
 
-  Instead, use `PW_TOKENIZE_STRING`_ to assign to a ``constexpr`` variable.
+  Instead, use :cc:`PW_TOKENIZE_STRING` to assign to a ``constexpr`` variable.
 
-.. admonition:: **No**: Tokenize ``__func__`` in `PW_TOKENIZE_STRING_EXPR`_.
+.. admonition:: **No**: Tokenize ``__func__`` in :cc:`PW_TOKENIZE_STRING_EXPR`.
   :class: error
 
   .. code-block:: cpp
@@ -172,13 +172,13 @@ special function variables like ``__func__``.
        constexpr uint32_t wont_work = PW_TOKENIZE_STRING_EXPR(__func__);
      }
 
-  Instead, use `PW_TOKENIZE_STRING`_ to tokenize ``__func__`` or similar macros.
+  Instead, use :cc:`PW_TOKENIZE_STRING` to tokenize ``__func__`` or similar macros.
 
 Tokenize a message with arguments to a buffer
 =============================================
-* `PW_TOKENIZE_TO_BUFFER`_
-* `PW_TOKENIZE_TO_BUFFER_DOMAIN`_
-* `PW_TOKENIZE_TO_BUFFER_MASK`_
+* :cc:`PW_TOKENIZE_TO_BUFFER`
+* :cc:`PW_TOKENIZE_TO_BUFFER_DOMAIN`
+* :cc:`PW_TOKENIZE_TO_BUFFER_MASK`
 
 .. admonition:: Why use this macro
 
@@ -197,14 +197,14 @@ Encoding ``%s`` string arguments is inefficient, since ``%s`` strings are
 encoded 1:1, with no tokenization. Tokens can therefore be used to replace
 string arguments to tokenized format strings.
 
-* `PW_TOKEN_FMT`_
+* :cc:`PW_TOKEN_FMT`
 
 .. admonition:: Logging nested tokens
 
   Users will typically interact with nested token arguments during logging.
   In this case there is a slightly different interface described by
   :ref:`module-pw_log-tokenized-args` that does not generally invoke
-  ``PW_TOKEN_FMT`` directly.
+  :cc:`PW_TOKEN_FMT` directly.
 
 The format specifier for a token is given by PRI-style macro ``PW_TOKEN_FMT()``,
 which is concatenated to the rest of the format string by the C preprocessor.
@@ -327,8 +327,8 @@ any arguments, but its final arguments must be:
 ``pw_tokenizer`` provides two low-level macros to help projects create custom
 tokenization macros:
 
-* `PW_TOKENIZE_FORMAT_STRING`_
-* `PW_TOKENIZE_REPLACE_FORMAT_STRING`_
+* :cc:`PW_TOKENIZE_FORMAT_STRING`
+* :cc:`PW_TOKENIZER_REPLACE_FORMAT_STRING`
 
 .. caution::
 
@@ -505,7 +505,7 @@ Masking functionality is provided through the ``*_MASK`` versions of the macros:
 
 * :cc:`PW_TOKENIZE_STRING_MASK`
 * :cc:`PW_TOKENIZE_STRING_MASK_EXPR`
-* `PW_TOKENIZE_TO_BUFFER_MASK`_
+* :cc:`PW_TOKENIZE_TO_BUFFER_MASK`
 
 For example, the following generates 16-bit tokens and packs them into an
 existing value.
@@ -812,13 +812,3 @@ Decoding tooling deployment
    * Integrate detokenization everywhere it is needed. Integrating the tools
      takes just a few lines of code, and token databases can be embedded in APKs
      or binaries.
-
-.. TODO: b/441605063 - Replace with Doxylinks after variadic macro bug is fixed
-.. _PW_TOKEN_FMT: ../api/cc/group__pw__tokenizer__tokenize.html#define-members
-.. _PW_TOKENIZE_FORMAT_STRING: ../api/cc/group__pw__tokenizer__tokenize.html#define-members
-.. _PW_TOKENIZE_REPLACE_FORMAT_STRING: ../api/cc/group__pw__tokenizer__tokenize.html#define-members
-.. _PW_TOKENIZE_STRING: ../api/cc/group__pw__tokenizer__tokenize.html#define-members
-.. _PW_TOKENIZE_STRING_EXPR: ../api/cc/group__pw__tokenizer__tokenize.html#define-members
-.. _PW_TOKENIZE_TO_BUFFER: ../api/cc/group__pw__tokenizer__tokenize.html#define-members
-.. _PW_TOKENIZE_TO_BUFFER_DOMAIN: ../api/cc/group__pw__tokenizer__tokenize.html#define-members
-.. _PW_TOKENIZE_TO_BUFFER_MASK: ../api/cc/group__pw__tokenizer__tokenize.html#define-members

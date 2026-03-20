@@ -173,7 +173,7 @@ system, intended to be used directly.
    Dropped logs will be counted to add a drop count and calculated rate of the
    logs.
 
-   *msg* - Formattable log message, as you would pass to the above ``PW_LOG``
+   *msg* - Formattable log message, as you would pass to the above :cc:`PW_LOG`
    macro.
 
    .. note::
@@ -270,7 +270,7 @@ source files, not headers. For example:
 .. c:macro:: PW_LOG_FLAGS
 
    Log flags to use for the ``PW_LOG_<level>`` macros. Different flags may be
-   applied when using the ``PW_LOG`` macro directly.
+   applied when using the :cc:`PW_LOG` macro directly.
 
    Log backends use flags to change how they handle individual log messages.
    Potential uses include assigning logs priority or marking them as containing
@@ -325,9 +325,9 @@ complexity, and more.
 
 .. _module-pw_log-circular-deps:
 
-----------------------------------------------
-Avoiding circular dependencies with ``PW_LOG``
-----------------------------------------------
+------------------------------------------------
+Avoiding circular dependencies with :cc:`PW_LOG`
+------------------------------------------------
 Because logs are so widely used, including in low-level libraries, it is
 common for the ``pw_log`` backend to cause circular dependencies. Because of
 this, log backends may avoid declaring explicit dependencies, instead relying

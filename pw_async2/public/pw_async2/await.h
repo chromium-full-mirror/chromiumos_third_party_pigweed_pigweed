@@ -18,7 +18,6 @@
 
 /// @submodule{pw_async2,poll}
 
-/// @def PW_AWAIT
 /// @brief Poll and resolve a future or return `Pending` if not ready.
 ///
 /// `PW_AWAIT` polls the provided future, returning `Pending` from the current
@@ -83,15 +82,7 @@
 ///   }
 ///   auto value = std::move(*_pw_poll_result);
 /// @endcode
-// Doxygen/Doxylink struggle with correct parsing and linking when this is
-// defined as a variadic macro. We use PW_EXCLUDE_FROM_DOXYGEN to provide a
-// simplified argument-less definition that generates a clean entry in the tag
-// file, ensuring reliable linking.
-#ifdef PW_EXCLUDE_FROM_DOXYGEN
-#define PW_AWAIT
-#else
 #define PW_AWAIT(...) PW_DELEGATE_BY_ARG_COUNT(_PW_AWAIT_, __VA_ARGS__)
-#endif
 
 /// @cond
 #define _PW_AWAIT_2(future, cx) PW_TRY_READY((future).Pend(cx))

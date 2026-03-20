@@ -110,6 +110,7 @@
 #define PW_ACQUIRED_AFTER(...)
 #endif
 
+/// Documents that the annotated lock must be acquired before the argument lock.
 #if PW_HAVE_ATTRIBUTE(acquired_before)
 #define PW_ACQUIRED_BEFORE(...) __attribute__((acquired_before(__VA_ARGS__)))
 #else
@@ -146,6 +147,7 @@
 #define PW_EXCLUSIVE_LOCKS_REQUIRED(...)
 #endif
 
+/// Documents a function that expects a shared lock to be held prior to entry.
 #if PW_HAVE_ATTRIBUTE(shared_locks_required)
 #define PW_SHARED_LOCKS_REQUIRED(...) \
   __attribute__((shared_locks_required(__VA_ARGS__)))
@@ -260,6 +262,7 @@
 #define PW_EXCLUSIVE_TRYLOCK_FUNCTION(...)
 #endif
 
+/// Documents a function that tries to acquire a shared lock.
 #if PW_HAVE_ATTRIBUTE(shared_trylock_function)
 #define PW_SHARED_TRYLOCK_FUNCTION(...) \
   __attribute__((shared_trylock_function(__VA_ARGS__)))
@@ -276,6 +279,7 @@
 #define PW_ASSERT_EXCLUSIVE_LOCK(...)
 #endif
 
+/// Documents a function that dynamically checks if a shared lock is held.
 #if PW_HAVE_ATTRIBUTE(assert_shared_lock)
 #define PW_ASSERT_SHARED_LOCK(...) \
   __attribute__((assert_shared_lock(__VA_ARGS__)))

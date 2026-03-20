@@ -521,8 +521,8 @@ More information on Clang's thread safety analysis system can be found
 Enabling Clang's Analysis
 -------------------------
 In order to enable the analysis, Clang requires that the ``-Wthread-safety``
-compilation flag be used. To also enable `PW_ACQUIRED_AFTER`_ and/or
-`PW_ACQUIRED_BEFORE`_, it also requires the ``-Wthread-safety-beta``
+compilation flag be used. To also enable :cc:`PW_ACQUIRED_AFTER` and/or
+:cc:`PW_ACQUIRED_BEFORE`, it also requires the ``-Wthread-safety-beta``
 compilation flag. And if any STL components like ``std::lock_guard`` are used,
 the STL's built in annotations should be manually enabled, typically by setting
 the ``_LIBCPP_ENABLE_THREAD_SAFETY_ANNOTATIONS`` macro.
@@ -554,21 +554,21 @@ Annotating Lock Usage
 ^^^^^^^^^^^^^^^^^^^^^
 * :cc:`PW_GUARDED_BY`
 * :cc:`PW_PT_GUARDED_BY`
-* `PW_ACQUIRED_AFTER`_
-* `PW_ACQUIRED_BEFORE`_
-* `PW_EXCLUSIVE_LOCKS_REQUIRED`_
-* `PW_SHARED_LOCKS_REQUIRED`_
-* `PW_LOCKS_EXCLUDED`_
+* :cc:`PW_ACQUIRED_AFTER`
+* :cc:`PW_ACQUIRED_BEFORE`
+* :cc:`PW_EXCLUSIVE_LOCKS_REQUIRED`
+* :cc:`PW_SHARED_LOCKS_REQUIRED`
+* :cc:`PW_LOCKS_EXCLUDED`
 * :cc:`PW_LOCK_RETURNED`
 * :cc:`PW_LOCKABLE`
 * :cc:`PW_SCOPED_LOCKABLE`
-* `PW_EXCLUSIVE_LOCK_FUNCTION`_
-* `PW_SHARED_LOCK_FUNCTION`_
-* `PW_UNLOCK_FUNCTION`_
-* `PW_EXCLUSIVE_TRYLOCK_FUNCTION`_
-* `PW_SHARED_TRYLOCK_FUNCTION`_
-* `PW_ASSERT_EXCLUSIVE_LOCK`_
-* `PW_ASSERT_SHARED_LOCK`_
+* :cc:`PW_EXCLUSIVE_LOCK_FUNCTION`
+* :cc:`PW_SHARED_LOCK_FUNCTION`
+* :cc:`PW_UNLOCK_FUNCTION`
+* :cc:`PW_EXCLUSIVE_TRYLOCK_FUNCTION`
+* :cc:`PW_SHARED_TRYLOCK_FUNCTION`
+* :cc:`PW_ASSERT_EXCLUSIVE_LOCK`
+* :cc:`PW_ASSERT_SHARED_LOCK`
 * :cc:`PW_NO_LOCK_SAFETY_ANALYSIS`
 
 Annotating Lock Objects
@@ -1563,17 +1563,3 @@ Moved: :cc:`pw_sync`
    :maxdepth: 1
 
    backends
-
-.. TODO: b/441605063 - Replace with Doxylinks after variadic macro bug is fixed
-.. _PW_ACQUIRED_AFTER: ../api/cc/group__pw__sync.html#define-members
-.. _PW_ACQUIRED_BEFORE: ../api/cc/group__pw__sync.html#define-members
-.. _PW_ASSERT_EXCLUSIVE_LOCK: ../api/cc/group__pw__sync.html#define-members
-.. _PW_ASSERT_SHARED_LOCK: ../api/cc/group__pw__sync.html#define-members
-.. _PW_EXCLUSIVE_LOCK_FUNCTION: ../api/cc/group__pw__sync.html#define-members
-.. _PW_EXCLUSIVE_LOCKS_REQUIRED: ../api/cc/group__pw__sync.html#define-members
-.. _PW_EXCLUSIVE_TRYLOCK_FUNCTION: ../api/cc/group__pw__sync.html#define-members
-.. _PW_LOCKS_EXCLUDED: ../api/cc/group__pw__sync.html#define-members
-.. _PW_SHARED_LOCK_FUNCTION: ../api/cc/group__pw__sync.html#define-members
-.. _PW_SHARED_LOCKS_REQUIRED: ../api/cc/group__pw__sync.html#define-members
-.. _PW_SHARED_TRYLOCK_FUNCTION: ../api/cc/group__pw__sync.html#define-members
-.. _PW_UNLOCK_FUNCTION: ../api/cc/group__pw__sync.html#define-members

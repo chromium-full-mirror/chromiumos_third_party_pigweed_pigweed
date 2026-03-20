@@ -98,7 +98,7 @@ resources:
 A quick overview of how the tokenized version works:
 
 * You tokenize ``"Battery Voltage: %d mV"`` with a macro like
-  `PW_TOKENIZE_STRING`_. You can use :ref:`module-pw_log_tokenized`
+  :cc:`PW_TOKENIZE_STRING`. You can use :ref:`module-pw_log_tokenized`
   to handle the tokenization automatically.
 * After tokenization, ``"Battery Voltage: %d mV"`` becomes ``d9 28 47 8e``.
 * The first 4 bytes sent over the wire is the tokenized version of
@@ -117,6 +117,3 @@ A quick overview of how the tokenized version works:
    token_databases
    detokenization
    api
-
-.. TODO: b/441605063 - Replace with Doxylink after variadic macro bug is fixed.
-.. _PW_TOKENIZE_STRING: ../api/cc/group__pw__tokenizer__tokenize.html#define-members
