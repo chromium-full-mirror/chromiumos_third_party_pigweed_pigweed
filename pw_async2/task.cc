@@ -192,7 +192,6 @@ RunTaskResult Task::RunInDispatcher() {
       state_ = State::kSleeping;
       dispatcher_->AddSleepingTaskLocked(*this);
     } else {
-      // Require the task to be manually re-posted.
       state_ = State::kUnposted;
       dispatcher_ = nullptr;
     }

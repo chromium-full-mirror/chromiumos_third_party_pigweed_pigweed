@@ -171,21 +171,22 @@ TEST(DispatcherForTest, RunInTaskUntilStalledReturnsPending) {
 TEST(DispatcherForTest, PostToDispatcherFromInsidePendSucceeds) {
   class TaskPoster : public Task {
    public:
-    TaskPoster(Task& task_to_post) : task_to_post_(&task_to_post) {}
+    TaskPoster(Dispatcher& dispatcher, Task& task_to_post)
+        : dispatcher_(&dispatcher), task_to_post_(&task_to_post) {}
 
    private:
-    Poll<> DoPend(Context& cx) override {
-      cx.dispatcher().Post(*task_to_post_);
+    Poll<> DoPend(Context&) override {
+      dispatcher_->Post(*task_to_post_);
       return Ready();
     }
+    Dispatcher* dispatcher_;
     Task* task_to_post_;
   };
 
   MockTask posted_task;
   posted_task.should_complete = true;
-  TaskPoster task_poster(posted_task);
-
   DispatcherForTest dispatcher;
+  TaskPoster task_poster(dispatcher, posted_task);
   dispatcher.Post(task_poster);
   dispatcher.RunToCompletion();
   EXPECT_EQ(posted_task.polled, 1);

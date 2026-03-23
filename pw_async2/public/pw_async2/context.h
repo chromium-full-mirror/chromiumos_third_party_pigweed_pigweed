@@ -50,12 +50,6 @@ class Context {
   Context(Dispatcher& dispatcher, Waker& waker)
       : dispatcher_(&dispatcher), waker_(&waker), requires_waker_(true) {}
 
-  /// The ``Dispatcher`` on which the current ``Task`` is executing.
-  ///
-  /// This can be used for spawning new tasks using
-  /// ``dispatcher().Post(task);``.
-  Dispatcher& dispatcher() { return *dispatcher_; }
-
   /// Queues the current ``Task::Pend`` to run again in the future, possibly
   /// after other work is performed.
   ///

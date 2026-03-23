@@ -68,8 +68,6 @@ async2::PollResult<multibuf::MultiBuf> EpollChannel::DoPendRead(
   }
 
   if (errno == EAGAIN) {
-    PW_DCHECK_PTR_EQ(&cx.dispatcher(), dispatcher_);
-
     // EAGAIN on a non-blocking read indicates that there is no data available.
     // Put the task to sleep until the dispatcher is notified that the file
     // descriptor is active.
@@ -91,7 +89,6 @@ async2::Poll<Status> EpollChannel::DoPendReadyToWrite(async2::Context& cx) {
   // receives a notification for the channel's file descriptor.
   ready_to_write_ = true;
 
-  PW_DCHECK_PTR_EQ(&cx.dispatcher(), dispatcher_);
   PW_ASYNC_STORE_WAKER(
       cx,
       dispatcher_->NativeAddWriteWakerForFileDescriptor(channel_fd_),
