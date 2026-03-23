@@ -37,8 +37,9 @@ enum class TransferStream {
 };
 
 enum class SetStreamBehavior {
-  kNewClient,  // Aborts all existing transfers on the stream.
-  kReopen,     // Restarts initiating transfers and aborts others.
+  kNewClient,    // Aborts all existing transfers on the stream.
+  kReopen,       // Restarts initiating transfers and aborts others.
+  kCloseStream,  // Clears the existing stream without creating a new one.
 };
 
 enum class IdentifierType {

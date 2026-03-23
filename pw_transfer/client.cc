@@ -125,8 +125,10 @@ void Client::OnRpcError(Status status, internal::TransferType type) {
   } else {
     if (is_write_error) {
       has_write_stream_ = false;
+      transfer_thread_.CloseClientWriteStream(this);
     } else {
       has_read_stream_ = false;
+      transfer_thread_.CloseClientReadStream(this);
     }
   }
 }

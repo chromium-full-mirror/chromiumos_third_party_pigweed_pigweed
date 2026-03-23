@@ -3703,6 +3703,7 @@ TEST_F(WriteTransfer, Version2_WriteRpcError) {
   transfer_thread_.WaitUntilEventIsProcessed();
 
   EXPECT_EQ(client_.has_write_stream(), false);
+  EXPECT_EQ(transfer_status, Status::Aborted());
 
   // Ensure we don't leave a dangling reference to transfer_status.
   handle.Cancel();
@@ -3746,6 +3747,7 @@ TEST_F(ReadTransfer, Version2_ReadRpcError) {
   transfer_thread_.WaitUntilEventIsProcessed();
 
   EXPECT_EQ(client_.has_read_stream(), false);
+  EXPECT_EQ(transfer_status, Status::Aborted());
 
   // Ensure we don't leave a dangling reference to transfer_status.
   handle.Cancel();

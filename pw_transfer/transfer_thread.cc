@@ -276,19 +276,122 @@ void TransferThread::EndTransfer(EventType type,
   event_notification_.release();
 }
 
-void TransferThread::SetStream(TransferStream stream,
-                               internal::SetStreamBehavior behavior) {
+void TransferThread::SetClientReadStream(
+    rpc::RawClientReaderWriter& read_stream,
+    Client* client,
+    Function<void(ConstByteSpan)>&& on_next,
+    internal::SetStreamBehavior behavior) {
+  client_read_stream_.stream.set_on_next(nullptr);
   if (!TryWaitForEventToProcess()) {
     return;
   }
+  staged_client_stream_.stream = std::move(read_stream);
+  staged_client_stream_.client = client;
+  staged_client_on_next_ = std::move(on_next);
 
   next_event_.type = EventType::kSetStream;
   next_event_.set_stream = {
-      .stream = stream,
+      .stream = TransferStream::kClientRead,
       .behavior = behavior,
   };
 
   event_notification_.release();
+  WaitUntilEventIsProcessed();
+}
+
+void TransferThread::CloseClientReadStream(Client* client) {
+  if (!TryWaitForEventToProcess()) {
+    return;
+  }
+  staged_client_stream_.client = client;
+
+  next_event_.type = EventType::kSetStream;
+  next_event_.set_stream = {
+      .stream = TransferStream::kClientRead,
+      .behavior = internal::SetStreamBehavior::kCloseStream,
+  };
+
+  event_notification_.release();
+  WaitUntilEventIsProcessed();
+}
+
+void TransferThread::SetClientWriteStream(
+    rpc::RawClientReaderWriter& write_stream,
+    Client* client,
+    Function<void(ConstByteSpan)>&& on_next,
+    internal::SetStreamBehavior behavior) {
+  client_write_stream_.stream.set_on_next(nullptr);
+  if (!TryWaitForEventToProcess()) {
+    return;
+  }
+  staged_client_stream_.stream = std::move(write_stream);
+  staged_client_stream_.client = client;
+  staged_client_on_next_ = std::move(on_next);
+
+  next_event_.type = EventType::kSetStream;
+  next_event_.set_stream = {
+      .stream = TransferStream::kClientWrite,
+      .behavior = behavior,
+  };
+
+  event_notification_.release();
+  WaitUntilEventIsProcessed();
+}
+
+void TransferThread::CloseClientWriteStream(Client* client) {
+  if (!TryWaitForEventToProcess()) {
+    return;
+  }
+  staged_client_stream_.client = client;
+
+  next_event_.type = EventType::kSetStream;
+  next_event_.set_stream = {
+      .stream = TransferStream::kClientWrite,
+      .behavior = internal::SetStreamBehavior::kCloseStream,
+  };
+
+  event_notification_.release();
+  WaitUntilEventIsProcessed();
+}
+
+void TransferThread::SetServerReadStream(
+    rpc::RawServerReaderWriter& read_stream,
+    Function<void(ConstByteSpan)>&& on_next) {
+  server_read_stream_.set_on_next(nullptr);
+  if (!TryWaitForEventToProcess()) {
+    return;
+  }
+  staged_server_stream_ = std::move(read_stream);
+  staged_server_on_next_ = std::move(on_next);
+
+  next_event_.type = EventType::kSetStream;
+  next_event_.set_stream = {
+      .stream = TransferStream::kServerRead,
+      .behavior = internal::SetStreamBehavior::kNewClient,
+  };
+
+  event_notification_.release();
+  WaitUntilEventIsProcessed();
+}
+
+void TransferThread::SetServerWriteStream(
+    rpc::RawServerReaderWriter& write_stream,
+    Function<void(ConstByteSpan)>&& on_next) {
+  server_write_stream_.set_on_next(nullptr);
+  if (!TryWaitForEventToProcess()) {
+    return;
+  }
+  staged_server_stream_ = std::move(write_stream);
+  staged_server_on_next_ = std::move(on_next);
+
+  next_event_.type = EventType::kSetStream;
+  next_event_.set_stream = {
+      .stream = TransferStream::kServerWrite,
+      .behavior = internal::SetStreamBehavior::kNewClient,
+  };
+
+  event_notification_.release();
+  WaitUntilEventIsProcessed();
 }
 
 void TransferThread::UpdateClientTransfer(uint32_t handle_id,
@@ -568,6 +671,19 @@ void TransferThread::HandleSetStreamEvent(
     TransferStream stream, internal::SetStreamBehavior behavior) {
   switch (stream) {
     case TransferStream::kClientRead: {
+      if (behavior == internal::SetStreamBehavior::kCloseStream) {
+        if (client_read_stream_.client == staged_client_stream_.client) {
+          CancelExistingStream(client_read_stream_, TransferType::kReceive);
+          TerminateTransfers(client_transfers_,
+                             TransferType::kReceive,
+                             EventType::kClientEndTransfer,
+                             Status::Aborted());
+          client_read_stream_.client = nullptr;
+          client_read_stream_.stream = rpc::RawClientReaderWriter();
+        }
+        break;
+      }
+
       CancelExistingStream(client_read_stream_, TransferType::kReceive);
 
       bool skip_initiating = behavior == internal::SetStreamBehavior::kReopen;
@@ -594,6 +710,19 @@ void TransferThread::HandleSetStreamEvent(
     }
 
     case TransferStream::kClientWrite: {
+      if (behavior == internal::SetStreamBehavior::kCloseStream) {
+        if (client_write_stream_.client == staged_client_stream_.client) {
+          CancelExistingStream(client_write_stream_, TransferType::kTransmit);
+          TerminateTransfers(client_transfers_,
+                             TransferType::kTransmit,
+                             EventType::kClientEndTransfer,
+                             Status::Aborted());
+          client_write_stream_.client = nullptr;
+          client_write_stream_.stream = rpc::RawClientReaderWriter();
+        }
+        break;
+      }
+
       CancelExistingStream(client_write_stream_, TransferType::kTransmit);
 
       bool skip_initiating = behavior == internal::SetStreamBehavior::kReopen;
