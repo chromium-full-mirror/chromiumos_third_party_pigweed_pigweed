@@ -201,12 +201,18 @@ class AclDataChannel {
   bool HasAclConnection(uint16_t connection_handle);
 
  private:
+  /// Source of an ACL packet sent to the controller.
+  enum class PacketSource : uint8_t {
+    /// Packet was sent from the host (and passed through by proxy).
+    kHost,
+    /// Packet was sent by the proxy.
+    kProxy,
+  };
+
   // An active logical link on ACL logical transport.
   class AclConnection {
    public:
-    AclConnection(AclTransportType transport,
-                  uint16_t connection_handle,
-                  uint16_t num_pending_packets);
+    AclConnection(AclTransportType transport, uint16_t connection_handle);
 
     AclConnection(const AclConnection&) = delete;
     AclConnection& operator=(const AclConnection&) = delete;
@@ -215,18 +221,29 @@ class AclDataChannel {
 
     uint16_t connection_handle() const { return connection_handle_; }
 
-    uint16_t num_pending_packets() const { return num_pending_packets_; }
+    uint16_t num_proxy_pending_packets() const {
+      return num_proxy_pending_packets_;
+    }
+
+    uint16_t num_host_pending_packets() const {
+      return num_host_pending_packets_;
+    }
 
     AclTransportType transport() const { return transport_; }
 
-    void set_num_pending_packets(uint16_t new_val) {
-      num_pending_packets_ = new_val;
-    }
+    /// Record a packet being sent to the controller.
+    void RecordPacket(PacketSource source);
+
+    /// Reclaim a credit for a packet that has completed.
+    /// This will decide whether to give the credit to the host or proxy.
+    PacketSource ReclaimCredit();
 
    private:
     AclTransportType transport_;
     uint16_t connection_handle_;
-    uint16_t num_pending_packets_;
+    uint16_t num_proxy_pending_packets_ = 0;
+    uint16_t num_host_pending_packets_ = 0;
+    PacketSource last_reclaimed_ = PacketSource::kProxy;
   };
 
   class Credits {
@@ -258,6 +275,8 @@ class AclDataChannel {
     // If this class has already had credits reserved from the controller.
     bool Initialized() const { return proxy_max_ > 0; }
 
+    uint16_t controller_max_packets() const { return controller_max_packets_; }
+
    private:
     const uint16_t to_reserve_;
     // The local number of HCI ACL Data packets that we have reserved for
@@ -266,6 +285,8 @@ class AclDataChannel {
     // The number of HCI ACL Data packets that we have sent to the controller
     // and have not yet completed.
     uint16_t proxy_pending_ = 0;
+    // The maximum number of HCI ACL Data packets the controller can hold.
+    uint16_t controller_max_packets_ = 0;
   };
 
   // Handles an ACL Data frame.

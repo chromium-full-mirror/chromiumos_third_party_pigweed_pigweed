@@ -999,6 +999,104 @@ TEST_F(NumberOfCompletedPacketsTest, TwoOfThreeSentPacketsComplete) {
   EXPECT_EQ(capture.sends_called, 4);
 }
 
+TEST_F(NumberOfCompletedPacketsTest, InterlaceProxyAndHostCredits) {
+  struct {
+    int nocp_sends_called = 0;
+    uint16_t last_host_reclaimed = 0;
+  } capture;
+
+  pw::Function<void(H4PacketWithHci && packet)> send_to_host_fn(
+      [&capture](H4PacketWithHci&& packet) {
+        PW_TEST_ASSERT_OK_AND_ASSIGN(
+            auto event_header,
+            MakeEmbossView<emboss::EventHeaderView>(packet.GetHciSpan().subspan(
+                0, emboss::EventHeader::IntrinsicSizeInBytes())));
+        if (event_header.event_code().Read() !=
+            emboss::EventCode::NUMBER_OF_COMPLETED_PACKETS) {
+          return;
+        }
+        capture.nocp_sends_called++;
+        PW_TEST_ASSERT_OK_AND_ASSIGN(
+            auto view,
+            MakeEmbossView<emboss::NumberOfCompletedPacketsEventView>(
+                packet.GetHciSpan()));
+        EXPECT_EQ(view.nocp_data()[0].connection_handle().Read(),
+                  kConnectionHandle);
+        capture.last_host_reclaimed =
+            view.nocp_data()[0].num_completed_packets().Read();
+      });
+  pw::Function<void(H4PacketWithH4 && packet)> send_to_controller_fn(
+      []([[maybe_unused]] H4PacketWithH4&& packet) {});
+
+  ProxyHost proxy = ProxyHost(std::move(send_to_host_fn),
+                              std::move(send_to_controller_fn),
+                              /*le_acl_credits_to_reserve=*/5,
+                              /*br_edr_acl_credits_to_reserve=*/0,
+                              GetProxyHostAllocator());
+  StartDispatcherOnCurrentThread(proxy);
+  PW_TEST_EXPECT_OK(SendLeReadBufferResponseFromController(proxy, 10));
+  PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
+      proxy, kConnectionHandle, emboss::StatusCode::SUCCESS));
+
+  EXPECT_EQ(proxy.GetNumFreeLeAclPackets(), 5);
+
+  // Send Host packet.
+  std::array<uint8_t, 9> host_packet_arr = {
+      0x02,
+      0x23,
+      0x01,
+      0x04,
+      0x00,  // H4 type, Handle, Length
+      0x00,
+      0x00,
+      0x00,
+      0x00  // Payload
+  };
+  proxy.HandleH4HciFromHost(H4PacketWithH4(host_packet_arr));
+
+  // Send Proxy packet.
+  GattNotifyChannel channel =
+      BuildGattNotifyChannel(proxy, {.handle = kConnectionHandle});
+  std::array<uint8_t, 3> proxy_packet_arr1 = {1, 2, 3};
+  PW_TEST_EXPECT_OK(channel.Write(MultiBufFromArray(proxy_packet_arr1)).status);
+  RunDispatcher();
+
+  // Send another Host packet.
+  proxy.HandleH4HciFromHost(H4PacketWithH4(host_packet_arr));
+
+  // Send another Proxy packet.
+  std::array<uint8_t, 3> proxy_packet_arr2 = {4, 5, 6};
+  PW_TEST_EXPECT_OK(channel.Write(MultiBufFromArray(proxy_packet_arr2)).status);
+  RunDispatcher();
+
+  // 2 proxy packets pending.
+  EXPECT_EQ(proxy.GetNumFreeLeAclPackets(), 3);
+
+  // Now send NOCP events and verify interlacing.
+
+  // 1st completed packet was Host.
+  PW_TEST_EXPECT_OK(
+      SendNumberOfCompletedPackets(proxy, {{kConnectionHandle, 1}}));
+  EXPECT_EQ(capture.nocp_sends_called, 1);
+  EXPECT_EQ(capture.last_host_reclaimed, 1);
+  EXPECT_EQ(proxy.GetNumFreeLeAclPackets(), 3);
+
+  // 2nd completed packet was Proxy.
+  PW_TEST_EXPECT_OK(
+      SendNumberOfCompletedPackets(proxy, {{kConnectionHandle, 1}}));
+  // Proxy took the credit, so no NOCP sent to host.
+  EXPECT_EQ(capture.nocp_sends_called, 1);
+  EXPECT_EQ(proxy.GetNumFreeLeAclPackets(), 4);
+
+  // 3rd and 4th completed packets were Host and Proxy.
+  PW_TEST_EXPECT_OK(
+      SendNumberOfCompletedPackets(proxy, {{kConnectionHandle, 2}}));
+  // One for host, one for proxy. Host should get a NOCP with 1 packet.
+  EXPECT_EQ(capture.nocp_sends_called, 2);
+  EXPECT_EQ(capture.last_host_reclaimed, 1);
+  EXPECT_EQ(proxy.GetNumFreeLeAclPackets(), 5);
+}
+
 TEST_F(NumberOfCompletedPacketsTest,
        ManyMorePacketsCompletedThanPacketsPending) {
   constexpr size_t kNumConnections = 2;

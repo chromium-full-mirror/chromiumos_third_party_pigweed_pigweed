@@ -43,15 +43,54 @@ void AclDataChannel::HandleAclFromHost(H4PacketWithH4&& h4_packet) {
 }
 
 AclDataChannel::AclConnection::AclConnection(AclTransportType transport,
-                                             uint16_t connection_handle,
-                                             uint16_t num_pending_packets)
+                                             uint16_t connection_handle)
     : transport_(transport),
       connection_handle_(connection_handle),
-      num_pending_packets_(num_pending_packets) {
+      num_proxy_pending_packets_(0),
+      num_host_pending_packets_(0) {
   PW_LOG_INFO(
       "btproxy: AclConnection ctor. transport_: %u, connection_handle_: %#x",
       cpp23::to_underlying(transport_),
       connection_handle_);
+}
+
+void AclDataChannel::AclConnection::RecordPacket(
+    AclDataChannel::PacketSource source) {
+  if (source == PacketSource::kProxy) {
+    ++num_proxy_pending_packets_;
+  } else {
+    ++num_host_pending_packets_;
+  }
+}
+
+AclDataChannel::PacketSource AclDataChannel::AclConnection::ReclaimCredit() {
+  if (num_proxy_pending_packets_ > 0 && num_host_pending_packets_ > 0) {
+    if (last_reclaimed_ == PacketSource::kHost) {
+      last_reclaimed_ = PacketSource::kProxy;
+      --num_proxy_pending_packets_;
+      return AclDataChannel::PacketSource::kProxy;
+    } else {
+      last_reclaimed_ = AclDataChannel::PacketSource::kHost;
+      --num_host_pending_packets_;
+      return AclDataChannel::PacketSource::kHost;
+    }
+  }
+
+  if (num_proxy_pending_packets_ > 0) {
+    last_reclaimed_ = AclDataChannel::PacketSource::kProxy;
+    --num_proxy_pending_packets_;
+    return AclDataChannel::PacketSource::kProxy;
+  }
+
+  if (num_host_pending_packets_ > 0) {
+    last_reclaimed_ = AclDataChannel::PacketSource::kHost;
+    --num_host_pending_packets_;
+    return AclDataChannel::PacketSource::kHost;
+  }
+
+  // If we have no record of pending packets, default to host.
+  last_reclaimed_ = AclDataChannel::PacketSource::kHost;
+  return AclDataChannel::PacketSource::kHost;
 }
 
 AclDataChannel::SendCredit::SendCredit(SendCredit&& other) {
@@ -124,6 +163,7 @@ Status AclDataChannel::UnregisterConnection(ConnectionDelegate& delegate) {
 void AclDataChannel::Credits::Reset() {
   proxy_max_ = 0;
   proxy_pending_ = 0;
+  controller_max_packets_ = 0;
 }
 
 uint16_t AclDataChannel::Credits::Reserve(uint16_t controller_max) {
@@ -131,6 +171,7 @@ uint16_t AclDataChannel::Credits::Reserve(uint16_t controller_max) {
            "AclDataChannel is already initialized. Proxy should have been "
            "reset before this.");
 
+  controller_max_packets_ = controller_max;
   proxy_max_ = std::min(controller_max, to_reserve_);
   const uint16_t host_max = controller_max - proxy_max_;
 
@@ -284,28 +325,29 @@ void AclDataChannel::HandleNumberOfCompletedPacketsEvent(
         continue;
       }
 
-      // Reclaim proxy's credits before event is forwarded to host
-      uint16_t num_pending_packets = connection_ptr->num_pending_packets();
-      uint16_t num_reclaimed =
-          std::min(num_completed_packets, num_pending_packets);
+      // Handover credits to the sources that sent them.
+      uint16_t proxy_reclaimed = 0;
+      uint16_t host_reclaimed = 0;
 
-      if (num_reclaimed > 0) {
+      for (uint16_t j = 0; j < num_completed_packets; ++j) {
+        if (connection_ptr->ReclaimCredit() == PacketSource::kProxy) {
+          ++proxy_reclaimed;
+        } else {
+          ++host_reclaimed;
+        }
+      }
+
+      if (proxy_reclaimed > 0) {
         did_reclaim_credits = true;
-      }
-
-      {
         std::lock_guard credit_lock(credit_mutex_);
-        LookupCredits(connection_ptr->transport()).MarkCompleted(num_reclaimed);
+        LookupCredits(connection_ptr->transport())
+            .MarkCompleted(proxy_reclaimed);
       }
 
-      connection_ptr->set_num_pending_packets(num_pending_packets -
-                                              num_reclaimed);
-
-      uint16_t credits_remaining = num_completed_packets - num_reclaimed;
-      nocp_event->nocp_data()[i].num_completed_packets().Write(
-          credits_remaining);
-      if (credits_remaining > 0) {
-        // Connection has credits remaining, so should past event on to host.
+      nocp_event->nocp_data()[i].num_completed_packets().Write(host_reclaimed);
+      if (host_reclaimed > 0) {
+        // Connection has credits remaining for host, so should pass event on to
+        // host.
         should_send_to_host = true;
       }
     }
@@ -346,14 +388,14 @@ void AclDataChannel::ProcessDisconnectionCompleteEvent(
               cpp23::to_underlying(reason),
               connection_handle);
 
-  if (connection_ptr->num_pending_packets() > 0) {
+  if (connection_ptr->num_proxy_pending_packets() > 0) {
     PW_LOG_WARN(
         "Connection %#x is disconnecting with packets in flight. Releasing "
         "associated credits.",
         connection_handle);
     std::lock_guard credit_lock(credit_mutex_);
     LookupCredits(connection_ptr->transport())
-        .MarkCompleted(connection_ptr->num_pending_packets());
+        .MarkCompleted(connection_ptr->num_proxy_pending_packets());
   }
 
   acl_connections_.erase(connection_ptr);
@@ -406,8 +448,7 @@ pw::Status AclDataChannel::SendAcl(H4PacketWithH4&& h4_packet,
   }
   credit.MarkUsed();
 
-  connection_ptr->set_num_pending_packets(
-      connection_ptr->num_pending_packets() + 1);
+  connection_ptr->RecordPacket(PacketSource::kProxy);
 
   hci_transport_.SendToController(std::move(h4_packet));
   return pw::OkStatus();
@@ -427,9 +468,10 @@ Status AclDataChannel::CreateAclConnection(uint16_t connection_handle,
         connection_handle);
     return Status::ResourceExhausted();
   }
+
   acl_connections_.emplace_back(transport,
-                                /*connection_handle=*/connection_handle,
-                                /*num_pending_packets=*/0);
+                                /*connection_handle=*/connection_handle);
+
   return OkStatus();
 }
 
@@ -461,14 +503,13 @@ bool AclDataChannel::HandleAclData(Direction direction,
 
   const uint16_t handle = acl->header().handle().Read();
 
-  ConnectionDelegate::HandleAclDataReturn result;
+  ConnectionDelegate::HandleAclDataReturn result{};
   {
     std::lock_guard lock(delegates_mutex_);
     auto iter = connection_delegates_.find(handle);
-    if (iter == connection_delegates_.end()) {
-      return kUnhandled;
+    if (iter != connection_delegates_.end()) {
+      result = iter->HandleAclData(direction, *acl);
     }
-    result = iter->HandleAclData(direction, *acl);
   }
 
   if (result.recombined_buffer.has_value()) {
@@ -483,6 +524,13 @@ bool AclDataChannel::HandleAclData(Direction direction,
       }
       case Direction::kFromHost: {
         H4PacketWithH4 h4_packet{h4_span};
+        {
+          std::lock_guard lock(connection_mutex_);
+          AclConnection* connection_ptr = FindAclConnection(handle);
+          if (connection_ptr) {
+            connection_ptr->RecordPacket(PacketSource::kHost);
+          }
+        }
         hci_transport_.SendToController(std::move(h4_packet));
         break;
       }
@@ -491,6 +539,14 @@ bool AclDataChannel::HandleAclData(Direction direction,
     // We still return kHandled here since the last fragment packet was already
     // passed on to the host as part of the recombined H4 packet.
     return kHandled;
+  }
+
+  if (direction == Direction::kFromHost && !result.handled) {
+    std::lock_guard lock(connection_mutex_);
+    AclConnection* connection_ptr = FindAclConnection(handle);
+    if (connection_ptr) {
+      connection_ptr->RecordPacket(PacketSource::kHost);
+    }
   }
 
   return result.handled;
