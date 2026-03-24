@@ -35,12 +35,13 @@ RateLimiter::PollResult RateLimiter::Poll(
   }
 
   // Add half to round not floor.
-  uint16_t elapsed_ms =
+  int64_t elapsed_ms =
       std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count();
   if (elapsed_ms != 0) {
-    result.logs_per_s = (count_ * 1000 + 500) / elapsed_ms;
+    result.logs_per_s =
+        static_cast<uint16_t>((count_ * 1000 + 500) / elapsed_ms);
   }
-  result.count = count_;
+  result.count = static_cast<uint16_t>(count_);
 
   last_timestamp_ = now;
   count_ = 0;

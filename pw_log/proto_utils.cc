@@ -42,7 +42,8 @@ Result<ConstByteSpan> EncodeLog(int level,
 
   // Defer status checks until the end.
   Status status = encoder.WriteMessage(as_bytes(span<const char>(message)));
-  status = encoder.WriteLineLevel(PackLineLevel(line_number, level));
+  status = encoder.WriteLineLevel(PackLineLevel(
+      static_cast<uint32_t>(line_number), static_cast<uint8_t>(level)));
   if (flags != 0) {
     status = encoder.WriteFlags(flags);
   }
@@ -73,14 +74,15 @@ pwpb::LogEntry::MemoryEncoder CreateEncoderAndEncodeTokenizedLog(
   // Defer status checks until the end.
   Status status = encoder.WriteMessage(tokenized_data);
   status = encoder.WriteLineLevel(
-      PackLineLevel(metadata.line_number(), metadata.level()));
+      PackLineLevel(static_cast<uint32_t>(metadata.line_number()),
+                    static_cast<uint8_t>(metadata.level())));
   if (metadata.flags() != 0) {
-    status = encoder.WriteFlags(metadata.flags());
+    status = encoder.WriteFlags(static_cast<uint32_t>(metadata.flags()));
   }
   status = encoder.WriteTimestamp(ticks_since_epoch);
   if (metadata.module() != 0) {
-    const uint32_t little_endian_module =
-        bytes::ConvertOrderTo(endian::little, metadata.module());
+    const uint32_t little_endian_module = bytes::ConvertOrderTo(
+        endian::little, static_cast<uint32_t>(metadata.module()));
     status = encoder.WriteModule(as_bytes(span(&little_endian_module, 1)));
   }
   return encoder;

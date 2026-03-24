@@ -34,7 +34,8 @@ namespace pw::log {
 /// lost.
 constexpr inline uint32_t PackLineLevel(uint32_t line_number, uint8_t level) {
   return (level & PW_LOG_LEVEL_BITMASK) |
-         ((line_number << PW_LOG_LEVEL_BITS) & ~PW_LOG_LEVEL_BITMASK);
+         ((line_number << PW_LOG_LEVEL_BITS) &
+          ~static_cast<uint32_t>(PW_LOG_LEVEL_BITMASK));
 }
 
 /// Unpacks the `line_level` field as dictated by the Log proto message into
@@ -42,7 +43,8 @@ constexpr inline uint32_t PackLineLevel(uint32_t line_number, uint8_t level) {
 constexpr inline std::tuple<uint32_t, uint8_t> UnpackLineLevel(
     uint32_t line_and_level) {
   return std::make_tuple(
-      (line_and_level & ~PW_LOG_LEVEL_BITMASK) >> PW_LOG_LEVEL_BITS,
+      (line_and_level & ~static_cast<uint32_t>(PW_LOG_LEVEL_BITMASK)) >>
+          PW_LOG_LEVEL_BITS,
       line_and_level & PW_LOG_LEVEL_BITMASK);
 }
 
