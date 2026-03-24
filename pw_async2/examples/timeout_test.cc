@@ -26,7 +26,6 @@
 #include "pw_assert/check.h"
 #include "pw_async2/await.h"
 #include "pw_async2/basic_dispatcher.h"
-#include "pw_async2/context.h"
 #include "pw_async2/coro.h"
 #include "pw_async2/coro_task.h"
 #include "pw_async2/func_task.h"

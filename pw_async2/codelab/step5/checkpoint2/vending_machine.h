@@ -19,7 +19,6 @@
 #include "coin_slot.h"
 #include "item_drop_sensor.h"
 #include "pw_async2/channel.h"
-#include "pw_async2/context.h"
 #include "pw_async2/future.h"
 #include "pw_async2/future_timeout.h"
 #include "pw_async2/poll.h"

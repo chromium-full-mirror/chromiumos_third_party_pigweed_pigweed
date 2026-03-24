@@ -16,7 +16,6 @@
 #include <mutex>
 
 #include "pw_assert/assert.h"
-#include "pw_async2/context.h"
 #include "pw_async2/internal/config.h"
 #include "pw_async2/internal/lock.h"
 #include "pw_containers/intrusive_forward_list.h"

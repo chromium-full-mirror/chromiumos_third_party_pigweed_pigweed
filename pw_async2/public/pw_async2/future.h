@@ -23,8 +23,8 @@
 
 #include "lib/stdcompat/utility.h"
 #include "pw_assert/assert.h"
-#include "pw_async2/context.h"
 #include "pw_async2/poll.h"
+#include "pw_async2/task.h"
 #include "pw_async2/waker.h"
 #include "pw_containers/intrusive_list.h"
 #include "pw_memory/container_of.h"

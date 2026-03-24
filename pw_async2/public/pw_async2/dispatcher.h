@@ -20,7 +20,6 @@
 
 #include "pw_allocator/allocator.h"
 #include "pw_allocator/shared_ptr.h"
-#include "pw_async2/context.h"
 #include "pw_async2/func_task.h"
 #include "pw_async2/future_task.h"
 #include "pw_async2/internal/lock.h"

@@ -17,7 +17,6 @@
 #include <optional>
 
 #include "pw_async2/channel.h"
-#include "pw_async2/context.h"
 #include "pw_async2/task.h"
 #include "pw_async2/try.h"
 #include "pw_bytes/span.h"

@@ -13,9 +13,9 @@
 // the License.
 
 // DOCSTAG[pw_async2-minimal-test]
-#include "pw_async2/context.h"
 #include "pw_async2/dispatcher_for_test.h"
 #include "pw_async2/func_task.h"
+#include "pw_async2/task.h"
 #include "pw_unit_test/framework.h"
 
 using ::pw::async2::Context;
@@ -41,9 +41,9 @@ TEST(Async2UnitTest, MinimalExample) {
 #include <utility>
 
 #include "pw_async2/await.h"
-#include "pw_async2/context.h"
 #include "pw_async2/dispatcher.h"
 #include "pw_async2/func_task.h"
+#include "pw_async2/task.h"
 #include "pw_async2/value_future.h"
 #include "pw_unit_test/framework.h"
 

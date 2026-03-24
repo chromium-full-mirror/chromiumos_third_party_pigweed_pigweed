@@ -22,8 +22,8 @@
 #include "pw_allocator/allocator.h"
 #include "pw_allocator/layout.h"
 #include "pw_assert/assert.h"
-#include "pw_async2/context.h"
 #include "pw_async2/future.h"
+#include "pw_async2/task.h"
 #include "pw_containers/internal/optional.h"
 
 namespace pw::async2 {

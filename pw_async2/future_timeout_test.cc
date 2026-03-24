@@ -21,11 +21,11 @@
 
 #include "pw_async2/await.h"
 #include "pw_async2/channel.h"
-#include "pw_async2/context.h"
 #include "pw_async2/dispatcher_for_test.h"
 #include "pw_async2/func_task.h"
 #include "pw_async2/poll.h"
 #include "pw_async2/simulated_time_provider.h"
+#include "pw_async2/task.h"
 #include "pw_async2/value_future.h"
 #include "pw_chrono/system_clock.h"
 #include "pw_compilation_testing/negative_compilation.h"

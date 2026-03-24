@@ -15,9 +15,9 @@
 
 #include <optional>
 
-#include "pw_async2/context.h"
 #include "pw_async2/coro.h"
 #include "pw_async2/fallible_coro_task.h"
+#include "pw_async2/task.h"
 #include "pw_function/function.h"
 
 namespace pw::async2 {
