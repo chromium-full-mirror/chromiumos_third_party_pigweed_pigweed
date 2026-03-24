@@ -383,7 +383,7 @@ class WorkflowsManager:
                 config = self._get_build_config(fragment)
                 fragment.ClearField('use_config')
                 fragment.build_config.CopyFrom(config)
-            if hasattr(fragment, "use_outputs"):
+            if hasattr(fragment, "use_output"):
                 for spec_name in fragment.use_output:
                     fragment.output_spec.append(
                         self._shared_output_specs[spec_name],
