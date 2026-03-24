@@ -101,7 +101,7 @@ pw_zephyrize_libraries_ifdef(
     pw_sync_zephyr.counting_semaphore_backend
 )
 
-pw_add_library(pw_sync_zephyr.interrupt_spin_lock_backend STATIC
+pw_add_library(pw_sync_zephyr.interrupt_spin_lock_backend INTERFACE
   HEADERS
     public/pw_sync_zephyr/interrupt_spin_lock_inline.h
     public/pw_sync_zephyr/interrupt_spin_lock_native.h
@@ -111,9 +111,8 @@ pw_add_library(pw_sync_zephyr.interrupt_spin_lock_backend STATIC
     public
     public_overrides
   PUBLIC_DEPS
+    pw_assert.assert
     pw_sync.interrupt_spin_lock.facade
-  SOURCES
-    interrupt_spin_lock.cc
 )
 pw_zephyrize_libraries_ifdef(
     CONFIG_PIGWEED_SYNC_INTERRUPT_SPIN_LOCK

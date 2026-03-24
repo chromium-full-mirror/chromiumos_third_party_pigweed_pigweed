@@ -31,7 +31,6 @@ sphinx_docs_library(
 exports_files([
     "binary_semaphore.cc",
     "counting_semaphore.cc",
-    "interrupt_spin_lock.cc",
     "timed_mutex.cc",
     "public/pw_sync_zephyr/binary_semaphore_inline.h",
     "public/pw_sync_zephyr/binary_semaphore_native.h",

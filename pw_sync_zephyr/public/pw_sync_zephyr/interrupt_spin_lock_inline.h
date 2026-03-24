@@ -13,6 +13,9 @@
 // the License.
 #pragma once
 
+#include <zephyr/spinlock.h>
+
+#include "pw_assert/assert.h"
 #include "pw_sync/interrupt_spin_lock.h"
 
 namespace pw::sync {
@@ -26,6 +29,17 @@ inline bool InterruptSpinLock::try_lock() {
   // already detected by lock().
   lock();
   return true;
+}
+
+inline void InterruptSpinLock::lock() {
+  PW_DASSERT(!native_type_.locked);  // Recursive locking is not supported.
+  native_type_.key = k_spin_lock(&native_type_.lock);
+  native_type_.locked = true;
+}
+
+inline void InterruptSpinLock::unlock() {
+  native_type_.locked = false;
+  k_spin_unlock(&native_type_.lock, native_type_.key);
 }
 
 inline InterruptSpinLock::native_handle_type
