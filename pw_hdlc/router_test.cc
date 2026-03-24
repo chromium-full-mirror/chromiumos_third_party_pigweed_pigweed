@@ -37,7 +37,6 @@ using ::pw::async2::Poll;
 using ::pw::async2::PollResult;
 using ::pw::async2::Ready;
 using ::pw::async2::Task;
-using ::pw::async2::Waker;
 using ::pw::operator""_b;
 using ::pw::channel::DatagramReader;
 using ::pw::channel::DatagramWriter;
@@ -229,9 +228,11 @@ TEST(Router, PendOnClosedIoChannelReturnsReady) {
   EXPECT_TRUE(dispatcher.RunUntilStalled());
 
   // Close the underlying byte channel.
-  Waker null_waker;
-  Context null_cx(dispatcher, null_waker);
-  EXPECT_EQ(byte_pair.second().PendClose(null_cx), Ready(OkStatus()));
+  FuncTask close_task([&](Context& cx) {
+    EXPECT_EQ(byte_pair.second().PendClose(cx), Ready(OkStatus()));
+    return Ready();
+  });
+  dispatcher.Post(close_task);
 
   // Both the router and the receive task should complete.
   dispatcher.RunToCompletion();

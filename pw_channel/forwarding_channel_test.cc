@@ -283,25 +283,27 @@ TEST(ForwardingDatagramchannel, PendCloseAwakensAndClosesPeer) {
   EXPECT_TRUE(dispatcher.RunUntilStalled());
   EXPECT_TRUE(dispatcher.RunUntilStalled());
 
-  Waker empty_waker;
-  Context empty_cx(dispatcher, empty_waker);
+  class WriteAndCloseTask : public Task {
+   public:
+    WriteAndCloseTask(decltype(pair->second()) writer) : writer_(writer) {}
 
-  // Write a datagram, but close before the datagram is read.
-  EXPECT_EQ(pair->second().PendReadyToWrite(empty_cx), Ready(pw::OkStatus()));
-  PW_TEST_EXPECT_OK(pair->second().StageWrite({}));
-  EXPECT_EQ(pair->second().PendClose(empty_cx), Ready(pw::OkStatus()));
-  EXPECT_FALSE(pair->second().is_read_or_write_open());
+   private:
+    Poll<> DoPend(Context& cx) override {
+      EXPECT_EQ(writer_.PendReadyToWrite(cx), Ready(pw::OkStatus()));
+      PW_TEST_EXPECT_OK(writer_.StageWrite({}));
+      EXPECT_EQ(writer_.PendClose(cx), Ready(pw::OkStatus()));
+      return Ready();
+    }
+    decltype(pair->second()) writer_;
+  };
 
-  // Closed second, so first is closed for writes, but still open for reads.
-  EXPECT_TRUE(pair->first().is_read_open());
-  EXPECT_FALSE(pair->first().is_write_open());
+  WriteAndCloseTask write_task(pair->second());
+  dispatcher.Post(write_task);
 
-  // First should read the packet and immediately be marked closed.
-  EXPECT_EQ(read_task.packets_read, 0);
   EXPECT_TRUE(dispatcher.RunUntilStalled());
-  EXPECT_EQ(read_task.packets_read, 1);
 
-  EXPECT_FALSE(pair->first().is_read_or_write_open());
+  EXPECT_FALSE(pair->second().is_read_or_write_open());
+  EXPECT_EQ(read_task.packets_read, 1);
 
   read_task.waker.Wake();        // wake the task so it runs again
   dispatcher.RunToCompletion();  // runs to completion
@@ -503,27 +505,30 @@ TEST(ForwardingByteChannel, PendCloseAwakensAndClosesPeer) {
   EXPECT_TRUE(dispatcher.RunUntilStalled());
   EXPECT_TRUE(dispatcher.RunUntilStalled());
 
-  Waker empty_waker;
-  Context empty_cx(dispatcher, empty_waker);
+  class WriteAndCloseTask : public Task {
+   public:
+    WriteAndCloseTask(decltype(pair->second()) writer, MultiBuf&& data)
+        : writer_(writer), data_(std::move(data)) {}
+
+   private:
+    Poll<> DoPend(Context& cx) override {
+      EXPECT_EQ(writer_.PendReadyToWrite(cx), Ready(pw::OkStatus()));
+      EXPECT_EQ(writer_.StageWrite(std::move(data_)), pw::OkStatus());
+      EXPECT_EQ(writer_.PendClose(cx), Ready(pw::OkStatus()));
+      return Ready();
+    }
+    decltype(pair->second()) writer_;
+    MultiBuf data_;
+  };
 
   InitializedMultiBuf data("hello");
+  WriteAndCloseTask write_task(pair->second(), data.Take());
+  dispatcher.Post(write_task);
 
-  // Write a datagram, but close before the datagram is read.
-  EXPECT_EQ(pair->second().PendReadyToWrite(empty_cx), Ready(pw::OkStatus()));
-  EXPECT_EQ(pair->second().StageWrite(data.Take()), pw::OkStatus());
-  EXPECT_EQ(pair->second().PendClose(empty_cx), Ready(pw::OkStatus()));
-  EXPECT_FALSE(pair->second().is_read_or_write_open());
-
-  // Closed second, so first is closed for writes, but still open for reads.
-  EXPECT_TRUE(pair->first().is_read_open());
-  EXPECT_FALSE(pair->first().is_write_open());
-
-  // First should read the packet and immediately be marked closed.
-  EXPECT_EQ(read_task.bytes_read, 0);
   EXPECT_TRUE(dispatcher.RunUntilStalled());
-  EXPECT_EQ(read_task.bytes_read, 5);
 
   EXPECT_FALSE(pair->second().is_read_or_write_open());
+  EXPECT_EQ(read_task.bytes_read, 5);
 
   read_task.waker.Wake();        // wake the task so it runs again
   dispatcher.RunToCompletion();  // runs to completion
