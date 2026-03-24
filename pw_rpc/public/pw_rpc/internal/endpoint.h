@@ -13,6 +13,8 @@
 // the License.
 #pragma once
 
+#include <cstddef>
+#include <iterator>
 #include <tuple>
 
 #include "pw_assert/assert.h"
@@ -72,7 +74,7 @@ class Endpoint {
   // Returns the number calls in the RPC calls list.
   size_t active_call_count() const PW_LOCKS_EXCLUDED(rpc_lock()) {
     RpcLockGuard lock;
-    return calls_.size();
+    return static_cast<size_t>(std::distance(calls_.begin(), calls_.end()));
   }
 
   // Claims that `rpc_lock()` is held, returning a wrapped endpoint.
@@ -126,7 +128,7 @@ class Endpoint {
 
   // Finds a call object for an ongoing call associated with this packet, if
   // any. The iterator will be calls_end() if no match was found.
-  IntrusiveList<Call>::iterator FindCall(const Packet& packet)
+  IntrusiveForwardList<Call>::iterator FindCall(const Packet& packet)
       PW_EXCLUSIVE_LOCKS_REQUIRED(rpc_lock()) {
     return std::get<1>(FindIteratorsForCall(packet.channel_id(),
                                             packet.service_id(),
@@ -135,7 +137,7 @@ class Endpoint {
   }
 
   // Used to check if a call iterator is valid or not.
-  IntrusiveList<Call>::const_iterator calls_end() const
+  IntrusiveForwardList<Call>::const_iterator calls_end() const
       PW_EXCLUSIVE_LOCKS_REQUIRED(rpc_lock()) {
     return calls_.end();
   }
@@ -160,9 +162,9 @@ class Endpoint {
 
   // Iterator version of CloseCallAndMarkForCleanup. Returns the iterator to the
   // item after the closed call.
-  IntrusiveList<Call>::iterator CloseCallAndMarkForCleanup(
-      IntrusiveList<Call>::iterator before_call,
-      IntrusiveList<Call>::iterator call_iterator,
+  IntrusiveForwardList<Call>::iterator CloseCallAndMarkForCleanup(
+      IntrusiveForwardList<Call>::iterator before_call,
+      IntrusiveForwardList<Call>::iterator call_iterator,
       Status error) PW_EXCLUSIVE_LOCKS_REQUIRED(rpc_lock()) {
     Call& call = *call_iterator;
     call.CloseAndMarkForCleanupFromEndpoint(error);
@@ -222,14 +224,16 @@ class Endpoint {
     PW_DASSERT(closed_call_was_in_list);
   }
 
-  std::tuple<IntrusiveList<Call>::iterator, IntrusiveList<Call>::iterator>
+  std::tuple<IntrusiveForwardList<Call>::iterator,
+             IntrusiveForwardList<Call>::iterator>
   FindIteratorsForCall(uint32_t channel_id,
                        uint32_t service_id,
                        uint32_t method_id,
                        uint32_t call_id)
       PW_EXCLUSIVE_LOCKS_REQUIRED(rpc_lock());
 
-  std::tuple<IntrusiveList<Call>::iterator, IntrusiveList<Call>::iterator>
+  std::tuple<IntrusiveForwardList<Call>::iterator,
+             IntrusiveForwardList<Call>::iterator>
   FindIteratorsForCall(const Call& call)
       PW_EXCLUSIVE_LOCKS_REQUIRED(rpc_lock()) {
     return FindIteratorsForCall(call.channel_id_locked(),
@@ -253,13 +257,13 @@ class Endpoint {
 
   // List of all active calls associated with this endpoint. Calls are added to
   // this list when they start and removed from it when they finish.
-  IntrusiveList<Call> calls_ PW_GUARDED_BY(rpc_lock());
+  IntrusiveForwardList<Call> calls_ PW_GUARDED_BY(rpc_lock());
 
   // List of all inactive calls that need to have their on_error callbacks
   // called. Calling on_error requires releasing the RPC lock, so calls are
   // added to this list in situations where releasing the mutex could be
   // problematic.
-  IntrusiveList<Call> to_cleanup_ PW_GUARDED_BY(rpc_lock());
+  IntrusiveForwardList<Call> to_cleanup_ PW_GUARDED_BY(rpc_lock());
 
   // Skip call_id `0` to avoid confusion with legacy servers which use
   // call_id `0` as `kOpenCallId` or which do not provide call_id at all.

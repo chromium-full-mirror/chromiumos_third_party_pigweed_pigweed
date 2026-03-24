@@ -36,7 +36,7 @@ Status Client::ProcessPacket(ConstByteSpan data) {
 
   // Find an existing call for this RPC, if any.
   internal::rpc_lock().lock();
-  IntrusiveList<internal::Call>::iterator call = FindCall(packet);
+  IntrusiveForwardList<internal::Call>::iterator call = FindCall(packet);
 
   internal::ChannelBase* channel = GetInternalChannel(packet.channel_id());
 

@@ -189,15 +189,17 @@ class Server : public internal::Endpoint {
     return FindMethodLocked(packet.service_id(), packet.method_id());
   }
 
-  void HandleCompletionRequest(const internal::Packet& packet,
-                               internal::ChannelBase& channel,
-                               IntrusiveList<internal::Call>::iterator call)
-      const PW_UNLOCK_FUNCTION(internal::rpc_lock());
+  void HandleCompletionRequest(
+      const internal::Packet& packet,
+      internal::ChannelBase& channel,
+      IntrusiveForwardList<internal::Call>::iterator call) const
+      PW_UNLOCK_FUNCTION(internal::rpc_lock());
 
-  void HandleClientStreamPacket(const internal::Packet& packet,
-                                internal::ChannelBase& channel,
-                                IntrusiveList<internal::Call>::iterator call)
-      const PW_UNLOCK_FUNCTION(internal::rpc_lock());
+  void HandleClientStreamPacket(
+      const internal::Packet& packet,
+      internal::ChannelBase& channel,
+      IntrusiveForwardList<internal::Call>::iterator call) const
+      PW_UNLOCK_FUNCTION(internal::rpc_lock());
 
   template <typename... OtherServices>
   void UnregisterServiceLocked(Service& service, OtherServices&... services)

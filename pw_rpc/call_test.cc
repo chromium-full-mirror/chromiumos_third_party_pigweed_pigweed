@@ -53,8 +53,8 @@ using ::std::byte;
 using ::testing::Test;
 
 static_assert(sizeof(Call) ==
-                  // IntrusiveList::Item pointer
-                  sizeof(IntrusiveList<Call>::Item) +
+                  // IntrusiveForwardList::Item pointer
+                  sizeof(IntrusiveForwardList<Call>::Item) +
                       // Endpoint pointer
                       sizeof(Endpoint*) +
                       // call_id, channel_id, service_id, method_id
@@ -120,7 +120,8 @@ TEST_F(ServerWriterTest, DefaultConstruct_Closed) {
 
 TEST_F(ServerWriterTest, Construct_RegistersWithServer) {
   RpcLockGuard lock;
-  IntrusiveList<Call>::iterator call = context_.server().FindCall(kPacket);
+  IntrusiveForwardList<Call>::iterator call =
+      context_.server().FindCall(kPacket);
   ASSERT_NE(call, context_.server().calls_end());
   EXPECT_EQ(static_cast<void*>(&*call), static_cast<void*>(&writer_));
 }

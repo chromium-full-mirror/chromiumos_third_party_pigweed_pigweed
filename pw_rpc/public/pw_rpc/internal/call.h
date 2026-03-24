@@ -104,8 +104,8 @@ inline constexpr uint32_t kLegacyOpenCallId = 0;
 //
 // Private inheritance is used in place of composition or more complex
 // inheritance hierarchy so that these objects all inherit from a common
-// IntrusiveList::Item object. Private inheritance also gives the derived class
-// full control over their interfaces.
+// IntrusiveForwardList::Item object. Private inheritance also gives the derived
+// class full control over their interfaces.
 //
 // IMPLEMENTATION NOTE:
 //
@@ -118,7 +118,7 @@ inline constexpr uint32_t kLegacyOpenCallId = 0;
 // At the top level, `ServerCall` and `ClientCall` invoke `DestroyServerCall`
 // `DestroyClientCall` respectively to perform cleanup in the case where no
 // subclass carries additional state.
-class Call : public IntrusiveList<Call>::Item, private rpc::Writer {
+class Call : public IntrusiveForwardList<Call>::Item, private rpc::Writer {
  public:
   Call(const Call&) = delete;
 

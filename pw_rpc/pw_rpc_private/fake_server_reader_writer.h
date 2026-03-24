@@ -31,8 +31,8 @@ namespace pw::rpc::internal::test {
 // readers and writers inherit from it, but hide the unsupported functionality.
 // A ReaderWriter defines conversions to Reader and Writer, so it acts as if it
 // inherited from both. This approach is unusual but necessary to have all
-// classes use a single IntrusiveList::Item base and to avoid virtual methods or
-// virtual inheritance.
+// classes use a single IntrusiveForwardList::Item base and to avoid virtual
+// methods or virtual inheritance.
 //
 // Call's public API is intended for rpc::Server, so hide the public methods
 // with private inheritance.

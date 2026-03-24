@@ -84,7 +84,7 @@ Status Server::ProcessPacket(internal::Packet packet) {
     return OkStatus();
   }
 
-  IntrusiveList<internal::Call>::iterator call = FindCall(packet);
+  IntrusiveForwardList<internal::Call>::iterator call = FindCall(packet);
 
   switch (packet.type()) {
     case PacketType::CLIENT_STREAM:
@@ -141,7 +141,7 @@ std::tuple<Service*, const internal::Method*> Server::FindMethodLocked(
 void Server::HandleCompletionRequest(
     const internal::Packet& packet,
     internal::ChannelBase& channel,
-    IntrusiveList<internal::Call>::iterator call) const {
+    IntrusiveForwardList<internal::Call>::iterator call) const {
   if (call == calls_end()) {
     channel.Send(Packet::ServerError(packet, Status::FailedPrecondition()))
         .IgnoreError();  // Errors are logged in Channel::Send.
@@ -170,7 +170,7 @@ void Server::HandleCompletionRequest(
 void Server::HandleClientStreamPacket(
     const internal::Packet& packet,
     internal::ChannelBase& channel,
-    IntrusiveList<internal::Call>::iterator call) const {
+    IntrusiveForwardList<internal::Call>::iterator call) const {
   if (call == calls_end()) {
     channel.Send(Packet::ServerError(packet, Status::FailedPrecondition()))
         .IgnoreError();  // Errors are logged in Channel::Send.

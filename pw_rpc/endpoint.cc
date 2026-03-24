@@ -120,7 +120,8 @@ void Endpoint::RegisterCall(Call& new_call) {
   calls_.push_front(new_call);
 }
 
-std::tuple<IntrusiveList<Call>::iterator, IntrusiveList<Call>::iterator>
+std::tuple<IntrusiveForwardList<Call>::iterator,
+           IntrusiveForwardList<Call>::iterator>
 Endpoint::FindIteratorsForCall(uint32_t channel_id,
                                uint32_t service_id,
                                uint32_t method_id,
