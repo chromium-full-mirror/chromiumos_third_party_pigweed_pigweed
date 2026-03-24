@@ -77,7 +77,7 @@ pw_source_set("packet_buffer_queue") {
   public_configs = [ ":public_include_path" ]
   public_deps = [
     "$dir_pw_bytes",
-    "$dir_pw_containers",
+    "$dir_pw_containers:intrusive_queue",
     "$dir_pw_result",
     "$dir_pw_status",
     "$dir_pw_sync:lock_annotations",

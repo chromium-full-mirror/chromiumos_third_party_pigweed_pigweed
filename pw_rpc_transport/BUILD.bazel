@@ -75,7 +75,7 @@ cc_library(
     strip_include_prefix = "public",
     deps = [
         "//pw_bytes",
-        "//pw_containers:intrusive_list",
+        "//pw_containers:intrusive_queue",
         "//pw_log",
         "//pw_result",
         "//pw_status",

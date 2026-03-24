@@ -59,7 +59,7 @@ pw_add_library(pw_rpc_transport.packet_buffer_queue INTERFACE
     public
   PUBLIC_DEPS
     pw_bytes
-    pw_containers
+    pw_containers.intrusive_queue
     pw_result
     pw_status
     pw_sync.lock_annotations
