@@ -26,6 +26,7 @@ pub mod scheduler;
 pub mod sync;
 #[cfg(feature = "user_space")]
 pub mod syscall;
+pub use target::shutdown;
 mod target;
 mod trace;
 

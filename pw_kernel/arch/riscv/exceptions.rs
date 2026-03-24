@@ -114,11 +114,11 @@ fn exception_handler(exception: Exception, mepc: usize, frame: &mut TrapFrame) {
             }
         }
         Exception::Breakpoint => {
+            // Breakpoint is currently use to handle kernel panics.  Don't call
+            // back into `handle_terminal_exception` and instead terminate the
+            // kernel.
             dump_exception_frame(frame);
-            kernel::scheduler::handle_terminal_exception(
-                super::Arch,
-                is_exception_from_kernel(frame),
-            );
+            kernel::shutdown(1);
         }
         _ => {
             dump_exception_frame(frame);
