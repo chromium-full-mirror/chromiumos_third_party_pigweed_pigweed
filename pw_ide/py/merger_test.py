@@ -180,6 +180,11 @@ class MergerTest(fake_filesystem_unittest.TestCase):
             self.workspace_root / 'bazel-out', self.output_path
         )
 
+    def test_aspect_path_has_pigweed_prefix(self):
+        """Ensure the aspect path uses the @pigweed repository prefix."""
+        # pylint: disable=protected-access
+        self.assertTrue(merger._COMPILE_COMMANDS_ASPECT.startswith('@pigweed'))
+
     def test_no_fragments_found(self):
         with io.StringIO() as buf, redirect_stderr(buf):
             with self.assertRaises(SystemExit):

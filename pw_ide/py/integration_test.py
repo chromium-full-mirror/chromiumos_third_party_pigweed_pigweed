@@ -786,5 +786,136 @@ class CompileCommandsWithSymlinkPrefixTest(CompileCommandsTestBase):
                             break
 
 
+class CompileCommandsExternalWorkspaceTest(unittest.TestCase):
+    """Tests compile commands from an external workspace."""
+
+    @classmethod
+    def _calculate_pigweed_root_and_activate_sh(cls):
+        """Calculate pigweed_root and activate_sh from current file path."""
+        # current_file is pw_ide/py/integration_test.py, parent is pw_ide/py,
+        # parent.parent is pw_ide, parent.parent.parent is pigweed.
+        current_file = Path(__file__).resolve()
+        pigweed_root = current_file.parent.parent.parent
+        activate_sh = pigweed_root / 'activate.sh'
+        if not activate_sh.exists():
+            activate_sh = pigweed_root.parent / 'activate.sh'
+        return pigweed_root, activate_sh
+
+    @classmethod
+    def _get_pigweed_paths(cls):
+        """Find pigweed_root and activate_sh path, failing if not found."""
+        if 'BAZEL_WORKSPACE_DIRECTORY' in os.environ:
+            workspace_dir = Path(os.environ['BAZEL_WORKSPACE_DIRECTORY'])
+            if (workspace_dir / '..' / 'activate.sh').exists():
+                pigweed_root = workspace_dir
+                activate_sh = workspace_dir / '..' / 'activate.sh'
+            elif (workspace_dir / 'activate.sh').exists():
+                pigweed_root = workspace_dir
+                activate_sh = workspace_dir / 'activate.sh'
+            else:
+                pigweed_root, activate_sh = (
+                    cls._calculate_pigweed_root_and_activate_sh()
+                )
+        else:
+            pigweed_root, activate_sh = (
+                cls._calculate_pigweed_root_and_activate_sh()
+            )
+
+        if not activate_sh.exists():
+            raise FileNotFoundError(
+                f"Could not find activate.sh anywhere. Checked {activate_sh}"
+            )
+
+        return pigweed_root, activate_sh
+
+    @classmethod
+    def setUpClass(cls):
+        cls.temp_dir = tempfile.TemporaryDirectory()
+        cls.workspace_path = Path(cls.temp_dir.name)
+        print(f"Workspace path: {cls.workspace_path}")
+
+        pigweed_root, activate_sh = cls._get_pigweed_paths()
+
+        # Create .bazelversion
+        root_bazelversion = pigweed_root / '.bazelversion'
+        if root_bazelversion.exists():
+            with open(cls.workspace_path / '.bazelversion', 'w') as f:
+                f.write(root_bazelversion.read_text())
+
+        # Create MODULE.bazel
+        with open(cls.workspace_path / 'MODULE.bazel', 'w') as f:
+            f.write(
+                f"""\
+module(name = "downstream")
+bazel_dep(name = "pigweed", version = "0.0.0")
+local_path_override(module_name = "pigweed", path = "{pigweed_root}")
+
+register_toolchains("@pigweed//pw_toolchain/host_clang:host_cc_toolchain_linux")
+register_toolchains("@pigweed//pw_toolchain/host_clang:host_cc_toolchain_macos")
+"""
+            )
+
+        # Create BUILD.bazel
+        with open(cls.workspace_path / 'BUILD.bazel', 'w') as f:
+            f.write(
+                """\
+load(
+    "@pigweed//pw_ide/bazel/compile_commands:pw_compile_commands_generator.bzl",
+    "pw_compile_commands_generator",
+)
+cc_library(name = "hello", srcs = ["hello.cc"])
+pw_compile_commands_generator(
+    name = "gen_compile_commands",
+    platform = "@bazel_tools//tools:host_platform",
+    target_patterns = [":hello"],
+)
+"""
+            )
+
+        # Create hello.cc
+        with open(cls.workspace_path / 'hello.cc', 'w') as f:
+            f.write("int main() { return 0; }\n")
+
+        # Run the generator using bash -c to source activate.sh
+        # This ensuring bazel is found.
+        # We set BAZEL_REAL=bazel to force merger.py to use bazel directly
+        # instead of bazelisk.
+        cmd = (
+            f'cd {pigweed_root} && '
+            f'source {activate_sh} && '
+            f'cd {cls.workspace_path} && '
+            'export BAZEL_REAL=bazel && '
+            'bazel run //:gen_compile_commands'
+            if activate_sh.exists()
+            else 'export BAZEL_REAL=bazel && '
+            'bazel run //:gen_compile_commands'
+        )
+
+        cls.update_result = subprocess.run(
+            [
+                'bash',
+                '-c',
+                cmd,
+            ],
+            capture_output=True,
+            cwd=cls.workspace_path,
+            text=True,
+            check=False,
+        )
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.temp_dir.cleanup()
+        super(CompileCommandsExternalWorkspaceTest, cls).tearDownClass()
+
+    def test_generator_succeeds_external(self):
+        self.assertEqual(
+            self.update_result.returncode,
+            0,
+            f"Generator failed in external workspace: "
+            f"{self.update_result.stderr}",
+        )
+
+
 if __name__ == '__main__':
     unittest.main()

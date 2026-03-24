@@ -42,7 +42,7 @@ _FRAGMENT_SUFFIX = '.pw_aspect.compile_commands.json'
 _COMPILE_COMMANDS_OUTPUT_GROUP = 'pw_cc_compile_commands_fragments'
 
 _COMPILE_COMMANDS_ASPECT = (
-    '//pw_ide/bazel/compile_commands:pw_cc_compile_commands_aspect.bzl'
+    '@pigweed//pw_ide/bazel/compile_commands:pw_cc_compile_commands_aspect.bzl'
     '%pw_cc_compile_commands_aspect'
 )
 
@@ -260,6 +260,8 @@ def _run_bazel_build_for_fragments(
             )
         except subprocess.CalledProcessError as e:
             _LOG.fatal('Failed to generate compile commands fragments: %s', e)
+            if hasattr(e, 'stderr') and e.stderr:
+                _LOG.fatal('Stderr: %s', e.stderr)
             return set()
 
         fragments = set()
