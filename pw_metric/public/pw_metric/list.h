@@ -14,6 +14,7 @@
 #pragma once
 
 #include "pw_containers/intrusive_forward_list.h"
+#include "pw_tokenizer/tokenize.h"
 
 namespace pw::metric {
 
@@ -59,19 +60,47 @@ class ListWrapper {
   /// Iterates over the list and calls the functor `f` with a reference to each
   /// item.
   template <typename F>
-  void ForEach(F&& f) {
+  F for_each(F f) {
     for (auto& item : list_) {
       f(item);
     }
+    return f;
   }
 
   /// Iterates over the list and calls the functor `f` with a const reference to
   /// each item.
   template <typename F>
-  void ForEach(F&& f) const {
+  F for_each(F f) const {
     for (const auto& item : list_) {
       f(item);
     }
+    return f;
+  }
+
+  /// Finds an item by name token.
+  ///
+  /// @returns A pointer to the first matching item, or nullptr if no match is
+  /// found.
+  pointer find(pw::tokenizer::Token token) {
+    for (auto& item : list_) {
+      if (item.name() == token) {
+        return &item;
+      }
+    }
+    return nullptr;
+  }
+
+  /// Finds an item by name token.
+  ///
+  /// @returns A const pointer to the first matching item, or nullptr if no
+  /// match is found.
+  const_pointer find(pw::tokenizer::Token token) const {
+    for (const auto& item : list_) {
+      if (item.name() == token) {
+        return &item;
+      }
+    }
+    return nullptr;
   }
 
   [[deprecated(

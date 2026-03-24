@@ -130,7 +130,7 @@ bool FindMetricByAddress(const MetricList& metrics,
                          const GroupList& groups,
                          uint64_t address) {
   bool found = false;
-  metrics.ForEach([&](const auto& metric) {
+  metrics.for_each([&](const auto& metric) {
     if (static_cast<uint64_t>(reinterpret_cast<uintptr_t>(&metric)) ==
         address) {
       found = true;
@@ -140,7 +140,7 @@ bool FindMetricByAddress(const MetricList& metrics,
     return true;
   }
 
-  groups.ForEach([&](const auto& group) {
+  groups.for_each([&](const auto& group) {
     if (FindMetricByAddress(group.metrics(), group.children(), address)) {
       found = true;
     }

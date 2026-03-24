@@ -121,7 +121,7 @@ TEST_F(TrackingAllocatorTest, AddTrackingAllocatorAsChild) {
   ASSERT_FALSE(children.empty());
   EXPECT_EQ(children.size(), 1U);
   int count = 0;
-  children.ForEach([&](const auto& group) {
+  children.for_each([&](const auto& group) {
     EXPECT_EQ(&group, &child.metric_group());
     count += 1;
   });

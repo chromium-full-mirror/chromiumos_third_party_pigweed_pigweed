@@ -286,5 +286,50 @@ TEST(Metric, StaticWithinAFunction) {
   EXPECT_EQ(metric->as_int(), 2u);
 }
 
+TEST(Metric, ListFind) {
+  PW_METRIC_GROUP(group, "fancy_subsystem");
+  PW_METRIC(group, x, "x", 5555u);
+  PW_METRIC(group, y, "y", 6.0f);
+
+  static constexpr Token token_x = PW_METRIC_TOKEN("x");
+  static constexpr Token token_y = PW_METRIC_TOKEN("y");
+  static constexpr Token token_z = PW_METRIC_TOKEN("z");
+
+  EXPECT_EQ(group.metrics().find(token_x), &x);
+  EXPECT_EQ(group.metrics().find(token_y), &y);
+  EXPECT_EQ(group.metrics().find(token_z), nullptr);
+}
+
+TEST(Metric, GroupListFind) {
+  PW_METRIC_GROUP(parent, "parent");
+  PW_METRIC_GROUP(parent, child1, "child1");
+  PW_METRIC_GROUP(parent, child2, "child2");
+
+  static constexpr Token token_1 =
+      PW_TOKENIZE_STRING_DOMAIN("metrics", "child1");
+  static constexpr Token token_2 =
+      PW_TOKENIZE_STRING_DOMAIN("metrics", "child2");
+  static constexpr Token token_3 =
+      PW_TOKENIZE_STRING_DOMAIN("metrics", "child3");
+
+  EXPECT_EQ(parent.children().find(token_1), &child1);
+  EXPECT_EQ(parent.children().find(token_2), &child2);
+  EXPECT_EQ(parent.children().find(token_3), nullptr);
+}
+
+TEST(Metric, ListForEachWithFunctor) {
+  PW_METRIC_GROUP(group, "fancy_subsystem");
+  PW_METRIC(group, x, "x", 5555u);
+  PW_METRIC(group, y, "y", 6.0f);
+
+  struct Count {
+    int count = 0;
+    void operator()(const Metric&) { count++; }
+  };
+
+  Count c = group.metrics().for_each(Count());
+  EXPECT_EQ(c.count, 2);
+}
+
 }  // namespace
 }  // namespace pw::metric
