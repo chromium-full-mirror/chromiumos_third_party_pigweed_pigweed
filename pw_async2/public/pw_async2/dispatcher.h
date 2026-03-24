@@ -26,7 +26,7 @@
 #include "pw_async2/internal/lock.h"
 #include "pw_async2/task.h"
 #include "pw_async2/waker.h"
-#include "pw_containers/intrusive_forward_list.h"
+#include "pw_containers/intrusive_queue.h"
 #include "pw_sync/lock_annotations.h"
 
 // Coroutines are supported if the build target depends on //pw_async2:coro.
@@ -354,7 +354,7 @@ class Dispatcher {
 
   Task* PopTaskToRunLocked() PW_EXCLUSIVE_LOCKS_REQUIRED(internal::lock());
 
-  static void UnpostTaskList(IntrusiveForwardList<Task>& list)
+  static void UnpostTaskList(IntrusiveQueue<Task>& list)
       PW_EXCLUSIVE_LOCKS_REQUIRED(internal::lock());
 
   void RemoveWokenTaskLocked(Task& task)
@@ -371,7 +371,7 @@ class Dispatcher {
   }
   void AddWokenTaskLocked(Task& task)
       PW_EXCLUSIVE_LOCKS_REQUIRED(internal::lock()) {
-    containers::PushBackSlow(woken_, task);
+    woken_.push_back(task);
   }
 
   // True if any tasks are registered with the dispatcher.
@@ -411,10 +411,8 @@ class Dispatcher {
   }
 #endif  // defined(__cpp_impl_coroutine) && __has_include("pw_async2/coro.h")
 
-  // TODO: b/491844340 - Evaluate IntrusiveForwardList performance and consider
-  //     alternatives.
-  IntrusiveForwardList<Task> woken_ PW_GUARDED_BY(internal::lock());
-  IntrusiveForwardList<Task> sleeping_ PW_GUARDED_BY(internal::lock());
+  IntrusiveQueue<Task> woken_ PW_GUARDED_BY(internal::lock());
+  IntrusiveQueue<Task> sleeping_ PW_GUARDED_BY(internal::lock());
 
   // Counts pending DoWake() calls (really should only ever be 1). This is
   // necessary to prevent the Dispatcher from being destroyed while DoWake() is

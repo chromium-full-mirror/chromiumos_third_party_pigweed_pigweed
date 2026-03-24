@@ -79,6 +79,7 @@ pw_source_set("pw_async2") {
     "$dir_pw_assert",
     "$dir_pw_containers:intrusive_forward_list",
     "$dir_pw_containers:intrusive_list",
+    "$dir_pw_containers:intrusive_queue",
     "$dir_pw_containers:optional",
     "$dir_pw_log:args",
     "$dir_pw_string:to_string",

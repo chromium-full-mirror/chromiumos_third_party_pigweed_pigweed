@@ -64,6 +64,7 @@ pw_add_library(pw_async2 STATIC
     pw_allocator
     pw_chrono.system_clock
     pw_containers.intrusive_forward_list
+    pw_containers.intrusive_queue
     pw_containers.intrusive_list
     pw_containers.optional
     pw_function

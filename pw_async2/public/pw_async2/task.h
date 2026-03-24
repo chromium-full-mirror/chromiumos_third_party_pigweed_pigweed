@@ -21,6 +21,7 @@
 #include "pw_async2/poll.h"
 #include "pw_containers/intrusive_forward_list.h"
 #include "pw_containers/intrusive_list.h"
+#include "pw_containers/intrusive_queue.h"
 #include "pw_log/tokenized_args.h"
 #include "pw_sync/lock_annotations.h"
 
@@ -75,7 +76,7 @@ enum class RunTaskResult {
 /// - Use dynamic task lifetimes. Tasks may be allocated and posted with
 ///   @ref Dispatcher::Post "Dispatcher::Post(allocator_, ...)" overloads. Or, a
 ///   `SharedPtr<Task>` can be posted with `Dispatcher::PostShared`.
-class Task : public IntrusiveList<Task>::Item {
+class Task : public IntrusiveQueue<Task>::Item {
  public:
   /// Creates a task with the specified name. To generate a name token, use the
   /// `PW_ASYNC_TASK_NAME` macro, e.g.

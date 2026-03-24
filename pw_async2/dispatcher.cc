@@ -61,7 +61,7 @@ void Dispatcher::Post(Task& task) {
   if (woken_.empty()) {
     wants_wake_ = true;
   }
-  containers::PushBackSlow(woken_, task);
+  woken_.push_back(task);
   Wake();
 }
 
@@ -102,7 +102,7 @@ bool Dispatcher::PopAndRunAllReadyTasks() {
   return has_posted_tasks;
 }
 
-void Dispatcher::UnpostTaskList(IntrusiveForwardList<Task>& list) {
+void Dispatcher::UnpostTaskList(IntrusiveQueue<Task>& list) {
   while (!list.empty()) {
     Task& task = list.front();
     list.pop_front();
