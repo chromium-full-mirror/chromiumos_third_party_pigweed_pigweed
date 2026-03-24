@@ -121,25 +121,39 @@ TEST(ToString, Integer_BufferTooSmall_WritesNullTerminator) {
   EXPECT_STREQ("", buffer);
 }
 
-TEST(ToString, Float) {
+template <typename T>
+void TestFloatingPointType() {
+  static constexpr T kZero = 0.0;
+  static constexpr T kValue = static_cast<T>(33.444);
+  static constexpr T kInf = std::numeric_limits<T>::infinity();
+  static constexpr T kNegativeInf = -std::numeric_limits<T>::infinity();
+  static constexpr T kNan = std::numeric_limits<T>::quiet_NaN();
+
+  EXPECT_EQ(3u, ToString(kInf, buffer).size());
+  EXPECT_STREQ("inf", buffer);
+  EXPECT_EQ(4u, ToString(kNegativeInf, buffer).size());
+  EXPECT_STREQ("-inf", buffer);
+
   if (string::internal::config::kEnableDecimalFloatExpansion) {
-    EXPECT_EQ(5u, ToString(0.0f, buffer).size());
+    EXPECT_EQ(5u, ToString(kZero, buffer).size());
     EXPECT_STREQ("0.000", buffer);
-    EXPECT_EQ(6u, ToString(33.444f, buffer).size());
+    EXPECT_EQ(6u, ToString(kValue, buffer).size());
     EXPECT_STREQ("33.444", buffer);
-    EXPECT_EQ(3u, ToString(INFINITY, buffer).size());
-    EXPECT_STREQ("inf", buffer);
-    EXPECT_EQ(3u, ToString(NAN, buffer).size());
+    EXPECT_EQ(3u, ToString(kNan, buffer).size());
     EXPECT_STREQ("nan", buffer);
   } else {
-    EXPECT_EQ(1u, ToString(0.0f, buffer).size());
+    EXPECT_EQ(1u, ToString(kZero, buffer).size());
     EXPECT_STREQ("0", buffer);
-    EXPECT_EQ(3u, ToString(INFINITY, buffer).size());
-    EXPECT_STREQ("inf", buffer);
-    EXPECT_EQ(4u, ToString(-NAN, buffer).size());
-    EXPECT_STREQ("-NaN", buffer);
+    EXPECT_EQ(2u, ToString(kValue, buffer).size());
+    EXPECT_STREQ("33", buffer);
+    EXPECT_EQ(3u, ToString(kNan, buffer).size());
+    EXPECT_STREQ("NaN", buffer);
   }
 }
+
+TEST(ToString, Float) { TestFloatingPointType<float>(); }
+TEST(ToString, Double) { TestFloatingPointType<double>(); }
+TEST(ToString, LongDouble) { TestFloatingPointType<long double>(); }
 
 TEST(ToString, Pointer_NonNull_WritesValue) {
   CustomType custom;

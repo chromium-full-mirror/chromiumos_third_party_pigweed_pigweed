@@ -188,7 +188,7 @@ StatusWithSize ToString(const T& value, span<char> buffer) {
     if constexpr (string::internal::config::kEnableDecimalFloatExpansion) {
       // TODO(hepler): Look into using the float overload of std::to_chars when
       // it is available.
-      return string::Format(buffer, "%.3f", value);
+      return string::Format(buffer, "%.3f", static_cast<double>(value));
     } else {
       return string::FloatAsIntToString(static_cast<float>(value), buffer);
     }
