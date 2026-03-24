@@ -277,6 +277,31 @@ You can resize or move the flash partition used by the KVS.
   firmware updates. Changing the sector size prevents the KVS from correctly
   interpreting existing data.
 
+Flash alignment
+---------------
+You can safely change the flash alignment requirement for the KVS between
+firmware updates. This allows you to migrate to new flash hardware or update
+system configurations that require a larger (or smaller) write alignment without
+migrating or losing old data. How this works:
+
+- **Self-describing entries**: KVS does not rely on the global partition
+  configuration to scan existing entries. Instead, every entry written to the
+  flash encodes its required padding directly in its header.
+- **Bootup scanning**: When KVS initializes, it sequentially reads each entry's
+  header to determine the exact padding used when it was originally written.
+  This allows KVS to jump to the start of the next entry while safely ignoring
+  the firmware's new alignment configuration.
+- **Corruption recovery**: If KVS encounters corrupted data and loses track of
+  the next entry, it falls back to a brute-force recovery scan. Because all
+  alignments are guaranteed to be a multiple of 16-bytes, KVS scans the flash at
+  a strict 16-byte resolution. This ensures it will eventually find the next
+  valid entry regardless of whether it was written with a 16-byte, 64-byte, or
+  4096-byte alignment.
+- **Upgrading entries**: Any new keys written to the KVS will automatically use
+  the new alignment. Existing entries will transparently upgrade to use the new
+  alignment over time as they are rewritten with a new value (which will create
+  a new entry with a newer version) or during garbage collection.
+
 Maximum entry count
 -------------------
 You can adjust the maximum number of key-value entries the KVS can hold.

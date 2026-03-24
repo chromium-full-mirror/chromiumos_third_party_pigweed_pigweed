@@ -162,10 +162,13 @@ Advantages of this approach:
 - **Space efficiency**: Storing a single 8-bit integer is more compact than
   storing a 16-bit or 32-bit alignment value.
 - **Forward compatibility**: Because each entry is self-describing, a future
-  firmware update can change the alignment for new entries. The new firmware
-  can still correctly calculate the size of older entries. When moving an old
-  entry during garbage collection, ``pw_kvs`` rewrites it with the new, larger
-  alignment, upgrading the data in place over time.
+  firmware update can change the alignment for new entries. During bootup
+  initialization, the KVS reads the old alignment from the entry header to
+  calculate its size and jump to the next entry. In the event of corruption, the
+  KVS falls back to a brute-force scan at a 16-byte resolution (the minimum
+  alignment) to guarantee finding the next entry. When migrating or moving an
+  old entry during garbage collection, ``pw_kvs`` rewrites it with the new
+  alignment (larger or smaller), upgrading the data in place over time.
 
 Transaction ID rollover
 -----------------------
