@@ -34,11 +34,6 @@ config("public_include_path") {
   visibility = [ ":*" ]
 }
 
-config("backend_config") {
-  include_dirs = [ "public_overrides" ]
-  visibility = [ ":*" ]
-}
-
 pw_source_set("config") {
   public = [ "public/pw_sync_freertos/config.h" ]
   public_configs = [ ":public_include_path" ]
@@ -57,17 +52,22 @@ pw_build_assert("check_system_clock_backend") {
   visibility = [ ":*" ]
 }
 
+config("public_overrides_binary_semaphore_include_path") {
+  include_dirs = [ "public_overrides/binary_semaphore" ]
+  visibility = [ ":binary_semaphore" ]
+}
+
 # This target provides the backend for pw::sync::BinarySemaphore.
 pw_source_set("binary_semaphore") {
   public_configs = [
     ":public_include_path",
-    ":backend_config",
+    ":public_overrides_binary_semaphore_include_path",
   ]
   public = [
     "public/pw_sync_freertos/binary_semaphore_inline.h",
     "public/pw_sync_freertos/binary_semaphore_native.h",
-    "public_overrides/pw_sync_backend/binary_semaphore_inline.h",
-    "public_overrides/pw_sync_backend/binary_semaphore_native.h",
+    "public_overrides/binary_semaphore/pw_sync_backend/binary_semaphore_inline.h",
+    "public_overrides/binary_semaphore/pw_sync_backend/binary_semaphore_native.h",
   ]
   public_deps = [
     "$dir_pw_assert",
@@ -83,17 +83,22 @@ pw_source_set("binary_semaphore") {
   ]
 }
 
+config("public_overrides_counting_semaphore_include_path") {
+  include_dirs = [ "public_overrides/counting_semaphore" ]
+  visibility = [ ":counting_semaphore" ]
+}
+
 # This target provides the backend for pw::sync::CountingSemaphore.
 pw_source_set("counting_semaphore") {
   public_configs = [
     ":public_include_path",
-    ":backend_config",
+    ":public_overrides_counting_semaphore_include_path",
   ]
   public = [
     "public/pw_sync_freertos/counting_semaphore_inline.h",
     "public/pw_sync_freertos/counting_semaphore_native.h",
-    "public_overrides/pw_sync_backend/counting_semaphore_inline.h",
-    "public_overrides/pw_sync_backend/counting_semaphore_native.h",
+    "public_overrides/counting_semaphore/pw_sync_backend/counting_semaphore_inline.h",
+    "public_overrides/counting_semaphore/pw_sync_backend/counting_semaphore_native.h",
   ]
   public_deps = [
     "$dir_pw_assert",
@@ -109,17 +114,22 @@ pw_source_set("counting_semaphore") {
   ]
 }
 
+config("public_overrides_mutex_include_path") {
+  include_dirs = [ "public_overrides/mutex" ]
+  visibility = [ ":mutex" ]
+}
+
 # This target provides the backend for pw::sync::Mutex.
 pw_source_set("mutex") {
   public_configs = [
     ":public_include_path",
-    ":backend_config",
+    ":public_overrides_mutex_include_path",
   ]
   public = [
     "public/pw_sync_freertos/mutex_inline.h",
     "public/pw_sync_freertos/mutex_native.h",
-    "public_overrides/pw_sync_backend/mutex_inline.h",
-    "public_overrides/pw_sync_backend/mutex_native.h",
+    "public_overrides/mutex/pw_sync_backend/mutex_inline.h",
+    "public_overrides/mutex/pw_sync_backend/mutex_native.h",
   ]
   public_deps = [
     "$dir_pw_assert",
@@ -129,15 +139,20 @@ pw_source_set("mutex") {
   ]
 }
 
+config("public_overrides_timed_mutex_include_path") {
+  include_dirs = [ "public_overrides/timed_mutex" ]
+  visibility = [ ":timed_mutex" ]
+}
+
 # This target provides the backend for pw::sync::TimedMutex.
 pw_source_set("timed_mutex") {
   public_configs = [
     ":public_include_path",
-    ":backend_config",
+    ":public_overrides_timed_mutex_include_path",
   ]
   public = [
     "public/pw_sync_freertos/timed_mutex_inline.h",
-    "public_overrides/pw_sync_backend/timed_mutex_inline.h",
+    "public_overrides/timed_mutex/pw_sync_backend/timed_mutex_inline.h",
   ]
   public_deps = [
     "$dir_pw_chrono:system_clock",
@@ -216,17 +231,22 @@ pw_source_set("timed_thread_notification") {
   ]
 }
 
+config("public_overrides_interrupt_spin_lock_include_path") {
+  include_dirs = [ "public_overrides/interrupt_spin_lock" ]
+  visibility = [ ":interrupt_spin_lock" ]
+}
+
 # This target provides the backend for pw::sync::InterruptSpinLock.
 pw_source_set("interrupt_spin_lock") {
   public_configs = [
     ":public_include_path",
-    ":backend_config",
+    ":public_overrides_interrupt_spin_lock_include_path",
   ]
   public = [
     "public/pw_sync_freertos/interrupt_spin_lock_inline.h",
     "public/pw_sync_freertos/interrupt_spin_lock_native.h",
-    "public_overrides/pw_sync_backend/interrupt_spin_lock_inline.h",
-    "public_overrides/pw_sync_backend/interrupt_spin_lock_native.h",
+    "public_overrides/interrupt_spin_lock/pw_sync_backend/interrupt_spin_lock_inline.h",
+    "public_overrides/interrupt_spin_lock/pw_sync_backend/interrupt_spin_lock_native.h",
   ]
   public_deps = [ "$pw_external_freertos" ]
   sources = [ "interrupt_spin_lock.cc" ]
