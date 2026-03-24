@@ -21,15 +21,20 @@ class Task;
 
 /// @submodule{pw_async2,context}
 
-/// Context for an asynchronous `Task`.
+/// Asynchronous context for functions running on a `Dispatcher`.
 ///
-/// This object contains resources needed for scheduling asynchronous work, such
-/// as the current `Dispatcher` and the `Waker` for the current task.
-///
-/// `Context` s are most often created by `Dispatcher` s, which pass them
-/// into `Task::Pend`.
+/// `Context` objects are provided when a task is run by a `Dispatcher`. The
+/// `Context&` is passed to `Task::Pend`, and can be passed to futures, other
+/// tasks, or other async operations. `Context`'s primary purpose is to allow
+/// async code to store wakers.
 class Context {
  public:
+  Context(const Context&) = delete;
+  Context(Context&&) = delete;
+
+  Context& operator=(const Context&) = delete;
+  Context& operator=(Context&&) = delete;
+
   /// Queues the current `Task::Pend` to run again in the future, possibly after
   /// other work is performed.
   ///
@@ -40,31 +45,22 @@ class Context {
   /// This is semantically equivalent to calling:
   ///
   /// @code{.cpp}
-  /// Waker waker;
-  /// PW_ASYNC_STORE_WAKER(cx, waker, ...);
-  /// waker.Wake();
+  ///   Waker waker;
+  ///   PW_ASYNC_STORE_WAKER(cx, waker, ...);
+  ///   waker.Wake();
   /// @endcode
-  void ReEnqueue();  // Implemented inline in waker.h after Waker is defined.
+  void ReEnqueue();  // Implemented inline in task.h after Task is defined.
 
   /// Indicates that the task has not completed, but that it also does not need
   /// to register a waker and go to sleep. This results in the task being
   /// removed from the dispatcher, requiring it to be manually re-posted to run
   /// again.
-  PendingType Unschedule() {
-    requires_waker_ = false;
-    return Pending();
-  }
+  PendingType Unschedule();
 
  private:
   friend class Task;
-  friend class Waker;
 
-  /// Creates a new `Context` for the `Task` being run within a `Dispatcher`.
-  explicit constexpr Context(Task& task)
-      : task_(&task), requires_waker_(true) {}
-
-  Task* task_;
-  bool requires_waker_;
+  constexpr Context() = default;
 };
 
 /// @endsubmodule

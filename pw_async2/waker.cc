@@ -51,7 +51,7 @@ void Waker::Wake() {
 }
 
 bool Waker::TrySetTask(Context& context, log::Token wait_reason) {
-  Task* const new_task = context.task_;
+  Task* const new_task = static_cast<Task*>(&context);
 
   std::lock_guard lock(internal::lock());
   if (task_ != nullptr && task_ != new_task) {

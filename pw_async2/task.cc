@@ -136,14 +136,11 @@ RunTaskResult Task::RunInDispatcher() {
                name_,
                static_cast<const void*>(this));
 
+  // Reset the waker requirement flag before every run.
+  waker_requirement_ = kWakerNeeded;
+
   // The task is pended without the lock held.
-  bool complete;
-  bool requires_waker;
-  {
-    Context context(*this);
-    complete = Pend(context).IsReady();
-    requires_waker = context.requires_waker_;
-  }
+  const bool complete = Pend(*this).IsReady();
 
   // This function does not use std::lock_guard since the UnpostAndReleaseRef
   // function releases the lock. Lock correctness is ensured by Clang's
@@ -182,7 +179,7 @@ RunTaskResult Task::RunInDispatcher() {
         name_,
         static_cast<const void*>(this));
 
-    if (requires_waker) {
+    if (waker_requirement_ == kWakerNeeded) {
       PW_CHECK(!wakers_.empty(),
                "Task " PW_TASK_NAME_FMT()
                ":%p returned Pending() without registering a waker",

@@ -77,7 +77,7 @@ enum class RunTaskResult {
 /// - Use dynamic task lifetimes. Tasks may be allocated and posted with
 ///   @ref Dispatcher::Post "Dispatcher::Post(allocator_, ...)" overloads. Or, a
 ///   `SharedPtr<Task>` can be posted with `Dispatcher::PostShared`.
-class Task : public IntrusiveQueue<Task>::Item {
+class Task : public IntrusiveQueue<Task>::Item, private Context {
  public:
   /// Creates a task with the specified name. To generate a name token, use the
   /// `PW_ASYNC_TASK_NAME` macro, e.g.
@@ -148,9 +148,16 @@ class Task : public IntrusiveQueue<Task>::Item {
   /// thread.
   void Join() PW_LOCKS_EXCLUDED(internal::lock());
 
+ protected:
+  /// Alias Context here so subclasses don't try to look up the private base.
+  /// Do NOT use this alias directly (`Task::Context`); instead, use
+  /// `pw::async2::Context`.
+  using Context = ::pw::async2::Context;
+
  private:
   friend class Dispatcher;
   friend class Waker;
+  friend Context;
 
   static constexpr log::Token kDefaultName =
       PW_LOG_TOKEN("pw_async2", "(anonymous)");
@@ -262,6 +269,12 @@ class Task : public IntrusiveQueue<Task>::Item {
   // The current state of the task.
   State state_ PW_GUARDED_BY(internal::lock()) = State::kUnposted;
 
+  // Indicates whether this task needs a waker if it is Pending.
+  enum : bool {
+    kWakerNeeded,
+    kNoWakerNeeded
+  } waker_requirement_ = kWakerNeeded;
+
   // A pointer to the dispatcher this task is associated with.
   //
   // This will be non-null when `state_` is anything other than `kUnposted`.
@@ -281,6 +294,15 @@ class Task : public IntrusiveQueue<Task>::Item {
   // debug logs.
   log::Token name_;
 };
+
+inline PendingType Context::Unschedule() {
+  static_cast<Task&>(*this).waker_requirement_ = Task::kNoWakerNeeded;
+  return Pending();
+}
+
+inline void Context::ReEnqueue() {
+  Waker(static_cast<Task&>(*this), {}).Wake();
+}
 
 /// @endsubmodule
 

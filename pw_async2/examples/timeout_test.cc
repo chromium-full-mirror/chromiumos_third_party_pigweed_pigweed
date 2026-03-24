@@ -85,7 +85,7 @@ Result<T> RunFutureToCompletionWithTimeout(
   typename decltype(select)::value_type select_result;
 
   BasicDispatcher dispatcher;
-  auto task = FuncTask([&](Context cx) -> Poll<> {
+  auto task = FuncTask([&](Context& cx) -> Poll<> {
     PW_AWAIT(select_result, select, cx);
     return Ready();
   });

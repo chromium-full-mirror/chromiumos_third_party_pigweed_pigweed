@@ -154,10 +154,6 @@ template <typename Callable>
 /// `Waker`s are most commonly created by `Dispatcher`s, which pass them into
 /// `Task::Pend` via its `Context` argument.
 class Waker : public pw::IntrusiveForwardList<Waker>::Item {
-  friend class Context;
-  friend class Task;
-  friend class Dispatcher;
-
  public:
   constexpr Waker() = default;
 
@@ -199,6 +195,10 @@ class Waker : public pw::IntrusiveForwardList<Waker>::Item {
   void Clear() PW_LOCKS_EXCLUDED(internal::lock());
 
  private:
+  friend class Context;
+  friend class Task;
+  friend class Dispatcher;
+
   friend bool internal::CloneWaker(Waker& waker_in,
                                    Waker& waker_out,
                                    log::Token wait_reason);
@@ -248,9 +248,6 @@ class Waker : public pw::IntrusiveForwardList<Waker>::Item {
 };
 
 /// @endsubmodule
-
-// Implement Context::ReEnqueue here since it requires Waker to be defined.
-inline void Context::ReEnqueue() { Waker(*task_, {}).Wake(); }
 
 namespace internal {
 
