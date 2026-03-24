@@ -47,6 +47,14 @@ const LOG_CONTEXT_SWITCH: bool = false;
 
 const STACK_ALIGNMENT: usize = 8;
 
+#[derive(Copy, Clone, Eq, PartialEq)]
+#[repr(u8)]
+pub enum InterruptPriority {
+    PendSv = 0b1111_1111,
+    SvcCall = 0b1011_1111,
+    Interrupt = 0b0111_1111,
+}
+
 // Remember the thread that the cpu is currently running off of.
 // NOTE this may lag behind the Scheduler's notion of current_thread due to the way
 // pendsv may have a queuing effect in particular contexts, notably when preempting
@@ -244,16 +252,19 @@ impl Arch for crate::Arch {
             // Set PendSV (used by context switching) to the lowest priority.
             // This is necessary so that context switches do not happen while
             // anything is executing in handler mode.
-            scb.set_priority(scb::SystemHandler::PendSV, 0b1111_1111);
+            scb.set_priority(scb::SystemHandler::PendSV, InterruptPriority::PendSv as u8);
 
             // Set SVCall (system calls) to between PendSV and SysTick to
             // give interrupts a higher priority than the system call preamble.
             // Note: the system call iteself does not execute in handler mode
             // and this priority just affects the trampoline preamble.
-            scb.set_priority(scb::SystemHandler::SVCall, 0b1011_1111);
+            scb.set_priority(scb::SystemHandler::SVCall, InterruptPriority::SvcCall as u8);
 
             // Set SysTick to a priority above SVCall and PendSV
-            scb.set_priority(scb::SystemHandler::SysTick, 0b0111_1111);
+            scb.set_priority(
+                scb::SystemHandler::SysTick,
+                InterruptPriority::Interrupt as u8,
+            );
 
             // External IRQ priorities are set by the interrupt controller.
 

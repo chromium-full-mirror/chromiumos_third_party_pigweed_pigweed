@@ -19,7 +19,7 @@ use kernel_config::{NvicConfig, NvicConfigInterface};
 use log_if::debug_if;
 use pw_log::info;
 
-use crate::regs;
+use crate::{regs, threads};
 
 const LOG_INTERRUPTS: bool = false;
 
@@ -38,7 +38,7 @@ impl InterruptController for Nvic {
         let nvic_regs = regs::Nvic {};
         // Set all of the NVIC external IRQs to the same priority as SysTick.
         for i in 0..NvicConfig::MAX_IRQS {
-            nvic_regs.set_priority(i as usize, 0b0100_0000);
+            nvic_regs.set_priority(i as usize, threads::InterruptPriority::Interrupt as u8);
         }
     }
 
