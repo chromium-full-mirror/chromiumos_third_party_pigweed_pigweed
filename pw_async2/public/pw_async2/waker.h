@@ -16,6 +16,7 @@
 #include <mutex>
 
 #include "pw_assert/assert.h"
+#include "pw_async2/context.h"
 #include "pw_async2/internal/config.h"
 #include "pw_async2/internal/lock.h"
 #include "pw_containers/intrusive_forward_list.h"
@@ -24,6 +25,7 @@
 
 namespace pw::async2 {
 
+class Context;
 class Task;
 class Waker;
 
@@ -36,7 +38,12 @@ template <typename Callable>
 
 [[nodiscard]] bool CloneWaker(Waker& waker_in,
                               Waker& waker_out,
-                              log::Token wait_reason = log::kDefaultToken)
+                              log::Token wait_reason)
+    PW_LOCKS_EXCLUDED(internal::lock());
+
+[[nodiscard]] bool StoreWaker(Context& context,
+                              Waker& waker_out,
+                              log::Token wait_reason)
     PW_LOCKS_EXCLUDED(internal::lock());
 
 }  // namespace internal
@@ -147,11 +154,13 @@ template <typename Callable>
 /// `Waker`s are most commonly created by `Dispatcher`s, which pass them into
 /// `Task::Pend` via its `Context` argument.
 class Waker : public pw::IntrusiveForwardList<Waker>::Item {
+  friend class Context;
   friend class Task;
   friend class Dispatcher;
 
  public:
   constexpr Waker() = default;
+
   Waker(Waker&& other) noexcept PW_LOCKS_EXCLUDED(internal::lock()) {
     *this = std::move(other);
   }
@@ -194,10 +203,21 @@ class Waker : public pw::IntrusiveForwardList<Waker>::Item {
                                    Waker& waker_out,
                                    log::Token wait_reason);
 
-  Waker(Task& task) PW_LOCKS_EXCLUDED(internal::lock()) : task_(&task) {
-    std::lock_guard lock(internal::lock());
-    AddToTask();
+  friend bool internal::StoreWaker(Context& context,
+                                   Waker& waker_out,
+                                   log::Token wait_reason);
+
+  Waker(Task& task, log::Token wait_reason) PW_LOCKS_EXCLUDED(internal::lock());
+
+  void set_wait_reason([[maybe_unused]] log::Token wait_reason)
+      PW_EXCLUSIVE_LOCKS_REQUIRED(internal::lock()) {
+#if PW_ASYNC2_DEBUG_WAIT_REASON
+    wait_reason_ = wait_reason;
+#endif  // PW_ASYNC2_DEBUG_WAIT_REASON
   }
+
+  bool TrySetTask(Context& context, log::Token wait_reason)
+      PW_LOCKS_EXCLUDED(internal::lock());
 
   // Creates a second `Waker` from this `Waker`.
   //
@@ -205,14 +225,15 @@ class Waker : public pw::IntrusiveForwardList<Waker>::Item {
   // different `Waker`s that may wake up a `Task`.
   //
   // This operation is guaranteed to be thread-safe.
-  void CloneInto(Waker& waker_out, log::Token wait_reason)
-      PW_EXCLUSIVE_LOCKS_REQUIRED(internal::lock());
-
-  void AddToTask() PW_EXCLUSIVE_LOCKS_REQUIRED(internal::lock());
-  void AddToTaskIfSet() PW_EXCLUSIVE_LOCKS_REQUIRED(internal::lock());
+  bool CloneInto(Waker& waker_out, log::Token wait_reason)
+      PW_LOCKS_EXCLUDED(internal::lock());
 
   void RemoveTask() PW_EXCLUSIVE_LOCKS_REQUIRED(internal::lock());
-  void RemoveTaskIfSet() PW_EXCLUSIVE_LOCKS_REQUIRED(internal::lock());
+  void RemoveTaskIfSet() PW_EXCLUSIVE_LOCKS_REQUIRED(internal::lock()) {
+    if (task_ != nullptr) {
+      RemoveTask();
+    }
+  }
 
   void ClearTask() PW_EXCLUSIVE_LOCKS_REQUIRED(internal::lock()) {
     task_ = nullptr;
@@ -222,10 +243,28 @@ class Waker : public pw::IntrusiveForwardList<Waker>::Item {
   Task* task_ PW_GUARDED_BY(internal::lock()) = nullptr;
 
 #if PW_ASYNC2_DEBUG_WAIT_REASON
-  log::Token wait_reason_ = log::kDefaultToken;
+  log::Token wait_reason_ PW_GUARDED_BY(internal::lock()) = log::kDefaultToken;
 #endif  // PW_ASYNC2_DEBUG_WAIT_REASON
 };
 
 /// @endsubmodule
 
+// Implement Context::ReEnqueue here since it requires Waker to be defined.
+inline void Context::ReEnqueue() { Waker(*task_, {}).Wake(); }
+
+namespace internal {
+
+inline bool CloneWaker(Waker& waker_in,
+                       Waker& waker_out,
+                       log::Token wait_reason) {
+  return waker_in.CloneInto(waker_out, wait_reason);
+}
+
+inline bool StoreWaker(Context& context,
+                       Waker& waker_out,
+                       log::Token wait_reason) {
+  return waker_out.TrySetTask(context, wait_reason);
+}
+
+}  // namespace internal
 }  // namespace pw::async2

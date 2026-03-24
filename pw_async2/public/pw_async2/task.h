@@ -19,6 +19,7 @@
 #include "pw_async2/context.h"
 #include "pw_async2/internal/lock.h"
 #include "pw_async2/poll.h"
+#include "pw_async2/waker.h"
 #include "pw_containers/intrusive_forward_list.h"
 #include "pw_containers/intrusive_list.h"
 #include "pw_containers/intrusive_queue.h"
@@ -233,10 +234,6 @@ class Task : public IntrusiveQueue<Task>::Item {
   void RemoveWakerLocked(Waker& waker)
       PW_EXCLUSIVE_LOCKS_REQUIRED(internal::lock()) {
     wakers_.remove(waker);
-  }
-
-  Dispatcher& GetDispatcherWhileRunning() PW_NO_LOCK_SAFETY_ANALYSIS {
-    return *dispatcher_;
   }
 
   void ReleaseSharedRef(allocator::internal::ControlBlock* control_block)

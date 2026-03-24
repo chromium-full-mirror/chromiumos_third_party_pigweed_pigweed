@@ -98,7 +98,6 @@ pw_source_set("pw_async2") {
     "$dir_pw_thread:sleep",
   ]
   sources = [
-    "context.cc",
     "dispatcher.cc",
     "future.cc",
     "runnable_dispatcher.cc",

@@ -26,7 +26,6 @@ cc_library_static {
     export_include_dirs: ["public"],
     local_include_dirs: ["private"],
     srcs: [
-        "context.cc",
         "dispatcher.cc",
         "future.cc",
         "runnable_dispatcher.cc",

@@ -56,7 +56,6 @@ pw_cc_test(
 cc_library(
     name = "pw_async2",
     srcs = [
-        "context.cc",
         "dispatcher.cc",
         "future.cc",
         "runnable_dispatcher.cc",

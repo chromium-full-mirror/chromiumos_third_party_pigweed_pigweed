@@ -84,7 +84,6 @@ pw_add_library(pw_async2 STATIC
     pw_async2._yield
     pw_thread.sleep
   SOURCES
-    context.cc
     dispatcher.cc
     future.cc
     runnable_dispatcher.cc

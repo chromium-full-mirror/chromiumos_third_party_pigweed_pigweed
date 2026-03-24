@@ -140,8 +140,7 @@ RunTaskResult Task::RunInDispatcher() {
   bool complete;
   bool requires_waker;
   {
-    Waker waker(*this);
-    Context context(GetDispatcherWhileRunning(), waker);
+    Context context(*this);
     complete = Pend(context).IsReady();
     requires_waker = context.requires_waker_;
   }

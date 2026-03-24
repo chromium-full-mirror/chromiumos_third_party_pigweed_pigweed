@@ -14,57 +14,37 @@
 #pragma once
 
 #include "pw_async2/poll.h"
-#include "pw_async2/waker.h"
-#include "pw_log/tokenized_args.h"
 
 namespace pw::async2 {
 
-class Context;
-class Dispatcher;
-
-namespace internal {
-
-/// INTERNAL-ONLY: users should use the `PW_ASYNC_STORE_WAKER` macro instead.
-///
-/// Saves a ``Waker`` into ``waker_out`` which, when awoken, will cause the
-/// current task to be ``Pend``'d by its dispatcher.
-[[nodiscard]] bool StoreWaker(Context& cx,
-                              Waker& waker_out,
-                              log::Token wait_reason);
-
-}  // namespace internal
+class Task;
 
 /// @submodule{pw_async2,context}
 
-/// Context for an asynchronous ``Task``.
+/// Context for an asynchronous `Task`.
 ///
-/// This object contains resources needed for scheduling asynchronous work,
-/// such as the current ``Dispatcher`` and the ``Waker`` for the current task.
+/// This object contains resources needed for scheduling asynchronous work, such
+/// as the current `Dispatcher` and the `Waker` for the current task.
 ///
-/// ``Context`` s are most often created by ``Dispatcher`` s, which pass them
-/// into ``Task::Pend``.
+/// `Context` s are most often created by `Dispatcher` s, which pass them
+/// into `Task::Pend`.
 class Context {
  public:
-  /// Creates a new ``Context`` containing the currently-running ``Dispatcher``
-  /// and a ``Waker`` for the current ``Task``.
-  Context(Dispatcher& dispatcher, Waker& waker)
-      : dispatcher_(&dispatcher), waker_(&waker), requires_waker_(true) {}
-
-  /// Queues the current ``Task::Pend`` to run again in the future, possibly
-  /// after other work is performed.
+  /// Queues the current `Task::Pend` to run again in the future, possibly after
+  /// other work is performed.
   ///
-  /// This may be used by ``Task`` implementations that wish to provide
-  /// additional fairness by yielding to the dispatch loop rather than perform
-  /// too much work in a single iteration.
+  /// This may be used by `Task` implementations that wish to provide additional
+  /// fairness by yielding to the dispatch loop rather than perform too much
+  /// work in a single iteration.
   ///
   /// This is semantically equivalent to calling:
   ///
-  /// ```
+  /// @code{.cpp}
   /// Waker waker;
   /// PW_ASYNC_STORE_WAKER(cx, waker, ...);
   /// waker.Wake();
-  /// ```
-  void ReEnqueue();
+  /// @endcode
+  void ReEnqueue();  // Implemented inline in waker.h after Waker is defined.
 
   /// Indicates that the task has not completed, but that it also does not need
   /// to register a waker and go to sleep. This results in the task being
@@ -77,12 +57,13 @@ class Context {
 
  private:
   friend class Task;
-  friend bool internal::StoreWaker(Context& cx,
-                                   Waker& waker_out,
-                                   log::Token wait_reason);
+  friend class Waker;
 
-  Dispatcher* dispatcher_;
-  Waker* waker_;
+  /// Creates a new `Context` for the `Task` being run within a `Dispatcher`.
+  explicit constexpr Context(Task& task)
+      : task_(&task), requires_waker_(true) {}
+
+  Task* task_;
   bool requires_waker_;
 };
 
