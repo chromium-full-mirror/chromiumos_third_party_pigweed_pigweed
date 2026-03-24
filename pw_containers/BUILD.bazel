@@ -107,6 +107,20 @@ cc_library(
 )
 
 cc_library(
+    name = "intrusive_queue",
+    srcs = ["intrusive_queue.cc"],
+    hdrs = [
+        "public/pw_containers/internal/intrusive_queue.h",
+        "public/pw_containers/intrusive_queue.h",
+    ],
+    strip_include_prefix = "public",
+    deps = [
+        ":intrusive_forward_list",
+        ":intrusive_list_common",
+    ],
+)
+
+cc_library(
     name = "legacy_intrusive_list",
     hdrs = ["public/pw_containers/internal/legacy_intrusive_list.h"],
     strip_include_prefix = "public",
@@ -798,6 +812,14 @@ pw_cc_test(
 )
 
 pw_cc_test(
+    name = "intrusive_queue_test",
+    srcs = ["intrusive_queue_test.cc"],
+    deps = [
+        ":intrusive_queue",
+    ],
+)
+
+pw_cc_test(
     name = "intrusive_map_test",
     srcs = ["intrusive_map_test.cc"],
     has_nc_test = True,
@@ -918,6 +940,7 @@ filegroup(
         "public/pw_containers/intrusive_map.h",
         "public/pw_containers/intrusive_multimap.h",
         "public/pw_containers/intrusive_multiset.h",
+        "public/pw_containers/intrusive_queue.h",
         "public/pw_containers/intrusive_set.h",
         "public/pw_containers/optional_tuple.h",
         "public/pw_containers/ptr_iterator.h",

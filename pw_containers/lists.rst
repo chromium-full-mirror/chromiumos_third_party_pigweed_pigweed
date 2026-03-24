@@ -77,6 +77,19 @@ Example
 If you need to add this item to containers of more than one type, see
 :ref:`module-pw_containers-multiple_containers`,
 
+------------------
+pw::IntrusiveQueue
+------------------
+:cc:`pw::IntrusiveQueue` provides an embedded-friendly, singly linked, intrusive
+queue implementation. It wrapper around :cc:`pw::IntrusiveForwardList` that
+tracks the tail element, allowing for ``O(1)`` ``push_back()`` operations. Note
+that like a standard queue, it does not support ``pop_back()`` since doing so
+would require an ``O(n)`` traversal to update the tail pointer.
+
+This class is most similar to ``std::deque<T>``.  It offers ``push_back()``,
+``push_front()``, and ``pop_front()``, but not ``pop_back()``.  Because it is an
+intrusive list, its elements must derive from ``pw::IntrusiveQueue<T>::Item``.
+
 -------------
 API reference
 -------------

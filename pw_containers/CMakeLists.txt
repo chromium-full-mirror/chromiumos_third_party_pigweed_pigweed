@@ -382,7 +382,7 @@ pw_add_library(pw_containers.intrusive_item STATIC
     pw_assert
 )
 
-pw_add_library(pw_containers.intrusive_list_common INTERFACE
+pw_add_library(pw_containers._intrusive_list_common INTERFACE
   HEADERS
     public/pw_containers/internal/intrusive_list.h
     public/pw_containers/internal/intrusive_list_item.h
@@ -400,7 +400,20 @@ pw_add_library(pw_containers.intrusive_forward_list INTERFACE
     public
   PUBLIC_DEPS
     pw_containers.config
-    pw_containers.intrusive_list_common
+    pw_containers._intrusive_list_common
+)
+
+pw_add_library(pw_containers.intrusive_queue STATIC
+  HEADERS
+    public/pw_containers/intrusive_queue.h
+    public/pw_containers/internal/intrusive_queue.h
+  PUBLIC_INCLUDES
+    public
+  SOURCES
+    intrusive_queue.cc
+  PUBLIC_DEPS
+    pw_containers.intrusive_forward_list
+    pw_containers._intrusive_list_common
 )
 
 pw_add_library(pw_containers.intrusive_list INTERFACE
@@ -410,7 +423,7 @@ pw_add_library(pw_containers.intrusive_list INTERFACE
     public
   PUBLIC_DEPS
     pw_containers.config
-    pw_containers.intrusive_list_common
+    pw_containers._intrusive_list_common
     pw_containers.legacy_intrusive_list
 )
 
@@ -804,6 +817,16 @@ pw_add_test(pw_containers.wrapped_iterator_test
     wrapped_iterator_test.cc
   PRIVATE_DEPS
     pw_containers.wrapped_iterator
+  GROUPS
+    modules
+    pw_containers
+)
+
+pw_add_test(pw_containers.intrusive_queue_test
+  SOURCES
+    intrusive_queue_test.cc
+  PRIVATE_DEPS
+    pw_containers.intrusive_queue
   GROUPS
     modules
     pw_containers
