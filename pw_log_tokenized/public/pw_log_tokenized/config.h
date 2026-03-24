@@ -63,8 +63,7 @@
 // specify the number of bits to use for each field. A field with zero bits is
 // excluded.
 
-/// Bits to allocate for the log level. Defaults to @c_macro{PW_LOG_LEVEL_BITS}
-/// (3).
+/// Bits to allocate for the log level. Defaults to `PW_LOG_LEVEL_BITS` (3).
 #ifndef PW_LOG_TOKENIZED_LEVEL_BITS
 #define PW_LOG_TOKENIZED_LEVEL_BITS PW_LOG_LEVEL_BITS
 #endif  // PW_LOG_TOKENIZED_LEVEL_BITS
@@ -92,9 +91,8 @@
 #define PW_LOG_TOKENIZED_FLAG_BITS 2
 #endif  // PW_LOG_TOKENIZED_FLAG_BITS
 
-/// Bits to use for the tokenized version of @c_macro{PW_LOG_MODULE_NAME}.
-/// Defaults to 16, which gives a ~1% probability of a collision with 37 module
-/// names.
+/// Bits to use for the tokenized version of `PW_LOG_MODULE_NAME`. Defaults to
+/// 16, which gives a ~1% probability of a collision with 37 module names.
 #ifndef PW_LOG_TOKENIZED_MODULE_BITS
 #define PW_LOG_TOKENIZED_MODULE_BITS 16
 #endif  // PW_LOG_TOKENIZED_MODULE_BITS
@@ -102,6 +100,45 @@
 static_assert((PW_LOG_TOKENIZED_LEVEL_BITS + PW_LOG_TOKENIZED_LINE_BITS +
                PW_LOG_TOKENIZED_FLAG_BITS + PW_LOG_TOKENIZED_MODULE_BITS) == 32,
               "Log metadata fields must use 32 bits");
+
+// If the level field is present, clamp it to the maximum value.
+#if PW_LOG_TOKENIZED_LEVEL_BITS == 0
+#define _PW_LOG_TOKENIZED_LEVEL(value) ((uintptr_t)0)
+#else
+#define _PW_LOG_TOKENIZED_LEVEL(value)                   \
+  (value < ((uintptr_t)1 << PW_LOG_TOKENIZED_LEVEL_BITS) \
+       ? value                                           \
+       : ((uintptr_t)1 << PW_LOG_TOKENIZED_LEVEL_BITS) - 1)
+#endif  // PW_LOG_TOKENIZED_LEVEL_BITS
+
+// If the line number field is present, shift it to its position. Set it to zero
+// if the line number is too large for PW_LOG_TOKENIZED_LINE_BITS.
+#if PW_LOG_TOKENIZED_LINE_BITS == 0
+#define _PW_LOG_TOKENIZED_LINE(line) ((uintptr_t)0)
+#else
+#define _PW_LOG_TOKENIZED_LINE(line)                                \
+  ((uintptr_t)(line < (1 << PW_LOG_TOKENIZED_LINE_BITS) ? line : 0) \
+   << PW_LOG_TOKENIZED_LEVEL_BITS)
+#endif  // PW_LOG_TOKENIZED_LINE_BITS
+
+// If the flags field is present, mask it and shift it to its position.
+#if PW_LOG_TOKENIZED_FLAG_BITS == 0
+#define _PW_LOG_TOKENIZED_FLAGS(value) ((uintptr_t)0)
+#else
+#define _PW_LOG_TOKENIZED_FLAGS(value)                                       \
+  (((uintptr_t)(value) & (((uintptr_t)1 << PW_LOG_TOKENIZED_FLAG_BITS) - 1)) \
+   << (PW_LOG_TOKENIZED_LEVEL_BITS + PW_LOG_TOKENIZED_LINE_BITS))
+#endif  // PW_LOG_TOKENIZED_FLAG_BITS
+
+// If the module field is present, shift it to its position.
+#if PW_LOG_TOKENIZED_MODULE_BITS == 0
+#define _PW_LOG_TOKENIZED_MODULE(value) ((uintptr_t)0)
+#else
+#define _PW_LOG_TOKENIZED_MODULE(value)                  \
+  ((uintptr_t)(value) << ((PW_LOG_TOKENIZED_LEVEL_BITS + \
+                           PW_LOG_TOKENIZED_LINE_BITS +  \
+                           PW_LOG_TOKENIZED_FLAG_BITS)))
+#endif  // PW_LOG_TOKENIZED_MODULE_BITS
 
 #ifdef __cplusplus
 

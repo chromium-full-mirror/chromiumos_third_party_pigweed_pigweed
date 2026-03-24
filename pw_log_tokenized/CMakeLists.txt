@@ -29,22 +29,43 @@ pw_add_library(pw_log_tokenized.config INTERFACE
     ${pw_log_tokenized_CONFIG}
 )
 
-pw_add_library(pw_log_tokenized STATIC
+pw_add_library(pw_log_tokenized.tokenized_backend_indicator INTERFACE
   HEADERS
-    public_overrides/pw_log_backend/log_backend.h
     public_overrides/pw_log_backend/log_backend_uses_pw_tokenizer.h
   PUBLIC_INCLUDES
     public_overrides
+)
+
+pw_add_library(pw_log_tokenized STATIC
+  HEADERS
+    metadata_public_overrides/pw_log_backend/log_backend.h
+  PUBLIC_INCLUDES
+    metadata_public_overrides
   PUBLIC_DEPS
     pw_log_tokenized.handler
     pw_log_tokenized._headers
+    pw_log_tokenized.tokenized_backend_indicator
   SOURCES
     log_tokenized.cc
+)
+
+pw_add_library(pw_log_tokenized.light STATIC
+  HEADERS
+    light_public_overrides/pw_log_backend/log_backend.h
+  PUBLIC_INCLUDES
+    light_public_overrides
+  PUBLIC_DEPS
+    pw_log_tokenized.light_handler
+    pw_log_tokenized._headers
+    pw_log_tokenized.tokenized_backend_indicator
+  SOURCES
+    log_tokenized_light.cc
 )
 
 pw_add_library(pw_log_tokenized._headers INTERFACE
   HEADERS
     public/pw_log_tokenized/log_tokenized.h
+    public/pw_log_tokenized/log_tokenized_light.h
   PUBLIC_INCLUDES
     public
   PUBLIC_DEPS
@@ -99,6 +120,17 @@ pw_add_facade(pw_log_tokenized.handler INTERFACE
     pw_preprocessor
 )
 
+pw_add_facade(pw_log_tokenized.light_handler INTERFACE
+  BACKEND
+    pw_log_tokenized.light_handler_BACKEND
+  HEADERS
+    public/pw_log_tokenized/light_handler.h
+  PUBLIC_INCLUDES
+    public
+  PUBLIC_DEPS
+    pw_preprocessor
+)
+
 pw_add_library(pw_log_tokenized.base64 INTERFACE
   HEADERS
     public/pw_log_tokenized/base64.h
@@ -118,6 +150,7 @@ pw_add_library(pw_log_tokenized.base64_over_hdlc STATIC
     pw_hdlc.encoder
     pw_log_tokenized.base64
     pw_log_tokenized.handler
+    pw_log_tokenized.light_handler
     pw_span
     pw_stream.sys_io_stream
 )

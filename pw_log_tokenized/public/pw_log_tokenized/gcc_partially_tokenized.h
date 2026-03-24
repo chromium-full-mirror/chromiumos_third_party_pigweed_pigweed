@@ -18,7 +18,7 @@
 #if !defined(__cplusplus) || !defined(__GNUC__) || defined(__clang__)
 
 // If we're not compiling C++ or we're not using GCC, then tokenize the log.
-#define PW_HANDLE_LOG PW_LOG_TOKENIZED_TO_GLOBAL_HANDLER_WITH_PAYLOAD
+#define PW_HANDLE_LOG PW_LOG_TOKENIZED_TO_GLOBAL_HANDLER_WITH_METADATA
 
 #else  // defined(__cplusplus) && defined(__GNUC__) && !defined(__clang__)
 
@@ -41,7 +41,7 @@
     if constexpr (std::string_view(__PRETTY_FUNCTION__).back() == ']') { \
       PW_LOG_STRING_HANDLE_MESSAGE(__VA_ARGS__);                         \
     } else {                                                             \
-      PW_LOG_TOKENIZED_TO_GLOBAL_HANDLER_WITH_PAYLOAD(__VA_ARGS__);      \
+      PW_LOG_TOKENIZED_TO_GLOBAL_HANDLER_WITH_METADATA(__VA_ARGS__);     \
     }                                                                    \
   } while (0)
 

@@ -89,8 +89,7 @@ class GenericMetadata {
   /// The flags provided to the log call.
   constexpr T flags() const { return Flags::Get(value_); }
 
-  /// The 16-bit tokenized version of the module name
-  /// (@c_macro{PW_LOG_MODULE_NAME}).
+  /// The 16-bit tokenized version of the module name (`PW_LOG_MODULE_NAME`).
   constexpr T module() const { return Module::Get(value_); }
 
   /// The underlying packed metadata.

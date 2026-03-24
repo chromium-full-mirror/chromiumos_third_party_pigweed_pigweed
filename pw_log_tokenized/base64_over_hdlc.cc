@@ -18,6 +18,7 @@
 #include "pw_hdlc/encoder.h"
 #include "pw_log_tokenized/base64.h"
 #include "pw_log_tokenized/handler.h"
+#include "pw_log_tokenized/light_handler.h"
 #include "pw_span/span.h"
 #include "pw_stream/sys_io_stream.h"
 #include "pw_string/string.h"
@@ -35,17 +36,22 @@ stream::SysIoWriter writer;
 // Base64-encodes tokenized logs and writes them to pw::sys_io as HDLC frames.
 extern "C" void pw_log_tokenized_HandleLog(
     uint32_t,  // TODO(hepler): Use the metadata for filtering.
-    const uint8_t log_buffer[],
+    const uint8_t encoded_message[],
     size_t size_bytes) {
   // Encode the tokenized message as Base64.
   const pw::InlineBasicString base64_string =
-      PrefixedBase64Encode(log_buffer, size_bytes);
+      PrefixedBase64Encode(encoded_message, size_bytes);
 
   // HDLC-encode the Base64 string via a SysIoWriter. Ignore errors since we
   // cannot take any action anyway.
   hdlc::WriteUIFrame(
       kBase64LogHdlcAddress, as_bytes(span(base64_string)), writer)
       .IgnoreError();
+}
+
+extern "C" void pw_log_tokenized_HandleLogWithoutMetadata(
+    const uint8_t encoded_message[], size_t size_bytes) {
+  pw_log_tokenized_HandleLog(0, encoded_message, size_bytes);
 }
 
 }  // namespace pw::log_tokenized

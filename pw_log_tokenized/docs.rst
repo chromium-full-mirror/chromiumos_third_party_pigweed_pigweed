@@ -12,32 +12,55 @@ connects ``pw_log`` to ``pw_tokenizer`` and supports
 
 C++ backend
 ===========
-``pw_log_tokenized`` provides a backend for ``pw_log`` that tokenizes log
-messages with the ``pw_tokenizer`` module. The log level, 16-bit tokenized
-module name, and flags bits are passed through the payload argument. The macro
-eventually passes logs to the :cc:`pw_log_tokenized_HandleLog` function,
-which must be implemented by the application.
+``pw_log_tokenized`` provides two backends for ``pw_log`` that tokenize log
+messages with the ``pw_tokenizer`` module. One backend includes metadata, and
+the other omits it to save code size.
+
+With metadata
+-------------
+The default ``//pw_log_tokenized`` backend passes the log level, 16-bit
+tokenized module name, and flag bits through a metadata argument. The macro
+eventually passes logs to the :cc:`pw_log_tokenized_HandleLog` function, which
+must be implemented by the application.
 
 Example implementation:
 
 .. code-block:: cpp
 
-   extern "C" void pw_log_tokenized_HandleLog(uint32_t payload,
+   extern "C" void pw_log_tokenized_HandleLog(uint32_t metadata,
                                               const uint8_t message[],
                                               size_t size) {
      // The metadata object provides the log level, module token, and flags.
      // These values can be recorded and used for runtime filtering.
-     pw::log_tokenized::Metadata metadata(payload);
+     pw::log_tokenized::Metadata info(metadata);
 
-     if (metadata.level() < current_log_level) {
+     if (info.level() < current_log_level) {
        return;
      }
 
-     if (metadata.flags() & HIGH_PRIORITY_LOG != 0) {
-       EmitHighPriorityLog(metadata.module(), message, size);
+     if (info.flags() & HIGH_PRIORITY_LOG != 0) {
+       EmitHighPriorityLog(info.module(), message, size);
      } else {
-       EmitLowPriorityLog(metadata.module(), message, size);
+       EmitLowPriorityLog(info.module(), message, size);
      }
+   }
+
+Without metadata
+----------------
+The ``//pw_log_tokenized:light`` backend omits the metadata entirely to
+save code size. The macro eventually passes logs to the
+:cc:`pw_log_tokenized_HandleLogWithoutMetadata` function, which must be
+implemented by the application.
+
+Example implementation:
+
+.. code-block:: cpp
+
+   extern "C" void pw_log_tokenized_HandleLogWithoutMetadata(
+       const uint8_t message[], size_t size) {
+     // Since no metadata is provided, applications might route these logs
+     // to a default stream without filtering.
+     EmitLog(message, size);
    }
 
 See the documentation for :ref:`module-pw_tokenizer` for further details.
@@ -82,20 +105,28 @@ characters in the string are hashed, so the order is not important.
 The format string is created by the :cc:`PW_LOG_TOKENIZED_FORMAT_STRING`
 macro.
 
-Metadata in the tokenizer payload argument
--------------------------------------------
+The metadata bit field
+----------------------
 ``pw_log_tokenized`` packs runtime-accessible metadata into a 32-bit integer
-which is passed as the "payload" argument for ``pw_log_tokenizer``'s global
-handler with payload facade. Packing this metadata into a single word rather
+which is passed as the metadata argument for ``pw_log_tokenizer``'s global
+handler with metadata facade. Packing this metadata into a single word rather
 than separate arguments reduces the code size significantly.
 
-Four items are packed into the payload argument:
+Four items are packed into the metadata argument (when used):
 
 - Log level -- Used for runtime log filtering by level.
 - Line number -- Used to track where a log message originated.
 - Log flags -- Implementation-defined log flags.
 - Tokenized :c:macro:`PW_LOG_MODULE_NAME` -- Used for runtime log filtering by
   module.
+
+For applications that do not need log metadata at runtime, ``pw_log_tokenized``
+provides a macro that omits the metadata to save code size:
+:cc:`PW_LOG_TOKENIZED_TO_GLOBAL_HANDLER` (used by the
+``//pw_log_tokenized:light`` backend).  If this macro is used as the
+``pw_log`` backend, the log is routed to the
+:cc:`pw_log_tokenized_HandleLogWithoutMetadata` function, bypassing the typical
+log handler.
 
 Configuring metadata bit fields
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -108,25 +139,24 @@ bits allocated is excluded from the log metadata.
 * :cc:`PW_LOG_TOKENIZED_FLAG_BITS`
 * :cc:`PW_LOG_TOKENIZED_MODULE_BITS`
 
-Creating and reading Metadata payloads
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Creating and reading Metadata
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 ``pw_log_tokenized`` provides :cc:`GenericMetadata
 <pw::log_tokenized::GenericMetadata>` to facilitate the creation and
-interpretation of packed log :cc:`Metadata
-<pw::log_tokenized::Metadata>` payloads.
+interpretation of packed log :cc:`Metadata <pw::log_tokenized::Metadata>`.
 
 The following example shows that a ``Metadata`` object can be created from a
-``uint32_t`` log metadata payload.
+``uint32_t`` log metadata.
 
 .. code-block:: cpp
 
-   extern "C" void pw_log_tokenized_HandleLog(uint32_t payload,
+   extern "C" void pw_log_tokenized_HandleLog(uint32_t metadata,
                                               const uint8_t message[],
                                               size_t size_bytes) {
-     pw::log_tokenized::Metadata metadata = payload;
+     pw::log_tokenized::Metadata info = metadata;
      // Check the log level to see if this log is a crash.
-     if (metadata.level() == PW_LOG_LEVEL_FATAL) {
-       HandleCrash(metadata,
+     if (info.level() == PW_LOG_LEVEL_FATAL) {
+       HandleCrash(info,
                    pw::ConstByteSpan(reinterpret_cast<const std::byte*>(message),
                                      size_bytes));
        PW_UNREACHABLE;
@@ -141,13 +171,13 @@ object:
 
    // Logs an explicitly created string token.
    void LogToken(uint32_t token, int level, int line_number, int module) {
-     const uint32_t payload =
+     const uint32_t metadata =
          log_tokenized::Metadata(level, module, PW_LOG_FLAGS, line_number).value();
      std::array<std::byte, sizeof(token)> token_buffer =
          pw::bytes::CopyInOrder(endian::little, token);
 
      pw_log_tokenized_HandleLog(
-         payload,
+         metadata,
          reinterpret_cast<const uint8_t*>(token_buffer.data()),
          token_buffer.size());
    }
@@ -164,12 +194,15 @@ and a callback that is called for each key-value pair.
 
 Build targets
 -------------
-The GN build for ``pw_log_tokenized`` has two targets: ``pw_log_tokenized`` and
-``log_backend``. The ``pw_log_tokenized`` target provides the
-``pw_log_tokenized/log_tokenized.h`` header. The ``log_backend`` target
-implements the backend for the ``pw_log`` facade. ``pw_log_tokenized`` invokes
-the ``pw_log_tokenized:handler`` facade, which must be implemented by the user
-of ``pw_log_tokenized``.
+The build for ``pw_log_tokenized`` provides two backend targets for the
+``pw_log`` facade: ``//pw_log_tokenized`` and
+``//pw_log_tokenized:light``. Both targets provide the
+``pw_log_tokenized/log_tokenized.h`` header.
+
+- ``//pw_log_tokenized`` routes logs to the ``pw_log_tokenized:handler`` facade, which must
+  be implemented by the user.
+- ``//pw_log_tokenized:light`` routes logs to the ``pw_log_tokenized:light_handler``
+  facade, which must also be implemented by the user.
 
 GCC has a bug resulting in section attributes of templated functions being
 ignored. This in turn means that log tokenization cannot work for templated

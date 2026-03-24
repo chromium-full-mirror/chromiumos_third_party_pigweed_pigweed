@@ -34,12 +34,27 @@ config("public_include_path") {
 }
 
 config("backend_config") {
+  include_dirs = [ "metadata_public_overrides" ]
+  visibility = [ ":*" ]
+}
+
+config("light_backend_config") {
+  include_dirs = [ "light_public_overrides" ]
+  visibility = [ ":*" ]
+}
+
+config("tokenized_backend_indicator_config") {
   include_dirs = [ "public_overrides" ]
   visibility = [ ":*" ]
 }
 
+pw_source_set("tokenized_backend_indicator") {
+  public_configs = [ ":tokenized_backend_indicator_config" ]
+  public = [ "public_overrides/pw_log_backend/log_backend_uses_pw_tokenizer.h" ]
+}
+
 config("gcc_partially_tokenized_backend_config") {
-  include_dirs = [ "public_overrides" ]
+  include_dirs = [ "gcc_partially_tokenized_public_overrides" ]
   visibility = [ ":*" ]
 }
 
@@ -49,13 +64,23 @@ pw_source_set("pw_log_tokenized") {
   public_deps = [
     ":handler.facade",  # Depend on the facade to avoid circular dependencies.
     ":headers",
+    ":tokenized_backend_indicator",
   ]
-  public = [
-    "public_overrides/pw_log_backend/log_backend.h",
-    "public_overrides/pw_log_backend/log_backend_uses_pw_tokenizer.h",
-  ]
+  public = [ "metadata_public_overrides/pw_log_backend/log_backend.h" ]
 
   sources = [ "log_tokenized.cc" ]
+}
+
+pw_source_set("light") {
+  public_configs = [ ":light_backend_config" ]
+  public_deps = [
+    ":headers",
+    ":light_handler.facade",
+    ":tokenized_backend_indicator",
+  ]
+  public = [ "light_public_overrides/pw_log_backend/log_backend.h" ]
+
+  sources = [ "log_tokenized_light.cc" ]
 }
 
 pw_source_set("headers") {
@@ -67,7 +92,10 @@ pw_source_set("headers") {
     dir_pw_preprocessor,
     dir_pw_tokenizer,
   ]
-  public = [ "public/pw_log_tokenized/log_tokenized.h" ]
+  public = [
+    "public/pw_log_tokenized/log_tokenized.h",
+    "public/pw_log_tokenized/log_tokenized_light.h",
+  ]
 }
 
 # This target provides the backend for pw_log for GCC which tokenizes as much as
@@ -80,6 +108,7 @@ pw_source_set("gcc_partially_tokenized") {
   public_deps = [
     ":handler.facade",  # Depend on the facade to avoid circular dependencies.
     ":headers",
+    ":light_handler.facade",
     "$dir_pw_log_string:handler",
   ]
   public = [
@@ -96,6 +125,15 @@ pw_facade("handler") {
   public = [ "public/pw_log_tokenized/handler.h" ]
 
   backend = pw_log_tokenized_HANDLER_BACKEND
+}
+
+pw_facade("light_handler") {
+  public_configs = [ ":public_include_path" ]
+  public_deps = [ dir_pw_preprocessor ]
+
+  public = [ "public/pw_log_tokenized/light_handler.h" ]
+
+  backend = pw_log_tokenized_LIGHT_HANDLER_BACKEND
 }
 
 pw_source_set("metadata") {
@@ -133,6 +171,20 @@ pw_source_set("pw_log_tokenized.impl") {
   if (pw_log_tokenized_HANDLER_BACKEND != "") {
     deps += [ ":handler" ]
   }
+  if (pw_log_tokenized_LIGHT_HANDLER_BACKEND != "") {
+    deps += [ ":light_handler" ]
+  }
+}
+
+pw_source_set("light.impl") {
+  deps = [ ":light" ]
+
+  if (pw_log_tokenized_HANDLER_BACKEND != "") {
+    deps += [ ":handler" ]
+  }
+  if (pw_log_tokenized_LIGHT_HANDLER_BACKEND != "") {
+    deps += [ ":light_handler" ]
+  }
 }
 
 pw_source_set("base64") {
@@ -151,6 +203,7 @@ pw_source_set("base64_over_hdlc") {
   deps = [
     ":base64",
     ":handler.facade",
+    ":light_handler.facade",
     "$dir_pw_hdlc:encoder",
     "$dir_pw_stream:sys_io_stream",
     "$dir_pw_tokenizer:base64",

@@ -29,6 +29,7 @@ cc_library(
     hdrs = [
         "public/pw_log_tokenized/config.h",
         "public/pw_log_tokenized/log_tokenized.h",
+        "public/pw_log_tokenized/log_tokenized_light.h",
         "public/pw_log_tokenized/metadata.h",
     ],
     strip_include_prefix = "public",
@@ -46,17 +47,39 @@ label_flag(
 )
 
 cc_library(
+    name = "tokenized_backend_indicator",
+    hdrs = ["public_overrides/pw_log_backend/log_backend_uses_pw_tokenizer.h"],
+    strip_include_prefix = "public_overrides",
+    tags = ["noclangtidy"],  # Cannot use clang-tidy since the header contains a static_assert.
+)
+
+cc_library(
     name = "pw_log_tokenized",
     srcs = ["log_tokenized.cc"],
     hdrs = [
-        "public_overrides/pw_log_backend/log_backend.h",
-        "public_overrides/pw_log_backend/log_backend_uses_pw_tokenizer.h",
+        "metadata_public_overrides/pw_log_backend/log_backend.h",
     ],
-    strip_include_prefix = "public_overrides",
-    tags = ["noclangtidy"],
+    strip_include_prefix = "metadata_public_overrides",
     deps = [
         ":handler.facade",
         ":headers",
+        ":tokenized_backend_indicator",
+        "//pw_log:pw_log.facade",
+        "//pw_tokenizer",
+    ],
+)
+
+cc_library(
+    name = "light",
+    srcs = ["log_tokenized_light.cc"],
+    hdrs = [
+        "light_public_overrides/pw_log_backend/log_backend.h",
+    ],
+    strip_include_prefix = "light_public_overrides",
+    deps = [
+        ":headers",
+        ":light_handler.facade",
+        ":tokenized_backend_indicator",
         "//pw_log:pw_log.facade",
         "//pw_tokenizer",
     ],
@@ -92,14 +115,17 @@ cc_library(
 alias(
     name = "impl",
     actual = ":handler",
-    features = ["-conversion_warnings"],
+)
+
+alias(
+    name = "light_impl",
+    actual = ":light_handler",
 )
 
 pw_facade(
     name = "handler",
     hdrs = ["public/pw_log_tokenized/handler.h"],
     backend = ":handler_backend",
-    features = ["-conversion_warnings"],
     strip_include_prefix = "public",
     deps = ["//pw_preprocessor"],
 )
@@ -107,7 +133,19 @@ pw_facade(
 label_flag(
     name = "handler_backend",
     build_setting_default = ":base64_over_hdlc",
-    features = ["-conversion_warnings"],
+)
+
+pw_facade(
+    name = "light_handler",
+    hdrs = ["public/pw_log_tokenized/light_handler.h"],
+    backend = ":light_handler_backend",
+    strip_include_prefix = "public",
+    deps = ["//pw_preprocessor"],
+)
+
+label_flag(
+    name = "light_handler_backend",
+    build_setting_default = ":base64_over_hdlc",
 )
 
 # There is no default backend for now.
@@ -129,11 +167,10 @@ cc_library(
 cc_library(
     name = "base64_over_hdlc",
     srcs = ["base64_over_hdlc.cc"],
-    features = ["-conversion_warnings"],
-    tags = ["noclangtidy"],
     deps = [
         ":base64",
         ":handler.facade",
+        ":light_handler.facade",
         "//pw_hdlc",
         "//pw_span",
         "//pw_stream:sys_io_stream",
@@ -183,6 +220,9 @@ filegroup(
         "public/pw_log_tokenized/config.h",
         "public/pw_log_tokenized/fields.h",
         "public/pw_log_tokenized/handler.h",
+        "public/pw_log_tokenized/light_handler.h",
+        "public/pw_log_tokenized/log_tokenized.h",
+        "public/pw_log_tokenized/log_tokenized_light.h",
         "public/pw_log_tokenized/metadata.h",
     ],
 )

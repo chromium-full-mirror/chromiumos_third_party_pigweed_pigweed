@@ -15,4 +15,7 @@
 declare_args() {
   # Backend for the pw_log_tokenized log handler.
   pw_log_tokenized_HANDLER_BACKEND = ""
+
+  # Backend for the pw_log_tokenized log handler with light metadata.
+  pw_log_tokenized_LIGHT_HANDLER_BACKEND = ""
 }

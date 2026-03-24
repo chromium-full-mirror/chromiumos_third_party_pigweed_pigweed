@@ -23,10 +23,15 @@
 
 // Create a fake version of the tokenization macro.
 #undef PW_LOG_TOKENIZED_ENCODE_MESSAGE
-#define PW_LOG_TOKENIZED_ENCODE_MESSAGE(payload, message, ...)  \
-  pw_log_tokenized_CaptureArgs(payload,                         \
+#define PW_LOG_TOKENIZED_ENCODE_MESSAGE(metadata, message, ...) \
+  pw_log_tokenized_CaptureArgs(metadata,                        \
                                PW_MACRO_ARG_COUNT(__VA_ARGS__), \
                                message PW_COMMA_ARGS(__VA_ARGS__))
+
+#undef PW_LOG_TOKENIZED_ENCODE_MESSAGE_LIGHT
+#define PW_LOG_TOKENIZED_ENCODE_MESSAGE_LIGHT(message, ...) \
+  pw_log_tokenized_CaptureArgs(                             \
+      0, PW_MACRO_ARG_COUNT(__VA_ARGS__), message PW_COMMA_ARGS(__VA_ARGS__))
 
 PW_EXTERN_C_START
 
@@ -38,7 +43,7 @@ typedef struct {
 
 extern pw_log_tokenized_CapturedLog last_log;
 
-void pw_log_tokenized_CaptureArgs(uintptr_t payload,
+void pw_log_tokenized_CaptureArgs(uintptr_t metadata,
                                   size_t arg_count,
                                   const char* message,
                                   ...) PW_PRINTF_FORMAT(3, 4);
@@ -48,5 +53,6 @@ void pw_log_tokenized_Test_LogMetadata_LevelTooLarge_Clamps(void);
 void pw_log_tokenized_Test_LogMetadata_TooManyFlags_Truncates(void);
 void pw_log_tokenized_Test_LogMetadata_LogMetadata_VariousValues(void);
 void pw_log_tokenized_Test_LogMetadata_LogMetadata_Zero(void);
+void pw_log_tokenized_Test_LogMetadata_NoPayload(void);
 
 PW_EXTERN_C_END

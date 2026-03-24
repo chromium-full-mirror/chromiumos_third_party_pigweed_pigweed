@@ -24,30 +24,34 @@
 #include "pw_log_tokenized/metadata.h"
 #endif  // __cplusplus
 
-// This macro implements PW_LOG using pw_tokenizer. Users must implement
-// pw_log_tokenized_HandleLog(uint32_t metadata, uint8_t* buffer, size_t size).
-// The log level, module token, and flags are packed into the metadata argument.
-//
-// Two strings are tokenized in this macro:
-//
-//   - The log format string, tokenized in the default tokenizer domain.
-//   - Log module name, masked to 16 bits and tokenized in the
-//     "pw_log_module_names" tokenizer domain.
-//
-// To use this macro, implement pw_log_tokenized_HandleLog(), which is defined
-// in pw_log_tokenized/handler.h. The log metadata can be accessed using
-// pw::log_tokenized::Metadata. For example:
-//
-//   extern "C" void pw_log_tokenized_HandleLog(
-//       uint32_t payload, const uint8_t data[], size_t size) {
-//     pw::log_tokenized::Metadata metadata(payload);
-//
-//     if (metadata.level() >= kLogLevel && ModuleEnabled(metadata.module())) {
-//       EmitLogMessage(data, size, metadata.flags());
-//     }
-//   }
-//
-#define PW_LOG_TOKENIZED_TO_GLOBAL_HANDLER_WITH_PAYLOAD(                     \
+/// @module{pw_log_tokenized}
+
+/// This macro implements `PW_LOG` using `pw_tokenizer`. Users must implement
+/// `pw_log_tokenized_HandleLog(uint32_t metadata, const uint8_t* buffer, size_t
+/// size)`. The log level, module token, and flags are packed into the metadata
+/// argument.
+///
+/// Two strings are tokenized in this macro:
+///
+///   - The log format string, tokenized in the default tokenizer domain.
+///   - Log module name, masked to 16 bits and tokenized in the
+///     "pw_log_module_names" tokenizer domain.
+///
+/// To use this macro, implement `pw_log_tokenized_HandleLog()`, which is
+/// defined in `pw_log_tokenized/handler.h`. The log metadata can be accessed
+/// using `pw::log_tokenized::Metadata`. For example:
+///
+/// @code{.cpp}
+///   extern "C" void pw_log_tokenized_HandleLog(
+///       uint32_t metadata, const uint8_t data[], size_t size) {
+///     pw::log_tokenized::Metadata metadata(metadata);
+///
+///     if (metadata.level() >= kLogLevel && ModuleEnabled(metadata.module())) {
+///       EmitLogMessage(data, size, metadata.flags());
+///     }
+///   }
+/// @endcode
+#define PW_LOG_TOKENIZED_TO_GLOBAL_HANDLER_WITH_METADATA(                    \
     level, module, flags, message, ...)                                      \
   do {                                                                       \
     _PW_TOKENIZER_CONST uintptr_t _pw_log_tokenized_module_token =           \
@@ -63,45 +67,14 @@
         __VA_ARGS__);                                                        \
   } while (0)
 
-// If the level field is present, clamp it to the maximum value.
-#if PW_LOG_TOKENIZED_LEVEL_BITS == 0
-#define _PW_LOG_TOKENIZED_LEVEL(value) ((uintptr_t)0)
-#else
-#define _PW_LOG_TOKENIZED_LEVEL(value)                   \
-  (value < ((uintptr_t)1 << PW_LOG_TOKENIZED_LEVEL_BITS) \
-       ? value                                           \
-       : ((uintptr_t)1 << PW_LOG_TOKENIZED_LEVEL_BITS) - 1)
-#endif  // PW_LOG_TOKENIZED_LEVEL_BITS
+/// Legacy alias for `PW_LOG_TOKENIZED_TO_GLOBAL_HANDLER_WITH_METADATA`.
+#define PW_LOG_TOKENIZED_TO_GLOBAL_HANDLER_WITH_PAYLOAD \
+  PW_LOG_TOKENIZED_TO_GLOBAL_HANDLER_WITH_METADATA
 
-// If the line number field is present, shift it to its position. Set it to zero
-// if the line number is too large for PW_LOG_TOKENIZED_LINE_BITS.
-#if PW_LOG_TOKENIZED_LINE_BITS == 0
-#define _PW_LOG_TOKENIZED_LINE(line) ((uintptr_t)0)
-#else
-#define _PW_LOG_TOKENIZED_LINE(line)                                \
-  ((uintptr_t)(line < (1 << PW_LOG_TOKENIZED_LINE_BITS) ? line : 0) \
-   << PW_LOG_TOKENIZED_LEVEL_BITS)
-#endif  // PW_LOG_TOKENIZED_LINE_BITS
-
-// If the flags field is present, mask it and shift it to its position.
-#if PW_LOG_TOKENIZED_FLAG_BITS == 0
-#define _PW_LOG_TOKENIZED_FLAGS(value) ((uintptr_t)0)
-#else
-#define _PW_LOG_TOKENIZED_FLAGS(value)                                       \
-  (((uintptr_t)(value) & (((uintptr_t)1 << PW_LOG_TOKENIZED_FLAG_BITS) - 1)) \
-   << (PW_LOG_TOKENIZED_LEVEL_BITS + PW_LOG_TOKENIZED_LINE_BITS))
-#endif  // PW_LOG_TOKENIZED_FLAG_BITS
-
-// If the module field is present, shift it to its position.
-#if PW_LOG_TOKENIZED_MODULE_BITS == 0
-#define _PW_LOG_TOKENIZED_MODULE(value) ((uintptr_t)0)
-#else
-#define _PW_LOG_TOKENIZED_MODULE(value)                  \
-  ((uintptr_t)(value) << ((PW_LOG_TOKENIZED_LEVEL_BITS + \
-                           PW_LOG_TOKENIZED_LINE_BITS +  \
-                           PW_LOG_TOKENIZED_FLAG_BITS)))
-#endif  // PW_LOG_TOKENIZED_MODULE_BITS
-
+/// Encodes a log message and metadata into the tokenized format.
+///
+/// This macro tokenizes the format string and calls the backend handler with
+/// packed metadata.
 #define PW_LOG_TOKENIZED_ENCODE_MESSAGE(metadata, format, ...)               \
   do {                                                                       \
     PW_TOKENIZE_FORMAT_STRING(                                               \
@@ -112,6 +85,7 @@
                                              PW_COMMA_ARGS(__VA_ARGS__));    \
   } while (0)
 
+/// @cond
 PW_EXTERN_C_START
 
 void _pw_log_tokenized_EncodeTokenizedLog(uint32_t metadata,
@@ -120,3 +94,4 @@ void _pw_log_tokenized_EncodeTokenizedLog(uint32_t metadata,
                                           ...);
 
 PW_EXTERN_C_END
+/// @endcond

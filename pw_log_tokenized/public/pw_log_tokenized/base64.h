@@ -31,7 +31,7 @@ inline constexpr size_t kBase64EncodedBufferSizeBytes =
     tokenizer::Base64EncodedBufferSize(kEncodingBufferSizeBytes);
 
 /// Encodes a binary tokenized log in the prefixed Base64 format. Calls
-/// @cpp_func{pw::tokenizer::PrefixedBase64Encode} for a string sized to fit a
+/// `pw::tokenizer::PrefixedBase64Encode` for a string sized to fit a
 /// `kEncodingBufferSizeBytes` tokenized log.
 inline InlineString<kBase64EncodedBufferSizeBytes> PrefixedBase64Encode(
     span<const std::byte> binary_message) {

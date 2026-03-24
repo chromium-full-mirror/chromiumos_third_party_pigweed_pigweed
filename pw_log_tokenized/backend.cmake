@@ -17,3 +17,6 @@ include($ENV{PW_ROOT}/pw_build/pigweed.cmake)
 
 # Backend for the pw_log_tokenized handler.
 pw_add_backend_variable(pw_log_tokenized.handler_BACKEND)
+
+# Backend for the pw_log_tokenized handler with light metadata.
+pw_add_backend_variable(pw_log_tokenized.light_handler_BACKEND)

@@ -26,15 +26,16 @@
 #define PW_LOG_TOKENIZED_LINE_BITS 11
 
 #include "pw_log_tokenized/log_tokenized.h"
+#include "pw_log_tokenized/log_tokenized_light.h"
 #include "pw_log_tokenized_private/test_utils.h"
 
 pw_log_tokenized_CapturedLog last_log;
 
-void pw_log_tokenized_CaptureArgs(uintptr_t payload,
+void pw_log_tokenized_CaptureArgs(uintptr_t metadata,
                                   size_t arg_count,
                                   const char* message,
                                   ...) {
-  last_log.metadata = payload;
+  last_log.metadata = metadata;
   last_log.format_string = message;
   last_log.arg_count = arg_count;
 }
@@ -42,25 +43,33 @@ void pw_log_tokenized_CaptureArgs(uintptr_t payload,
 // These functions correspond to tests in log_tokenized_test.cc. The tests call
 // these functions and check the results.
 void pw_log_tokenized_Test_LogMetadata_LevelTooLarge_Clamps(void) {
+  // clang-format off
 #line 1000
-  PW_LOG_TOKENIZED_TO_GLOBAL_HANDLER_WITH_PAYLOAD(8, PW_LOG_MODULE_NAME, 0, "");
+  PW_LOG_TOKENIZED_TO_GLOBAL_HANDLER_WITH_METADATA(8, PW_LOG_MODULE_NAME, 0, "");
+  // clang-format on
 }
 
 void pw_log_tokenized_Test_LogMetadata_TooManyFlags_Truncates(void) {
   // clang-format off
 #line 1100
-  PW_LOG_TOKENIZED_TO_GLOBAL_HANDLER_WITH_PAYLOAD(1, PW_LOG_MODULE_NAME, 0xFFFFFFFF, "hello");
+  PW_LOG_TOKENIZED_TO_GLOBAL_HANDLER_WITH_METADATA(1, PW_LOG_MODULE_NAME, 0xFFFFFFFF, "hello");
   // clang-format on
 }
 
 void pw_log_tokenized_Test_LogMetadata_LogMetadata_VariousValues(void) {
   // clang-format off
 #line 1200
-  PW_LOG_TOKENIZED_TO_GLOBAL_HANDLER_WITH_PAYLOAD(6, PW_LOG_MODULE_NAME, 3, "hello%s", "?");
+  PW_LOG_TOKENIZED_TO_GLOBAL_HANDLER_WITH_METADATA(6, PW_LOG_MODULE_NAME, 3, "hello%s", "?");
   // clang-format on
 }
 
 void pw_log_tokenized_Test_LogMetadata_LogMetadata_Zero(void) {
+  // clang-format off
 #line 1300
-  PW_LOG_TOKENIZED_TO_GLOBAL_HANDLER_WITH_PAYLOAD(0, PW_LOG_MODULE_NAME, 0, "");
+  PW_LOG_TOKENIZED_TO_GLOBAL_HANDLER_WITH_METADATA(0, PW_LOG_MODULE_NAME, 0, "");
+  // clang-format on
+}
+
+void pw_log_tokenized_Test_LogMetadata_NoPayload(void) {
+  PW_LOG_TOKENIZED_TO_GLOBAL_HANDLER(8, PW_LOG_MODULE_NAME, 3, "hello %d", 1);
 }

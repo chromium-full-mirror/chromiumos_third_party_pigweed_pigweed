@@ -109,7 +109,7 @@ used in your project.
 
          .. code-block: c++
 
-            #define PW_HANDLE_LOG PW_LOG_TOKENIZED_TO_GLOBAL_HANDLER_WITH_PAYLOAD
+            #define PW_HANDLE_LOG PW_LOG_TOKENIZED_TO_GLOBAL_HANDLER_WITH_METADATA
 
       #. Open the Command Palette, switch your target to ``k8-fastbuild``,
          and then repeat this workflow again, starting from the ``PW_LOG_INFO``
