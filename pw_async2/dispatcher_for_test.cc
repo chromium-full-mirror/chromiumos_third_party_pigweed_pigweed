@@ -37,10 +37,12 @@ DispatcherForTestImpl::~DispatcherForTestFacade() {
 
 template <>
 Poll<> DispatcherForTestImpl::IdleTask::DoPend(Context& cx) {
+  // Store the waker before checking should_complete_ to avoid a race with the
+  // Complete function.
+  PW_ASYNC_STORE_WAKER(cx, waker_, "DispatcherForTest waiting for Release()");
   if (should_complete_.load(std::memory_order_relaxed)) {
     return Ready();
   }
-  PW_ASYNC_STORE_WAKER(cx, waker_, "DispatcherForTest waiting for Release()");
   return Pending();
 }
 
