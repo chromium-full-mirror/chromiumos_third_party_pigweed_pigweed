@@ -610,6 +610,7 @@ class WorkflowsManager:
                 group = workflows_pb2.OutputGroup()
                 group.matching_files.extend(outputs)
                 group.strip_prefix = spec.strip_prefix
+                group.add_prefix = spec.add_prefix
                 result.output_groups.append(group)
 
         return result

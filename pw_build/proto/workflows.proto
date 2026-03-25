@@ -37,6 +37,9 @@ message OutputGroupSpec {
   // If a build succeeds and no files are captured by this output group then
   // an error will be raised. Setting this field to True suppresses this error.
   bool allow_empty = 4;
+
+  // A prefix that should be added to these paths when uploading.
+  string add_prefix = 5;
 }
 
 message OutputGroup {
@@ -46,6 +49,9 @@ message OutputGroup {
   // The prefix that should be stripped from these paths when they are
   // packaged or exported.
   string strip_prefix = 2;
+
+  // A prefix that should be added to these paths when uploading.
+  string add_prefix = 3;
 }
 
 message BuildArtifacts {
