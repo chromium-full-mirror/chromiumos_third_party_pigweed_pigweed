@@ -164,9 +164,9 @@ cipd_repository(
 register_toolchains(
     "//pw_toolchain:cc_toolchain_cortex-m0",
     "//pw_toolchain:cc_toolchain_cortex-m0plus",
+    "//pw_toolchain:cc_toolchain_cortex-m3",
+    "//pw_toolchain:cc_toolchain_cortex-m4",
     "//pw_toolchain:cc_toolchain_cortex-m33",
-    "//pw_toolchain/arm_gcc:arm_gcc_cc_toolchain_cortex-m3",
-    "//pw_toolchain/arm_gcc:arm_gcc_cc_toolchain_cortex-m4",
     "//pw_toolchain/host_clang:host_cc_toolchain_linux",
     "//pw_toolchain/host_clang:host_cc_toolchain_macos",
     "//pw_toolchain/riscv_clang:riscv_clang_cc_toolchain_rv32imc",

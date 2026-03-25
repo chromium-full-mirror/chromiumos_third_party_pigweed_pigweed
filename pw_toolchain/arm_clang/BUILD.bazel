@@ -350,6 +350,24 @@ toolchain(
 )
 
 toolchain(
+    name = "arm_clang_cc_toolchain_cortex-m3",
+    target_compatible_with = [
+        "//pw_build/constraints/arm:cortex-m3",
+    ],
+    toolchain = ":arm_clang_toolchain_cortex-m",
+    toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
+)
+
+toolchain(
+    name = "arm_clang_cc_toolchain_cortex-m4",
+    target_compatible_with = [
+        "//pw_build/constraints/arm:cortex-m4",
+    ],
+    toolchain = ":arm_clang_toolchain_cortex-m",
+    toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
+)
+
+toolchain(
     name = "arm_clang_cc_toolchain_cortex-m33",
     target_compatible_with = [
         "//pw_build/constraints/arm:cortex-m33",
