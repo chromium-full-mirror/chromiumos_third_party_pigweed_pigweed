@@ -22,6 +22,8 @@ use foreign_box::ForeignBox;
 
 pub mod unsafe_list;
 
+pub type Iter<'a, T, A> = unsafe_list::Iter<'a, T, A>;
+
 pub use unsafe_list::{Adapter, Link, UnsafeList};
 
 pub struct ForeignList<T, A: Adapter<T>> {
@@ -73,6 +75,16 @@ impl<T, A: Adapter<T>> ForeignList<T, A> {
     pub fn for_each<E, F: FnMut(&T) -> Result<(), E>>(&self, callback: F) -> Result<(), E> {
         unsafe { self.list.for_each(callback) }
     }
+
+    #[must_use]
+    pub fn iter(&self) -> Iter<'_, T, A> {
+        self.list.iter()
+    }
+
+    // Note: `iter_mut()` is intentionally not provided. Providing `&mut T` would
+    // expose the internal `Link` field, allowing callers to corrupt the list's
+    // structure or violate Rust's sharing rules (since intrusive elements are
+    // often shared via raw pointers).
 
     /// # Safety
     /// Caller ensures the element is a valid pointer to an instance of T.
@@ -203,6 +215,16 @@ impl<T, A: Adapter<T>> RandomAccessForeignList<T, A> {
     }
 
     #[must_use]
+    pub fn iter(&self) -> Iter<'_, T, A> {
+        self.list.iter()
+    }
+
+    // Note: `iter_mut()` is intentionally not provided. Providing `&mut T` would
+    // expose the internal `Link` field, allowing callers to corrupt the list's
+    // structure or violate Rust's sharing rules (since intrusive elements are
+    // often shared via raw pointers).
+
+    #[must_use]
     pub fn remove_element(&mut self, key: RandomAccessKey<T, A>) -> ForeignBox<T> {
         // SAFETY: Caller ensures the element is a valid pointer to an instance of T.
         unsafe { self.list.remove_element(key.ptr).unwrap_unchecked() }
@@ -261,6 +283,33 @@ mod tests {
     fn new_list_is_empty() -> unittest::Result<()> {
         let list = ForeignList::<TestMember, TestAdapter>::new();
         unittest::assert_true!(list.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn iter_traverses_in_correct_order() -> unittest::Result<()> {
+        let mut element1 = TestMember {
+            value: 1,
+            link: Link::new(),
+        };
+        let mut element2 = TestMember {
+            value: 2,
+            link: Link::new(),
+        };
+
+        let mut list = ForeignList::<TestMember, TestAdapter>::new();
+        list.push_back(unsafe { ForeignBox::new_from_ptr(&raw mut element1) });
+        list.push_back(unsafe { ForeignBox::new_from_ptr(&raw mut element2) });
+
+        let mut index = 0;
+        let expected = [1, 2];
+        for element in list.iter() {
+            unittest::assert_eq!(element.value, expected[index]);
+            index += 1;
+        }
+        unittest::assert_eq!(index, 2);
+
+        drain_list(&mut list);
         Ok(())
     }
 

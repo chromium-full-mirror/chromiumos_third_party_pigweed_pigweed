@@ -321,6 +321,22 @@ impl<T, A: Adapter<T>> UnsafeList<T, A> {
         res
     }
 
+    #[must_use]
+    pub fn iter(&self) -> Iter<'_, T, A> {
+        Iter {
+            front: self.inner.head,
+            back: self.inner.tail,
+            _phantom: PhantomData,
+            _phantom_adapter: PhantomData,
+        }
+    }
+
+    // Note: `iter_mut()` is intentionally not provided. Providing `&mut T` would
+    // expose the internal `Link` field, allowing callers to corrupt the list's
+    // structure or violate Rust's sharing rules (since intrusive elements are
+    // often shared via raw pointers). Use `for_each` or manual pointers if you
+    // must modify elements.
+
     /// Filter iterates over every element in the list calling `callback` on
     /// each one.  If `callback` returns false, the element will be removed
     /// from the list without modifying the element itself.  It is safe to
@@ -641,6 +657,67 @@ impl UnsafeListInner {
 impl<T, A: Adapter<T>> Default for UnsafeList<T, A> {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+pub struct Iter<'a, T, A: Adapter<T>> {
+    front: Option<NonNull<Link>>,
+    back: Option<NonNull<Link>>,
+    _phantom: PhantomData<&'a T>,
+    _phantom_adapter: PhantomData<A>,
+}
+
+impl<'a, T, A: Adapter<T>> Iterator for Iter<'a, T, A> {
+    type Item = &'a T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let current = self.front?;
+
+        if Some(current) == self.back {
+            self.front = None;
+            self.back = None;
+        } else {
+            // SAFETY: `current` is non-null (verified by `?`). It is a valid pointer
+            // to a `Link` inside a valid element in the list.
+            self.front = unsafe { current.as_ref().get_next() };
+        }
+
+        // SAFETY: The iterator borrows the list for lifetime `'a`. This prevents
+        // any mutations to the list (e.g., removing or reordering elements) while
+        // the iterator is alive. `current` was read from the list structure and
+        // is a valid pointer to a `Link` embedded in an instance of `T`.
+        let element = unsafe { A::get_element(current) };
+
+        // SAFETY: `element` points to a valid instance of `T` computed by the
+        // adapter. Lifetime `'a` ensures the reference remains valid for the
+        // duration of the borrow.
+        Some(unsafe { element.as_ref() })
+    }
+}
+
+impl<'a, T, A: Adapter<T>> DoubleEndedIterator for Iter<'a, T, A> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        let current = self.back?;
+
+        if Some(current) == self.front {
+            self.front = None;
+            self.back = None;
+        } else {
+            // SAFETY: `current` is non-null (verified by `?`). It is a valid pointer
+            // to a `Link` inside a valid element in the list.
+            self.back = unsafe { current.as_ref().get_prev() };
+        }
+
+        // SAFETY: The iterator borrows the list for lifetime `'a`. This prevents
+        // any mutations to the list (e.g., removing or reordering elements) while
+        // the iterator is alive. `current` was read from the list structure and
+        // is a valid pointer to a `Link` embedded in an instance of `T`.
+        let element = unsafe { A::get_element(current) };
+
+        // SAFETY: `element` points to a valid instance of `T` computed by the
+        // adapter. Lifetime `'a` ensures the reference remains valid for the
+        // duration of the borrow.
+        Some(unsafe { element.as_ref() })
     }
 }
 
@@ -1137,5 +1214,40 @@ mod tests {
         unsafe { list.sorted_insert_by_unchecked(NonNull::from(&mut element3), TestMember::cmp) };
         unsafe { list.sorted_insert_by_unchecked(NonNull::from(&mut element2_2), TestMember::cmp) };
         unsafe { validate_list(&list, &[1, 2, 2, 3]) }
+    }
+
+    #[test]
+    fn double_ended_iterator_works() -> unittest::Result<()> {
+        let mut element1 = TestMember {
+            value: 1,
+            link: Link::new(),
+        };
+        let mut element2 = TestMember {
+            value: 2,
+            link: Link::new(),
+        };
+        let mut element3 = TestMember {
+            value: 3,
+            link: Link::new(),
+        };
+
+        let mut list = UnsafeList::<TestMember, TestAdapter>::new();
+        unsafe { list.push_front_unchecked(NonNull::from(&mut element3)) };
+        unsafe { list.push_front_unchecked(NonNull::from(&mut element2)) };
+        unsafe { list.push_front_unchecked(NonNull::from(&mut element1)) };
+
+        let mut iter = list.iter();
+
+        // [1, 2, 3]
+        unittest::assert_eq!(iter.next().unwrap().value, 1);
+        // [2, 3]
+        unittest::assert_eq!(iter.next_back().unwrap().value, 3);
+        // [2]
+        unittest::assert_eq!(iter.next().unwrap().value, 2);
+        // []
+        unittest::assert_true!(iter.next().is_none());
+        unittest::assert_true!(iter.next_back().is_none());
+
+        Ok(())
     }
 }
