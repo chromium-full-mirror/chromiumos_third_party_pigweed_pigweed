@@ -30,8 +30,6 @@ namespace internal {
 template <typename T>
 class ListWrapper {
  public:
-  using iterator = typename IntrusiveForwardList<T>::iterator;
-  using const_iterator = typename IntrusiveForwardList<T>::const_iterator;
   using element_type = typename IntrusiveForwardList<T>::element_type;
   using value_type = typename IntrusiveForwardList<T>::value_type;
   using size_type = typename IntrusiveForwardList<T>::size_type;
@@ -101,20 +99,6 @@ class ListWrapper {
       }
     }
     return nullptr;
-  }
-
-  [[deprecated(
-      "For thread safety reasons, metrics lists no longer support direct "
-      "iteration. Instead, call ForEach to iterate over items in the list.")]]
-  auto begin() const {
-    return list_.begin();
-  }
-
-  [[deprecated(
-      "For thread safety reasons, metrics lists no longer support direct "
-      "iteration. Instead, call ForEach to iterate over items in the list.")]]
-  auto end() const {
-    return list_.end();
   }
 
  private:
