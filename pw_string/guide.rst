@@ -281,7 +281,7 @@ is not supported until C++20.
 Custom types with pw::StringBuilder
 ===================================
 As with ``std::ostream``, pw::StringBuilder supports printing custom types by
-overriding the ``<<`` operator. This is is done by defining ``operator<<`` in
+overriding the ``<<`` operator. This is done by defining ``operator<<`` in
 the same namespace as the custom type. For example:
 
 .. code-block:: cpp

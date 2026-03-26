@@ -80,7 +80,7 @@ meets your needs.
 
 .. tip::
    ``pw_string`` works just as well on larger embedded platforms and host
-   systems. Using ``pw_string`` even when you could get away with ``std:string``
+   systems. Using ``pw_string`` even when you could get away with ``std::string``
    gives you the flexibility to move to smaller platforms later with much less
    rework.
 
@@ -106,7 +106,7 @@ meets your needs.
       :link-type: url
       :class-item: sales-pitch-cta-secondary
 
-      Detailed description of the pw_string's classes and methods
+      Detailed description of pw_string's classes and methods
 
 .. grid:: 2
 
