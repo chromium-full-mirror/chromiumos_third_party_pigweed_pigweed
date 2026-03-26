@@ -108,6 +108,13 @@ git_repository(
     remote = "https://github.com/erenon/bazel_clang_tidy.git",
 )
 
+git_repository(
+    name = "pigweed_doxylink",
+    build_file = "//third_party/doxylink:doxylink.BUILD.bazel",
+    commit = "e3303148c641e3a192026090fd7f445c433f08fc",
+    remote = "https://pigweed.googlesource.com/third_party/github/sphinx-contrib/doxylink",
+)
+
 # TODO: https://github.com/google/emboss/issues/164 - Wire up the emboss repo to
 # BCR. Currently there is an entry contributed by a community member, but it is
 # not up to date.
