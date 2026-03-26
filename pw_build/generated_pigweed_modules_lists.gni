@@ -171,6 +171,7 @@ declare_args() {
   dir_pw_spi_linux = get_path_info("../pw_spi_linux", "abspath")
   dir_pw_spi_mcuxpresso = get_path_info("../pw_spi_mcuxpresso", "abspath")
   dir_pw_spi_rp2040 = get_path_info("../pw_spi_rp2040", "abspath")
+  dir_pw_spi_zephyr = get_path_info("../pw_spi_zephyr", "abspath")
   dir_pw_status = get_path_info("../pw_status", "abspath")
   dir_pw_stm32cube_build = get_path_info("../pw_stm32cube_build", "abspath")
   dir_pw_stream = get_path_info("../pw_stream", "abspath")
@@ -370,6 +371,7 @@ declare_args() {
     dir_pw_spi_linux,
     dir_pw_spi_mcuxpresso,
     dir_pw_spi_rp2040,
+    dir_pw_spi_zephyr,
     dir_pw_status,
     dir_pw_stm32cube_build,
     dir_pw_stream,
@@ -559,6 +561,7 @@ declare_args() {
     "$dir_pw_spi_linux:tests",
     "$dir_pw_spi_mcuxpresso:tests",
     "$dir_pw_spi_rp2040:tests",
+    "$dir_pw_spi_zephyr:tests",
     "$dir_pw_status:tests",
     "$dir_pw_stm32cube_build:tests",
     "$dir_pw_stream:tests",
@@ -748,6 +751,7 @@ declare_args() {
     "$dir_pw_spi_linux:docs",
     "$dir_pw_spi_mcuxpresso:docs",
     "$dir_pw_spi_rp2040:docs",
+    "$dir_pw_spi_zephyr:docs",
     "$dir_pw_status:docs",
     "$dir_pw_stm32cube_build:docs",
     "$dir_pw_stream:docs",

@@ -671,3 +671,7 @@ register_toolchains(
 fake_fuchsia_sdk_extension = use_extension("@com_google_googletest//:fake_fuchsia_sdk.bzl", "fuchsia_sdk", dev_dependency = True)
 
 override_repo(fake_fuchsia_sdk_extension, "fuchsia_sdk")
+
+# Set up Zephyr RTOS support, by default to a stub.
+pw_zephyr_config = use_extension("@pigweed//zephyr/config:pw_zephyr_config.bzl", "pw_zephyr_config")
+use_repo(pw_zephyr_config, "kconfig", "zephyr", "zephyr_version")

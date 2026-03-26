@@ -1,4 +1,4 @@
-# Copyright 2025 The Pigweed Authors
+# Copyright 2026 The Pigweed Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may not
 # use this file except in compliance with the License. You may obtain a copy of
@@ -15,26 +15,42 @@
 load("@rules_python//sphinxdocs:sphinx_docs_library.bzl", "sphinx_docs_library")
 load("@zephyr//:cc.bzl", "zephyr_cc_library")
 load("//pw_build:compatibility.bzl", "incompatible_with_mcu")
+load("//pw_build:pigweed.bzl", "pw_cc_test")
 
 package(default_visibility = ["//visibility:public"])
 
 licenses(["notice"])
 
+zephyr_cc_library(
+    name = "responder",
+    srcs = ["responder.cc"],
+    hdrs = ["public/pw_spi_zephyr/responder.h"],
+    strip_include_prefix = "public",
+    # TODO(yichengli): Make this only compatible with rtos:zephyr
+    deps = [
+        "//pw_assert:check",
+        "//pw_bytes",
+        "//pw_spi:responder",
+        "//pw_status",
+    ],
+)
+
+pw_cc_test(
+    name = "responder_test",
+    srcs = ["responder_test.cc"],
+    tags = ["manual"],  # This test needs the native_sim environment to run in CI.
+    target_compatible_with = ["//pw_build/constraints/rtos:zephyr"],
+    deps = [
+        ":responder",
+        "//pw_sync:binary_semaphore",
+    ],
+)
+
 sphinx_docs_library(
     name = "docs",
     srcs = [
-        "Kconfig",
         "docs.rst",
     ],
-    prefix = "pw_digital_io_zephyr/",
+    prefix = "pw_spi_zephyr/",
     target_compatible_with = incompatible_with_mcu(),
-)
-
-zephyr_cc_library(
-    name = "pw_digital_io_zephyr",
-    srcs = ["digital_io.cc"],
-    hdrs = ["public/pw_digital_io_zephyr/digital_io.h"],
-    implementation_deps = ["//pw_assert:check"],
-    strip_include_prefix = "public",
-    deps = ["//pw_digital_io"],
 )

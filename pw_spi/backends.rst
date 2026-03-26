@@ -11,3 +11,4 @@ Backends
    Linux <../pw_spi_linux/docs>
    MCUXpresso <../pw_spi_mcuxpresso/docs>
    RP2040 <../pw_spi_rp2040/docs>
+   Zephyr <../pw_spi_zephyr/docs>

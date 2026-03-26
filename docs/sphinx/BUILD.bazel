@@ -307,6 +307,7 @@ sphinx_docs_library(
         "//pw_spi_linux:docs",
         "//pw_spi_mcuxpresso:docs",
         "//pw_spi_rp2040:docs",
+        "//pw_spi_zephyr:docs",
         "//pw_status:docs",
         "//pw_stm32cube_build:docs",
         "//pw_stream:docs",

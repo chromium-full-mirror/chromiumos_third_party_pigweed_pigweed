@@ -760,6 +760,9 @@
       "C++"
     ]
   },
+  "pw_spi_zephyr": {
+    "status": "stable"
+  },
   "pw_status": {
     "tagline": "Exception-free error propagation for embedded",
     "status": "stable",

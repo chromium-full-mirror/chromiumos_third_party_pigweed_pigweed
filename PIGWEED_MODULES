@@ -133,6 +133,7 @@ pw_spi
 pw_spi_linux
 pw_spi_mcuxpresso
 pw_spi_rp2040
+pw_spi_zephyr
 pw_status
 pw_stm32cube_build
 pw_stream

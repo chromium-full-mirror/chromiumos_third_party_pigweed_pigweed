@@ -13,9 +13,30 @@
 # the License.
 
 load("@rules_python//sphinxdocs:sphinx_docs_library.bzl", "sphinx_docs_library")
+load("@zephyr//:cc.bzl", "zephyr_cc_library")
 load("//pw_build:compatibility.bzl", "incompatible_with_mcu")
 
 package(default_visibility = ["//visibility:public"])
+
+zephyr_cc_library(
+    name = "pw_sys_io_zephyr",
+    srcs = ["//pw_sys_io_zephyr:sys_io.cc"],
+    deps = [
+        "//pw_sys_io:default_putget_bytes",
+        "//pw_sys_io:pw_sys_io.facade",
+        "@zephyr//modules/cmsis_6",
+        "@zephyr_version//:version",
+    ],
+)
+
+zephyr_cc_library(
+    name = "backend",
+    srcs = ["sys_io.cc"],
+    deps = [
+        "//pw_sys_io:default_putget_bytes",
+        "//pw_sys_io:pw_sys_io.facade",
+    ],
+)
 
 sphinx_docs_library(
     name = "docs",
@@ -26,6 +47,3 @@ sphinx_docs_library(
     prefix = "pw_sys_io_zephyr/",
     target_compatible_with = incompatible_with_mcu(),
 )
-
-# TODO: https://pwbug.dev/380001331 - Make this a zephyr_cc_library
-exports_files(["sys_io.cc"])
