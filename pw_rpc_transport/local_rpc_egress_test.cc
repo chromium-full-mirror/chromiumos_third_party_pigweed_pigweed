@@ -107,7 +107,7 @@ void LocalRpcEgressTest(
     sync::CountingSemaphore sem;
   } state;
 
-  receivers.reserve(kNumRequests);
+  receivers.reserve(static_cast<uint16_t>(kNumRequests));
   for (size_t i = 0; i < kNumRequests; i++) {
     receivers.push_back(client.Echo(
         {.msg = kTestMessage},

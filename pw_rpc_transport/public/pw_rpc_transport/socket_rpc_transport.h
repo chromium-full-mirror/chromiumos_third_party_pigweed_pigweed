@@ -71,7 +71,7 @@ class SocketRpcTransport : public RpcFrameSender, public thread::ThreadCore {
         ingress_(&ingress) {}
 
   size_t MaximumTransmissionUnit() const override { return kReadBufferSize; }
-  size_t port() const { return port_; }
+  uint16_t port() const { return port_; }
   void set_ingress(RpcIngressHandler& ingress) { ingress_ = &ingress; }
 
   Status Send(RpcFrame frame) override {

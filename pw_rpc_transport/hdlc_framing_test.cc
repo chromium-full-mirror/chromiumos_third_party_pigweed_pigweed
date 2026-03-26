@@ -49,9 +49,11 @@ TEST(HdlcRpc, EncodeThenDecode) {
                            [&state](RpcFrame& frame) {
                              state.num_frames++;
                              EXPECT_TRUE(frame.header.empty());
-                             std::copy(frame.payload.begin(),
-                                       frame.payload.end(),
-                                       state.encoded.begin() + state.offset);
+                             std::copy(
+                                 frame.payload.begin(),
+                                 frame.payload.end(),
+                                 state.encoded.begin() +
+                                     static_cast<ptrdiff_t>(state.offset));
                              state.offset += frame.payload.size();
                              return OkStatus();
                            }),
@@ -117,9 +119,11 @@ TEST(HdlcRpcFrame, MaxSizeHdlcPayload) {
                            kMaxFrameSize,
                            [&state](RpcFrame& frame) {
                              EXPECT_TRUE(frame.header.empty());
-                             std::copy(frame.payload.begin(),
-                                       frame.payload.end(),
-                                       state.encoded.begin() + state.offset);
+                             std::copy(
+                                 frame.payload.begin(),
+                                 frame.payload.end(),
+                                 state.encoded.begin() +
+                                     static_cast<ptrdiff_t>(state.offset));
                              state.offset += frame.payload.size();
                              return OkStatus();
                            }),

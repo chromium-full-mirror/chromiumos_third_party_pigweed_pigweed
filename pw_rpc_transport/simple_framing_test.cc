@@ -92,7 +92,7 @@ TEST(SimpleRpcFrameEncodeDecodeTest, EncodeThenDecode) {
 
     pw::allocator::test::AllocatorForTest<2048> allocator;
     pw::DynamicVector<std::byte> src(allocator);
-    src.resize(packet_size);
+    src.resize(static_cast<uint16_t>(packet_size));
     MakePacket(src);
 
     pw::DynamicVector<std::byte> encoded(allocator);
@@ -132,7 +132,7 @@ TEST(SimpleRpcFrameEncodeDecodeTest, OneByteAtTimeDecoding) {
 
     pw::allocator::test::AllocatorForTest<2048> allocator;
     pw::DynamicVector<std::byte> src(allocator);
-    src.resize(packet_size);
+    src.resize(static_cast<uint16_t>(packet_size));
     MakePacket(src);
 
     pw::DynamicVector<std::byte> encoded(allocator);

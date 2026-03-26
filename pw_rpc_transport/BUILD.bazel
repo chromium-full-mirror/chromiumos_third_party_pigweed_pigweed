@@ -57,7 +57,6 @@ cc_library(
     name = "test_loopback_service_registry",
     testonly = True,
     hdrs = ["public/pw_rpc_transport/test_loopback_service_registry.h"],
-    features = ["-conversion_warnings"],
     strip_include_prefix = "public",
     deps = [
         ":egress_ingress",
@@ -136,7 +135,7 @@ pw_cc_test(
     srcs = [
         "local_rpc_egress_test.cc",
     ],
-    features = ["-conversion_warnings"],
+
     # TODO: b/343986281 - update to run on all compatible devices
     target_compatible_with = incompatible_with_mcu(),
     deps = [
@@ -166,7 +165,6 @@ cc_library(
     hdrs = [
         "public/pw_rpc_transport/hdlc_framing.h",
     ],
-    features = ["-conversion_warnings"],
     strip_include_prefix = "public",
     deps = [
         ":rpc_transport",
@@ -184,7 +182,6 @@ pw_cc_test(
     srcs = [
         "hdlc_framing_test.cc",
     ],
-    features = ["-conversion_warnings"],
     deps = [
         ":hdlc_framing",
         "//pw_allocator:testing",
@@ -213,7 +210,6 @@ cc_library(
 pw_cc_test(
     name = "simple_framing_test",
     srcs = ["simple_framing_test.cc"],
-    features = ["-conversion_warnings"],
     deps = [
         ":simple_framing",
         "//pw_allocator:testing",
@@ -227,7 +223,6 @@ pw_cc_test(
 cc_library(
     name = "egress_ingress",
     hdrs = ["public/pw_rpc_transport/egress_ingress.h"],
-    features = ["-conversion_warnings"],
     strip_include_prefix = "public",
     deps = [
         ":hdlc_framing",
@@ -248,7 +243,6 @@ cc_library(
         "egress_ingress_logging_metric_tracker.cc",
     ],
     hdrs = ["public/pw_rpc_transport/egress_ingress_logging_metric_tracker.h"],
-    features = ["-conversion_warnings"],
     strip_include_prefix = "public",
     deps = [
         ":egress_ingress",
@@ -260,7 +254,6 @@ cc_library(
 pw_cc_test(
     name = "egress_ingress_test",
     srcs = ["egress_ingress_test.cc"],
-    features = ["-conversion_warnings"],
     deps = [
         ":egress_ingress",
         ":egress_ingress_logging_metric_tracker",
@@ -286,7 +279,6 @@ cc_library(
     name = "socket_rpc_transport",
     srcs = ["socket_rpc_transport.cc"],
     hdrs = ["public/pw_rpc_transport/socket_rpc_transport.h"],
-    features = ["-conversion_warnings"],
     strip_include_prefix = "public",
     target_compatible_with = incompatible_with_mcu(),
     deps = [
@@ -322,7 +314,6 @@ cc_library(
 cc_library(
     name = "stream_rpc_dispatcher",
     hdrs = ["public/pw_rpc_transport/stream_rpc_dispatcher.h"],
-    features = ["-conversion_warnings"],
     strip_include_prefix = "public",
     tags = ["noclangtidy"],
     deps = [
@@ -348,7 +339,6 @@ cc_library(
 pw_cc_test(
     name = "socket_rpc_transport_test",
     srcs = ["socket_rpc_transport_test.cc"],
-    features = ["-conversion_warnings"],
     target_compatible_with = incompatible_with_mcu(),
     deps = [
         ":socket_rpc_transport",
@@ -370,7 +360,6 @@ pw_cc_test(
 pw_cc_test(
     name = "stream_rpc_dispatcher_test",
     srcs = ["stream_rpc_dispatcher_test.cc"],
-    features = ["-conversion_warnings"],
     target_compatible_with = incompatible_with_mcu(),
     deps = [
         ":stream_rpc_dispatcher",
@@ -391,7 +380,6 @@ pw_cc_test(
 pw_cc_test(
     name = "rpc_integration_test",
     srcs = ["rpc_integration_test.cc"],
-    features = ["-conversion_warnings"],
     target_compatible_with = incompatible_with_mcu(),
     deps = [
         ":egress_ingress",
