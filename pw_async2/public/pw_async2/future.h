@@ -217,8 +217,14 @@ class FutureState {
 /// - Being part of an `IntrusiveList`.
 ///
 /// It is designed to be used as a member of a concrete future class
-/// (composition) rather than a base class, to simplify move semantics and
-/// object lifetime.
+/// (composition) rather than a base class, to simplify move semantics,
+/// object lifetime, and thread safety.
+///
+/// Pertaining to thread safety, the list storing futures typically needs to be
+/// guarded by a lock. A `FutureCore` data member can be easily annotated with
+/// PW_GUARDED_BY to ensure accesses to the storage list are done while holding
+/// the appropriate lock. Implementing futures with a base class does not enable
+/// comparable thread safety ergonomics.
 class FutureCore : public IntrusiveForwardList<FutureCore>::Item {
  public:
   constexpr FutureCore() = default;
