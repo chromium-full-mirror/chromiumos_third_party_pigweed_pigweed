@@ -1,4 +1,4 @@
-# Copyright 2025 The Pigweed Authors
+# Copyright 2026 The Pigweed Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may not
 # use this file except in compliance with the License. You may obtain a copy of
@@ -12,13 +12,10 @@
 # License for the specific language governing permissions and limitations under
 # the License.
 
-exports_files(
-    [
-        "app.rs.jinja",
-        "cortex_m_app.ld.jinja",
-        "interrupts.rs.jinja",
-        "riscv_app.ld.jinja",
-        "system.rs.jinja",
-        "pigweed_linker_sections.ld.jinja",
-    ],
+"""Kernel-supported Cortex-M CPU constraint list."""
+
+SUPPORTED_CORTEX_M_CPUS = (
+    "@platforms//cpu:armv7-m",
+    "@platforms//cpu:armv7e-m",
+    "@platforms//cpu:armv8-m",
 )

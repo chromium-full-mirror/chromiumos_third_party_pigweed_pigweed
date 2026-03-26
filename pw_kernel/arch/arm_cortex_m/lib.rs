@@ -21,7 +21,6 @@ use pw_log::info;
 
 mod exceptions;
 mod nvic;
-mod protection;
 mod regs;
 mod spinlock;
 #[cfg(feature = "user_space")]
@@ -29,7 +28,7 @@ mod syscall;
 mod threads;
 mod timer;
 
-// Re-exports to conform to simplify public API.
+pub mod protection;
 pub use protection::MemoryConfig;
 pub use spinlock::BareSpinLock;
 pub use threads::ArchThreadState;

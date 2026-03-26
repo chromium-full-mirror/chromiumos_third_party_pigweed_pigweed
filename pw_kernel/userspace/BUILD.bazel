@@ -11,8 +11,10 @@
 # WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 # License for the specific language governing permissions and limitations under
 # the License.
+load("@bazel_skylib//lib:selects.bzl", "selects")
 load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
 load("@rules_rust//rust:defs.bzl", "rust_library", "rust_proc_macro")
+load("//pw_kernel/arch/arm_cortex_m:defs.bzl", "SUPPORTED_CORTEX_M_CPUS")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -50,8 +52,8 @@ rust_library(
         "syscall.rs",
         "time.rs",
     ],
-    crate_features = ["user_space"] + select({
-        "@platforms//cpu:armv8-m": ["arch_arm_cortex_m"],
+    crate_features = ["user_space"] + selects.with_or({
+        SUPPORTED_CORTEX_M_CPUS: ["arch_arm_cortex_m"],
         "@platforms//cpu:riscv32": ["arch_riscv"],
         "//conditions:default": [],
     }),

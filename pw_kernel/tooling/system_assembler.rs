@@ -252,9 +252,19 @@ impl<'data> SystemImage<'data> {
             new_segment.p_paddr = segment.p_paddr;
             new_segment.p_vaddr = segment.p_vaddr;
             for section_id in &segment.sections {
+                // append_section() recalculates sh_addr from the segment's p_vaddr, which
+                // can differ from the section's actual load address when PMSAv7 alignment
+                // padding creates a gap between segment start and section start. Save and
+                // restore sh_addr to preserve the linker's intended memory layout.
+                let original_section = app.sections.get(*section_id);
+                let original_addr = original_section.sh_addr;
+
                 let mapped_section_id = Self::get_mapped_section_id(section_map, *section_id)?;
                 let section = self.builder.sections.get_mut(mapped_section_id.unwrap());
                 new_segment.append_section(section);
+
+                // Restore sh_addr to the value saved before append_section().
+                section.sh_addr = original_addr;
             }
             // println!("Added segment {:?}", new_segment.id());
         }
@@ -275,13 +285,89 @@ impl<'data> SystemImage<'data> {
                 let new_name = format!("{}_{}", symbol.name, app_name);
                 new_symbol.name = new_name.into_bytes().into();
             }
-            if let Some(section) = symbol.section {
-                new_symbol.section = Self::get_mapped_section_id(section_map, section)?;
+
+            // Recalculate symbol addresses to stay consistent with the section addresses
+            // preserved in add_app_segments(). Section-associated symbols are adjusted via
+            // their section-relative offset. Absolute/linker-defined symbols (e.g. __sdata)
+            // are adjusted if their value falls within a relocated section's address range.
+
+            if let Some(old_section_id) = symbol.section {
+                let new_section_id = Self::get_mapped_section_id(section_map, old_section_id)?;
+                new_symbol.section = new_section_id;
+
+                // If symbol is in a section, adjust its address for the section's new location.
+                // The symbol's value is an absolute address, not a section-relative offset.
+                // We need to convert: old_addr -> offset_in_section -> new_addr
+                if let Some(new_id) = new_section_id {
+                    let old_section = app.sections.get(old_section_id);
+                    let new_section = self.builder.sections.get(new_id);
+
+                    // Calculate offset within the section.
+                    // Example: symbol at 0x40420, section at 0x40420 -> offset = 0
+                    let offset_in_section = symbol.st_value.wrapping_sub(old_section.sh_addr);
+
+                    // Set symbol address to new section base + offset.
+                    // With our section address preservation fix, old and new section addresses
+                    // should match, so this effectively preserves the original symbol address.
+                    new_symbol.st_value = new_section.sh_addr.wrapping_add(offset_in_section);
+                } else {
+                    // No section mapping (section was filtered out), preserve original value.
+                    new_symbol.st_value = symbol.st_value;
+                }
+            } else {
+                // Symbol not explicitly associated with a section (e.g., absolute symbols
+                // or linker-defined symbols like __sdata, __edata, pw_boot_stack_*).
+                //
+                // If the symbol's value falls within a relocated section's address range,
+                // adjust it using the same section-relative offset logic.
+                // Otherwise, leave it unchanged.
+                let mut new_value = symbol.st_value;
+
+                for old_section in &app.sections {
+                    // Only consider allocatable sections that are actually mapped into
+                    // the loadable image. Non-allocatable sections (debug info, etc.)
+                    // don't contribute to the memory layout.
+                    if !old_section.is_alloc() {
+                        continue;
+                    }
+
+                    let size = old_section.sh_size;
+                    if size == 0 {
+                        continue;
+                    }
+
+                    let start = old_section.sh_addr;
+                    let end = start.wrapping_add(size);
+                    let addr = symbol.st_value;
+
+                    // Check if symbol's value falls within this section's range [start, end)
+                    if addr < start || addr >= end {
+                        continue;
+                    }
+
+                    // This absolute symbol's value falls within this section.
+                    // Treat it as if it were section-relative and apply the same
+                    // relocation that we apply to section-based symbols.
+                    let old_section_id = old_section.id();
+                    let new_section_id = Self::get_mapped_section_id(section_map, old_section_id)?;
+
+                    if let Some(new_id) = new_section_id {
+                        let new_section = self.builder.sections.get(new_id);
+                        let offset_in_section = addr.wrapping_sub(start);
+                        new_value = new_section.sh_addr.wrapping_add(offset_in_section);
+                    }
+
+                    // An absolute symbol should belong to at most one allocatable section
+                    // range, so we can stop once we've found and adjusted it.
+                    break;
+                }
+
+                new_symbol.st_value = new_value;
             }
+
             new_symbol.st_info = symbol.st_info;
             new_symbol.st_other = symbol.st_other;
             new_symbol.st_shndx = symbol.st_shndx;
-            new_symbol.st_value = symbol.st_value;
             new_symbol.st_size = symbol.st_size;
             new_symbol.version = symbol.version;
             new_symbol.version_hidden = symbol.version_hidden;

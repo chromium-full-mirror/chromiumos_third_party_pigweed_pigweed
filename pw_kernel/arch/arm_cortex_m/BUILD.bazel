@@ -12,8 +12,10 @@
 # License for the specific language governing permissions and limitations under
 # the License.
 
+load("@bazel_skylib//lib:selects.bzl", "selects")
 load("@rules_rust//rust:defs.bzl", "rust_doc", "rust_library")
 load("//pw_kernel:flags.bzl", "KERNEL_TEST_DEPS", "KERNEL_TEST_RUSTC_FLAGS")
+load(":defs.bzl", "SUPPORTED_CORTEX_M_CPUS")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -24,9 +26,13 @@ rust_library(
         "features.rs",
         "lib.rs",
         "nvic.rs",
-        "protection.rs",
+        "protection/mod.rs",
+        "protection/protection_v7.rs",
+        "protection/protection_v8.rs",
         "regs.rs",
-        "regs/mpu.rs",
+        "regs/mpu/mod.rs",
+        "regs/mpu/mpu_v7.rs",
+        "regs/mpu/mpu_v8.rs",
         "regs/msr.rs",
         "regs/nvic.rs",
         "regs/scb.rs",
@@ -41,6 +47,10 @@ rust_library(
     crate_features = select({
         "//pw_kernel/userspace:userspace_build_enabled": ["user_space"],
         "//conditions:default": [],
+    }) + selects.with_or({
+        ("@platforms//cpu:armv7-m", "@platforms//cpu:armv7e-m"): ["armv7m"],
+        "@platforms//cpu:armv8-m": ["armv8m"],
+        "//conditions:default": [],
     }),
     edition = "2024",
     proc_macro_deps = [
@@ -49,8 +59,8 @@ rust_library(
     ],
     rustc_flags = KERNEL_TEST_RUSTC_FLAGS,
     tags = ["kernel"],
-    target_compatible_with = select({
-        "@platforms//cpu:armv8-m": [],
+    target_compatible_with = selects.with_or({
+        SUPPORTED_CORTEX_M_CPUS: [],
         "//conditions:default": ["@platforms//:incompatible"],
     }),
     deps = [
@@ -77,6 +87,8 @@ rust_doc(
     rustdoc_flags = [
         "--document-private-items",
         "--cfg=feature=\"arch_arm_cortex_m\"",
+        # Document with ARMv8-M by default
+        "--cfg=feature=\"armv8m\"",
     ] + select({
         "//pw_kernel/userspace:userspace_build_enabled": ["--cfg=feature=\"user_space\""],
         "//conditions:default": [],

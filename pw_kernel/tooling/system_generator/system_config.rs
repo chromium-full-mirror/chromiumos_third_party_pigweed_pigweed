@@ -41,16 +41,23 @@ pub struct BaseConfig {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct Armv8MConfig {
-    #[serde(flatten)]
-    pub nvic: Armv8MNvicConfig,
+pub struct NvicConfig {
+    pub vector_table_start_address: u64,
+    pub vector_table_size_bytes: u64,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct Armv8MNvicConfig {
-    pub vector_table_start_address: u64,
-    pub vector_table_size_bytes: u64,
+pub struct Armv8MConfig {
+    #[serde(flatten)]
+    pub nvic: NvicConfig,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct Armv7MConfig {
+    #[serde(flatten)]
+    pub nvic: NvicConfig,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

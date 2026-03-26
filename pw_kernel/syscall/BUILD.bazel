@@ -12,7 +12,9 @@
 # License for the specific language governing permissions and limitations under
 # the License.
 
+load("@bazel_skylib//lib:selects.bzl", "selects")
 load("@rules_rust//rust:defs.bzl", "rust_library")
+load("//pw_kernel/arch/arm_cortex_m:defs.bzl", "SUPPORTED_CORTEX_M_CPUS")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -37,8 +39,8 @@ rust_library(
         "syscall_user/lib.rs",
         "syscall_user/riscv.rs",
     ],
-    crate_features = select({
-        "@platforms//cpu:armv8-m": ["arch_arm_cortex_m"],
+    crate_features = selects.with_or({
+        SUPPORTED_CORTEX_M_CPUS: ["arch_arm_cortex_m"],
         "@platforms//cpu:riscv32": ["arch_riscv"],
         "//conditions:default": ["arch_host"],
     }),

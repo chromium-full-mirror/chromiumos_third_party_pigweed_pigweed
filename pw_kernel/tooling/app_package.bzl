@@ -15,9 +15,11 @@
 configuration file.
 """
 
+load("@bazel_skylib//lib:selects.bzl", "selects")
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_rust//rust:defs.bzl", "rust_library")
+load("//pw_kernel/arch/arm_cortex_m:defs.bzl", "SUPPORTED_CORTEX_M_CPUS")
 
 def _app_linker_script_impl(ctx):
     output = ctx.actions.declare_file(ctx.attr.name + ".ld")
@@ -93,8 +95,8 @@ def _app_linker_script(name, system_config, app_name, **kwargs):
         })
 
     if kwargs.get("template") == None:
-        template = select({
-            "@platforms//cpu:armv8-m": "@pigweed//pw_kernel/tooling/system_generator/templates:armv8m_app.ld.jinja",
+        template = selects.with_or({
+            SUPPORTED_CORTEX_M_CPUS: "@pigweed//pw_kernel/tooling/system_generator/templates:cortex_m_app.ld.jinja",
             "@platforms//cpu:riscv32": "@pigweed//pw_kernel/tooling/system_generator/templates:riscv_app.ld.jinja",
             "//conditions:default": None,
         })

@@ -12,8 +12,10 @@
 # License for the specific language governing permissions and limitations under
 # the License.
 
+load("@bazel_skylib//lib:selects.bzl", "selects")
 load("@pigweed//pw_build:compatibility.bzl", "incompatible_with_mcu")
 load("@rules_rust//rust:defs.bzl", "rust_library")
+load("//pw_kernel/arch/arm_cortex_m:defs.bzl", "SUPPORTED_CORTEX_M_CPUS")
 
 rust_library(
     name = "console",
@@ -39,23 +41,26 @@ rust_library(
 rust_library(
     name = "console_backend_semihosting",
     srcs = ["console_backend_semihosting.rs"],
-    crate_features = select({
-        "@platforms//cpu:armv8-m": ["arch_arm_cortex_m"],
+    crate_features = selects.with_or({
+        SUPPORTED_CORTEX_M_CPUS: ["arch_arm_cortex_m"],
         "@platforms//cpu:riscv32": ["arch_riscv"],
         "//conditions:default": [],
     }),
     crate_name = "console_backend",
     edition = "2024",
-    target_compatible_with = select({
-        "@platforms//cpu:armv8-m": [],
+    target_compatible_with = selects.with_or({
+        SUPPORTED_CORTEX_M_CPUS: [],
         "@platforms//cpu:riscv32": [],
         "//conditions:default": ["@platforms//:incompatible"],
     }),
     visibility = ["//visibility:public"],
     deps = [
         "//pw_status/rust:pw_status",
-    ] + select({
-        "@platforms//cpu:armv8-m": ["@rust_crates//:cortex-m-semihosting"],
+    ] + selects.with_or({
+        SUPPORTED_CORTEX_M_CPUS: [
+            "@rust_crates//:cortex-m",
+            "@rust_crates//:cortex-m-semihosting",
+        ],
         "@platforms//cpu:riscv32": ["@rust_crates//:riscv-semihosting"],
         "//conditions:default": [],
     }),

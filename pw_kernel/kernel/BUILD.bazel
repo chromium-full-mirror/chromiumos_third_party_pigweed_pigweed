@@ -12,8 +12,10 @@
 # License for the specific language governing permissions and limitations under
 # the License.
 
+load("@bazel_skylib//lib:selects.bzl", "selects")
 load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
 load("@rules_rust//rust:defs.bzl", "rust_doc", "rust_library")
+load("//pw_kernel/arch/arm_cortex_m:defs.bzl", "SUPPORTED_CORTEX_M_CPUS")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -62,8 +64,8 @@ rust_library(
     }) + select({
         ":tracing_enabled": ["tracing"],
         "//conditions:default": [],
-    }) + select({
-        "@platforms//cpu:armv8-m": ["arch_arm_cortex_m"],
+    }) + selects.with_or({
+        SUPPORTED_CORTEX_M_CPUS: ["arch_arm_cortex_m"],
         "@platforms//cpu:riscv32": ["arch_riscv"],
         "//conditions:default": [
             "arch_host",
@@ -73,8 +75,8 @@ rust_library(
     edition = "2024",
     proc_macro_deps = [
         "@rust_crates//:paste",
-    ] + select({
-        "@platforms//cpu:armv8-m": ["//pw_kernel/macros:arm_cortex_m_macro"],
+    ] + selects.with_or({
+        SUPPORTED_CORTEX_M_CPUS: ["//pw_kernel/macros:arm_cortex_m_macro"],
         "@platforms//cpu:riscv32": ["//pw_kernel/macros:riscv_macro"],
         "//conditions:default": [],
     }),
@@ -97,8 +99,8 @@ rust_library(
         "//pw_log/rust:pw_log",
         "//pw_status/rust:pw_status",
         "@rust_crates//:bitflags",
-    ] + select({
-        "@platforms//cpu:armv8-m": CORTEX_M_DEPS,
+    ] + selects.with_or({
+        SUPPORTED_CORTEX_M_CPUS: CORTEX_M_DEPS,
         "@platforms//cpu:riscv32": RISCV_DEPS,
         "//conditions:default": [],
     }),
