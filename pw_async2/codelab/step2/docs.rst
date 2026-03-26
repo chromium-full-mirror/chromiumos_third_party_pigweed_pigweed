@@ -164,6 +164,7 @@ There's a problem with the current implementation…
       c
       INF  Welcome to the Pigweed Vending Machine!
       INF  Please insert a coin.
+
          ▄████▄      ██▀███      ▄▄▄           ██████     ██░ ██
         ▒██▀ ▀█     ▓██ ▒ ██▒   ▒████▄       ▒██    ▒    ▓██░ ██▒
         ▒▓█ 💥 ▄    ▓██ ░▄█ ▒   ▒██  ▀█▄     ░ ▓██▄      ▒██▀▀██░
@@ -175,23 +176,19 @@ There's a problem with the current implementation…
         ░ ░            ░              ░  ░         ░      ░  ░  ░
         ░
 
-      pw_async2/codelab/coin_slot.cc:27: PW_CHECK() or PW_DCHECK() FAILED!
+      pw_async2/codelab/coin_slot.h:40: PW_ASSERT() or PW_DASSERT() FAILED!
 
         FAILED ASSERTION
 
-          current_future_ == nullptr
+          !is_pendable()
 
         FILE & LINE
 
-          pw_async2/codelab/coin_slot.cc:27
+          pw_async2/codelab/coin_slot.h:40
 
         FUNCTION
 
-          CoinFuture codelab::CoinSlot::GetCoins()
-
-        MESSAGE
-
-          Called GetCoins() while a CoinFuture is already active
+          CoinFuture &codelab::CoinFuture::operator=(CoinFuture &&)
 
    What happened?
 

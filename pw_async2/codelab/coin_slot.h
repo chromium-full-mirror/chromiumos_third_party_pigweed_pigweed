@@ -15,6 +15,7 @@
 
 #include <mutex>
 
+#include "pw_assert/assert.h"
 #include "pw_async2/future.h"
 #include "pw_sync/interrupt_spin_lock.h"
 #include "pw_sync/lock_annotations.h"
@@ -36,6 +37,7 @@ class CoinFuture {
   }
 
   CoinFuture& operator=(CoinFuture&& other) {
+    PW_ASSERT(!is_pendable());
     core_ = std::move(other.core_);
     coin_slot_ = std::exchange(other.coin_slot_, nullptr);
     return *this;
