@@ -220,7 +220,7 @@ TEST_F(SynchronousCallTest, SynchronousCallCustomResponse) {
 
   auto result = SynchronousCall<TestService::TestUnaryRpc, CustomResponse>(
       service_registry.client_server().client(),
-      service_registry.channel_id(),
+      static_cast<uint32_t>(service_registry.channel_id()),
       {.integer = 5, .status_code = 0});
   EXPECT_EQ(result.status(), OkStatus());
 

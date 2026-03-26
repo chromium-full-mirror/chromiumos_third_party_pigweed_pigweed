@@ -57,7 +57,7 @@ Status InitializeClient(int port) {
   }
 
   PW_LOG_INFO("Connecting to pw_rpc client at localhost:%d", port);
-  return context.Start(port);
+  return context.Start(static_cast<uint16_t>(port));
 }
 
 void TerminateClient() { context.Terminate(); }

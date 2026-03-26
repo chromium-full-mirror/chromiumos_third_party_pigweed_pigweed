@@ -255,7 +255,7 @@ class ServerStreamingClientCall : public ::testing::Test {
   std::optional<Status> stream_status_;
   std::optional<Status> rpc_error_;
   int responses_received_ = 0;
-  int last_response_number_ = 0;
+  uint32_t last_response_number_ = 0;
 };
 
 TEST_F(ServerStreamingClientCall, SendsRequestPacket) {
@@ -295,19 +295,19 @@ TEST_F(ServerStreamingClientCall, InvokesCallbackOnValidResponse) {
   EXPECT_EQ(OkStatus(), context.SendServerStream(r1));
   EXPECT_TRUE(call.active());
   EXPECT_EQ(responses_received_, 1);
-  EXPECT_EQ(last_response_number_, 11);
+  EXPECT_EQ(last_response_number_, 11u);
 
   PW_ENCODE_PB(pw_rpc_test_TestStreamResponse, r2, .chunk = {}, .number = 22u);
   EXPECT_EQ(OkStatus(), context.SendServerStream(r2));
   EXPECT_TRUE(call.active());
   EXPECT_EQ(responses_received_, 2);
-  EXPECT_EQ(last_response_number_, 22);
+  EXPECT_EQ(last_response_number_, 22u);
 
   PW_ENCODE_PB(pw_rpc_test_TestStreamResponse, r3, .chunk = {}, .number = 33u);
   EXPECT_EQ(OkStatus(), context.SendServerStream(r3));
   EXPECT_TRUE(call.active());
   EXPECT_EQ(responses_received_, 3);
-  EXPECT_EQ(last_response_number_, 33);
+  EXPECT_EQ(last_response_number_, 33u);
 }
 
 TEST_F(ServerStreamingClientCall, InvokesStreamEndOnFinish) {
@@ -359,7 +359,7 @@ TEST_F(ServerStreamingClientCall, ParseErrorTerminatesCallWithDataLoss) {
   EXPECT_EQ(OkStatus(), context.SendServerStream(r1));
   EXPECT_TRUE(call.active());
   EXPECT_EQ(responses_received_, 1);
-  EXPECT_EQ(last_response_number_, 11);
+  EXPECT_EQ(last_response_number_, 11u);
 
   constexpr std::byte bad_payload[]{
       std::byte{0xab}, std::byte{0xcd}, std::byte{0xef}};

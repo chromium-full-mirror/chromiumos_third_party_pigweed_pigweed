@@ -70,7 +70,7 @@ class FakeGeneratedServiceImpl
   Status AddFive(const pw_rpc_test_TestRequest& request,
                  pw_rpc_test_TestResponse& response) {
     last_request = request;
-    response.value = request.integer + 5;
+    response.value = static_cast<int32_t>(request.integer + 5);
     return Status::Unauthenticated();
   }
 

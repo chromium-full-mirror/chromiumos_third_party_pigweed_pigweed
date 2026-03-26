@@ -37,7 +37,7 @@ class TestService final : public GeneratedService::Service<TestService> {
  public:
   Status TestUnaryRpc(const TestRequest::Message& request,
                       TestResponse::Message& response) {
-    response.value = request.integer + 1;
+    response.value = static_cast<int32_t>(request.integer + 1);
     return static_cast<Status::Code>(request.status_code);
   }
 

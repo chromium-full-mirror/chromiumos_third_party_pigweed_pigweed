@@ -31,7 +31,7 @@ class TestService final
  public:
   Status TestUnaryRpc(const pw_rpc_test_TestRequest& request,
                       pw_rpc_test_TestResponse& response) {
-    response.value = request.integer + 1;
+    response.value = static_cast<int32_t>(request.integer + 1);
     return static_cast<Status::Code>(request.status_code);
   }
 
@@ -219,7 +219,7 @@ TEST(NanopbCodegen, Client_InvokesUnaryRpcWithCallback) {
 
   struct {
     Status last_status = Status::Unknown();
-    int response_value = -1;
+    int32_t response_value = -1;
   } result;
 
   auto call = test_client.TestUnaryRpc(
@@ -260,7 +260,7 @@ TEST(NanopbCodegen, Client_InvokesServerStreamingRpcWithCallback) {
   struct {
     bool active = true;
     Status stream_status = Status::Unknown();
-    int response_value = -1;
+    uint32_t response_value = 0xFFFFFFFFu;
   } result;
 
   auto call = test_client.TestServerStreamRpc(
@@ -290,7 +290,7 @@ TEST(NanopbCodegen, Client_InvokesServerStreamingRpcWithCallback) {
       pw_rpc_test_TestStreamResponse, response, .chunk = {}, .number = 11u);
   EXPECT_EQ(OkStatus(), context.SendServerStream(response));
   EXPECT_TRUE(result.active);
-  EXPECT_EQ(result.response_value, 11);
+  EXPECT_EQ(result.response_value, 11u);
 
   EXPECT_EQ(OkStatus(), context.SendResponse(Status::NotFound()));
   EXPECT_FALSE(result.active);
@@ -305,7 +305,7 @@ TEST(NanopbCodegen, Client_StaticMethod_InvokesUnaryRpcWithCallback) {
 
   struct {
     Status last_status = Status::Unknown();
-    int response_value = -1;
+    int32_t response_value = -1;
   } result;
 
   auto call = test::pw_rpc::nanopb::TestService::TestUnaryRpc(
@@ -344,7 +344,7 @@ TEST(NanopbCodegen, Client_StaticMethod_InvokesServerStreamingRpcWithCallback) {
   struct {
     bool active = true;
     Status stream_status = Status::Unknown();
-    int response_value = -1;
+    uint32_t response_value = 0xFFFFFFFFu;
   } result;
 
   auto call = test::pw_rpc::nanopb::TestService::TestServerStreamRpc(
@@ -376,7 +376,7 @@ TEST(NanopbCodegen, Client_StaticMethod_InvokesServerStreamingRpcWithCallback) {
       pw_rpc_test_TestStreamResponse, response, .chunk = {}, .number = 11u);
   EXPECT_EQ(OkStatus(), context.SendServerStream(response));
   EXPECT_TRUE(result.active);
-  EXPECT_EQ(result.response_value, 11);
+  EXPECT_EQ(result.response_value, 11u);
 
   EXPECT_EQ(OkStatus(), context.SendResponse(Status::NotFound()));
   EXPECT_FALSE(result.active);

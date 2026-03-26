@@ -31,7 +31,7 @@ class TestService final
  public:
   Status TestUnaryRpc(const pwpb::TestRequest::Message& request,
                       pwpb::TestResponse::Message& response) {
-    response.value = request.integer + 1;
+    response.value = static_cast<int32_t>(request.integer + 1);
     return static_cast<Status::Code>(request.status_code);
   }
 
@@ -227,7 +227,7 @@ TEST(PwpbCodegen, Client_InvokesUnaryRpcWithCallback) {
 
   struct {
     Status last_status = Status::Unknown();
-    int response_value = -1;
+    int32_t response_value = -1;
   } result;
 
   auto call = test_client.TestUnaryRpc(
@@ -315,7 +315,7 @@ TEST(PwpbCodegen, Client_InvokesServerStreamingRpcWithCallback) {
   struct {
     bool active = true;
     Status stream_status = Status::Unknown();
-    int response_value = -1;
+    uint32_t response_value = 0xFFFFFFFFu;
   } result;
 
   auto call = test_client.TestServerStreamRpc(
@@ -345,7 +345,7 @@ TEST(PwpbCodegen, Client_InvokesServerStreamingRpcWithCallback) {
       test::pwpb::TestStreamResponse, response, .chunk = {}, .number = 11u);
   EXPECT_EQ(OkStatus(), context.SendServerStream(response));
   EXPECT_TRUE(result.active);
-  EXPECT_EQ(result.response_value, 11);
+  EXPECT_EQ(result.response_value, 11u);
 
   EXPECT_EQ(OkStatus(), context.SendResponse(Status::NotFound()));
   EXPECT_FALSE(result.active);
@@ -360,7 +360,7 @@ TEST(PwpbCodegen, Client_StaticMethod_InvokesUnaryRpcWithCallback) {
 
   struct {
     Status last_status = Status::Unknown();
-    int response_value = -1;
+    int32_t response_value = -1;
   } result;
 
   auto call = test::pw_rpc::pwpb::TestService::TestUnaryRpc(
@@ -400,7 +400,7 @@ TEST(PwpbCodegen, Client_StaticMethod_InvokesServerStreamingRpcWithCallback) {
   struct {
     bool active = true;
     Status stream_status = Status::Unknown();
-    int response_value = -1;
+    uint32_t response_value = 0xFFFFFFFFu;
   } result;
 
   auto call = test::pw_rpc::pwpb::TestService::TestServerStreamRpc(
@@ -432,7 +432,7 @@ TEST(PwpbCodegen, Client_StaticMethod_InvokesServerStreamingRpcWithCallback) {
       test::pwpb::TestStreamResponse, response, .chunk = {}, .number = 11u);
   EXPECT_EQ(OkStatus(), context.SendServerStream(response));
   EXPECT_TRUE(result.active);
-  EXPECT_EQ(result.response_value, 11);
+  EXPECT_EQ(result.response_value, 11u);
 
   EXPECT_EQ(OkStatus(), context.SendResponse(Status::NotFound()));
   EXPECT_FALSE(result.active);

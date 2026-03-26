@@ -96,7 +96,7 @@ TEST(NanopbTestMethodContext, ResponseWithCallbacks) {
       return false;
     }
     if (dec_ctx->num_calls < kMaxNumValues) {
-      dec_ctx->values[dec_ctx->num_calls] = value;
+      dec_ctx->values[dec_ctx->num_calls] = static_cast<uint32_t>(value);
     }
     dec_ctx->num_calls++;
     return true;

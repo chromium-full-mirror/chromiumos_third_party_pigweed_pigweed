@@ -27,7 +27,7 @@ class TestService final : public GeneratedService::Service<TestService> {
  public:
   Status TestUnaryRpc(const pw_rpc_test_TestRequest& request,
                       pw_rpc_test_TestResponse& response) {
-    response.value = request.integer + 1;
+    response.value = static_cast<int32_t>(request.integer + 1);
     return static_cast<Status::Code>(request.status_code);
   }
 
@@ -235,7 +235,7 @@ TEST(NanopbClientServerTestContext, ResponseWithCallbacks) {
       return false;
     }
     if (dec_ctx->num_calls < kMaxNumValues) {
-      dec_ctx->values[dec_ctx->num_calls] = value;
+      dec_ctx->values[dec_ctx->num_calls] = static_cast<uint32_t>(value);
     }
     dec_ctx->num_calls++;
     return true;
