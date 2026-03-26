@@ -642,7 +642,12 @@
     ]
   },
   "pw_persistent_ram": {
-    "status": "stable"
+    "status": "stable",
+    "tagline": "Reliable memory across reboots for crash reporting",
+    "languages": [
+      "C++"
+    ],
+    "size": "300 to 800 bytes"
   },
   "pw_polyfill": {
     "status": "stable"
