@@ -493,6 +493,18 @@ pw_py_test(
     ],
 )
 
+pw_py_test(
+    name = "pw_script_integration_test",
+    size = "small",
+    srcs = [
+        "pw_script_integration_test.py",
+    ],
+    target_compatible_with = select({
+        "@platforms//os:windows": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    }),
+)
+
 sphinx_docs_library(
     name = "docs",
     srcs = [
