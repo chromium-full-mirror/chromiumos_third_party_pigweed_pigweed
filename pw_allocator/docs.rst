@@ -6,9 +6,9 @@ pw_allocator
 .. pigweed-module::
    :name: pw_allocator
 
-- **Flexible**: Simple interface makes it easy to inject specific behaviors.
-- **Safe**: Can detect memory corruption, e.g overflows and use-after-free.
-- **Measurable**: Pick what allocations you want to track and measure.
+   - **Flexible**: Simple interface makes it easy to inject specific behaviors.
+   - **Safe**: Can detect memory corruption, e.g. overflows and use-after-free.
+   - **Measurable**: Pick what allocations you want to track and measure.
 
 .. literalinclude:: examples/basic.cc
    :language: cpp
@@ -106,7 +106,7 @@ Does your project need to use memory...
 - In multiple places, and you need to know how much each place is using?
 
 If you answered "yes" to any of these questions, ``pw_allocator`` may be able to
-help! This module is designed to faciliate dynamic allocation for embedded
+help! This module is designed to facilitate dynamic allocation for embedded
 projects that are sufficiently complex to make static allocation infeasible.
 
 Smaller projects may be able to enumerate their objects and preallocate any

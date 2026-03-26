@@ -91,7 +91,7 @@ Module configuration options include:
   how frequently blocks that implemented the :cc:`PoisonableBlock
   <pw::allocator::PoisonableBlock>` mix-in should apply the poison pattern on
   deallocation.
-- :ref:`` allows you to set how many
+- :cc:`PW_ALLOCATOR_HARDENING` allows you to set how many
   validation checks are enabled. Additional checks can detect more errors at the
   cost of performance and code size.
 - :cc:`PW_ALLOCATOR_SUPPRESS_DEPRECATED_WARNINGS`
@@ -252,7 +252,7 @@ details.
   out of a region of memory and only frees them all at once when the allocator
   is destroyed.
 - :cc:`BuddyAllocator <pw::allocator::BuddyAllocator>`: Allocates objects
-  out of a blocks with sizes that are powers of two. Blocks are split evenly for
+  out of blocks with sizes that are powers of two. Blocks are split evenly for
   smaller allocations and merged on free.
 - :cc:`BlockAllocator <pw::allocator::BlockAllocator>`: Tracks memory
   using the :cc:`Block API <pw_allocator_block>`. Derived types use
@@ -264,13 +264,13 @@ details.
     very fast, but may increase fragmentation.
   - :cc:`BestFitAllocator <pw::allocator::BestFitAllocator>`: Chooses the
     smallest block that's large enough to satisfy a request. This strategy
-    maximizes the avilable space for large allocations, but may increase
+    maximizes the available space for large allocations, but may increase
     fragmentation and is slower.
   - :cc:`WorstFitAllocator <pw::allocator::WorstFitAllocator>`: Chooses
     the largest block if it's large enough to satisfy a request. This strategy
     minimizes the amount of memory in unusably small blocks, but is slower.
   - :cc:`BucketAllocator <pw::allocator::BucketAllocator>`:
-    Sorts and stores each free blocks in a :cc:`Bucket
+    Sorts and stores free blocks in a :cc:`Bucket
     <pw_allocator_bucket>` with a given maximum block inner size.
 
 - :cc:`TypedPool <pw::allocator::TypedPool>`: Efficiently creates and
@@ -305,7 +305,7 @@ needs, you can implement your allocator and pass it into any routine that uses
 the generic interface.
 
 :cc:`pw::Allocator` uses an `NVI`_ pattern. To add a custom
-allocator implementation, you must at a miniumum implement the ``DoAllocate``
+allocator implementation, you must at a minimum implement the ``DoAllocate``
 and ``DoDeallocate`` methods.
 
 For example, the following is a forwarding allocator that simply writes to the
@@ -329,7 +329,7 @@ There are also several optional methods you can provide:
   will try to ``Resize``, and, if unsuccessful, try to ``Allocate``, copy, and
   ``Deallocate``.
 - If an implementation of ``DoGetInfo`` isn't provided, then ``GetInfo``
-  will always return ``pw::Status::Unimplmented``.
+  will always return ``pw::Status::Unimplemented``.
 
 Custom allocators can indicate which optional methods they implement and what
 optional behaviors they want from the base class by specifying
@@ -423,8 +423,8 @@ heap is. This method returns a :cc:`Fragmentation
 the sum of the inner sizes of the current free blocks. On a platform or host
 with floating point support, you can divide the square root of the sum of
 squares by the sum to obtain a number that ranges from 0 to 1 to indicate
-maximal and minimal fragmenation, respectively. Subtracting this number from 1
-can give a more intuitive "fragmenation score".
+maximal and minimal fragmentation, respectively. Subtracting this number from 1
+can give a more intuitive "fragmentation score".
 
 For example, consider a heap consisting of the following blocks:
 
