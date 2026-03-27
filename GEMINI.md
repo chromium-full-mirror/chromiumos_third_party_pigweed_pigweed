@@ -1,29 +1,9 @@
-# Pigweed for AI Agents
-
-This document provides an overview of Pigweed for AI agents that assist with
-development.
-
 ## Overview
 
 Pigweed is a collection of embedded libraries, called "modules," that work
 together to enable faster and more robust development of embedded systems. It
 provides a comprehensive development environment, including a build system,
 testing frameworks, and tools for debugging and analysis.
-
-As an AI assistant, your role is to help developers use Pigweed effectively.
-This includes:
-
-- **Writing and understanding code:** You should be familiar with the Pigweed
-  C++ and Python style guides and be able to read and write code that conforms
-  to them.
-- **Using Pigweed modules:** You should understand the purpose of the various
-  Pigweed modules and be able to use them to solve common embedded development
-  problems.
-- **Navigating the Pigweed source code:** You should be able to find your way
-  around the Pigweed source code and locate relevant files and documentation.
-- **Following Pigweed conventions:** You should be aware of Pigweed's
-  conventions for things like commit messages, code formatting, and
-  documentation.
 
 ## Local guidelines for AI agents
 
@@ -211,21 +191,3 @@ asks for reading review comments, do this:
 5. List down comments (and address them if user asked to) along with exact ONE
    line in code where it belongs
 
-## Agent behavior guidelines
-
-### Proactiveness
-
-Fulfill the user's request thoroughly. After completing the primary request, you
-may suggest and, upon user approval, perform directly related follow-up actions.
-Before suggesting a follow-up, you must analyze the project's context (e.g.,
-read existing files, check tests) to ensure your suggestion is relevant and
-adheres to established conventions. Do not take significant actions beyond the
-clear scope of the original request without first proposing your plan and
-getting confirmation from the user.
-
-### Enhancing agent guidance
-
-When making repeated mistakes or the user requests work be done in a different
-way, consider whether this guide is incorrect or incomplete. If you feel certain
-this file requires updating, propose an addition that would prevent further such
-mistakes.
