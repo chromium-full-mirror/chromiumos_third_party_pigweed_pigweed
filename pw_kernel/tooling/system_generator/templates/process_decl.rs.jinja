@@ -1,0 +1,49 @@
+// Copyright 2026 The Pigweed Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License"); you may not
+// use this file except in compliance with the License. You may obtain a copy of
+// the License at
+//
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+// WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+// License for the specific language governing permissions and limitations under
+// the License.
+{
+    kernel::declare_non_priv_process_storage!(PROCESS_STORAGE);
+    const PROCESS_ID: *const () =
+        kernel::non_priv_process_id!(PROCESS_STORAGE);
+
+    let mut process = unsafe { kernel::declare_non_priv_process!(
+        PROCESS_STORAGE,
+        "{{app.process.name}}",
+        MEMORY_CONFIG_{{app.name | upper}},
+        object_table_{{app.name}}
+    )};
+    process.object = Some(object_{{app.name}}_process.clone());
+
+    // TODO: https://pwbug.dev/496950345 - Merge with object declaration.
+    {% for thread in app.process.threads %}
+        {% include "thread_decl" %}
+    {% endfor %}
+
+    // TODO: https://pwbug.dev/496970887 - Don't assume thread 0 is main.
+    let main_thread_object =
+        object_{{app.name}}_{{app.process.threads[0].name | to_lower_ident}}
+        .clone();
+    let main_thread = Some(kernel::object::MainThread {
+        thread: main_thread_object,
+        initial_pc: start_fn_{{app.name}},
+        initial_sp: {{app.initial_sp | hex}},
+    });
+
+    if let Err(_e) = object_{{app.name}}_process.set_process(
+        arch::Arch,
+        process,
+        main_thread
+    ) {
+        kernel::macro_exports::pw_assert::panic!("Failed to set process object");
+    }
+}

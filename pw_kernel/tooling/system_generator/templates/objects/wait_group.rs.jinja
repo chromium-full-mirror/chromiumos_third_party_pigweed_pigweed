@@ -12,15 +12,10 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 {
-    use kernel::__private::foreign_box::{static_foreign_rc, upcast_foreign_rc};
+    use kernel::__private::foreign_box::{static_foreign_rc};
     use kernel::object::{KernelObject, WaitGroupObject};
 
     type AtomicUsize = <K as kernel::Arch>::AtomicUsize;
 
-    // Create the wait group object.
-    let wait_group =
-        unsafe { static_foreign_rc!(AtomicUsize, WaitGroupObject<K>, WaitGroupObject::new()) };
-
-    // Upcast the concrete object into a dynamic one.
-    upcast_foreign_rc!(wait_group => dyn KernelObject<K>)
+    unsafe { static_foreign_rc!(AtomicUsize, WaitGroupObject<K>, WaitGroupObject::new()) }
 }

@@ -76,6 +76,13 @@ syscall_veneer!(DebugLog, log(buffer: *const u8, buffer_len: usize));
 syscall_veneer!(DebugNop, nop());
 syscall_veneer!(DebugTriggerInterrupt, debug_trigger_interrupt(irq: u32));
 
+syscall_veneer!(ThreadStart, thread_start(handle: u32, initial_pc: usize, initial_sp: usize));
+syscall_veneer!(ThreadTerminate, thread_terminate(handle: u32));
+syscall_veneer!(ThreadJoin, thread_join(handle: u32));
+syscall_veneer!(ProcessStart, process_start(handle: u32));
+syscall_veneer!(ProcessTerminate, process_terminate(handle: u32));
+syscall_veneer!(ProcessJoin, process_join(handle: u32));
+
 impl SysCallInterface for SysCall {
     #[inline(always)]
     fn object_wait(handle: u32, signals: u32, deadline: u64) -> Result<WaitReturn> {
@@ -157,6 +164,36 @@ impl SysCallInterface for SysCall {
     #[inline(always)]
     fn interrupt_ack(handle: u32, signal_mask: Signals) -> Result<()> {
         SysCallReturnValue::from(unsafe { interrupt_ack(handle, signal_mask) }).into()
+    }
+
+    #[inline(always)]
+    fn thread_start(handle: u32, initial_pc: usize, initial_sp: usize) -> Result<()> {
+        SysCallReturnValue::from(unsafe { thread_start(handle, initial_pc, initial_sp) }).into()
+    }
+
+    #[inline(always)]
+    fn thread_terminate(handle: u32) -> Result<()> {
+        SysCallReturnValue::from(unsafe { thread_terminate(handle) }).into()
+    }
+
+    #[inline(always)]
+    fn thread_join(handle: u32) -> Result<()> {
+        SysCallReturnValue::from(unsafe { thread_join(handle) }).into()
+    }
+
+    #[inline(always)]
+    fn process_start(handle: u32) -> Result<()> {
+        SysCallReturnValue::from(unsafe { process_start(handle) }).into()
+    }
+
+    #[inline(always)]
+    fn process_terminate(handle: u32) -> Result<()> {
+        SysCallReturnValue::from(unsafe { process_terminate(handle) }).into()
+    }
+
+    #[inline(always)]
+    fn process_join(handle: u32) -> Result<()> {
+        SysCallReturnValue::from(unsafe { process_join(handle) }).into()
     }
 
     #[inline(always)]

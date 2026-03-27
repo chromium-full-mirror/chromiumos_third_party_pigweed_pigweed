@@ -17,8 +17,10 @@ exports_files(
         "app.rs.jinja",
         "cortex_m_app.ld.jinja",
         "interrupts.rs.jinja",
+        "process_decl.rs.jinja",
         "riscv_app.ld.jinja",
         "system.rs.jinja",
+        "thread_decl.rs.jinja",
         "pigweed_linker_sections.ld.jinja",
     ],
 )

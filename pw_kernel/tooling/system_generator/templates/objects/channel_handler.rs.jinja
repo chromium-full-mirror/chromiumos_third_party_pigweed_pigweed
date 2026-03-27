@@ -12,15 +12,10 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 {
-    use kernel::__private::foreign_box::{static_foreign_rc, upcast_foreign_rc};
+    use kernel::__private::foreign_box::{static_foreign_rc};
     use kernel::object::{KernelObject, ChannelHandlerObject};
 
     type AtomicUsize = <K as kernel::Arch>::AtomicUsize;
 
-    // Create the channel handler object.
-    let handler =
-        unsafe { static_foreign_rc!(AtomicUsize, ChannelHandlerObject<K>, ChannelHandlerObject::new(kernel)) };
-
-    // Upcast the concrete object into a dynamic one.
-    (upcast_foreign_rc!(handler.clone() => dyn KernelObject<K>), handler)
+    unsafe { static_foreign_rc!(AtomicUsize, ChannelHandlerObject<K>, ChannelHandlerObject::new(kernel)) }
 }

@@ -53,6 +53,8 @@ rust_library(
             "object/buffer.rs",
             "object/channel.rs",
             "object/interrupt.rs",
+            "object/process.rs",
+            "object/thread.rs",
             "object/wait_group.rs",
             "syscall.rs",
         ],

@@ -16,14 +16,14 @@
 pub mod handle {
 {%- for object in process.objects %}
     #[allow(unused)]
-    pub const {{object.name | upper}}: u32 = {{loop.index0}};
+    pub const {{object.name | to_upper_ident }}: u32 = {{loop.index0}};
 {%- endfor %}
 }
 
 pub mod mapping {
 {%- for mapping in process.memory_mappings %}
     #[allow(unused)]
-    pub const {{mapping.name | upper}}_START_ADDRESS: usize = {{mapping.start_address | hex}};
+    pub const {{mapping.name | to_upper_ident }}_START_ADDRESS: usize = {{mapping.start_address | hex}};
 {%- endfor %}
 }
 
@@ -61,7 +61,7 @@ pub mod constants {
             {%- set type = constant.type %}
         {%- endif -%}
     #[allow(unused)]
-    pub const {{constant.name | upper}}: {{type}} = 
+    pub const {{constant.name | to_upper_ident }}: {{type}} =
         {%- if constant.type == "string" %}"{{constant.value}}"
         {%- elif constant.type == "char" %}'{{constant.value}}'
         {%- else %}{{constant.value}}{% endif %};

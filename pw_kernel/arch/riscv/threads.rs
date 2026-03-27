@@ -88,7 +88,7 @@ extern "C" fn prepare_userspace_thread(memory_config: *const MemoryConfig) {
 
 impl ArchThreadState {
     #[inline(never)]
-    fn initialize_frame(
+    fn initialize(
         &mut self,
         kernel_stack: Stack,
         trampoline: extern "C" fn(),
@@ -96,6 +96,8 @@ impl ArchThreadState {
         initial_sp: usize,
         (s0, s1, s2, s3): (usize, usize, usize, usize),
     ) {
+        self.local = ThreadLocalState::new();
+
         let frame: *mut ContextSwitchFrame =
             Stack::aligned_stack_allocation_mut(unsafe { kernel_stack.end_mut() }, 8);
 
@@ -242,7 +244,7 @@ impl kernel::scheduler::thread::ThreadState for ArchThreadState {
 
     #[inline(never)]
     #[allow(unused_variables)]
-    unsafe fn initialize_kernel_frame(
+    unsafe fn initialize_kernel_state(
         &mut self,
         kernel_stack: Stack,
         memory_config: *const MemoryConfig,
@@ -253,7 +255,7 @@ impl kernel::scheduler::thread::ThreadState for ArchThreadState {
         {
             self.memory_config = memory_config;
         }
-        self.initialize_frame(
+        self.initialize(
             kernel_stack,
             asm_trampoline,
             MStatusVal::default(),
@@ -263,7 +265,7 @@ impl kernel::scheduler::thread::ThreadState for ArchThreadState {
     }
 
     #[cfg(feature = "user_space")]
-    unsafe fn initialize_user_frame(
+    unsafe fn initialize_user_state(
         &mut self,
         kernel_stack: Stack,
         memory_config: *const MemoryConfig,
@@ -276,7 +278,7 @@ impl kernel::scheduler::thread::ThreadState for ArchThreadState {
             .with_mpie(true)
             .with_spie(true)
             .with_mpp(PrivilegeLevel::User);
-        self.initialize_frame(
+        self.initialize(
             kernel_stack,
             asm_user_trampoline,
             mstatus,

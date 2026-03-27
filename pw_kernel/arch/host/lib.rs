@@ -81,18 +81,18 @@ impl ThreadState for ArchThreadState {
     const NEW: Self = Self;
     type MemoryConfig = MemoryConfig;
 
-    unsafe fn initialize_kernel_frame(
+    unsafe fn initialize_kernel_state(
         &mut self,
         _kernel_stack: Stack,
         _memory_config: *const MemoryConfig,
         _initial_function: extern "C" fn(usize, usize, usize),
         _args: (usize, usize, usize),
     ) {
-        pw_assert::panic!("Unimplemented: initialize_kernel_frame");
+        pw_assert::panic!("Unimplemented: initialize_kernel_state");
     }
 
     #[cfg(feature = "user_space")]
-    unsafe fn initialize_user_frame(
+    unsafe fn initialize_user_state(
         &mut self,
         _kernel_stack: Stack,
         _memory_config: *const MemoryConfig,
@@ -100,7 +100,7 @@ impl ThreadState for ArchThreadState {
         _initial_pc: usize,
         _args: (usize, usize, usize),
     ) -> Result<()> {
-        pw_assert::panic!("Unimplemented: initialize_user_frame");
+        pw_assert::panic!("Unimplemented: initialize_user_state");
     }
 }
 

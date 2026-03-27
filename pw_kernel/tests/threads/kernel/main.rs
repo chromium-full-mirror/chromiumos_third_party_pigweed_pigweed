@@ -32,7 +32,11 @@ pub struct AppState<K: Kernel> {
 impl<K: Kernel> AppState<K> {
     pub const fn new(kernel: K) -> AppState<K> {
         AppState {
-            thread: Thread::new("", Priority::DEFAULT_PRIORITY),
+            thread: Thread::new(
+                "",
+                Priority::DEFAULT_PRIORITY,
+                kernel::scheduler::thread::Stack::new(),
+            ),
             stack: StackStorage::ZEROED,
             test_counter: Mutex::new(kernel, 0),
             thread_a_done_event: Event::new(kernel, EventConfig::ManualReset),

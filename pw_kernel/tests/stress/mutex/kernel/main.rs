@@ -52,15 +52,27 @@ impl<K: Kernel> AppState<K> {
     pub const fn new(kernel: K) -> AppState<K> {
         AppState {
             thread_1: TestThread {
-                thread: Thread::new("mutex thread 1", Priority::DEFAULT_PRIORITY),
+                thread: Thread::new(
+                    "mutex thread 1",
+                    Priority::DEFAULT_PRIORITY,
+                    kernel::scheduler::thread::Stack::new(),
+                ),
                 stack: StackStorage::ZEROED,
             },
             thread_2: TestThread {
-                thread: Thread::new("mutex thread 2", Priority::DEFAULT_PRIORITY),
+                thread: Thread::new(
+                    "mutex thread 2",
+                    Priority::DEFAULT_PRIORITY,
+                    kernel::scheduler::thread::Stack::new(),
+                ),
                 stack: StackStorage::ZEROED,
             },
             thread_3: TestThread {
-                thread: Thread::new("mutex thread 3", Priority::DEFAULT_PRIORITY),
+                thread: Thread::new(
+                    "mutex thread 3",
+                    Priority::DEFAULT_PRIORITY,
+                    kernel::scheduler::thread::Stack::new(),
+                ),
                 stack: StackStorage::ZEROED,
             },
             test_counter: Mutex::new(kernel, 0),

@@ -249,13 +249,13 @@ macro_rules! static_init_state {
 
             $crate::InitKernelState {
                 bootstrap_thread: $crate::ThreadStorage {
-                    thread: $crate::Thread::new("bootstrap", Priority::DEFAULT_PRIORITY),
+                    thread: $crate::Thread::new("bootstrap", Priority::DEFAULT_PRIORITY, $crate::Stack::new()),
                     // SAFETY: We're in a block used to initialize a `static`,
                     // which is only executed once.
                     stack: unsafe { &mut BOOTSTRAP_STACK },
                 },
                 idle_thread: $crate::ThreadStorage {
-                    thread: $crate::Thread::new("idle", Priority::IDLE_PRIORITY),
+                    thread: $crate::Thread::new("idle", Priority::IDLE_PRIORITY, $crate::Stack::new()),
                     // SAFETY: We're in a block used to initialize a `static`,
                     // which is only executed once.
                     stack: unsafe { &mut IDLE_STACK},

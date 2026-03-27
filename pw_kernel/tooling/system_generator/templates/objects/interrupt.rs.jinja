@@ -12,7 +12,7 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 {
-    use kernel::__private::foreign_box::{static_foreign_rc, upcast_foreign_rc};
+    use kernel::__private::foreign_box::{static_foreign_rc};
     use kernel::interrupt_controller::InterruptController;
     use kernel::object::{KernelObject, InterruptObject};
 
@@ -51,6 +51,5 @@
     <arch::Arch as kernel::Arch>::InterruptController::enable_interrupt({{irq.number}});
     {%- endfor %}
 
-    // Upcast the concrete object into a dynamic one.
-    upcast_foreign_rc!(interrupt => dyn KernelObject<K>)
+    interrupt
 }

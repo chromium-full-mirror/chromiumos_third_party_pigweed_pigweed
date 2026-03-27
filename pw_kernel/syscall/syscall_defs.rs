@@ -22,6 +22,7 @@
 //!
 //! - [Channel](#channel)
 //! - [Wait Group](#wait-group)
+//! - TODO: <https://pwbug.dev/496975012> - add other objects.
 //!
 //! ### Handles
 //! All system calls reference objects through a u32 handle which indexes into
@@ -300,6 +301,12 @@ pub enum SysCallId {
     ChannelRead = 0x0007,
     ChannelRespond = 0x0008,
     InterruptAck = 0x0009,
+    ThreadStart = 0x000a,
+    ThreadTerminate = 0x000b,
+    ThreadJoin = 0x000c,
+    ProcessStart = 0x000d,
+    ProcessTerminate = 0x000e,
+    ProcessJoin = 0x000f,
 
     // System calls prefixed with 0xF000 are reserved development/debugging use.
     DebugPutc = 0xf000,
@@ -331,6 +338,9 @@ bitflags! {
 
         /// Object is in an error state.
         const ERROR = 1 << 2;
+
+        /// Thread or Process has terminated and can be joined.
+        const JOINABLE = 1 << 3;
 
         /// Object has a protocol specific user signal pending.
         const USER = 1 << 15;
@@ -623,6 +633,14 @@ pub trait SysCallInterface {
     ) -> Result<()>;
 
     fn interrupt_ack(object_handle: u32, signal_mask: Signals) -> Result<()>;
+
+    fn thread_start(object_handle: u32, initial_pc: usize, initial_sp: usize) -> Result<()>;
+    fn thread_terminate(object_handle: u32) -> Result<()>;
+    fn thread_join(object_handle: u32) -> Result<()>;
+
+    fn process_start(object_handle: u32) -> Result<()>;
+    fn process_terminate(object_handle: u32) -> Result<()>;
+    fn process_join(object_handle: u32) -> Result<()>;
 
     fn debug_putc(a: u32) -> Result<u32>;
     // TODO: Consider adding an feature flagged PowerManager object and move

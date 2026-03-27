@@ -29,7 +29,10 @@ pub mod system_config;
 use mpu_validation::MpuValidationMode;
 use mpu_validation::pmsav7::validate_pmsav7_layout;
 use system_config::ObjectConfig::Interrupt;
-use system_config::{InterruptTableConfig, MemoryMapping, MemoryMappingType, SystemConfig};
+use system_config::{
+    InterruptTableConfig, MemoryMapping, MemoryMappingType, ObjectConfig, ProcessObjectConfig,
+    SystemConfig, ThreadObjectConfig,
+};
 
 #[derive(Debug, Parser)]
 pub struct Cli {
@@ -287,12 +290,15 @@ impl<'a, A: ArchConfigInterface + Serialize> SystemGenerator<'a, A> {
         };
 
         instance.env.add_filter("hex", hex);
+        instance.env.add_filter("to_lower_ident", to_lower_ident);
+        instance.env.add_filter("to_upper_ident", to_upper_ident);
         for (name, path) in instance.cli.common_args.templates.clone() {
             let template = fs::read_to_string(path)?;
             instance.env.add_template_owned(name, template)?;
         }
 
         instance.populate_addresses();
+        instance.populate_process_and_thread_objects()?;
         // This must be called after populate_addresses.
         instance.populate_memory_mappings();
         instance.populate_interrupt_table()?;
@@ -377,6 +383,60 @@ impl<'a, A: ArchConfigInterface + Serialize> SystemGenerator<'a, A> {
 
             app.initial_sp = app.ram_start_address + app.ram_size_bytes;
         }
+    }
+
+    fn populate_process_and_thread_objects(&mut self) -> Result<()> {
+        use std::collections::HashSet;
+        let app_names: HashSet<String> = self
+            .config
+            .base
+            .apps
+            .iter()
+            .map(|a| a.name.clone())
+            .collect();
+
+        for app in self.config.base.apps.iter_mut() {
+            // Verify user-declared process objects
+            for object in &app.process.objects {
+                if let ObjectConfig::Process(p) = object {
+                    if p.name == "process" {
+                        return Err(anyhow::anyhow!(
+                            "App '{}' manually requested a process object named 'process'. This is reserved for the app's own process.",
+                            app.name
+                        ));
+                    }
+                    if !app_names.contains(&p.linked_process) {
+                        return Err(anyhow::anyhow!(
+                            "App '{}' requested handle to process object '{}' linked to '{}' but no app named '{}' found in system config",
+                            app.name,
+                            p.name,
+                            p.linked_process,
+                            p.linked_process
+                        ));
+                    }
+                }
+            }
+
+            // Add Process object for this app's own process.  A fixed name is
+            // used so that generic code can be written to access an app's own
+            // process object.
+            app.process
+                .objects
+                .push(ObjectConfig::Process(ProcessObjectConfig {
+                    name: "process".to_string(),
+                    linked_process: app.name.clone(),
+                }));
+
+            // Add Thread objects
+            for thread in &app.process.threads {
+                app.process
+                    .objects
+                    .push(ObjectConfig::Thread(ThreadObjectConfig {
+                        name: thread.name.clone(),
+                    }));
+            }
+        }
+        Ok(())
     }
 
     fn populate_memory_mappings(&mut self) {
@@ -499,8 +559,21 @@ impl<'a, A: ArchConfigInterface + Serialize> SystemGenerator<'a, A> {
     }
 }
 
+//
 // Custom filters
+//
+
 #[must_use]
 pub fn hex(_state: &State, value: usize) -> String {
     format!("{value:#x}")
+}
+
+#[must_use]
+pub fn to_lower_ident(_state: &State, value: String) -> String {
+    value.replace(" ", "_").to_lowercase()
+}
+
+#[must_use]
+pub fn to_upper_ident(_state: &State, value: String) -> String {
+    value.replace(" ", "_").to_uppercase()
 }

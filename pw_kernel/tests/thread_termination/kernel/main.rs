@@ -41,9 +41,17 @@ pub struct TestState<K: Kernel> {
 impl<K: Kernel> TestState<K> {
     pub const fn new(kernel: K) -> Self {
         Self {
-            thread: Thread::new("test thread", Priority::DEFAULT_PRIORITY),
+            thread: Thread::new(
+                "test thread",
+                Priority::DEFAULT_PRIORITY,
+                kernel::scheduler::thread::Stack::new(),
+            ),
             stack: StackStorage::ZEROED,
-            utility_thread: Thread::new("utility thread", Priority::DEFAULT_PRIORITY),
+            utility_thread: Thread::new(
+                "utility thread",
+                Priority::DEFAULT_PRIORITY,
+                kernel::scheduler::thread::Stack::new(),
+            ),
             utility_stack: StackStorage::ZEROED,
             event: Event::new(kernel, EventConfig::ManualReset),
             mutex: Mutex::new(kernel, 0),

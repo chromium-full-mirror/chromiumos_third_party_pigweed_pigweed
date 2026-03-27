@@ -142,3 +142,33 @@ pub fn debug_nop() -> Result<()> {
 pub fn debug_trigger_interrupt(irq: u32) -> Result<()> {
     SysCall::debug_trigger_interrupt(irq)
 }
+
+#[inline(always)]
+pub fn thread_start(object_handle: u32, initial_pc: usize, initial_sp: usize) -> Result<()> {
+    SysCall::thread_start(object_handle, initial_pc, initial_sp)
+}
+
+#[inline(always)]
+pub fn thread_terminate(object_handle: u32) -> Result<()> {
+    SysCall::thread_terminate(object_handle)
+}
+
+#[inline(always)]
+pub fn thread_join(object_handle: u32) -> Result<()> {
+    SysCall::thread_join(object_handle)
+}
+
+#[inline(always)]
+pub fn process_start(object_handle: u32) -> Result<()> {
+    SysCall::process_start(object_handle)
+}
+
+#[inline(always)]
+pub fn process_terminate(object_handle: u32) -> Result<()> {
+    SysCall::process_terminate(object_handle)
+}
+
+#[inline(always)]
+pub fn process_join(object_handle: u32) -> Result<()> {
+    SysCall::process_join(object_handle)
+}

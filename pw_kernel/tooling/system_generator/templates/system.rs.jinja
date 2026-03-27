@@ -12,6 +12,8 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 #![no_std]
+#![allow(unused_imports)]
+#![expect(clippy::redundant_closure_call)]
 
 {% if kernel.interrupt_table %}
 {%- include "interrupts" -%}
@@ -21,39 +23,45 @@
 {% if apps | length > 0 %}
 pub fn start() {
     use core::ptr::NonNull;
-
-    use {{ arch_crate_name }} as arch;
-    use kernel::__private::foreign_box::{ForeignRc, static_foreign_box};
-    use kernel::macro_exports::foreign_box::ForeignBox;
+    use foreign_box::{ForeignBox, ForeignRc, static_foreign_box, static_foreign_rc, upcast_foreign_rc};
     use kernel::object::{KernelObject, ObjectTable};
+    use {{ arch_crate_name }} as arch;
+    use arch::MemoryConfig;
+    use kernel::__private::kernel_config::KernelConfigInterface;
 
-    type MemoryConfig = arch::MemoryConfig;
     type K = arch::Arch;
     #[allow(unused_variables)]
-    let kernel = K {};
+    let kernel = arch::Arch;
 
-// Channel handlers are declared first so that initiators can reference them.
-// Unlike other object templates, handlers return a tuple of two ForeignRcs.
-// The first is a `dyn KernelObject<K>` which is suitable for adding to a
-// processes object table.  The second is a `ChannelHandlerObject<K>` which
-// is suitable for creating a `ChannelInitiator` object
-{%- for app in apps %}
+    // Declare all main process objects first so that other apps can reference them.
+    {%- for app in apps %}
+    let object_{{app.name}}_process =
+        {% include "object_process" %};
+    {%- endfor %}
+
+    // Channel handlers are declared first so that initiators can reference them.
+    // Unlike other object templates, handlers return a tuple of two ForeignRcs.
+    // The first is a `dyn KernelObject<K>` which is suitable for adding to a
+    // processes object table.  The second is a `ChannelHandlerObject<K>` which
+    // is suitable for creating a `ChannelInitiator` object
+    {%- for app in apps %}
     {%- for object in app.process.objects %}
         {% if object.type == "channel_handler" -%}
+            let object_{{app.name}}_{{object.name | to_lower_ident}} =
+                {% include "object_channel_handler" %};
             #[allow(unused_variables)]
-            let (
-                object_{{app.name}}_{{object.name | lower}},
-                object_{{app.name}}_{{object.name | lower}}_handler
-            ) = {% include "object_channel_handler" %};
+            let object_{{app.name}}_{{object.name | to_lower_ident}}_handler =
+                object_{{app.name}}_{{object.name | to_lower_ident}}.clone();
+
         {%- endif -%}
         // Other objects declared later.
     {%- endfor -%}
-{%- endfor -%}
+    {%- endfor -%}
 
-{%- for app in apps %}
+    {%- for app in apps %}
     let start_fn_{{app.name}} = {{app.start_fn_address | hex}}_usize;
 
-    const MEMORY_CONFIG_{{app.name | upper }}: MemoryConfig = MemoryConfig::const_new(&[
+    const MEMORY_CONFIG_{{app.name | to_upper_ident }}: MemoryConfig = MemoryConfig::const_new(&[
         {%- for mapping in app.process.memory_mappings %}
         memory_config::MemoryRegion::new(
             {% if mapping.type == "device" -%}
@@ -70,14 +78,18 @@ pub fn start() {
     ]);
 
     {%- for object in app.process.objects %}
-        let object_{{app.name}}_{{object.name | lower}} =
+        let object_{{app.name}}_{{object.name | to_lower_ident }} =
         {% if object.type == "channel_handler" -%}
                 // Reference to handler object already declared above.
-                object_{{app.name}}_{{object.name | lower}}
+                object_{{app.name}}_{{object.name | to_lower_ident}}
         {% elif object.type == "channel_initiator" -%}
             {% include "object_channel_initiator" %}
         {% elif object.type == "interrupt" -%}
             {% include "object_interrupt" %}
+        {%- elif object.type == "process" %}
+            object_{{object.linked_process}}_process.clone()
+        {%- elif object.type == "thread" %}
+            {% include "object_thread" %}
         {% elif object.type == "wait_group" -%}
             {% include "object_wait_group" %}
         {%- endif -%}
@@ -88,44 +100,27 @@ pub fn start() {
         static_foreign_box!(
             [ForeignRc<<K as kernel::Arch>::AtomicUsize, dyn KernelObject<K>>; {{app.process.objects | length}}],
             [
-            {%- for object in app.process.objects %}
-                object_{{app.name}}_{{object.name | lower}},
-            {%- endfor %}
+                {%- for object in app.process.objects %}
+                    upcast_foreign_rc!(
+                        object_{{app.name}}_{{object.name | to_lower_ident}}.clone()
+                        => dyn KernelObject<K>
+                    ),
+                {%- endfor %}
             ]
         )
     };
 
+    {# Declare storage for and initialize processes and their threads.  This
+       binds the declared processes and threads to the process and thread
+       objects declared above. #}
+    {% include "process_decl" %}
 
-    kernel::declare_non_priv_process_storage!(PROCESS_STORAGE_{{app.name | upper}});
-    const PROCESS_ID_{{app.name | upper}}: *const () =
-        kernel::non_priv_process_id!(PROCESS_STORAGE_{{app.name | upper}});
-    #[allow(unused_variables)]
-    let process_{{app.name}} = unsafe { kernel::init_non_priv_process!(
-        PROCESS_STORAGE_{{app.name | upper}},
-        "{{app.process.name}}",
-        MEMORY_CONFIG_{{app.name | upper}},
-        object_table_{{app.name}}
-    )};
-
-{%- for thread in app.process.threads -%}
-{% set thread_index = loop.index0 %}
-    let thread_{{app.name}}_{{thread_index}} = unsafe {
-        kernel::init_non_priv_thread!(
-            "{{thread.name}}",
-            {% if thread.priority -%}
-            kernel::Priority::{{ thread.priority }},
-            {%- else -%}
-            kernel::Priority::DEFAULT_PRIORITY,
-            {%- endif %}
-            process_{{app.name}},
-            PROCESS_ID_{{app.name | upper}},
-            start_fn_{{app.name}},
-            {{app.initial_sp | hex}},
-            {{thread.stack_size_bytes}}
-        )
-    };
-    kernel::start_thread(arch::Arch, thread_{{app.name}}_{{thread_index}});
-{%- endfor -%}
+    if let Err(e) = object_{{app.name | to_lower_ident }}_process.start(arch::Arch) {
+        kernel::macro_exports::pw_assert::panic!(
+            "Error starting process: {{app.process.name}}: {}",
+            e as i32
+        );
+    }
 {%- endfor %}
 }
 {%- endif %}

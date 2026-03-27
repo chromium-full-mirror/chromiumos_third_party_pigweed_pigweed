@@ -21,9 +21,10 @@ use time::Instant;
 use crate::Kernel;
 use crate::object::{
     KernelObject, ObjectBase, ObjectWaiter, ObjectWaiterListAdapter, Signals, WaiterState,
-    signal_all_matching_waiters, wait_on_object,
+    signal_all_matching_waiters_locked, wait_on_object,
 };
-use crate::sync::spinlock::SpinLock;
+use crate::scheduler::SchedulerState;
+use crate::sync::spinlock::{SpinLock, SpinLockGuard};
 
 list::define_adapter!(pub ObjectListAdapter<K: Kernel> => ObjectBase<K>::wait_group_link);
 
@@ -80,10 +81,16 @@ pub struct WaitGroupMember<K: Kernel> {
 }
 
 impl<K: Kernel> WaitGroupMember<K> {
-    pub fn signal(&mut self, kernel: K, active_signals: Signals, base: &ObjectBase<K>) {
+    pub(crate) fn signal_locked<'a>(
+        &mut self,
+        kernel: K,
+        mut sched: SpinLockGuard<'a, K, SchedulerState<K>>,
+        active_signals: Signals,
+        base: &ObjectBase<K>,
+    ) -> SpinLockGuard<'a, K, SchedulerState<K>> {
         let signaled = active_signals.intersects(self.signal_mask);
         if !signaled && !self.is_signaled {
-            return;
+            return sched;
         }
 
         let mut lock = self.wait_group.state.lock(kernel);
@@ -104,8 +111,14 @@ impl<K: Kernel> WaitGroupMember<K> {
 
         self.is_signaled = signaled;
         if signaled {
-            signal_all_matching_waiters(&mut state.waiters, Signals::READABLE, self.user_data);
+            sched = signal_all_matching_waiters_locked(
+                sched,
+                &mut state.waiters,
+                Signals::READABLE,
+                self.user_data,
+            );
         }
+        sched
     }
 
     fn move_member_between_lists(

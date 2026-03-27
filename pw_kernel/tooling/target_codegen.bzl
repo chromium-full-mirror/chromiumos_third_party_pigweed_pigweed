@@ -78,8 +78,12 @@ def target_codegen(
             "object_channel_handler": "@pigweed//pw_kernel/tooling/system_generator/templates/objects:channel_handler.rs.jinja",
             "object_channel_initiator": "@pigweed//pw_kernel/tooling/system_generator/templates/objects:channel_initiator.rs.jinja",
             "object_interrupt": "@pigweed//pw_kernel/tooling/system_generator/templates/objects:interrupt.rs.jinja",
+            "object_process": "@pigweed//pw_kernel/tooling/system_generator/templates/objects:process.rs.jinja",
+            "object_thread": "@pigweed//pw_kernel/tooling/system_generator/templates/objects:thread.rs.jinja",
             "object_wait_group": "@pigweed//pw_kernel/tooling/system_generator/templates/objects:wait_group.rs.jinja",
+            "process_decl": "@pigweed//pw_kernel/tooling/system_generator/templates:process_decl.rs.jinja",
             "system": "@pigweed//pw_kernel/tooling/system_generator/templates:system.rs.jinja",
+            "thread_decl": "@pigweed//pw_kernel/tooling/system_generator/templates:thread_decl.rs.jinja",
         },
         **kwargs):
     """Generated code crate.
@@ -130,6 +134,7 @@ def target_codegen(
             "@pigweed//pw_kernel/lib/memory_config",
             "@pigweed//pw_kernel/syscall:syscall_defs",
             "@pigweed//pw_log/rust:pw_log",
+            "@pigweed//pw_kernel/lib/pw_atomic",
         ],
         **kwargs
     )

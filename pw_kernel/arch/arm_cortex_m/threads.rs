@@ -84,7 +84,7 @@ impl ArchThreadState {
     #[inline(never)]
     #[expect(clippy::too_many_arguments)]
     #[allow(unused_variables)]
-    fn initialize_frame(
+    fn initialize(
         &mut self,
         user_frame: *mut ExceptionFrame,
         kernel_frame: *mut KernelExceptionFrame,
@@ -94,6 +94,8 @@ impl ArchThreadState {
         initial_pc: usize,
         (r0, r1, r2, r3): (usize, usize, usize, usize),
     ) {
+        self.local = ThreadLocalState::new();
+
         // Clear the stack and set up the exception frame such that it would
         // return to the function passed in with arg0 and arg1 passed in the
         // first two argument slots.
@@ -314,7 +316,7 @@ impl kernel::scheduler::thread::ThreadState for ArchThreadState {
         local: ThreadLocalState::new(),
     };
 
-    unsafe fn initialize_kernel_frame(
+    unsafe fn initialize_kernel_state(
         &mut self,
         kernel_stack: Stack,
         memory_config: *const MemoryConfig,
@@ -322,6 +324,7 @@ impl kernel::scheduler::thread::ThreadState for ArchThreadState {
         args: (usize, usize, usize),
     ) {
         self.memory_config = memory_config;
+
         let user_frame: *mut ExceptionFrame =
             Stack::aligned_stack_allocation_mut(unsafe { kernel_stack.end_mut() }, STACK_ALIGNMENT);
 
@@ -336,7 +339,7 @@ impl kernel::scheduler::thread::ThreadState for ArchThreadState {
         // TODO: This is unsound: `user_frame` and `kernel_frame` need to be
         // `*mut` to preserve the ability to mutate their referents in the Rust
         // memory model.
-        self.initialize_frame(
+        self.initialize(
             user_frame,
             kernel_frame.cast::<KernelExceptionFrame>(),
             ControlVal::default()
@@ -355,7 +358,7 @@ impl kernel::scheduler::thread::ThreadState for ArchThreadState {
     }
 
     #[cfg(feature = "user_space")]
-    unsafe fn initialize_user_frame(
+    unsafe fn initialize_user_state(
         &mut self,
         kernel_stack: Stack,
         memory_config: *const MemoryConfig,
@@ -381,7 +384,7 @@ impl kernel::scheduler::thread::ThreadState for ArchThreadState {
         let kernel_frame: *mut KernelExceptionFrame =
             Stack::aligned_stack_allocation_mut(unsafe { kernel_stack.end_mut() }, STACK_ALIGNMENT);
 
-        self.initialize_frame(
+        self.initialize(
             user_frame,
             kernel_frame,
             ControlVal::default()
@@ -468,6 +471,7 @@ extern "C" fn pendsv_swap_sp(frame: *mut KernelExceptionFrame) -> *mut KernelExc
     // Return the arch frame for the current thread
     let mut sched_state = crate::Arch.get_scheduler().lock(crate::Arch);
     let new_thread = unsafe { sched_state.get_current_arch_thread_state() };
+
     log_if::info_if!(
         LOG_CONTEXT_SWITCH,
         "Context switch to thread '{}' ({:#010x})",

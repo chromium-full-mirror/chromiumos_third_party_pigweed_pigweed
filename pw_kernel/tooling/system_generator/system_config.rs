@@ -174,6 +174,8 @@ pub enum ObjectConfig {
     ChannelInitiator(ChannelInitiatorConfig),
     ChannelHandler(ChannelHandlerConfig),
     Interrupt(InterruptConfig),
+    Process(ProcessObjectConfig),
+    Thread(ThreadObjectConfig),
     WaitGroup(WaitGroupConfig),
 }
 
@@ -184,9 +186,22 @@ impl ObjectConfig {
             ObjectConfig::ChannelInitiator(c) => &c.name,
             ObjectConfig::ChannelHandler(c) => &c.name,
             ObjectConfig::Interrupt(c) => &c.name,
+            ObjectConfig::Process(c) => &c.name,
+            ObjectConfig::Thread(c) => &c.name,
             ObjectConfig::WaitGroup(c) => &c.name,
         }
     }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct ProcessObjectConfig {
+    pub name: String,
+    pub linked_process: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct ThreadObjectConfig {
+    pub name: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -233,8 +248,10 @@ pub struct WaitGroupConfig {
 #[serde(deny_unknown_fields)]
 pub struct ThreadConfig {
     pub name: String,
-    pub stack_size_bytes: u64,
+    pub stack_size_bytes: Option<u64>,
     pub priority: Option<String>,
+    #[serde(skip_deserializing)]
+    pub stack_size_expression: String,
 }
 
 impl<A: ArchConfigInterface> SystemConfig<A> {
@@ -267,6 +284,22 @@ impl<A: ArchConfigInterface> SystemConfig<A> {
         // Before generic calculations and validations are done, let the Arch
         // specific interface do its own validation and fixups.
         self.arch.calculate_and_validate_config(&mut self.base)?;
+
+        for app_config in &mut self.base.apps {
+            for thread in &mut app_config.process.threads {
+                if thread.priority.is_none() {
+                    thread.priority = Some("DEFAULT_PRIORITY".to_string());
+                }
+
+                thread.stack_size_expression = match thread.stack_size_bytes {
+                    None => {
+                        "kernel::__private::kernel_config::KernelConfig::KERNEL_STACK_SIZE_BYTES"
+                            .to_string()
+                    }
+                    Some(size) => format!("{:#x}", size),
+                };
+            }
+        }
 
         Self::check_unique_names(self.base.apps.iter().map(|a| a.name.as_str()), "apps")?;
 

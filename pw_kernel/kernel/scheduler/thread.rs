@@ -91,7 +91,7 @@ impl Stack {
     }
 
     #[must_use]
-    const fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             start: core::ptr::null(),
             end: core::ptr::null(),
@@ -227,6 +227,7 @@ pub enum ProcessState {
     Ready,
     Terminating,
     Terminated,
+    Joined,
 }
 
 pub(super) fn process_state_to_string(s: ProcessState) -> &'static str {
@@ -235,6 +236,7 @@ pub(super) fn process_state_to_string(s: ProcessState) -> &'static str {
         ProcessState::Ready => "Ready",
         ProcessState::Terminating => "Terminating",
         ProcessState::Terminated => "Terminated",
+        ProcessState::Joined => "Joined",
     }
 }
 
@@ -256,8 +258,10 @@ pub trait ThreadState: 'static + Sized {
     ///
     /// # Implementation Note
     /// The implementation is responsible for ensuring that `initial_function`
-    /// is called with interrupts enabled and without the scheduler lock held
-    unsafe fn initialize_kernel_frame(
+    /// is called with interrupts enabled and without the scheduler lock held.
+    /// This call must initialize the `ThreadLocalState` returned by
+    /// `thread_local_state()`.
+    unsafe fn initialize_kernel_state(
         &mut self,
         kernel_stack: Stack,
         memory_config: *const Self::MemoryConfig,
@@ -277,9 +281,11 @@ pub trait ThreadState: 'static + Sized {
     /// # Implementation Note
     /// The implementation is responsible for ensuring that `initial_function`
     /// is called with interrupts enabled, memory_config enabled, non-privileged
-    /// mode, and without the scheduler lock held
+    /// mode, and without the scheduler lock held.
+    /// This call must initialize the `ThreadLocalState` returned by
+    /// `thread_local_state()`.
     #[cfg(feature = "user_space")]
-    unsafe fn initialize_user_frame(
+    unsafe fn initialize_user_state(
         &mut self,
         kernel_stack: Stack,
         memory_config: *const Self::MemoryConfig,
@@ -301,12 +307,19 @@ pub struct Process<K: Kernel> {
     #[cfg(feature = "user_space")]
     object_table: ForeignBox<dyn ObjectTable<K>>,
 
+    #[cfg(feature = "user_space")]
+    pub object: Option<foreign_box::ForeignRc<K::AtomicUsize, crate::object::ProcessObject<K>>>,
+
     pub(super) thread_list: UnsafeList<Thread<K>, ProcessThreadListAdapter<K>>,
 
     pub(super) ref_count: K::AtomicUsize,
     pub(super) state: ProcessState,
     pub(super) join_event: Option<EventSignaler<K>>,
 }
+
+// Safety: Process internal state is protected by the scheduler lock or atomic operations.
+unsafe impl<K: Kernel> Send for Process<K> {}
+unsafe impl<K: Kernel> Sync for Process<K> {}
 
 list::define_adapter!(pub ProcessListAdapter<K: Kernel> => Process<K>::link);
 
@@ -324,6 +337,8 @@ impl<K: Kernel> Process<K> {
             memory_config,
             #[cfg(feature = "user_space")]
             object_table,
+            #[cfg(feature = "user_space")]
+            object: None,
             thread_list: UnsafeList::new(),
             ref_count: K::AtomicUsize::ZERO,
             state: ProcessState::New,
@@ -348,9 +363,17 @@ impl<K: Kernel> Process<K> {
         self.object_table.get_object(kernel, handle)
     }
 
-    pub fn add_to_thread_list(&mut self, thread: &mut Thread<K>) {
+    /// # Safety
+    /// Caller must ensure exclusive access to the process and `thread` and all
+    /// threads in the process' thread list.  This can be accomplished by holding
+    /// the scheduler lock.
+    pub unsafe fn add_to_thread_list(&mut self, thread: &mut Thread<K>) {
+        // SAFETY: Caller guarantees exclusive access to the process and `thread`
+        // and all threads in the process' thread list.
         unsafe {
-            self.thread_list.push_front_unchecked(NonNull::from(thread));
+            let thread = NonNull::from(thread);
+            pw_assert::assert!(!self.thread_list.is_element_linked(thread));
+            self.thread_list.push_front_unchecked(thread);
         }
     }
 
@@ -409,6 +432,11 @@ pub struct ProcessRef<K: Kernel> {
     kernel: K,
 }
 
+// Safety: ProcessRef is a handle to a reference counted process.  All operations
+// on the process are protected by the scheduler lock or atomic operations.
+unsafe impl<K: Kernel> Send for ProcessRef<K> {}
+unsafe impl<K: Kernel> Sync for ProcessRef<K> {}
+
 impl<K: Kernel> ProcessRef<K> {
     // `ProcessRef`s should only be created when adding a process to the
     // scheduler.
@@ -436,20 +464,21 @@ impl<K: Kernel> ProcessRef<K> {
         unsafe { self.process.as_ref().state }
     }
 
-    pub(super) fn as_ref(&self) -> &Process<K> {
-        unsafe { self.process.as_ref() }
-    }
-
-    /// Join the referenced process.
-    ///
-    /// Waits until the all other references to the process are dropped and the
-    /// process terminates.  Returns a `ForeignBox<Process<K>>` which can be used
-    /// to restart the process.
     pub fn join(self, kernel: K) -> Result<ForeignBox<Process<K>>> {
         match self.join_until(kernel, Instant::<K::Clock>::MAX) {
             crate::scheduler::ProcessJoinResult::Joined(process) => Ok(process),
             crate::scheduler::ProcessJoinResult::Err { error, .. } => Err(error),
         }
+    }
+
+    pub fn try_join(self, kernel: K) -> crate::scheduler::ProcessTryJoinResult<K> {
+        let join_event = Event::new(kernel, EventConfig::ManualReset);
+        let (_, res) = kernel.get_scheduler().lock(kernel).process_try_join(
+            kernel,
+            self,
+            join_event.get_signaler(),
+        );
+        res
     }
 
     /// Join the referenced process with a deadline
@@ -463,11 +492,12 @@ impl<K: Kernel> ProcessRef<K> {
     ) -> crate::scheduler::ProcessJoinResult<K> {
         let join_event = Event::new(kernel, EventConfig::ManualReset);
         loop {
-            self = match kernel
-                .get_scheduler()
-                .lock(kernel)
-                .process_try_join(self, join_event.get_signaler())
-            {
+            let (_, res) = kernel.get_scheduler().lock(kernel).process_try_join(
+                kernel,
+                self,
+                join_event.get_signaler(),
+            );
+            match res {
                 crate::scheduler::ProcessTryJoinResult::Err {
                     error: e,
                     process: process_ref,
@@ -480,7 +510,7 @@ impl<K: Kernel> ProcessRef<K> {
                 crate::scheduler::ProcessTryJoinResult::Joined(process_box) => {
                     return crate::scheduler::ProcessJoinResult::Joined(process_box);
                 }
-                crate::scheduler::ProcessTryJoinResult::Wait(process_ref) => process_ref,
+                crate::scheduler::ProcessTryJoinResult::Wait(process_ref) => self = process_ref,
             };
 
             if let Err(e) = join_event.wait_until(deadline) {
@@ -503,6 +533,7 @@ impl<K: Kernel> ProcessRef<K> {
     /// the scheduler lock.
     pub(super) fn drop_locked(
         mut self,
+        kernel: K,
         mut sched: SpinLockGuard<'_, K, SchedulerState<K>>,
     ) -> SpinLockGuard<'_, K, SchedulerState<K>> {
         unsafe {
@@ -516,13 +547,26 @@ impl<K: Kernel> ProcessRef<K> {
             // the other reference may be attempting to join.  Let the scheduler
             // notify the join request if it is outstanding.
             if prev_value == 2 {
-                sched = sched.process_signal_join(&mut self);
+                sched = sched.process_signal_join(kernel, &mut self);
             }
         }
 
         // Ensure that the trait version of drop is not run.
         let _ = ManuallyDrop::new(self);
         sched
+    }
+
+    pub fn add_thread(&mut self, kernel: K, thread_ref: &mut ThreadRef<K>) {
+        let _ = kernel
+            .get_scheduler()
+            .lock(kernel)
+            .process_add_thread(self, thread_ref);
+    }
+
+    pub fn range_has_access(&self, region_type: MemoryRegionType, range: Range<usize>) -> bool {
+        // SAFETY: `self.process` is valid because `ProcessRef` guarantees the
+        // lifetime of the pointed-to `Process`.
+        unsafe { self.process.as_ref().range_has_access(region_type, range) }
     }
 }
 
@@ -559,7 +603,7 @@ impl<K: Kernel> Drop for ProcessRef<K> {
                     .kernel
                     .get_scheduler()
                     .lock(self.kernel)
-                    .process_signal_join(self);
+                    .process_signal_join(self.kernel, self);
             }
         }
     }
@@ -583,6 +627,11 @@ pub struct ThreadRef<K: Kernel> {
     kernel: K,
 }
 
+// Safety: ThreadRef is a handle to a reference counted thread.  All operations
+// on the thread are protected by the scheduler lock or atomic operations.
+unsafe impl<K: Kernel> Send for ThreadRef<K> {}
+unsafe impl<K: Kernel> Sync for ThreadRef<K> {}
+
 impl<K: Kernel> ThreadRef<K> {
     /// Join the referenced thread.
     ///
@@ -594,6 +643,25 @@ impl<K: Kernel> ThreadRef<K> {
             JoinResult::Joined(thread) => Ok(thread),
             JoinResult::Err { error, .. } => Err(error),
         }
+    }
+
+    pub fn try_join(self, kernel: K) -> crate::scheduler::TryJoinResult<K> {
+        let sched = kernel.get_scheduler().lock(kernel);
+        let (_, res) = self.try_join_locked(kernel, sched);
+        res
+    }
+
+    pub fn try_join_locked<'a>(
+        self,
+        kernel: K,
+        sched: SpinLockGuard<'a, K, SchedulerState<K>>,
+    ) -> (
+        SpinLockGuard<'a, K, SchedulerState<K>>,
+        crate::scheduler::TryJoinResult<K>,
+    ) {
+        let join_event =
+            crate::sync::event::Event::new(kernel, crate::sync::event::EventConfig::ManualReset);
+        sched.thread_try_join(kernel, self, join_event.get_signaler())
     }
 
     /// Join the referenced thread with a deadline
@@ -608,11 +676,12 @@ impl<K: Kernel> ThreadRef<K> {
     pub fn join_until(mut self, kernel: K, deadline: Instant<K::Clock>) -> JoinResult<K> {
         let join_event = Event::new(kernel, EventConfig::ManualReset);
         loop {
-            let (_, res) = kernel
-                .get_scheduler()
-                .lock(kernel)
-                .thread_try_join(self, join_event.get_signaler());
-            self = match res {
+            let (_, res) = kernel.get_scheduler().lock(kernel).thread_try_join(
+                kernel,
+                self,
+                join_event.get_signaler(),
+            );
+            match res {
                 TryJoinResult::Err {
                     error: e,
                     thread: thread_ref,
@@ -623,7 +692,7 @@ impl<K: Kernel> ThreadRef<K> {
                     };
                 }
                 TryJoinResult::Joined(thread_box) => return JoinResult::Joined(thread_box),
-                TryJoinResult::Wait(thread_ref) => thread_ref,
+                TryJoinResult::Wait(thread_ref) => self = thread_ref,
             };
 
             if let Err(e) = join_event.wait_until(deadline) {
@@ -716,9 +785,7 @@ pub struct Thread<K: Kernel> {
     // Active state link (run queue, wait queue, etc)
     pub active_link: Link,
 
-    // Safety: All accesses to the parent process must be done with the
-    // scheduler lock held.
-    pub(super) process: Option<ProcessRef<K>>,
+    process: Option<ProcessRef<K>>,
 
     pub(super) state: State,
     pub(super) stack: Stack,
@@ -736,15 +803,38 @@ pub struct Thread<K: Kernel> {
 
     /// The state for the scheduler algorithm.
     pub algorithm_state: SchedulerAlgorithmThreadState,
+
+    #[cfg(feature = "user_space")]
+    pub object: Option<foreign_box::ForeignRc<K::AtomicUsize, crate::object::ThreadObject<K>>>,
 }
+
+// SAFETY: Thread internal state is protected by the scheduler lock or atomic operations.
+unsafe impl<K: Kernel> Send for Thread<K> {}
+unsafe impl<K: Kernel> Sync for Thread<K> {}
 
 list::define_adapter!(pub ThreadListAdapter<K: Kernel> => Thread<K>::active_link);
 list::define_adapter!(pub ProcessThreadListAdapter<K: Kernel> => Thread<K>::process_link);
 
 impl<K: Kernel> Thread<K> {
+    pub(super) fn take_process(&mut self) -> ProcessRef<K> {
+        let Some(process) = self.process.take() else {
+            pw_assert::panic!("Thread does not have a process");
+        };
+        process
+    }
+
+    pub fn is_terminating(&self) -> bool {
+        self.terminating
+    }
+
+    pub fn set_stack(&mut self, stack: Stack) {
+        pw_assert::assert!(matches!(self.state, State::New | State::Joined));
+        self.stack = stack;
+    }
+
     // Create an empty, uninitialized thread
     #[must_use]
-    pub const fn new(name: &'static str, priority: Priority) -> Self {
+    pub const fn new(name: &'static str, priority: Priority, stack: Stack) -> Self {
         Thread {
             process_link: Link::new(),
             active_link: Link::new(),
@@ -752,12 +842,14 @@ impl<K: Kernel> Thread<K> {
             state: State::New,
             arch_thread_state: UnsafeCell::new(K::ThreadState::NEW),
             owner: ThreadOwner::None,
-            stack: Stack::new(),
+            stack,
             ref_count: K::AtomicUsize::ZERO,
             terminating: false,
             join_event: None,
             name,
             algorithm_state: SchedulerAlgorithmThreadState::new(priority),
+            #[cfg(feature = "user_space")]
+            object: None,
         }
     }
 
@@ -768,7 +860,13 @@ impl<K: Kernel> Thread<K> {
         handle: u32,
     ) -> Option<ForeignRc<K::AtomicUsize, dyn KernelObject<K>>> {
         // SAFETY: `self.process` will always outlive `self`.
-        self.process.as_ref()?.as_ref().get_object(kernel, handle)
+        unsafe {
+            self.process
+                .as_ref()?
+                .process
+                .as_ref()
+                .get_object(kernel, handle)
+        }
     }
 
     pub(super) extern "C" fn trampoline<A1: ThreadArg>(
@@ -805,14 +903,13 @@ impl<K: Kernel> Thread<K> {
     pub fn initialize_kernel_thread<A: ThreadArg>(
         &mut self,
         kernel: K,
-        kernel_stack: Stack,
         entry_point: fn(K, A),
         arg: A,
     ) {
         kernel
             .get_scheduler()
             .lock(kernel)
-            .thread_initialize_kernel(kernel, self, kernel_stack, entry_point, arg)
+            .thread_initialize_kernel(kernel, self, entry_point, arg)
     }
 
     /// DEPRECATED: Initialized a kernel thread in a new process
@@ -824,7 +921,6 @@ impl<K: Kernel> Thread<K> {
     pub fn initialize_kernel_thread_for_process<A: ThreadArg>(
         &mut self,
         kernel: K,
-        stack: Stack,
         process: ProcessRef<K>,
         entry_point: fn(K, A),
         arg: A,
@@ -832,7 +928,11 @@ impl<K: Kernel> Thread<K> {
         kernel
             .get_scheduler()
             .lock(kernel)
-            .thread_initialize_kernel_for_process(kernel, self, process, stack, entry_point, arg);
+            .thread_initialize_kernel_for_process(kernel, self, process, entry_point, arg);
+    }
+
+    pub(super) fn set_process(&mut self, process: ProcessRef<K>) {
+        self.process = Some(process);
     }
 
     #[cfg(feature = "user_space")]
@@ -843,25 +943,16 @@ impl<K: Kernel> Thread<K> {
     pub unsafe fn initialize_non_priv_thread(
         &mut self,
         kernel: K,
-        kernel_stack: Stack,
-        initial_sp: usize,
         process: ProcessRef<K>,
         initial_pc: usize,
+        initial_sp: usize,
         args: (usize, usize, usize),
     ) -> Result<()> {
         unsafe {
             kernel
                 .get_scheduler()
                 .lock(kernel)
-                .thread_initialize_non_priv(
-                    kernel,
-                    self,
-                    kernel_stack,
-                    initial_sp,
-                    process.process.as_ptr(),
-                    initial_pc,
-                    args,
-                )
+                .thread_initialize_non_priv(kernel, self, process, initial_pc, initial_sp, args)
         }
     }
 
@@ -876,13 +967,13 @@ impl<K: Kernel> Thread<K> {
     }
 
     /// Returns a reference to the thread's parent process.
-    pub fn process(&self) -> &Process<K> {
+    pub fn process(&self) -> ProcessRef<K> {
         // SAFETY: The returned process references is bound to an immutable
         // borrow of the thread the `process` pointer can not change.
         let Some(process_ref) = self.process.as_ref() else {
             pw_assert::panic!("Thread does not have a process");
         };
-        process_ref.as_ref()
+        process_ref.clone()
     }
 
     /// Return a reference counted `ThreadRef` for this thread.
@@ -1153,19 +1244,17 @@ macro_rules! init_thread {
 
         /// SAFETY: This must be executed at most once at run time.
         unsafe fn __init_thread() -> ForeignBox<Thread<arch::Arch>> {
-            info!("Allocating thread '{}'", $name as &'static str);
-            // SAFETY: The caller promises that this function will be executed
-            // at most once.
-            let thread = unsafe { static_mut_ref!(Thread<arch::Arch> = Thread::new($name, $priority)) };
-            let mut thread = ForeignBox::from(thread);
-
             info!("Initializing thread '{}'", $name as &'static str);
             let stack = $crate::static_stack!($name, $stack_size);
+            // SAFETY: The caller promises that this function will be
+            // executed at most once.
+            let stack = Stack::from_slice(&stack.stack);
+
+            let thread = unsafe { static_mut_ref!(Thread<arch::Arch> = Thread::new($name, $priority, stack)) };
+            let mut thread = ForeignBox::from(thread);
+
             thread.initialize_kernel_thread(
                 $crate::arch::Arch,
-                // SAFETY: The caller promises that this function will be
-                // executed at most once.
-                Stack::from_slice(&stack.stack),
                 $entry,
                 0
             );
@@ -1203,16 +1292,15 @@ macro_rules! non_priv_process_id {
     }};
 }
 
-/// Initializes and registers a new [`Process`] in a previously declared static
-/// process storage.
+/// Declares a new [`Process`] in a previously declared static process storage.
 ///
 /// # Safety
 ///
-/// Each invocation of `init_non_priv_process!` must be executed at most once at
+/// Each invocation of `declare_non_priv_process!` must be executed at most once at
 /// run time.
 #[cfg(feature = "user_space")]
 #[macro_export]
-macro_rules! init_non_priv_process {
+macro_rules! declare_non_priv_process {
     ($storage:expr, $name:literal, $memory_config:expr, $object_table:expr $(,)?) => {{
         use $crate::__private::foreign_box::StaticStorage;
         use $crate::Kernel;
@@ -1222,10 +1310,10 @@ macro_rules! init_non_priv_process {
         /// SAFETY: This must be executed at most once at run time.  See
         /// StaticStorage::init() for more details.
         #[allow(clippy::mut_from_ref)]
-        unsafe fn __init_non_priv_process(
+        unsafe fn __declare_non_priv_process(
             storage: &'static StaticStorage<Process<arch::Arch>>,
             object_table: ForeignBox<dyn ObjectTable<arch::Arch>>,
-        ) -> $crate::scheduler::thread::ProcessRef<arch::Arch> {
+        ) -> ForeignBox<Process<arch::Arch>> {
             use pw_log::info;
             use $crate::__private::foreign_box::ForeignBox;
             info!(
@@ -1236,12 +1324,11 @@ macro_rules! init_non_priv_process {
             // SAFETY: The caller promises that this function will be executed
             // at most once.
             let proc = unsafe { storage.init(Process::new($name, $memory_config, object_table)) };
-            let proc_box = ForeignBox::from(proc);
-            $crate::scheduler::add_process(arch::Arch, proc_box)
+            ForeignBox::from(proc)
         }
 
         $crate::annotate_process_from_address!($name, arch::Arch, unsafe { $storage.address() });
-        __init_non_priv_process(&$storage, $object_table)
+        __declare_non_priv_process(&$storage, $object_table)
     }};
 }
 
@@ -1249,27 +1336,23 @@ macro_rules! init_non_priv_process {
 ///
 /// # Safety
 ///
-/// Each invocation of `init_non_priv_thread!` must be executed at most once at
+/// Each invocation of `declare_non_priv_thread!` must be executed at most once at
 /// run time.
 #[cfg(feature = "user_space")]
 #[macro_export]
-macro_rules! init_non_priv_thread {
-    ($name:literal, $priority:expr, $process:expr, $process_id:expr, $entry:expr, $initial_sp:expr, $kernel_stack_size:expr  $(,)?) => {{
+macro_rules! declare_non_priv_thread {
+    ($name:literal, $priority:expr, $process_id:expr, $kernel_stack_size:expr  $(,)?) => {{
         use core::mem::MaybeUninit;
 
         use $crate::__private::foreign_box::ForeignBox;
-        use $crate::scheduler::thread::{Process, Stack, StackStorage, StackStorageExt, Thread};
+        use $crate::scheduler::thread::{Stack, StackStorage, StackStorageExt, Thread};
 
         /// SAFETY: This must be executed at most once at run time.
-        unsafe fn __init_non_priv_thread(
-            proc: $crate::scheduler::thread::ProcessRef<arch::Arch>,
-            entry: usize,
-            initial_sp: usize,
-        ) -> ForeignBox<Thread<arch::Arch>> {
+        unsafe fn __init_non_priv_thread() -> (ForeignBox<Thread<arch::Arch>>, Stack) {
             use pw_log::info;
             info!(
-                "Allocating non-privileged thread '{}' (entry: {:#010x})",
-                $name as &'static str, entry as usize
+                "Allocating non-privileged thread '{}'",
+                $name as &'static str
             );
             // SAFETY: The caller promises that this function will be executed
             // at most once.
@@ -1281,35 +1364,18 @@ macro_rules! init_non_priv_thread {
                 unsafe { __STATIC.address() },
                 $process_id
             );
-            let thread = __STATIC.init(Thread::new($name, $priority));
+            let stack = $crate::static_stack!($name, $kernel_stack_size);
+            // SAFETY: The caller promises that this function will be
+            // executed at most once.
+            let stack = Stack::from_slice(&stack.stack);
+
+            let thread = __STATIC.init(Thread::new($name, $priority, stack));
             let mut thread = ForeignBox::from(thread);
 
-            info!(
-                "Initializing non-privileged thread '{}'",
-                $name as &'static str
-            );
-            let stack = $crate::static_stack!($name, $kernel_stack_size);
-            if let Err(e) = thread.initialize_non_priv_thread(
-                arch::Arch,
-                // SAFETY: The caller promises that this function will be
-                // executed at most once.
-                Stack::from_slice(&stack.stack),
-                initial_sp,
-                proc,
-                entry,
-                (0, 0, 0),
-            ) {
-                $crate::macro_exports::pw_assert::panic!(
-                    "Error initializing thread: {}: {}",
-                    $name as &'static str,
-                    e as u32
-                );
-            }
-
-            thread
+            (thread, stack)
         }
 
-        __init_non_priv_thread($process, $entry, $initial_sp)
+        __init_non_priv_thread()
     }};
 }
 
@@ -1323,8 +1389,9 @@ pub fn init_thread_in<K: Kernel, T: ThreadArg, const STACK_SIZE: usize>(
     entry: fn(K, T),
     arg: T,
 ) -> ForeignBox<Thread<K>> {
-    *thread = Thread::new(name, priority);
+    let stack_obj = Stack::from_slice(&stack.stack);
+    *thread = Thread::new(name, priority, stack_obj);
     let mut thread = ForeignBox::from(thread);
-    thread.initialize_kernel_thread(kernel, Stack::from_slice(&stack.stack), entry, arg);
+    thread.initialize_kernel_thread(kernel, entry, arg);
     thread
 }

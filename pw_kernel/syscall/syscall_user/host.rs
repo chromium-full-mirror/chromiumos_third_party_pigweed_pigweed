@@ -91,6 +91,36 @@ impl SysCallInterface for SysCall {
     }
 
     #[inline(always)]
+    fn thread_start(_handle: u32, _initial_pc: usize, _initial_sp: usize) -> Result<()> {
+        Err(pw_status::Error::Unimplemented)
+    }
+
+    #[inline(always)]
+    fn thread_terminate(_handle: u32) -> Result<()> {
+        Err(pw_status::Error::Unimplemented)
+    }
+
+    #[inline(always)]
+    fn thread_join(_handle: u32) -> Result<()> {
+        Err(pw_status::Error::Unimplemented)
+    }
+
+    #[inline(always)]
+    fn process_start(_handle: u32) -> Result<()> {
+        Err(pw_status::Error::Unimplemented)
+    }
+
+    #[inline(always)]
+    fn process_terminate(_handle: u32) -> Result<()> {
+        Err(pw_status::Error::Unimplemented)
+    }
+
+    #[inline(always)]
+    fn process_join(_handle: u32) -> Result<()> {
+        Err(pw_status::Error::Unimplemented)
+    }
+
+    #[inline(always)]
     fn debug_putc(_a: u32) -> Result<u32> {
         Err(pw_status::Error::Unimplemented)
     }

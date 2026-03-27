@@ -61,12 +61,20 @@ impl<K: Kernel> TestState<K> {
     pub const fn new(_kernel: K) -> Self {
         Self {
             termination_from_outside_threads: [const {
-                Thread::new("outside test thread", Priority::DEFAULT_PRIORITY)
+                Thread::new(
+                    "outside test thread",
+                    Priority::DEFAULT_PRIORITY,
+                    kernel::scheduler::thread::Stack::new(),
+                )
             }; NUM_THREADS],
             termination_from_outside_stacks: [StackStorage::ZEROED; NUM_THREADS],
             termination_from_outside_process: MaybeUninit::uninit(),
             termination_from_inside_threads: [const {
-                Thread::new("inside test thread", Priority::DEFAULT_PRIORITY)
+                Thread::new(
+                    "inside test thread",
+                    Priority::DEFAULT_PRIORITY,
+                    kernel::scheduler::thread::Stack::new(),
+                )
             }; NUM_THREADS],
             termination_from_inside_stacks: [StackStorage::ZEROED; NUM_THREADS],
             termination_from_inside_process: MaybeUninit::uninit(),
@@ -137,13 +145,8 @@ fn test_termination_from_outside<K: Kernel>(
 
     // 3. Initialize threads in this process
     for (i, thread) in threads.iter_mut().enumerate() {
-        thread.initialize_kernel_thread_for_process(
-            kernel,
-            thread::Stack::from_slice(&stacks[i].stack),
-            process_ref.clone(),
-            thread_entry,
-            0,
-        );
+        thread.set_stack(thread::Stack::from_slice(&stacks[i].stack));
+        thread.initialize_kernel_thread_for_process(kernel, process_ref.clone(), thread_entry, 0);
     }
 
     // 4. Start threads
@@ -230,6 +233,7 @@ fn test_termination_from_inside<K: Kernel>(
 
     // 3. Initialize threads in this process
     for (i, thread) in threads.iter_mut().enumerate() {
+        thread.set_stack(thread::Stack::from_slice(&stacks[i].stack));
         if i == 0 {
             // This thread will trigger termination.
             // Pass process_ref address as argument.
@@ -237,7 +241,6 @@ fn test_termination_from_inside<K: Kernel>(
             let arg = &process_ref as *const _ as usize;
             thread.initialize_kernel_thread_for_process(
                 kernel,
-                thread::Stack::from_slice(&stacks[i].stack),
                 process_ref.clone(),
                 thread_entry_terminator,
                 arg,
@@ -245,7 +248,6 @@ fn test_termination_from_inside<K: Kernel>(
         } else {
             thread.initialize_kernel_thread_for_process(
                 kernel,
-                thread::Stack::from_slice(&stacks[i].stack),
                 process_ref.clone(),
                 thread_entry,
                 0,

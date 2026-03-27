@@ -24,17 +24,22 @@ use time::Instant;
 
 use crate::Kernel;
 use crate::object::wait_group::WaitGroupMember;
+use crate::scheduler::SchedulerState;
 use crate::sync::event::{Event, EventConfig, EventSignaler};
 use crate::sync::spinlock::{SpinLock, SpinLockGuard};
 
 mod buffer;
 mod channel;
 mod interrupt;
+mod process;
+mod thread;
 mod wait_group;
 
 pub use buffer::SyscallBuffer;
 pub use channel::{ChannelHandlerObject, ChannelInitiatorObject};
 pub use interrupt::InterruptObject;
+pub use process::{MainThread, ProcessObject};
+pub use thread::ThreadObject;
 pub use wait_group::WaitGroupObject;
 
 /// Trait that all kernel objects implement.
@@ -129,6 +134,36 @@ pub trait KernelObject<K: Kernel>: Any + Send + Sync {
     fn interrupt_ack(&self, kernel: K, signal_mask: Signals) -> Result<()> {
         Err(Error::Unimplemented)
     }
+
+    #[allow(unused_variables)]
+    fn thread_start(&self, kernel: K, initial_pc: usize, initial_sp: usize) -> Result<()> {
+        Err(Error::Unimplemented)
+    }
+
+    #[allow(unused_variables)]
+    fn thread_terminate(&self, kernel: K) -> Result<()> {
+        Err(Error::Unimplemented)
+    }
+
+    #[allow(unused_variables)]
+    fn thread_join(&self, kernel: K) -> Result<()> {
+        Err(Error::Unimplemented)
+    }
+
+    #[allow(unused_variables)]
+    fn process_start(&self, kernel: K) -> Result<()> {
+        Err(Error::Unimplemented)
+    }
+
+    #[allow(unused_variables)]
+    fn process_terminate(&self, kernel: K) -> Result<()> {
+        Err(Error::Unimplemented)
+    }
+
+    #[allow(unused_variables)]
+    fn process_join(&self, kernel: K) -> Result<()> {
+        Err(Error::Unimplemented)
+    }
 }
 
 trait WaiterState<K: Kernel> {
@@ -180,14 +215,15 @@ fn wait_on_object<'a, K: Kernel, S: WaiterState<K>>(
     result
 }
 
-fn signal_all_matching_waiters<K: Kernel>(
+pub(crate) fn signal_all_matching_waiters_locked<'a, K: Kernel>(
+    mut sched: SpinLockGuard<'a, K, SchedulerState<K>>,
     waiters: &mut RandomAccessForeignList<ObjectWaiter<K>, ObjectWaiterListAdapter<K>>,
     active_signals: Signals,
     user_data: usize,
-) {
-    let _ = waiters.for_each(|waiter| -> Result<()> {
+) -> SpinLockGuard<'a, K, SchedulerState<K>> {
+    for waiter in waiters.iter() {
         if waiter.signal_mask.intersects(active_signals) {
-            // Safety: While a waiter is in an object's `waiters` list, that
+            // SAFETY: While a waiter is in an object's `waiters` list, that
             // object has exclusive access to the waiter.  The below
             // operation is done with the object's spinlock held.
             unsafe {
@@ -196,10 +232,10 @@ fn signal_all_matching_waiters<K: Kernel>(
                     pending_signals: active_signals,
                 }))
             };
-            waiter.signaler.signal();
+            sched = waiter.signaler.signal_locked(sched);
         }
-        Ok(())
-    });
+    }
+    sched
 }
 
 list::define_adapter!(pub ObjectWaiterListAdapter<K: Kernel> => ObjectWaiter<K>::link);
@@ -264,7 +300,7 @@ impl<K: Kernel> WaiterState<K> for ObjectBaseState<K> {
 ///
 /// `ObjectTable` is a trait to allow for both static and dynamic tables to be
 /// used in the same time.
-pub trait ObjectTable<K: Kernel> {
+pub trait ObjectTable<K: Kernel>: Send + Sync {
     fn get_object(
         &self,
         kernel: K,
@@ -343,19 +379,35 @@ impl<K: Kernel> ObjectBase<K> {
     }
 
     pub fn signal<F: Fn(Signals) -> Signals>(&self, kernel: K, update_fn: F) {
-        let mut state = self.state.lock(kernel);
-        state.active_signals = update_fn(state.active_signals);
-        self.signal_impl(kernel, state);
+        let sched = kernel.get_scheduler().lock(kernel);
+        let _ = self.signal_locked(kernel, sched, update_fn);
     }
 
+    pub(crate) fn signal_locked<'a, F: Fn(Signals) -> Signals>(
+        &self,
+        kernel: K,
+        sched: SpinLockGuard<'a, K, SchedulerState<K>>,
+        update_fn: F,
+    ) -> SpinLockGuard<'a, K, SchedulerState<K>> {
+        let mut state = self.state.lock(kernel);
+        state.active_signals = update_fn(state.active_signals);
+        self.signal_impl_locked(kernel, sched, state)
+    }
+
+    // Hint to avoid monomorphization bloat.
     #[inline(never)]
-    fn signal_impl(&self, kernel: K, mut state: SpinLockGuard<K, ObjectBaseState<K>>) {
+    fn signal_impl_locked<'a>(
+        &self,
+        kernel: K,
+        mut sched: SpinLockGuard<'a, K, SchedulerState<K>>,
+        mut state: SpinLockGuard<K, ObjectBaseState<K>>,
+    ) -> SpinLockGuard<'a, K, SchedulerState<K>> {
         let active_signals = state.active_signals;
         if let Some(wait_group) = &mut state.wait_group {
-            wait_group.signal(kernel, active_signals, self);
+            sched = wait_group.signal_locked(kernel, sched, active_signals, self);
         }
 
         // These waiters are never a wait group, so always set user_data to 0.
-        signal_all_matching_waiters(&mut state.waiters, active_signals, 0);
+        signal_all_matching_waiters_locked(sched, &mut state.waiters, active_signals, 0)
     }
 }
