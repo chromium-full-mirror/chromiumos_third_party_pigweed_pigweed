@@ -293,9 +293,7 @@ class L2capChannelManager final : public L2capChannelManagerInterface {
   IntrusiveMap<uint16_t, internal::L2capLogicalLinkInterface> logical_links_
       PW_GUARDED_BY(links_mutex_);
 
-  // This buffer is small because it is only used with ChannelProxy, which has
-  // no MultiBuf clients other than tests.
-  std::array<std::byte, 200> allocator_buffer_;
+  std::array<std::byte, 1024> allocator_buffer_;
   multibuf::SimpleAllocator multibuf_allocator_{allocator_buffer_,
                                                 impl_.allocator()};
 };
