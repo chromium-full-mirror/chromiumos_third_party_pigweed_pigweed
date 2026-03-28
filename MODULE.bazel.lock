@@ -516,7 +516,7 @@
     "//pw_toolchain/rust:extensions.bzl%pw_rust": {
       "general": {
         "bzlTransitiveDigest": "v18j2IkEr8EoDIw+4Kz/em+LxIvnj/ExM99f8cG/0Xg=",
-        "usagesDigest": "g57R24GzM4Vqq4g6CWUtguAUWyrQBlaVaIHI/ne/JKc=",
+        "usagesDigest": "e7V7n8YFIrTwRcRpbP/duDCkS1ZL//b2Rn/vdVU40CM=",
         "recordedFileInputs": {},
         "recordedDirentsInputs": {},
         "envVariables": {},
@@ -542,7 +542,7 @@
             "attributes": {
               "build_file": "@@//pw_toolchain/rust:rust_analyzer.BUILD",
               "path": "fuchsia/third_party/rust-analyzer/linux-arm64",
-              "tag": "git_revision:a1b86d600f88be98643e5dd61d6ed26eda17c09e"
+              "tag": "git_revision:768710166f2992fec06a77a10c695864dc47000b"
             }
           },
           "rust_toolchain_host_linux_x86_64": {
@@ -566,7 +566,7 @@
             "attributes": {
               "build_file": "@@//pw_toolchain/rust:rust_analyzer.BUILD",
               "path": "fuchsia/third_party/rust-analyzer/linux-amd64",
-              "tag": "git_revision:a1b86d600f88be98643e5dd61d6ed26eda17c09e"
+              "tag": "git_revision:768710166f2992fec06a77a10c695864dc47000b"
             }
           },
           "rust_toolchain_host_macos_aarch64": {
@@ -590,7 +590,7 @@
             "attributes": {
               "build_file": "@@//pw_toolchain/rust:rust_analyzer.BUILD",
               "path": "fuchsia/third_party/rust-analyzer/mac-arm64",
-              "tag": "git_revision:a1b86d600f88be98643e5dd61d6ed26eda17c09e"
+              "tag": "git_revision:768710166f2992fec06a77a10c695864dc47000b"
             }
           },
           "rust_toolchain_host_macos_x86_64": {
@@ -614,7 +614,7 @@
             "attributes": {
               "build_file": "@@//pw_toolchain/rust:rust_analyzer.BUILD",
               "path": "fuchsia/third_party/rust-analyzer/mac-amd64",
-              "tag": "git_revision:a1b86d600f88be98643e5dd61d6ed26eda17c09e"
+              "tag": "git_revision:768710166f2992fec06a77a10c695864dc47000b"
             }
           },
           "rust_toolchain_target_thumbv6m-none-eabi_armv6-m": {
