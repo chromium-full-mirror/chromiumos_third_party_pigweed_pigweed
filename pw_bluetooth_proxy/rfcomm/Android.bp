@@ -32,19 +32,20 @@ cc_library_static {
         "public",
     ],
     static_libs: [
+        "pw_allocator",
         "pw_bluetooth_proxy",
         "pw_checksum",
         "pw_multibuf",
         "pw_span_cast",
     ],
     export_static_lib_headers: [
+        "pw_allocator",
         "pw_bluetooth_proxy",
         "pw_checksum",
         "pw_multibuf",
         "pw_span_cast",
     ],
     header_libs: [
-        "pw_allocator",
         "emboss_runtime_headers",
         "fuchsia_sdk_lib_stdcompat",
         "pw_assert",
@@ -52,7 +53,6 @@ cc_library_static {
         "pw_log",
     ],
     export_header_lib_headers: [
-        "pw_allocator",
         "pw_assert",
         "pw_log",
     ],

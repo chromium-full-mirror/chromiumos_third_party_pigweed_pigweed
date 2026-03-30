@@ -29,6 +29,10 @@ cc_library_static {
         "pw_assert",
         "pw_containers_headers",
     ],
+    export_header_lib_headers: [
+        "pw_assert",
+        "pw_containers_headers",
+    ],
     static_libs: [
         "pw_preprocessor",
         "pw_status",

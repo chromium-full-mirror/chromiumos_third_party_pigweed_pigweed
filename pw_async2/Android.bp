@@ -46,12 +46,14 @@ cc_library_static {
         "pw_sync",
     ],
     static_libs: [
+        "pw_allocator",
         "pw_containers",
         "pw_memory",
         "pw_string",
         "pw_tokenizer",
     ],
     export_static_lib_headers: [
+        "pw_allocator",
         "pw_memory",
         "pw_string",
     ],
