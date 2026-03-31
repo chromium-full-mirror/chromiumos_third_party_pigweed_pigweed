@@ -23,21 +23,21 @@ namespace pw::multibuf::v1_adapter::internal {
 ////////////////////////////////////////////////////////////////////////////////
 // ChunkAllocator methods.
 
-ChunkAllocator::ChunkAllocator(ByteSpan region,
-                               Allocator& metadata_allocator,
-                               size_t alignment)
+ChunkAllocator::ChunkAllocator(Allocator& metadata_allocator, size_t alignment)
     : Allocator(allocator::kImplementsGetCapacity |
                 allocator::kImplementsRecognizes),
       metadata_allocator_(metadata_allocator) {
-  // `region` must fit in a `Region`.
-  PW_CHECK_UINT_LT(region.size(), 1ULL << 31);
-
   // Alignment must be a power of two.
   alignment_log2_ = static_cast<uint8_t>(cpp20::countr_zero(alignment));
   PW_CHECK_UINT_EQ(alignment, this->alignment());
+}
+
+void ChunkAllocator::SetRegion(ByteSpan region) {
+  // `region` must fit in a `Region`.
+  PW_CHECK_UINT_LT(region.size(), 1ULL << 31);
 
   // Only store the usable portion.
-  buffer_ = GetAlignedSubspan(region, alignment);
+  buffer_ = GetAlignedSubspan(region, alignment());
   available_ = static_cast<uint32_t>(buffer_.size());
 }
 
@@ -105,11 +105,8 @@ auto ChunkAllocator::DoGetInfo(InfoType info_type, const void* ptr) const
 ////////////////////////////////////////////////////////////////////////////////
 // SingleChunkAllocator methods.
 
-SingleChunkAllocator::SingleChunkAllocator(ByteSpan region,
-                                           Allocator& metadata_allocator)
-    : ChunkAllocator(region, metadata_allocator, 1) {
-  region_.data = buffer().data();
-}
+SingleChunkAllocator::SingleChunkAllocator(Allocator& metadata_allocator)
+    : ChunkAllocator(metadata_allocator, 1) {}
 
 void* SingleChunkAllocator::DoAllocate(allocator::Layout layout) {
   if (layout == allocator::Layout::Of<ControlBlock>() && control_block_free_) {
@@ -135,6 +132,7 @@ auto SingleChunkAllocator::AllocateRegion(size_t min_size, size_t desired_size)
   if (available() < min_size) {
     return nullptr;
   }
+  region_.data = buffer().data();
   region_.size = static_cast<uint32_t>(std::min(available(), desired_size));
   region_.free = false;
   return &region_;

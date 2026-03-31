@@ -87,9 +87,11 @@ std::optional<size_t> SimpleAllocator::DoGetBackingCapacity() {
 
 SimpleAllocator::SimpleChunkAllocator::SimpleChunkAllocator(
     ByteSpan region, Allocator& metadata_allocator, size_t alignment)
-    : ChunkAllocator(region, metadata_allocator, alignment),
+    : ChunkAllocator(metadata_allocator, alignment),
       available_(buffer().size()),
-      subregions_(metadata_allocator) {}
+      subregions_(metadata_allocator) {
+  SetRegion(region);
+}
 
 SimpleAllocator::SimpleChunkAllocator::~SimpleChunkAllocator() {
   PW_CHECK_UINT_LE(subregions_.size(), 1);

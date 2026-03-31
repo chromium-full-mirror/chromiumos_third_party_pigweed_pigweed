@@ -33,10 +33,24 @@ namespace pw::multibuf::v1 {
 class PW_MULTIBUF_DEPRECATED SingleChunkRegionTracker
     : public ChunkRegionTracker {
  public:
+  /// Default constructor.
+  ///
+  /// Callers must call `SetRegion` before calling `GetChunk`.
+  SingleChunkRegionTracker() = default;
+
   /// Constructs a region tracker with a single `Chunk` that maps to `region`,
   /// which must outlive this tracker and any `OwnedChunk` it creates.
   explicit SingleChunkRegionTracker(ByteSpan region) : region_(region) {}
+
   ~SingleChunkRegionTracker() override { Destroy(); }
+
+  /// Sets the region used to provide the chunk.
+  ///
+  /// At most one region may be set by this method or a constructor.
+  void SetRegion(ByteSpan region) {
+    PW_DASSERT(region_.empty());
+    region_ = region;
+  }
 
   /// Gets a `Chunk` of a given size, which must be less than or equal to the
   /// provided region.
@@ -55,14 +69,14 @@ class PW_MULTIBUF_DEPRECATED SingleChunkRegionTracker
     return chunk;
   }
 
-  void Destroy() final {
+  void Destroy() override {
     // Nothing to release here.
     PW_ASSERT(!chunk_in_use_);
   }
 
-  ByteSpan Region() const final { return region_; }
+  ByteSpan Region() const override { return region_; }
 
-  void* AllocateChunkClass() final {
+  void* AllocateChunkClass() override {
     bool in_use = false;
     if (!chunk_in_use_.compare_exchange_strong(in_use, true)) {
       return nullptr;
@@ -70,7 +84,7 @@ class PW_MULTIBUF_DEPRECATED SingleChunkRegionTracker
     return &chunk_storage_;
   }
 
-  void DeallocateChunkClass(void* chunk) final {
+  void DeallocateChunkClass(void* chunk) override {
     PW_ASSERT(chunk == chunk_storage_.data());
     chunk_in_use_ = false;
   }

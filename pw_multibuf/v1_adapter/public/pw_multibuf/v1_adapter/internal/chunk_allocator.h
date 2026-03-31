@@ -77,15 +77,18 @@ class ChunkAllocator : public Allocator {
     constexpr Region() : data(nullptr), size(0), free(true) {}
   };
 
-  ChunkAllocator(ByteSpan region,
-                 Allocator& metadata_allocator,
-                 size_t alignment);
+  ChunkAllocator(Allocator& metadata_allocator, size_t alignment);
 
   constexpr ByteSpan buffer() const { return buffer_; }
 
   constexpr size_t num_allocations() const {
     return static_cast<size_t>(num_allocations_);
   }
+
+  /// Sets the region used to provide chunks.
+  ///
+  /// At most one region may be set by this method or a constructor.
+  void SetRegion(ByteSpan region);
 
  protected:
   /// @copydoc Allocator::Allocate
@@ -131,7 +134,9 @@ class ChunkAllocator : public Allocator {
 /// without relying on the metadata allocator.
 class SingleChunkAllocator : public ChunkAllocator {
  public:
-  SingleChunkAllocator(ByteSpan region, Allocator& metadata_allocator);
+  explicit SingleChunkAllocator(Allocator& metadata_allocator);
+
+  using ChunkAllocator::SetRegion;
 
  protected:
   constexpr bool control_block_free() const { return control_block_free_; }

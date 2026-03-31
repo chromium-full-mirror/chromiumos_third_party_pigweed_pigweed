@@ -36,7 +36,9 @@ class FromSpanChunkAllocator : public internal::SingleChunkAllocator {
   FromSpanChunkAllocator(Allocator& metadata_allocator,
                          ByteSpan region,
                          Function<void(ByteSpan)>&& deleter)
-      : Base(region, metadata_allocator), deleter_(std::move(deleter)) {}
+      : Base(metadata_allocator), deleter_(std::move(deleter)) {
+    SetRegion(region);
+  }
 
  private:
   /// @copydoc Deallocator::Allocate
