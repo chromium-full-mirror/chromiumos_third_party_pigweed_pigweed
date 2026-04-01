@@ -30,13 +30,11 @@ Futures
 ``pw_async2``, providing a standardized way of polling an asynchronous
 operation to completion.
 
-The design of futures has some implications for code size:
-
-* All futures are templated on the type of value they produce, which means that
-  the compiler must generate separate code for each type.
-
-* Additionally, futures use CRTP for compile-time polymorphism, so each concrete
-  future type is a distinct class and may duplicate common behavior.
+An important consideration for code size is that all futures are templated on
+the type of value they produce, which means that the compiler must generate
+separate code for each type. Pigweed attempts to share common operations through
+non-templated utilities like ``FutureCore`` and makes several optimizations to
+commonly used future types.
 
 The following sections detail the code size of various future implementations
 and utilities.
