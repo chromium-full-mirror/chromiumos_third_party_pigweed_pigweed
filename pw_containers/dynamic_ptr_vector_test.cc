@@ -157,6 +157,46 @@ TEST_F(DynamicPtrVectorTest, Clear) {
   EXPECT_LT(allocated_after, allocated_before);
 }
 
+TEST_F(DynamicPtrVectorTest, Reset) {
+  pw::DynamicPtrVector<Counter> vec(allocator_);
+  vec.emplace_back(1);
+  vec.emplace_back(2);
+  EXPECT_FALSE(vec.empty());
+  Counter::Reset();
+
+  vec.reset();
+
+  EXPECT_TRUE(vec.empty());
+  EXPECT_EQ(vec.size(), 0u);
+  EXPECT_EQ(vec.ptr_capacity(), 0u);
+  EXPECT_EQ(vec.data(), nullptr);
+  EXPECT_EQ(Counter::destroyed, 2);
+}
+
+TEST_F(DynamicPtrVectorTest, MoveAssign_DestroysOldElementsAndFreesBuffer) {
+  pw::DynamicPtrVector<Counter> vec1(allocator_);
+  pw::DynamicPtrVector<Counter> vec2(allocator_);
+
+  vec1.emplace_back(1);
+  vec1.emplace_back(2);
+
+  vec2.emplace_back(3);
+  vec2.emplace_back(4);
+  vec2.emplace_back(5);
+
+  ASSERT_EQ(vec1.size(), 2u);
+  ASSERT_EQ(vec2.size(), 3u);
+
+  Counter::Reset();
+  const size_t initial_bytes = allocator_for_test_.GetAllocated();
+
+  vec1 = std::move(vec2);
+
+  EXPECT_EQ(vec1.size(), 3u);
+  EXPECT_EQ(Counter::destroyed, 2);
+  EXPECT_LT(allocator_for_test_.GetAllocated(), initial_bytes);
+}
+
 TEST_F(DynamicPtrVectorTest, TryEmplaceBack) {
   pw::DynamicPtrVector<Counter> vec(allocator_);
 

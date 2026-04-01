@@ -281,6 +281,20 @@ TEST_F(DynamicHashMapTest, Clear) {
   EXPECT_EQ(map.size(), 0u);
 }
 
+TEST_F(DynamicHashMapTest, Reset) {
+  pw::DynamicHashMap<int, Counter> map(allocator_);
+  map.emplace(1);
+  map.emplace(2);
+  EXPECT_FALSE(map.empty());
+  Counter::Reset();
+
+  map.reset();
+
+  EXPECT_TRUE(map.empty());
+  EXPECT_EQ(map.size(), 0u);
+  EXPECT_EQ(Counter::destroyed, 2);
+}
+
 TEST_F(DynamicHashMapTest, Iterators) {
   pw::DynamicHashMap<int, int> map(allocator_);
   map.insert({3, 30});
@@ -409,6 +423,30 @@ TEST_F(DynamicHashMapTest, MoveAssign) {
   EXPECT_EQ(moved_into.at(1).value, 1);
   EXPECT_EQ(moved_into.at(2).value, 2);
   EXPECT_FALSE(moved_into.contains(3));
+}
+
+TEST_F(DynamicHashMapTest, MoveAssign_DestroysOldElementsAndFreesBuffer) {
+  pw::DynamicHashMap<int, Counter> map1(allocator_);
+  pw::DynamicHashMap<int, Counter> map2(allocator_);
+
+  map1.emplace(1);
+  map1.emplace(2);
+
+  map2.emplace(3);
+  map2.emplace(4);
+  map2.emplace(5);
+
+  ASSERT_EQ(map1.size(), 2u);
+  ASSERT_EQ(map2.size(), 3u);
+
+  Counter::Reset();
+  const size_t initial_bytes = allocator_for_test_.GetAllocated();
+
+  map1 = std::move(map2);
+
+  EXPECT_EQ(map1.size(), 3u);
+  EXPECT_EQ(Counter::destroyed, 2);
+  EXPECT_LT(allocator_for_test_.GetAllocated(), initial_bytes);
 }
 
 TEST_F(DynamicHashMapTest, HashCollisions) {

@@ -32,6 +32,16 @@ namespace pw {
 /// allocator for dynamic memory management. It includes fallible `try_*`
 /// operations for scenarios where allocation failure may be handled gracefully.
 ///
+/// @warning The container's allocator MUST outlive the container, unless one of
+/// the following steps is taken:
+/// - Call `reset()` to free all memory, including the underlying buffer, and
+///   make no further modifications to the container.
+/// - Assign from a container with a different allocator (e.g. `NullAllocator`)
+///   before the first allocator goes out of scope.
+///
+/// @warning Calling `clear()` is NOT sufficient; an empty container may still
+/// hold a pointer to an allocated buffer.
+///
 /// @tparam T The type of elements stored in the queue.
 template <typename T, typename SizeType = uint16_t>
 class DynamicQueue
@@ -99,6 +109,9 @@ class DynamicQueue
 
   /// Reduces memory usage by releasing unused capacity, if possible.
   void shrink_to_fit() { deque_.shrink_to_fit(); }
+
+  /// @copydoc DynamicDeque::reset
+  void reset() { deque_.reset(); }
 
   /// Swaps the contents with another queue.
   void swap(DynamicQueue& other) { deque_.swap(other.deque_); }

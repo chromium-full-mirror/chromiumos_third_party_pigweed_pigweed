@@ -54,6 +54,16 @@ namespace pw {
 ///   Erasing an element moves the last element of the map into the erased
 ///   position, changing the iteration order.
 /// - Never allocates in the constructor.
+///
+/// @warning The container's allocator MUST outlive the container, unless one of
+/// the following steps is taken:
+/// - Call `reset()` to free all memory, including the underlying buffer, and
+///   make no further modifications to the container.
+/// - Assign from a container with a different allocator (e.g. `NullAllocator`)
+///   before the first allocator goes out of scope.
+///
+/// @warning Calling `clear()` is NOT sufficient; an empty container may still
+/// hold a pointer to an allocated buffer.
 template <typename Key,
           typename Value,
           typename Hash = pw::Hash,
@@ -227,6 +237,12 @@ class DynamicHashMap {
   void clear() {
     nodes_.clear();
     buckets_.clear();
+  }
+
+  /// @copydoc DynamicDeque::reset
+  void reset() {
+    nodes_.reset();
+    buckets_.reset();
   }
 
   /// Attempts to insert a value into the map.

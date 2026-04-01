@@ -52,6 +52,16 @@ namespace pw {
 /// - Compact representation when used with a `size_type` of `uint8_t` or
 ///   `uint16_t`.
 /// - Uses `pw::Allocator::Resize()` when possible to maximize efficiency.
+///
+/// @warning The container's allocator MUST outlive the container, unless one of
+/// the following steps is taken:
+/// - Call `reset()` to free all memory, including the underlying buffer, and
+///   make no further modifications to the container.
+/// - Assign from a container with a different allocator (e.g. `NullAllocator`)
+///   before the first allocator goes out of scope.
+///
+/// @warning Calling `clear()` is NOT sufficient; an empty container may still
+/// hold a pointer to an allocated buffer.
 template <typename ValueType, typename SizeType = uint16_t>
 class DynamicDeque
     : public containers::internal::
@@ -164,8 +174,23 @@ class DynamicDeque
     PW_ASSERT(try_reserve_exact(new_capacity));
   }
 
-  /// Attempts to reduce `capacity()` to `size()`. Not guaranteed to succeed.
+  /// Attempts to reduce `capacity()` to `size()`. Always succeeds when the
+  /// container is empty, but is not guaranteed to succeed otherwise.
   void shrink_to_fit();
+
+  /// @brief Clears the deque and deallocates its buffer.
+  ///
+  /// `reset()` destroys all elements and deallocates the underlying buffer,
+  /// returning the container to a state where it uses no memory. This is
+  /// equivalent to calling `clear()` and `shrink_to_fit()`.
+  ///
+  /// After calling `reset()`, the container can be reused, but if the
+  /// allocator has been destroyed, it must not be used for any operations
+  /// that require allocation (including destruction if it still held items).
+  void reset() {
+    Base::clear();
+    DeallocateBuffer();
+  }
 
   constexpr size_type max_size() const noexcept {
     return std::numeric_limits<size_type>::max();
@@ -210,6 +235,12 @@ class DynamicDeque
   }
 
   bool ReallocateBuffer(size_type new_capacity);
+
+  void DeallocateBuffer() {
+    allocator_->Deallocate(buffer_);
+    buffer_ = nullptr;
+    Base::HandleShrunkBuffer(0);
+  }
 
   Allocator* allocator_;
   std::byte* buffer_;  // raw array for in-place construction and destruction
@@ -262,9 +293,7 @@ void DynamicDeque<ValueType, SizeType>::shrink_to_fit() {
   }
 
   if (Base::empty()) {  // Empty deque, but a buffer_ is allocated; free it
-    allocator_->Deallocate(buffer_);
-    buffer_ = nullptr;
-    Base::HandleShrunkBuffer(0);
+    DeallocateBuffer();
     return;
   }
 
@@ -276,6 +305,7 @@ void DynamicDeque<ValueType, SizeType>::shrink_to_fit() {
       allocator_->Resize(buffer_, Base::size() * sizeof(value_type))) {
     Base::HandleShrunkBuffer(Base::size());
   } else {
+    // TODO: b/498348047 - Consider dering + resize or simply giving up.
     ReallocateBuffer(Base::size());
   }
 }

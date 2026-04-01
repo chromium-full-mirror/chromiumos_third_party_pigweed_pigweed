@@ -44,6 +44,16 @@ namespace pw {
 /// - Compact representation when used with a `size_type` of `uint16_t`.
 /// - Uses `pw::Allocator::Resize()` when possible to maximize efficiency.
 ///
+/// @warning The container's allocator MUST outlive the container, unless one of
+/// the following steps is taken:
+/// - Call `reset()` to free all memory, including the underlying buffer, and
+///   make no further modifications to the container.
+/// - Assign from a container with a different allocator (e.g. `NullAllocator`)
+///   before the first allocator goes out of scope.
+///
+/// @warning Calling `clear()` is NOT sufficient; an empty container may still
+/// hold a pointer to an allocated buffer.
+///
 /// @note `pw::DynamicVector` is currently implemented as a wrapper around
 /// `pw::DynamicDeque`. Some operations are more expensive than they need to be,
 /// and `DynamicVector` objects are larger than necessary. This overhead will be
@@ -561,6 +571,9 @@ class DynamicVector {
 
   /// Removes all elements from the vector.
   void clear() { deque_.clear(); }
+
+  /// @copydoc DynamicDeque::reset
+  void reset() { deque_.reset(); }
 
   /// Swaps the contents with another DynamicVector.
   ///

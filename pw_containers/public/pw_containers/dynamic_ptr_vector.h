@@ -35,6 +35,17 @@ namespace pw {
 ///
 /// The interface mirrors `std::vector<T>`, but the underlying storage is
 /// `DynamicVector<T*>`.
+///
+/// @warning The container's allocator MUST outlive the container, unless one of
+/// the following steps is taken:
+/// - Call `reset()` to free all memory, including the underlying buffer, and
+///   make no further modifications to the container.
+/// - Assign from a container with a different allocator (e.g. `NullAllocator`)
+///   before the first allocator goes out of scope.
+///
+/// @warning Calling `clear()` is NOT sufficient; an empty container may still
+/// hold a pointer to an allocated buffer.
+///
 template <typename T, typename SizeType = uint16_t>
 class DynamicPtrVector {
  public:
@@ -388,6 +399,12 @@ class DynamicPtrVector {
       Delete(ptr);
     }
     vector_.clear();
+  }
+
+  /// @copydoc DynamicDeque::reset
+  void reset() {
+    clear();
+    vector_.reset();
   }
 
   /// Swaps the contents of this `DynamicPtrVector` with another one.

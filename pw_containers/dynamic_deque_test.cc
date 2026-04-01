@@ -205,6 +205,30 @@ TEST_F(DynamicDequeTest, Move_MovesBufferWithoutAllocation) {
   EXPECT_EQ(deque_2_first, &deque_1.front());
 }
 
+TEST_F(DynamicDequeTest, MoveAssign_DestroysOldElementsAndFreesBuffer) {
+  pw::DynamicDeque<Counter> deque_1(allocator_);
+  pw::DynamicDeque<Counter> deque_2(allocator_);
+
+  ASSERT_TRUE(deque_1.try_push_back(1));
+  ASSERT_TRUE(deque_1.try_push_back(2));
+
+  ASSERT_TRUE(deque_2.try_push_back(3));
+  ASSERT_TRUE(deque_2.try_push_back(4));
+  ASSERT_TRUE(deque_2.try_push_back(5));
+
+  ASSERT_EQ(deque_1.size(), 2u);
+  ASSERT_EQ(deque_2.size(), 3u);
+
+  Counter::Reset();
+  const size_t initial_bytes = allocator_for_test_.GetAllocated();
+
+  deque_1 = std::move(deque_2);
+
+  EXPECT_EQ(deque_1.size(), 3u);
+  EXPECT_EQ(Counter::destroyed, 2);
+  EXPECT_LT(allocator_for_test_.GetAllocated(), initial_bytes);
+}
+
 TEST_F(DynamicDequeTest, Capacity_ReserveExactBeforeBufferIsAllocated) {
   pw::DynamicDeque<int> deque(allocator_);
 
@@ -316,6 +340,20 @@ TEST_F(DynamicDequeTest, Capacity_ShrinkToFitEmptyFreesBuffer) {
   deque.shrink_to_fit();
 
   ASSERT_EQ(deque.capacity(), 0u);
+}
+
+TEST_F(DynamicDequeTest, Reset_DestroysElementsAndFreesBuffer) {
+  pw::DynamicDeque<Counter> deque(allocator_);
+  deque.push_back(1);
+  deque.push_back(2);
+  ASSERT_EQ(deque.size(), 2u);
+  Counter::Reset();
+
+  deque.reset();
+
+  EXPECT_EQ(deque.size(), 0u);
+  EXPECT_EQ(deque.capacity(), 0u);
+  EXPECT_EQ(Counter::destroyed, 2);
 }
 
 TEST_F(DynamicDequeTest, Capacity_ShrinkToFailsSilentlyIfCannotShrink) {

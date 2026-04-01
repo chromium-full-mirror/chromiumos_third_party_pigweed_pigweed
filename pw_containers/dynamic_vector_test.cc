@@ -574,6 +574,41 @@ TEST_F(DynamicVectorTest, Clear) {
   EXPECT_EQ(vec.size(), 0u);
 }
 
+TEST_F(DynamicVectorTest, Reset) {
+  pw::DynamicVector<Counter> vec(allocator_);
+  vec.assign({1, 2, 3});
+  EXPECT_FALSE(vec.empty());
+  Counter::Reset();
+
+  vec.reset();
+
+  EXPECT_TRUE(vec.empty());
+  EXPECT_EQ(vec.size(), 0u);
+  EXPECT_EQ(vec.capacity(), 0u);
+  EXPECT_EQ(vec.data(), nullptr);
+  EXPECT_EQ(Counter::destroyed, 3);
+}
+
+TEST_F(DynamicVectorTest, MoveAssign_DestroysOldElementsAndFreesBuffer) {
+  pw::DynamicVector<Counter> vec1(allocator_);
+  pw::DynamicVector<Counter> vec2(allocator_);
+
+  vec1.assign({1, 2});
+  vec2.assign({3, 4, 5});
+
+  ASSERT_EQ(vec1.size(), 2u);
+  ASSERT_EQ(vec2.size(), 3u);
+
+  Counter::Reset();
+  const size_t initial_bytes = allocator_for_test_.GetAllocated();
+
+  vec1 = std::move(vec2);
+
+  EXPECT_EQ(vec1.size(), 3u);
+  EXPECT_EQ(Counter::destroyed, 2);
+  EXPECT_LT(allocator_for_test_.GetAllocated(), initial_bytes);
+}
+
 TEST_F(DynamicVectorTest, Swap) {
   pw::DynamicVector<Counter> vec1(allocator_);
   vec1.assign({1, 2});

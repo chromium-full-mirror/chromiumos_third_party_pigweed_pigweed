@@ -200,6 +200,45 @@ TEST_F(DynamicQueueTest, ShrinkToFit) {
   EXPECT_GE(queue.capacity(), 0u);
 }
 
+TEST_F(DynamicQueueTest, Reset) {
+  pw::DynamicQueue<Counter> queue(allocator_);
+  queue.push(1);
+  queue.push(2);
+  EXPECT_FALSE(queue.empty());
+  Counter::Reset();
+
+  queue.reset();
+
+  EXPECT_TRUE(queue.empty());
+  EXPECT_EQ(queue.size(), 0u);
+  EXPECT_EQ(queue.capacity(), 0u);
+  EXPECT_EQ(Counter::destroyed, 2);
+}
+
+TEST_F(DynamicQueueTest, MoveAssign_DestroysOldElementsAndFreesBuffer) {
+  pw::DynamicQueue<Counter> queue1(allocator_);
+  pw::DynamicQueue<Counter> queue2(allocator_);
+
+  queue1.push(1);
+  queue1.push(2);
+
+  queue2.push(3);
+  queue2.push(4);
+  queue2.push(5);
+
+  ASSERT_EQ(queue1.size(), 2u);
+  ASSERT_EQ(queue2.size(), 3u);
+
+  Counter::Reset();
+  const size_t initial_bytes = allocator_for_test_.GetAllocated();
+
+  queue1 = std::move(queue2);
+
+  EXPECT_EQ(queue1.size(), 3u);
+  EXPECT_EQ(Counter::destroyed, 2);
+  EXPECT_LT(allocator_for_test_.GetAllocated(), initial_bytes);
+}
+
 TEST_F(DynamicQueueTest, Capacity) {
   pw::DynamicQueue<int> queue(allocator_);
 
