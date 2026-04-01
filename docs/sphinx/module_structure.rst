@@ -230,9 +230,22 @@ not already defined, a default definition is provided. Otherwise, nothing is
 done. Configuration headers may include ``static_assert`` statements to validate
 configuration values.
 
+All configuration headers **must** include a check for a user-provided override
+header. This allows a project to override configuration options with a header
+file, rather than through individual defines. Bazel does not support propagating
+compiler options like ``-include``, so this is the only way to provide a config
+override header.
+
+The override header check should be placed before any default definitions.
+
 .. code-block:: c++
 
    // Example configuration header
+
+   /// User-provided header to optionally override options in this file.
+   #if defined(PW_FOO_CONFIG_HEADER)
+   #include PW_FOO_CONFIG_HEADER
+   #endif  // defined(PW_FOO_CONFIG_HEADER)
 
    #ifndef PW_FOO_INPUT_BUFFER_SIZE_BYTES
    #define PW_FOO_INPUT_BUFFER_SIZE_BYTES 128
@@ -357,8 +370,6 @@ named ``config``, that by default points to the
      build_setting_default = "//pw_build:default_module_config",
    )
 
-
-
 Overriding configuration
 ^^^^^^^^^^^^^^^^^^^^^^^^
 As noted above, all module configuration facades default to the same backend
@@ -370,11 +381,14 @@ individual module configurations (e.g. in GN, ``pw_foo_CONFIG =
 "//configuration:my_foo_config"``, in Bazel
 ``--//pw_foo:config=//configuration:my_foo_config``).
 
-Configurations options are overridden by setting macros in the config backend.
-In Bazel, the only supported override mechanism are compilation options, such
-as ``-DPW_FOO_INPUT_BUFFER_SIZE_BYTES=256``. In GN and CMake, configuration
-macro definitions may also be set in a header file. The header file is included
-using the ``-include`` compilation option.
+Configuration options are overridden by setting macros in the config backend.
+Override a module's config by setting its configuration header macro (e.g.
+``PW_FOO_CONFIG_HEADER``) to point to a header that provides macro overrides.
+Configuration options may also be set directly  with macro definitions in the
+build system (e.g. ``-DPW_FOO_INPUT_BUFFER_SIZE_BYTES=256``), though its better
+to use a header when the module supports it. It is not recommended to to use
+compilation options like ``-include`` since these are not supported in all build
+systems (including Bazel).
 
 GN config override example
 ..........................

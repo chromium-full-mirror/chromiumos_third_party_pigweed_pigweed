@@ -21,6 +21,11 @@
 
 /// @module{pw_function}
 
+/// User-provided header to optionally override options in this file.
+#if defined(PW_FUNCTION_CONFIG_HEADER)
+#include PW_FUNCTION_CONFIG_HEADER
+#endif  // defined(PW_FUNCTION_CONFIG_HEADER)
+
 // The maximum size of a callable that can be inlined within a function.
 // Callables larger than this are stored externally to the function (if dynamic
 // allocation is enabled).
