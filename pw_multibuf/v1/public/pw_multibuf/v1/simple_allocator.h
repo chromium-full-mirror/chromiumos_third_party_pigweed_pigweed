@@ -90,6 +90,10 @@ class PW_MULTIBUF_DEPRECATED SimpleAllocator : public MultiBufAllocator {
   /// alignment provided at construction.
   constexpr size_t alignment() const { return alignment_; }
 
+ protected:
+  // This no-op method is provided to match the v1_adapter interface.
+  constexpr void Reset() {}
+
  private:
   pw::Result<MultiBuf> DoAllocate(
       size_t min_size,

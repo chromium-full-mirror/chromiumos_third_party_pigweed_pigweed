@@ -38,6 +38,8 @@ class SimpleAllocatorForTest : public SimpleAllocator {
   SimpleAllocatorForTest()
       : SimpleAllocator(data_area_, meta_alloc_), meta_alloc_(alloc_) {}
 
+  ~SimpleAllocatorForTest() override { SimpleAllocator::Reset(); }
+
   /// Allocates a `MultiBuf` and initializes its contents to the provided data.
   MultiBuf BufWith(std::initializer_list<std::byte> data) {
     std::optional<MultiBuf> buffer = Allocate(data.size());

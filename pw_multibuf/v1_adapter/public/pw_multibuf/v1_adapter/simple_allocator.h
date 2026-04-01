@@ -50,6 +50,9 @@ class SimpleAllocator : public MultiBufAllocator {
   [[nodiscard]] bool TryReserveRegions(size_t num_regions)
       PW_LOCKS_EXCLUDED(mutex_);
 
+ protected:
+  void Reset() PW_LOCKS_EXCLUDED(mutex_);
+
  private:
   /// A chunk allocator that can split and merge free sub-regions.
   class SimpleChunkAllocator : public internal::ChunkAllocator {
@@ -73,6 +76,9 @@ class SimpleAllocator : public MultiBufAllocator {
     /// @copydoc SimpleAllocator::TryReserveRegions
     [[nodiscard]] bool TryReserveRegions(size_t num_regions);
 
+    /// Return this object to a pre-`Init` state.
+    void Reset();
+
    private:
     using iterator = DynamicVector<Region>::iterator;
 
@@ -90,10 +96,12 @@ class SimpleAllocator : public MultiBufAllocator {
     /// to the merged region.
     iterator Merge(iterator left, iterator right);
 
-    size_t available_;
+    size_t available_ = 0;
 
     /// A heap-allocated sequence of possibly-allocated memory regions. The
     /// regions are contiguous and in aggregate are equivalent to the arena.
+    /// The vector is wrapped in an optional to allow resetting it, e.g. to
+    /// allow its allocator to go out of scope.
     DynamicVector<Region> subregions_;
   };
 

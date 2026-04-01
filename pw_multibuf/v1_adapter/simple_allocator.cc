@@ -24,6 +24,11 @@ namespace pw::multibuf::v1_adapter {
 ////////////////////////////////////////////////////////////////////////////////
 // SimpleAllocator methods.
 
+void SimpleAllocator::Reset() {
+  std::lock_guard lock(mutex_);
+  chunk_allocator_.Reset();
+}
+
 bool SimpleAllocator::TryReserveRegions(size_t num_regions) {
   std::lock_guard lock(mutex_);
   return chunk_allocator_.TryReserveRegions(num_regions);
@@ -34,7 +39,7 @@ std::optional<MultiBuf> SimpleAllocator::DoAllocate(size_t min_size,
                                                     bool contiguous) {
   // First, check if this request is even feasible.
   if (desired_size == 0) {
-    return std::make_optional<MultiBuf>();
+    return std::make_optional(MultiBuf());
   }
 
   std::lock_guard lock(mutex_);
@@ -88,19 +93,14 @@ std::optional<size_t> SimpleAllocator::DoGetBackingCapacity() {
 SimpleAllocator::SimpleChunkAllocator::SimpleChunkAllocator(
     ByteSpan region, Allocator& metadata_allocator, size_t alignment)
     : ChunkAllocator(metadata_allocator, alignment),
-      available_(buffer().size()),
       subregions_(metadata_allocator) {
   SetRegion(region);
 }
 
 SimpleAllocator::SimpleChunkAllocator::~SimpleChunkAllocator() {
-  PW_CHECK_UINT_LE(subregions_.size(), 1);
   if (!subregions_.empty()) {
-    ByteSpan buffer = ChunkAllocator::buffer();
-    Region& first = subregions_.front();
-    PW_CHECK_PTR_EQ(first.data, buffer.data());
-    PW_CHECK_UINT_EQ(first.size, buffer.size());
-    PW_CHECK(first.free);
+    PW_CHECK_UINT_EQ(subregions_.size(), 1);
+    PW_CHECK(subregions_.front().free);
   }
 }
 
@@ -108,10 +108,11 @@ bool SimpleAllocator::SimpleChunkAllocator::Init() {
   if (!subregions_.empty()) {
     return true;
   }
-  ByteSpan buffer = ChunkAllocator::buffer();
   if (!TryReserveRegions(4)) {
     return false;
   }
+  ByteSpan buffer = ChunkAllocator::buffer();
+  available_ = buffer.size();
   subregions_.push_back(Region());
   Region& first = subregions_.back();
   first.data = buffer.data();
@@ -138,6 +139,11 @@ bool SimpleAllocator::SimpleChunkAllocator::TryReserveRegions(
     size_t num_regions) {
   PW_CHECK_UINT_LE(num_regions, std::numeric_limits<uint16_t>::max());
   return subregions_.try_reserve(static_cast<uint16_t>(num_regions));
+}
+
+void SimpleAllocator::SimpleChunkAllocator::Reset() {
+  subregions_.reset();
+  available_ = 0;
 }
 
 auto SimpleAllocator::SimpleChunkAllocator::AllocateRegion(size_t min_size,
