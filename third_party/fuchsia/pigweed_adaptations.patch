@@ -75,7 +75,7 @@ diff --git a/third_party/fuchsia/repo/sdk/lib/fit/include/lib/fit/internal/resul
  namespace fit {
 
  // Forward declarations.
-@@ -440,4 +445,6 @@ using storage = storage_type<storage_class_trait<E, Ts...>, E, Ts...>;
+@@ -458,4 +463,6 @@ using storage = storage_type<storage_class_trait<E, Ts...>, E, Ts...>;
  }  // namespace internal
  }  // namespace fit
 
@@ -140,7 +140,7 @@ diff --git a/third_party/fuchsia/repo/sdk/lib/fit/include/lib/fit/result.h b/thi
  namespace fit {
 
  // Convenience type to indicate failure without elaboration.
-@@ -278,25 +284,25 @@ class [[nodiscard]] result<E, T> {
+@@ -282,25 +288,25 @@ class [[nodiscard]] result<E, T> {
      if (is_error()) {
        return storage_.error_or_value.error;
      }
@@ -170,7 +170,7 @@ diff --git a/third_party/fuchsia/repo/sdk/lib/fit/include/lib/fit/result.h b/thi
    }
 
    // Moves the underlying error and returns it as an instance of fit::error, simplifying
-@@ -307,7 +313,7 @@ class [[nodiscard]] result<E, T> {
+@@ -311,7 +317,7 @@ class [[nodiscard]] result<E, T> {
      if (is_error()) {
        return error<E>(std::move(storage_.error_or_value.error));
      }
@@ -179,7 +179,7 @@ diff --git a/third_party/fuchsia/repo/sdk/lib/fit/include/lib/fit/result.h b/thi
    }
 
    // Accessors for the underlying value.
-@@ -317,25 +323,25 @@ class [[nodiscard]] result<E, T> {
+@@ -321,25 +327,25 @@ class [[nodiscard]] result<E, T> {
      if (is_ok()) {
        return storage_.error_or_value.value;
      }
@@ -209,7 +209,7 @@ diff --git a/third_party/fuchsia/repo/sdk/lib/fit/include/lib/fit/result.h b/thi
    }
 
    // Moves the underlying value and returns it as an instance of fit::success, simplifying
-@@ -346,7 +352,7 @@ class [[nodiscard]] result<E, T> {
+@@ -350,7 +356,7 @@ class [[nodiscard]] result<E, T> {
      if (is_ok()) {
        return success<T>(std::move(storage_.error_or_value.value));
      }
@@ -218,7 +218,7 @@ diff --git a/third_party/fuchsia/repo/sdk/lib/fit/include/lib/fit/result.h b/thi
    }
 
    // Contingent accessors for the underlying value.
-@@ -375,13 +381,13 @@ class [[nodiscard]] result<E, T> {
+@@ -379,13 +385,13 @@ class [[nodiscard]] result<E, T> {
      if (is_ok()) {
        return ::fit::internal::arrow_operator<T>::forward(storage_.error_or_value.value);
      }
@@ -234,7 +234,7 @@ diff --git a/third_party/fuchsia/repo/sdk/lib/fit/include/lib/fit/result.h b/thi
    }
 
    // Accessors for the underlying value. This is a syntax sugar for value().
-@@ -404,7 +410,7 @@ class [[nodiscard]] result<E, T> {
+@@ -408,7 +414,7 @@ class [[nodiscard]] result<E, T> {
        storage_.error_or_value.error += std::move(error.value_);
        return *this;
      }
@@ -243,7 +243,7 @@ diff --git a/third_party/fuchsia/repo/sdk/lib/fit/include/lib/fit/result.h b/thi
    }
 
    // Maps a result<E, T> to a result<E2, T> by transforming the error through
-@@ -515,25 +521,25 @@ class [[nodiscard]] result<E> {
+@@ -519,25 +525,25 @@ class [[nodiscard]] result<E> {
      if (is_error()) {
        return storage_.error_or_value.error;
      }
@@ -273,7 +273,7 @@ diff --git a/third_party/fuchsia/repo/sdk/lib/fit/include/lib/fit/result.h b/thi
    }
 
    // Moves the underlying error and returns it as an instance of fit::error, simplifying
-@@ -544,7 +550,7 @@ class [[nodiscard]] result<E> {
+@@ -548,7 +554,7 @@ class [[nodiscard]] result<E> {
      if (is_error()) {
        return error<E>(std::move(storage_.error_or_value.error));
      }
@@ -282,7 +282,7 @@ diff --git a/third_party/fuchsia/repo/sdk/lib/fit/include/lib/fit/result.h b/thi
    }
 
    // Augments the error value of the result with the given value. The operator E::operator+=(F) must
-@@ -558,7 +564,7 @@ class [[nodiscard]] result<E> {
+@@ -562,7 +568,7 @@ class [[nodiscard]] result<E> {
        storage_.error_or_value.error += std::move(error.value_);
        return *this;
      }
@@ -291,7 +291,7 @@ diff --git a/third_party/fuchsia/repo/sdk/lib/fit/include/lib/fit/result.h b/thi
    }
 
    // Maps a result<E, T> to a result<E2, T> by transforming the error through
-@@ -793,4 +799,6 @@ constexpr bool operator>=(const T& lhs, const result<F, U>& rhs) {
+@@ -797,4 +803,6 @@ constexpr bool operator>=(const T& lhs, const result<F, U>& rhs) {
 
  }  // namespace fit
 
