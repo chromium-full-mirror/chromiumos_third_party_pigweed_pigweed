@@ -451,7 +451,8 @@ void LowEnergyConnector::OnConnectionCompleteEvent(const EventPacket& event) {
                                             peer_address,
                                             connection_params,
                                             role,
-                                            hci_);
+                                            hci_,
+                                            pw_dispatcher_);
 
   Result<> result = fit::ok();
   if (pending_request_->timed_out) {

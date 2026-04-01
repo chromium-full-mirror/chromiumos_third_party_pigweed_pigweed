@@ -16,10 +16,10 @@
 
 #include <cstdint>
 
+#include "pw_async/dispatcher.h"
 #include "pw_bluetooth_sapphire/internal/host/common/weak_self.h"
 #include "pw_bluetooth_sapphire/internal/host/hci-spec/protocol.h"
 #include "pw_bluetooth_sapphire/internal/host/iso/iso_common.h"
-#include "pw_bluetooth_sapphire/internal/host/transport/command_channel.h"
 #include "pw_bluetooth_sapphire/internal/host/transport/transport.h"
 #include "pw_bytes/span.h"
 
@@ -64,10 +64,10 @@ class IsoStream : public hci::IsoDataChannel::ConnectionInterface {
       uint8_t cis_id,
       hci_spec::ConnectionHandle cis_handle,
       hci::Transport::WeakPtr hci,
+      pw::async::Dispatcher& dispatcher,
       CisEstablishedCallback on_established_cb,
       pw::Callback<void()> on_closed_cb,
-      pw::bluetooth_sapphire::LeaseProvider& wake_lease_provider,
-      pw::chrono::VirtualSystemClock& clock);
+      pw::bluetooth_sapphire::LeaseProvider& wake_lease_provider);
 
   // Used by the client to check for queued frames. If none are present the
   // incoming data available callback will be called the next time a frame is

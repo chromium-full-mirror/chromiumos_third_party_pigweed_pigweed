@@ -13,6 +13,7 @@
 // the License.
 
 #pragma once
+#include "pw_async/dispatcher.h"
 #include "pw_bluetooth_sapphire/internal/host/hci/advertising_handle_map.h"
 #include "pw_bluetooth_sapphire/internal/host/hci/low_energy_advertiser.h"
 
@@ -37,6 +38,7 @@ class AndroidExtendedLowEnergyAdvertiser final : public LowEnergyAdvertiser {
   // hci_spec::vendor::android::LEGetVendorCapabilities) should be passed to the
   // constructor via the max_advertisements parameter.
   explicit AndroidExtendedLowEnergyAdvertiser(hci::Transport::WeakPtr hci,
+                                              pw::async::Dispatcher& dispatcher,
                                               uint8_t max_advertisements);
   ~AndroidExtendedLowEnergyAdvertiser() override;
 

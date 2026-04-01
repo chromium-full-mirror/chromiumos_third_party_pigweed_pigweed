@@ -56,6 +56,7 @@ class ExtendedLowEnergyAdvertiserTest : public TestingBase {
 
     advertiser_ = std::make_unique<ExtendedLowEnergyAdvertiser>(
         transport()->GetWeakPtr(),
+        dispatcher(),
         hci_spec::kMaxLEExtendedAdvertisingDataLength);
   }
 
@@ -445,7 +446,9 @@ TEST_F(ExtendedLowEnergyAdvertiserTest, AdvertisingDataLargerThanConfigured) {
   // the entire test API in this file to be able to reset the advertiser.
   std::unique_ptr<ExtendedLowEnergyAdvertiser> advertiser =
       std::make_unique<ExtendedLowEnergyAdvertiser>(
-          transport()->GetWeakPtr(), hci_spec::kMaxLEAdvertisingDataLength);
+          transport()->GetWeakPtr(),
+          dispatcher(),
+          hci_spec::kMaxLEAdvertisingDataLength);
 
   AdvertisingData ad = GetExampleDataMultiplePDUs();
   AdvertisingData scan_data;
@@ -476,7 +479,9 @@ TEST_F(ExtendedLowEnergyAdvertiserTest, ScanResponseDataLargerThanConfigured) {
   // the entire test API in this file to be able to reset the advertiser.
   std::unique_ptr<ExtendedLowEnergyAdvertiser> advertiser =
       std::make_unique<ExtendedLowEnergyAdvertiser>(
-          transport()->GetWeakPtr(), hci_spec::kMaxLEAdvertisingDataLength);
+          transport()->GetWeakPtr(),
+          dispatcher(),
+          hci_spec::kMaxLEAdvertisingDataLength);
 
   AdvertisingData ad;
   AdvertisingData scan_data = GetExampleDataMultiplePDUs();

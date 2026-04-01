@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include "pw_async/dispatcher.h"
 #include "pw_bluetooth_sapphire/internal/host/common/weak_self.h"
 #include "pw_bluetooth_sapphire/internal/host/hci-spec/protocol.h"
 #include "pw_bluetooth_sapphire/internal/host/iso/iso_common.h"
@@ -32,9 +33,9 @@ class IsoStreamManager final : public CigStreamCreator {
   explicit IsoStreamManager(
       hci_spec::ConnectionHandle handle,
       hci::Transport::WeakPtr hci,
-      pw::bluetooth_sapphire::LeaseProvider& wake_lease_provider,
-      pw::chrono::VirtualSystemClock& clock);
-  ~IsoStreamManager();
+      pw::async::Dispatcher& dispatcher,
+      pw::bluetooth_sapphire::LeaseProvider& wake_lease_provider);
+  ~IsoStreamManager() override;
 
   // Start waiting on an incoming request to create an Isochronous channel for
   // the specified CIG/CIS |id|. If we are already waiting on |id|, or if a
@@ -85,6 +86,8 @@ class IsoStreamManager final : public CigStreamCreator {
 
   hci::Transport::WeakPtr hci_;
 
+  pw::async::Dispatcher& dispatcher_;
+
   pw::bluetooth_sapphire::LeaseProvider& wake_lease_provider_;
 
   // The streams that we are currently waiting on, and the associated callback
@@ -94,8 +97,6 @@ class IsoStreamManager final : public CigStreamCreator {
 
   // All of the allocated streams.
   std::unordered_map<CigCisIdentifier, std::unique_ptr<IsoStream>> streams_;
-
-  pw::chrono::VirtualSystemClock& clock_;
 
   WeakSelf<IsoStreamManager> weak_self_;
 

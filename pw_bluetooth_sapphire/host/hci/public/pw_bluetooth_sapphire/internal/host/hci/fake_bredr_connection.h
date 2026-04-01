@@ -13,6 +13,7 @@
 // the License.
 
 #pragma once
+#include "pw_async/dispatcher.h"
 #include "pw_bluetooth_sapphire/internal/host/hci/bredr_connection.h"
 
 namespace bt::hci::testing {
@@ -23,7 +24,8 @@ class FakeBrEdrConnection final : public BrEdrConnection {
                       const DeviceAddress& local_address,
                       const DeviceAddress& peer_address,
                       pw::bluetooth::emboss::ConnectionRole role,
-                      const hci::Transport::WeakPtr& hci);
+                      const hci::Transport::WeakPtr& hci,
+                      pw::async::Dispatcher& dispatcher);
 
   // Triggers the encryption change callback.
   void TriggerEncryptionChangeCallback(hci::Result<bool> result);

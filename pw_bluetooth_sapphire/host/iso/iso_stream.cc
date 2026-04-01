@@ -89,10 +89,10 @@ class IsoStreamImpl final : public IsoStream {
                 uint8_t cis_id,
                 hci_spec::ConnectionHandle cis_handle,
                 hci::Transport::WeakPtr hci,
+                pw::async::Dispatcher& dispatcher,
                 CisEstablishedCallback on_established_cb,
                 pw::Callback<void()> on_closed_cb,
-                pw::bluetooth_sapphire::LeaseProvider& wake_lease_provider,
-                pw::chrono::VirtualSystemClock& clock);
+                pw::bluetooth_sapphire::LeaseProvider& wake_lease_provider);
 
   // IsoStream overrides
   bool OnCisEstablished(const hci::EventPacket& event) override;
@@ -178,11 +178,10 @@ class IsoStreamImpl final : public IsoStream {
   // Created on HCI_LE_CIS_Established event with success status.
   std::optional<hci::Connection> link_;
   hci::Transport::WeakPtr hci_;
+  pw::async::Dispatcher& dispatcher_;
 
   std::optional<pw::bluetooth_sapphire::Lease> wake_lease_;
   pw::bluetooth_sapphire::LeaseProvider& wake_lease_provider_;
-
-  pw::chrono::VirtualSystemClock& clock_;
 
   WeakSelf<IsoStreamImpl> weak_self_;
   BT_DISALLOW_COPY_AND_ASSIGN_ALLOW_MOVE(IsoStreamImpl);
@@ -193,10 +192,10 @@ IsoStreamImpl::IsoStreamImpl(
     uint8_t cis_id,
     hci_spec::ConnectionHandle cis_handle,
     hci::Transport::WeakPtr hci,
+    pw::async::Dispatcher& dispatcher,
     CisEstablishedCallback on_established_cb,
     pw::Callback<void()> on_closed_cb,
-    pw::bluetooth_sapphire::LeaseProvider& wake_lease_provider,
-    pw::chrono::VirtualSystemClock& clock)
+    pw::bluetooth_sapphire::LeaseProvider& wake_lease_provider)
     : IsoStream(),
       state_(IsoStreamState::kNotEstablished),
       cig_id_(cig_id),
@@ -207,8 +206,8 @@ IsoStreamImpl::IsoStreamImpl(
           fit::bind_member<&IsoStreamImpl::HandleCompletePacket>(this)),
       on_closed_cb_(std::move(on_closed_cb)),
       hci_(std::move(hci)),
+      dispatcher_(dispatcher),
       wake_lease_provider_(wake_lease_provider),
-      clock_(clock),
       weak_self_(this) {
   PW_CHECK(hci_.is_alive());
 
@@ -269,7 +268,8 @@ bool IsoStreamImpl::OnCisEstablished(const hci::EventPacket& event) {
                                     cis_handle = cis_hci_handle_]() {
     hci->iso_data_channel()->ClearControllerPacketCount(cis_handle);
   };
-  link_.emplace(cis_hci_handle_, hci_, std::move(on_disconnection_complete));
+  link_.emplace(
+      cis_hci_handle_, hci_, dispatcher_, std::move(on_disconnection_complete));
   link_->set_peer_disconnect_callback(
       [this](const hci::Connection&, pw::bluetooth::emboss::StatusCode) {
         bt_log(INFO, "iso", "CIS Disconnected at handle %#x", cis_hci_handle_);
@@ -303,7 +303,7 @@ bool IsoStreamImpl::OnCisEstablished(const hci::EventPacket& event) {
 
   cis_established_cb_(status, GetWeakPtr(), cis_params_);
 
-  reference_time_ = clock_.now();
+  reference_time_ = dispatcher_.now();
 
   iso_interval_usec_ = cis_params_.iso_interval *
                        CisEstablishedParameters::kIsoIntervalToMicroseconds;
@@ -580,7 +580,7 @@ void IsoStreamImpl::Send(pw::ConstByteSpan data) {
       hci_->iso_data_channel()->buffer_info().max_data_length();
 
   // Calculate the current interval sequence number
-  auto now = clock_.now();
+  auto now = dispatcher_.now();
   auto elapsed_time = now - reference_time_;
   uint64_t elapsed_usec =
       std::chrono::duration_cast<std::chrono::microseconds>(elapsed_time)
@@ -661,18 +661,18 @@ std::unique_ptr<IsoStream> IsoStream::Create(
     uint8_t cis_id,
     hci_spec::ConnectionHandle cis_handle,
     hci::Transport::WeakPtr hci,
+    pw::async::Dispatcher& dispatcher,
     CisEstablishedCallback on_established_cb,
     pw::Callback<void()> on_closed_cb,
-    pw::bluetooth_sapphire::LeaseProvider& wake_lease_provider,
-    pw::chrono::VirtualSystemClock& clock) {
+    pw::bluetooth_sapphire::LeaseProvider& wake_lease_provider) {
   return std::make_unique<IsoStreamImpl>(cig_id,
                                          cis_id,
                                          cis_handle,
                                          std::move(hci),
+                                         dispatcher,
                                          std::move(on_established_cb),
                                          std::move(on_closed_cb),
-                                         wake_lease_provider,
-                                         clock);
+                                         wake_lease_provider);
 }
 
 }  // namespace bt::iso

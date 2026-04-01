@@ -16,6 +16,7 @@
 
 #include <cinttypes>
 
+#include "pw_async/dispatcher.h"
 #include "pw_bluetooth_sapphire/internal/host/common/identifier.h"
 #include "pw_bluetooth_sapphire/internal/host/common/weak_self.h"
 #include "pw_bluetooth_sapphire/internal/host/hci-spec/protocol.h"
@@ -56,7 +57,8 @@ class ScoConnectionManager final {
                        hci_spec::ConnectionHandle acl_handle,
                        DeviceAddress peer_address,
                        DeviceAddress local_address,
-                       hci::Transport::WeakPtr transport);
+                       hci::Transport::WeakPtr transport,
+                       pw::async::Dispatcher& dispatcher);
   // Closes connections and cancels connection requests.
   ~ScoConnectionManager();
 
@@ -201,6 +203,7 @@ class ScoConnectionManager final {
   hci_spec::ConnectionHandle acl_handle_;
 
   hci::Transport::WeakPtr transport_;
+  pw::async::Dispatcher& dispatcher_;
 
   // Keep this as the last member to make sure that all weak pointers are
   // invalidated before other members get destroyed.

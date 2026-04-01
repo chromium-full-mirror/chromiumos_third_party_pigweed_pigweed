@@ -137,7 +137,8 @@ class LowEnergyConnectorTest : public TestingBase,
             kLocalAddress,
             peer_address,
             role,
-            transport()->GetWeakPtr()));
+            transport()->GetWeakPtr(),
+            dispatcher()));
   }
 
   void OnConnectionStateChanged(const DeviceAddress&,

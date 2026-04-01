@@ -13,6 +13,7 @@
 // the License.
 
 #pragma once
+#include "pw_async/dispatcher.h"
 #include "pw_bluetooth_sapphire/internal/host/hci/connection.h"
 
 namespace bt::hci {
@@ -21,7 +22,8 @@ class ScoConnection : public Connection, public WeakSelf<ScoConnection> {
   ScoConnection(hci_spec::ConnectionHandle handle,
                 const DeviceAddress& local_address,
                 const DeviceAddress& peer_address,
-                const hci::Transport::WeakPtr& hci);
+                const hci::Transport::WeakPtr& hci,
+                pw::async::Dispatcher& dispatcher);
 
   // The local device address used while establishing the connection.
   const DeviceAddress& local_address() const { return local_address_; }

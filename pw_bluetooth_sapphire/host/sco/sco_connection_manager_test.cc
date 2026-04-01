@@ -120,12 +120,12 @@ class ScoConnectionManagerTest : public TestingBase {
     InitializeACLDataChannel();
     InitializeScoDataChannel();
 
-    manager_ =
-        std::make_unique<ScoConnectionManager>(PeerId(1),
-                                               kAclConnectionHandle,
-                                               kPeerAddress,
-                                               kLocalAddress,
-                                               transport()->GetWeakPtr());
+    manager_ = std::make_unique<ScoConnectionManager>(PeerId(1),
+                                                      kAclConnectionHandle,
+                                                      kPeerAddress,
+                                                      kLocalAddress,
+                                                      transport()->GetWeakPtr(),
+                                                      dispatcher());
     kConnectionParams = InitializeConnectionParams();
   }
 

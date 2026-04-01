@@ -15,6 +15,7 @@
 #pragma once
 #include <lib/fit/function.h>
 
+#include "pw_async/dispatcher.h"
 #include "pw_bluetooth_sapphire/internal/host/common/macros.h"
 #include "pw_bluetooth_sapphire/internal/host/hci-spec/protocol.h"
 #include "pw_bluetooth_sapphire/internal/host/transport/command_channel.h"
@@ -59,6 +60,7 @@ class Connection {
   // why this isn't a virtual method).
   Connection(hci_spec::ConnectionHandle handle,
              Transport::WeakPtr hci,
+             pw::async::Dispatcher& dispatcher,
              fit::callback<void()> on_disconnection_complete);
 
   // The destructor closes this connection.
@@ -110,6 +112,8 @@ class Connection {
   State conn_state_;
 
   Transport::WeakPtr hci_;
+
+  [[maybe_unused]] pw::async::Dispatcher& dispatcher_;
 
   WeakSelf<Connection> weak_self_;
 

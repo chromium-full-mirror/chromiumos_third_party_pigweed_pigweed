@@ -23,13 +23,15 @@ FakeLowEnergyConnection::FakeLowEnergyConnection(
     const DeviceAddress& local_address,
     const DeviceAddress& peer_address,
     pw::bluetooth::emboss::ConnectionRole role,
-    const hci::Transport::WeakPtr& hci)
+    const hci::Transport::WeakPtr& hci,
+    pw::async::Dispatcher& dispatcher)
     : LowEnergyConnection(handle,
                           local_address,
                           peer_address,
                           hci_spec::LEConnectionParameters(),
                           role,
-                          hci) {}
+                          hci,
+                          dispatcher) {}
 
 void FakeLowEnergyConnection::TriggerEncryptionChangeCallback(
     hci::Result<bool> result) {

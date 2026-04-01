@@ -22,21 +22,21 @@
 #include <utility>
 
 #include "pw_bluetooth_sapphire/internal/host/common/log.h"
-#include "pw_bluetooth_sapphire/internal/host/hci-spec/defaults.h"
 #include "pw_bluetooth_sapphire/internal/host/hci-spec/protocol.h"
 #include "pw_bluetooth_sapphire/internal/host/hci-spec/util.h"
 #include "pw_bluetooth_sapphire/internal/host/transport/command_channel.h"
-#include "pw_bluetooth_sapphire/internal/host/transport/error.h"
 #include "pw_bluetooth_sapphire/internal/host/transport/transport.h"
 
 namespace bt::hci {
 
 Connection::Connection(hci_spec::ConnectionHandle handle,
                        Transport::WeakPtr hci,
+                       pw::async::Dispatcher& dispatcher,
                        fit::callback<void()> on_disconnection_complete)
     : handle_(handle),
       conn_state_(State::kConnected),
       hci_(std::move(hci)),
+      dispatcher_(dispatcher),
       weak_self_(this) {
   PW_CHECK(hci_.is_alive());
 

@@ -80,6 +80,7 @@ class IsoStreamTest : public MockControllerTestBase {
         kCisId,
         kCisHandleId,
         transport()->GetWeakPtr(),
+        dispatcher(),
         /*on_established_cb=*/
         [this](pw::bluetooth::emboss::StatusCode status,
                std::optional<WeakSelf<IsoStream>::WeakPtr>,
@@ -95,8 +96,7 @@ class IsoStreamTest : public MockControllerTestBase {
           transport()->iso_data_channel()->UnregisterConnection(kCisHandleId);
           iso_stream_.reset();
         },
-        stream_lease_provider_,
-        dispatcher());
+        stream_lease_provider_);
   }
 
   void TearDown() override {

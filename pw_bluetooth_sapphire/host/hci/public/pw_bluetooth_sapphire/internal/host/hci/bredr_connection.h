@@ -13,6 +13,7 @@
 // the License.
 
 #pragma once
+#include "pw_async/dispatcher.h"
 #include "pw_bluetooth_sapphire/internal/host/hci-spec/link_key.h"
 #include "pw_bluetooth_sapphire/internal/host/hci/acl_connection.h"
 
@@ -27,7 +28,8 @@ class BrEdrConnection : public AclConnection, public WeakSelf<BrEdrConnection> {
                   const DeviceAddress& local_address,
                   const DeviceAddress& peer_address,
                   pw::bluetooth::emboss::ConnectionRole role,
-                  const Transport::WeakPtr& hci);
+                  const Transport::WeakPtr& hci,
+                  pw::async::Dispatcher& dispatcher);
 
   bool StartEncryption() override;
 

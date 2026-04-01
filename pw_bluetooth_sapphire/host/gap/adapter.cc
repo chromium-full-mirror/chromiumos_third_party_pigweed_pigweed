@@ -496,7 +496,9 @@ class AdapterImpl final : public Adapter {
     std::unique_ptr<hci::LowEnergyAdvertiser> advertiser;
     if (extended) {
       advertiser = std::make_unique<hci::ExtendedLowEnergyAdvertiser>(
-          hci_, state_.low_energy_state.max_advertising_data_length_);
+          hci_,
+          dispatcher_,
+          state_.low_energy_state.max_advertising_data_length_);
     } else if (state().IsControllerFeatureSupported(kAndroidVendorExtensions) &&
                state().android_vendor_capabilities.has_value()) {
       uint8_t max_advt =
@@ -508,9 +510,10 @@ class AdapterImpl final : public Adapter {
              "extensions: yes, max simultaneous advertisements: %d",
              max_advt);
       advertiser = std::make_unique<hci::AndroidExtendedLowEnergyAdvertiser>(
-          hci_, max_advt);
+          hci_, dispatcher_, max_advt);
     } else {
-      advertiser = std::make_unique<hci::LegacyLowEnergyAdvertiser>(hci_);
+      advertiser =
+          std::make_unique<hci::LegacyLowEnergyAdvertiser>(hci_, dispatcher_);
     }
 
     advertiser->AttachInspect(adapter_node_);

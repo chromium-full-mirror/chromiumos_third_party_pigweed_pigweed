@@ -128,7 +128,7 @@ LowEnergyConnection::LowEnergyConnection(
   // streams.
   if (low_energy_state.IsConnectedIsochronousStreamSupported()) {
     iso_mgr_.emplace(
-        link_->handle(), hci_->GetWeakPtr(), wake_lease_provider, dispatcher);
+        link_->handle(), hci_->GetWeakPtr(), dispatcher_, wake_lease_provider);
   }
 
   link_->set_peer_disconnect_callback(

@@ -22,8 +22,11 @@ namespace bt::hci {
 namespace pwemb = pw::bluetooth::emboss;
 
 ExtendedLowEnergyAdvertiser::ExtendedLowEnergyAdvertiser(
-    hci::Transport::WeakPtr hci_ptr, uint16_t max_advertising_data_length)
-    : LowEnergyAdvertiser(std::move(hci_ptr), max_advertising_data_length) {
+    hci::Transport::WeakPtr hci_ptr,
+    pw::async::Dispatcher& dispatcher,
+    uint16_t max_advertising_data_length)
+    : LowEnergyAdvertiser(
+          std::move(hci_ptr), dispatcher, max_advertising_data_length) {
   event_handler_id_ = hci()->command_channel()->AddLEMetaEventHandler(
       hci_spec::kLEAdvertisingSetTerminatedSubeventCode,
       [this](const EventPacket& event) {

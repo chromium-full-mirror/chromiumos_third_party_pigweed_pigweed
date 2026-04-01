@@ -47,13 +47,15 @@ ScoConnectionManager::ScoConnectionManager(
     hci_spec::ConnectionHandle acl_handle,
     DeviceAddress peer_address,
     DeviceAddress local_address,
-    hci::Transport::WeakPtr transport)
+    hci::Transport::WeakPtr transport,
+    pw::async::Dispatcher& dispatcher)
     : next_req_id_(0u),
       peer_id_(peer_id),
       local_address_(local_address),
       peer_address_(peer_address),
       acl_handle_(acl_handle),
       transport_(std::move(transport)),
+      dispatcher_(dispatcher),
       weak_ptr_factory_(this) {
   PW_CHECK(transport_.is_alive());
 
@@ -185,8 +187,11 @@ ScoConnectionManager::OnSynchronousConnectionComplete(
 
   hci_spec::ConnectionHandle connection_handle =
       params.connection_handle().Read();
-  auto link = std::make_unique<hci::ScoConnection>(
-      connection_handle, local_address_, peer_address_, transport_);
+  auto link = std::make_unique<hci::ScoConnection>(connection_handle,
+                                                   local_address_,
+                                                   peer_address_,
+                                                   transport_,
+                                                   dispatcher_);
 
   if (!in_progress_request_) {
     bt_log(ERROR,

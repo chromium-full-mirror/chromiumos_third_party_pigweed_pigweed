@@ -56,7 +56,8 @@ class ScoConnectionTest : public TestingBase {
     auto conn = std::make_unique<hci::ScoConnection>(kConnectionHandle,
                                                      DeviceAddress(),
                                                      DeviceAddress(),
-                                                     transport()->GetWeakPtr());
+                                                     transport()->GetWeakPtr(),
+                                                     dispatcher());
     hci_conn_ = conn->GetWeakPtr();
     deactivated_cb_count_ = 0;
     sco_conn_ = CreateScoConnection(std::move(conn));
@@ -433,7 +434,8 @@ TEST_F(HciScoConnectionTest, ControllerPacketCountClearedOnPeerDisconnect) {
       std::make_unique<hci::ScoConnection>(kConnectionHandle2,
                                            DeviceAddress(),
                                            DeviceAddress(),
-                                           transport()->GetWeakPtr());
+                                           transport()->GetWeakPtr(),
+                                           dispatcher());
   std::unique_ptr<ScoConnection> sco_conn_1 =
       CreateScoConnection(std::move(hci_conn_1));
   size_t close_count_1 = 0;

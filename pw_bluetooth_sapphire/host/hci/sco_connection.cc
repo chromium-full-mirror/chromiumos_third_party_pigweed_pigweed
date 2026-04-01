@@ -21,9 +21,11 @@ namespace bt::hci {
 ScoConnection::ScoConnection(hci_spec::ConnectionHandle handle,
                              const DeviceAddress& local_address,
                              const DeviceAddress& peer_address,
-                             const hci::Transport::WeakPtr& hci)
+                             const hci::Transport::WeakPtr& hci,
+                             pw::async::Dispatcher& dispatcher)
     : Connection(handle,
                  hci,
+                 dispatcher,
                  [handle, hci] {
                    ScoConnection::OnDisconnectionComplete(handle, hci);
                  }),

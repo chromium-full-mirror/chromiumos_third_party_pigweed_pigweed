@@ -13,6 +13,7 @@
 // the License.
 
 #pragma once
+#include "pw_async/dispatcher.h"
 #include "pw_bluetooth_sapphire/internal/host/hci/sco_connection.h"
 
 namespace bt::hci::testing {
@@ -22,7 +23,8 @@ class FakeScoConnection final : public ScoConnection {
   FakeScoConnection(hci_spec::ConnectionHandle handle,
                     const DeviceAddress& local_address,
                     const DeviceAddress& peer_address,
-                    const hci::Transport::WeakPtr& hci);
+                    const hci::Transport::WeakPtr& hci,
+                    pw::async::Dispatcher& dispatcher);
 
   void TriggerPeerDisconnectCallback() {
     peer_disconnect_callback()(

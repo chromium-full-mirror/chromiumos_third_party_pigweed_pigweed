@@ -235,7 +235,8 @@ class LowEnergyConnectionManagerTest : public TestingBase {
                                                    peer_address,
                                                    conn_params,
                                                    role,
-                                                   transport()->GetWeakPtr());
+                                                   transport()->GetWeakPtr(),
+                                                   dispatcher());
   }
 
   // Called by FakeController on connection events.

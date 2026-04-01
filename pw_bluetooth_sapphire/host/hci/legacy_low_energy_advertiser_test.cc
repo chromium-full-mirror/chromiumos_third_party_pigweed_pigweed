@@ -62,8 +62,8 @@ class LegacyLowEnergyAdvertiserTest : public TestingBase {
     settings.bd_addr = kPublicAddress;
     test_device()->set_settings(settings);
 
-    advertiser_ =
-        std::make_unique<LegacyLowEnergyAdvertiser>(transport()->GetWeakPtr());
+    advertiser_ = std::make_unique<LegacyLowEnergyAdvertiser>(
+        transport()->GetWeakPtr(), dispatcher());
   }
 
   void TearDown() override {

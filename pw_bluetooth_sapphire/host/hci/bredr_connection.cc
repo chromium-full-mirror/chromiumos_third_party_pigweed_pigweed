@@ -24,8 +24,9 @@ BrEdrConnection::BrEdrConnection(hci_spec::ConnectionHandle handle,
                                  const DeviceAddress& local_address,
                                  const DeviceAddress& peer_address,
                                  pw::bluetooth::emboss::ConnectionRole role,
-                                 const Transport::WeakPtr& hci)
-    : AclConnection(handle, local_address, peer_address, role, hci),
+                                 const Transport::WeakPtr& hci,
+                                 pw::async::Dispatcher& dispatcher)
+    : AclConnection(handle, local_address, peer_address, role, hci, dispatcher),
       WeakSelf(this) {
   PW_CHECK(local_address.type() == DeviceAddress::Type::kBREDR);
   PW_CHECK(peer_address.type() == DeviceAddress::Type::kBREDR);

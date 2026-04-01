@@ -791,7 +791,7 @@ void BrEdrConnectionManager::InitializeConnection(
     hci_spec::ConnectionHandle connection_handle,
     pw::bluetooth::emboss::ConnectionRole role) {
   auto link = std::make_unique<hci::BrEdrConnection>(
-      connection_handle, local_address_, addr, role, hci_);
+      connection_handle, local_address_, addr, role, hci_, dispatcher_);
   Peer* const peer = FindOrInitPeer(addr);
   auto peer_id = peer->identifier();
   bt_log(DEBUG,

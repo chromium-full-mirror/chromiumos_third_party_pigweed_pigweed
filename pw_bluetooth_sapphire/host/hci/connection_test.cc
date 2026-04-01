@@ -96,15 +96,20 @@ class ConnectionTest : public TestingBase {
                                                  kLEAddress2,
                                                  kTestParams,
                                                  role,
-                                                 transport()->GetWeakPtr());
+                                                 transport()->GetWeakPtr(),
+                                                 dispatcher());
   }
 
   std::unique_ptr<BrEdrConnection> NewACLConnection(
       pw::bluetooth::emboss::ConnectionRole role =
           pw::bluetooth::emboss::ConnectionRole::CENTRAL,
       hci_spec::ConnectionHandle handle = kTestHandle) {
-    return std::make_unique<BrEdrConnection>(
-        handle, kACLAddress1, kACLAddress2, role, transport()->GetWeakPtr());
+    return std::make_unique<BrEdrConnection>(handle,
+                                             kACLAddress1,
+                                             kACLAddress2,
+                                             role,
+                                             transport()->GetWeakPtr(),
+                                             dispatcher());
   }
 };
 

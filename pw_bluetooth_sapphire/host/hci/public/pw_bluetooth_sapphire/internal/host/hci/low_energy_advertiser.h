@@ -17,6 +17,7 @@
 
 #include <memory>
 
+#include "pw_async/dispatcher.h"
 #include "pw_bluetooth_sapphire/internal/host/hci-spec/constants.h"
 #include "pw_bluetooth_sapphire/internal/host/hci/advertising_handle_map.h"
 #include "pw_bluetooth_sapphire/internal/host/hci/local_address_delegate.h"
@@ -51,6 +52,7 @@ class AdvertisingIntervalRange final {
 class LowEnergyAdvertiser : public LocalAddressClient {
  public:
   explicit LowEnergyAdvertiser(hci::Transport::WeakPtr hci,
+                               pw::async::Dispatcher& dispatcher,
                                uint16_t max_advertising_data_length);
   ~LowEnergyAdvertiser() override = default;
 
@@ -365,6 +367,7 @@ class LowEnergyAdvertiser : public LocalAddressClient {
   bool EnqueueStopAdvertisingCommands(hci::AdvertisementId advertisement_id);
 
   hci::Transport::WeakPtr hci_;
+  pw::async::Dispatcher& dispatcher_;
   std::unique_ptr<SequentialCommandRunner> hci_cmd_runner_;
   StagedParameters staged_parameters_;
 

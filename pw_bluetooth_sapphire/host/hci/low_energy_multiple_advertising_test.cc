@@ -73,8 +73,8 @@ class LowEnergyMultipleAdvertisingTest : public TestingBase {
   template <bool same = std::is_same_v<T, AndroidExtendedLowEnergyAdvertiser>>
   std::enable_if_t<same, AndroidExtendedLowEnergyAdvertiser>*
   CreateAdvertiserInternal() {
-    return new AndroidExtendedLowEnergyAdvertiser(transport()->GetWeakPtr(),
-                                                  max_advertisements_);
+    return new AndroidExtendedLowEnergyAdvertiser(
+        transport()->GetWeakPtr(), dispatcher(), max_advertisements_);
   }
 
   template <bool same = std::is_same_v<T, ExtendedLowEnergyAdvertiser>>
@@ -82,6 +82,7 @@ class LowEnergyMultipleAdvertisingTest : public TestingBase {
   CreateAdvertiserInternal() {
     return new ExtendedLowEnergyAdvertiser(
         transport()->GetWeakPtr(),
+        dispatcher(),
         hci_spec::kMaxLEExtendedAdvertisingDataLength);
   }
 

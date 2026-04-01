@@ -13,8 +13,8 @@
 // the License.
 
 #pragma once
+#include "pw_async/dispatcher.h"
 #include "pw_bluetooth_sapphire/internal/host/hci-spec/le_connection_parameters.h"
-#include "pw_bluetooth_sapphire/internal/host/hci-spec/link_key.h"
 #include "pw_bluetooth_sapphire/internal/host/hci/acl_connection.h"
 
 namespace bt::hci {
@@ -27,7 +27,8 @@ class LowEnergyConnection : public AclConnection,
                       const DeviceAddress& peer_address,
                       const hci_spec::LEConnectionParameters& params,
                       pw::bluetooth::emboss::ConnectionRole role,
-                      const Transport::WeakPtr& hci);
+                      const Transport::WeakPtr& hci,
+                      pw::async::Dispatcher& dispatcher);
 
   ~LowEnergyConnection() override;
 

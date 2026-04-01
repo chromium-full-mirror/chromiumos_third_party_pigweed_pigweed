@@ -54,7 +54,8 @@ BrEdrConnection::BrEdrConnection(
                                                       link_->handle(),
                                                       link_->peer_address(),
                                                       link_->local_address(),
-                                                      transport)),
+                                                      transport,
+                                                      dispatcher)),
       interrogator_(new BrEdrInterrogator(
           peer_, link_->handle(), transport->command_channel()->AsWeakPtr())),
       create_time_(dispatcher.now()),

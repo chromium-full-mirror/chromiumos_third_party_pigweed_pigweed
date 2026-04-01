@@ -23,8 +23,10 @@ FakeBrEdrConnection::FakeBrEdrConnection(
     const DeviceAddress& local_address,
     const DeviceAddress& peer_address,
     pw::bluetooth::emboss::ConnectionRole role,
-    const hci::Transport::WeakPtr& hci)
-    : BrEdrConnection(handle, local_address, peer_address, role, hci) {}
+    const hci::Transport::WeakPtr& hci,
+    pw::async::Dispatcher& dispatcher)
+    : BrEdrConnection(
+          handle, local_address, peer_address, role, hci, dispatcher) {}
 
 void FakeBrEdrConnection::TriggerEncryptionChangeCallback(
     hci::Result<bool> result) {

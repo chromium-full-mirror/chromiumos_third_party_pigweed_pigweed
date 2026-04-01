@@ -29,8 +29,9 @@ LowEnergyConnection::LowEnergyConnection(
     const DeviceAddress& peer_address,
     const hci_spec::LEConnectionParameters& params,
     pw::bluetooth::emboss::ConnectionRole role,
-    const Transport::WeakPtr& hci)
-    : AclConnection(handle, local_address, peer_address, role, hci),
+    const Transport::WeakPtr& hci,
+    pw::async::Dispatcher& dispatcher)
+    : AclConnection(handle, local_address, peer_address, role, hci, dispatcher),
       WeakSelf(this),
       parameters_(params) {
   PW_CHECK(local_address.type() != DeviceAddress::Type::kBREDR);

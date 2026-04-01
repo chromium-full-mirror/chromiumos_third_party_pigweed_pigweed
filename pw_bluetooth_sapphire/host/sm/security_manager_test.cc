@@ -180,7 +180,8 @@ class SecurityManagerTest : public l2cap::testing::FakeChannelTest,
         kLocalAddr,
         kPeerAddr,
         link_role,
-        transport_->GetWeakPtr());
+        transport_->GetWeakPtr(),
+        dispatcher());
 
     if (!peer_) {
       InitializePeer();
@@ -215,7 +216,8 @@ class SecurityManagerTest : public l2cap::testing::FakeChannelTest,
         kLocalBrEdrAddr,
         kPeerBrEdrAddr,
         link_role,
-        transport_->GetWeakPtr());
+        transport_->GetWeakPtr(),
+        dispatcher());
 
     InitializePeer(/*is_bredr=*/true);
 

@@ -22,8 +22,10 @@ namespace bt::hci {
 namespace pwemb = pw::bluetooth::emboss;
 
 LowEnergyAdvertiser::LowEnergyAdvertiser(hci::Transport::WeakPtr hci,
+                                         pw::async::Dispatcher& dispatcher,
                                          uint16_t max_advertising_data_length)
     : hci_(std::move(hci)),
+      dispatcher_(dispatcher),
       hci_cmd_runner_(std::make_unique<SequentialCommandRunner>(
           hci_->command_channel()->AsWeakPtr())),
       max_advertising_data_length_(max_advertising_data_length) {}
@@ -452,7 +454,8 @@ void LowEnergyAdvertiser::CompleteIncomingConnection(
                                             peer_address,
                                             conn_params,
                                             role,
-                                            hci());
+                                            hci(),
+                                            dispatcher_);
 
   if (!advertisement_id) {
     bt_log(ERROR,

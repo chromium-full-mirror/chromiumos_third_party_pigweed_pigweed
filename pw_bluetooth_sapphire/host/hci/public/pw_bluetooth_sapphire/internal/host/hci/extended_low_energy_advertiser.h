@@ -13,6 +13,7 @@
 // the License.
 
 #pragma once
+#include "pw_async/dispatcher.h"
 #include "pw_bluetooth_sapphire/internal/host/hci/advertising_handle_map.h"
 #include "pw_bluetooth_sapphire/internal/host/hci/low_energy_advertiser.h"
 #include "pw_bluetooth_sapphire/internal/host/transport/transport.h"
@@ -24,6 +25,7 @@ class SequentialCommandRunner;
 class ExtendedLowEnergyAdvertiser final : public LowEnergyAdvertiser {
  public:
   explicit ExtendedLowEnergyAdvertiser(hci::Transport::WeakPtr hci,
+                                       pw::async::Dispatcher& dispatcher,
                                        uint16_t max_advertising_data_length_);
   ~ExtendedLowEnergyAdvertiser() override;
 

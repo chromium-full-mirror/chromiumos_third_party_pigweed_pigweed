@@ -40,9 +40,11 @@ AclConnection::AclConnection(hci_spec::ConnectionHandle handle,
                              const DeviceAddress& local_address,
                              const DeviceAddress& peer_address,
                              pw::bluetooth::emboss::ConnectionRole role,
-                             const Transport::WeakPtr& hci)
+                             const Transport::WeakPtr& hci,
+                             pw::async::Dispatcher& dispatcher)
     : Connection(handle,
                  hci,
+                 dispatcher,
                  [handle, hci] {
                    AclConnection::OnDisconnectionComplete(handle, hci);
                  }),

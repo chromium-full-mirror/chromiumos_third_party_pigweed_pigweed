@@ -18,6 +18,7 @@
 
 #include <map>
 
+#include "pw_async/dispatcher.h"
 #include "pw_bluetooth_sapphire/internal/host/common/advertising_data.h"
 #include "pw_bluetooth_sapphire/internal/host/common/byte_buffer.h"
 #include "pw_bluetooth_sapphire/internal/host/common/macros.h"
@@ -66,10 +67,12 @@ class FakeLowEnergyAdvertiser final : public hci::LowEnergyAdvertiser {
  public:
   FakeLowEnergyAdvertiser(
       const hci::Transport::WeakPtr& hci,
+      pw::async::Dispatcher& dispatcher,
       std::unordered_map<AdvertisementId, AdvertisementStatus>* ad_store)
-      : hci::LowEnergyAdvertiser(hci, kDefaultMaxAdSize),
+      : hci::LowEnergyAdvertiser(hci, dispatcher, kDefaultMaxAdSize),
         ads_(ad_store),
-        hci_(hci) {
+        hci_(hci),
+        dispatcher_(dispatcher) {
     PW_CHECK(ads_);
   }
 
@@ -136,7 +139,12 @@ class FakeLowEnergyAdvertiser final : public hci::LowEnergyAdvertiser {
     if (cb) {
       cb(ads_->begin()->first,
          std::make_unique<hci::testing::FakeLowEnergyConnection>(
-             handle, ads_->begin()->second.address, peer_address, role, hci_));
+             handle,
+             ads_->begin()->second.address,
+             peer_address,
+             role,
+             hci_,
+             dispatcher_));
     }
   }
 
@@ -209,6 +217,7 @@ class FakeLowEnergyAdvertiser final : public hci::LowEnergyAdvertiser {
   std::unordered_map<AdvertisementId, AdvertisementStatus>* ads_;
   hci::Result<> pending_error_ = fit::ok();
   hci::Transport::WeakPtr hci_;
+  pw::async::Dispatcher& dispatcher_;
   AdvertisementId::value_t next_id_{1};
 
   BT_DISALLOW_COPY_AND_ASSIGN_ALLOW_MOVE(FakeLowEnergyAdvertiser);
@@ -274,7 +283,7 @@ class LowEnergyAdvertisingManagerTest : public TestingBase {
 
   void MakeFakeAdvertiser() {
     advertiser_ = std::make_unique<FakeLowEnergyAdvertiser>(
-        transport()->GetWeakPtr(), &ad_store_);
+        transport()->GetWeakPtr(), dispatcher(), &ad_store_);
   }
 
   void MakeAdvertisingManager() {

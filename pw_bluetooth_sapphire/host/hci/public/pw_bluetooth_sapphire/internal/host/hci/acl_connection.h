@@ -13,6 +13,7 @@
 // the License.
 
 #pragma once
+#include "pw_async/dispatcher.h"
 #include "pw_bluetooth_sapphire/internal/host/hci-spec/link_key.h"
 #include "pw_bluetooth_sapphire/internal/host/hci/connection.h"
 
@@ -72,7 +73,8 @@ class AclConnection : public Connection {
                 const DeviceAddress& local_address,
                 const DeviceAddress& peer_address,
                 pw::bluetooth::emboss::ConnectionRole role,
-                const Transport::WeakPtr& hci);
+                const Transport::WeakPtr& hci,
+                pw::async::Dispatcher& dispatcher);
 
   void set_ltk(const hci_spec::LinkKey& link_key) { ltk_ = link_key; }
 

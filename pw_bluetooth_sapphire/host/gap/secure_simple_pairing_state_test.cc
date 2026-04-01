@@ -157,7 +157,8 @@ class PairingStateTest : public TestBase, public hci::LocalAddressDelegate {
         kLocalAddress,
         kPeerAddress,
         pw::bluetooth::emboss::ConnectionRole::CENTRAL,
-        transport()->GetWeakPtr());
+        transport()->GetWeakPtr(),
+        dispatcher());
   }
 
   FakeBrEdrConnection* connection() const { return connection_.get(); }

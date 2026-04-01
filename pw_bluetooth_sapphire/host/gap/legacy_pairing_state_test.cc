@@ -111,7 +111,8 @@ class LegacyPairingStateTest : public TestBase {
         kLocalAddress,
         kPeerAddress,
         pw::bluetooth::emboss::ConnectionRole::CENTRAL,
-        transport()->GetWeakPtr());
+        transport()->GetWeakPtr(),
+        dispatcher());
   }
 
   void TearDown() override {
