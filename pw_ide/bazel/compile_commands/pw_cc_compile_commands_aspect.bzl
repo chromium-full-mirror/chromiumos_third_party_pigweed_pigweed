@@ -57,13 +57,23 @@ _NO_PROVIDER_ATTR_TYPES = set([
     "NoneType",
 ])
 
-_C_COMPILE_EXTS = [
-    "c",
-]
-_CPP_COMPILE_EXTS = [
-    "cc",
-    "cpp",
-]
+# Based on gcc and clang specifications:
+# https://gcc.gnu.org/onlinedocs/gcc/Invoking-G_002b_002b.html
+# https://clang.llvm.org/docs/CommandGuide/clang.html
+# We intentionally ignore intermediate file types (.i, .ii, .s, .S) as they
+# are very uncommon.
+_C_COMPILE_EXTS = (
+    ".c",
+)
+_CPP_COMPILE_EXTS = (
+    ".C",
+    ".cc",
+    ".cpp",
+    ".CPP",
+    ".c++",
+    ".cp",
+    ".cxx",
+)
 _ALL_COMPILE_EXTS = _C_COMPILE_EXTS + _CPP_COMPILE_EXTS
 
 # This must match rules_cc.
@@ -196,24 +206,27 @@ def _remap_target_infos(target_infos, virtual_path_map):
         rebuilt_target_infos.append(rebuilt_info)
     return rebuilt_target_infos
 
-def _get_one_compile_command(ctx, src, action):
+def _get_one_compile_command(ctx, action):
     """Extracts compile commands associated with the source.
 
     Args:
         ctx: Rule context.
-        src: The specific source file to extract a compile command for.
         action: The list of actions that may contain a compiler invocation
             for the requested source file.
 
     Returns:
         A single compile commands struct, or None.
     """
-    if src.extension not in _ALL_COMPILE_EXTS:
-        return None
+    src = None
+    for arg in action.argv:
+        # As long as the argument is a source-like file and doesn't start with
+        # a dash (i.e. is part of a flag), we'll assume it's the source file
+        if not arg.startswith("-") and arg.endswith(_ALL_COMPILE_EXTS):
+            src = arg
+            break
 
-    # Don't generate compile commands for arbitrary inputs that aren't
-    # compiled. E.g. sources placed in `extra_compiler_inputs`.
-    if src.path not in action.argv:
+    # Don't generate compile commands if we can't find a source file
+    if src == None:
         return None
 
     cc_toolchain = find_cc_toolchain(ctx)
@@ -222,18 +235,21 @@ def _get_one_compile_command(ctx, src, action):
         cc_toolchain = cc_toolchain,
     )
     action_name = (
-        ACTION_NAMES.c_compile if src.extension in _C_COMPILE_EXTS else ACTION_NAMES.cpp_compile
+        ACTION_NAMES.c_compile if src.endswith(_C_COMPILE_EXTS) else ACTION_NAMES.cpp_compile
     )
     tool = cc_common.get_tool_for_action(
         feature_configuration = feature_configuration,
         action_name = action_name,
     )
-    if not action.argv or action.argv[0] != tool:
+
+    # Don't generate compile commands if the action doesn't start with the
+    # expected tool.
+    if action.argv[0] != tool:
         return None
 
     return struct(
         directory = "__WORKSPACE_ROOT__",
-        file = src.path,
+        file = src,
         arguments = action.argv,
         # The same file may be compiled multiple times with different arguments.
         # This field signals which outputs are associated with this compilation.
@@ -252,13 +268,9 @@ def _get_commands_for_target(ctx, target):
         if not action.argv:
             continue
 
-        for src in action.inputs.to_list():
-            # BE CAREFUL when putting logic here, as it's multiplied by
-            # ALL inputs to the sandbox, which is on the order of thousands
-            # of files *per compile action*.
-            result = _get_one_compile_command(ctx, src, action)
-            if result != None:
-                commands.append(result)
+        result = _get_one_compile_command(ctx, action)
+        if result != None:
+            commands.append(result)
     return commands
 
 def _get_target_infos(ctx, target):
