@@ -82,6 +82,9 @@ class MergerTest(fake_filesystem_unittest.TestCase):
 
     def setUp(self):
         self.setUpPyfakefs()
+        # pylint: disable=protected-access
+        merger._resolve_single_external_path.cache_clear()
+        # pylint: enable=protected-access
         self.workspace_root = Path('/workspace')
         self.output_base = Path(
             '/home/somebody/.cache/bazel/_bazel_somebody/123abc'

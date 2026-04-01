@@ -20,6 +20,7 @@ platform-specific compilation databases.
 import argparse
 import collections
 from collections.abc import Iterator
+import functools
 import json
 import logging
 import os
@@ -705,6 +706,7 @@ def _process_platform(
     merged_json_path = platform_dir / "compile_commands.json"
 
     processed_commands = []
+
     for command_dict in all_commands:
         cmd = CompileCommand(
             file=command_dict["file"],
@@ -1078,6 +1080,7 @@ def resolve_bazel_out_paths(
     return command._replace(arguments=new_args, file=new_file)
 
 
+@functools.cache
 def _resolve_single_external_path(
     path: Path,
     output_base: Path,
@@ -1198,6 +1201,7 @@ def resolve_external_paths(
             resolved = _resolve_single_external_path(
                 relevant_part, output_base, relative_to, symlink_prefix
             )
+
             if resolved:
                 new_arg = arg[:prefix_len] + str(resolved)
                 break
@@ -1207,6 +1211,7 @@ def resolve_external_paths(
     # Resolve as an external path first (handles relative external/...
     # and absolute paths to external repositories).
     file_path = Path(command.file)
+
     resolved_file = _resolve_single_external_path(
         file_path, output_base, relative_to, symlink_prefix
     )
