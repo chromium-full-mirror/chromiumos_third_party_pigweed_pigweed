@@ -236,20 +236,6 @@ That's the end of the quickstart! Learn more about ``pw_rpc``:
 * You can build clients in other languages, such as Python and TypeScript.
   See :ref:`module-pw_rpc-libraries`.
 
-.. _module-pw_rpc-zephyr:
-
----------------------------
-Setting up pw_rpc in Zephyr
----------------------------
-To enable ``pw_rpc.*`` for Zephyr add ``CONFIG_PIGWEED_RPC=y`` to the project's
-configuration. This will enable the Kconfig menu for the following:
-
-* ``pw_rpc.server`` which can be enabled via ``CONFIG_PIGWEED_RPC_SERVER=y``.
-* ``pw_rpc.client`` which can be enabled via ``CONFIG_PIGWEED_RPC_CLIENT=y``.
-* ``pw_rpc.client_server`` which can be enabled via
-  ``CONFIG_PIGWEED_RPC_CLIENT_SERVER=y``.
-* ``pw_rpc.common`` which can be enabled via ``CONFIG_PIGWEED_RPC_COMMON=y``.
-
 .. _module-pw_rpc-syntax-versions:
 
 ---------------------------
@@ -523,3 +509,45 @@ be run locally using GN:
    pw_strict_host_clang_debug/gen/pw_rpc/fuzz/cpp_client_server_fuzz_test.pw_pystamp
 
    $ ninja -C out pw_strict_host_clang_debug/gen/pw_rpc/fuzz/cpp_client_server_fuzz_test.pw_pystamp
+
+.. _module-pw_rpc-guides-unrequested-responses:
+
+---------------------
+Unrequested responses
+---------------------
+``pw_rpc`` supports sending responses to RPCs that have not yet been invoked by
+a client. This is useful in testing and in situations like an RPC that triggers
+reboot. After the reboot, the device opens the writer object and sends its
+response to the client.
+
+The C++ API for opening a server reader/writer takes the generated RPC function
+as a template parameter. The server to use, channel ID, and service instance are
+passed as arguments. The API is the same for all RPC types, except the
+appropriate reader/writer class must be used.
+
+.. code-block:: c++
+
+   // Open a ServerWriter for a server streaming RPC.
+   auto writer = RawServerWriter::Open<pw_rpc::raw::ServiceName::MethodName>(
+       server, channel_id, service_instance);
+
+   // Send some responses, even though the client has not yet called this RPC.
+   CHECK_OK(writer.Write(encoded_response_1));
+   CHECK_OK(writer.Write(encoded_response_2));
+
+   // Finish the RPC.
+   CHECK_OK(writer.Finish(OkStatus()));
+
+.. _module-pw_rpc-guides-zephyr:
+
+---------------------------
+Setting up pw_rpc in Zephyr
+---------------------------
+To enable ``pw_rpc.*`` for Zephyr add ``CONFIG_PIGWEED_RPC=y`` to the project's
+configuration. This will enable the Kconfig menu for the following:
+
+* ``pw_rpc.server`` which can be enabled via ``CONFIG_PIGWEED_RPC_SERVER=y``.
+* ``pw_rpc.client`` which can be enabled via ``CONFIG_PIGWEED_RPC_CLIENT=y``.
+* ``pw_rpc.client_server`` which can be enabled via
+  ``CONFIG_PIGWEED_RPC_CLIENT_SERVER=y``.
+* ``pw_rpc.common`` which can be enabled via ``CONFIG_PIGWEED_RPC_COMMON=y``.

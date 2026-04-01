@@ -94,32 +94,6 @@ from functions like ``Write()`` or ``Finish()``.
 * ``UNKNOWN`` -- Sending a packet failed due to an unrecoverable
   :cpp:func:`pw::rpc::ChannelOutput::Send` error.
 
-.. _module-pw_rpc-design-unrequested-responses:
-
-Unrequested responses
-=====================
-``pw_rpc`` supports sending responses to RPCs that have not yet been invoked by
-a client. This is useful in testing and in situations like an RPC that triggers
-reboot. After the reboot, the device opens the writer object and sends its
-response to the client.
-
-The C++ API for opening a server reader/writer takes the generated RPC function
-as a template parameter. The server to use, channel ID, and service instance are
-passed as arguments. The API is the same for all RPC types, except the
-appropriate reader/writer class must be used.
-
-.. code-block:: c++
-
-   // Open a ServerWriter for a server streaming RPC.
-   auto writer = RawServerWriter::Open<pw_rpc::raw::ServiceName::MethodName>(
-       server, channel_id, service_instance);
-
-   // Send some responses, even though the client has not yet called this RPC.
-   CHECK_OK(writer.Write(encoded_response_1));
-   CHECK_OK(writer.Write(encoded_response_2));
-
-   // Finish the RPC.
-   CHECK_OK(writer.Finish(OkStatus()));
 
 .. _module-pw_rpc-design-errata:
 

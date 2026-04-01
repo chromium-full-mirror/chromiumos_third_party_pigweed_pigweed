@@ -734,6 +734,7 @@ sphinx_docs_library(
         "libraries.rst",
         "protocol.rst",
         ":server_size",
+        "//pw_rpc/examples:docs",
         "//pw_rpc/nanopb:docs",
         "//pw_rpc/pwpb:docs",
         "//pw_rpc/py:docs",
