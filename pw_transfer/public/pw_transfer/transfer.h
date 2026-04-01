@@ -35,18 +35,10 @@ class Chunk;
 
 class TransferService : public pw_rpc::raw::Transfer::Service<TransferService> {
  public:
-  // Initializes a TransferService that can be registered with an RPC server.
-  //
-  // The transfer service runs all of its transfer tasks on the provided
-  // transfer thread. This thread may be shared between a transfer service and
-  // a transfer client.
-  //
-  // `max_window_size_bytes` is the maximum amount of data to ask for at a
-  // time during a write transfer, unless told a more restrictive amount by a
-  // transfer handler. This size should span multiple chunks, and can be set
-  // quite large. The transfer protocol automatically adjusts its window size
-  // as a transfer progresses to attempt to find an optimal configuration for
-  // the connection over which it is running.
+  using StartCallback =
+      pw::Function<void(uint32_t session_id, uint32_t resource_id)>;
+  using EndCallback = pw::Function<void(uint32_t session_id, Status status)>;
+
   TransferService(
       TransferThread& transfer_thread,
       uint32_t max_window_size_bytes,
@@ -54,13 +46,34 @@ class TransferService : public pw_rpc::raw::Transfer::Service<TransferService> {
       uint8_t max_retries = cfg::kDefaultMaxServerRetries,
       uint32_t extend_window_divisor = cfg::kDefaultExtendWindowDivisor,
       uint32_t max_lifetime_retries = cfg::kDefaultMaxLifetimeRetries)
-      : max_parameters_(max_window_size_bytes,
-                        transfer_thread.max_chunk_size(),
-                        extend_window_divisor),
-        thread_(transfer_thread),
-        chunk_timeout_(chunk_timeout),
-        max_retries_(max_retries),
-        max_lifetime_retries_(max_lifetime_retries) {}
+      : TransferService(transfer_thread,
+                        max_window_size_bytes,
+                        chunk_timeout,
+                        max_retries,
+                        extend_window_divisor,
+                        max_lifetime_retries,
+                        nullptr, /* on_start */
+                        nullptr  /* on_end */
+        ) {}
+
+  /// @warning The on_start and on_end callbacks are invoked from the
+  /// transfer thread, so the implementation of the callbacks:
+  /// 1. Must not attempt to interact with the transfer thread, as
+  ///    doing so can cause deadlock or internal state corruption.
+  /// 2. Must return quickly to avoid stalling the transfer thread or
+  ///    the rpc thread.
+  TransferService(TransferThread& transfer_thread,
+                  uint32_t max_window_size_bytes,
+                  StartCallback&& on_start,
+                  EndCallback&& on_end)
+      : TransferService(transfer_thread,
+                        max_window_size_bytes,
+                        cfg::kDefaultServerTimeout,
+                        cfg::kDefaultMaxServerRetries,
+                        cfg::kDefaultExtendWindowDivisor,
+                        cfg::kDefaultMaxLifetimeRetries,
+                        std::move(on_start),
+                        std::move(on_end)) {}
 
   TransferService(const TransferService&) = delete;
   TransferService(TransferService&&) = delete;
@@ -125,6 +138,43 @@ class TransferService : public pw_rpc::raw::Transfer::Service<TransferService> {
   }
 
  private:
+  // Initializes a TransferService that can be registered with an RPC server.
+  //
+  // The transfer service runs all of its transfer tasks on the provided
+  // transfer thread. This thread may be shared between a transfer service and
+  // a transfer client.
+  //
+  // `max_window_size_bytes` is the maximum amount of data to ask for at a
+  // time during a write transfer, unless told a more restrictive amount by a
+  // transfer handler. This size should span multiple chunks, and can be set
+  // quite large. The transfer protocol automatically adjusts its window size
+  // as a transfer progresses to attempt to find an optimal configuration for
+  // the connection over which it is running.
+  TransferService(TransferThread& transfer_thread,
+                  uint32_t max_window_size_bytes,
+                  chrono::SystemClock::duration chunk_timeout,
+                  uint8_t max_retries,
+                  uint32_t extend_window_divisor,
+                  uint32_t max_lifetime_retries,
+                  StartCallback&& on_start,
+                  EndCallback&& on_end)
+      : max_parameters_(max_window_size_bytes,
+                        transfer_thread.max_chunk_size(),
+                        extend_window_divisor),
+        thread_(transfer_thread),
+        chunk_timeout_(chunk_timeout),
+        max_retries_(max_retries),
+        max_lifetime_retries_(max_lifetime_retries),
+        on_server_transfer_started_(std::move(on_start)),
+        on_server_transfer_ended_(std::move(on_end)) {
+    thread_.SetServerCompletionCallback(
+        [this](uint32_t session_id, Status status) {
+          if (on_server_transfer_ended_) {
+            on_server_transfer_ended_(session_id, status);
+          }
+        });
+  }
+
   void HandleChunk(ConstByteSpan message, internal::TransferType type);
   void ResourceStatusCallback(Status status,
                               const internal::ResourceStatus& stats);
@@ -139,6 +189,9 @@ class TransferService : public pw_rpc::raw::Transfer::Service<TransferService> {
   sync::Mutex resource_responder_mutex_;
   rpc::RawUnaryResponder resource_responder_
       PW_GUARDED_BY(resource_responder_mutex_);
+
+  StartCallback on_server_transfer_started_;
+  EndCallback on_server_transfer_ended_;
 };
 
 }  // namespace pw::transfer

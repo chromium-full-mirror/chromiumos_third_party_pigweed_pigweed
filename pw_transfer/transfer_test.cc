@@ -19,6 +19,7 @@
 #include "pw_assert/check.h"
 #include "pw_bytes/array.h"
 #include "pw_containers/algorithm.h"
+#include "pw_containers/vector.h"
 #include "pw_rpc/raw/test_method_context.h"
 #include "pw_rpc/test_helpers.h"
 #include "pw_thread/thread.h"
@@ -3262,6 +3263,226 @@ TEST_F(GetResourceStatus, InvalidResourceId_ReturnsNotFound) {
   ASSERT_EQ(decoder.Read(response), OkStatus());
 
   EXPECT_EQ(response.resource_id, 27u);
+}
+
+class ServerLifecycleTest : public ::testing::Test {
+ protected:
+  struct LifecycleTracker {
+    uint32_t start_session_id = 0;
+    uint32_t start_resource_id = 0;
+    int start_count = 0;
+
+    uint32_t end_session_id = 0;
+    Status end_status = Status::Unknown();
+    int end_count = 0;
+
+    void Reset() { *this = LifecycleTracker(); }
+  };
+
+  ServerLifecycleTest()
+      : handler_(3, kData),
+        transfer_thread_(chunk_buffer_, encode_buffer_),
+        ctx_(
+            transfer_thread_,
+            64,
+            [this](uint32_t session_id, uint32_t resource_id) {
+              tracker_.start_session_id = session_id;
+              tracker_.start_resource_id = resource_id;
+              tracker_.start_count++;
+            },
+            [this](uint32_t session_id, Status status) {
+              tracker_.end_session_id = session_id;
+              tracker_.end_status = status;
+              tracker_.end_count++;
+            }),
+        system_thread_(TransferThreadOptions(), transfer_thread_) {
+    ctx_.service().RegisterHandler(handler_);
+
+    ctx_.call();
+    transfer_thread_.WaitUntilEventIsProcessed();
+  }
+
+  ~ServerLifecycleTest() override {
+    transfer_thread_.Terminate();
+    system_thread_.join();
+  }
+
+  LifecycleTracker tracker_;
+  SimpleReadTransfer handler_;
+  std::array<std::byte, 64> chunk_buffer_;
+  std::array<std::byte, 64> encode_buffer_;
+  Thread<1, 1> transfer_thread_;
+  PW_RAW_TEST_METHOD_CONTEXT(TransferService, Read) ctx_;
+  pw::Thread system_thread_;
+};
+
+TEST_F(ServerLifecycleTest, ReadTransfer_StartsAndEndsSuccessfully) {
+  uint32_t session_id = 42;
+
+  ctx_.SendClientStream(
+      EncodeChunk(Chunk(ProtocolVersion::kVersionTwo, Chunk::Type::kStart)
+                      .set_desired_session_id(session_id)
+                      .set_resource_id(3)));
+  transfer_thread_.WaitUntilEventIsProcessed();
+
+  EXPECT_EQ(tracker_.start_count, 1);
+  EXPECT_EQ(tracker_.start_session_id, session_id);
+
+  ctx_.SendClientStream(EncodeChunk(
+      Chunk(ProtocolVersion::kVersionTwo, Chunk::Type::kStartAckConfirmation)
+          .set_session_id(session_id)
+          .set_window_end_offset(64)
+          .set_offset(0)));
+  transfer_thread_.WaitUntilEventIsProcessed();
+
+  ctx_.SendClientStream(EncodeChunk(
+      Chunk::Final(ProtocolVersion::kVersionTwo, session_id, OkStatus())));
+  transfer_thread_.WaitUntilEventIsProcessed();
+
+  EXPECT_EQ(tracker_.end_count, 1);
+  EXPECT_EQ(tracker_.end_session_id, session_id);
+  EXPECT_TRUE(tracker_.end_status.ok());
+}
+
+TEST_F(ServerLifecycleTest, TransferError_TriggersEndCallbackWithStatus) {
+  uint32_t session_id = 99;
+
+  ctx_.SendClientStream(
+      EncodeChunk(Chunk(ProtocolVersion::kVersionTwo, Chunk::Type::kStart)
+                      .set_desired_session_id(session_id)
+                      .set_resource_id(3)));
+  transfer_thread_.WaitUntilEventIsProcessed();
+
+  EXPECT_EQ(tracker_.start_count, 1);
+  EXPECT_EQ(tracker_.start_session_id, session_id);
+
+  ctx_.SendClientStream(EncodeChunk(
+      Chunk(ProtocolVersion::kVersionTwo, Chunk::Type::kStartAckConfirmation)
+          .set_session_id(session_id)
+          .set_window_end_offset(64)
+          .set_offset(0)));
+  transfer_thread_.WaitUntilEventIsProcessed();
+
+  ctx_.SendClientStream(EncodeChunk(Chunk::Final(
+      ProtocolVersion::kVersionTwo, session_id, Status::Aborted())));
+  transfer_thread_.WaitUntilEventIsProcessed();
+
+  EXPECT_EQ(tracker_.end_count, 1);
+  EXPECT_EQ(tracker_.end_session_id, session_id);
+  EXPECT_EQ(tracker_.end_status, Status::Aborted());
+}
+
+class ConcurrentServerLifecycleTest : public ::testing::Test {
+ protected:
+  struct LifecycleTracker {
+    struct SessionRecord {
+      uint32_t session_id = 0;
+      uint32_t resource_id = 0;
+      int start_count = 0;
+      int end_count = 0;
+      Status end_status = Status::Unknown();
+    };
+
+    pw::Vector<SessionRecord, 2> sessions;
+
+    SessionRecord& GetSession(uint32_t session_id) {
+      for (auto& session : sessions) {
+        if (session.session_id == session_id) {
+          return session;
+        }
+      }
+      sessions.push_back(SessionRecord{.session_id = session_id});
+      return sessions.back();
+    }
+
+    void Reset() { sessions.clear(); }
+  };
+
+  ConcurrentServerLifecycleTest()
+      : handler3_(3, kData),
+        handler4_(4, kData),
+        // Thread capacity must be at least 2 for concurrent server transfers.
+        transfer_thread_(chunk_buffer_, encode_buffer_),
+        ctx_(
+            transfer_thread_,
+            64,
+            [this](uint32_t session_id, uint32_t resource_id) {
+              auto& session = tracker_.GetSession(session_id);
+              session.resource_id = resource_id;
+              session.start_count++;
+            },
+            [this](uint32_t session_id, Status status) {
+              auto& session = tracker_.GetSession(session_id);
+              session.end_status = status;
+              session.end_count++;
+            }),
+        system_thread_(TransferThreadOptions(), transfer_thread_) {
+    ctx_.service().RegisterHandler(handler3_);
+    ctx_.service().RegisterHandler(handler4_);
+
+    ctx_.call();
+    transfer_thread_.WaitUntilEventIsProcessed();
+  }
+
+  ~ConcurrentServerLifecycleTest() override {
+    transfer_thread_.Terminate();
+    system_thread_.join();
+  }
+
+  LifecycleTracker tracker_;
+  SimpleReadTransfer handler3_;
+  SimpleReadTransfer handler4_;
+  std::array<std::byte, 64> chunk_buffer_;
+  std::array<std::byte, 64> encode_buffer_;
+  Thread<2, 2> transfer_thread_;
+  PW_RAW_TEST_METHOD_CONTEXT(TransferService, Read, 16) ctx_;
+  pw::Thread system_thread_;
+};
+
+TEST_F(ConcurrentServerLifecycleTest, ConcurrentTransfers_TracksSeparately) {
+  const uint32_t session_a = 1001;
+  const uint32_t session_b = 2002;
+
+  ctx_.SendClientStream(
+      EncodeChunk(Chunk(ProtocolVersion::kVersionTwo, Chunk::Type::kStart)
+                      .set_desired_session_id(session_a)
+                      .set_resource_id(3)));
+
+  ctx_.SendClientStream(
+      EncodeChunk(Chunk(ProtocolVersion::kVersionTwo, Chunk::Type::kStart)
+                      .set_desired_session_id(session_b)
+                      .set_resource_id(4)));
+
+  transfer_thread_.WaitUntilEventIsProcessed();
+
+  EXPECT_EQ(tracker_.GetSession(session_a).start_count, 1);
+  EXPECT_EQ(tracker_.GetSession(session_a).resource_id, 3u);
+  EXPECT_EQ(tracker_.GetSession(session_b).start_count, 1);
+  EXPECT_EQ(tracker_.GetSession(session_b).resource_id, 4u);
+
+  ctx_.SendClientStream(EncodeChunk(
+      Chunk(ProtocolVersion::kVersionTwo, Chunk::Type::kStartAckConfirmation)
+          .set_session_id(session_a)
+          .set_window_end_offset(64)
+          .set_offset(0)));
+  ctx_.SendClientStream(EncodeChunk(
+      Chunk(ProtocolVersion::kVersionTwo, Chunk::Type::kStartAckConfirmation)
+          .set_session_id(session_b)
+          .set_window_end_offset(64)
+          .set_offset(0)));
+  transfer_thread_.WaitUntilEventIsProcessed();
+
+  ctx_.SendClientStream(EncodeChunk(
+      Chunk::Final(ProtocolVersion::kVersionTwo, session_a, OkStatus())));
+  ctx_.SendClientStream(EncodeChunk(Chunk::Final(
+      ProtocolVersion::kVersionTwo, session_b, Status::DataLoss())));
+  transfer_thread_.WaitUntilEventIsProcessed();
+
+  EXPECT_EQ(tracker_.GetSession(session_a).end_count, 1);
+  EXPECT_TRUE(tracker_.GetSession(session_a).end_status.ok());
+
+  EXPECT_EQ(tracker_.GetSession(session_b).end_count, 1);
+  EXPECT_EQ(tracker_.GetSession(session_b).end_status, Status::DataLoss());
 }
 
 }  // namespace

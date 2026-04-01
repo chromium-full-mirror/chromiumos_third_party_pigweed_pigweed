@@ -122,6 +122,8 @@ class Context {
   // Processes an event for this transfer.
   void HandleEvent(const Event& event);
 
+  virtual void SetInactive() { set_transfer_state(TransferState::kInactive); }
+
  protected:
   virtual ~Context() = default;
 
@@ -164,6 +166,8 @@ class Context {
     PW_DASSERT(active() && type() == TransferType::kTransmit);
     return static_cast<stream::Reader&>(*stream_);
   }
+
+  void NotifyServerCompletion();
 
   uint32_t initial_offset_;
 

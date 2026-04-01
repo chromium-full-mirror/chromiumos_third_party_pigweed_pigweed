@@ -33,6 +33,12 @@
 
 namespace pw::transfer::internal {
 
+void Context::NotifyServerCompletion() {
+  if (thread_ != nullptr) {
+    thread_->NotifyServerCompletion(session_id_, status_);
+  }
+}
+
 void Context::HandleEvent(const Event& event) {
   switch (event.type) {
     case EventType::kNewClientTransfer:
@@ -1034,7 +1040,7 @@ void Context::HandleTerminatingChunk(const Chunk& chunk) {
     case Chunk::Type::kCompletionAck:
       PW_LOG_INFO(
           "Transfer %u completed with status %u", id_for_log(), status_.code());
-      set_transfer_state(TransferState::kInactive);
+      SetInactive();
       break;
 
     case Chunk::Type::kData:
@@ -1093,7 +1099,7 @@ void Context::HandleTermination(Status status) {
         Chunk(configured_protocol_version_, Chunk::Type::kCompletionAck)
             .set_session_id(session_id_));
 
-    set_transfer_state(TransferState::kInactive);
+    SetInactive();
   }
 }
 
@@ -1145,7 +1151,7 @@ void Context::HandleTimeout() {
     case TransferState::kCompleted:
       // A timeout occurring in a completed state indicates that the other side
       // never ACKed the final status packet. Reset the context to inactive.
-      set_transfer_state(TransferState::kInactive);
+      SetInactive();
       return;
 
     case TransferState::kTransmitting:
@@ -1191,7 +1197,7 @@ void Context::Retry() {
     if (transfer_state_ == TransferState::kTerminating) {
       // Timeouts occurring in a TERMINATING state indicate that the completion
       // chunk was never ACKed. Simply clean up the transfer context.
-      set_transfer_state(TransferState::kInactive);
+      SetInactive();
     } else {
       TerminateTransfer(Status::DeadlineExceeded());
     }

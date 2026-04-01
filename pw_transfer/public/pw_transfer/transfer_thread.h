@@ -50,6 +50,25 @@ class TransferThread : public thread::ThreadCore {
         chunk_buffer_(chunk_buffer),
         encode_buffer_(encode_buffer) {}
 
+  /// Set callback to be invoked when a server-side transfer completes or fails.
+  ///
+  /// @warning This callback is invoked from the transfer thread, so the
+  /// callback:
+  /// 1. Must not attempt to interact with the transfer thread, as doing so can
+  ///    cause deadlock or internal state corruption.
+  /// 2. Must return quickly to avoid stalling the transfer thread or the
+  ///    rpc thread.
+  void SetServerCompletionCallback(
+      pw::Function<void(uint32_t, pw::Status)>&& cb) {
+    on_server_completion_ = std::move(cb);
+  }
+
+  void NotifyServerCompletion(uint32_t session_id, Status status) {
+    if (on_server_completion_) {
+      on_server_completion_(session_id, status);
+    }
+  }
+
   void StartClientTransfer(TransferType type,
                            ProtocolVersion version,
                            uint32_t resource_id,
@@ -250,6 +269,8 @@ class TransferThread : public thread::ThreadCore {
  private:
   friend class transfer::Client;
   friend class Context;
+
+  Function<void(uint32_t, Status)> on_server_completion_;
 
   void UpdateClientTransfer(uint32_t handle_id, size_t transfer_size_bytes);
 

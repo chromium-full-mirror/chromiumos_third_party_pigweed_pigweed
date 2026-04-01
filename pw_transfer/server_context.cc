@@ -59,4 +59,13 @@ Status ServerContext::SeekReader(uint32_t offset) {
   return reader().Seek(offset);
 }
 
+void ServerContext::SetInactive() {
+  bool was_active = initialized();
+
+  Context::SetInactive();
+  if (was_active) {
+    NotifyServerCompletion();
+  }
+}
+
 }  // namespace pw::transfer::internal

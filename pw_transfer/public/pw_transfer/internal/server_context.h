@@ -35,6 +35,8 @@ class ServerContext final : public Context {
   // Returns the pointer to the current handler.
   const Handler* handler() { return handler_; }
 
+  void SetInactive() override;
+
  private:
   // Ends the transfer with the given status, calling the handler's Finalize
   // method. No chunks are sent.

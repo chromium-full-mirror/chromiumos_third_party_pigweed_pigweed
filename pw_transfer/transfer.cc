@@ -69,6 +69,10 @@ void TransferService::HandleChunk(ConstByteSpan message,
                                 max_retries_,
                                 max_lifetime_retries_,
                                 initial_offset);
+
+    if (on_server_transfer_started_) {
+      on_server_transfer_started_(session_id, resource_id);
+    }
   } else {
     thread_.ProcessServerChunk(message);
   }

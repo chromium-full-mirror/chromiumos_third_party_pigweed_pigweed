@@ -189,6 +189,28 @@ thread and registered with the system's RPC server.
      GetSystemRpcServer().RegisterService(transfer_service);
    }
 
+Lifecycle callbacks
+^^^^^^^^^^^^^^^^^^^
+``TransferService`` supports optional callbacks that are triggered when a server
+transfer starts and ends.
+
+   **Callback implementation warnings:**
+
+   The two lifecycle callbacks are invoked directly from the context of the
+   transfer thread while it is processing events. The implementation of the
+   callbacks must adhere to the following constraints:
+
+   * No re-entrancy: Callbacks must not interact with the transfer thread,
+     e.g. starting new transfers via a ``pw::transfer::Client`` or
+     calling other transfer methods that use the same thread. Doing so can
+     cause deadlock or internal state corruption.
+
+   * Lightweight: Callbacks must be lightweight and return quickly.
+     The callbacks execute on the transfer thread, any delay stalls all ongoing
+     transfer packets and may block other threads that interact with the transfer
+     packets, such as RPC handlers.
+
+
 Dynamic handler allocation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 For ephemeral resources, ``pw_transfer`` provides a ``TransferHandlerAllocator``
