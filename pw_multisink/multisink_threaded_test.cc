@@ -367,6 +367,35 @@ TEST_F(MultiSinkTest, OverflowMultisink) {
   // can't control the order threads will operate.
 }
 
+TEST_F(MultiSinkTest, MultithreadDrainStateChanges) {
+  MultiSink::Drain drain;
+
+  struct AttachDetachContext {
+    MultiSink& multisink;
+    MultiSink::Drain& drain;
+  } modifier_context = {multisink_, drain};
+
+  Thread modifier_thread(
+      test::MultiSinkTestThreadOptions(), [&modifier_context]() {
+        for (int i = 0; i < 1000; ++i) {
+          modifier_context.multisink.AttachDrain(modifier_context.drain);
+          modifier_context.multisink.DetachDrain(modifier_context.drain);
+        }
+      });
+
+  Thread getter_thread(test::MultiSinkTestThreadOptions(), [&drain]() {
+    bool result = false;
+    for (int i = 0; i < 1000; ++i) {
+      result ^= drain.attached();
+    }
+    // Ensure attached() doesn't get optimized away
+    (void)result;
+  });
+
+  modifier_thread.join();
+  getter_thread.join();
+}
+
 #endif  // PW_THREAD_JOINING_ENABLED
 
 }  // namespace pw::multisink

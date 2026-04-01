@@ -216,6 +216,16 @@ TEST_F(MultiSinkTest, MultipleDrain) {
   VerifyPopEntry(drains_[1], std::nullopt, 0u, 0u);
 }
 
+TEST_F(MultiSinkTest, DrainAttachedState) {
+  EXPECT_FALSE(drains_[0].attached());
+
+  multisink_.AttachDrain(drains_[0]);
+  EXPECT_TRUE(drains_[0].attached());
+
+  multisink_.DetachDrain(drains_[0]);
+  EXPECT_FALSE(drains_[0].attached());
+}
+
 TEST_F(MultiSinkTest, LateDrainRegistration) {
   // Drains attached after entries are pushed should still observe those entries
   // if they have not been evicted from the ring buffer.

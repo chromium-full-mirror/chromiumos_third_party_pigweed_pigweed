@@ -228,6 +228,9 @@ class MultiSink {
       return reader_.EntryCount();
     }
 
+    // Returns true if the drain is attached to a MultiSink.
+    bool attached() const { return multisink_ != nullptr; }
+
    protected:
     friend MultiSink;
 
