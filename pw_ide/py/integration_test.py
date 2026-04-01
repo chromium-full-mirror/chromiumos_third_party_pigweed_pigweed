@@ -43,6 +43,11 @@ from pw_ide import clangd_binary, update_compile_commands_binary
 
 # pylint: enable=import-error,no-name-in-module
 
+_HEURISTIC_FALLBACK_MSG = (
+    'Found definition heuristically using nearby identifier'
+)
+_VIRTUAL_INCLUDES_PATTERN = r'.*/_virtual_includes/.*'
+
 
 _INCLUDE_PREFIXES = (
     '-I',
@@ -243,6 +248,31 @@ class CompileCommandsTestBase(unittest.TestCase):
             cwd=self.project_root,
         )
 
+    def _check_no_heuristics(
+        self,
+        clangd_result: subprocess.CompletedProcess,
+        db_path: Path,
+        command: dict,
+    ):
+        """Asserts that clangd did not fall back to heuristics.
+
+        When clangd can't find a file in compile_commands.json, or when the
+        provided flags are insufficient to resolve basic symbols, it may fall
+        back to "heuristic" mode. In this mode, clangd tries to guess the
+        correct compilation flags by looking at nearby identifiers or other
+        files in the same directory.
+
+        While this is a helpful user-facing fallback, for these integration
+        tests it indicates a failure: we want to ensure that our compile
+        commands generation (including header mapping) is providing the
+        exact, correct flags so that clangd never has to guess.
+        """
+        self.assertNotIn(
+            _HEURISTIC_FALLBACK_MSG,
+            clangd_result.stderr,
+            _format_clangd_error(clangd_result, db_path, command),
+        )
+
     def _assert_file_is_in_db_for_config(
         self, file_pattern: str, platform_pattern: str
     ):
@@ -268,7 +298,11 @@ class StandardCompileCommandsTests(CompileCommandsTestBase):
         super().setUpClass()
 
     def test_files_are_valid(self):
-        """Checks various file's compile command with clangd."""
+        """Checks various file's compile command with clangd.
+
+        Verified that files can be parsed using the database flags without
+        errors and WITHOUT falling back to heuristics.
+        """
         matches = self._find_commands_for_file(
             _TEST_PACKAGE + r'.*\.cc?',
             platform_pattern=_HOST_OR_DEVICE,
@@ -289,6 +323,7 @@ class StandardCompileCommandsTests(CompileCommandsTestBase):
                     0,
                     _format_clangd_error(clangd_result, db_path, command),
                 )
+                self._check_no_heuristics(clangd_result, db_path, command)
 
     def test_external_file_is_valid(self):
         """Checks an external file's compile command with clangd."""
@@ -310,18 +345,36 @@ class StandardCompileCommandsTests(CompileCommandsTestBase):
                     0,
                     _format_clangd_error(clangd_result, db_path, command),
                 )
+                self._check_no_heuristics(clangd_result, db_path, command)
 
-    def test_headers_are_not_present(self):
-        """Checks header files don't end up in the command databases."""
+    def test_headers_are_present(self):
+        """Checks header files are present in the command databases.
+
+        Verified that headers can be parsed using the database flags without
+        errors and WITHOUT falling back to heuristics. This specifically
+        tests that our header mapping (flag borrowing) logic is correct.
+        """
         matches = self._find_commands_for_file(
             _ANY_TEST_PACKAGE + r'.*\.h',
             platform_pattern=_HOST_OR_DEVICE,
         )
-        self.assertEqual(
+        self.assertGreater(
             len(matches),
             0,
-            'Test headers should not end up in the database.',
+            'Test headers should be present in the database.',
         )
+
+        for db_path, command in matches:
+            with self.subTest(
+                f'Checking header {command["file"]} from {db_path.parent}'
+            ):
+                clangd_result = self._run_clangd_check(db_path, command)
+                self.assertEqual(
+                    clangd_result.returncode,
+                    0,
+                    _format_clangd_error(clangd_result, db_path, command),
+                )
+                self._check_no_heuristics(clangd_result, db_path, command)
 
     def test_asm_are_not_present(self):
         """Checks assembly files don't end up in the command databases."""
@@ -396,9 +449,9 @@ class StandardCompileCommandsTests(CompileCommandsTestBase):
                         'bazel-out' not in path_str
                         or 'pw_assert_trap' not in path_str
                     ):
-                        self.assertNotIn(
-                            '_virtual_includes',
+                        self.assertNotRegex(
                             path_str,
+                            _VIRTUAL_INCLUDES_PATTERN,
                             f'Found _virtual_includes in {path_str}',
                         )
 

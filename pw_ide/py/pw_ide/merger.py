@@ -496,6 +496,8 @@ def _load_commands_for_platform(
                 _LOG.error("Could not parse %s, skipping.", fragment_path)
                 continue
 
+            target_infos: list[dict] = []
+
             if isinstance(fragment_commands, list):
                 # Legacy fragment format (top level is a list of commands)
                 commands_list = fragment_commands
@@ -509,18 +511,19 @@ def _load_commands_for_platform(
                         all_vrmaps[v_path] = r_path
 
                 target_info_field = fragment_commands.get("target_info")
+
                 if isinstance(target_info_field, dict):
-                    all_infos.append(target_info_field)
+                    target_infos = [target_info_field]
                 elif isinstance(target_info_field, list):
-                    for info_dict in target_info_field:
-                        if isinstance(info_dict, dict):
-                            all_infos.append(info_dict)
+                    for info in target_info_field:
+                        if isinstance(info, dict):
+                            target_infos.append(info)
                         else:
                             _LOG.warning(
                                 "Skipping malformed target_info entry "
                                 "(expected dict, got %s): %s",
-                                type(info_dict),
-                                info_dict,
+                                type(info),
+                                info,
                             )
                 elif target_info_field is not None:
                     _LOG.warning(
@@ -529,14 +532,44 @@ def _load_commands_for_platform(
                         type(target_info_field),
                         target_info_field,
                     )
+
+                if target_infos:
+                    all_infos.extend(target_infos)
+
                 commands_list = fragment_commands.get("commands", [])
 
+                # Associate headers with flags from this fragment. If the
+                # fragment has at least one command, we use its arguments as a
+                # representative set of flags for all headers in this fragment.
+                borrowed_args = None
+                if commands_list:
+                    borrowed_args = commands_list[0].get("arguments")
+
+                if borrowed_args:
+                    src_files = {cmd["file"] for cmd in commands_list}
+                    for info in target_infos:
+                        for hdr in info.get("hdrs", []):
+                            if hdr not in src_files and hdr.endswith(
+                                (".h", ".hh", ".hpp", ".hxx")
+                            ):
+                                # Add a synthetic command for the header
+                                commands_list.append(
+                                    {
+                                        "file": hdr,
+                                        "arguments": borrowed_args,
+                                        "directory": "__WORKSPACE_ROOT__",
+                                        # Headers don't have outputs, but we
+                                        # include it to match the expected
+                                        # schema and avoid errors.
+                                        "outputs": [],
+                                    }
+                                )
+                                # Add to src_files to avoid adding the same
+                                # header multiple times within the same
+                                # fragment.
+                                src_files.add(hdr)
+
             for command_dict in commands_list:
-                # TODO: https://pwbug.dev/446688765 - Support headers, either by
-                # extracting them from the fragments before they hit the compile
-                # commands database, or by enumerating them in separate files.
-                if command_dict['file'].endswith('.h'):
-                    continue
 
                 # Different compiled files may occur multiple times. This
                 # can be because of PIC/non-PIC variants of a library, or
@@ -551,9 +584,16 @@ def _load_commands_for_platform(
                 )
                 if command_tuple in commands_by_file:
                     existing_cmd = commands_by_file[command_tuple]
-                    if tuple(existing_cmd['arguments']) != tuple(
-                        command_dict['arguments']
-                    ):
+                    if existing_cmd['arguments'] != command_dict['arguments']:
+                        if command_dict['file'].endswith(
+                            ('.h', '.hh', '.hpp', '.hxx')
+                        ):
+                            _LOG.debug(
+                                'Header flags conflict for %s; using existing',
+                                command_dict['file'],
+                            )
+                            continue
+
                         _LOG.error(
                             'Conflict for file %s in platform %s',
                             command_dict['file'],
