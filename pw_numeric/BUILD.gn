@@ -45,6 +45,26 @@ pw_test("integer_division_test") {
   deps = [ ":integer_division" ]
 }
 
+pw_source_set("rounding") {
+  public = [ "public/pw_numeric/rounding.h" ]
+  public_configs = [ ":public_include_path" ]
+  deps = [
+    ":checked_arithmetic",
+    "$dir_pw_unit_test:constexpr",
+  ]
+}
+
+pw_test("rounding_test") {
+  sources = [ "rounding_test.cc" ]
+  deps = [
+    ":rounding",
+    "$dir_pw_assert:check",
+    "$dir_pw_numeric:checked_arithmetic",
+    "$dir_pw_unit_test:constexpr",
+    dir_pw_unit_test,
+  ]
+}
+
 pw_source_set("saturating_arithmetic") {
   public = [ "public/pw_numeric/saturating_arithmetic.h" ]
   public_configs = [ ":public_include_path" ]
@@ -63,6 +83,7 @@ pw_test_group("tests") {
   tests = [
     ":checked_arithmetic_test",
     ":integer_division_test",
+    ":rounding_test",
     ":saturating_arithmetic_test",
   ]
 }

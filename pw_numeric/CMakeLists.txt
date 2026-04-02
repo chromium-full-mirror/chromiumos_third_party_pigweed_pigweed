@@ -48,6 +48,27 @@ pw_add_test(pw_numeric.integer_division_test
     pw_numeric
 )
 
+pw_add_library(pw_numeric.rounding INTERFACE
+  HEADERS
+    public/pw_numeric/rounding.h
+  PUBLIC_INCLUDES
+    public
+  PUBLIC_DEPS
+    pw_assert
+    pw_numeric.checked_arithmetic
+)
+
+pw_add_test(pw_numeric.rounding_test
+  SOURCES
+    rounding_test.cc
+  PRIVATE_DEPS
+    pw_numeric.rounding
+    pw_unit_test.constexpr
+  GROUPS
+    modules
+    pw_numeric
+)
+
 pw_add_library(pw_numeric.saturating_arithmetic INTERFACE
   HEADERS
     public/pw_numeric/saturating_arithmetic.h

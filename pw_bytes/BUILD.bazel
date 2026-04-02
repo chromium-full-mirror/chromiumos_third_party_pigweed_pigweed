@@ -60,6 +60,7 @@ cc_library(
         "//pw_assert:assert",
         "//pw_bytes",
         "//pw_numeric:checked_arithmetic",
+        "//pw_numeric:rounding",
         "//third_party/fuchsia:stdcompat",
     ],
 )

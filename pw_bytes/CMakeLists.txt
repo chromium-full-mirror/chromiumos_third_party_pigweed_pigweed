@@ -44,6 +44,7 @@ pw_add_library(pw_bytes.alignment STATIC
     pw_assert
     pw_bytes
     pw_numeric.checked_arithmetic
+    pw_numeric.rounding
     pw_third_party.fuchsia.stdcompat
   SOURCES
     alignment.cc

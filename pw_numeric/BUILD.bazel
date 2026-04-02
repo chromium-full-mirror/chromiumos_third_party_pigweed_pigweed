@@ -49,6 +49,25 @@ pw_cc_test(
 )
 
 cc_library(
+    name = "rounding",
+    hdrs = ["public/pw_numeric/rounding.h"],
+    strip_include_prefix = "public",
+    deps = [
+        ":checked_arithmetic",
+        "//pw_assert:assert",
+    ],
+)
+
+pw_cc_test(
+    name = "rounding_test",
+    srcs = ["rounding_test.cc"],
+    deps = [
+        ":rounding",
+        "//pw_unit_test:constexpr",
+    ],
+)
+
+cc_library(
     name = "saturating_arithmetic",
     hdrs = ["public/pw_numeric/saturating_arithmetic.h"],
     strip_include_prefix = "public",
@@ -69,6 +88,7 @@ filegroup(
     srcs = [
         "public/pw_numeric/checked_arithmetic.h",
         "public/pw_numeric/integer_division.h",
+        "public/pw_numeric/rounding.h",
         "public/pw_numeric/saturating_arithmetic.h",
     ],
 )
