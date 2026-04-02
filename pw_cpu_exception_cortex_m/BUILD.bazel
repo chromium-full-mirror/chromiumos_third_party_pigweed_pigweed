@@ -78,7 +78,7 @@ pw_facade(
         ":config",
         ":cortex_m_constants",
         ":cpu_state",
-        "//pw_preprocessor:cortex_m",
+        "//pw_preprocessor:arch",
     ],
 )
 
@@ -88,7 +88,7 @@ cc_library(
     strip_include_prefix = "public",
     deps = [
         "//pw_preprocessor",
-        "//pw_preprocessor:cortex_m",
+        "//pw_preprocessor:arch",
     ],
 )
 
@@ -110,7 +110,7 @@ cc_library(
         ":cortex_m_constants",
         ":cpu_state",
         "//pw_log",
-        "//pw_preprocessor:cortex_m",
+        "//pw_preprocessor:arch",
     ],
 )
 
@@ -125,7 +125,7 @@ cc_library(
         "//pw_cpu_exception:support.facade",
         "//pw_log",
         "//pw_preprocessor",
-        "//pw_preprocessor:cortex_m",
+        "//pw_preprocessor:arch",
         "//pw_string",
     ],
 )
@@ -183,7 +183,7 @@ cc_library(
         ":cpu_state",
         "//pw_cpu_exception:entry.facade",
         "//pw_preprocessor",
-        "//pw_preprocessor:cortex_m",
+        "//pw_preprocessor:arch",
     ],
 )
 
@@ -236,7 +236,7 @@ cc_library(
     name = "cortex_m_constants",
     hdrs = ["pw_cpu_exception_cortex_m_private/cortex_m_constants.h"],
     visibility = ["//visibility:private"],
-    deps = ["//pw_preprocessor:cortex_m"],
+    deps = ["//pw_preprocessor:arch"],
 )
 
 cc_library(
@@ -312,7 +312,7 @@ pw_cc_test(
         ":util",
         "//pw_cpu_exception:entry",
         "//pw_preprocessor",
-        "//pw_preprocessor:cortex_m",
+        "//pw_preprocessor:arch",
         "//pw_status",
         "//pw_string:builder",
         "//pw_sync:lock_annotations",
