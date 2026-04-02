@@ -398,6 +398,24 @@ class DependentElement : public ElementType {
     return source_->Release();
   }
 
+ protected:
+  /// Setting the source of the dependent clock tree element.
+  ///
+  /// Note: This does not acquire the new source clock tree element or release
+  /// the old source clock tree element.
+  template <typename SourceType>
+  void SetSource(SourceType& source) {
+    static_assert(ElementType::kMayBlock || !SourceType::kMayBlock,
+                  "Non-blocking element cannot depend on a blocking element");
+    static_assert(
+        ElementType::kMayFail || !SourceType::kMayFail,
+        "Non-failing element cannot depend on an element that might fail");
+    source_ = &source;
+  }
+
+  Element& source() { return *source_; }
+
+ private:
   // NOTE: This is an Element* not SourceType* to allow the source to be
   // changed at runtime.
   // We still use ElementType and SourceType& in the constructor to ensure a

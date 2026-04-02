@@ -458,6 +458,49 @@ TEST(ClockTree, ClockDividerSetNonBlocking) {
   TestClockDividerSet<ElementNonBlockingMightFail>();
 }
 
+template <typename ElementType>
+class DependentElementTest : public DependentElement<ElementType> {
+ public:
+  template <typename SourceType>
+  constexpr DependentElementTest(SourceType& source)
+      : DependentElement<ElementType>(source) {}
+
+  using DependentElement<ElementType>::SetSource;
+
+ private:
+  pw::Status DoEnable() final { return pw::OkStatus(); }
+
+  pw::Status DoDisable() final { return pw::OkStatus(); }
+};
+
+TEST(ClockTree, DependentElementSetSource) {
+  ClockSourceTest<ElementNonBlockingCannotFail> source_a;
+  ClockSourceTest<ElementBlocking> source_b;
+  DependentElementTest<ElementBlocking> dependent(source_a);
+
+  EXPECT_EQ(source_a.ref_count(), 0u);
+  EXPECT_EQ(source_b.ref_count(), 0u);
+
+  // Set source to a and acquire
+  dependent.SetSource(source_a);
+  PW_TEST_EXPECT_OK(dependent.Acquire());
+  EXPECT_EQ(source_a.ref_count(), 1u);
+
+  // Release
+  PW_TEST_EXPECT_OK(dependent.Release());
+  EXPECT_EQ(source_a.ref_count(), 0u);
+
+  // Set source to b and acquire
+  dependent.SetSource(source_b);
+  PW_TEST_EXPECT_OK(dependent.Acquire());
+  EXPECT_EQ(source_a.ref_count(), 0u);
+  EXPECT_EQ(source_b.ref_count(), 1u);
+
+  // Release
+  PW_TEST_EXPECT_OK(dependent.Release());
+  EXPECT_EQ(source_b.ref_count(), 0u);
+}
+
 // Validate that if the `DoEnable` function fails that gets called as part
 // of a divider update, that the state of the divider doesn't change.
 template <typename ElementType>
