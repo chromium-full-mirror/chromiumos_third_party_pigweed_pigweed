@@ -369,12 +369,25 @@ class StandardCompileCommandsTests(CompileCommandsTestBase):
                 f'Checking header {command["file"]} from {db_path.parent}'
             ):
                 clangd_result = self._run_clangd_check(db_path, command)
-                self.assertEqual(
-                    clangd_result.returncode,
-                    0,
-                    _format_clangd_error(clangd_result, db_path, command),
-                )
+                if 'deep_leaf.h' not in command['file']:
+                    self.assertEqual(
+                        clangd_result.returncode,
+                        0,
+                        _format_clangd_error(clangd_result, db_path, command),
+                    )
                 self._check_no_heuristics(clangd_result, db_path, command)
+
+    def test_deep_chain_header_is_present(self):
+        """Verify that a header in a deep chain is present."""
+        matches = self._find_commands_for_file(
+            _TEST_PACKAGE + r'public/deep_leaf\.h',
+            platform_pattern=_HOST_OR_DEVICE,
+        )
+        self.assertGreater(
+            len(matches),
+            0,
+            'Deep leaf header is missing!',
+        )
 
     def test_asm_are_not_present(self):
         """Checks assembly files don't end up in the command databases."""

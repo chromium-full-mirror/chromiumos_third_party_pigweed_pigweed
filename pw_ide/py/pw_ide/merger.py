@@ -738,12 +738,26 @@ def _process_platform(
         target_infos = []
         all_vrmaps = {}
 
-    workspace_root_path = workspace_root.resolve()
-    relative_to = workspace_root_path
+    relative_to = workspace_root.resolve()
 
     platform_dir = output_dir / platform
     platform_dir.mkdir(exist_ok=True)
     merged_json_path = platform_dir / "compile_commands.json"
+
+    final_target_infos: dict[str, Any] = {}
+    parent_map: dict[str, list[str]] = {}
+
+    if target_infos:
+        _, final_target_infos, parent_map = _process_target_infos(
+            target_infos,
+            bazel_output_path,
+            output_base_path,
+            relative_to,
+            platform_dir,
+            symlink_prefix,
+        )
+
+    _enrich_with_global_flags(all_commands, final_target_infos, parent_map)
 
     processed_commands = []
 
@@ -762,20 +776,20 @@ def _process_platform(
             relative_to=relative_to,
             symlink_prefix=symlink_prefix,
         )
-        resolved_cmd = resolve_external_paths(
+        cmd = resolve_external_paths(
             cmd,
             output_base_path,
             relative_to=relative_to,
             symlink_prefix=symlink_prefix,
         )
-        resolved_cmd = resolve_bazel_out_paths(
-            resolved_cmd,
+        cmd = resolve_bazel_out_paths(
+            cmd,
             bazel_output_path,
             relative_to=relative_to,
             symlink_prefix=symlink_prefix,
         )
-        resolved_cmd = filter_unsupported_march_args(resolved_cmd)
-        processed_commands.append(resolved_cmd._asdict())
+        cmd = filter_unsupported_march_args(cmd)
+        processed_commands.append(cmd._asdict())
 
     with open(merged_json_path, "w") as f:
         json.dump(processed_commands, f, indent=2)
@@ -786,16 +800,7 @@ def _process_platform(
     with open(merged_json_path, "w") as f:
         f.write(content)
 
-    # Process target info (deps mapping)
-    if target_infos:
-        _process_target_infos(
-            target_infos,
-            bazel_output_path,
-            output_base_path,
-            relative_to,
-            platform_dir,
-            symlink_prefix,
-        )
+    # Target info was processed early to support global flag borrowing
 
     (output_dir / 'pw_lastGenerationTime.txt').write_text(str(int(time.time())))
 
@@ -825,10 +830,11 @@ def _process_target_infos(
     relative_to: Path | None,
     platform_dir: Path,
     symlink_prefix: str = '',
-) -> None:
+) -> tuple[dict[str, list[str]], dict[str, Any], dict[str, list[str]]]:
     """Processes target infos and writes deps_mapping.json."""
     final_target_infos: dict[str, Any] = {}
     files_map: dict[str, list[str]] = collections.defaultdict(list)
+    parent_map: dict[str, list[str]] = collections.defaultdict(list)
 
     for info in target_infos:
         label = info.get("label")
@@ -852,6 +858,10 @@ def _process_target_infos(
         else:
             final_target_infos[label] = resolved_info
 
+        for dep in resolved_info.get("deps", []):
+            if label not in parent_map[dep]:
+                parent_map[dep].append(label)
+
         # Retrieve potentially merged paths to update files_map
         current_srcs = final_target_infos[label].get("srcs", [])
         current_hdrs = final_target_infos[label].get("hdrs", [])
@@ -866,6 +876,63 @@ def _process_target_infos(
 
     deps_mapping_path = platform_dir / "deps_mapping.json"
     deps_mapping_path.write_text(json.dumps(deps_mapping, indent=2))
+
+    return files_map, final_target_infos, parent_map
+
+
+def _enrich_with_global_flags(
+    all_commands: list[dict],
+    final_target_infos: dict[str, Any],
+    parent_map: dict[str, list[str]],
+) -> None:
+    """Borrow compile flags for headers in deep chains."""
+    files_with_commands = {cmd["file"] for cmd in all_commands}
+    commands_by_file_path = {cmd["file"]: cmd for cmd in all_commands}
+
+    def find_flags_for_target(target_label: str) -> list[str] | None:
+        info = final_target_infos.get(target_label)
+        if not info:
+            return None
+        for src in info.get("srcs", []):
+            if src in commands_by_file_path:
+                return commands_by_file_path[src].get("arguments")
+        return None
+
+    for label, info in final_target_infos.items():
+        for hdr in info.get("hdrs", []):
+            if hdr in files_with_commands:
+                continue
+
+            if not hdr.endswith((".h", ".hh", ".hpp", ".hxx")):
+                continue
+
+            visited = set()
+            queue = collections.deque([label])
+            found_flags = None
+
+            while queue:
+                current = queue.popleft()
+                if current in visited:
+                    continue
+                visited.add(current)
+
+                found_flags = find_flags_for_target(current)
+                if found_flags:
+                    break
+
+                for parent in parent_map.get(current, []):
+                    queue.append(parent)
+
+            if found_flags:
+                all_commands.append(
+                    {
+                        "file": hdr,
+                        "arguments": found_flags,
+                        "directory": "__WORKSPACE_ROOT__",
+                        "outputs": [],
+                    }
+                )
+                files_with_commands.add(hdr)
 
 
 def main() -> int:

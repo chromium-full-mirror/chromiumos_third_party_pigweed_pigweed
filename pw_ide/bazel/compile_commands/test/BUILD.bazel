@@ -54,6 +54,29 @@ cc_library(
     tags = ["manual"],
 )
 
+# Coverage of a library that is header-only and at the end of a chain of header-only targets.
+cc_library(
+    name = "deep_header_only_leaf",
+    hdrs = ["public/deep_leaf.h"],
+    includes = ["public"],
+    tags = ["manual"],
+)
+
+# Coverage of a library that is header-only and sits in the middle of a chain.
+cc_library(
+    name = "deep_header_only_intermediate",
+    tags = ["manual"],
+    deps = [":deep_header_only_leaf"],
+)
+
+# Coverage of a binary that depends on a chain of header-only targets.
+cc_binary(
+    name = "deep_chain_binary",
+    srcs = ["basic_binary_test.cc"],
+    tags = ["manual"],
+    deps = [":deep_header_only_intermediate"],
+)
+
 # Coverage of a library with assembly files.
 cc_library(
     name = "asm_library",
@@ -108,6 +131,7 @@ filegroup(
     srcs = [
         ":basic_library_direct_includes",
         ":basic_library_virtual_includes",
+        ":deep_chain_binary",
         ":external_dep_library",
         ":mcu_transition",
         ":non_cpp_deps",
