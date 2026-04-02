@@ -275,6 +275,13 @@ class ClockSource : public ElementType {
   }
 };
 
+/// Alias for a blocking clock source tree element.
+using ClockSourceBlocking = ClockSource<ElementBlocking>;
+
+/// Alias for a non-blocking clock source tree element where updates cannot
+/// fail.
+using ClockSourceNonBlocking = ClockSource<ElementNonBlockingCannotFail>;
+
 /// Class that represents a no-op clock source clock tree element that can
 /// be used to satisfy the dependent source clock tree element dependency
 /// for clock source classes that expect a source clock tree element.

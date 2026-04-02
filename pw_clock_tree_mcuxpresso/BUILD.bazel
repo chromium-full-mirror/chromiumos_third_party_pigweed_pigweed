@@ -35,11 +35,46 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "test_mocks",
+    srcs = ["test_mocks/mocks.cc"],
+    hdrs = [
+        "test_mocks/fsl_clock.h",
+        "test_mocks/fsl_power.h",
+        "test_mocks/mocks.h",
+    ],
+    strip_include_prefix = "test_mocks",
+)
+
+cc_library(
+    name = "pw_clock_tree_mcuxpresso_testing",
+    hdrs = ["public/pw_clock_tree_mcuxpresso/clock_tree.h"],
+    strip_include_prefix = "public",
+    deps = [
+        ":test_mocks",
+        "//pw_clock_tree",
+        "//pw_preprocessor",
+    ],
+)
+
+pw_cc_test(
+    name = "clock_tree_test",
+    srcs = ["clock_tree_test.cc"],
+    deps = [
+        ":pw_clock_tree_mcuxpresso_testing",
+        ":test_mocks",
+        "//pw_unit_test",
+    ],
+)
+
 pw_cc_test(
     name = "clock_tree_mcuxpresso_examples",
     srcs = ["examples.cc"],
+    target_compatible_with = incompatible_with_mcu(),
     deps = [
-        ":pw_clock_tree_mcuxpresso",
+        ":pw_clock_tree_mcuxpresso_testing",
+        ":test_mocks",
+        "//pw_unit_test",
     ],
 )
 
