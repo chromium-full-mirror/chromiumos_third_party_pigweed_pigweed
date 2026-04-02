@@ -79,7 +79,8 @@ class ClockMcuxpressoMclk final : public DependentElement<ElementType> {
  public:
   /// Constructor specifying the MCLK IN clock frequency in Hz and
   /// the dependent clock tree element to enable the MCLK clock source.
-  constexpr ClockMcuxpressoMclk(ElementType& source, uint32_t frequency)
+  template <typename SourceType>
+  constexpr ClockMcuxpressoMclk(SourceType& source, uint32_t frequency)
       : DependentElement<ElementType>(source), frequency_(frequency) {}
 
  private:
@@ -121,7 +122,8 @@ class ClockMcuxpressoClkIn final : public DependentElement<ElementType> {
  public:
   /// Constructor specifying the CLK IN pin clock frequency in Hz and
   /// the dependent clock tree element to enable the CLK IN pin clock source.
-  constexpr ClockMcuxpressoClkIn(ElementType& source, uint32_t frequency)
+  template <typename SourceType>
+  constexpr ClockMcuxpressoClkIn(SourceType& source, uint32_t frequency)
       : DependentElement<ElementType>(source), frequency_(frequency) {}
 
  private:
@@ -169,7 +171,8 @@ template <typename ElementType>
 class ClockMcuxpressoFrg final : public DependentElement<ElementType> {
  public:
   /// Constructor specifying the source clock and FRG configuration.
-  constexpr ClockMcuxpressoFrg(ElementType& source,
+  template <typename SourceType>
+  constexpr ClockMcuxpressoFrg(SourceType& source,
                                const clock_frg_clk_config_t& config)
       : DependentElement<ElementType>(source), config_(config) {}
 
@@ -214,7 +217,8 @@ class ClockMcuxpressoSelector : public DependentElement<ElementType> {
   /// Constructor specifying the source clock and the selector value
   /// when the selector should get enabled, and the selector value when
   /// the selector should get disabled to save power.
-  constexpr ClockMcuxpressoSelector(ElementType& source,
+  template <typename SourceType>
+  constexpr ClockMcuxpressoSelector(SourceType& source,
                                     clock_attach_id_t selector_enable,
                                     clock_attach_id_t selector_disable)
       : DependentElement<ElementType>(source),
@@ -258,7 +262,8 @@ class ClockMcuxpressoDivider final : public ClockDividerElement<ElementType> {
  public:
   /// Constructor specifying the source clock, the name of the divder and
   /// the divider setting.
-  constexpr ClockMcuxpressoDivider(ElementType& source,
+  template <typename SourceType>
+  constexpr ClockMcuxpressoDivider(SourceType& source,
                                    clock_div_name_t divider_name,
                                    uint32_t divider)
       : ClockDividerElement<ElementType>(source, divider),
@@ -298,7 +303,8 @@ template <typename ElementType>
 class ClockMcuxpressoAudioPll : public DependentElement<ElementType> {
  public:
   /// Constructor specifying the configuration for the enabled Audio PLL.
-  constexpr ClockMcuxpressoAudioPll(ElementType& source,
+  template <typename SourceType>
+  constexpr ClockMcuxpressoAudioPll(SourceType& source,
                                     const clock_audio_pll_config_t& config,
                                     uint8_t audio_pfd_divider)
       : DependentElement<ElementType>(source),
@@ -306,7 +312,8 @@ class ClockMcuxpressoAudioPll : public DependentElement<ElementType> {
         audio_pfd_divider_(audio_pfd_divider) {}
 
   /// Constructor to place the Audio PLL into bypass mode.
-  constexpr ClockMcuxpressoAudioPll(ElementType& source,
+  template <typename SourceType>
+  constexpr ClockMcuxpressoAudioPll(SourceType& source,
                                     audio_pll_src_t bypass_source)
       : DependentElement<ElementType>(source), bypass_source_(bypass_source) {}
 
@@ -366,7 +373,8 @@ template <typename ElementType>
 class ClockMcuxpressoSysPll : public DependentElement<ElementType> {
  public:
   /// Constructor specifying the configuration for the enabled Sys PLL.
-  constexpr ClockMcuxpressoSysPll(ElementType& source,
+  template <typename SourceType>
+  constexpr ClockMcuxpressoSysPll(SourceType& source,
                                   const clock_sys_pll_config_t& config,
                                   uint8_t sys_pfd0_divider,
                                   uint8_t sys_pfd1_divider,
@@ -380,7 +388,8 @@ class ClockMcuxpressoSysPll : public DependentElement<ElementType> {
         sys_pfd3_divider_(sys_pfd3_divider) {}
 
   /// Constructor to place the Sys PLL into bypass mode.
-  constexpr ClockMcuxpressoSysPll(ElementType& source,
+  template <typename SourceType>
+  constexpr ClockMcuxpressoSysPll(SourceType& source,
                                   sys_pll_src_t bypass_source)
       : DependentElement<ElementType>(source), bypass_source_(bypass_source) {}
 
@@ -469,7 +478,8 @@ class ClockMcuxpressoRtc final : public DependentElement<ElementType> {
  public:
   /// Constructor specifying the dependent clock tree element to enable the
   /// Rtc clock source.
-  constexpr ClockMcuxpressoRtc(ElementType& source)
+  template <typename SourceType>
+  constexpr ClockMcuxpressoRtc(SourceType& source)
       : DependentElement<ElementType>(source) {}
 
  private:
@@ -509,7 +519,8 @@ class ClockMcuxpressoClockIp final : public DependentElement<ElementType> {
  public:
   /// Constructor specifying the dependent clock tree element to enable the
   /// `clock_ip_name_t` clock source.
-  constexpr ClockMcuxpressoClockIp(ElementType& source, clock_ip_name_t clock)
+  template <typename SourceType>
+  constexpr ClockMcuxpressoClockIp(SourceType& source, clock_ip_name_t clock)
       : DependentElement<ElementType>(source), clock_(clock) {}
 
  private:
