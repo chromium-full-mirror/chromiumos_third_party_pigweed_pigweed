@@ -34,14 +34,8 @@ MultiBuf MultiBuf::FromChunk(OwnedChunk&& chunk) {
   return buf;
 }
 
-void MultiBuf::Release() noexcept {
-  if (mbv2_.has_value()) {
-    mbv2_.reset();
-  }
-}
-
 std::optional<ByteSpan> MultiBuf::ContiguousSpan() {
-  if (!mbv2_.has_value()) {
+  if (v2() == nullptr) {
     return std::make_optional<ByteSpan>();
   }
   auto contiguous = std::as_const(*this).ContiguousSpan();
@@ -53,11 +47,12 @@ std::optional<ByteSpan> MultiBuf::ContiguousSpan() {
 }
 
 std::optional<ConstByteSpan> MultiBuf::ContiguousSpan() const {
-  if (!mbv2_.has_value()) {
+  auto* mbv2 = v2();
+  if (mbv2 == nullptr) {
     return std::make_optional<ConstByteSpan>();
   }
   ConstByteSpan contiguous;
-  for (const ConstByteSpan chunk : (*mbv2_)->ConstChunks()) {
+  for (const ConstByteSpan chunk : mbv2->ConstChunks()) {
     if (contiguous.empty()) {
       contiguous = chunk;
     } else if (contiguous.data() + contiguous.size() == chunk.data()) {
@@ -71,10 +66,10 @@ std::optional<ConstByteSpan> MultiBuf::ContiguousSpan() const {
 }
 
 bool MultiBuf::ClaimPrefix(size_t bytes_to_claim) {
-  if (!mbv2_.has_value()) {
+  auto* mbv2 = v2();
+  if (mbv2 == nullptr) {
     return false;
   }
-  auto& mbv2 = *mbv2_;
   if (mbv2->NumLayers() == 1 || offset_ < bytes_to_claim) {
     return false;
   }
@@ -86,10 +81,10 @@ bool MultiBuf::ClaimPrefix(size_t bytes_to_claim) {
 }
 
 bool MultiBuf::ClaimSuffix(size_t bytes_to_claim) {
-  if (!mbv2_.has_value()) {
+  auto* mbv2 = v2();
+  if (mbv2 == nullptr) {
     return false;
   }
-  auto& mbv2 = *mbv2_;
   if (mbv2->NumLayers() == 1) {
     return false;
   }
@@ -107,8 +102,8 @@ void MultiBuf::DiscardPrefix(size_t bytes_to_discard) {
   if (bytes_to_discard == 0) {
     return;
   }
-  PW_CHECK(mbv2_.has_value());
-  auto& mbv2 = *mbv2_;
+  auto* mbv2 = v2();
+  PW_CHECK(mbv2 != nullptr);
   const size_t length = mbv2->size();
   PW_CHECK_UINT_LE(bytes_to_discard, length);
   if (mbv2->NumLayers() > 1) {
@@ -125,12 +120,12 @@ void MultiBuf::Slice(size_t begin, size_t end) {
 }
 
 void MultiBuf::Truncate(size_t len) {
-  if (!mbv2_.has_value()) {
+  auto* mbv2 = v2();
+  if (mbv2 == nullptr) {
     PW_CHECK_UINT_EQ(
         len, 0, "cannot truncate empty multibuf to a non-zero length");
     return;
   }
-  auto& mbv2 = *mbv2_;
   PW_CHECK_UINT_LE(len, mbv2->size());
   if (mbv2->NumLayers() > 1) {
     mbv2->PopLayer();
@@ -139,16 +134,17 @@ void MultiBuf::Truncate(size_t len) {
 }
 
 void MultiBuf::TruncateAfter(iterator position) {
-  PW_CHECK(mbv2_.has_value());
-  Truncate(static_cast<size_t>(position - (*mbv2_)->begin()) + 1);
+  auto* mbv2 = v2();
+  PW_CHECK(mbv2 != nullptr);
+  Truncate(static_cast<size_t>(position - mbv2->begin()) + 1);
 }
 
 std::optional<MultiBuf> MultiBuf::TakePrefix(size_t bytes_to_take) {
   PW_CHECK_UINT_LE(bytes_to_take, size());
-  if (!mbv2_.has_value()) {
+  auto* mbv2 = v2();
+  if (mbv2 == nullptr) {
     return std::make_optional(MultiBuf());
   }
-  auto& mbv2 = *mbv2_;
   Allocator& allocator = mbv2->get_allocator();
   if (bytes_to_take == 0) {
     return std::make_optional(MultiBuf(allocator));
@@ -158,17 +154,17 @@ std::optional<MultiBuf> MultiBuf::TakePrefix(size_t bytes_to_take) {
     return std::nullopt;
   }
   if (mbv2->empty()) {
-    mbv2_.reset();
+    Release();
   }
   return std::make_optional(MultiBuf(std::move(**mb)));
 }
 
 std::optional<MultiBuf> MultiBuf::TakeSuffix(size_t bytes_to_take) {
   PW_CHECK_UINT_LE(bytes_to_take, size());
-  if (!mbv2_.has_value()) {
+  auto* mbv2 = v2();
+  if (mbv2 == nullptr) {
     return std::make_optional(MultiBuf());
   }
-  auto& mbv2 = *mbv2_;
   Allocator& allocator = mbv2->get_allocator();
   if (bytes_to_take == 0) {
     return std::make_optional(MultiBuf(allocator));
@@ -180,42 +176,40 @@ std::optional<MultiBuf> MultiBuf::TakeSuffix(size_t bytes_to_take) {
     return std::nullopt;
   }
   if (mbv2->empty()) {
-    mbv2_.reset();
+    Release();
   }
   return std::make_optional(MultiBuf(std::move(**mb)));
 }
 
 void MultiBuf::PushPrefix(MultiBuf&& front) {
-  if (!front.mbv2_.has_value()) {
+  auto* prefix = front.v2();
+  if (prefix == nullptr) {
     return;
   }
-  auto& prefix = *front.mbv2_;
-  if (!mbv2_.has_value()) {
-    mbv2_ = std::make_optional(
-        v2::TrackedMultiBuf::Instance(prefix->get_allocator()));
+  auto* mbv2 = v2();
+  if (mbv2 == nullptr) {
+    mbv2 = Assign(prefix->get_allocator());
   }
-  auto& mbv2 = *mbv2_;
   mbv2->Insert(mbv2->begin(), std::move(*prefix));
 }
 
 void MultiBuf::PushSuffix(MultiBuf&& tail) {
-  if (!tail.mbv2_.has_value()) {
+  auto* suffix = tail.v2();
+  if (suffix == nullptr) {
     return;
   }
-  auto& suffix = *tail.mbv2_;
-  if (!mbv2_.has_value()) {
-    mbv2_ = std::make_optional(
-        v2::TrackedMultiBuf::Instance(suffix->get_allocator()));
+  auto* mbv2 = v2();
+  if (mbv2 == nullptr) {
+    mbv2 = Assign(suffix->get_allocator());
   }
-  auto& mbv2 = *mbv2_;
   mbv2->PushBack(std::move(*suffix));
 }
 
 StatusWithSize MultiBuf::CopyTo(ByteSpan dest, size_t position) const {
-  if (!mbv2_.has_value()) {
+  auto* mbv2 = v2();
+  if (mbv2 == nullptr) {
     return StatusWithSize(0);
   }
-  const auto& mbv2 = *mbv2_;
   const size_t copied = mbv2->CopyTo(dest, position);
   const size_t available = size() - position;
   return copied == available ? StatusWithSize(copied)
@@ -226,10 +220,10 @@ StatusWithSize MultiBuf::CopyFrom(ConstByteSpan source, size_t position) {
   if (source.empty()) {
     return StatusWithSize(0);
   }
-  if (!mbv2_.has_value()) {
+  auto* mbv2 = v2();
+  if (mbv2 == nullptr) {
     return StatusWithSize::ResourceExhausted(0);
   }
-  auto& mbv2 = *mbv2_;
   const size_t copied = mbv2->CopyFrom(source, position);
   return copied == source.size() ? StatusWithSize(copied)
                                  : StatusWithSize::ResourceExhausted(copied);
@@ -252,11 +246,10 @@ void MultiBuf::PushFrontChunk(OwnedChunk&& chunk) {
   Allocator* metadata_allocator = inner->metadata_allocator();
   SharedPtr<std::byte[]> region = inner->region();
   size_t offset = static_cast<size_t>(inner->data() - region.get());
-  if (!mbv2_.has_value()) {
-    mbv2_ =
-        std::make_optional(v2::TrackedMultiBuf::Instance(*metadata_allocator));
+  auto* mbv2 = v2();
+  if (mbv2 == nullptr) {
+    mbv2 = Assign(*metadata_allocator);
   }
-  auto& mbv2 = *mbv2_;
   mbv2->Insert(mbv2->begin(), region, offset, inner->size());
 }
 
@@ -268,11 +261,11 @@ void MultiBuf::PushBackChunk(OwnedChunk&& chunk) {
   Allocator* metadata_allocator = inner->metadata_allocator();
   SharedPtr<std::byte[]> region = inner->region();
   size_t offset = static_cast<size_t>(inner->data() - region.get());
-  if (!mbv2_.has_value()) {
-    mbv2_ =
-        std::make_optional(v2::TrackedMultiBuf::Instance(*metadata_allocator));
+  auto* mbv2 = v2();
+  if (mbv2 == nullptr) {
+    mbv2 = Assign(*metadata_allocator);
   }
-  (*mbv2_)->PushBack(region, offset, inner->size());
+  mbv2->PushBack(region, offset, inner->size());
 }
 
 MultiBufChunks::iterator MultiBuf::InsertChunk(
@@ -285,14 +278,13 @@ MultiBufChunks::iterator MultiBuf::InsertChunk(
 
   // Is this the first chunk to be added?
   bool appending = position == Chunks().end();
-  if (!mbv2_.has_value()) {
+  auto* mbv2 = v2();
+  if (mbv2 == nullptr) {
     Allocator* metadata_allocator = inner->metadata_allocator();
-    mbv2_ =
-        std::make_optional(v2::TrackedMultiBuf::Instance(*metadata_allocator));
+    mbv2 = Assign(*metadata_allocator);
   }
 
   // Add the chunk.
-  auto& mbv2 = *mbv2_;
   MultiBuf::iterator iter = appending ? mbv2->end() : ToByteIterator(position);
   SharedPtr<std::byte[]> region = inner->region();
   size_t offset = static_cast<size_t>(inner->data() - region.get());
@@ -302,8 +294,8 @@ MultiBufChunks::iterator MultiBuf::InsertChunk(
 
 std::tuple<MultiBufChunks::iterator, OwnedChunk> MultiBuf::TakeChunk(
     MultiBufChunks::iterator position) {
-  PW_CHECK(mbv2_.has_value());
-  auto& mbv2 = *mbv2_;
+  auto* mbv2 = v2();
+  PW_CHECK(mbv2 != nullptr);
   size_t size = position->size();
   auto iter = ToByteIterator(position);
   auto chunk = mbv2->Share(iter);
@@ -311,14 +303,14 @@ std::tuple<MultiBufChunks::iterator, OwnedChunk> MultiBuf::TakeChunk(
   PW_CHECK_OK(result.status());
   OwnedChunk owned(mbv2->get_allocator(), chunk);
   if (mbv2->empty()) {
-    mbv2_.reset();
+    Release();
   }
   return std::make_tuple(ToChunksIterator(*result), std::move(owned));
 }
 
 MultiBuf::iterator MultiBuf::ToByteIterator(
     const MultiBufChunks::iterator& position) {
-  auto& mbv2 = *mbv2_;
+  auto* mbv2 = v2();
   iterator iter = mbv2->begin();
 
   // First, check if this is the non-dereferencable `end()` iterator.
@@ -339,8 +331,8 @@ MultiBuf::iterator MultiBuf::ToByteIterator(
 
 MultiBufChunks::iterator MultiBuf::ToChunksIterator(
     const MultiBuf::const_iterator& position) {
-  auto& mbv2 = *mbv2_;
-  MultiBufChunks chunks = Chunks();
+  auto* mbv2 = v2();
+  MultiBufChunks& chunks = Chunks();
   if (position == mbv2->end()) {
     return chunks.end();
   }

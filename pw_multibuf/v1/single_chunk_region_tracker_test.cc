@@ -26,6 +26,14 @@ namespace {
 const size_t kArbitraryRegionSize = 1024;
 const size_t kArbitraryChunkSize = 32;
 
+TEST(SingleChunkRegionTrackerTest, GetRegion) {
+  std::array<std::byte, kArbitraryRegionSize> chunk_storage{};
+  SingleChunkRegionTracker chunk_tracker(chunk_storage);
+  pw::ByteSpan region = chunk_tracker.Region();
+  EXPECT_EQ(region.data(), chunk_storage.data());
+  EXPECT_EQ(region.size(), chunk_storage.size());
+}
+
 TEST(SingleChunkRegionTrackerTest, GetChunkSmallerThanRegionSuccess) {
   std::array<std::byte, kArbitraryRegionSize> chunk_storage{};
   SingleChunkRegionTracker chunk_tracker(chunk_storage);

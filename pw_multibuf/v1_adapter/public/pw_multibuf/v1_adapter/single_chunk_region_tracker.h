@@ -65,6 +65,8 @@ class SingleChunkRegionTracker {
   /// @copydoc pw::multibuf::v1::SingleChunkRegionTracker::Destroy
   virtual void Destroy() {}
 
+  ByteSpan Region() const { return allocator_.buffer(); }
+
  private:
   /// The metadata allocator is primarily used to back the v2 multibuf's deque.
   static constexpr size_t kBufSize = sizeof(v2::internal::Entry) * 32;

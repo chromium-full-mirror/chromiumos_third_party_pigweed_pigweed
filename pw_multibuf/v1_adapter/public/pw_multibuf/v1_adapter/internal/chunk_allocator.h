@@ -55,6 +55,8 @@ class ChunkAllocator : public Allocator {
 
   constexpr size_t available() const { return available_; }
 
+  constexpr ByteSpan buffer() const { return buffer_; }
+
   /// Allocates a chunk of at least `min_size` and up to `desired_size` bytes
   /// and returns it, or return `std::nullopt` if allocation fails.
   std::optional<OwnedChunk> AllocateChunk(size_t min_size, size_t desired_size);
@@ -78,8 +80,6 @@ class ChunkAllocator : public Allocator {
   };
 
   ChunkAllocator(Allocator& metadata_allocator, size_t alignment);
-
-  constexpr ByteSpan buffer() const { return buffer_; }
 
   constexpr size_t num_allocations() const {
     return static_cast<size_t>(num_allocations_);

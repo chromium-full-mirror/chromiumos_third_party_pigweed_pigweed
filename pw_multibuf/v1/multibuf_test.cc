@@ -407,6 +407,26 @@ TEST_F(MultiBufV1Test, RangeBasedForLoopsCompile) {
   }
 }
 
+TEST_F(MultiBufV1Test, GetFirstChunk) {
+  MultiBuf buf;
+  buf.PushBackChunk(MakeChunk({1_b, 2_b, 3_b}));
+  buf.PushBackChunk(MakeChunk({4_b, 5_b, 6_b}));
+  Chunk& first = buf.Chunks().front();
+  EXPECT_EQ(first[0], 1_b);
+  EXPECT_EQ(first[1], 2_b);
+  EXPECT_EQ(first[2], 3_b);
+}
+
+TEST_F(MultiBufV1Test, GetLastChunk) {
+  MultiBuf buf;
+  buf.PushBackChunk(MakeChunk({1_b, 2_b, 3_b}));
+  buf.PushBackChunk(MakeChunk({4_b, 5_b, 6_b}));
+  Chunk& last = buf.Chunks().back();
+  EXPECT_EQ(last[0], 4_b);
+  EXPECT_EQ(last[1], 5_b);
+  EXPECT_EQ(last[2], 6_b);
+}
+
 TEST_F(MultiBufV1Test, IteratorAdvancesNAcrossChunks) {
   MultiBuf buf;
   buf.PushBackChunk(MakeChunk({1_b, 2_b, 3_b}));
