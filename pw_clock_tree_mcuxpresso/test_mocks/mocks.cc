@@ -41,6 +41,7 @@ void MockSdkState::Reset() {
   last_enabled_clock_ip = 0xFFFFFFFF;
   last_disabled_clock_ip = 0xFFFFFFFF;
   lp_osc_pd_disabled = false;
+  attach_clk_call_count = 0;
   *CLKCTL0 = {};
   *CLKCTL1 = {};
 }
@@ -76,6 +77,7 @@ void CLOCK_SetFRGClock(const clock_frg_clk_config_t* configuration) {
 
 void CLOCK_AttachClk(clock_attach_id_t clock) {
   sdk_state.last_attached_clk = clock;
+  sdk_state.attach_clk_call_count++;
 }
 
 void CLOCK_SetClkDiv(clock_div_name_t name, uint32_t value) {

@@ -89,12 +89,16 @@ typedef uint32_t clock_ip_name_t;
 #define kNONE_to_CTIMER0 0x104
 // inclusive-language: disable
 #define kMASTER_CLK_to_CTIMER0 0x105
+#define kMASTER_CLK_to_CTIMER1 0x106
 // inclusive-language: enable
+#define kFRO_DIV1_to_CTIMER1 0x107
+#define kNONE_to_CTIMER1 0x108
 
 // Mock values for clock IPs
 #define kCLOCK_Flexcomm0 0x200
 #define kCLOCK_I3c0 0x201
 #define kCLOCK_Ct32b0 0x202
+#define kCLOCK_Ct32b1 0x203
 
 // Mock values for dividers
 #define kCLOCK_DivI3cClk 0x300

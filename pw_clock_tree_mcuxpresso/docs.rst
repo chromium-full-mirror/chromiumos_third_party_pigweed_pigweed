@@ -19,6 +19,7 @@ that can be directly instantiated:
 * External Clock Input as clock source for SYSOSCBYPASS clock selector to generate OSC_CLK
 * Fractional Rate Generator (FRG) for Flexcomm Interfaces
 * Clock Source Selector
+* Synchronized Clock Source Selector
 * Clock Divider
 * Audio PLL
 * System PLL
@@ -60,10 +61,10 @@ Definition of clock tree elements:
           A(fro_div_4) -->B(frg_0)
           B-->C(flexcomm_selector_0)
           C-->D(flexcomm_0)
-          style A fill:#0f0,stroke:#333,stroke-width:2px
-          style B fill:#0f0,stroke:#333,stroke-width:2px
-          style C fill:#0f0,stroke:#333,stroke-width:2px
-          style D fill:#0f0,stroke:#333,stroke-width:2px
+          style A fill:#848,stroke:#333,stroke-width:2px
+          style B fill:#848,stroke:#333,stroke-width:2px
+          style C fill:#848,stroke:#333,stroke-width:2px
+          style D fill:#848,stroke:#333,stroke-width:2px
 
 .. cpp:namespace-push:: pw::clock_tree
 
@@ -130,9 +131,9 @@ between ``i3c0_selector`` and ``i3c0``, so that enabling ``i3c0`` enabled the
     flowchart LR
           G(mclk) --> H(ctimer_selector_0)
           H --> I(ctimer_0)
-          style G fill:#0ff,stroke:#333,stroke-width:2px
-          style H fill:#0ff,stroke:#333,stroke-width:2px
-          style I fill:#0ff,stroke:#333,stroke-width:2px
+          style G fill:#a00,stroke:#333,stroke-width:2px
+          style H fill:#a00,stroke:#333,stroke-width:2px
+          style I fill:#a00,stroke:#333,stroke-width:2px
 
 .. cpp:namespace-push:: pw::clock_tree
 
@@ -153,8 +154,8 @@ dependency  between ``ctimer_selector_0`` and ``ctimer_0``, so that enabling
 .. literalinclude:: examples.cc
    :language: cpp
    :linenos:
-   :start-after: [pw_clock_tree_mcuxpresso-examples-ClkTreeElemDefs-ClockSourceNoOp]
-   :end-before: [pw_clock_tree_mcuxpresso-examples-ClkTreeElemDefs-ClockSourceNoOp]
+   :start-after: [pw_clock_tree_mcuxpresso-examples-ClkTreeElemDefs-ClockSourceNoOpB]
+   :end-before: [pw_clock_tree_mcuxpresso-examples-ClkTreeElemDefs-ClockSourceNoOpB]
 
 .. literalinclude:: examples.cc
    :language: cpp
@@ -165,8 +166,41 @@ dependency  between ``ctimer_selector_0`` and ``ctimer_0``, so that enabling
 .. mermaid::
 
     flowchart LR
+          G(mclk) --> H(ctimer_sync_selector_1)
+          H --> I(ctimer_1)
+          J(fro_div1) --> H(ctimer_sync_selector_1)
+          style G fill:#f00,stroke:#333,stroke-width:2px
+          style H fill:#f00,stroke:#333,stroke-width:2px
+          style I fill:#f00,stroke:#333,stroke-width:2px
+          style J fill:#f00,stroke:#333,stroke-width:2px
+
+.. cpp:namespace-push:: pw::clock_tree
+
+The difference between ``ctimer_1`` and ``ctimer_0`` is that
+``ctimer_1`` can also be sourced by the non-blocking ``FRO_DIV1`` clock
+source. The clock source can be changed between the blocking `mclk` and
+the non-blocking ``FRO_DIV1`` while the ``ctimer_1`` is running or while
+it is disabled.
+
+.. cpp:namespace-pop::
+
+.. literalinclude:: examples.cc
+   :language: cpp
+   :linenos:
+   :start-after: [pw_clock_tree_mcuxpresso-examples-ClkTreeElemDefs-ClockSourceNoOpB]
+   :end-before: [pw_clock_tree_mcuxpresso-examples-ClkTreeElemDefs-ClockSourceNoOpB]
+
+.. literalinclude:: examples.cc
+   :language: cpp
+   :linenos:
+   :start-after: [pw_clock_tree_mcuxpresso-examples-ClockTreeElementDefs-Ctimer1]
+   :end-before: [pw_clock_tree_mcuxpresso-examples-ClockTreeElementDefs-Ctimer1]
+
+.. mermaid::
+
+    flowchart LR
           I(lposc)
-          style I fill:#ff0,stroke:#333,stroke-width:2px
+          style I fill:#f60,stroke:#333,stroke-width:2px
 
 .. literalinclude:: examples.cc
    :language: cpp
@@ -257,8 +291,8 @@ uses ``FRO_DIV8 pin`` clock source.
 
     flowchart LR
           A(fro_div_8) --> B(audio_pfd_bypass_selector)
-          style A fill:#0ff,stroke:#333,stroke-width:2px
-          style B fill:#0ff,stroke:#333,stroke-width:2px
+          style A fill:#560,stroke:#333,stroke-width:2px
+          style B fill:#560,stroke:#333,stroke-width:2px
 
 .. literalinclude:: examples.cc
    :language: cpp

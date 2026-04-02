@@ -41,6 +41,7 @@ struct MockSdkState {
   clock_ip_name_t last_enabled_clock_ip = 0xFFFFFFFF;
   clock_ip_name_t last_disabled_clock_ip = 0xFFFFFFFF;
   bool lp_osc_pd_disabled = false;
+  uint32_t attach_clk_call_count = 0;
 
   void Reset();
 };

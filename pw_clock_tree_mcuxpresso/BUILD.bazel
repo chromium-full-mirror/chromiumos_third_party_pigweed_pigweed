@@ -22,6 +22,33 @@ package(default_visibility = ["//visibility:public"])
 licenses(["notice"])
 
 cc_library(
+    name = "sync_selector",
+    hdrs = ["public/pw_clock_tree_mcuxpresso/sync_selector.h"],
+    strip_include_prefix = "public",
+    target_compatible_with = [
+        "//pw_build/constraints/board:mimxrt595_evk",
+    ],
+    deps = [
+        "//pw_assert:assert",
+        "//pw_clock_tree",
+        "//pw_status",
+        "//targets:mcuxpresso_sdk",
+    ],
+)
+
+cc_library(
+    name = "sync_selector_testing",
+    hdrs = ["public/pw_clock_tree_mcuxpresso/sync_selector.h"],
+    strip_include_prefix = "public",
+    deps = [
+        ":test_mocks",
+        "//pw_assert:assert",
+        "//pw_clock_tree",
+        "//pw_status",
+    ],
+)
+
+cc_library(
     name = "pw_clock_tree_mcuxpresso",
     hdrs = ["public/pw_clock_tree_mcuxpresso/clock_tree.h"],
     strip_include_prefix = "public",
@@ -62,6 +89,7 @@ pw_cc_test(
     srcs = ["clock_tree_test.cc"],
     deps = [
         ":pw_clock_tree_mcuxpresso_testing",
+        ":sync_selector_testing",
         ":test_mocks",
         "//pw_unit_test",
     ],
@@ -73,7 +101,24 @@ pw_cc_test(
     target_compatible_with = incompatible_with_mcu(),
     deps = [
         ":pw_clock_tree_mcuxpresso_testing",
+        ":sync_selector_testing",
         ":test_mocks",
+        "//pw_unit_test",
+    ],
+)
+
+pw_cc_test(
+    name = "sync_selector_test",
+    srcs = [
+        "sync_selector_nc_test.cc",
+        "sync_selector_test.cc",
+    ],
+    has_nc_test = True,
+    deps = [
+        ":pw_clock_tree_mcuxpresso_testing",
+        ":sync_selector_testing",
+        ":test_mocks",
+        "//pw_log",
         "//pw_unit_test",
     ],
 )
@@ -82,6 +127,7 @@ filegroup(
     name = "doxygen",
     srcs = [
         "public/pw_clock_tree_mcuxpresso/clock_tree.h",
+        "public/pw_clock_tree_mcuxpresso/sync_selector.h",
     ],
 )
 

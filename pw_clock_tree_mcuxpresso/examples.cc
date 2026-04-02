@@ -13,6 +13,7 @@
 // the License.
 
 #include "pw_clock_tree_mcuxpresso/clock_tree.h"
+#include "pw_clock_tree_mcuxpresso/sync_selector.h"
 
 // Test headers
 #include "pw_unit_test/framework.h"
@@ -69,28 +70,53 @@ PW_CONSTINIT pw::clock_tree::ClockMcuxpressoClockIpNonBlocking i3c0(
 // DOCSTAG: [pw_clock_tree_mcuxpresso-examples-ClkTreeElemDefs-ClockSourceNoOp]
 
 // Need to define `ClockSourceNoOp` clock tree element to satisfy dependency for
-// `ClockMcuxpressoMclk` or `ClockMcuxpressoClkIn` class.
+// ClockMcuxpressoClkIn` class.
 PW_CONSTINIT pw::clock_tree::ClockSourceNoOp clock_source_no_op;
 
 // DOCSTAG: [pw_clock_tree_mcuxpresso-examples-ClkTreeElemDefs-ClockSourceNoOp]
+
+// DOCSTAG: [pw_clock_tree_mcuxpresso-examples-ClkTreeElemDefs-ClockSourceNoOpB]
+
+// Need to define `ClockSourceNoOpBlocking` clock tree element to satisfy
+// dependency for `ClockMcuxpressoMclk` class.
+PW_CONSTINIT pw::clock_tree::ClockSourceNoOpBlocking
+    clock_source_no_op_blocking;
+
+// DOCSTAG: [pw_clock_tree_mcuxpresso-examples-ClkTreeElemDefs-ClockSourceNoOpB]
 
 // inclusive-language: disable
 // DOCSTAG: [pw_clock_tree_mcuxpresso-examples-ClockTreeElementDefs-Ctimer0]
 
 // Define Master clock
-PW_CONSTINIT pw::clock_tree::ClockMcuxpressoMclkNonBlocking mclk(
-    clock_source_no_op, 19200000);
+PW_CONSTINIT pw::clock_tree::ClockMcuxpressoMclkBlocking mclk(
+    clock_source_no_op_blocking, 19200000);
 
 // Define clock selector CTIMER0
-PW_CONSTINIT pw::clock_tree::ClockMcuxpressoSelectorNonBlocking
-    ctimer_selector_0(mclk, kMASTER_CLK_to_CTIMER0, kNONE_to_CTIMER0);
+PW_CONSTINIT pw::clock_tree::ClockMcuxpressoSelectorBlocking ctimer_selector_0(
+    mclk, kMASTER_CLK_to_CTIMER0, kNONE_to_CTIMER0);
 
 // Define clock source clock ip name kCLOCK_Ct32b0
-PW_CONSTINIT pw::clock_tree::ClockMcuxpressoClockIpNonBlocking ctimer_0(
+PW_CONSTINIT pw::clock_tree::ClockMcuxpressoClockIpBlocking ctimer_0(
     ctimer_selector_0, kCLOCK_Ct32b0);
 
 // DOCSTAG: [pw_clock_tree_mcuxpresso-examples-ClockTreeElementDefs-Ctimer0]
 // inclusive-language: enable
+
+// DOCSTAG: [pw_clock_tree_mcuxpresso-examples-ClockTreeElementDefs-Ctimer1]
+
+// Define FRO_DIV_1 clock source
+PW_CONSTINIT pw::clock_tree::ClockMcuxpressoFro fro_div1(kCLOCK_FroDiv1OutEn);
+
+// Define synchronized clock selector for CTIMER1
+// Initial source is fro_div1.
+PW_CONSTINIT pw::clock_tree::ClockMcuxpressoSyncSelectorBlocking
+    ctimer_sync_selector_1(fro_div1, kFRO_DIV1_to_CTIMER1, kNONE_to_CTIMER1);
+
+// Define clock source clock ip name kCLOCK_Ct32b1
+PW_CONSTINIT pw::clock_tree::ClockMcuxpressoClockIpBlocking ctimer_1(
+    ctimer_sync_selector_1, kCLOCK_Ct32b1);
+
+// DOCSTAG: [pw_clock_tree_mcuxpresso-examples-ClockTreeElementDefs-Ctimer1]
 
 // DOCSTAG: [pw_clock_tree_mcuxpresso-examples-ClockTreeElementDefs-LpOsc]
 
@@ -150,6 +176,7 @@ PW_CONSTINIT pw::clock_tree::ClockMcuxpressoRtcNonBlocking rtc(
     clock_source_no_op);
 
 TEST(ClockTreeMcuxpresso, UseExample) {
+  // inclusive-language: disable
   // DOCSTAG: [pw_clock_tree_mcuxpresso-examples-UseExample]
 
   // Enable the low-power oscillator
@@ -164,10 +191,22 @@ TEST(ClockTreeMcuxpresso, UseExample) {
   // Enable the flexcomm0 interface
   flexcomm_0.Acquire();
 
+  // Enable CTimer1
+  pw::Status acquire_status = ctimer_1.Acquire();
+  pw::Status change_status = pw::Status::Unavailable();
+  if (acquire_status.ok()) {
+    change_status =
+        ctimer_sync_selector_1.ChangeSource(mclk, kMASTER_CLK_to_CTIMER1);
+  }
+
   // Disable the low-power oscillator
   lp_osc_clk.Release();
 
   // DOCSTAG: [pw_clock_tree_mcuxpresso-examples-UseExample]
+  // inclusive-language: enable
+
+  PW_TEST_EXPECT_OK(acquire_status);
+  PW_TEST_EXPECT_OK(change_status);
 }
 
 TEST(ClockTreeMcuxpresso, AudioPll) {
