@@ -15,52 +15,116 @@
 #include "pw_numeric/integer_division.h"
 
 #include <cmath>
+#include <cstdint>
 #include <limits>
 
+#include "pw_unit_test/constexpr.h"
 #include "pw_unit_test/framework.h"
 
 namespace {
 
-TEST(IntegerDivisionRoundNearest, Sweep) {
-  for (int dividend = -100; dividend <= 100; ++dividend) {
-    for (int divisor = -100; divisor <= 100; ++divisor) {
+template <typename T>
+constexpr void Sweep() {
+  T dividend = T{0};
+  T divisor = T{1};
+  if constexpr (std::is_signed_v<T>) {
+    dividend = T{-100};
+    divisor = T{-100};
+  }
+  for (; dividend <= T{100}; ++dividend) {
+    for (; divisor <= T{100}; ++divisor) {
       if (divisor == 0) {
         continue;
       }
-      EXPECT_EQ(pw::IntegerDivisionRoundNearest(dividend, divisor),
-                std::round(static_cast<double>(dividend) /
-                           static_cast<double>(divisor)));
+      EXPECT_EQ(pw::IntegerDivisionRoundNearest<T>(dividend, divisor),
+                static_cast<T>(std::round(static_cast<long double>(dividend) /
+                                          static_cast<long double>(divisor))));
     }
   }
 }
 
-static_assert(pw::IntegerDivisionRoundNearest<unsigned char>(255, 255) == 1);
-static_assert(pw::IntegerDivisionRoundNearest<unsigned char>(254, 255) == 1);
-static_assert(pw::IntegerDivisionRoundNearest<unsigned char>(128, 255) == 1);
-static_assert(pw::IntegerDivisionRoundNearest<unsigned char>(127, 255) == 0);
-static_assert(pw::IntegerDivisionRoundNearest<unsigned char>(1, 255) == 0);
+TEST(IntegerDivisionRoundNearestTest, Sweep) {
+  Sweep<int8_t>();
+  Sweep<uint8_t>();
+  Sweep<int16_t>();
+  Sweep<uint16_t>();
+  Sweep<int32_t>();
+  Sweep<uint32_t>();
+  Sweep<int64_t>();
+  Sweep<uint64_t>();
+  Sweep<char>();
+  Sweep<unsigned char>();
+  Sweep<short>();
+  Sweep<unsigned short>();
+  Sweep<int>();
+  Sweep<unsigned int>();
+  Sweep<long>();
+  Sweep<unsigned long>();
+  Sweep<long long>();
+  Sweep<unsigned long long>();
+  Sweep<std::intmax_t>();
+  Sweep<std::uintmax_t>();
+}
 
-static_assert(pw::IntegerDivisionRoundNearest<signed char>(127, 127) == 1);
-static_assert(pw::IntegerDivisionRoundNearest<signed char>(126, 127) == 1);
-static_assert(pw::IntegerDivisionRoundNearest<signed char>(64, 127) == 1);
-static_assert(pw::IntegerDivisionRoundNearest<signed char>(63, 127) == 0);
-static_assert(pw::IntegerDivisionRoundNearest<signed char>(1, 127) == 0);
+template <typename T>
+constexpr void BiasOverflow() {
+  const T max = std::numeric_limits<T>::max();
+  PW_TEST_EXPECT_EQ(pw::IntegerDivisionRoundNearest<T>(max, max), T{1});
+  PW_TEST_EXPECT_EQ(pw::IntegerDivisionRoundNearest<T>(max - T{1}, max), T{1});
+  PW_TEST_EXPECT_EQ(pw::IntegerDivisionRoundNearest<T>(max / T{2} + T{1}, max),
+                    T{1});
+  PW_TEST_EXPECT_EQ(pw::IntegerDivisionRoundNearest<T>(max / T{2}, max), T{0});
+  PW_TEST_EXPECT_EQ(pw::IntegerDivisionRoundNearest<T>(T{1}, max), T{0});
 
-static_assert(pw::IntegerDivisionRoundNearest<signed char>(-128, -128) == 1);
-static_assert(pw::IntegerDivisionRoundNearest<signed char>(-127, -128) == 1);
-static_assert(pw::IntegerDivisionRoundNearest<signed char>(-64, -128) == 1);
-static_assert(pw::IntegerDivisionRoundNearest<signed char>(-63, -128) == 0);
-static_assert(pw::IntegerDivisionRoundNearest<signed char>(-1, -128) == 0);
+  if constexpr (std::is_signed_v<T>) {
+    const T min = std::numeric_limits<T>::min();
+    PW_TEST_EXPECT_EQ(pw::IntegerDivisionRoundNearest<T>(min, min), T{1});
+    PW_TEST_EXPECT_EQ(pw::IntegerDivisionRoundNearest<T>(min + T{1}, min),
+                      T{1});
+    PW_TEST_EXPECT_EQ(pw::IntegerDivisionRoundNearest<T>(min / T{2}, min),
+                      T{1});
+    PW_TEST_EXPECT_EQ(
+        pw::IntegerDivisionRoundNearest<T>(min / T{2} + T{1}, min), T{0});
+    PW_TEST_EXPECT_EQ(pw::IntegerDivisionRoundNearest<T>(T{1}, min), T{0});
 
-static_assert(pw::IntegerDivisionRoundNearest<signed char>(-128, 127) == -1);
-static_assert(pw::IntegerDivisionRoundNearest<signed char>(-127, 127) == -1);
-static_assert(pw::IntegerDivisionRoundNearest<signed char>(-64, 127) == -1);
-static_assert(pw::IntegerDivisionRoundNearest<signed char>(-63, 127) == 0);
-static_assert(pw::IntegerDivisionRoundNearest<signed char>(-1, 127) == 0);
+    PW_TEST_EXPECT_EQ(pw::IntegerDivisionRoundNearest<T>(min, max), T{-1});
+    PW_TEST_EXPECT_EQ(pw::IntegerDivisionRoundNearest<T>(min + T{1}, max),
+                      T{-1});
+    PW_TEST_EXPECT_EQ(pw::IntegerDivisionRoundNearest<T>(min / T{2}, max),
+                      T{-1});
+    PW_TEST_EXPECT_EQ(
+        pw::IntegerDivisionRoundNearest<T>(min / T{2} + T{1}, max), T{0});
+    PW_TEST_EXPECT_EQ(pw::IntegerDivisionRoundNearest<T>(T{-1}, max), T{0});
 
-static_assert(pw::IntegerDivisionRoundNearest<signed char>(127, -128) == -1);
-static_assert(pw::IntegerDivisionRoundNearest<signed char>(64, -128) == -1);
-static_assert(pw::IntegerDivisionRoundNearest<signed char>(63, -128) == 0);
-static_assert(pw::IntegerDivisionRoundNearest<signed char>(1, -128) == 0);
+    PW_TEST_EXPECT_EQ(pw::IntegerDivisionRoundNearest<T>(max, min), T{-1});
+    PW_TEST_EXPECT_EQ(
+        pw::IntegerDivisionRoundNearest<T>(max / T{2} + T{1}, min), T{-1});
+    PW_TEST_EXPECT_EQ(pw::IntegerDivisionRoundNearest<T>(max / T{2}, min),
+                      T{0});
+  }
+}
+
+PW_CONSTEXPR_TEST(IntegerDivisionRoundNearestTest, BiasOverflow, {
+  BiasOverflow<int8_t>();
+  BiasOverflow<uint8_t>();
+  BiasOverflow<int16_t>();
+  BiasOverflow<uint16_t>();
+  BiasOverflow<int32_t>();
+  BiasOverflow<uint32_t>();
+  BiasOverflow<int64_t>();
+  BiasOverflow<uint64_t>();
+  BiasOverflow<char>();
+  BiasOverflow<unsigned char>();
+  BiasOverflow<short>();
+  BiasOverflow<unsigned short>();
+  BiasOverflow<int>();
+  BiasOverflow<unsigned int>();
+  BiasOverflow<long>();
+  BiasOverflow<unsigned long>();
+  BiasOverflow<long long>();
+  BiasOverflow<unsigned long long>();
+  BiasOverflow<std::intmax_t>();
+  BiasOverflow<std::uintmax_t>();
+});
 
 }  // namespace

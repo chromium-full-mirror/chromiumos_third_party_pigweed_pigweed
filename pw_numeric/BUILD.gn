@@ -38,6 +38,10 @@ pw_test("absolute_value_test") {
 pw_source_set("checked_arithmetic") {
   public = [ "public/pw_numeric/checked_arithmetic.h" ]
   public_configs = [ ":public_include_path" ]
+  public_deps = [
+    "$dir_pw_assert:assert",
+    "$pw_external_fuchsia:stdcompat",
+  ]
 }
 
 pw_test("checked_arithmetic_test") {
@@ -51,11 +55,18 @@ pw_test("checked_arithmetic_test") {
 pw_source_set("integer_division") {
   public = [ "public/pw_numeric/integer_division.h" ]
   public_configs = [ ":public_include_path" ]
+  public_deps = [
+    ":absolute_value",
+    ":checked_arithmetic",
+  ]
 }
 
 pw_test("integer_division_test") {
   sources = [ "integer_division_test.cc" ]
-  deps = [ ":integer_division" ]
+  deps = [
+    ":integer_division",
+    "$dir_pw_unit_test:constexpr",
+  ]
 }
 
 pw_source_set("rounding") {

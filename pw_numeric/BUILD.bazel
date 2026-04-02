@@ -40,6 +40,10 @@ cc_library(
     name = "checked_arithmetic",
     hdrs = ["public/pw_numeric/checked_arithmetic.h"],
     strip_include_prefix = "public",
+    deps = [
+        "//pw_assert:assert",
+        "//third_party/fuchsia:stdcompat",
+    ],
 )
 
 pw_cc_test(
@@ -55,12 +59,19 @@ cc_library(
     name = "integer_division",
     hdrs = ["public/pw_numeric/integer_division.h"],
     strip_include_prefix = "public",
+    deps = [
+        ":absolute_value",
+        ":checked_arithmetic",
+    ],
 )
 
 pw_cc_test(
     name = "integer_division_test",
     srcs = ["integer_division_test.cc"],
-    deps = [":integer_division"],
+    deps = [
+        ":integer_division",
+        "//pw_unit_test:constexpr",
+    ],
 )
 
 cc_library(

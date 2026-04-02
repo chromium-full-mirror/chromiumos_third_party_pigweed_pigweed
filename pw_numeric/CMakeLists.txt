@@ -37,6 +37,9 @@ pw_add_library(pw_numeric.checked_arithmetic INTERFACE
     public/pw_numeric/checked_arithmetic.h
   PUBLIC_INCLUDES
     public
+  PUBLIC_DEPS
+    pw_assert.assert
+    pw_third_party.fuchsia.stdcompat
 )
 
 pw_add_test(pw_numeric.checked_arithmetic_test
@@ -54,6 +57,9 @@ pw_add_library(pw_numeric.integer_division INTERFACE
     public/pw_numeric/integer_division.h
   PUBLIC_INCLUDES
     public
+  PUBLIC_DEPS
+    pw_numeric.absolute_value
+    pw_numeric.checked_arithmetic
 )
 
 pw_add_test(pw_numeric.integer_division_test
@@ -61,6 +67,7 @@ pw_add_test(pw_numeric.integer_division_test
     integer_division_test.cc
   PRIVATE_DEPS
     pw_numeric.integer_division
+    pw_unit_test.constexpr
   GROUPS
     modules
     pw_numeric
