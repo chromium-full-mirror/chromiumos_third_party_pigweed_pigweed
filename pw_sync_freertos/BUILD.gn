@@ -249,7 +249,6 @@ pw_source_set("interrupt_spin_lock") {
     "public_overrides/interrupt_spin_lock/pw_sync_backend/interrupt_spin_lock_native.h",
   ]
   public_deps = [
-    ":config",
     "$dir_pw_assert",
     "$dir_pw_interrupt:context",
     "$dir_pw_sync:interrupt_spin_lock.facade",

@@ -34,16 +34,6 @@
 #define PW_SYNC_FREERTOS_CONFIG_THREAD_NOTIFICATION_INDEX 0
 #endif  // PW_SYNC_FREERTOS_CONFIG_THREAD_NOTIFICATION_INDEX
 
-// Synchronous ports of FreeRTOS which context switch within the signaling APIs
-// such as xTaskNotifyGive and xSemaphoreGive require the scheduler to be locked
-// while in task critical sections (taskENTER_CRITICAL). However, asynchronous
-// ports such as all Cortex-M ports upstream in FreeRTOS do not actually require
-// the scheduler to be locked as the interrupt which is used to context switch
-// is masked by taskENTER_CRITICAL (e.g. PendSV for Cortex-M).
-#ifndef PW_SYNC_FREERTOS_INTERRUPT_SPIN_LOCK_USES_SCHEDULER_LOCK
-#define PW_SYNC_FREERTOS_INTERRUPT_SPIN_LOCK_USES_SCHEDULER_LOCK 1
-#endif  // PW_SYNC_FREERTOS_INTERRUPT_SPIN_LOCK_USES_SCHEDULER_LOCK
-
 namespace pw::sync::freertos::config {
 
 inline constexpr UBaseType_t kThreadNotificationIndex =
