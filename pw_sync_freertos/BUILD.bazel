@@ -197,6 +197,9 @@ cc_library(
 
 cc_library(
     name = "interrupt_spin_lock",
+    srcs = [
+        "interrupt_spin_lock.cc",
+    ],
     hdrs = [
         "public/pw_sync_freertos/interrupt_spin_lock_inline.h",
         "public/pw_sync_freertos/interrupt_spin_lock_native.h",
@@ -212,7 +215,6 @@ cc_library(
         "//pw_build/constraints/rtos:freertos",
     ],
     deps = [
-        "//pw_assert:assert",
         "//pw_interrupt:context",
         "//pw_sync:interrupt_spin_lock.facade",
         "@freertos",

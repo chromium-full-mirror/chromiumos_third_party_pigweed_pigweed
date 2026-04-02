@@ -248,11 +248,12 @@ pw_source_set("interrupt_spin_lock") {
     "public_overrides/interrupt_spin_lock/pw_sync_backend/interrupt_spin_lock_inline.h",
     "public_overrides/interrupt_spin_lock/pw_sync_backend/interrupt_spin_lock_native.h",
   ]
-  public_deps = [
+  public_deps = [ "$pw_external_freertos" ]
+  sources = [ "interrupt_spin_lock.cc" ]
+  deps = [
     "$dir_pw_assert",
     "$dir_pw_interrupt:context",
     "$dir_pw_sync:interrupt_spin_lock.facade",
-    "$pw_external_freertos",
   ]
 }
 

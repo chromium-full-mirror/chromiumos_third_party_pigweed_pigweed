@@ -154,7 +154,7 @@ pw_add_library(pw_sync_freertos.timed_thread_notification STATIC
 )
 
 # This target provides the backend for pw::sync::InterruptSpinLock.
-pw_add_library(pw_sync_freertos.interrupt_spin_lock INTERFACE
+pw_add_library(pw_sync_freertos.interrupt_spin_lock STATIC
   HEADERS
     public/pw_sync_freertos/interrupt_spin_lock_inline.h
     public/pw_sync_freertos/interrupt_spin_lock_native.h
@@ -164,8 +164,11 @@ pw_add_library(pw_sync_freertos.interrupt_spin_lock INTERFACE
     public
     public_overrides/interrupt_spin_lock
   PUBLIC_DEPS
-    pw_assert.assert
-    pw_interrupt.context
     pw_sync.interrupt_spin_lock.facade
     pw_third_party.freertos
+  SOURCES
+    interrupt_spin_lock.cc
+  PRIVATE_DEPS
+    pw_assert
+    pw_interrupt.context
 )

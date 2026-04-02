@@ -13,16 +13,9 @@
 // the License.
 #pragma once
 
-#include "pw_assert/assert.h"
-#include "pw_interrupt/context.h"
 #include "pw_sync/interrupt_spin_lock.h"
-#include "task.h"
 
 namespace pw::sync {
-
-#if (INCLUDE_xTaskGetSchedulerState != 1) && (configUSE_TIMERS != 1)
-#error "xTaskGetSchedulerState is required for pw::sync::InterruptSpinLock"
-#endif
 
 constexpr InterruptSpinLock::InterruptSpinLock()
     : native_type_{.locked = false, .saved_interrupt_mask = 0} {}
@@ -37,40 +30,6 @@ inline bool InterruptSpinLock::try_lock() {
   // fail to acquire the lock. Recursive locking is already detected by lock().
   lock();
   return true;
-}
-
-inline void InterruptSpinLock::lock() {
-  if (interrupt::InInterruptContext()) {
-    native_type_.saved_interrupt_mask = taskENTER_CRITICAL_FROM_ISR();
-  } else {  // Task context
-    // Suspending the scheduler ensures that kernel API calls that occur
-    // within the critical section will not preempt the current task
-    // (if called from a thread context).  Otherwise, kernel APIs called
-    // from within the critical section may preempt the running task if
-    // the port implements portYIELD synchronously.
-    // Note: calls to vTaskSuspendAll(), like taskENTER_CRITICAL() can
-    // be nested.
-    // Note: vTaskSuspendAll()/xTaskResumeAll() are not safe to call before the
-    // scheduler has been started.
-    if (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED) {
-      vTaskSuspendAll();
-    }
-    taskENTER_CRITICAL();
-  }
-  PW_DASSERT(!native_type_.locked);  // We can't deadlock here so crash instead.
-  native_type_.locked = true;
-}
-
-inline void InterruptSpinLock::unlock() {
-  native_type_.locked = false;
-  if (interrupt::InInterruptContext()) {
-    taskEXIT_CRITICAL_FROM_ISR(native_type_.saved_interrupt_mask);
-  } else {  // Task context
-    taskEXIT_CRITICAL();
-    if (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED) {
-      xTaskResumeAll();
-    }
-  }
 }
 
 }  // namespace pw::sync
