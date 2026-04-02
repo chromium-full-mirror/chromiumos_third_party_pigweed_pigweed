@@ -74,6 +74,11 @@ class RfcommManager final : public RfcommChannelManagerInterface {
                                 uint8_t channel_number,
                                 RfcommDirection direction) override;
 
+  Status DoSendAdditionalRxCredits(ConnectionHandle connection_handle,
+                                   uint8_t channel_number,
+                                   RfcommDirection direction,
+                                   uint8_t credits) override;
+
   struct ConnectionState
       : public IntrusiveMap<ConnectionHandle, ConnectionState>::Item {
     ConnectionState(ConnectionHandle handle,

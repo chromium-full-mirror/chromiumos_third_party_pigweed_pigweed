@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <memory>
 
 #include "pw_bluetooth_proxy/l2cap_channel_common.h"
@@ -21,6 +22,7 @@
 #include "pw_bluetooth_proxy/rfcomm/rfcomm_config.h"
 #include "pw_multibuf/allocator.h"
 #include "pw_result/result.h"
+#include "pw_status/status.h"
 
 namespace pw::bluetooth::proxy::rfcomm {
 
@@ -55,6 +57,15 @@ class RfcommChannel {
   /// @retval `UNAVAILABLE` if the transmit queue is full. In this case, the
   ///     unwritten payload is returned to the caller.
   StatusWithMultiBuf Write(multibuf::MultiBuf&& payload);
+
+  /// @brief Sends additional credits to the remote and increase the max rx
+  /// credits.
+  ///
+  /// @returns A `Status` containing the status of sending credits
+  /// @retval `OK` if successfully sent credits and updated max credits.
+  /// @retval `NOT_FOUND` if the channel was not found or closed.
+  /// @retval `RESOURCE_EXHAUSTED` if cannot allocate memory for send.
+  Status SendAdditionalRxCredits(uint8_t credits);
 
   /// Allow comparison for testing.
   bool operator==(const RfcommChannel& other) const {
@@ -182,6 +193,14 @@ class RfcommChannelManagerInterface {
     return DoReleaseRfcommChannel(connection_handle, channel_number, direction);
   }
 
+  Status SendAdditionalRxCredits(ConnectionHandle connection_handle,
+                                 uint8_t channel_number,
+                                 RfcommDirection direction,
+                                 uint8_t credits) {
+    return DoSendAdditionalRxCredits(
+        connection_handle, channel_number, direction, credits);
+  }
+
  private:
   virtual Result<RfcommChannel> DoAcquireRfcommChannel(
       multibuf::MultiBufAllocator& multibuf_allocator,
@@ -202,6 +221,11 @@ class RfcommChannelManagerInterface {
   virtual Status DoReleaseRfcommChannel(ConnectionHandle connection_handle,
                                         uint8_t channel_number,
                                         RfcommDirection direction) = 0;
+
+  virtual Status DoSendAdditionalRxCredits(ConnectionHandle connection_handle,
+                                           uint8_t channel_number,
+                                           RfcommDirection direction,
+                                           uint8_t credits) = 0;
 };
 
 }  // namespace pw::bluetooth::proxy::rfcomm

@@ -65,6 +65,9 @@ class RfcommChannelInternal
   uint8_t key() const { return MakeDlci(channel_number_, direction_); }
   ConnectionHandle connection_handle() const { return connection_handle_; }
 
+  // Sends credits to the remote and updates max rx credit.
+  Status SendAdditionalRxCredits(uint8_t credits);
+
  private:
   // Add credits for sending data.
   void AddCredits(uint8_t credits);
@@ -81,7 +84,6 @@ class RfcommChannelInternal
   const uint8_t channel_number_;
   const RfcommDirection direction_;
   const bool mux_initiator_;
-  const RfcommChannelConfig rx_config_;
   const RfcommChannelConfig tx_config_;
   const pw::checksum::Crc8& crc_calculator_;
   const RfcommReceiveCallback receive_fn_;
@@ -105,6 +107,7 @@ class RfcommChannelInternal
 
   sync::Mutex rx_mutex_ PW_ACQUIRED_AFTER(tx_mutex_);
   uint8_t rx_credits_ PW_GUARDED_BY(rx_mutex_) = 0;
+  uint8_t rx_total_credits_ PW_GUARDED_BY(rx_mutex_);
 };
 
 }  // namespace pw::bluetooth::proxy::rfcomm::internal

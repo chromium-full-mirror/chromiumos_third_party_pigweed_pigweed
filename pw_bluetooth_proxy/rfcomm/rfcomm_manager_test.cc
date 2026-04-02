@@ -80,6 +80,8 @@ class MockL2capChannelManager final : public L2capChannelManagerInterface {
 
   uint32_t intercept_channel_count() const { return intercept_channel_count_; }
 
+  MockChannelProxy* last_channel_proxy() const { return last_channel_proxy_; }
+
  private:
   Result<UniquePtr<ChannelProxy>> DoInterceptCreditBasedFlowControlChannel(
       ConnectionHandle,
@@ -621,6 +623,85 @@ TEST_F(RfcommManagerTest, ReleaseLastChannelClosesConnection) {
                                     nullptr);
   EXPECT_TRUE(channel_after_close.ok());
   EXPECT_EQ(l2cap_manager_.intercept_channel_count(), 2u);
+}
+
+TEST_F(RfcommManagerTest, SendAdditionalRxCredits) {
+  auto channel_result =
+      manager_.AcquireRfcommChannel(multibuf_allocator_,
+                                    kConnectionHandle1,
+                                    kChannelNumber1,
+                                    RfcommDirection::kInitiator,
+                                    true,
+                                    kDefaultConfig,
+                                    kDefaultConfig,
+                                    nullptr,
+                                    nullptr);
+  EXPECT_TRUE(channel_result.ok());
+
+  const uint8_t kAdditionalCredits = 5;
+  EXPECT_EQ(manager_.SendAdditionalRxCredits(kConnectionHandle1,
+                                             kChannelNumber1,
+                                             RfcommDirection::kInitiator,
+                                             kAdditionalCredits),
+            OkStatus());
+
+  ASSERT_NE(l2cap_manager_.last_channel_proxy(), nullptr);
+  auto payload = l2cap_manager_.last_channel_proxy()->last_written_payload();
+  ASSERT_FALSE(payload.empty());
+
+  // A credit packet is a UIH frame with a length of 0.
+  EXPECT_EQ(payload.size(),
+            1 + static_cast<size_t>(
+                    emboss::RfcommDataFrameOverhead::WITH_SHORT_HEADER));
+
+  // Address field: channel_number=2, D=1 (initiated by initiator), C/R=1 (from
+  // initiator), EA=1
+  const uint8_t expected_address =
+      (kChannelNumber1 << 3) | (1 << 2) | (1 << 1) | 1;
+  EXPECT_EQ(payload[0], expected_address);
+
+  // Control field: UIH with P/F bit.
+  EXPECT_EQ(payload[1],
+            static_cast<uint8_t>(
+                emboss::RfcommFrameType::
+                    UNNUMBERED_INFORMATION_WITH_HEADER_CHECK_AND_POLL_FINAL));
+
+  // Length field: 0 byte of info.
+  const uint8_t expected_length = (0 << 1) | 1;
+  EXPECT_EQ(payload[2], expected_length);
+
+  // Info field: number of credits.
+  EXPECT_EQ(payload[3], kAdditionalCredits);
+}
+
+TEST_F(RfcommManagerTest, SendAdditionalRxCreditsNotFound) {
+  const uint8_t kAdditionalCredits = 5;
+
+  // Connection does not exist.
+  EXPECT_EQ(manager_.SendAdditionalRxCredits(kConnectionHandle1,
+                                             kChannelNumber1,
+                                             RfcommDirection::kInitiator,
+                                             kAdditionalCredits),
+            Status::NotFound());
+
+  auto channel_result =
+      manager_.AcquireRfcommChannel(multibuf_allocator_,
+                                    kConnectionHandle1,
+                                    kChannelNumber1,
+                                    RfcommDirection::kInitiator,
+                                    true,
+                                    kDefaultConfig,
+                                    kDefaultConfig,
+                                    nullptr,
+                                    nullptr);
+  EXPECT_TRUE(channel_result.ok());
+
+  // Channel does not exist.
+  EXPECT_EQ(manager_.SendAdditionalRxCredits(kConnectionHandle1,
+                                             kChannelNumber2,
+                                             RfcommDirection::kInitiator,
+                                             kAdditionalCredits),
+            Status::NotFound());
 }
 
 }  // namespace pw::bluetooth::proxy::rfcomm

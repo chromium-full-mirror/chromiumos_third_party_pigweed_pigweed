@@ -437,6 +437,39 @@ TEST_F(RfcommChannelTest, AutoSendCredits) {
   EXPECT_EQ(written_payload[3], kDefaultRxConfig.initial_credits / 2);
 }
 
+TEST_F(RfcommChannelTest, SendAdditionalRxCredits) {
+  const uint8_t kAdditionalCredits = 5;
+  EXPECT_EQ(channel_.SendAdditionalRxCredits(kAdditionalCredits), OkStatus());
+
+  ASSERT_FALSE(l2cap_channel_for_test_.written_payloads().empty());
+  // A credit packet is a UIH frame with a length of 0.
+  EXPECT_EQ(l2cap_channel_for_test_.written_payloads().front().size(),
+            1 + static_cast<size_t>(
+                    emboss::RfcommDataFrameOverhead::WITH_SHORT_HEADER));
+
+  const span<const uint8_t> written_payload =
+      l2cap_channel_for_test_.written_payloads().front();
+
+  // Address field: channel_number=2, D=1 (initiated by initiator), C/R=1 (from
+  // initiator), EA=1
+  const uint8_t expected_address =
+      (kChannelNumber << 3) | (1 << 2) | (1 << 1) | 1;
+  EXPECT_EQ(written_payload[0], expected_address);
+
+  // Control field: UIH with P/F bit.
+  EXPECT_EQ(written_payload[1],
+            static_cast<uint8_t>(
+                emboss::RfcommFrameType::
+                    UNNUMBERED_INFORMATION_WITH_HEADER_CHECK_AND_POLL_FINAL));
+
+  // Length field: 0 byte of info.
+  const uint8_t expected_length = (0 << 1) | 1;
+  EXPECT_EQ(written_payload[2], expected_length);
+
+  // Info field: number of credits.
+  EXPECT_EQ(written_payload[3], kAdditionalCredits);
+}
+
 TEST_F(RfcommChannelTest, Close) {
   channel_.Close(RfcommEvent::kChannelClosedByOther);
   EXPECT_EQ(last_event_, RfcommEvent::kChannelClosedByOther);

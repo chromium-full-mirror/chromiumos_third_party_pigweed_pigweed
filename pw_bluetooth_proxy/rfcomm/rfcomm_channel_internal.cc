@@ -15,6 +15,7 @@
 #include "pw_bluetooth_proxy/rfcomm/internal/rfcomm_channel_internal.h"
 
 #include <limits>
+#include <mutex>
 
 #include "pw_assert/check.h"
 #include "pw_bluetooth/emboss_util.h"
@@ -47,13 +48,13 @@ RfcommChannelInternal::RfcommChannelInternal(
       channel_number_(channel_number),
       direction_(direction),
       mux_initiator_(mux_initiator),
-      rx_config_(rx_config),
       tx_config_(tx_config),
       crc_calculator_(crc_calculator),
       receive_fn_(std::move(receive_fn)),
       event_fn_(std::move(event_fn)),
       tx_credits_(tx_config.initial_credits),
-      rx_credits_(rx_config.initial_credits) {
+      rx_credits_(rx_config.initial_credits),
+      rx_total_credits_(rx_config.initial_credits) {
   PW_LOG_INFO("RFCOMM channel %u (direction %u): created",
               channel_number_,
               static_cast<uint8_t>(direction_));
@@ -239,6 +240,24 @@ void RfcommChannelInternal::Close(RfcommEvent event) {
   }
 }
 
+Status RfcommChannelInternal::SendAdditionalRxCredits(uint8_t credits) {
+  {
+    std::lock_guard lock(rx_mutex_);
+    if (std::numeric_limits<uint8_t>::max() - credits < rx_total_credits_) {
+      rx_total_credits_ = std::numeric_limits<uint8_t>::max();
+      PW_LOG_WARN(
+          "RFCOMM channel %u: RX total credits overflow detected, "
+          "capping at max.",
+          channel_number_);
+    } else {
+      rx_total_credits_ += credits;
+    }
+  }
+  PW_LOG_DEBUG(
+      "Max credits increased by: %d (to %d)", credits, rx_total_credits_);
+  return SendCredits(credits);
+}
+
 // Sends credits (UIH frame with P-bit set) to the controller.
 Status RfcommChannelInternal::SendCredits(uint8_t credits) {
   // RFCOMM frame with 1-byte length field and 1-byte credit.
@@ -323,8 +342,8 @@ bool RfcommChannelInternal::HandlePduFromController(uint8_t credits,
   bool needs_to_send_credits = false;
   {
     std::lock_guard lock(rx_mutex_);
-    if (rx_credits_ <= rx_config_.initial_credits / 2) {
-      credits_to_send = rx_config_.initial_credits - rx_credits_;
+    if (rx_credits_ <= rx_total_credits_ / 2) {
+      credits_to_send = rx_total_credits_ - rx_credits_;
       if (credits_to_send > 0) {
         needs_to_send_credits = true;
       }

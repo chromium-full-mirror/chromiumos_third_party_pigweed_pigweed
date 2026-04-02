@@ -13,6 +13,7 @@
 // the License.
 
 #include "pw_bluetooth_proxy/rfcomm/rfcomm_channel_manager_interface.h"
+#include "pw_status/status.h"
 
 namespace pw::bluetooth::proxy::rfcomm {
 
@@ -37,6 +38,14 @@ RfcommChannel& RfcommChannel::operator=(RfcommChannel&& other) noexcept {
 }
 
 RfcommChannel::~RfcommChannel() { Reset(); }
+
+Status RfcommChannel::SendAdditionalRxCredits(uint8_t credits) {
+  if (!manager_) {
+    return Status::FailedPrecondition();
+  }
+  return manager_->SendAdditionalRxCredits(
+      connection_handle_, channel_number_, direction_, credits);
+}
 
 StatusWithMultiBuf RfcommChannel::Write(multibuf::MultiBuf&& payload) {
   if (!manager_) {

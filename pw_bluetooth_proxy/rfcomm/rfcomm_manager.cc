@@ -216,6 +216,30 @@ Status RfcommManager::DoReleaseRfcommChannel(ConnectionHandle connection_handle,
   return OkStatus();
 }
 
+Status RfcommManager::DoSendAdditionalRxCredits(
+    ConnectionHandle connection_handle,
+    uint8_t channel_number,
+    RfcommDirection direction,
+    uint8_t credits) {
+  std::lock_guard lock(connections_mutex_);
+  auto it = connections_.find(connection_handle);
+  if (it == connections_.end()) {
+    PW_LOG_WARN("Connection handle %hu not found",
+                static_cast<uint16_t>(connection_handle));
+    return Status::NotFound();
+  }
+  auto& conn_state = *it;
+  auto channel_it =
+      conn_state.channels.find(MakeDlci(channel_number, direction));
+  if (channel_it == conn_state.channels.end()) {
+    PW_LOG_WARN("Channel %d (direction: %hhu) not found",
+                channel_number,
+                static_cast<uint8_t>(direction));
+    return Status::NotFound();
+  }
+  return channel_it->SendAdditionalRxCredits(credits);
+}
+
 void RfcommManager::CloseAllChannelsForConnection(
     ConnectionHandle connection_handle, RfcommEvent event) {
   ConnectionState* conn_state_to_close = nullptr;
