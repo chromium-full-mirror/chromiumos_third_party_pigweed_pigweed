@@ -48,8 +48,10 @@ inline constexpr bool kDerivedFrom =
 // type to access data.
 template <typename Dest, typename BaseType, typename Source>
 [[nodiscard]] Dest SiblingCast(Source&& source) {
-  using SourceType = std::remove_pointer_t<std::remove_reference_t<Source>>;
-  using DestType = std::remove_pointer_t<std::remove_reference_t<Dest>>;
+  using SourceType [[maybe_unused]] =
+      std::remove_pointer_t<std::remove_reference_t<Source>>;
+  using DestType [[maybe_unused]] =
+      std::remove_pointer_t<std::remove_reference_t<Dest>>;
 
   static_assert((std::is_pointer_v<Source> && std::is_pointer_v<Dest>) ||
                     std::is_lvalue_reference_v<Dest> ||
