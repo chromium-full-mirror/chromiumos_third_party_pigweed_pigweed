@@ -31,7 +31,7 @@
       process: {
         name: "test process",
         objects: [
-          { name: "extra_process", type: "process", linked_process: "extra_process" }
+          { name: "extra_process", type: "process", linked_process: "extra" }
         ],
         threads: [
           {
@@ -46,7 +46,7 @@
       },
     },
     {
-      name: "extra_process",
+      name: "extra",
       flash_size_bytes: 261120,
       ram_size_bytes: 65536,
       process: {

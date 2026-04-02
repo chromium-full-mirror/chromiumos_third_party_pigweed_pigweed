@@ -14,8 +14,8 @@
 #![no_main]
 #![no_std]
 
+use handler_codegen::handle;
 use pw_status::{Error, Result};
-use stress_handler::handle;
 use userspace::entry;
 use userspace::syscall::{self, Signals};
 use userspace::time::Instant;

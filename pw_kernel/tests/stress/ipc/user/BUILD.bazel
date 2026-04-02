@@ -11,20 +11,20 @@
 # WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 # License for the specific language governing permissions and limitations under
 # the License.
-load("@rules_rust//rust:defs.bzl", "rust_binary")
-load("//pw_kernel/tooling:app_package.bzl", "app_package")
+load("//pw_kernel/tooling:rust_app.bzl", "rust_app")
 
 package(default_visibility = ["//visibility:public"])
 
-rust_binary(
+rust_app(
     name = "initiator",
     srcs = [
         "initiator.rs",
     ],
+    codegen_crate_name = "initiator_codegen",
     edition = "2024",
+    system_config = "//pw_kernel/target:system_config_file",
     tags = ["kernel"],
     deps = [
-        ":stress_initiator",
         "//pw_kernel/syscall:syscall_user",
         "//pw_kernel/userspace",
         "//pw_log/rust:pw_log",
@@ -32,34 +32,19 @@ rust_binary(
     ],
 )
 
-app_package(
-    name = "stress_initiator",
-    app_name = "initiator",
-    edition = "2024",
-    system_config = "//pw_kernel/target:system_config_file",
-    tags = ["kernel"],
-)
-
-rust_binary(
+rust_app(
     name = "handler",
     srcs = [
         "handler.rs",
     ],
+    codegen_crate_name = "handler_codegen",
     edition = "2024",
+    system_config = "//pw_kernel/target:system_config_file",
     tags = ["kernel"],
     deps = [
-        ":stress_handler",
         "//pw_kernel/syscall:syscall_user",
         "//pw_kernel/userspace",
         "//pw_log/rust:pw_log",
         "//pw_status/rust:pw_status",
     ],
-)
-
-app_package(
-    name = "stress_handler",
-    app_name = "handler",
-    edition = "2024",
-    system_config = "//pw_kernel/target:system_config_file",
-    tags = ["kernel"],
 )

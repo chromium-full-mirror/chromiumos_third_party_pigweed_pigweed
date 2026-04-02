@@ -14,8 +14,8 @@
 #![no_main]
 #![no_std]
 
+use initiator_codegen::handle;
 use pw_status::{Error, Result, StatusCode};
-use stress_initiator::handle;
 use userspace::time::Instant;
 use userspace::{entry, syscall};
 

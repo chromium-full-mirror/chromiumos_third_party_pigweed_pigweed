@@ -16,8 +16,8 @@
 
 use core::mem::size_of;
 
-use app_test_interrupts::{constants, handle};
 use pw_status::{Error, Result, StatusCode};
+use test_interrupts_codegen::{constants, handle};
 use userspace::syscall::Signals;
 use userspace::time::Instant;
 use userspace::{entry, syscall};

@@ -12,102 +12,73 @@
 # License for the specific language governing permissions and limitations under
 # the License.
 
-load("@rules_rust//rust:defs.bzl", "rust_binary")
-load("//pw_kernel/tooling:app_package.bzl", "app_package")
+load("//pw_kernel/tooling:rust_app.bzl", "rust_app")
 
-rust_binary(
+rust_app(
     name = "initiator",
     srcs = ["initiator.rs"],
+    codegen_crate_name = "initiator_codegen",
     edition = "2024",
+    system_config = "//pw_kernel/target:system_config_file",
     tags = ["kernel"],
     visibility = ["//visibility:public"],
     deps = [
-        ":app_initiator",
         "//pw_kernel/userspace",
         "//pw_log/rust:pw_log",
         "//pw_status/rust:pw_status",
     ],
 )
 
-app_package(
-    name = "app_initiator",
-    app_name = "initiator",
-    edition = "2024",
-    system_config = "//pw_kernel/target:system_config_file",
-    tags = ["kernel"],
-)
-
-rust_binary(
+rust_app(
     name = "handler1",
     srcs = [
         "common_handler.rs",
         "handler1.rs",
     ],
+    codegen_crate_name = "handler1_codegen",
     edition = "2024",
+    system_config = "//pw_kernel/target:system_config_file",
     tags = ["kernel"],
     visibility = ["//visibility:public"],
     deps = [
-        ":app_handler1",
         "//pw_kernel/userspace",
         "//pw_log/rust:pw_log",
         "//pw_status/rust:pw_status",
     ],
 )
 
-app_package(
-    name = "app_handler1",
-    app_name = "handler1",
-    edition = "2024",
-    system_config = "//pw_kernel/target:system_config_file",
-    tags = ["kernel"],
-)
-
-rust_binary(
+rust_app(
     name = "handler2",
     srcs = [
         "common_handler.rs",
         "handler2.rs",
     ],
+    codegen_crate_name = "handler2_codegen",
     edition = "2024",
+    system_config = "//pw_kernel/target:system_config_file",
     tags = ["kernel"],
     visibility = ["//visibility:public"],
     deps = [
-        ":app_handler2",
         "//pw_kernel/userspace",
         "//pw_log/rust:pw_log",
         "//pw_status/rust:pw_status",
     ],
 )
 
-app_package(
-    name = "app_handler2",
-    app_name = "handler2",
-    edition = "2024",
-    system_config = "//pw_kernel/target:system_config_file",
-    tags = ["kernel"],
-)
-
-rust_binary(
+rust_app(
     name = "handler3",
     srcs = [
         "common_handler.rs",
         "handler3.rs",
     ],
+    codegen_crate_name = "handler3_codegen",
     edition = "2024",
+    system_config = "//pw_kernel/target:system_config_file",
     tags = ["kernel"],
     visibility = ["//visibility:public"],
     deps = [
-        ":app_handler3",
         "//pw_kernel/userspace",
         "//pw_log/rust:pw_log",
         "//pw_status/rust:pw_status",
     ],
-)
-
-app_package(
-    name = "app_handler3",
-    app_name = "handler3",
-    edition = "2024",
-    system_config = "//pw_kernel/target:system_config_file",
-    tags = ["kernel"],
 )

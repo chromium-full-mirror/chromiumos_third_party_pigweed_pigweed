@@ -14,7 +14,7 @@
 #![no_main]
 #![no_std]
 
-use app_initiator::handle;
+use initiator_codegen::handle;
 use pw_status::{Error, Result, StatusCode};
 use userspace::time::Instant;
 use userspace::{entry, syscall};

@@ -16,8 +16,8 @@
 
 use core::sync::atomic::{AtomicU32, Ordering};
 
-use app_test_interrupt_listener::{handle, signals};
 use pw_status::{Error, Result};
+use test_interrupt_listener_codegen::{handle, signals};
 use userspace::syscall::Signals;
 use userspace::time::Instant;
 use userspace::{entry, syscall};

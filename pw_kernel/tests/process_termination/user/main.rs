@@ -15,7 +15,7 @@
 #![no_std]
 #![no_main]
 
-use app_main::handle;
+use main_codegen::handle;
 use pw_log::info;
 use pw_status::{Result, StatusCode};
 use userspace::{entry, syscall};

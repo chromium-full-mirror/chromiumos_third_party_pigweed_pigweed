@@ -14,7 +14,7 @@
 #![no_std]
 #![no_main]
 
-use app_handler2::handle;
+use handler2_codegen::handle;
 use userspace::entry;
 
 mod common_handler;

@@ -14,7 +14,7 @@
 #![no_main]
 #![no_std]
 
-use app_handler::handle;
+use handler_codegen::handle;
 use pw_status::{Error, Result};
 use userspace::entry;
 use userspace::syscall::{self, Signals};

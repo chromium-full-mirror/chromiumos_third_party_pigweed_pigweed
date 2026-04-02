@@ -18,7 +18,7 @@ configuration file.
 load("@bazel_skylib//lib:selects.bzl", "selects")
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
-load("@rules_rust//rust:defs.bzl", "rust_library")
+load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library")
 load("//pw_kernel/arch/arm_cortex_m:defs.bzl", "SUPPORTED_CORTEX_M_CPUS")
 
 def _app_linker_script_impl(ctx):
@@ -109,7 +109,7 @@ def _app_linker_script(name, system_config, app_name, **kwargs):
         **kwargs
     )
 
-def _app_package_src_impl(ctx):
+def _app_codegen_src_impl(ctx):
     output = ctx.actions.declare_file(ctx.attr.name + ".rs")
 
     args = [
@@ -128,7 +128,7 @@ def _app_package_src_impl(ctx):
         inputs = ctx.files.system_config + [ctx.file.template],
         outputs = [output],
         executable = ctx.executable.system_generator,
-        mnemonic = "AppPackage",
+        mnemonic = "AppCodegenSrc",
         arguments = args,
     )
 
@@ -136,8 +136,8 @@ def _app_package_src_impl(ctx):
         DefaultInfo(files = depset([output])),
     ]
 
-_app_package_src = rule(
-    implementation = _app_package_src_impl,
+_app_codegen_src = rule(
+    implementation = _app_codegen_src_impl,
     attrs = {
         "app_name": attr.string(
             doc = "Name of the application in the configuration file.",
@@ -162,28 +162,50 @@ _app_package_src = rule(
     doc = "Generate the linker script for an app based on the system config.",
 )
 
-def app_package(name, system_config, app_name, **kwargs):
-    tags = kwargs["tags"]
+def rust_app(name, codegen_crate_name, system_config, srcs, deps = None, **kwargs):
+    # buildifier: disable=function-docstring-args
+    """
+    Wrapper function to generate an app's linker script, rustsrc, and build a rust_binary for the app.
+    """
+    if deps == None:
+        deps = []
 
-    _app_package_src(
-        name = name + ".rustsrc",
+    tags = kwargs.get("tags", [])
+
+    _app_codegen_src(
+        name = name + ".src",
         system_config = system_config,
-        app_name = app_name,
+        app_name = name,
         tags = tags,
     )
 
     _app_linker_script(
         name = name + ".linker_script",
         system_config = system_config,
-        app_name = app_name,
+        app_name = name,
         tags = tags,
     )
 
+    codegen_kwargs = {}
+    if "edition" in kwargs:
+        codegen_kwargs["edition"] = kwargs["edition"]
+    if "tags" in kwargs:
+        codegen_kwargs["tags"] = kwargs["tags"]
+    if "target_compatible_with" in kwargs:
+        codegen_kwargs["target_compatible_with"] = kwargs["target_compatible_with"]
+
     rust_library(
-        name = name,
-        srcs = [":{}.rustsrc".format(name)],
+        name = codegen_crate_name,
+        srcs = [":{}.src".format(name)],
         deps = [":{}.linker_script".format(name)] + [
             "@pigweed//pw_kernel/syscall:syscall_defs",
         ],
+        **codegen_kwargs
+    )
+
+    rust_binary(
+        name = name,
+        srcs = srcs,
+        deps = deps + [":" + codegen_crate_name],
         **kwargs
     )
