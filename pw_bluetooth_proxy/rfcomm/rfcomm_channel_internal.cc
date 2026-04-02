@@ -30,6 +30,37 @@
 
 namespace pw::bluetooth::proxy::rfcomm::internal {
 
+BorrowedRfcommChannel::BorrowedRfcommChannel(RfcommChannelInternal& channel)
+    : channel_(channel) {
+  channel_.Borrow();
+}
+
+BorrowedRfcommChannel::~BorrowedRfcommChannel() { channel_.Unborrow(); }
+
+RfcommChannelInternal::~RfcommChannelInternal() {
+  std::unique_lock lock(mutex_);
+  while (num_borrows_ > 0) {
+    // Release lock while waiting to avoid deadlock.
+    lock.unlock();
+    unborrowed_notification_.acquire();
+    lock.lock();
+  }
+}
+
+void RfcommChannelInternal::Borrow() {
+  std::lock_guard lock(mutex_);
+  num_borrows_++;
+}
+
+void RfcommChannelInternal::Unborrow() {
+  std::lock_guard lock(mutex_);
+  PW_CHECK(num_borrows_ > 0);
+  num_borrows_--;
+  if (num_borrows_ == 0) {
+    unborrowed_notification_.release();
+  }
+}
+
 RfcommChannelInternal::RfcommChannelInternal(
     multibuf::MultiBufAllocator& multibuf_allocator,
     ChannelProxy& l2cap_channel_proxy,

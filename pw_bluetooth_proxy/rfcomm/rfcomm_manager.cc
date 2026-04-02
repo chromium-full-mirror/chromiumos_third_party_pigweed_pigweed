@@ -313,6 +313,10 @@ std::optional<multibuf::MultiBuf> RfcommManager::HandlePduFromController(
     uint16_t remote_cid) {
   internal::RfcommChannelInternal* channel_to_close = nullptr;
   ConnectionState* conn_state_to_delete = nullptr;
+  uint8_t uih_credits = 0;
+  span<const uint8_t> uih_info_bytes;
+  std::optional<internal::BorrowedRfcommChannel> borrowed_channel;
+
   {
     std::lock_guard lock(connections_mutex_);
     auto it = connections_.find(connection_handle);
@@ -327,12 +331,12 @@ std::optional<multibuf::MultiBuf> RfcommManager::HandlePduFromController(
 
     auto& conn_state = *it;
 
-    auto pdu_span = pdu.ContiguousSpan();
-    PW_CHECK(pdu_span.has_value(),
+    auto contiguous_span = pdu.ContiguousSpan();
+    PW_CHECK(contiguous_span.has_value(),
              "Received fragmented L2CAP PDU for handle %hu, which is not yet "
              "supported",
              static_cast<uint16_t>(connection_handle));
-    ConstByteSpan pdu_bytes = pdu.ContiguousSpan().value();
+    ConstByteSpan pdu_bytes = as_bytes(*contiguous_span);
 
     auto parsed_frame_result = ParseRfcommFrame(pdu_bytes);
     if (!parsed_frame_result.ok()) {
@@ -350,10 +354,12 @@ std::optional<multibuf::MultiBuf> RfcommManager::HandlePduFromController(
         conn_state.channels.find(MakeDlci(channel_number, direction));
     if (channel_it == conn_state.channels.end()) {
       PW_LOG_DEBUG(
-          "Received RFCOMM PDU for unknown DLCI: (channel %u, direction %u), "
+          "Received RFCOMM PDU for unknown DLCI: (channel %u, direction %u, "
+          "size %zu), "
           "forwarding to host.",
           channel_number,
-          static_cast<uint8_t>(direction));
+          static_cast<uint8_t>(direction),
+          pdu_bytes.size());
       return std::move(pdu);
     }
 
@@ -362,15 +368,13 @@ std::optional<multibuf::MultiBuf> RfcommManager::HandlePduFromController(
     // Handle the RFCOMM frame type.
     emboss::RfcommFrameType frame_type = parsed_frame.control().Read();
     if (parsed_frame.uih().Read()) {
-      span<const uint8_t> info_bytes(
+      borrowed_channel.emplace(*channel);
+      uih_credits = parsed_frame.credits().IsComplete()
+                        ? parsed_frame.credits().Read()
+                        : 0;
+      uih_info_bytes = span<const uint8_t>(
           parsed_frame.information().BackingStorage().data(),
           parsed_frame.information().SizeInBytes());
-      if (!channel->HandlePduFromController(parsed_frame.credits().IsComplete()
-                                                ? parsed_frame.credits().Read()
-                                                : 0,
-                                            as_bytes(info_bytes))) {
-        return std::nullopt;
-      }
     } else if (frame_type == emboss::RfcommFrameType::DISCONNECT_MODE ||
                frame_type ==
                    emboss::RfcommFrameType::DISCONNECT_MODE_AND_POLL_FINAL ||
@@ -388,6 +392,13 @@ std::optional<multibuf::MultiBuf> RfcommManager::HandlePduFromController(
         conn_state_to_delete = &conn_state;
         connections_.erase(it);
       }
+    }
+  }
+
+  if (borrowed_channel.has_value()) {
+    if (!borrowed_channel.value()->HandlePduFromController(
+            uih_credits, as_bytes(uih_info_bytes))) {
+      return std::nullopt;
     }
   }
 

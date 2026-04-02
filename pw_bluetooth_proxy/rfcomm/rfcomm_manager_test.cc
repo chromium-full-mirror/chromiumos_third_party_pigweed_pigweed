@@ -552,6 +552,63 @@ TEST_F(RfcommManagerTest, CallbacksAreSafe) {
   EXPECT_EQ(event, RfcommEvent::kChannelClosedByRemote);
 }
 
+TEST_F(RfcommManagerTest, ReceiveCallbackDoesNotHoldMutex) {
+  pw::Vector<uint8_t, 256> received_pdu;
+  bool write_success = false;
+  auto mbuf_for_write = multibuf_allocator_.AllocateContiguous(1);
+  ASSERT_TRUE(mbuf_for_write.has_value());
+  multibuf::MultiBuf& mbuf_for_write_ref = mbuf_for_write.value();
+
+  struct {
+    RfcommManager* manager;
+    multibuf::MultiBuf* mbuf;
+    bool* write_success;
+    pw::Vector<uint8_t, 256>* received_pdu;
+  } capture = {&manager_, &mbuf_for_write_ref, &write_success, &received_pdu};
+
+  auto receive_cb = [&capture](multibuf::MultiBuf&& pdu) {
+    capture.received_pdu->resize(pdu.size());
+    std::ignore = pdu.CopyTo(as_writable_bytes(span(*capture.received_pdu)));
+
+    // Verify that calling Write() from within the receive callback is safe.
+    // It should NOT deadlock on `connections_mutex_`.
+    auto write_status = capture.manager->Write(kConnectionHandle1,
+                                               kChannelNumber1,
+                                               RfcommDirection::kResponder,
+                                               std::move(*capture.mbuf));
+    *capture.write_success = write_status.status.ok();
+  };
+
+  auto channel_result =
+      manager_.AcquireRfcommChannel(multibuf_allocator_,
+                                    kConnectionHandle1,
+                                    kChannelNumber1,
+                                    RfcommDirection::kResponder,
+                                    true,
+                                    kDefaultConfig,
+                                    kDefaultConfig,
+                                    std::move(receive_cb),
+                                    nullptr);
+  EXPECT_TRUE(channel_result.ok());
+
+  // Send a valid UIH frame for channel_number 1 (Responder = DLCI 4) to trigger
+  // the receive callback.
+  const pw::Vector<uint8_t, 5> kPdu = {0x11, 0xEF, 0x03, 0x01, 0xbf};
+  auto mbuf_result = multibuf_allocator_.AllocateContiguous(kPdu.size());
+  ASSERT_TRUE(mbuf_result.has_value());
+  ASSERT_EQ(mbuf_result->CopyFrom(as_bytes(span(kPdu))).status(),
+            pw::OkStatus());
+  bool handled = l2cap_manager_.TriggerControllerPdu(std::move(*mbuf_result),
+                                                     kConnectionHandle1,
+                                                     kDefaultConfig.cid,
+                                                     kDefaultConfig.cid);
+  EXPECT_FALSE(handled);
+
+  // The callback should have been executed, and since the channel is still
+  // open, the nested Write should succeed.
+  EXPECT_TRUE(write_success);
+}
+
 TEST_F(RfcommManagerTest, ReleaseLastChannelClosesConnection) {
   auto channel1 = manager_.AcquireRfcommChannel(multibuf_allocator_,
                                                 kConnectionHandle1,

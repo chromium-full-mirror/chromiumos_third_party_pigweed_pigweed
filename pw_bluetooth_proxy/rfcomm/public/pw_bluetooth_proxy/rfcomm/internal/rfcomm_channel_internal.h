@@ -25,8 +25,24 @@
 #include "pw_containers/intrusive_map.h"
 #include "pw_function/function.h"
 #include "pw_sync/mutex.h"
+#include "pw_sync/thread_notification.h"
 
 namespace pw::bluetooth::proxy::rfcomm::internal {
+
+class RfcommChannelInternal;
+
+// RAII helper to ensure RfcommChannelInternal is not destroyed while in use.
+class BorrowedRfcommChannel {
+ public:
+  BorrowedRfcommChannel(RfcommChannelInternal& channel);
+  ~BorrowedRfcommChannel();
+
+  RfcommChannelInternal* operator->() { return &channel_; }
+  RfcommChannelInternal& operator*() { return channel_; }
+
+ private:
+  RfcommChannelInternal& channel_;
+};
 
 // Represents an RFCOMM channel.
 class RfcommChannelInternal
@@ -44,7 +60,10 @@ class RfcommChannelInternal
                         RfcommReceiveCallback&& receive_fn,
                         RfcommEventCallback&& event_fn);
 
-  virtual ~RfcommChannelInternal() = default;
+  virtual ~RfcommChannelInternal();
+
+  void Borrow();
+  void Unborrow();
 
   // Closes the RFCOMM channel.
   virtual void Close(RfcommEvent event);
@@ -93,6 +112,9 @@ class RfcommChannelInternal
   sync::Mutex mutex_ PW_ACQUIRED_BEFORE(tx_mutex_);
   enum class State { kOpen, kClosed };
   State state_ PW_GUARDED_BY(mutex_) = State::kOpen;
+
+  size_t num_borrows_ PW_GUARDED_BY(mutex_) = 0;
+  sync::ThreadNotification unborrowed_notification_;
 
   sync::Mutex tx_mutex_ PW_ACQUIRED_AFTER(mutex_) PW_ACQUIRED_BEFORE(rx_mutex_);
   uint8_t tx_credits_ PW_GUARDED_BY(tx_mutex_) = 0;
