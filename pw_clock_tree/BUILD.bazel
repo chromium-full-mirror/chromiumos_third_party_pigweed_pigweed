@@ -73,6 +73,25 @@ pw_cc_test(
 )
 
 pw_cc_test(
+    name = "dependency_test",
+    srcs = ["dependency_test.cc"],
+    target_compatible_with = select(hosts_lin_mac),
+    deps = [
+        ":pw_clock_tree",
+    ],
+)
+
+pw_cc_test(
+    name = "dependency_nc_test",
+    srcs = ["dependency_nc_test.cc"],
+    has_nc_test = True,
+    target_compatible_with = select(hosts_lin_mac),
+    deps = [
+        ":pw_clock_tree",
+    ],
+)
+
+pw_cc_test(
     name = "clock_tree_examples",
     srcs = ["examples.cc"],
     deps = [

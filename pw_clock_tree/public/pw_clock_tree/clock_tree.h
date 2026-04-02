@@ -302,11 +302,32 @@ class ClockSourceNoOpBlocking : public ClockSource<ElementBlocking> {
   pw::Status DoDisable() final { return pw::OkStatus(); }
 };
 
+/// Alias for a blocking clock source tree element.
+using ClockSourceBlocking = ClockSource<ElementBlocking>;
+
+/// Alias for a non-blocking clock source tree element where updates cannot
+/// fail.
+using ClockSourceNonBlockingCannotFail =
+    ClockSource<ElementNonBlockingCannotFail>;
+
+/// Alias for a non-blocking clock source tree element where updates might
+/// fail.
+using ClockSourceNonBlockingMightFail =
+    ClockSource<ElementNonBlockingMightFail>;
+
 /// Abstract class template of a clock tree element that depends on another
 /// clock tree element.
 ///
 /// A `DependentElement` clock tree element depends on another
 /// clock tree element.
+///
+/// The dependent clock tree element must be of the same type or of a more
+/// restrictive type.
+/// Restriction requirements (Dependent -> {Source types}):
+/// ElementNonBlockingCannotFail -> {ElementNonBlockingCannotFail}
+/// ElementNonBlockingMayFail -> {ElementNonBlockingCannotFail}
+/// ElementBlocking -> {ElementNonBlockingCannotFail,
+///                     ElementNonBlockingMayFail}
 ///
 /// Class implementations of `DependentElement` must override the
 /// `DoEnable` function, the `DoDisable` function can be overridden to disable
@@ -319,7 +340,14 @@ template <typename ElementType>
 class DependentElement : public ElementType {
  public:
   /// Create a dependent clock tree element that depends on `source`.
-  constexpr DependentElement(ElementType& source) : source_(&source) {}
+  template <typename SourceType>
+  constexpr DependentElement(SourceType& source) : source_(&source) {
+    static_assert(ElementType::kMayBlock || !SourceType::kMayBlock,
+                  "Non-blocking element cannot depend on a blocking element");
+    static_assert(
+        ElementType::kMayFail || !SourceType::kMayFail,
+        "Non-failing element cannot depend on an element that might fail");
+  }
 
  private:
   /// Acquire a reference to the dependent clock tree element.
@@ -370,11 +398,10 @@ class DependentElement : public ElementType {
     return source_->Release();
   }
 
- private:
-  // NOTE: This is an Element* not ElementType* to allow the Acquire() and
-  // Release() calls above to consistently use a Status return type.
-  // We still use ElementType& in the constructor to ensure a nonblocking clock
-  // element cannot depend on a blocking one.
+  // NOTE: This is an Element* not SourceType* to allow the source to be
+  // changed at runtime.
+  // We still use ElementType and SourceType& in the constructor to ensure a
+  // nonblocking clock element cannot depend on a blocking one.
   // TODO: https://pwbug.dev/434801926 - Change this this to ElementType and
   // use something like:
   //   if constexpr (std::remove_pointer_t<decltype(source_)>::kMayFail)
@@ -429,7 +456,8 @@ class ClockDividerElement : public DependentElement<ElementType>,
  public:
   /// Create a clock divider element that depends on `source` and gets
   /// configured with `divider` value when enabled.
-  constexpr ClockDividerElement(ElementType& source, uint32_t divider)
+  template <typename SourceType>
+  constexpr ClockDividerElement(SourceType& source, uint32_t divider)
       : DependentElement<ElementType>(source),
         ClockDivider(static_cast<Element&>(*this)),
         divider_(divider) {}

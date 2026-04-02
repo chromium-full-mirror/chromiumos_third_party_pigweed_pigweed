@@ -56,6 +56,17 @@ pw_test("clock_tree_test") {
   public_deps = [ "$dir_pw_preprocessor" ]
 }
 
+pw_test("dependency_test") {
+  sources = [ "dependency_test.cc" ]
+  deps = [ ":pw_clock_tree" ]
+}
+
+pw_test("dependency_nc_test") {
+  sources = [ "dependency_nc_test.cc" ]
+  deps = [ ":pw_clock_tree" ]
+  negative_compilation_tests = true
+}
+
 pw_test("clock_tree_examples") {
   sources = [ "examples.cc" ]
   deps = [ ":pw_clock_tree" ]
@@ -64,6 +75,8 @@ pw_test("clock_tree_examples") {
 pw_test_group("tests") {
   tests = [
     ":clock_tree_test",
+    ":dependency_test",
+    ":dependency_nc_test",
     ":clock_tree_examples",
   ]
 }
