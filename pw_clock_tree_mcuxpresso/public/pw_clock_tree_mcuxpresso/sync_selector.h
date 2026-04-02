@@ -45,9 +45,9 @@ class ClockMcuxpressoSyncSelector : public DependentElement<ElementType> {
   ///
   /// @param disable_selector The selector value which can be used to disable
   /// the mux. If the mux does not support such a value, pass kNoSelector.
-  template <typename NewSourceType>
+  template <typename SourceType>
   constexpr ClockMcuxpressoSyncSelector(
-      NewSourceType& initial_source,
+      SourceType& initial_source,
       clock_attach_id_t initial_selector,
       clock_attach_id_t disable_selector = kNoSelector)
       : DependentElement<ElementType>(initial_source),
@@ -56,8 +56,8 @@ class ClockMcuxpressoSyncSelector : public DependentElement<ElementType> {
     PW_ASSERT(initial_selector != kNoSelector);
   }
 
-  template <typename NewSourceType>
-  pw::Status ChangeSource(NewSourceType& new_source,
+  template <typename SourceType>
+  pw::Status ChangeSource(SourceType& new_source,
                           clock_attach_id_t new_selector) {
     PW_ASSERT(new_selector != kNoSelector);
 
@@ -98,7 +98,7 @@ class ClockMcuxpressoSyncSelector : public DependentElement<ElementType> {
       // Ensure the new source is running (sync clock mux requirement).
       // We acquire it now. If we are enabled, this becomes our permanent ref.
       // If we are disabled, this is a temporary ref for the switch.
-      if constexpr (NewSourceType::kMayFail) {
+      if constexpr (SourceType::kMayFail) {
         if (pw::Status status = new_source.Acquire(); !status.ok()) {
           if (acquired_temp_current_ref) {
             current_source.Release().IgnoreError();
@@ -122,7 +122,7 @@ class ClockMcuxpressoSyncSelector : public DependentElement<ElementType> {
       if (!is_enabled) {
         // This element is disabled, so we cannot hold on to the reference
         // taken above.
-        if constexpr (NewSourceType::kMayFail) {
+        if constexpr (SourceType::kMayFail) {
           new_source.Release().IgnoreError();
         } else {
           new_source.Release();

@@ -271,7 +271,7 @@ TEST(ClockMcuxpressoSyncSelector, AlwaysOnMuxActive) {
   EXPECT_EQ(source2.ref_count(), 0u);
 }
 
-TEST(ClockMcuxpressoSyncSelector, ChangeSourceNewSourceAcquireFail) {
+TEST(ClockMcuxpressoSyncSelector, ChangeSourceSourceAcquireFail) {
   sdk_state.Reset();
   MockSourceNonBlockingCannotFail source1;
   MockSourceNonBlockingMightFail source2;
@@ -316,7 +316,7 @@ TEST(ClockMcuxpressoSyncSelector, ChangeSourceCurrentSourceAcquireFail) {
   EXPECT_EQ(source2.ref_count(), 0u);
 }
 
-TEST(ClockMcuxpressoSyncSelector, ChangeSourceNewSourceAcquireFailWithTempRef) {
+TEST(ClockMcuxpressoSyncSelector, ChangeSourceSourceAcquireFailWithTempRef) {
   sdk_state.Reset();
   MockSourceNonBlockingCannotFail source1;
   MockSourceNonBlockingMightFail source2;
