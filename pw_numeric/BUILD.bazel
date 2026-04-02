@@ -22,6 +22,21 @@ package(default_visibility = ["//visibility:public"])
 licenses(["notice"])
 
 cc_library(
+    name = "absolute_value",
+    hdrs = ["public/pw_numeric/absolute_value.h"],
+    strip_include_prefix = "public",
+)
+
+pw_cc_test(
+    name = "absolute_value_test",
+    srcs = ["absolute_value_test.cc"],
+    deps = [
+        ":absolute_value",
+        "//pw_unit_test:constexpr",
+    ],
+)
+
+cc_library(
     name = "checked_arithmetic",
     hdrs = ["public/pw_numeric/checked_arithmetic.h"],
     strip_include_prefix = "public",

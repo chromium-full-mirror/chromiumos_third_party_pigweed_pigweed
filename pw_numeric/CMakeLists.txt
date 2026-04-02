@@ -14,6 +14,24 @@
 
 include($ENV{PW_ROOT}/pw_build/pigweed.cmake)
 
+pw_add_library(pw_numeric.absolute_value INTERFACE
+  HEADERS
+    public/pw_numeric/absolute_value.h
+  PUBLIC_INCLUDES
+    public
+)
+
+pw_add_test(pw_numeric.absolute_value_test
+  SOURCES
+    absolute_value_test.cc
+  PRIVATE_DEPS
+    pw_numeric.absolute_value
+    pw_unit_test.constexpr
+  GROUPS
+    modules
+    pw_numeric
+)
+
 pw_add_library(pw_numeric.checked_arithmetic INTERFACE
   HEADERS
     public/pw_numeric/checked_arithmetic.h

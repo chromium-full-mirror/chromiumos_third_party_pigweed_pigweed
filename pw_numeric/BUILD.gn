@@ -22,6 +22,19 @@ config("public_include_path") {
   visibility = [ ":*" ]
 }
 
+pw_source_set("absolute_value") {
+  public = [ "public/pw_numeric/absolute_value.h" ]
+  public_configs = [ ":public_include_path" ]
+}
+
+pw_test("absolute_value_test") {
+  sources = [ "absolute_value_test.cc" ]
+  deps = [
+    ":absolute_value",
+    "$dir_pw_unit_test:constexpr",
+  ]
+}
+
 pw_source_set("checked_arithmetic") {
   public = [ "public/pw_numeric/checked_arithmetic.h" ]
   public_configs = [ ":public_include_path" ]
@@ -81,6 +94,7 @@ pw_test("saturating_arithmetic_test") {
 
 pw_test_group("tests") {
   tests = [
+    ":absolute_value_test",
     ":checked_arithmetic_test",
     ":integer_division_test",
     ":rounding_test",
