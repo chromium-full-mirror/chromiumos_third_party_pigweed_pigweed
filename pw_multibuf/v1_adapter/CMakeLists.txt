@@ -101,6 +101,7 @@ pw_add_test(pw_multibuf.v1_adapter.single_chunk_region_tracker_test
 pw_add_library(pw_multibuf.v1_adapter.multibuf STATIC
   HEADERS
     public/pw_multibuf/v1_adapter/multibuf.h
+    public/pw_multibuf/v1_adapter/internal/traits.h
   PUBLIC_INCLUDES
     public
   PUBLIC_DEPS

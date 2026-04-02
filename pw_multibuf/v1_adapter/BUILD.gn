@@ -127,7 +127,10 @@ pw_test("single_chunk_region_tracker_test") {
 pw_source_set("multibuf") {
   sources = [ "multibuf.cc" ]
   public_configs = [ ":public_include_path" ]
-  public = [ "public/pw_multibuf/v1_adapter/multibuf.h" ]
+  public = [
+    "public/pw_multibuf/v1_adapter/internal/traits.h",
+    "public/pw_multibuf/v1_adapter/multibuf.h",
+  ]
   public_deps = [
     ":chunk",
     "$dir_pw_multibuf/v2:iterators",

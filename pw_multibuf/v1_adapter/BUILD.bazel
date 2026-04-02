@@ -118,6 +118,7 @@ cc_library(
     name = "multibuf",
     srcs = ["multibuf.cc"],
     hdrs = [
+        "public/pw_multibuf/v1_adapter/internal/traits.h",
         "public/pw_multibuf/v1_adapter/multibuf.h",
     ],
     implementation_deps = [

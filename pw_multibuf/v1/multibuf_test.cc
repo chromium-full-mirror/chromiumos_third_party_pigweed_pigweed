@@ -728,4 +728,12 @@ TEST_F(MultiBufV1Test, ContiguousSpanAcrossMultipleChunks) {
   EXPECT_FALSE(buf.IsContiguous());
 }
 
+TEST_F(MultiBufV1Test, ImplicitConversionToOptional) {
+  MultiBuf buf;
+  buf.PushBackChunk(MakeChunk(10));
+
+  std::optional<MultiBuf> optbuf = std::move(buf);
+  EXPECT_TRUE(optbuf.has_value());
+}
+
 }  // namespace

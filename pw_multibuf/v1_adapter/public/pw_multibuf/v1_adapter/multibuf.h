@@ -19,6 +19,7 @@
 
 #include "pw_bytes/span.h"
 #include "pw_multibuf/v1_adapter/chunk.h"
+#include "pw_multibuf/v1_adapter/internal/traits.h"
 #include "pw_multibuf/v2/chunks.h"
 #include "pw_multibuf/v2/multibuf.h"
 #include "pw_status/status_with_size.h"
@@ -413,12 +414,20 @@ class MultiBuf final {
     return **mbv2_;
   }
 
-  template <typename MultiBufType>
+  template <
+      typename MultiBufType,
+      typename = std::enable_if_t<!internal::is_optional_v<MultiBufType> &&
+                                      !internal::is_variant_v<MultiBufType>,
+                                  void>>
   constexpr operator MultiBufType&&() && {
     PW_ASSERT(mbv2_.has_value());
     return std::move(**mbv2_);
   }
-  template <typename MultiBufType>
+  template <
+      typename MultiBufType,
+      typename = std::enable_if_t<!internal::is_optional_v<MultiBufType> &&
+                                      !internal::is_variant_v<MultiBufType>,
+                                  void>>
   constexpr operator const MultiBufType&&() const&& {
     PW_ASSERT(mbv2_.has_value());
     return std::move(**mbv2_);
