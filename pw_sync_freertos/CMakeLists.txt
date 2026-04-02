@@ -167,5 +167,6 @@ pw_add_library(pw_sync_freertos.interrupt_spin_lock INTERFACE
     pw_assert.assert
     pw_interrupt.context
     pw_sync.interrupt_spin_lock.facade
+    pw_sync_freertos.config
     pw_third_party.freertos
 )

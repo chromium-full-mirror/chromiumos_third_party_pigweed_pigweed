@@ -16,13 +16,16 @@
 #include "pw_assert/assert.h"
 #include "pw_interrupt/context.h"
 #include "pw_sync/interrupt_spin_lock.h"
+#include "pw_sync_freertos/config.h"
 #include "task.h"
 
 namespace pw::sync {
 
+#if PW_SYNC_FREERTOS_INTERRUPT_SPIN_LOCK_USES_SCHEDULER_LOCK
 #if (INCLUDE_xTaskGetSchedulerState != 1) && (configUSE_TIMERS != 1)
 #error "xTaskGetSchedulerState is required for pw::sync::InterruptSpinLock"
-#endif
+#endif  // (INCLUDE_xTaskGetSchedulerState != 1) && (configUSE_TIMERS != 1)
+#endif  // PW_SYNC_FREERTOS_INTERRUPT_SPIN_LOCK_USES_SCHEDULER_LOCK
 
 constexpr InterruptSpinLock::InterruptSpinLock()
     : native_type_{.locked = false, .saved_interrupt_mask = 0} {}
@@ -43,6 +46,7 @@ inline void InterruptSpinLock::lock() {
   if (interrupt::InInterruptContext()) {
     native_type_.saved_interrupt_mask = taskENTER_CRITICAL_FROM_ISR();
   } else {  // Task context
+#if PW_SYNC_FREERTOS_INTERRUPT_SPIN_LOCK_USES_SCHEDULER_LOCK
     // Suspending the scheduler ensures that kernel API calls that occur
     // within the critical section will not preempt the current task
     // (if called from a thread context).  Otherwise, kernel APIs called
@@ -55,6 +59,7 @@ inline void InterruptSpinLock::lock() {
     if (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED) {
       vTaskSuspendAll();
     }
+#endif  // PW_SYNC_FREERTOS_INTERRUPT_SPIN_LOCK_USES_SCHEDULER_LOCK
     taskENTER_CRITICAL();
   }
   PW_DASSERT(!native_type_.locked);  // We can't deadlock here so crash instead.
@@ -67,9 +72,11 @@ inline void InterruptSpinLock::unlock() {
     taskEXIT_CRITICAL_FROM_ISR(native_type_.saved_interrupt_mask);
   } else {  // Task context
     taskEXIT_CRITICAL();
+#if PW_SYNC_FREERTOS_INTERRUPT_SPIN_LOCK_USES_SCHEDULER_LOCK
     if (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED) {
       xTaskResumeAll();
     }
+#endif  // PW_SYNC_FREERTOS_INTERRUPT_SPIN_LOCK_USES_SCHEDULER_LOCK
   }
 }
 

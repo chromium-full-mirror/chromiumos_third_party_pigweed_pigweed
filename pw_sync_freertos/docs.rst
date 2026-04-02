@@ -32,13 +32,25 @@ detect accidental recursive locking.
 This object uses ``taskENTER_CRITICAL_FROM_ISR`` and
 ``taskEXIT_CRITICAL_FROM_ISR`` from interrupt contexts, and
 ``taskENTER_CRITICAL`` and ``taskEXIT_CRITICAL`` in all other contexts.
+
+Synchronous ports of FreeRTOS which context switch within the signaling APIs
+such as xTaskNotifyGive and xSemaphoreGive require the scheduler to be locked
+while in task critical sections (taskENTER_CRITICAL). To do this
 ``vTaskSuspendAll`` and ``xTaskResumeAll`` are additionally used within
 lock/unlock respectively when called from task context in the scheduler-enabled
-state.
+state. However, asynchronous ports such as all Cortex-M ports upstream in
+FreeRTOS do not actually require the scheduler to be locked as the interrupt
+which is used to context switch is masked by ``taskENTER_CRITICAL`` (e.g.
+PendSV for Cortex-M).
+
+This behavior is controlled through
+``PW_SYNC_FREERTOS_INTERRUPT_SPIN_LOCK_USES_SCHEDULER_LOCK`` which defaults to
+true.
 
 .. Note::
   Scheduler State API support is required in your FreeRTOS Configuration, i.e.
-  ``INCLUDE_xTaskGetSchedulerState == 1``.
+  ``INCLUDE_xTaskGetSchedulerState == 1`` if
+  ``PW_SYNC_FREERTOS_INTERRUPT_SPIN_LOCK_USES_SCHEDULER_LOCK`` is enabled.
 
 .. warning::
   ``taskENTER_CRITICAL_FROM_ISR`` only disables interrupts with priority at or
