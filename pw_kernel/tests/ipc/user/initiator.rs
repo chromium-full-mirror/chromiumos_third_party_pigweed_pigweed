@@ -17,7 +17,7 @@
 use initiator_codegen::handle;
 use pw_status::{Error, Result, StatusCode};
 use userspace::time::Instant;
-use userspace::{entry, syscall};
+use userspace::{process_entry, syscall};
 
 fn test_uppercase_ipcs() -> Result<()> {
     pw_log::info!("Ipc test starting");
@@ -79,7 +79,7 @@ fn test_uppercase_ipcs() -> Result<()> {
     Ok(())
 }
 
-#[entry]
+#[process_entry("initiator")]
 fn entry() -> ! {
     pw_log::info!("🔄 RUNNING");
 
@@ -94,10 +94,5 @@ fn entry() -> ! {
 
     // Since this is written as a test, shut down with the return status from `main()`.
     let _ = syscall::debug_shutdown(ret);
-    loop {}
-}
-
-#[panic_handler]
-fn panic(_info: &core::panic::PanicInfo) -> ! {
     loop {}
 }

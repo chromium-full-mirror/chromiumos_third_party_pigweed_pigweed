@@ -26,6 +26,7 @@ pub struct MainThread<K: Kernel> {
     pub thread: foreign_box::ForeignRc<K::AtomicUsize, super::thread::ThreadObject<K>>,
     pub initial_pc: usize,
     pub initial_sp: usize,
+    pub args: (usize, usize, usize),
 }
 
 enum ProcessState<K: Kernel> {
@@ -57,6 +58,7 @@ pub struct ProcessObject<K: Kernel> {
 }
 
 impl<K: Kernel> ProcessObject<K> {
+    #[must_use]
     pub const fn new(process: ForeignBox<Process<K>>, main_thread: Option<MainThread<K>>) -> Self {
         Self {
             base: ObjectBase::new(),
@@ -67,6 +69,7 @@ impl<K: Kernel> ProcessObject<K> {
         }
     }
 
+    #[must_use]
     pub const fn new_empty() -> Self {
         Self {
             base: ObjectBase::new(),
@@ -110,6 +113,7 @@ impl<K: Kernel> ProcessObject<K> {
                 process_ref,
                 main_thread.initial_pc,
                 main_thread.initial_sp,
+                main_thread.args,
             )?;
         }
 

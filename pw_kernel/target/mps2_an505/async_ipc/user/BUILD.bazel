@@ -23,9 +23,7 @@ system_image(
     name = "async_ipc",
     apps = [
         "//pw_kernel/tests/async_ipc/user:initiator",
-        "//pw_kernel/tests/async_ipc/user:handler1",
-        "//pw_kernel/tests/async_ipc/user:handler2",
-        "//pw_kernel/tests/async_ipc/user:handler3",
+        "//pw_kernel/tests/async_ipc/user:handlers",
     ],
     kernel = ":target",
     platform = "//pw_kernel/target/mps2_an505",

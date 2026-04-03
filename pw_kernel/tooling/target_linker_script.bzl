@@ -65,7 +65,7 @@ target_linker_script = rule(
         "system_config": attr.label(
             doc = "System config file which defines the system.",
             allow_single_file = True,
-            mandatory = True,
+            default = "//pw_kernel/target:system_config_file",
         ),
         "system_generator": attr.label(
             executable = True,

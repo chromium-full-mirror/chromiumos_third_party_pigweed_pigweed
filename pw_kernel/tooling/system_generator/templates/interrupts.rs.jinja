@@ -27,12 +27,13 @@ use syscall_defs::Signals;
 
 {% if userspace %}
 {% for app in apps %}
-    {%- for object in app.process.objects %}
-        {%- if object.type == "interrupt" %}
+    {% for process in app.processes %}
+        {%- for object in process.objects %}
+            {%- if object.type == "interrupt" %}
 static {{object.object_ref_name}}: StaticContext<ForeignRc<<arch::Arch as kernel::Arch>::AtomicUsize, InterruptObject<arch::Arch>>> = StaticContext::new();
-            {%- for irq in object.irqs %}
-                {%- set handler_name = object.handlers[irq.number] %}
-                {%- set mapped_signal = object.interrupt_signal_map[irq.name] %}
+                {%- for irq in object.irqs %}
+                    {%- set handler_name = object.handlers[irq.number] %}
+                    {%- set mapped_signal = object.interrupt_signal_map[irq.name] %}
 extern "C" fn {{handler_name}}() {
     if let Some(object) = unsafe { {{object.object_ref_name}}.get() } {
         let preempt_guard = <arch::Arch as kernel::Arch>::InterruptController::userspace_interrupt_handler_enter(arch::Arch, {{irq.number}});
@@ -40,8 +41,9 @@ extern "C" fn {{handler_name}}() {
         <arch::Arch as kernel::Arch>::InterruptController::userspace_interrupt_handler_exit(arch::Arch, {{irq.number}}, preempt_guard);
     }
 }
-            {% endfor %}
-        {%- endif -%}
+                {% endfor %}
+            {%- endif -%}
+        {%- endfor -%}
     {%- endfor -%}
 {%- endfor %}
 {% endif %}

@@ -15,21 +15,16 @@
 #![no_main]
 
 use handler1_codegen::handle;
-use userspace::entry;
+use userspace::process_entry;
 
 mod common_handler;
 
-#[entry]
+#[process_entry("handler1")]
 fn entry() -> ! {
     if let Err(e) = common_handler::handle_increment_ipc(handle::IPC_1, 1) {
         pw_log::error!("IPC service 1 error: {}", e as u32);
         let _ = userspace::syscall::debug_shutdown(Err(e));
     }
 
-    loop {}
-}
-
-#[panic_handler]
-fn panic(_info: &core::panic::PanicInfo) -> ! {
     loop {}
 }

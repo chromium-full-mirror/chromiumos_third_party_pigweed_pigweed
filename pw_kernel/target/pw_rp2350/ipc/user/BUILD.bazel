@@ -20,10 +20,7 @@ load("//pw_kernel/tooling:target_linker_script.bzl", "target_linker_script")
 
 system_image(
     name = "ipc",
-    apps = [
-        "//pw_kernel/tests/ipc/user:initiator",
-        "//pw_kernel/tests/ipc/user:handler",
-    ],
+    apps = ["//pw_kernel/tests/ipc/user:ipc"],
     kernel = ":target",
     platform = "//pw_kernel/target/pw_rp2350",
     system_config = ":system_config",

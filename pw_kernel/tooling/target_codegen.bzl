@@ -50,7 +50,7 @@ _target_codegen_rule = rule(
         "system_config": attr.label(
             doc = "System config file which defines the system.",
             allow_single_file = True,
-            mandatory = True,
+            default = "//pw_kernel/target:system_config_file",
         ),
         "system_generator": attr.label(
             executable = True,
@@ -69,8 +69,8 @@ _target_codegen_rule = rule(
 
 def target_codegen(
         name,
-        system_config,
         arch,
+        system_config = None,
         deps = [],
         system_generator = "@pigweed//pw_kernel/tooling/system_generator:system_generator_bin",
         templates = {
@@ -91,7 +91,7 @@ def target_codegen(
     Args:
         name: The name of the target.
         system_config: System config file which defines the system.
-        arch: The target architecture crate,
+        arch: The target architecture crate.
         deps: A list of Rust dependencies.
         system_generator: The code generator executable.
         templates: A dictionary of templates for the code generator.

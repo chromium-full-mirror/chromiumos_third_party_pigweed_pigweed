@@ -20,6 +20,6 @@
     unsafe { static_foreign_rc!(
         AtomicUsize,
         ChannelInitiatorObject<K>,
-        ChannelInitiatorObject::new(object_{{object.handler_app}}_{{object.handler_object_name | lower}}_handler))
+        ChannelInitiatorObject::new(object_{{object.handler_process | to_lower_ident}}_{{object.handler_object_name | lower}}_handler))
     }
 }

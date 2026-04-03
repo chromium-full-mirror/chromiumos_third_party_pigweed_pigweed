@@ -28,22 +28,24 @@
       name: "test_interrupts",
       flash_size_bytes: 261120,
       ram_size_bytes: 65536,
-      process: {
-        name: "interrupt process",
-        objects: [
-          {
-            name: "ipc",
-            type: "channel_handler",
-          },
-        ],
-        threads: [
-          {
-            name: "interrupt thread",
-            // Generous stacks size pending kernel stack size optimization.
-            stack_size_bytes: 2048,
-          },
-        ],
-      },
+      processes: [
+        {
+          name: "interrupt",
+          objects: [
+            {
+              name: "ipc",
+              type: "channel_handler",
+            },
+          ],
+          threads: [
+            {
+              name: "interrupt thread",
+              // Generous stacks size pending kernel stack size optimization.
+              stack_size_bytes: 2048,
+            },
+          ],
+        },
+      ],
       constants: [
         {
           name: "test_irq",
@@ -56,34 +58,36 @@
       name: "test_interrupt_listener",
       flash_size_bytes: 261120,
       ram_size_bytes: 65536,
-      process: {
-        name: "interrupt listener",
-        objects: [
-          {
-            name: "test_interrupts",
-            type: "interrupt",
-            irqs: [
-              {
-                name: "test_irq",
-                number: 42,
-              },
-            ]
-          },
-          {
-            name: "ipc",
-            type: "channel_initiator",
-            handler_app: "test_interrupts",
-            handler_object_name: "ipc",
-          },
-        ],
-        threads: [
-          {
-            name: "interrupt thread",
-            // Generous stacks size pending kernel stack size optimization.
-            stack_size_bytes: 2048,
-          },
-        ],
-      },
+      processes: [
+        {
+          name: "listener",
+          objects: [
+            {
+              name: "test_interrupts",
+              type: "interrupt",
+              irqs: [
+                {
+                  name: "test_irq",
+                  number: 42,
+                },
+              ]
+            },
+            {
+              name: "ipc",
+              type: "channel_initiator",
+              handler_process: "interrupt",
+              handler_object_name: "ipc",
+            },
+          ],
+          threads: [
+            {
+              name: "interrupt thread",
+              // Generous stacks size pending kernel stack size optimization.
+              stack_size_bytes: 2048,
+            },
+          ],
+        },
+      ],
     },
   ],
 }

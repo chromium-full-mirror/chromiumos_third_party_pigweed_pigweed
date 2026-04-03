@@ -11,18 +11,28 @@
 # WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 # License for the specific language governing permissions and limitations under
 # the License.
-load("//pw_kernel/tooling:rust_app.bzl", "rust_app")
+load("//pw_kernel/tooling:multi_process_app.bzl", "multi_process_app")
+load("//pw_kernel/tooling:rust_process.bzl", "rust_process")
 
-rust_app(
+multi_process_app(
+    name = "ipc",
+    processes = [
+        ":handler",
+        ":initiator",
+    ],
+    tags = ["kernel"],
+    visibility = ["//visibility:public"],
+)
+
+rust_process(
     name = "initiator",
     srcs = [
         "initiator.rs",
     ],
     codegen_crate_name = "initiator_codegen",
     edition = "2024",
-    system_config = "//pw_kernel/target:system_config_file",
+    multi_process_app = ":ipc",
     tags = ["kernel"],
-    visibility = ["//visibility:public"],
     deps = [
         "//pw_kernel/syscall:syscall_user",
         "//pw_kernel/userspace",
@@ -31,16 +41,15 @@ rust_app(
     ],
 )
 
-rust_app(
+rust_process(
     name = "handler",
     srcs = [
         "handler.rs",
     ],
     codegen_crate_name = "handler_codegen",
     edition = "2024",
-    system_config = "//pw_kernel/target:system_config_file",
+    multi_process_app = ":ipc",
     tags = ["kernel"],
-    visibility = ["//visibility:public"],
     deps = [
         "//pw_kernel/syscall:syscall_user",
         "//pw_kernel/userspace",

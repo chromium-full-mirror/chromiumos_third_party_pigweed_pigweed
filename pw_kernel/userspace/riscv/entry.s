@@ -19,6 +19,7 @@
 .cfi_startproc
 
 _start:
+	mv   s4, a0                          // save arg 0 to s4
 	// Static-init RAM (load static values into RAM, .data section init).
 	// RAM is 4 byte aligned.
 	la   a0, _pw_static_init_ram_start   // destination (RAM)
@@ -35,6 +36,7 @@ _start:
 	call memset
 
 	// Memory is initialized, now call the applications main entry function.
+	mv a0, s4
 	call main
 
 	// Trap if main returns, which it never should.

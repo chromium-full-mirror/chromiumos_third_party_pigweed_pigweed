@@ -22,7 +22,6 @@ rust_app(
     ],
     codegen_crate_name = "initiator_codegen",
     edition = "2024",
-    system_config = "//pw_kernel/target:system_config_file",
     tags = ["kernel"],
     deps = [
         "//pw_kernel/syscall:syscall_user",
@@ -39,7 +38,6 @@ rust_app(
     ],
     codegen_crate_name = "handler_codegen",
     edition = "2024",
-    system_config = "//pw_kernel/target:system_config_file",
     tags = ["kernel"],
     deps = [
         "//pw_kernel/syscall:syscall_user",

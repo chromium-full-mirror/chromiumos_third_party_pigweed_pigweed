@@ -35,9 +35,12 @@ pub fn start() {
 
     // Declare all main process objects first so that other apps can reference them.
     {%- for app in apps %}
-    let object_{{app.name}}_process =
+    {%- for process in app.processes %}
+    let object_{{app.name | to_lower_ident}}_{{process.name | to_lower_ident}}_process =
         {% include "object_process" %};
     {%- endfor %}
+    {%- endfor %}
+
 
     // Channel handlers are declared first so that initiators can reference them.
     // Unlike other object templates, handlers return a tuple of two ForeignRcs.
@@ -45,24 +48,28 @@ pub fn start() {
     // processes object table.  The second is a `ChannelHandlerObject<K>` which
     // is suitable for creating a `ChannelInitiator` object
     {%- for app in apps %}
-    {%- for object in app.process.objects %}
+    {%- for process in app.processes %}
+    {%- for object in process.objects %}
         {% if object.type == "channel_handler" -%}
-            let object_{{app.name}}_{{object.name | to_lower_ident}} =
+            let object_{{process.name | to_lower_ident}}_{{object.name | to_lower_ident}} =
                 {% include "object_channel_handler" %};
             #[allow(unused_variables)]
-            let object_{{app.name}}_{{object.name | to_lower_ident}}_handler =
-                object_{{app.name}}_{{object.name | to_lower_ident}}.clone();
+            let object_{{process.name | to_lower_ident}}_{{object.name | to_lower_ident}}_handler =
+                object_{{process.name | to_lower_ident}}_{{object.name | to_lower_ident}}.clone();
 
         {%- endif -%}
         // Other objects declared later.
     {%- endfor -%}
     {%- endfor -%}
+    {%- endfor -%}
+
 
     {%- for app in apps %}
     let start_fn_{{app.name}} = {{app.start_fn_address | hex}}_usize;
 
-    const MEMORY_CONFIG_{{app.name | to_upper_ident }}: MemoryConfig = MemoryConfig::const_new(&[
-        {%- for mapping in app.process.memory_mappings %}
+    {%- for process in app.processes %}
+    const MEMORY_CONFIG_{{app.name | to_upper_ident }}_{{process.name | to_upper_ident}}: MemoryConfig = MemoryConfig::const_new(&[
+        {%- for mapping in process.memory_mappings %}
         memory_config::MemoryRegion::new(
             {% if mapping.type == "device" -%}
             memory_config::MemoryRegionType::Device,
@@ -77,17 +84,17 @@ pub fn start() {
         {%- endfor -%}
     ]);
 
-    {%- for object in app.process.objects %}
-        let object_{{app.name}}_{{object.name | to_lower_ident }} =
+    {%- for object in process.objects %}
+        let object_{{app.name}}_{{process.name | to_lower_ident}}_{{object.name | to_lower_ident }} =
         {% if object.type == "channel_handler" -%}
                 // Reference to handler object already declared above.
-                object_{{app.name}}_{{object.name | to_lower_ident}}
+                object_{{process.name | to_lower_ident}}_{{object.name | to_lower_ident}}
         {% elif object.type == "channel_initiator" -%}
             {% include "object_channel_initiator" %}
         {% elif object.type == "interrupt" -%}
             {% include "object_interrupt" %}
         {%- elif object.type == "process" %}
-            object_{{object.linked_process}}_process.clone()
+            {{object.process_object_name}}.clone()
         {%- elif object.type == "thread" %}
             {% include "object_thread" %}
         {% elif object.type == "wait_group" -%}
@@ -96,31 +103,32 @@ pub fn start() {
         ;
     {%- endfor %}
 
-    let object_table_{{app.name}}: ForeignBox<dyn ObjectTable<K>> = unsafe {
+    let object_table_{{app.name}}_{{process.name | to_lower_ident}}: ForeignBox<dyn ObjectTable<K>> = unsafe {
         static_foreign_box!(
-            [ForeignRc<<K as kernel::Arch>::AtomicUsize, dyn KernelObject<K>>; {{app.process.objects | length}}],
+            [ForeignRc<<K as kernel::Arch>::AtomicUsize, dyn KernelObject<K>>; {{process.objects | length}}],
             [
-                {%- for object in app.process.objects %}
+                {%- for object in process.objects %}
                     upcast_foreign_rc!(
-                        object_{{app.name}}_{{object.name | to_lower_ident}}.clone()
+                        object_{{app.name}}_{{process.name | to_lower_ident}}_{{object.name | to_lower_ident}}.clone()
                         => dyn KernelObject<K>
                     ),
                 {%- endfor %}
             ]
         )
     };
-
+    {%- set process_index = loop.index0 %}
     {# Declare storage for and initialize processes and their threads.  This
        binds the declared processes and threads to the process and thread
        objects declared above. #}
-    {% include "process_decl" %}
+    {%- include "process_decl" %}
 
-    if let Err(e) = object_{{app.name | to_lower_ident }}_process.start(arch::Arch) {
+    if let Err(e) = object_{{app.name | to_lower_ident }}_{{process.name | to_lower_ident}}_process.start(arch::Arch) {
         kernel::macro_exports::pw_assert::panic!(
-            "Error starting process: {{app.process.name}}: {}",
+            "Error starting process: {{process.name}}: {}",
             e as i32
         );
     }
+    {%- endfor %}
 {%- endfor %}
 }
 {%- endif %}

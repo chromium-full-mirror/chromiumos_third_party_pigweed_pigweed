@@ -11,7 +11,6 @@
 // WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 // License for the specific language governing permissions and limitations under
 // the License.
-
 {
   arch: {
     type: "riscv",
@@ -30,103 +29,97 @@
       name: "initiator",
       flash_size_bytes: 261120,
       ram_size_bytes: 65536,
-      process: {
-        name: "initiator process",
-        objects: [
-          {
-            name: "IPC_1",
-            type: "channel_initiator",
-            handler_app: "handler1",
-            handler_object_name: "IPC_1",
-          },
-          {
-            name: "IPC_2",
-            type: "channel_initiator",
-            handler_app: "handler2",
-            handler_object_name: "IPC_2",
-          },
-          {
-            name: "IPC_3",
-            type: "channel_initiator",
-            handler_app: "handler3",
-            handler_object_name: "IPC_3",
-          },
-          {
-            name: "WAIT_GROUP",
-            type: "wait_group",
-          }
-        ],
-        threads: [
-          {
-            name: "initiator thread",
-            // Generous stacks size pending kernel stack size optimization.
-            stack_size_bytes: 2048,
-          },
-        ],
-      },
+      processes: [
+        {
+          name: "initiator",
+          objects: [
+            {
+              name: "IPC_1",
+              type: "channel_initiator",
+              handler_process: "handler1",
+              handler_object_name: "IPC_1",
+            },
+            {
+              name: "IPC_2",
+              type: "channel_initiator",
+              handler_process: "handler2",
+              handler_object_name: "IPC_2",
+            },
+            {
+              name: "IPC_3",
+              type: "channel_initiator",
+              handler_process: "handler3",
+              handler_object_name: "IPC_3",
+            },
+            {
+              name: "WAIT_GROUP",
+              type: "wait_group",
+            }
+          ],
+          threads: [
+            {
+              name: "initiator thread",
+              // Generous stacks size pending kernel stack size optimization.
+              stack_size_bytes: 2048,
+            },
+          ],
+        },
+      ],
     },
     {
-      name: "handler1",
-      flash_size_bytes: 261120,
-      ram_size_bytes: 65536,
-      process: {
-        name: "handler1 process",
-        objects: [
-          {
-            name: "IPC_1",
-            type: "channel_handler",
-          },
-        ],
-        threads: [
-          {
-            name: "handler1 thread",
-            // Generous stacks size pending kernel stack size optimization.
-            stack_size_bytes: 2048,
-          },
-        ],
-      },
-    },
-    {
-      name: "handler2",
-      flash_size_bytes: 261120,
-      ram_size_bytes: 65536,
-      process: {
-        name: "handler2 process",
-        objects: [
-          {
-            name: "IPC_2",
-            type: "channel_handler",
-          },
-        ],
-        threads: [
-          {
-            name: "handler2 thread",
-            // Generous stacks size pending kernel stack size optimization.
-            stack_size_bytes: 2048,
-          },
-        ],
-      },
-    },
-    {
-      name: "handler3",
-      flash_size_bytes: 261120,
-      ram_size_bytes: 65536,
-      process: {
-        name: "handler3 process",
-        objects: [
-          {
-            name: "IPC_3",
-            type: "channel_handler",
-          },
-        ],
-        threads: [
-          {
-            name: "handler3 thread",
-            // Generous stacks size pending kernel stack size optimization.
-            stack_size_bytes: 2048,
-          },
-        ],
-      },
+      name: "handlers",
+      flash_size_bytes: 783360, // Sum of 3 * 261120
+      ram_size_bytes: 196608, // Sum of 3 * 65536
+      processes: [
+        {
+          name: "handler1",
+          objects: [
+            {
+              name: "IPC_1",
+              type: "channel_handler",
+            },
+          ],
+          threads: [
+            {
+              name: "handler1 thread",
+              // Generous stacks size pending kernel stack size optimization.
+              stack_size_bytes: 2048,
+            },
+          ],
+        },
+        {
+          name: "handler2",
+          objects: [
+            {
+              name: "IPC_2",
+              type: "channel_handler",
+            },
+          ],
+          threads: [
+            {
+              name: "handler2 thread",
+              // Generous stacks size pending kernel stack size optimization.
+              stack_size_bytes: 2048,
+            },
+          ],
+        },
+        {
+          name: "handler3",
+          objects: [
+            {
+              name: "IPC_3",
+              type: "channel_handler",
+            },
+          ],
+          threads: [
+            {
+              name: "handler3 thread",
+              // Generous stacks size pending kernel stack size optimization.
+              stack_size_bytes: 2048,
+            },
+          ],
+        },
+      ],
     },
   ],
 }

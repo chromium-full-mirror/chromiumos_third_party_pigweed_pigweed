@@ -45,6 +45,7 @@ pub struct ThreadObject<K: Kernel> {
 }
 
 impl<K: Kernel> ThreadObject<K> {
+    #[must_use]
     pub const fn new(thread: ForeignBox<Thread<K>>) -> Self {
         Self {
             base: ObjectBase::new(),
@@ -76,6 +77,7 @@ impl<K: Kernel> ThreadObject<K> {
         process_ref: ProcessRef<K>,
         initial_pc: usize,
         initial_sp: usize,
+        args: (usize, usize, usize),
     ) -> Result<()> {
         let mut state = self.state.lock(kernel);
         let Some(mut thread) = state.take_thread() else {
@@ -83,13 +85,7 @@ impl<K: Kernel> ThreadObject<K> {
         };
 
         unsafe {
-            thread.initialize_non_priv_thread(
-                kernel,
-                process_ref,
-                initial_pc,
-                initial_sp,
-                (0, 0, 0),
-            )?;
+            thread.initialize_non_priv_thread(kernel, process_ref, initial_pc, initial_sp, args)?;
         }
         let thread_ref = crate::scheduler::start_thread(kernel, thread);
         *state = State::Running(thread_ref);
@@ -178,7 +174,7 @@ impl<K: Kernel> KernelObject<K> for ThreadObject<K> {
 
     fn thread_start(&self, kernel: K, initial_pc: usize, initial_sp: usize) -> Result<()> {
         let process = kernel.get_scheduler().lock(kernel).current_process_ref();
-        self.start(kernel, process.clone(), initial_pc, initial_sp)
+        self.start(kernel, process.clone(), initial_pc, initial_sp, (0, 0, 0))
     }
 
     fn thread_terminate(&self, kernel: K) -> Result<()> {

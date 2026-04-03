@@ -28,45 +28,49 @@
       name: "initiator",
       flash_size_bytes: 261120,
       ram_size_bytes: 65536,
-      process: {
-        name: "initiator process",
-        objects: [
-          {
-            name: "IPC",
-            type: "channel_initiator",
-            handler_app: "handler",
-            handler_object_name: "IPC",
-          }
-        ],
-        threads: [
-          {
-            name: "initiator thread",
-            // Generous stacks size pending kernel stack size optimization.
-            stack_size_bytes: 2048,
-          },
-        ],
-      },
+      processes: [
+        {
+          name: "initiator",
+          objects: [
+            {
+              name: "IPC",
+              type: "channel_initiator",
+              handler_process: "handler",
+              handler_object_name: "IPC",
+            }
+          ],
+          threads: [
+            {
+              name: "initiator thread",
+              // Generous stacks size pending kernel stack size optimization.
+              stack_size_bytes: 2048,
+            },
+          ],
+        },
+      ],
     },
     {
       name: "handler",
       flash_size_bytes: 261120, // 255Kb
       ram_size_bytes: 65536, // 64Kb
-      process: {
-        name: "handler process",
-        objects: [
-          {
-            name: "IPC",
-            type: "channel_handler",
-          },
-        ],
-        threads: [
-          {
-            name: "handler thread",
-            // Generous stacks size pending kernel stack size optimization.
-            stack_size_bytes: 2048,
-          },
-        ],
-      },
+      processes: [
+        {
+          name: "handler",
+          objects: [
+            {
+              name: "IPC",
+              type: "channel_handler",
+            },
+          ],
+          threads: [
+            {
+              name: "handler thread",
+              // Generous stacks size pending kernel stack size optimization.
+              stack_size_bytes: 2048,
+            },
+          ],
+        },
+      ],
     },
   ],
 }

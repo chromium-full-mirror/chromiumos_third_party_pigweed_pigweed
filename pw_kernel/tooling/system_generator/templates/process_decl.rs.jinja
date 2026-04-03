@@ -18,28 +18,41 @@
 
     let mut process = unsafe { kernel::declare_non_priv_process!(
         PROCESS_STORAGE,
-        "{{app.process.name}}",
-        MEMORY_CONFIG_{{app.name | upper}},
-        object_table_{{app.name}}
+        "{{process.name}}",
+        MEMORY_CONFIG_{{app.name | to_upper_ident}}_{{process.name | to_upper_ident}},
+        object_table_{{app.name}}_{{process.name | to_lower_ident}}
     )};
-    process.object = Some(object_{{app.name}}_process.clone());
+    process.object = Some(object_{{app.name | to_lower_ident}}_{{process.name | to_lower_ident}}_process.clone());
 
     // TODO: https://pwbug.dev/496950345 - Merge with object declaration.
-    {% for thread in app.process.threads %}
+    {% for thread in process.threads %}
         {% include "thread_decl" %}
     {% endfor %}
 
+    let entry_{{app.name}}_index = {{process_index}}_usize;
+
+    // Subdivide App RAM for multi-process apps to prevent stack overlap
+    // TODO: b/498642671 - add configuration of stacks.
+    {% if app.processes | length > 1 -%}
+    {%- set ram_per_process = app.ram_size_bytes / app.processes | length %}
+    let initial_sp = {{ app.ram_start_address | hex }}_u64 + (({{ process_index }} as u64 + 1_u64) * {{ ram_per_process | hex }}_u64);
+
+    {%- else -%}
+    let initial_sp = {{ app.initial_sp | hex }}_u64;
+    {%- endif %}
+
     // TODO: https://pwbug.dev/496970887 - Don't assume thread 0 is main.
     let main_thread_object =
-        object_{{app.name}}_{{app.process.threads[0].name | to_lower_ident}}
+        object_{{app.name}}_{{process.name | to_lower_ident}}_{{process.threads[0].name | to_lower_ident}}
         .clone();
     let main_thread = Some(kernel::object::MainThread {
         thread: main_thread_object,
         initial_pc: start_fn_{{app.name}},
-        initial_sp: {{app.initial_sp | hex}},
+        initial_sp: initial_sp as usize,
+        args: (entry_{{app.name}}_index, 0, 0)
     });
 
-    if let Err(_e) = object_{{app.name}}_process.set_process(
+    if let Err(_e) = object_{{app.name | to_lower_ident}}_{{process.name | to_lower_ident}}_process.set_process(
         arch::Arch,
         process,
         main_thread

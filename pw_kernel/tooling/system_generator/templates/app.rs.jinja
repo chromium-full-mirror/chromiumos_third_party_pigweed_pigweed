@@ -54,7 +54,7 @@ pub mod interrupts {
 }
 
 pub mod constants {
-    {% for constant in constants %}
+    {% for constant in app.constants %}
         {%- if constant.type == "string" %}
             {%- set type = "&str" %}
         {%- else %}

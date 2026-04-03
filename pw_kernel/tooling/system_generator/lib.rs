@@ -68,13 +68,25 @@ fn parse_template(s: &str) -> Result<(String, PathBuf), String> {
 #[derive(Subcommand, Debug)]
 enum Command {
     RenderTargetTemplate,
-    RenderAppTemplate(AppLinkerScriptArgs),
+    RenderAppTemplate(AppArgs),
 }
 
 #[derive(Args, Debug)]
-pub struct AppLinkerScriptArgs {
-    #[arg(long, required = true)]
+pub struct AppArgs {
+    #[arg(long)]
     pub app_name: String,
+
+    #[arg(long)]
+    pub process_name: Option<String>,
+}
+
+/// Context defining the specific app and process being passed to the app template for rendering.
+#[derive(Serialize)]
+pub struct AppRenderContext<'a, A: ArchConfigInterface + Serialize> {
+    pub arch: &'a A,
+    pub app: &'a system_config::AppConfig,
+    pub process: &'a system_config::ProcessConfig,
+    pub is_multi_process_app: bool,
 }
 
 pub trait ArchConfigInterface {
@@ -112,15 +124,17 @@ const RAM_ALIGNMENT: u64 = 8;
 /// section to allow mapping only that instead of the whole kernel flash.
 fn cortex_m_add_kernel_code_mapping(config: &mut system_config::BaseConfig) {
     for app in &mut config.apps {
-        app.process.memory_mappings.insert(
-            0,
-            MemoryMapping {
-                name: "kernel_code".to_string(),
-                ty: MemoryMappingType::ReadOnlyExecutable,
-                start_address: config.kernel.flash_start_address,
-                size_bytes: config.kernel.flash_size_bytes,
-            },
-        );
+        for process in &mut app.processes {
+            process.memory_mappings.insert(
+                0,
+                MemoryMapping {
+                    name: "kernel_code".to_string(),
+                    ty: MemoryMappingType::ReadOnlyExecutable,
+                    start_address: config.kernel.flash_start_address,
+                    size_bytes: config.kernel.flash_size_bytes,
+                },
+            );
+        }
     }
 }
 
@@ -143,25 +157,30 @@ impl ArchConfigInterface for system_config::Armv8MConfig {
         // PMSAv8 requires all region base addresses and sizes to be aligned to
         // 32 bytes (the minimum MPU region granularity).
         for app in &config.apps {
-            for mapping in &app.process.memory_mappings {
-                if mapping.start_address % 32 != 0 {
-                    return Err(anyhow!(
-                        "Unaligned memory mapping: application {}'s memory mapping {}'s start address ({:#10x}) must be aligned to 32 bytes",
-                        app.name,
-                        mapping.name,
-                        mapping.start_address,
-                    ));
-                }
-                if mapping.size_bytes % 32 != 0 {
-                    return Err(anyhow!(
-                        "Unaligned memory mapping: application {}'s memory mapping {}'s size ({}) must be aligned to 32 bytes",
-                        app.name,
-                        mapping.name,
-                        mapping.size_bytes,
-                    ));
+            for process in &app.processes {
+                for mapping in &process.memory_mappings {
+                    if mapping.start_address % 32 != 0 {
+                        return Err(anyhow!(
+                            "Unaligned memory mapping: process {} in application {}'s memory mapping {}'s start address ({:#10x}) must be aligned to 32 bytes",
+                            process.name,
+                            app.name,
+                            mapping.name,
+                            mapping.start_address,
+                        ));
+                    }
+                    if mapping.size_bytes % 32 != 0 {
+                        return Err(anyhow!(
+                            "Unaligned memory mapping: process {} in application {}'s memory mapping {}'s size ({}) must be aligned to 32 bytes",
+                            process.name,
+                            app.name,
+                            mapping.name,
+                            mapping.size_bytes,
+                        ));
+                    }
                 }
             }
         }
+
         Ok(())
     }
 
@@ -317,7 +336,7 @@ impl<'a, A: ArchConfigInterface + Serialize> SystemGenerator<'a, A> {
     pub fn generate(&mut self) -> Result<()> {
         let out_str = match &self.cli.command {
             Command::RenderTargetTemplate => self.render_system()?,
-            Command::RenderAppTemplate(args) => self.render_app_linker_script(&args.app_name)?,
+            Command::RenderAppTemplate(args) => self.render_app_template(args)?,
         };
 
         let mut file = File::create(&self.cli.common_args.output)?;
@@ -332,17 +351,48 @@ impl<'a, A: ArchConfigInterface + Serialize> SystemGenerator<'a, A> {
             .context("Could not render system template")
     }
 
-    fn render_app_linker_script(&self, app_name: &String) -> Result<String> {
+    fn render_app_template(&self, args: &AppArgs) -> Result<String> {
         let template = self.env.get_template("app")?;
         let app = self
             .config
             .base
             .apps
             .iter()
-            .find(|a| a.name == *app_name)
-            .ok_or_else(|| anyhow!("Unable to find app \"{app_name}\" in system manifest"))?;
+            .find(|a| a.name == args.app_name)
+            .ok_or_else(|| {
+                anyhow!(
+                    "Unable to find app \"{0}\" in system manifest",
+                    args.app_name
+                )
+            })?;
+
+        let (process, is_multi_process_app) = match &args.process_name {
+            Some(process_name) => {
+                let p = app
+                    .processes
+                    .iter()
+                    .find(|p| &p.name == process_name)
+                    .ok_or_else(|| {
+                        anyhow!(
+                            "Unable to find process \"{0}\" in app \"{1}\"",
+                            process_name,
+                            args.app_name
+                        )
+                    })?;
+                (p, true)
+            }
+            None => (&app.processes[0], false),
+        };
+
+        let context = AppRenderContext {
+            arch: &self.config.arch,
+            app,
+            process,
+            is_multi_process_app,
+        };
+
         template
-            .render(app)
+            .render(&context)
             .context("Could not render app template")
     }
 
@@ -385,55 +435,91 @@ impl<'a, A: ArchConfigInterface + Serialize> SystemGenerator<'a, A> {
         }
     }
 
-    fn populate_process_and_thread_objects(&mut self) -> Result<()> {
-        use std::collections::HashSet;
-        let app_names: HashSet<String> = self
-            .config
-            .base
-            .apps
-            .iter()
-            .map(|a| a.name.clone())
-            .collect();
+    fn resolve_linked_process(
+        apps: &[system_config::AppConfig],
+        linked_process: &str,
+    ) -> Option<(String, String)> {
+        for app in apps {
+            if let Some(proc) = app.processes.iter().find(|pr| pr.name == linked_process) {
+                return Some((app.name.clone(), proc.name.clone()));
+            }
+        }
+        None
+    }
 
-        for app in self.config.base.apps.iter_mut() {
-            // Verify user-declared process objects
-            for object in &app.process.objects {
-                if let ObjectConfig::Process(p) = object {
-                    if p.name == "process" {
-                        return Err(anyhow::anyhow!(
-                            "App '{}' manually requested a process object named 'process'. This is reserved for the app's own process.",
-                            app.name
-                        ));
-                    }
-                    if !app_names.contains(&p.linked_process) {
-                        return Err(anyhow::anyhow!(
-                            "App '{}' requested handle to process object '{}' linked to '{}' but no app named '{}' found in system config",
-                            app.name,
-                            p.name,
-                            p.linked_process,
-                            p.linked_process
-                        ));
-                    }
+    fn populate_process_objects(
+        process: &mut system_config::ProcessConfig,
+        app_name: &str,
+        apps: &[system_config::AppConfig],
+    ) -> Result<()> {
+        let process_name = &process.name;
+        // Verify user-declared process objects
+        for object in &mut process.objects {
+            if let ObjectConfig::Process(p) = object {
+                if p.name == "process" {
+                    return Err(anyhow::anyhow!(
+                        "Process '{}' in App '{}' manually requested a process object named 'process'. This is reserved for the process's own handle.",
+                        process_name,
+                        app_name
+                    ));
+                }
+
+                if let Some((resolved_app, resolved_process)) =
+                    Self::resolve_linked_process(apps, &p.linked_process)
+                {
+                    p.process_object_name = std::format!(
+                        "object_{}_{}_process",
+                        resolved_app.to_lowercase(),
+                        resolved_process.to_lowercase()
+                    );
+                } else {
+                    return Err(anyhow::anyhow!(
+                        "Process '{}' in App '{}' requested handle to process object '{}' linked to '{}' but no such process found in system config",
+                        process_name,
+                        app_name,
+                        p.name,
+                        p.linked_process
+                    ));
                 }
             }
+        }
 
-            // Add Process object for this app's own process.  A fixed name is
-            // used so that generic code can be written to access an app's own
-            // process object.
-            app.process
+        // Add Process object for this process's own process. A fixed name is
+        // used so that generic code can be written to access a process's own
+        // process object.
+        process
+            .objects
+            .push(ObjectConfig::Process(ProcessObjectConfig {
+                name: "process".to_string(),
+                linked_process: process.name.clone(),
+                process_object_name: std::format!(
+                    "object_{}_{}_process",
+                    app_name.to_lowercase().replace(" ", "_"),
+                    process.name.to_lowercase().replace(" ", "_")
+                ),
+            }));
+
+        Ok(())
+    }
+
+    fn populate_thread_objects(process: &mut system_config::ProcessConfig) {
+        for thread in &process.threads {
+            process
                 .objects
-                .push(ObjectConfig::Process(ProcessObjectConfig {
-                    name: "process".to_string(),
-                    linked_process: app.name.clone(),
+                .push(ObjectConfig::Thread(ThreadObjectConfig {
+                    name: thread.name.clone(),
                 }));
+        }
+    }
 
-            // Add Thread objects
-            for thread in &app.process.threads {
-                app.process
-                    .objects
-                    .push(ObjectConfig::Thread(ThreadObjectConfig {
-                        name: thread.name.clone(),
-                    }));
+    fn populate_process_and_thread_objects(&mut self) -> Result<()> {
+        let apps = self.config.base.apps.clone();
+
+        for app in self.config.base.apps.iter_mut() {
+            let app_name = &app.name;
+            for process in &mut app.processes {
+                Self::populate_process_objects(process, app_name, &apps)?;
+                Self::populate_thread_objects(process);
             }
         }
         Ok(())
@@ -441,24 +527,26 @@ impl<'a, A: ArchConfigInterface + Serialize> SystemGenerator<'a, A> {
 
     fn populate_memory_mappings(&mut self) {
         for app in self.config.base.apps.iter_mut() {
-            app.process.memory_mappings.insert(
-                0,
-                MemoryMapping {
-                    name: "flash".to_string(),
-                    ty: MemoryMappingType::ReadOnlyExecutable,
-                    start_address: app.flash_start_address,
-                    size_bytes: app.flash_size_bytes,
-                },
-            );
-            app.process.memory_mappings.insert(
-                1,
-                MemoryMapping {
-                    name: "ram".to_string(),
-                    ty: MemoryMappingType::ReadWriteData,
-                    start_address: app.ram_start_address,
-                    size_bytes: app.ram_size_bytes,
-                },
-            );
+            for process in &mut app.processes {
+                process.memory_mappings.insert(
+                    0,
+                    MemoryMapping {
+                        name: "flash".to_string(),
+                        ty: MemoryMappingType::ReadOnlyExecutable,
+                        start_address: app.flash_start_address,
+                        size_bytes: app.flash_size_bytes,
+                    },
+                );
+                process.memory_mappings.insert(
+                    1,
+                    MemoryMapping {
+                        name: "ram".to_string(),
+                        ty: MemoryMappingType::ReadWriteData,
+                        start_address: app.ram_start_address,
+                        size_bytes: app.ram_size_bytes,
+                    },
+                );
+            }
         }
     }
 
@@ -466,62 +554,65 @@ impl<'a, A: ArchConfigInterface + Serialize> SystemGenerator<'a, A> {
         // Add any interrupts handled by interrupt objects.
         for app in &mut self.config.base.apps {
             let app_name = &app.name;
-            for object in &mut app.process.objects {
-                let object_name = object.name().to_string();
-                let &mut Interrupt(ref mut interrupt_config) = object else {
-                    continue;
-                };
+            for process in &mut app.processes {
+                for object in &mut process.objects {
+                    let object_name = object.name().to_string();
+                    let &mut Interrupt(ref mut interrupt_config) = object else {
+                        continue;
+                    };
 
-                // Allow defining interrupt objects without requiring an interrupt_table
-                // to also be defined in the config.
-                if self.config.base.kernel.interrupt_table.is_none() {
-                    self.config.base.kernel.interrupt_table = Some(InterruptTableConfig::default());
-                }
+                    // Allow defining interrupt objects without requiring an interrupt_table
+                    // to also be defined in the config.
+                    if self.config.base.kernel.interrupt_table.is_none() {
+                        self.config.base.kernel.interrupt_table =
+                            Some(InterruptTableConfig::default());
+                    }
 
-                let interrupt_table = self.config.base.kernel.interrupt_table.as_mut().unwrap();
+                    let interrupt_table = self.config.base.kernel.interrupt_table.as_mut().unwrap();
 
-                interrupt_config.object_ref_name =
-                    std::format!("INTERRUPT_OBJECT_{app_name}_{object_name}").to_uppercase();
+                    interrupt_config.object_ref_name =
+                        std::format!("INTERRUPT_OBJECT_{app_name}_{object_name}").to_uppercase();
 
-                if interrupt_config.irqs.len() > 16 {
-                    return Err(anyhow!(
-                        "Interrupt object {} in app {} has more than 16 interrupts",
-                        object_name,
-                        app_name,
-                    ));
-                }
-
-                for (index, irq_config) in interrupt_config.irqs.iter().enumerate() {
-                    let irq_name = &irq_config.name;
-                    let irq = irq_config.number;
-
-                    if interrupt_table.table.contains_key(&*irq.to_string()) {
+                    if interrupt_config.irqs.len() > 16 {
                         return Err(anyhow!(
-                            "IRQ {}={} in app {} object {} already handled.",
-                            irq_name,
-                            irq,
+                            "Interrupt object {} in app {} has more than 16 interrupts",
+                            object_name,
                             app_name,
-                            object_name
                         ));
                     }
 
-                    let handler_name =
-                        std::format!("interrupt_handler_{app_name}_{object_name}_{irq_name}")
-                            .to_lowercase();
+                    for (index, irq_config) in interrupt_config.irqs.iter().enumerate() {
+                        let irq_name = &irq_config.name;
+                        let irq = irq_config.number;
 
-                    interrupt_table
-                        .ordered_table
-                        .insert(irq, handler_name.clone());
+                        if interrupt_table.table.contains_key(&*irq.to_string()) {
+                            return Err(anyhow!(
+                                "IRQ {}={} in app {} object {} already handled.",
+                                irq_name,
+                                irq,
+                                app_name,
+                                object_name
+                            ));
+                        }
 
-                    interrupt_config.handlers.insert(irq, handler_name.clone());
+                        let handler_name =
+                            std::format!("interrupt_handler_{app_name}_{object_name}_{irq_name}")
+                                .to_lowercase();
 
-                    interrupt_config.interrupt_signal_map.insert(
-                        irq_name.to_string(),
-                        std::format!(
-                            "Signals::INTERRUPT_{}",
-                            (b'A' + u8::try_from(index).unwrap()) as char
-                        ),
-                    );
+                        interrupt_table
+                            .ordered_table
+                            .insert(irq, handler_name.clone());
+
+                        interrupt_config.handlers.insert(irq, handler_name.clone());
+
+                        interrupt_config.interrupt_signal_map.insert(
+                            irq_name.to_string(),
+                            std::format!(
+                                "Signals::INTERRUPT_{}",
+                                (b'A' + u8::try_from(index).unwrap()) as char
+                            ),
+                        );
+                    }
                 }
             }
         }

@@ -12,24 +12,22 @@
 # License for the specific language governing permissions and limitations under
 # the License.
 
+load("//pw_kernel/tooling:multi_process_app.bzl", "multi_process_app")
 load("//pw_kernel/tooling:rust_app.bzl", "rust_app")
+load("//pw_kernel/tooling:rust_process.bzl", "rust_process")
 
-rust_app(
-    name = "initiator",
-    srcs = ["initiator.rs"],
-    codegen_crate_name = "initiator_codegen",
-    edition = "2024",
-    system_config = "//pw_kernel/target:system_config_file",
+multi_process_app(
+    name = "handlers",
+    processes = [
+        ":handler1",
+        ":handler2",
+        ":handler3",
+    ],
     tags = ["kernel"],
     visibility = ["//visibility:public"],
-    deps = [
-        "//pw_kernel/userspace",
-        "//pw_log/rust:pw_log",
-        "//pw_status/rust:pw_status",
-    ],
 )
 
-rust_app(
+rust_process(
     name = "handler1",
     srcs = [
         "common_handler.rs",
@@ -37,9 +35,8 @@ rust_app(
     ],
     codegen_crate_name = "handler1_codegen",
     edition = "2024",
-    system_config = "//pw_kernel/target:system_config_file",
+    multi_process_app = ":handlers",
     tags = ["kernel"],
-    visibility = ["//visibility:public"],
     deps = [
         "//pw_kernel/userspace",
         "//pw_log/rust:pw_log",
@@ -47,7 +44,7 @@ rust_app(
     ],
 )
 
-rust_app(
+rust_process(
     name = "handler2",
     srcs = [
         "common_handler.rs",
@@ -55,9 +52,25 @@ rust_app(
     ],
     codegen_crate_name = "handler2_codegen",
     edition = "2024",
-    system_config = "//pw_kernel/target:system_config_file",
+    multi_process_app = ":handlers",
     tags = ["kernel"],
-    visibility = ["//visibility:public"],
+    deps = [
+        "//pw_kernel/userspace",
+        "//pw_log/rust:pw_log",
+        "//pw_status/rust:pw_status",
+    ],
+)
+
+rust_process(
+    name = "handler3",
+    srcs = [
+        "common_handler.rs",
+        "handler3.rs",
+    ],
+    codegen_crate_name = "handler3_codegen",
+    edition = "2024",
+    multi_process_app = ":handlers",
+    tags = ["kernel"],
     deps = [
         "//pw_kernel/userspace",
         "//pw_log/rust:pw_log",
@@ -66,14 +79,10 @@ rust_app(
 )
 
 rust_app(
-    name = "handler3",
-    srcs = [
-        "common_handler.rs",
-        "handler3.rs",
-    ],
-    codegen_crate_name = "handler3_codegen",
+    name = "initiator",
+    srcs = ["initiator.rs"],
+    codegen_crate_name = "initiator_codegen",
     edition = "2024",
-    system_config = "//pw_kernel/target:system_config_file",
     tags = ["kernel"],
     visibility = ["//visibility:public"],
     deps = [

@@ -26,9 +26,9 @@ ENTRY(_start)
 MEMORY
 {
   /* Internal Flash */
-  FLASH(rx) : ORIGIN = {{flash_start_address | hex }}, LENGTH = {{flash_size_bytes}}
+  FLASH(rx) : ORIGIN = {{app.flash_start_address | hex }}, LENGTH = {{app.flash_size_bytes}}
   /* Internal SRAM */
-  RAM(rwx) : ORIGIN = {{ram_start_address | hex }}, LENGTH = {{ram_size_bytes}}
+  RAM(rwx) : ORIGIN = {{app.ram_start_address | hex }}, LENGTH = {{app.ram_size_bytes}}
 
   /* Each memory region above has an associated .*.unused_space section that
    * overlays the unused space at the end of the memory segment. These segments
@@ -220,3 +220,10 @@ SECTIONS
     KEEP(*(.pw_tokenizer.entries.*))
   }
 }
+
+{%- if app.is_multi_process_app %}
+ASSERT(SIZEOF(.static_init_ram) == 0,
+"Error: Multi-app binaries must not contain statically initialized data (.data).");
+ASSERT(SIZEOF(.zero_init_ram) == 0,
+"Error: Multi-app binaries must not contain zero-initialized data (.bss).");
+{%- endif %}

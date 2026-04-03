@@ -16,7 +16,7 @@
 
 use handler_codegen::handle;
 use pw_status::{Error, Result};
-use userspace::entry;
+use userspace::process_entry;
 use userspace::syscall::{self, Signals};
 use userspace::time::Instant;
 
@@ -52,7 +52,7 @@ fn handle_uppercase_ipcs() -> Result<()> {
     }
 }
 
-#[entry]
+#[process_entry("handler")]
 fn entry() -> ! {
     if let Err(e) = handle_uppercase_ipcs() {
         // On error, log that it occurred and, since this is written as a test,
@@ -61,10 +61,5 @@ fn entry() -> ! {
         let _ = syscall::debug_shutdown(Err(e));
     }
 
-    loop {}
-}
-
-#[panic_handler]
-fn panic(_info: &core::panic::PanicInfo) -> ! {
     loop {}
 }

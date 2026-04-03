@@ -22,5 +22,6 @@ exports_files(
         "system.rs.jinja",
         "thread_decl.rs.jinja",
         "pigweed_linker_sections.ld.jinja",
+        "multi_process_app.rs.jinja",
     ],
 )

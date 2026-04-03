@@ -16,6 +16,7 @@
 use pw_status::Error;
 #[cfg(feature = "arch_arm_cortex_m")]
 pub use userspace_macro::arm_cortex_m_entry as entry;
+pub use userspace_macro::process_entry;
 #[cfg(feature = "arch_riscv")]
 pub use userspace_macro::riscv_entry as entry;
 

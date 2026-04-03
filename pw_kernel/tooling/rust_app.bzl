@@ -15,99 +15,8 @@
 configuration file.
 """
 
-load("@bazel_skylib//lib:selects.bzl", "selects")
-load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
-load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library")
-load("//pw_kernel/arch/arm_cortex_m:defs.bzl", "SUPPORTED_CORTEX_M_CPUS")
-
-def _app_linker_script_impl(ctx):
-    output = ctx.actions.declare_file(ctx.attr.name + ".ld")
-
-    args = [
-        "--template",
-        "app=" + ctx.file.template.path,
-        "--config",
-        ctx.file.system_config.path,
-        "--output",
-        output.path,
-        "render-app-template",
-        "--app-name",
-        ctx.attr.app_name,
-    ]
-
-    ctx.actions.run(
-        inputs = ctx.files.system_config + [ctx.file.template],
-        outputs = [output],
-        executable = ctx.executable.system_generator,
-        mnemonic = "AppLinkerScript",
-        arguments = args,
-    )
-
-    linker_input = cc_common.create_linker_input(
-        owner = ctx.label,
-        user_link_flags = ["-T", output.path],
-        additional_inputs = depset(direct = [output]),
-    )
-    linking_context = cc_common.create_linking_context(
-        linker_inputs = depset(direct = [linker_input]),
-    )
-    return [
-        DefaultInfo(files = depset([output])),
-        CcInfo(linking_context = linking_context),
-    ]
-
-_app_linker_script_rule = rule(
-    implementation = _app_linker_script_impl,
-    attrs = {
-        "app_name": attr.string(
-            doc = "Name of the application in the configuration file.",
-            mandatory = True,
-        ),
-        "system_config": attr.label(
-            doc = "System config file which defines the system.",
-            allow_single_file = True,
-            mandatory = True,
-        ),
-        "system_generator": attr.label(
-            executable = True,
-            cfg = "exec",
-            default = "@pigweed//pw_kernel/tooling/system_generator:system_generator_bin",
-        ),
-        "template": attr.label(
-            doc = "Application linker script template file.",
-            allow_single_file = True,
-            mandatory = True,
-        ),
-    },
-    doc = "Generate the linker script for an app based on the system config.",
-)
-
-def _app_linker_script(name, system_config, app_name, **kwargs):
-    # buildifier: disable=function-docstring-args
-    """
-    Wrapper function to set default platform specific arguments.
-    """
-    if kwargs.get("target_compatible_with") == None:
-        kwargs["target_compatible_with"] = select({
-            "@pigweed//pw_kernel/target:system_config_not_set": ["@platforms//:incompatible"],
-            "//conditions:default": [],
-        })
-
-    if kwargs.get("template") == None:
-        template = selects.with_or({
-            SUPPORTED_CORTEX_M_CPUS: "@pigweed//pw_kernel/tooling/system_generator/templates:cortex_m_app.ld.jinja",
-            "@platforms//cpu:riscv32": "@pigweed//pw_kernel/tooling/system_generator/templates:riscv_app.ld.jinja",
-            "//conditions:default": None,
-        })
-        kwargs["template"] = template
-
-    _app_linker_script_rule(
-        name = name,
-        system_config = system_config,
-        app_name = app_name,
-        **kwargs
-    )
+load("//pw_kernel/tooling:app_linker_script.bzl", "app_linker_script")
 
 def _app_codegen_src_impl(ctx):
     output = ctx.actions.declare_file(ctx.attr.name + ".rs")
@@ -123,6 +32,9 @@ def _app_codegen_src_impl(ctx):
         "--app-name",
         ctx.attr.app_name,
     ]
+
+    if ctx.attr.process_name:
+        args.extend(["--process-name", ctx.attr.process_name])
 
     ctx.actions.run(
         inputs = ctx.files.system_config + [ctx.file.template],
@@ -143,10 +55,14 @@ _app_codegen_src = rule(
             doc = "Name of the application in the configuration file.",
             mandatory = True,
         ),
+        "process_name": attr.string(
+            doc = "Name of the process in the configuration file.",
+            default = "",
+        ),
         "system_config": attr.label(
             doc = "System config file which defines the system.",
             allow_single_file = True,
-            mandatory = True,
+            default = "//pw_kernel/target:system_config_file",
         ),
         "system_generator": attr.label(
             executable = True,
@@ -162,27 +78,23 @@ _app_codegen_src = rule(
     doc = "Generate the linker script for an app based on the system config.",
 )
 
-def rust_app(name, codegen_crate_name, system_config, srcs, deps = None, **kwargs):
-    # buildifier: disable=function-docstring-args
-    """
-    Wrapper function to generate an app's linker script, rustsrc, and build a rust_binary for the app.
-    """
-    if deps == None:
-        deps = []
+def rust_app_codegen(name, app_name, process_name = None, system_config = None, **kwargs):
+    """Wrapper function to generate an app's codegen src and rust library.
 
+    Args:
+        name: The name of the target.
+        app_name: The name of the app in the system manifest.
+        process_name: The name of the process in the system manifest.
+        system_config: System config file which defines the system.
+        **kwargs: Other attributes (slice edition, tags, target_compatible_with) passed to both the `rust_library` and the internal codegen rule.
+    """
     tags = kwargs.get("tags", [])
 
     _app_codegen_src(
         name = name + ".src",
         system_config = system_config,
-        app_name = name,
-        tags = tags,
-    )
-
-    _app_linker_script(
-        name = name + ".linker_script",
-        system_config = system_config,
-        app_name = name,
+        app_name = app_name,
+        process_name = process_name if process_name else "",
         tags = tags,
     )
 
@@ -195,17 +107,52 @@ def rust_app(name, codegen_crate_name, system_config, srcs, deps = None, **kwarg
         codegen_kwargs["target_compatible_with"] = kwargs["target_compatible_with"]
 
     rust_library(
-        name = codegen_crate_name,
+        name = name,
         srcs = [":{}.src".format(name)],
-        deps = [":{}.linker_script".format(name)] + [
+        deps = [
             "@pigweed//pw_kernel/syscall:syscall_defs",
         ],
         **codegen_kwargs
     )
 
+def rust_app(name, codegen_crate_name, srcs, deps = None, system_config = None, **kwargs):
+    """Wrapper function to generate a userspace rust_binary for the kernel.
+
+    Args:
+        name: The name of the target.
+        codegen_crate_name: Name to use for the generated codegen crate.
+        system_config: System config file which defines the system.
+        srcs: The list of source files for the app.
+        deps: The list of dependencies for the app.
+        **kwargs: Other attributes passed to the underlying rules.
+    """
+    if deps == None:
+        deps = []
+
+    rust_app_codegen(
+        name = codegen_crate_name,
+        app_name = name,
+        system_config = system_config,
+        **kwargs
+    )
+
+    linker_script_name = name + ".linker_script"
+
+    tags = kwargs.get("tags", [])
+
+    app_linker_script(
+        name = linker_script_name,
+        system_config = system_config,
+        app_name = name,
+        tags = tags,
+    )
+
     rust_binary(
         name = name,
         srcs = srcs,
-        deps = deps + [":" + codegen_crate_name],
+        deps = deps + [
+            ":" + codegen_crate_name,
+            ":" + linker_script_name,
+        ],
         **kwargs
     )

@@ -26,71 +26,75 @@
       name: "test_uart",
       flash_size_bytes: 261120,
       ram_size_bytes: 65536,
-      process: {
-        name: "test_uart process",
-        objects: [
-          {
-            name: "ipc",
-            type: "channel_handler",
-          },
-        ],
-        memory_mappings: [
-          {
-            name: "uart0",
-            type: "device",
-            start_address: 0x10000000,
-            size_bytes: 0x2000,
-          }
-        ],
-        threads: [
-          {
-            name: "uart thread",
-            // Generous stacks size pending kernel stack size optimization.
-            stack_size_bytes: 2048,
-          },
-        ],
-      },
+      processes: [
+        {
+          name: "test_uart",
+          objects: [
+            {
+              name: "ipc",
+              type: "channel_handler",
+            },
+          ],
+          memory_mappings: [
+            {
+              name: "uart0",
+              type: "device",
+              start_address: 0x10000000,
+              size_bytes: 0x2000,
+            }
+          ],
+          threads: [
+            {
+              name: "uart thread",
+              // Generous stacks size pending kernel stack size optimization.
+              stack_size_bytes: 2048,
+            },
+          ],
+        },
+      ],
     },
     {
       name: "test_uart_listener",
       flash_size_bytes: 261120,
       ram_size_bytes: 65536,
-      process: {
-        name: "test_uart_listener process",
-        objects: [
-          {
-            name: "uart_interrupts",
-            type: "interrupt",
-            irqs: [
-              {
-                name: "uart0",
-                number: 10
-              }
-            ],
-          },
-          {
-            name: "ipc",
-            type: "channel_initiator",
-            handler_app: "test_uart",
-            handler_object_name: "ipc",
-          },
-        ],
-        memory_mappings: [
-          {
-            name: "uart0",
-            type: "device",
-            start_address: 0x10000000,
-            size_bytes: 0x2000,
-          }
-        ],
-        threads: [
-          {
-            name: "uart listener thread",
-            // Generous stacks size pending kernel stack size optimization.
-            stack_size_bytes: 2048,
-          },
-        ],
-      },
+      processes: [
+        {
+          name: "test_uart_listener",
+          objects: [
+            {
+              name: "uart_interrupts",
+              type: "interrupt",
+              irqs: [
+                {
+                  name: "uart0",
+                  number: 10
+                }
+              ],
+            },
+            {
+              name: "ipc",
+              type: "channel_initiator",
+              handler_process: "test_uart",
+              handler_object_name: "ipc",
+            },
+          ],
+          memory_mappings: [
+            {
+              name: "uart0",
+              type: "device",
+              start_address: 0x10000000,
+              size_bytes: 0x2000,
+            }
+          ],
+          threads: [
+            {
+              name: "uart listener thread",
+              // Generous stacks size pending kernel stack size optimization.
+              stack_size_bytes: 2048,
+            },
+          ],
+        },
+      ],
     },
   ],
 }

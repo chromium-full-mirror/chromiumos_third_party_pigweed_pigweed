@@ -28,20 +28,24 @@
       name: "main",
       flash_size_bytes: 261120,
       ram_size_bytes: 65536,
-      process: {
-        name: "test process",
-        objects: [],
-        threads: [
-          {
-            name: "main thread",
-            stack_size_bytes: 2048,
-          },
-          {
-            name: "TEST_THREAD",
-            stack_size_bytes: 2048,
-          },
-        ],
-      },
+      processes: [
+        {
+          name: "main",
+          objects: [],
+          threads: [
+            {
+              name: "main thread",
+              // Generous stacks size pending kernel stack size optimization.
+              stack_size_bytes: 2048,
+            },
+            {
+              name: "TEST_THREAD",
+              // Generous stacks size pending kernel stack size optimization.
+              stack_size_bytes: 2048,
+            },
+          ],
+        },
+      ],
     },
   ],
 }

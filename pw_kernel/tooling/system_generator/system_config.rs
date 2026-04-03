@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::ArchConfigInterface;
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct SystemConfig<A: ArchConfigInterface> {
     pub arch: A,
@@ -27,7 +27,7 @@ pub struct SystemConfig<A: ArchConfigInterface> {
     pub base: BaseConfig,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct BaseConfig {
     pub kernel: KernelConfig,
@@ -66,7 +66,7 @@ pub struct RiscVConfig;
 
 use crate::mpu_validation::MpuValidationMode;
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct KernelConfig {
     pub flash_start_address: u64,
@@ -120,9 +120,9 @@ pub struct AppConfig {
     pub name: String,
     pub flash_size_bytes: u64,
     pub ram_size_bytes: u64,
-    pub process: ProcessConfig,
+    pub processes: Vec<ProcessConfig>,
     #[serde(default)]
-    constants: Vec<ConstConfig>,
+    pub constants: Vec<ConstConfig>,
     // The following fields are calculated, not defined by a user.
     // TODO: davidroth - if this becomes too un-wieldy, we should
     // split the config schema from the template structs.
@@ -197,6 +197,9 @@ impl ObjectConfig {
 pub struct ProcessObjectConfig {
     pub name: String,
     pub linked_process: String,
+    #[serde(skip_deserializing)]
+    #[serde(default)]
+    pub process_object_name: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -208,7 +211,7 @@ pub struct ThreadObjectConfig {
 #[serde(deny_unknown_fields)]
 pub struct ChannelInitiatorConfig {
     pub name: String,
-    pub handler_app: String,
+    pub handler_process: String,
     pub handler_object_name: String,
 }
 
@@ -255,16 +258,18 @@ pub struct ThreadConfig {
 }
 
 impl<A: ArchConfigInterface> SystemConfig<A> {
-    fn handler_exists(&self, app_name: &str, object_name: &str) -> bool {
-        let Some(app) = self.base.apps.iter().find(|a| a.name == app_name) else {
-            return false;
-        };
-
-        let Some(object) = app.process.objects.iter().find(|o| o.name() == object_name) else {
-            return false;
-        };
-
-        matches!(object, ObjectConfig::ChannelHandler(_))
+    fn handler_exists(&self, process_name: &str, object_name: &str) -> bool {
+        for app in &self.base.apps {
+            for process in &app.processes {
+                if process.name == process_name
+                    && let Some(object) = process.objects.iter().find(|o| o.name() == object_name)
+                    && matches!(object, ObjectConfig::ChannelHandler(_))
+                {
+                    return true;
+                }
+            }
+        }
+        false
     }
 
     fn check_unique_names<'a, I>(items: I, context: &str) -> Result<()>
@@ -286,61 +291,71 @@ impl<A: ArchConfigInterface> SystemConfig<A> {
         self.arch.calculate_and_validate_config(&mut self.base)?;
 
         for app_config in &mut self.base.apps {
-            for thread in &mut app_config.process.threads {
-                if thread.priority.is_none() {
-                    thread.priority = Some("DEFAULT_PRIORITY".to_string());
-                }
-
-                thread.stack_size_expression = match thread.stack_size_bytes {
-                    None => {
-                        "kernel::__private::kernel_config::KernelConfig::KERNEL_STACK_SIZE_BYTES"
-                            .to_string()
+            for process in &mut app_config.processes {
+                for thread in &mut process.threads {
+                    if thread.priority.is_none() {
+                        thread.priority = Some("DEFAULT_PRIORITY".to_string());
                     }
-                    Some(size) => format!("{:#x}", size),
-                };
+
+                    thread.stack_size_expression = match thread.stack_size_bytes {
+                        None => {
+                            "kernel::__private::kernel_config::KernelConfig::KERNEL_STACK_SIZE_BYTES"
+                                .to_string()
+                        }
+                        Some(size) => format!("{:#x}", size),
+                    };
+                }
             }
         }
 
         Self::check_unique_names(self.base.apps.iter().map(|a| a.name.as_str()), "apps")?;
 
         for app_config in &self.base.apps {
-            Self::check_unique_names(
-                app_config
-                    .process
-                    .memory_mappings
-                    .iter()
-                    .map(|m| m.name.as_str()),
-                &format!("memory mappings for app {}", app_config.name),
-            )?;
-            Self::check_unique_names(
-                app_config.process.objects.iter().map(|o| o.name()),
-                &format!("objects for app {}", app_config.name),
-            )?;
-            Self::check_unique_names(
-                app_config.process.threads.iter().map(|t| t.name.as_str()),
-                &format!("threads for app {}", app_config.name),
-            )?;
+            for process in &app_config.processes {
+                Self::check_unique_names(
+                    process.memory_mappings.iter().map(|m| m.name.as_str()),
+                    &format!(
+                        "memory mappings for process {} in app {}",
+                        process.name, app_config.name
+                    ),
+                )?;
+                Self::check_unique_names(
+                    process.objects.iter().map(|o| o.name()),
+                    &format!(
+                        "objects for process {} in app {}",
+                        process.name, app_config.name
+                    ),
+                )?;
+                Self::check_unique_names(
+                    process.threads.iter().map(|t| t.name.as_str()),
+                    &format!(
+                        "threads for process {} in app {}",
+                        process.name, app_config.name
+                    ),
+                )?;
 
-            for object in &app_config.process.objects {
-                if let ObjectConfig::ChannelInitiator(initiator) = object {
-                    let handler_app = &initiator.handler_app;
-                    let handler_object_name = &initiator.handler_object_name;
-                    // Check to make sure that channel objects are properly linked.
-                    if !self.handler_exists(handler_app, handler_object_name) {
-                        return Err(anyhow!(
-                            "Channel initiator \"{app_name}:{initiator_name}\" references non-existent handler \"{handler_app}\":{handler_object_name}",
-                            app_name = app_config.name,
-                            initiator_name = initiator.name,
-                        ));
+                for object in &process.objects {
+                    if let ObjectConfig::ChannelInitiator(initiator) = object {
+                        let handler_process = &initiator.handler_process;
+                        let handler_object_name = &initiator.handler_object_name;
+                        // Check to make sure that channel objects are properly linked.
+                        if !self.handler_exists(handler_process, handler_object_name) {
+                            return Err(anyhow!(
+                                "Channel initiator \"{app_name}:{initiator_name}\" references non-existent handler \"{handler_process}\":{handler_object_name}",
+                                app_name = app_config.name,
+                                initiator_name = initiator.name,
+                            ));
+                        }
+                    } else if let ObjectConfig::Interrupt(interrupt_config) = object {
+                        Self::check_unique_names(
+                            interrupt_config.irqs.iter().map(|i| i.name.as_str()),
+                            &format!("irqs for interrupt object {}", interrupt_config.name),
+                        )?;
                     }
-                } else if let ObjectConfig::Interrupt(interrupt_config) = object {
-                    Self::check_unique_names(
-                        interrupt_config.irqs.iter().map(|i| i.name.as_str()),
-                        &format!("irqs for interrupt object {}", interrupt_config.name),
-                    )?;
                 }
             }
         }
+
         Ok(())
     }
 }

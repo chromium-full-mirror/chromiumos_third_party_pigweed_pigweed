@@ -20,6 +20,7 @@
 .cfi_startproc
 
 _start:
+	mov  r4, r0                           // save arg 0 to r4
 	// Static-init RAM (load static values into RAM, .data section init).
 	// RAM is 4 byte aligned.
 	ldr  r0, =_pw_static_init_ram_start   // destination (RAM)
@@ -36,6 +37,7 @@ _start:
 	bl   memset
 
 	// Memory is initialized, now call the applications main entry function.
+	mov r0, r4
 	bl main
 
 	// Trap if main returns, which it never should.
