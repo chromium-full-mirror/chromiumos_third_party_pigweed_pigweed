@@ -18,7 +18,6 @@ Used by modules.gni to generate:
 - a build arg for each module,
 - a list of module paths (pw_modules),
 - a list of module tests (pw_module_tests), and
-- a list of module docs (pw_module_docs).
 """
 
 import argparse
@@ -163,15 +162,6 @@ def _generate_modules_gni(
         yield f'"$dir_{module.name}:tests",'
 
     yield ']'
-    yield ''
-    yield f'# A list with all Pigweed modules docs groups. {_DO_NOT_SET}'
-    yield 'pw_module_docs = ['
-
-    for module in module_paths:
-        yield f'"$dir_{module.name}:docs",'
-
-    yield ']'
-    yield ''
     yield '}'
 
 
