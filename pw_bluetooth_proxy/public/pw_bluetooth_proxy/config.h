@@ -15,6 +15,11 @@
 
 /// @module{pw_bluetooth_proxy}
 
+/// User-provided header to optionally override options in this file.
+#ifdef PW_BLUETOOTH_PROXY_CONFIG_HEADER
+#include PW_BLUETOOTH_PROXY_CONFIG_HEADER
+#endif  // PW_BLUETOOTH_PROXY_CONFIG_HEADER
+
 #ifndef PW_BLUETOOTH_PROXY_ASYNC
 /// Indicates whether the proxy should operate asynchronously or not.
 ///

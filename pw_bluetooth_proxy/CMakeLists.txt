@@ -104,6 +104,7 @@ set(PW_BLUETOOTH_PROXY_PUBLIC_DEPS
   pw_bluetooth.emboss_hci_events
   pw_bluetooth.emboss_hci_h4
   pw_bluetooth.emboss_l2cap_frames
+  pw_bluetooth_proxy.config
   pw_bytes
   pw_containers.flat_map
   pw_containers.inline_queue

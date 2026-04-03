@@ -68,7 +68,6 @@ def pw_bluetooth_proxy_library(name, **kwargs):
         hdrs = [
             "public/pw_bluetooth_proxy/basic_l2cap_channel.h",
             "public/pw_bluetooth_proxy/connection_handle.h",
-            "public/pw_bluetooth_proxy/config.h",
             "public/pw_bluetooth_proxy/direction.h",
             "public/pw_bluetooth_proxy/gatt_notify_channel.h",
             "public/pw_bluetooth_proxy/h4_packet.h",
