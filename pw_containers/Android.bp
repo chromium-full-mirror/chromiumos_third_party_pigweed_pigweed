@@ -50,6 +50,7 @@ cc_library_static {
         "aa_tree.cc",
         "inline_var_len_entry_queue.cc",
         "intrusive_item.cc",
+        "intrusive_queue.cc",
         "var_len_entry.cc",
         "var_len_entry_queue_iterator.cc",
     ],
