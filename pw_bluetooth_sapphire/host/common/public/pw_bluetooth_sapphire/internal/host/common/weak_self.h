@@ -137,7 +137,7 @@ class DynamicWeakManager {
 
   std::optional<pw::IntrusivePtr<RefType>> GetWeakRef() {
     if (weak_ptr_ref_ == nullptr) {
-      weak_ptr_ref_ = pw::IntrusivePtr(new RefType(self_ptr_));
+      weak_ptr_ref_ = pw::IntrusivePtr<RefType>(new RefType(self_ptr_));
     }
     return weak_ptr_ref_;
   }

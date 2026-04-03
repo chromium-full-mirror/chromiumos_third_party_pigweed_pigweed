@@ -183,14 +183,16 @@ class LowEnergyAdvertiser : public LocalAddressClient {
 
   // Stops advertisement on all currently advertising addresses. Idempotent and
   // asynchronous.
-  virtual void StopAdvertising(
-      fit::function<void(Result<>)> result_cb = nullptr) = 0;
+  virtual void StopAdvertising(fit::function<void(Result<>)> result_cb) = 0;
+  void StopAdvertising() { StopAdvertising(nullptr); }
 
   // Stops the advertisement identified by |handle|. Idempotent and
   // asynchronous.
-  virtual void StopAdvertising(
-      hci::AdvertisementId advertisement_id,
-      fit::function<void(Result<>)> result_cb = nullptr) = 0;
+  virtual void StopAdvertising(hci::AdvertisementId advertisement_id,
+                               fit::function<void(Result<>)> result_cb) = 0;
+  void StopAdvertising(hci::AdvertisementId advertisement_id) {
+    StopAdvertising(advertisement_id, nullptr);
+  }
 
   // Callback for an incoming LE connection. This function should be called in
   // reaction to any connection that was not initiated locally. This object will

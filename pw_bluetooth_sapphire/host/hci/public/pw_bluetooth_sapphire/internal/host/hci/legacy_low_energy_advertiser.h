@@ -50,12 +50,11 @@ class LegacyLowEnergyAdvertiser final : public LowEnergyAdvertiser {
       ConnectionCallback connect_callback,
       ResultFunction<AdvertisementId> result_callback) override;
 
-  void StopAdvertising(
-      fit::function<void(Result<>)> result_cb = nullptr) override;
+  void StopAdvertising(fit::function<void(Result<>)> result_cb) override;
 
-  void StopAdvertising(
-      AdvertisementId advertisement_id,
-      fit::function<void(Result<>)> result_cb = nullptr) override;
+  void StopAdvertising(AdvertisementId advertisement_id,
+                       fit::function<void(Result<>)> result_cb) override;
+  using LowEnergyAdvertiser::StopAdvertising;
 
   void OnIncomingConnection(
       hci_spec::ConnectionHandle handle,

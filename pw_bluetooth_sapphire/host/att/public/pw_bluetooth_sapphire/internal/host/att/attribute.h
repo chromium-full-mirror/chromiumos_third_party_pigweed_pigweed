@@ -120,7 +120,9 @@ class Attribute final {
 
   // Returns the current attribute value. Returns nullptr if the attribute has a
   // dynamic value.
-  const ByteBuffer* value() const { return value_.size() ? &value_ : nullptr; }
+  const ByteBuffer* value() const {
+    return !value_.empty() ? &value_ : nullptr;
+  }
 
   // The read/write permissions of this attribute.
   const AccessRequirements& read_reqs() const { return read_reqs_; }

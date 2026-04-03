@@ -148,7 +148,7 @@ class Inspectable {
   // for non-const methods to be called. The returned value should only be used
   // as a temporary.
   InspectableGuard<ValueT> Mutable() {
-    return InspectableGuard(
+    return InspectableGuard<ValueT>(
         value_, fit::bind_member<&Inspectable::UpdateProperty>(this));
   }
 

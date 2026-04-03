@@ -46,7 +46,7 @@ class LegacyPairingState final {
  public:
   // The amount of time to wait before retrying enabling encryption if we
   // receive a transaction collision while doing so.
-  static constexpr std::chrono::steady_clock::duration
+  static constexpr pw::chrono::SystemClock::duration
       kDelayRetryEnableEncryption = std::chrono::seconds(2);
 
   // Used to report the status of each pairing procedure on this link. The

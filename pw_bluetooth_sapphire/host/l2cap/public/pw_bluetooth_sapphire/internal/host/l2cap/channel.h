@@ -112,7 +112,9 @@ class Channel : public WeakSelf<Channel> {
     static_assert(sizeof(UniqueId) >=
                       sizeof(hci_spec::ConnectionHandle) + sizeof(ChannelId),
                   "UniqueId needs to be large enough to make unique IDs");
-    return (link_handle() << (sizeof(ChannelId) * CHAR_BIT)) | id();
+    return (static_cast<UniqueId>(link_handle())
+            << (sizeof(ChannelId) * CHAR_BIT)) |
+           id();
   }
 
   const AnyChannelMode& mode() const { return info().mode; }

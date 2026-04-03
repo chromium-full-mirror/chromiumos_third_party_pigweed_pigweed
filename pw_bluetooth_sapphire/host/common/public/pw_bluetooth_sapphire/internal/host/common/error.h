@@ -412,7 +412,7 @@ std::string ToString(
         // It's not possible to portably print e.g. the name of the value's
         // type, so fall back to a placeholder. It may be useful to print the
         // size and a hexdump, however.
-        out += "?";
+        out += '?';
       }
     }
   };

@@ -150,7 +150,7 @@ class PipelineMonitor final {
                          "-Wtautological-constant-out-of-range-compare");
     PW_CHECK(issued_tokens_.size() <= std::numeric_limits<int64_t>::max());
     PW_MODIFY_DIAGNOSTICS_POP();
-    return issued_tokens_.size();
+    return static_cast<int64_t>(issued_tokens_.size());
   }
   [[nodiscard]] size_t bytes_retired() const {
     PW_CHECK(bytes_issued() >= bytes_in_flight());

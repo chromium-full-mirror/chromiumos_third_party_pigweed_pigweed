@@ -19,7 +19,7 @@
 namespace bt {
 
 // Represents a metric counter.
-template <typename property_t>
+template <typename property_t, typename ValueT>
 class MetricCounter {
  public:
   MetricCounter() = default;
@@ -29,10 +29,10 @@ class MetricCounter {
   virtual void AttachInspect(inspect::Node& parent, const std::string& name);
 
   // Increment the metrics counter by |value|.
-  void Add(int value = 1) { inspect_property_.Add(value); }
+  void Add(ValueT value = 1) { inspect_property_.Add(value); }
 
   // Decrement the metrics counter by |value|.
-  void Subtract(int value = 1) { inspect_property_.Subtract(value); }
+  void Subtract(ValueT value = 1) { inspect_property_.Subtract(value); }
 
  private:
   // Node property
@@ -44,7 +44,7 @@ class MetricCounter {
   BT_DISALLOW_COPY_AND_ASSIGN_ALLOW_MOVE(MetricCounter);
 };
 
-using IntMetricCounter = MetricCounter<inspect::IntProperty>;
-using UintMetricCounter = MetricCounter<inspect::UintProperty>;
+using IntMetricCounter = MetricCounter<inspect::IntProperty, int64_t>;
+using UintMetricCounter = MetricCounter<inspect::UintProperty, uint64_t>;
 
 }  // namespace bt

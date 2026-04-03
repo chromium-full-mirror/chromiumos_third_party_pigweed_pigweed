@@ -170,7 +170,7 @@ class IsoGroupImpl final : public IsoGroup {
     }
 
     // Explicitly invalidate a state.
-    constexpr void Invalidate() {
+    void Invalidate() {
       if (is_valid() && current() != State::kNotCreated) {
         PW_LOG_WARN("Invalidating a state (%s) that is not `kNotCreated`.",
                     ToString());
