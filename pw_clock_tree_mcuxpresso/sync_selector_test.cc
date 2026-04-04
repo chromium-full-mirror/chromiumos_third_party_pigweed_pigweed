@@ -68,8 +68,9 @@ const clock_attach_id_t kDisableSelector = 7;
 
 TEST(ClockMcuxpressoSyncSelector, BlockingWithMixedSources) {
   sdk_state.Reset();
-  MockSourceBlocking source1;
-  MockSourceNonBlockingCannotFail source2;
+  MockSourceNonBlockingCannotFail source1;
+  MockSourceBlocking source2;
+  Element& element_source1 = source1;
   // Use arbitrary selector values for testing
   ClockMcuxpressoSyncSelectorBlocking sync_selector(
       source1, 1, kDisableSelector);
@@ -93,12 +94,20 @@ TEST(ClockMcuxpressoSyncSelector, BlockingWithMixedSources) {
   EXPECT_EQ(sdk_state.attach_clk_call_count, 2u);  // ChangeSource
   EXPECT_EQ(sdk_state.last_attached_clk, 2u);
 
+  // Change source to source1 via Element
+  PW_TEST_EXPECT_OK(sync_selector.ChangeSource(element_source1, 1));
+  EXPECT_EQ(sync_selector.ref_count(), 1u);
+  EXPECT_EQ(source1.ref_count(), 1u);
+  EXPECT_EQ(source2.ref_count(), 0u);
+  EXPECT_EQ(sdk_state.attach_clk_call_count, 3u);  // ChangeSource
+  EXPECT_EQ(sdk_state.last_attached_clk, 1u);
+
   // Release sync_selector
   PW_TEST_EXPECT_OK(sync_selector.Release());
   EXPECT_EQ(sync_selector.ref_count(), 0u);
   EXPECT_EQ(source1.ref_count(), 0u);
   EXPECT_EQ(source2.ref_count(), 0u);
-  EXPECT_EQ(sdk_state.attach_clk_call_count, 3u);  // DoDisable
+  EXPECT_EQ(sdk_state.attach_clk_call_count, 4u);  // DoDisable
   EXPECT_EQ(sdk_state.last_attached_clk, kDisableSelector);
 }
 
@@ -256,6 +265,13 @@ TEST(ClockMcuxpressoSyncSelector, AlwaysOnMuxActive) {
   EXPECT_EQ(sdk_state.attach_clk_call_count, 1u);  // DoEnable
   EXPECT_EQ(sdk_state.last_attached_clk, 1u);
   EXPECT_EQ(source1.ref_count(), 1u);
+
+  // 2. Active: ChangeSource should update hardware and sources.
+  PW_TEST_EXPECT_OK(sync_selector.ChangeSource(source2, 2));
+  EXPECT_EQ(sdk_state.attach_clk_call_count, 2u);  // Hardware switch performed
+  EXPECT_EQ(sdk_state.last_attached_clk, 2u);
+  EXPECT_EQ(source1.ref_count(), 0u);
+  EXPECT_EQ(source2.ref_count(), 1u);
 
   // 2. Active: ChangeSource should update hardware and sources.
   PW_TEST_EXPECT_OK(sync_selector.ChangeSource(source2, 2));

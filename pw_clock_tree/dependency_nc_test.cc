@@ -75,10 +75,44 @@ void NonBlockingCannotFailDependsOnNonBlockingMightFail() {
   DependentNonBlocking dep(source_might_fail);
 }
 
+#elif PW_NC_TEST(NonBlockingCannotFailDependsOnElement)
+PW_NC_EXPECT("Non-failing element cannot depend on an element that might fail");
+
+// 4. ElementNonBlockingCannotFail depending on Element
+void NonBlockingCannotFailDependsOnElement() {
+  ClockSourceNoOp source_cannot_fail;
+  class DependentNonBlocking
+      : public DependentElement<ElementNonBlockingCannotFail> {
+   public:
+    constexpr DependentNonBlocking(Element& source)
+        : DependentElement<ElementNonBlockingCannotFail>(source) {}
+    Status DoEnable() override { return OkStatus(); }
+  };
+  Element element_source_cannot_fail = source_cannot_fail;
+  DependentNonBlocking dep(element_source_cannot_fail);
+}
+
+#elif PW_NC_TEST(NonBlockingMightFailDependsOnElement)
+PW_NC_EXPECT("Non-blocking element cannot depend on a blocking element");
+
+// 5. ElementNonBlockingMightFail depending on Element
+void NonBlockingMightFailDependsOnElement() {
+  ClockSourceNoOp source_cannot_fail;
+  class DependentNonBlocking
+      : public DependentElement<ElementNonBlockingMightFail> {
+   public:
+    constexpr DependentNonBlocking(Element& source)
+        : DependentElement<ElementNonBlockingMightFail>(source) {}
+    Status DoEnable() override { return OkStatus(); }
+  };
+  Element element_source_cannot_fail = source_cannot_fail;
+  DependentNonBlocking dep(element_source_cannot_fail);
+}
+
 #elif PW_NC_TEST(ClockDividerNonBlockingCannotFailDependsOnBlocking)
 PW_NC_EXPECT("Non-blocking element cannot depend on a blocking element");
 
-// 4. ClockDividerNonBlockingCannotFail depending on ElementBlocking
+// 6. ClockDividerNonBlockingCannotFail depending on ElementBlocking
 void ClockDividerNonBlockingCannotFailDependsOnBlocking() {
   ClockSourceNoOpBlocking source_blocking;
   class MyDivider : public ClockDividerElement<ElementNonBlockingCannotFail> {
@@ -93,7 +127,7 @@ void ClockDividerNonBlockingCannotFailDependsOnBlocking() {
 #elif PW_NC_TEST(ClockDividerNonBlockingCannotFailDependsOnNonBlockingMightFail)
 PW_NC_EXPECT("Non-failing element cannot depend on an element that might fail");
 
-// 5. ClockDividerNonBlockingCannotFail depending on ElementNonBlockingMightFail
+// 7. ClockDividerNonBlockingCannotFail depending on ElementNonBlockingMightFail
 void ClockDividerNonBlockingCannotFailDependsOnNonBlockingMightFail() {
   class ClockSourceNonBlockingMightFail
       : public ClockSource<ElementNonBlockingMightFail> {
@@ -114,7 +148,7 @@ void ClockDividerNonBlockingCannotFailDependsOnNonBlockingMightFail() {
 #elif PW_NC_TEST(ClockDividerNonBlockingMightFailDependsOnBlocking)
 PW_NC_EXPECT("Non-blocking element cannot depend on a blocking element");
 
-// 6. ClockDividerNonBlockingMightFail depending on ElementBlocking
+// 8. ClockDividerNonBlockingMightFail depending on ElementBlocking
 void ClockDividerNonBlockingMightFailDependsOnBlocking() {
   ClockSourceNoOpBlocking source_blocking;
   class MyDivider : public ClockDividerElement<ElementNonBlockingMightFail> {

@@ -102,6 +102,19 @@ void ChangeSourceValidationMightFailBlocking() {
   // SetSource
   selector.ChangeSource(source2, 2);
 }
+
+#elif PW_NC_TEST(ChangeSourceValidationElementMightFailBlocking)
+PW_NC_EXPECT("Non-blocking element cannot depend on a blocking element");
+
+void ChangeSourceValidationElementMightFailBlocking() {
+  MockSourceNonBlockingCannotFail source1;
+  MockSourceBlocking source2;
+  Element& element_source2 = source2;
+  ClockMcuxpressoSyncSelectorNonBlockingMightFail selector(source1, 1, 0);
+  // This should fail because ChangeSource validates new_source type via
+  // SetSource
+  selector.ChangeSource(element_source2, 2);
+}
 #endif
 
 }  // namespace

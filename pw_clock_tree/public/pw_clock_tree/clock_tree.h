@@ -44,6 +44,12 @@ namespace pw::clock_tree {
 /// `ElementNonBlockingCannotFail` or `ElementNonBlockingMightFail` class.
 class Element {
  public:
+  /// Specify the least restrictive type for the generic Element class
+  ///
+  /// The flags are used for compile time checks of the DependentElement class.
+  static constexpr bool kMayBlock = true;
+  static constexpr bool kMayFail = true;
+
   constexpr Element() {}
   virtual ~Element() = default;
 

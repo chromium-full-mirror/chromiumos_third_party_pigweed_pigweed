@@ -67,7 +67,58 @@ TEST(ClockTreeDependency, BlockingDependsOnNonBlockingCannotFail) {
   EXPECT_EQ(dep.Release(), OkStatus());
 }
 
-// 4. ClockDividerElement with different source type
+// 4. ElementBlocking depending on ElementNonBlockingMightFail Via Element
+TEST(ClockTreeDependency, BlockingDependsOnNonBlockingMightFailViaElement) {
+  class ClockSourceNonBlockingMightFail
+      : public ClockSource<ElementNonBlockingMightFail> {
+   public:
+    Status DoEnable() override { return OkStatus(); }
+  };
+  ClockSourceNonBlockingMightFail source_might_fail;
+
+  class DependentBlocking : public DependentElement<ElementBlocking> {
+   public:
+    constexpr DependentBlocking(Element& source)
+        : DependentElement<ElementBlocking>(source) {}
+    Status DoEnable() override { return OkStatus(); }
+  };
+  Element& element_source_might_fail = source_might_fail;
+  DependentBlocking dep(element_source_might_fail);
+  EXPECT_EQ(dep.Acquire(), OkStatus());
+  EXPECT_EQ(dep.Release(), OkStatus());
+}
+
+// 5. ElementBlocking depending on ElementNonBlockingCannotFail Via Element
+TEST(ClockTreeDependency, BlockingDependsOnNonBlockingCannotFailViaElement) {
+  ClockSourceNoOp source_cannot_fail;
+  class DependentBlocking : public DependentElement<ElementBlocking> {
+   public:
+    constexpr DependentBlocking(Element& source)
+        : DependentElement<ElementBlocking>(source) {}
+    Status DoEnable() override { return OkStatus(); }
+  };
+  Element& element_source_cannot_fail = source_cannot_fail;
+  DependentBlocking dep(element_source_cannot_fail);
+  EXPECT_EQ(dep.Acquire(), OkStatus());
+  EXPECT_EQ(dep.Release(), OkStatus());
+}
+
+// 7. ElementBlocking depending on ElementBlocking Via Element
+TEST(ClockTreeDependency, BlockingDependsOnBlockingViaElement) {
+  ClockSourceNoOpBlocking source_blocking;
+  class DependentBlocking : public DependentElement<ElementBlocking> {
+   public:
+    constexpr DependentBlocking(Element& source)
+        : DependentElement<ElementBlocking>(source) {}
+    Status DoEnable() override { return OkStatus(); }
+  };
+  Element& element_source_blocking = source_blocking;
+  DependentBlocking dep(element_source_blocking);
+  EXPECT_EQ(dep.Acquire(), OkStatus());
+  EXPECT_EQ(dep.Release(), OkStatus());
+}
+
+// 8. ClockDividerElement with different source type
 TEST(ClockTreeDependency, ClockDividerBlockingDependsOnNonBlockingCannotFail) {
   ClockSourceNoOp source_cannot_fail;
   class MyDivider : public ClockDividerElement<ElementBlocking> {
@@ -81,7 +132,7 @@ TEST(ClockTreeDependency, ClockDividerBlockingDependsOnNonBlockingCannotFail) {
   EXPECT_EQ(divider.Release(), OkStatus());
 }
 
-// 5. Clock divider chain: Blocking -> NonBlockingMightFail ->
+// 9. Clock divider chain: Blocking -> NonBlockingMightFail ->
 // NonBlockingCannotFail
 TEST(ClockTreeDependency, ClockDividerChain) {
   ClockSourceNoOp source_cannot_fail;
@@ -109,7 +160,7 @@ TEST(ClockTreeDependency, ClockDividerChain) {
   EXPECT_EQ(divider_blocking.Release(), OkStatus());
 }
 
-// 6. Clock divider: Blocking -> NonBlockingCannotFail
+// 10. Clock divider: Blocking -> NonBlockingCannotFail
 TEST(ClockTreeDependency, BlockingDependsOnNonBlockingCannotFailDivider) {
   ClockSourceNoOp source_cannot_fail;
   class MyDividerBlocking : public ClockDividerElement<ElementBlocking> {
@@ -125,7 +176,7 @@ TEST(ClockTreeDependency, BlockingDependsOnNonBlockingCannotFailDivider) {
   EXPECT_EQ(divider_blocking.Release(), OkStatus());
 }
 
-// 7. Test various ClockSource aliases
+// 11. Test various ClockSource aliases
 TEST(ClockTreeDependency, ClockSourceBlocking) {
   class MyClockSource : public ClockSourceBlocking {
    public:

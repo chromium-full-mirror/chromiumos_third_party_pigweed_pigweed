@@ -122,6 +122,31 @@ Synchronization
 
 .. cpp:namespace-pop::
 
+----------------------
+Dependency enforcement
+----------------------
+.. cpp:namespace-push:: pw::clock_tree
+
+The :cpp:class:`DependentElement` class enforces the dependency rules
+between the :cpp:class:`ElementBlocking`,
+:cpp:class:`ElementNonBlockingCannotFail`,
+:cpp:class:`ElementNonBlockingMightFail` and generic
+:cpp:class:`Element` classes.
+
+:cpp:class:`ElementBlocking` can depend on an object from any class,
+while :cpp:class:`ElementNonBlockingMightFail` can only depend on
+objects of classes :cpp:class:`ElementNonBlockingMightFail` and
+:cpp:class:`ElementNonBlockingCannotFail`.
+:cpp:class:`ElementNonBlockingCannotFail` can only depend on objects of
+class :cpp:class:`ElementNonBlockingCannotFail`.
+
+When one wants to pass a specific object as a source object of class
+:cpp:class:`Element`, the dependent object must be of class
+:cpp:class:`ElementBlocking` to satisfy the dependency rules.
+
+
+.. cpp:namespace-pop::
+
 .. toctree::
    :hidden:
    :maxdepth: 1

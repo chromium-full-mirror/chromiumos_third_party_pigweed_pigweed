@@ -957,6 +957,15 @@ TEST(ClockTree, ElementMayBlock) {
 
   ClockSourceTest<ElementBlocking> clock_blocking;
   EXPECT_TRUE(clock_blocking.kMayBlock);
+
+  Element& element_non_blocking_cannot_fail = clock_non_blocking_cannot_fail;
+  EXPECT_TRUE(element_non_blocking_cannot_fail.kMayBlock);
+
+  Element& element_non_blocking_might_fail = clock_non_blocking_might_fail;
+  EXPECT_TRUE(element_non_blocking_might_fail.kMayBlock);
+
+  Element& element_blocking = clock_blocking;
+  EXPECT_TRUE(element_blocking.kMayBlock);
 }
 
 TEST(ClockTree, ElementMayFail) {
@@ -968,6 +977,15 @@ TEST(ClockTree, ElementMayFail) {
 
   ClockSourceTest<ElementBlocking> clock_blocking;
   EXPECT_TRUE(clock_blocking.kMayFail);
+
+  Element& element_non_blocking_cannot_fail = clock_non_blocking_cannot_fail;
+  EXPECT_TRUE(element_non_blocking_cannot_fail.kMayFail);
+
+  Element& element_non_blocking_might_fail = clock_non_blocking_might_fail;
+  EXPECT_TRUE(element_non_blocking_might_fail.kMayFail);
+
+  Element& element_blocking = clock_blocking;
+  EXPECT_TRUE(element_blocking.kMayFail);
 }
 
 TEST(ClockTree, ClockDividerMayBlock) {
