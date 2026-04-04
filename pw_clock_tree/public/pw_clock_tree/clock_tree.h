@@ -44,14 +44,11 @@ namespace pw::clock_tree {
 /// `ElementNonBlockingCannotFail` or `ElementNonBlockingMightFail` class.
 class Element {
  public:
-  constexpr Element(bool may_block) : may_block_(may_block) {}
+  constexpr Element() {}
   virtual ~Element() = default;
 
   /// Get reference count for this clock tree element.
   uint32_t ref_count() const { return ref_count_; }
-
-  /// Check whether acquiring or releasing the element may block.
-  bool may_block() const { return may_block_; }
 
   // Not copyable or movable
   Element(const Element&) = delete;
@@ -148,9 +145,6 @@ class Element {
   /// Reference count for this tree element.
   uint32_t ref_count_ = 0;
 
-  /// Whether acquiring or releasing the element may block.
-  const bool may_block_;
-
   /// Handle Acquire(), deferring locking the child class.
   virtual Status DoAcquire() = 0;
 
@@ -164,7 +158,6 @@ class ElementBlocking : public Element {
  public:
   static constexpr bool kMayBlock = true;
   static constexpr bool kMayFail = true;
-  constexpr ElementBlocking() : Element(kMayBlock) {}
 
  protected:
   sync::Mutex& lock() { return *mutex_; }
@@ -190,7 +183,6 @@ class ElementNonBlockingMightFail : public Element {
  public:
   static constexpr bool kMayBlock = false;
   static constexpr bool kMayFail = true;
-  constexpr ElementNonBlockingMightFail() : Element(kMayBlock) {}
 
  protected:
   sync::InterruptSpinLock& lock() { return spin_lock_; }

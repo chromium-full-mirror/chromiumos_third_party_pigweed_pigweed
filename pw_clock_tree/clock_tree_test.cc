@@ -950,13 +950,24 @@ TEST(ClockTree, ClockFailureRelease2NonBlocking) {
 
 TEST(ClockTree, ElementMayBlock) {
   ClockSourceTest<ElementNonBlockingCannotFail> clock_non_blocking_cannot_fail;
-  EXPECT_FALSE(clock_non_blocking_cannot_fail.may_block());
+  EXPECT_FALSE(clock_non_blocking_cannot_fail.kMayBlock);
 
   ClockSourceTest<ElementNonBlockingMightFail> clock_non_blocking_might_fail;
-  EXPECT_FALSE(clock_non_blocking_might_fail.may_block());
+  EXPECT_FALSE(clock_non_blocking_might_fail.kMayBlock);
 
   ClockSourceTest<ElementBlocking> clock_blocking;
-  EXPECT_TRUE(clock_blocking.may_block());
+  EXPECT_TRUE(clock_blocking.kMayBlock);
+}
+
+TEST(ClockTree, ElementMayFail) {
+  ClockSourceTest<ElementNonBlockingCannotFail> clock_non_blocking_cannot_fail;
+  EXPECT_FALSE(clock_non_blocking_cannot_fail.kMayFail);
+
+  ClockSourceTest<ElementNonBlockingMightFail> clock_non_blocking_might_fail;
+  EXPECT_TRUE(clock_non_blocking_might_fail.kMayFail);
+
+  ClockSourceTest<ElementBlocking> clock_blocking;
+  EXPECT_TRUE(clock_blocking.kMayFail);
 }
 
 TEST(ClockTree, ClockDividerMayBlock) {
@@ -969,16 +980,38 @@ TEST(ClockTree, ClockDividerMayBlock) {
   ClockDividerTest<ElementNonBlockingCannotFail>
       clock_divider_non_blocking_cannot_fail(
           clock_non_blocking_cannot_fail, 1, 1, test_data);
-  EXPECT_FALSE(clock_divider_non_blocking_cannot_fail.may_block());
+  EXPECT_FALSE(clock_divider_non_blocking_cannot_fail.kMayBlock);
 
   ClockDividerTest<ElementNonBlockingMightFail>
       clock_divider_non_blocking_might_fail(
           clock_non_blocking_might_fail, 1, 1, test_data);
-  EXPECT_FALSE(clock_divider_non_blocking_might_fail.may_block());
+  EXPECT_FALSE(clock_divider_non_blocking_might_fail.kMayBlock);
 
   ClockDividerTest<ElementBlocking> clock_divider_blocking(
       clock_blocking, 1, 1, test_data);
-  EXPECT_TRUE(clock_divider_blocking.may_block());
+  EXPECT_TRUE(clock_divider_blocking.kMayBlock);
+}
+
+TEST(ClockTree, ClockDividerMayFail) {
+  struct clock_divider_test_data test_data;
+
+  ClockSourceTest<ElementNonBlockingCannotFail> clock_non_blocking_cannot_fail;
+  ClockSourceTest<ElementNonBlockingMightFail> clock_non_blocking_might_fail;
+  ClockSourceTest<ElementBlocking> clock_blocking;
+
+  ClockDividerTest<ElementNonBlockingCannotFail>
+      clock_divider_non_blocking_cannot_fail(
+          clock_non_blocking_cannot_fail, 1, 1, test_data);
+  EXPECT_FALSE(clock_divider_non_blocking_cannot_fail.kMayFail);
+
+  ClockDividerTest<ElementNonBlockingMightFail>
+      clock_divider_non_blocking_might_fail(
+          clock_non_blocking_might_fail, 1, 1, test_data);
+  EXPECT_TRUE(clock_divider_non_blocking_might_fail.kMayFail);
+
+  ClockDividerTest<ElementBlocking> clock_divider_blocking(
+      clock_blocking, 1, 1, test_data);
+  EXPECT_TRUE(clock_divider_blocking.kMayFail);
 }
 
 // Validate the behavior of the ClockSourceNoOp class
