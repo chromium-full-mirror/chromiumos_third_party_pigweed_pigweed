@@ -112,6 +112,4 @@ pw_console-device-logs.txt
 # AI files
 .aider*
 .gemini/logs.json
-
-# Docs
-docs/sphinx/changelog/*/*/dropped.rst
+.agents/skills/changelog/resources/next.json

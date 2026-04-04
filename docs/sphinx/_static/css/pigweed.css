@@ -23,6 +23,12 @@
   /* When you move your mouse over a table, pydata highlights the row that
    * you're currently hovering over. Make this highlight color more muted. */
   --pst-color-table-row-hover-bg: var(--sd-color-primary-bg) !important;
+  --pst-font-size-h1: 2.75rem !important;
+  --pst-font-size-h2: 2rem !important;
+  --pst-font-size-h3: 1.25rem !important;
+  --pst-font-size-h4: 1.1rem !important;
+  --pst-font-size-h5: 1rem !important;
+  --pst-font-size-h6: 1rem !important;
   /* Pigweed variables. */
   --pw-font-body: 'Noto Sans', sans-serif;
   --pw-font-code: 'Roboto Mono', monospace;
@@ -64,6 +70,7 @@ h5,
 h6 {
   font-family: var(--pw-font-headings);
   font-weight: bold;
+  margin: 2rem 0 1rem !important;
 }
 
 /* Highlighted lines in code blocks. */

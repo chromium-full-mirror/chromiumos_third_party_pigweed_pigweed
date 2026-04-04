@@ -171,6 +171,7 @@ sphinx_docs_library(
         "//:extra_docs_inputs",
         "//docker:docs",
         "//docs/doxygen:docs",
+        "//docs/sphinx/changelog:docs",
         "//kudzu:docs",
         # start (sentinel for pw module create)
         "//pw_alignment:docs",

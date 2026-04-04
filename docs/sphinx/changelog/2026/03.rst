@@ -1,0 +1,158 @@
+=================================
+What's new in Pigweed: March 2026
+=================================
+.. changelog_highlights_start
+
+Highlights:
+
+* Kernel: :ref:`changelog-2026-03-kernel-async-ipc` - Added non-blocking IPC
+  syscalls to ``pw_kernel``.
+
+* C++ data structures and utilities: :ref:`changelog-2026-03-cpp-dynamic-map` -
+  ``pw::DynamicMap`` is a new sorted map container that uses a
+  caller-provided ``pw::Allocator`` to dynamically allocate nodes.
+
+* Kernel: :ref:`changelog-2026-03-kernel-process-management` - ``pw_kernel``
+  processes can now be terminated from inside or outside of the process, and
+  the new ownership model makes it possible to wait for a process to terminate.
+
+* Toolchains and compilers: :ref:`changelog-2026-03-toolchain-toolchain-tools` -
+  The active toolchain's tools (e.g. ``objdump``, ``readelf``, etc.) can now be
+  used interactively via ``bazelisk run``.
+
+* Async and concurrency: :ref:`changelog-2026-03-async-await-macro` - Simplified
+  future polling with less boilerplate.
+
+.. changelog_highlights_end
+
+---------------------
+Async and concurrency
+---------------------
+
+.. _changelog-2026-03-async-await-macro:
+
+New PW_AWAIT macro
+==================
+Introduced the ``PW_AWAIT`` macro, which simplifies polling ``pw_async2``
+futures by returning ``Pending`` if the future is not ready. CLs:
+`1 <https://pwrev.dev/371733>`__
+
+.. _changelog-2026-03-async-rework:
+
+Coroutine and task rework
+=========================
+Reworked task and coroutine allocation in ``pw_async2`` to separate allocation
+from creation, simplify templates, and use standard allocators. Coroutines now
+support void return types and crash on allocation failure by default, with
+``pw::async2::FallibleCoroTask`` available for error handling. CLs:
+`1 <https://pwrev.dev/382232>`__, `2 <https://pwrev.dev/374695>`__,
+`3 <https://pwrev.dev/373733>`__
+
+.. _changelog-2026-03-async-boxed-future:
+
+Type-erasure with BoxedFuture
+=============================
+Added ``pw::async2::BoxedFuture`` and a ``pw::async2::Box`` helper to support
+dynamically allocated futures. ``BoxedFuture`` type-erases a future and stores
+it dynamically via a ``pw::Allocator``, hiding the concrete type. This is useful
+when storing or returning futures of different concrete types. CLs:
+`1 <https://pwrev.dev/374633>`__
+
+---------------------------------
+C++ data structures and utilities
+---------------------------------
+
+.. _changelog-2026-03-cpp-dynamic-map:
+
+New dynamically allocated map
+=============================
+Introduced ``pw::DynamicMap``, a sorted map container that uses a
+caller-provided ``pw::Allocator`` to dynamically allocate nodes. CLs:
+`1 <https://pwrev.dev/359892>`__, `2 <https://pwrev.dev/377812>`__
+
+.. _changelog-2026-03-cpp-intrusive-queue:
+
+New intrusive FIFO queue
+========================
+``pw::IntrusiveQueue`` is a new FIFO queue container that uses intrusive links
+to provide O(1) push and pop operations. CLs: `1 <https://pwrev.dev/388292>`__
+
+---------------
+Developer tools
+---------------
+
+.. _changelog-2026-03-dev-ide-tools:
+
+New ide_query tool and improved compile commands
+================================================
+The new ``ide_query`` tool in ``pw_ide`` provides a unified interface for
+querying IDE-related information from the build system. Compile commands were
+updated to extract dependencies and use relative paths, improving
+reliability. CLs: `1 <https://pwrev.dev/379120>`__,
+`2 <https://pwrev.dev/385152>`__, `3 <https://pwrev.dev/388960>`__,
+`4 <https://pwrev.dev/379121>`__
+
+------
+Kernel
+------
+
+.. _changelog-2026-03-kernel-async-ipc:
+
+Async IPC
+=========
+Added ``channel_async_transact``, ``channel_async_transact_complete``, and
+``channel_async_cancel`` syscalls to ``pw_kernel``, enabling non-blocking IPC.
+CLs: `1 <https://pwrev.dev/381192>`__
+
+.. _changelog-2026-03-kernel-process-management:
+
+Process termination and ownership
+=================================
+Processes and their associated threads can now be terminated from either
+inside or outside the process. The new process ownership model enables
+waiting for a process to terminate via ``join``. CLs:
+`1 <https://pwrev.dev/381532>`__, `2 <https://pwrev.dev/380472>`__
+
+.. _changelog-2026-03-kernel-reduce-footprint:
+
+Reduce footprint of kernel-only applications
+============================================
+The kernel no longer compiles userspace support code when building a kernel-only
+application, reducing binary size by over 2.6 KB on Cortex-M and RISC-V. CLs:
+`1 <https://pwrev.dev/380032>`__
+
+----------
+Networking
+----------
+
+.. _changelog-2026-03-net-sapphire-allocator:
+
+Allocator support for buffers and packets in pw_bluetooth_sapphire
+==================================================================
+Updated ``DynamicByteBuffer``, ``CommandPacket``, and ``EventPacket`` to accept
+an optional ``pw::Allocator&``, allowing for more flexible memory management.
+CLs: `1 <https://pwrev.dev/373375>`__
+
+---
+RPC
+---
+
+.. _changelog-2026-03-rpc-transfer-multi-client:
+
+Support multiple clients on a transfer thread in pw_transfer
+============================================================
+Multiple ``pw_transfer`` clients can now share a single transfer thread.
+CLs: `1 <https://pwrev.dev/386752>`__
+
+------------------------
+Toolchains and compilers
+------------------------
+
+.. _changelog-2026-03-toolchain-toolchain-tools:
+
+Newly exposed toolchain tools
+=============================
+The active toolchain's tools are now exposed for interactive use through
+``bazelisk run``. Available tools include ``cc``, ``c++``, ``ld``, ``ar``,
+``objdump``, ``nm``, ``readelf``, ``size``, ``strip``, and ``cov``.
+CLs: `1 <https://pwrev.dev/382478>`__

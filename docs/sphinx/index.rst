@@ -57,6 +57,17 @@ Get started
       Set up a C++-based Zephyr project, set up GitHub Actions,
       integrate Pigweed into an existing Bazel project, and more.
 
+.. _docs-root-changelog:
+
+----------------------
+What's new in Pigweed?
+----------------------
+.. include:: changelog/2026/03.rst
+   :start-after: .. changelog_highlights_start
+   :end-before: .. changelog_highlights_end
+
+And more! See :doc:`changelog/2026/03`.
+
 ----------------
 What is Pigweed?
 ----------------
@@ -168,6 +179,7 @@ Talk to us
    Tour <showcases/sense/index>
    modules
    Contributing <contributing/index>
+   What's new <changelog/index>
    concepts/index
    build/index
    targets
