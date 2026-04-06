@@ -1,5 +1,12 @@
 # Change Log
 
+## [1.10.3] - 2026-03-25
+
+### 🐛 Bug Fixes
+
+ * Fix `--query-driver` flag for clangd.
+ * Fix for `.clangd` file where `+` was not being escaped correctly.
+
 ## [1.10.2] - 2026-01-21
 
 ### 🐛 Bug Fixes
