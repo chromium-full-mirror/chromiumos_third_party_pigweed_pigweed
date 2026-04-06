@@ -491,6 +491,28 @@ class StandardCompileCommandsTests(CompileCommandsTestBase):
                 all_include_paths.append(include_path)
         return all_include_paths
 
+    def test_sysroot_is_resolved(self):
+        """Verify that --sysroot paths are resolved to absolute paths."""
+        matches = self._find_commands_for_file(
+            _TEST_PACKAGE + r'sysroot_test\.cc',
+        )
+        self.assertGreater(len(matches), 0, "Sysroot test file missing.")
+
+        for _, command in matches:
+            sysroot_arg = next(
+                (
+                    arg
+                    for arg in command['arguments']
+                    if arg.startswith('--sysroot=')
+                ),
+                None,
+            )
+            self.assertIsNotNone(sysroot_arg, "Missing --sysroot flag.")
+            path = sysroot_arg.split('=', 1)[1]
+            self.assertTrue(
+                os.path.isabs(path), f"Path is not absolute: {path}"
+            )
+
     def test_include_paths_exist(self):
         """Ensures all include paths point to real dirs.
 

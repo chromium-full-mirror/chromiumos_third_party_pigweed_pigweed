@@ -124,6 +124,22 @@ platform_data(
     target = ":basic_binary",
 )
 
+cc_library(
+    name = "replicated_error_library",
+    srcs = ["replicated_error_source.cc"],
+    tags = ["manual"],
+    deps = [
+        "//pw_assert:assert",
+    ],
+)
+
+cc_library(
+    name = "sysroot_test_library",
+    srcs = ["sysroot_test.cc"],
+    copts = ["--sysroot=external/fake_sysroot"],
+    tags = ["manual"],
+)
+
 # This ensures that things like module map files are generated before
 # we integration test against clangd.
 filegroup(
@@ -135,6 +151,8 @@ filegroup(
         ":external_dep_library",
         ":mcu_transition",
         ":non_cpp_deps",
+        ":replicated_error_library",
+        ":sysroot_test_library",
     ],
     tags = ["manual"],
     visibility = ["//pw_ide/py:__subpackages__"],

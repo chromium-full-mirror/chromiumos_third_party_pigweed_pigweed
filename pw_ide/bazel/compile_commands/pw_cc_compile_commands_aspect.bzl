@@ -132,13 +132,21 @@ def _get_direct_virtual_includes(ctx, target):
             _VIRTUAL_INCLUDES_DIR,
             label.name,
         )
+    strip_prefix = ctx.rule.attr.strip_include_prefix
+    if strip_prefix.startswith("/"):
+        repository = label.workspace_name
+        sibling_repository_layout = label.workspace_root.startswith("../")
+        repo_root = ""
+        if repository and not sibling_repository_layout:
+            repo_root = paths.join("external", repository)
+        real_path = paths.join(repo_root, strip_prefix.lstrip("/"))
+    else:
+        real_path = paths.join(source_package_path, strip_prefix)
+
     return [
         VirtualIncludeMappingInfo(
             virtual_path = virtual_includes,
-            real_path = paths.join(
-                source_package_path,
-                ctx.rule.attr.strip_include_prefix,
-            ),
+            real_path = real_path,
         ),
     ]
 
@@ -315,6 +323,9 @@ def _get_all_virtual_include_mappings(ctx, target):
         transitive = transitive_virtual_includes,
     )
 
+def _mapping_len_key(mapping):
+    return len(mapping.virtual_path)
+
 def _get_cpp_compile_commands(ctx, target):
     """Collects C/C++ compile commands for the provided target.
 
@@ -347,9 +358,14 @@ def _get_cpp_compile_commands(ctx, target):
     all_virtual_include_mappings = _get_all_virtual_include_mappings(ctx, target)
 
     # Convert depset to dict once for O(1) lookups during remapping
+    # Sort mappings by length (descending) to ensure that longer, more specific
+    # virtual include paths match before shorter, more generic ones (preventing
+    # greedy partial matches).
+    mappings_list = sorted(all_virtual_include_mappings.to_list(), key = _mapping_len_key, reverse = True)
+
     virtual_path_map = {
         mapping.virtual_path: mapping.real_path
-        for mapping in all_virtual_include_mappings.to_list()
+        for mapping in mappings_list
     }
 
     commands = _get_commands_for_target(ctx, target)

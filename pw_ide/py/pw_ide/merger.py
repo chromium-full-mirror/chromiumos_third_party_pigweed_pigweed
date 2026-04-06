@@ -1082,6 +1082,7 @@ def remap_virtual_includes(
         # Check if we have a direct mapping for the raw path (without prefix)
         # We strip the prefix if found.
         path_part = arg[len(prefix) :]
+
         if path_part in virtual_mappings_map:
             new_args.append(prefix + virtual_mappings_map[path_part])
             continue
@@ -1169,6 +1170,7 @@ def resolve_bazel_out_paths(
                 suffix, relative_to, symlink_prefix, bazel_output_path
             )
             new_args.append(prefix + new_path_str)
+
         else:
             new_args.append(arg)
 
@@ -1274,8 +1276,10 @@ def resolve_external_paths(
         "-iquote",
         "-isysroot=",
         "-isysroot",
+        "--sysroot=",
         "",
     )
+
     new_args = []
 
     if relative_to:

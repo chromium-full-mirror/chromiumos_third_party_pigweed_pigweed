@@ -16,6 +16,9 @@
 load("@bazel_skylib//lib:unittest.bzl", "asserts", "unittest")
 load(":pw_cc_compile_commands_aspect.bzl", "compile_commands_aspect_testing")
 
+def _overlapping_map_len_key(kv):
+    return len(kv[0])
+
 def _remap_arg_test_impl(ctx):
     env = unittest.begin(ctx)
     remap_arg = compile_commands_aspect_testing.remap_arg
@@ -36,10 +39,26 @@ def _remap_arg_test_impl(ctx):
     asserts.equals(env, "other/path", remap_arg("other/path", virtual_path_map))
     asserts.equals(env, "-Iother/path", remap_arg("-Iother/path", virtual_path_map))
 
-    # Partial match that shouldn't replace if it's not a valid virtual path?
-    # Actually, the logic is "if v_path in arg". So "avirtual/pathb" -> "areal/pathb".
-    # This matches the implementation behavior.
-    asserts.equals(env, "areal/pathb", remap_arg("avirtual/pathb", virtual_path_map))
+    # Overlapping prefixes: longer prefixes must match before shorter ones
+    # to prevent greedy partial matches.
+    # We define it unsorted here, and sort it programmatically so the test passes
+    # regardless of how the formatter sorts the source code keys.
+    raw_overlapping_map = {
+        "pw_assert": "backend/pw_assert",
+        "pw_assert/public_overrides": "overrides/pw_assert",
+    }
+
+    # Sort by key length descending
+    sorted_items = sorted(raw_overlapping_map.items(), key = _overlapping_map_len_key, reverse = True)
+    overlapping_map = {}
+    for k, v in sorted_items:
+        overlapping_map[k] = v
+
+    asserts.equals(
+        env,
+        "overrides/pw_assert",
+        remap_arg("pw_assert/public_overrides", overlapping_map),
+    )
 
     return unittest.end(env)
 
