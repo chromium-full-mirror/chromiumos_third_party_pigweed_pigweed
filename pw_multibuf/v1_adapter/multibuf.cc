@@ -297,13 +297,14 @@ std::tuple<MultiBufChunks::iterator, OwnedChunk> MultiBuf::TakeChunk(
   auto* mbv2 = v2();
   PW_CHECK(mbv2 != nullptr);
   size_t size = position->size();
-  auto iter = ToByteIterator(position);
-  auto chunk = mbv2->Share(iter);
-  auto result = mbv2->Discard(iter, size);
+  auto byte_iter = ToByteIterator(position);
+  auto chunk = mbv2->Share(byte_iter);
+  auto result = mbv2->Discard(byte_iter, size);
   PW_CHECK_OK(result.status());
   OwnedChunk owned(mbv2->get_allocator(), chunk);
   if (mbv2->empty()) {
     Release();
+    return std::make_tuple(Chunks().end(), std::move(owned));
   }
   return std::make_tuple(ToChunksIterator(*result), std::move(owned));
 }

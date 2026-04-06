@@ -389,6 +389,28 @@ TEST_F(MultiBufV1Test, TakeChunkOnLastInsertedIterReturnsLastInserted) {
   EXPECT_EQ(chunk.size(), 65U);
 }
 
+TEST_F(MultiBufV1Test, TakeAllChunksOnebyOne) {
+  MultiBuf buf;
+  buf.PushBackChunk(MakeChunk(42));
+  buf.PushBackChunk(MakeChunk(11));
+  buf.PushBackChunk(MakeChunk(65));
+
+  auto iter = buf.Chunks().begin();
+  OwnedChunk chunk;
+
+  std::tie(iter, chunk) = buf.TakeChunk(iter);
+  EXPECT_EQ(iter, buf.Chunks().begin());
+  EXPECT_EQ(chunk.size(), 42u);
+
+  std::tie(iter, chunk) = buf.TakeChunk(iter);
+  EXPECT_EQ(iter, buf.Chunks().begin());
+  EXPECT_EQ(chunk.size(), 11u);
+
+  std::tie(iter, chunk) = buf.TakeChunk(iter);
+  EXPECT_EQ(iter, buf.Chunks().begin());
+  EXPECT_EQ(chunk.size(), 65u);
+}
+
 TEST_F(MultiBufV1Test, RangeBasedForLoopsCompile) {
   MultiBuf buf;
   for ([[maybe_unused]] std::byte& byte : buf) {
