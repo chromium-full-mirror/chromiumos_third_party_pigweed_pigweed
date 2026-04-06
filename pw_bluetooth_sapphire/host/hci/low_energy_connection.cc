@@ -20,6 +20,7 @@
 #include <cinttypes>
 
 #include "pw_bluetooth_sapphire/internal/host/transport/transport.h"
+#include "pw_string/string_builder.h"
 
 namespace bt::hci {
 
@@ -188,6 +189,23 @@ LowEnergyConnection::OnLELongTermKeyRequestEvent(const EventPacket& event) {
   }
 
   return CommandChannel::EventCallbackResult::kContinue;
+}
+
+std::string LowEnergyConnection::ToString() const {
+  pw::StringBuffer<64> buffer;
+  buffer << "[HCI LE connection (handle: ";
+  buffer << handle();
+
+  buffer << ", role: ";
+  if (role() == pw::bluetooth::emboss::ConnectionRole::CENTRAL) {
+    buffer << "central";
+  } else {
+    buffer << "peripheral";
+  }
+
+  buffer << ", " << parameters_.ToString();
+  buffer << ")]";
+  return buffer.c_str();
 }
 
 }  // namespace bt::hci

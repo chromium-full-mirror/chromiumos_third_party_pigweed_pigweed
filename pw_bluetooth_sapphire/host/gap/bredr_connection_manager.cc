@@ -1315,9 +1315,10 @@ void BrEdrConnectionManager::OnPeerDisconnect(
 
   bt_log(INFO,
          "gap-bredr",
-         "peer disconnected (peer: %s, handle: %#.4x)",
+         "peer disconnected (peer: %s, %s)",
          bt_str(conn.peer_id()),
-         handle);
+         bt_str(*connection));
+
   CleanUpConnection(
       handle, std::move(conn), DisconnectReason::kPeerDisconnection);
 }

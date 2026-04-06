@@ -634,21 +634,25 @@ void LowEnergyConnection::OnLEConnectionUpdateComplete(
     bt_log(WARN,
            "gap-le",
            "HCI LE Connection Update Complete event with error "
-           "(peer: %s, status: %#.2hhx, handle: %#.4x)",
+           "(peer: %s, status: %s, handle: %#.4x)",
            bt_str(peer_id()),
-           static_cast<unsigned char>(payload.status().Read()),
+           bt_str(ToResult(payload.status().Read())),
            handle);
 
     return;
   }
 
-  bt_log(
-      INFO, "gap-le", "conn. parameters updated (peer: %s)", bt_str(peer_id()));
-
   hci_spec::LEConnectionParameters params(
       payload.connection_interval().UncheckedRead(),
       payload.peripheral_latency().UncheckedRead(),
       payload.supervision_timeout().UncheckedRead());
+
+  bt_log(INFO,
+         "gap-le",
+         "conn. parameters updated (peer: %s, %s)",
+         bt_str(peer_id()),
+         bt_str(params));
+
   link_->set_low_energy_parameters(params);
 
   PW_CHECK(peer_.is_alive());

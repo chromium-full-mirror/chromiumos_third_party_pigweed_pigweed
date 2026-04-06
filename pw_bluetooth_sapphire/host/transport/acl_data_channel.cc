@@ -36,6 +36,7 @@ class AclDataChannelImpl final : public AclDataChannel {
   AclDataChannelImpl(
       Transport* transport,
       pw::bluetooth::Controller* hci,
+      pw::async::Dispatcher& dispatcher,
       const DataBufferInfo& bredr_buffer_info,
       const DataBufferInfo& le_buffer_info,
       pw::bluetooth_sapphire::LeaseProvider& wake_lease_provider);
@@ -45,6 +46,8 @@ class AclDataChannelImpl final : public AclDataChannel {
   void RegisterConnection(WeakPtr<ConnectionInterface> connection) override;
   void UnregisterConnection(hci_spec::ConnectionHandle handle) override;
   void OnOutboundPacketAvailable() override;
+  std::optional<pw::chrono::SystemClock::time_point> GetLastPacketTime(
+      hci_spec::ConnectionHandle handle) const override;
   void AttachInspect(inspect::Node& parent, const std::string& name) override;
   void SetDataRxHandler(ACLPacketHandler rx_callback) override;
   void ClearControllerPacketCount(hci_spec::ConnectionHandle handle) override;
@@ -134,6 +137,9 @@ class AclDataChannelImpl final : public AclDataChannel {
   // Controller is owned by Transport and will outlive this object.
   pw::bluetooth::Controller* const hci_;
 
+  // Dispatcher handling task queue, currently gives us the current time
+  pw::async::Dispatcher& dispatcher_;
+
   // The event handler ID for the Number Of Completed Packets event.
   CommandChannel::EventHandlerId num_completed_packets_event_handler_id_ = 0;
 
@@ -174,6 +180,10 @@ class AclDataChannelImpl final : public AclDataChannel {
   ConnectionMap::iterator current_bredr_link_ = registered_connections_.end();
   ConnectionMap::iterator current_le_link_ = registered_connections_.end();
 
+  std::unordered_map<hci_spec::ConnectionHandle,
+                     pw::chrono::SystemClock::time_point>
+      last_packet_times_;
+
   pw::bluetooth_sapphire::LeaseProvider& wake_lease_provider_;
   std::optional<pw::bluetooth_sapphire::Lease> wake_lease_;
 
@@ -183,21 +193,28 @@ class AclDataChannelImpl final : public AclDataChannel {
 std::unique_ptr<AclDataChannel> AclDataChannel::Create(
     Transport* transport,
     pw::bluetooth::Controller* hci,
+    pw::async::Dispatcher& dispatcher,
     const DataBufferInfo& bredr_buffer_info,
     const DataBufferInfo& le_buffer_info,
     pw::bluetooth_sapphire::LeaseProvider& wake_lease_provider) {
-  return std::make_unique<AclDataChannelImpl>(
-      transport, hci, bredr_buffer_info, le_buffer_info, wake_lease_provider);
+  return std::make_unique<AclDataChannelImpl>(transport,
+                                              hci,
+                                              dispatcher,
+                                              bredr_buffer_info,
+                                              le_buffer_info,
+                                              wake_lease_provider);
 }
 
 AclDataChannelImpl::AclDataChannelImpl(
     Transport* transport,
     pw::bluetooth::Controller* hci,
+    pw::async::Dispatcher& dispatcher,
     const DataBufferInfo& bredr_buffer_info,
     const DataBufferInfo& le_buffer_info,
     pw::bluetooth_sapphire::LeaseProvider& wake_lease_provider)
     : transport_(transport),
       hci_(hci),
+      dispatcher_(dispatcher),
       bredr_buffer_info_(bredr_buffer_info),
       le_buffer_info_(le_buffer_info),
       wake_lease_provider_(wake_lease_provider) {
@@ -339,6 +356,7 @@ void AclDataChannelImpl::SendPackets(ConnectionMap::iterator& current_link) {
     // If there is an available packet, send and update packet counts
     ACLDataPacketPtr packet = current_link->second->GetNextOutboundPacket();
     PW_DCHECK(packet);
+    last_packet_times_[packet->connection_handle()] = dispatcher_.now();
     hci_->SendAclData(packet->view().data().subspan());
 
     is_packet_queued = true;
@@ -360,6 +378,15 @@ void AclDataChannelImpl::TrySendNextPackets() {
 }
 
 void AclDataChannelImpl::OnOutboundPacketAvailable() { TrySendNextPackets(); }
+
+std::optional<pw::chrono::SystemClock::time_point>
+AclDataChannelImpl::GetLastPacketTime(hci_spec::ConnectionHandle handle) const {
+  auto iter = last_packet_times_.find(handle);
+  if (iter == last_packet_times_.end()) {
+    return std::nullopt;
+  }
+  return iter->second;
+}
 
 void AclDataChannelImpl::AttachInspect(inspect::Node& parent,
                                        const std::string& name) {
@@ -406,6 +433,7 @@ void AclDataChannelImpl::ClearControllerPacketCount(
   DecrementPendingPacketsForLinkType(data.ll_type, data.count);
 
   pending_links_.erase(iter);
+  last_packet_times_.erase(handle);
 
   // Try sending the next batch of packets in case buffer space opened up.
   TrySendNextPackets();
@@ -638,6 +666,8 @@ void AclDataChannelImpl::OnRxPacket(pw::span<const std::byte> buffer) {
            payload_size);
     return;
   }
+
+  last_packet_times_[packet->connection_handle()] = dispatcher_.now();
 
   {
     TRACE_DURATION("bluetooth", "AclDataChannelImpl->rx_callback_");

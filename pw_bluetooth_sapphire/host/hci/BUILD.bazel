@@ -74,6 +74,7 @@ cc_library(
         "//pw_async:heap_dispatcher",
         "//pw_bluetooth:emboss_hci",
         "//pw_preprocessor",
+        "//pw_string",
     ],
     strip_include_prefix = "public",
     tags = ["noclangtidy"],

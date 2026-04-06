@@ -13,6 +13,7 @@
 // the License.
 
 #pragma once
+#include "pw_async/dispatcher.h"
 #include "pw_bluetooth/controller.h"
 #include "pw_bluetooth_sapphire/internal/host/common/weak_self.h"
 #include "pw_bluetooth_sapphire/internal/host/transport/command_channel.h"
@@ -66,7 +67,8 @@ class ScoDataChannel {
   static std::unique_ptr<ScoDataChannel> Create(
       const DataBufferInfo& buffer_info,
       CommandChannel* command_channel,
-      pw::bluetooth::Controller* hci);
+      pw::bluetooth::Controller* hci,
+      pw::async::Dispatcher& dispatcher);
   virtual ~ScoDataChannel() = default;
 
   // Register a connection. The connection must have a data path of
@@ -94,6 +96,10 @@ class ScoDataChannel {
 
   // The controller's SCO max data length (not including header).
   virtual uint16_t max_data_length() const = 0;
+
+  // Returns the time of the last packet activity on the given |handle|.
+  virtual std::optional<pw::chrono::SystemClock::time_point> GetLastPacketTime(
+      hci_spec::ConnectionHandle handle) const = 0;
 };
 
 }  // namespace bt::hci

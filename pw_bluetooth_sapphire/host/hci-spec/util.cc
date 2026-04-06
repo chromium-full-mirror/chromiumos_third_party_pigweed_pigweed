@@ -59,6 +59,7 @@ std::string HCIVersionToString(
 std::string StatusCodeToString(pw::bluetooth::emboss::StatusCode code) {
   PW_MODIFY_DIAGNOSTICS_PUSH();
   PW_MODIFY_DIAGNOSTIC(ignored, "-Wswitch-enum");
+
   switch (code) {
     case pw::bluetooth::emboss::StatusCode::SUCCESS: return "success";
     case pw::bluetooth::emboss::StatusCode::UNKNOWN_COMMAND: return "unknown command";
@@ -85,7 +86,7 @@ std::string StatusCodeToString(pw::bluetooth::emboss::StatusCode code) {
     case pw::bluetooth::emboss::StatusCode::CONNECTION_TERMINATED_BY_LOCAL_HOST: return "connection terminated by local host";
     case pw::bluetooth::emboss::StatusCode::REPEATED_ATTEMPTS: return "repeated attempts";
     case pw::bluetooth::emboss::StatusCode::PAIRING_NOT_ALLOWED: return "pairing not allowed";
-    case pw::bluetooth::emboss::StatusCode::UNKNOWN_LMP_PDU: return "unpw::bluetooth::emboss::StatusCode::nown LMP PDU";
+    case pw::bluetooth::emboss::StatusCode::UNKNOWN_LMP_PDU: return "unknown LMP PDU";
     case pw::bluetooth::emboss::StatusCode::UNSUPPORTED_REMOTE_FEATURE: return "unsupported remote feature";
     case pw::bluetooth::emboss::StatusCode::SCO_OFFSET_REJECTED: return "SCO offset rejected";
     case pw::bluetooth::emboss::StatusCode::SCO_INTERVAL_REJECTED: return "SCO interval rejected";
@@ -121,7 +122,7 @@ std::string StatusCodeToString(pw::bluetooth::emboss::StatusCode code) {
     case pw::bluetooth::emboss::StatusCode::CONNECTION_TERMINATED_MIC_FAILURE: return "connection terminated: MIC failure";
     case pw::bluetooth::emboss::StatusCode::CONNECTION_FAILED_TO_BE_ESTABLISHED: return "connection failed to be established";
     case pw::bluetooth::emboss::StatusCode::MAC_CONNECTION_FAILED: return "MAC connection failed";
-    case pw::bluetooth::emboss::StatusCode::COARSE_CLOCK_ADJUSTMENT_REJECTED: return "coarse clocpw::bluetooth::emboss::StatusCode:: adjustment rejected";
+    case pw::bluetooth::emboss::StatusCode::COARSE_CLOCK_ADJUSTMENT_REJECTED: return "coarse clock adjustment rejected";
     case pw::bluetooth::emboss::StatusCode::TYPE_0_SUBMAP_NOT_DEFINED: return "type 0 submap not defined";
     case pw::bluetooth::emboss::StatusCode::UNKNOWN_ADVERTISING_IDENTIFIER: return "unknown advertising identifier";
     case pw::bluetooth::emboss::StatusCode::LIMIT_REACHED: return "limit reached";

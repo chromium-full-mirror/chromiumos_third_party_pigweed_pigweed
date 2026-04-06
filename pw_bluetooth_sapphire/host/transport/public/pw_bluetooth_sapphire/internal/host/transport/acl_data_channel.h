@@ -17,6 +17,7 @@
 
 #include <unordered_map>
 
+#include "pw_async/dispatcher.h"
 #include "pw_bluetooth/controller.h"
 #include "pw_bluetooth/vendor.h"
 #include "pw_bluetooth_sapphire/internal/host/common/byte_buffer.h"
@@ -107,6 +108,7 @@ class AclDataChannel {
   static std::unique_ptr<AclDataChannel> Create(
       Transport* transport,
       pw::bluetooth::Controller* hci,
+      pw::async::Dispatcher& dispatcher,
       const DataBufferInfo& bredr_buffer_info,
       const DataBufferInfo& le_buffer_info,
       pw::bluetooth_sapphire::LeaseProvider& wake_lease_provider);
@@ -139,6 +141,10 @@ class AclDataChannel {
   // This defaults to the BR/EDR buffers if the controller does not have a
   // dedicated LE buffer.
   virtual const DataBufferInfo& GetLeBufferInfo() const = 0;
+
+  // Returns the time of the last packet activity on the given |handle|.
+  virtual std::optional<pw::chrono::SystemClock::time_point> GetLastPacketTime(
+      hci_spec::ConnectionHandle handle) const = 0;
 
   // Attempts to set the ACL |priority| of the connection indicated by |handle|.
   // |callback| will be called with the result of the request.

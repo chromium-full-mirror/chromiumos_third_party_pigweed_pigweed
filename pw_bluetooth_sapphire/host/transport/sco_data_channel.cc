@@ -29,7 +29,8 @@ class ScoDataChannelImpl final : public ScoDataChannel {
  public:
   ScoDataChannelImpl(const DataBufferInfo& buffer_info,
                      CommandChannel* command_channel,
-                     Controller* hci);
+                     Controller* hci,
+                     pw::async::Dispatcher& dispatcher);
   ~ScoDataChannelImpl() override;
 
   // ScoDataChannel overrides:
@@ -37,6 +38,8 @@ class ScoDataChannelImpl final : public ScoDataChannel {
   void UnregisterConnection(hci_spec::ConnectionHandle handle) override;
   void ClearControllerPacketCount(hci_spec::ConnectionHandle handle) override;
   void OnOutboundPacketReadable() override;
+  std::optional<pw::chrono::SystemClock::time_point> GetLastPacketTime(
+      hci_spec::ConnectionHandle handle) const override;
   uint16_t max_data_length() const override {
     return static_cast<uint16_t>(buffer_info_.max_data_length());
   }
@@ -88,9 +91,14 @@ class ScoDataChannelImpl final : public ScoDataChannel {
 
   CommandChannel* command_channel_;
   Controller* hci_;
+  pw::async::Dispatcher& dispatcher_;
   DataBufferInfo buffer_info_;
 
   std::unordered_map<hci_spec::ConnectionHandle, ConnectionData> connections_;
+
+  std::unordered_map<hci_spec::ConnectionHandle,
+                     pw::chrono::SystemClock::time_point>
+      last_packet_times_;
 
   // Only 1 connection may send packets at a time.
   WeakPtr<ConnectionInterface> active_connection_;
@@ -109,8 +117,12 @@ class ScoDataChannelImpl final : public ScoDataChannel {
 
 ScoDataChannelImpl::ScoDataChannelImpl(const DataBufferInfo& buffer_info,
                                        CommandChannel* command_channel,
-                                       Controller* hci)
-    : command_channel_(command_channel), hci_(hci), buffer_info_(buffer_info) {
+                                       Controller* hci,
+                                       pw::async::Dispatcher& dispatcher)
+    : command_channel_(command_channel),
+      hci_(hci),
+      dispatcher_(dispatcher),
+      buffer_info_(buffer_info) {
   // ScoDataChannel shouldn't be used if the buffer is unavailable (implying the
   // controller doesn't support SCO).
   PW_CHECK(buffer_info_.IsAvailable());
@@ -152,11 +164,21 @@ void ScoDataChannelImpl::UnregisterConnection(
   MaybeUpdateActiveConnection();
 }
 
+std::optional<pw::chrono::SystemClock::time_point>
+ScoDataChannelImpl::GetLastPacketTime(hci_spec::ConnectionHandle handle) const {
+  auto iter = last_packet_times_.find(handle);
+  if (iter == last_packet_times_.end()) {
+    return std::nullopt;
+  }
+  return iter->second;
+}
+
 void ScoDataChannelImpl::ClearControllerPacketCount(
     hci_spec::ConnectionHandle handle) {
   bt_log(DEBUG, "hci", "clearing pending packets (handle: %#.4x)", handle);
   PW_CHECK(connections_.find(handle) == connections_.end());
 
+  last_packet_times_.erase(handle);
   auto iter = pending_packet_counts_.find(handle);
   if (iter == pending_packet_counts_.end()) {
     return;
@@ -212,6 +234,7 @@ void ScoDataChannelImpl::OnRxPacket(pw::span<const std::byte> buffer) {
            packet->connection_handle());
     return;
   }
+  last_packet_times_[packet->connection_handle()] = dispatcher_.now();
   conn_iter->second.connection->ReceiveInboundPacket(std::move(packet));
 }
 
@@ -314,6 +337,7 @@ void ScoDataChannelImpl::TrySendNextPackets() {
         break;
       }
 
+      last_packet_times_[packet->connection_handle()] = dispatcher_.now();
       hci_->SendScoData(packet->view().data().subspan());
 
       auto [iter, _] = pending_packet_counts_.try_emplace(conn_handle, 0u);
@@ -456,9 +480,10 @@ void ScoDataChannelImpl::OnHciConfigured(hci_spec::ConnectionHandle conn_handle,
 std::unique_ptr<ScoDataChannel> ScoDataChannel::Create(
     const DataBufferInfo& buffer_info,
     CommandChannel* command_channel,
-    Controller* hci) {
+    Controller* hci,
+    pw::async::Dispatcher& dispatcher) {
   return std::make_unique<ScoDataChannelImpl>(
-      buffer_info, command_channel, hci);
+      buffer_info, command_channel, hci, dispatcher);
 }
 
 }  // namespace bt::hci

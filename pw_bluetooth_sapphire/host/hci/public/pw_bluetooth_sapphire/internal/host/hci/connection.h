@@ -105,6 +105,11 @@ class Connection {
       const EventPacket& event,
       fit::callback<void()> on_disconnection_complete);
 
+  static void LogDisconnectionComplete(
+      const WeakSelf<Connection>::WeakPtr& self,
+      hci_spec::ConnectionHandle handle,
+      const EventPacket& event);
+
   hci_spec::ConnectionHandle handle_;
 
   PeerDisconnectCallback peer_disconnect_callback_;
@@ -113,7 +118,7 @@ class Connection {
 
   Transport::WeakPtr hci_;
 
-  [[maybe_unused]] pw::async::Dispatcher& dispatcher_;
+  pw::async::Dispatcher& dispatcher_;
 
   WeakSelf<Connection> weak_self_;
 

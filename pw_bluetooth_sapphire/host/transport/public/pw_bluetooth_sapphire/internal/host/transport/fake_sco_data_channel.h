@@ -38,6 +38,10 @@ class FakeScoDataChannel final : public ScoDataChannel {
   void OnOutboundPacketReadable() override;
   void ClearControllerPacketCount(hci_spec::ConnectionHandle) override {}
   uint16_t max_data_length() const override { return max_data_length_; }
+  std::optional<pw::chrono::SystemClock::time_point> GetLastPacketTime(
+      hci_spec::ConnectionHandle) const override {
+    return std::nullopt;
+  }
 
  private:
   uint16_t max_data_length_;

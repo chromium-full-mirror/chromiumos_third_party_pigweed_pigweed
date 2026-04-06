@@ -925,6 +925,59 @@ TEST_F(ScoDataChannelTest, UnsupportedCodingFormatTreatedAsCvsd) {
   EXPECT_EQ(reset_count, 0);
 }
 
+TEST_F(ScoDataChannelTest, GetLastPacketTime) {
+  test_device()->set_configure_sco_cb(
+      [](auto, auto, auto, fit::callback<void(pw::Status)> cb) {
+        cb(PW_STATUS_OK);
+      });
+  test_device()->set_reset_sco_cb(
+      [](fit::callback<void(pw::Status)> cb) { cb(PW_STATUS_OK); });
+
+  FakeScoConnection connection(sco_data_channel());
+  sco_data_channel()->RegisterConnection(connection.GetWeakPtr());
+
+  EXPECT_FALSE(
+      sco_data_channel()->GetLastPacketTime(kConnectionHandle0).has_value());
+
+  const auto kPacketTime = dispatcher().now();
+  std::unique_ptr<ScoDataPacket> packet =
+      ScoDataPacket::New(kConnectionHandle0, /*payload_size=*/1);
+  packet->mutable_view()->mutable_payload_data()[0] = 0x00;
+
+  EXPECT_SCO_PACKET_OUT(test_device(),
+                        StaticByteBuffer(LowerBits(kConnectionHandle0),
+                                         UpperBits(kConnectionHandle0),
+                                         0x01,
+                                         0x00));
+  connection.QueuePacket(std::move(packet));
+  RunUntilIdle();
+
+  auto last_packet_time =
+      sco_data_channel()->GetLastPacketTime(kConnectionHandle0);
+  ASSERT_TRUE(last_packet_time.has_value());
+  EXPECT_EQ(kPacketTime, last_packet_time.value());
+
+  // Advance time to distinguish from previous packet
+  RunFor(std::chrono::seconds(1));
+  const auto kRxPacketTime = dispatcher().now();
+  EXPECT_NE(kPacketTime, kRxPacketTime);
+
+  // Simulate RX packet from controller
+  StaticByteBuffer rx_packet(
+      LowerBits(kConnectionHandle0), UpperBits(kConnectionHandle0), 0x01, 0x01);
+  test_device()->SendScoDataChannelPacket(rx_packet);
+  RunUntilIdle();
+
+  last_packet_time = sco_data_channel()->GetLastPacketTime(kConnectionHandle0);
+  ASSERT_TRUE(last_packet_time.has_value());
+  EXPECT_EQ(kRxPacketTime, last_packet_time.value());
+
+  sco_data_channel()->UnregisterConnection(kConnectionHandle0);
+  sco_data_channel()->ClearControllerPacketCount(kConnectionHandle0);
+  EXPECT_FALSE(
+      sco_data_channel()->GetLastPacketTime(kConnectionHandle0).has_value());
+}
+
 TEST_F(ScoDataChannelSingleConnectionTest,
        NumberOfCompletedPacketsExceedsPendingPackets) {
   // Queue 1 more than than the max number of packets (1 packet will remain

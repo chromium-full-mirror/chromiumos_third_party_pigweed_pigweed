@@ -280,8 +280,9 @@ void LowEnergyConnector::OnConnectResult(
 
   bt_log(INFO,
          "gap-le",
-         "connection request successful (peer: %s)",
-         bt_str(peer_id_));
+         "connection request successful (peer: %s, %s)",
+         bt_str(peer_id_),
+         bt_str(link->low_energy_parameters()));
 
   if (InitializeConnection(std::move(link))) {
     StartInterrogation();

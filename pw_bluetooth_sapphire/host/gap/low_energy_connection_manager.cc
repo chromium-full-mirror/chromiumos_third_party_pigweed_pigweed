@@ -22,13 +22,10 @@
 #include <vector>
 
 #include "pw_bluetooth_sapphire/internal/host/gap/gap.h"
-#include "pw_bluetooth_sapphire/internal/host/gap/generic_access_client.h"
 #include "pw_bluetooth_sapphire/internal/host/gap/low_energy_connection.h"
 #include "pw_bluetooth_sapphire/internal/host/gap/pairing_delegate.h"
 #include "pw_bluetooth_sapphire/internal/host/gap/peer.h"
 #include "pw_bluetooth_sapphire/internal/host/gap/peer_cache.h"
-#include "pw_bluetooth_sapphire/internal/host/gatt/local_service_manager.h"
-#include "pw_bluetooth_sapphire/internal/host/hci-spec/constants.h"
 #include "pw_bluetooth_sapphire/internal/host/hci-spec/defaults.h"
 #include "pw_bluetooth_sapphire/internal/host/hci-spec/protocol.h"
 #include "pw_bluetooth_sapphire/internal/host/hci-spec/util.h"
@@ -38,7 +35,6 @@
 #include "pw_bluetooth_sapphire/internal/host/sm/security_manager.h"
 #include "pw_bluetooth_sapphire/internal/host/sm/smp.h"
 #include "pw_bluetooth_sapphire/internal/host/sm/types.h"
-#include "pw_bluetooth_sapphire/internal/host/sm/util.h"
 #include "pw_bluetooth_sapphire/internal/host/transport/transport.h"
 
 using bt::sm::BondableMode;
@@ -832,7 +828,8 @@ Peer* LowEnergyConnectionManager::UpdatePeerWithLink(
 }
 
 void LowEnergyConnectionManager::OnPeerDisconnect(
-    const hci::Connection* connection, pw::bluetooth::emboss::StatusCode) {
+    const hci::Connection* connection,
+    pw::bluetooth::emboss::StatusCode reason) {
   auto handle = connection->handle();
   if (test_disconn_cb_) {
     test_disconn_cb_(handle);
@@ -856,12 +853,12 @@ void LowEnergyConnectionManager::OnPeerDisconnect(
 
   bt_log(INFO,
          "gap-le",
-         "peer disconnected (peer: %s, handle: %#.4x)",
+         "peer disconnected (peer: %s, %s, reason: %s)",
          bt_str(conn->peer_id()),
-         handle);
+         bt_str(*connection),
+         hci_spec::StatusCodeToString(reason).c_str());
 
   inspect_properties_.disconnect_remote_disconnection_count_.Add(1);
-
   CleanUpConnection(std::move(conn),
                     LowEnergyDisconnectReason::kPeerDisconnection);
 }

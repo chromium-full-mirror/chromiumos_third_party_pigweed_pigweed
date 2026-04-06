@@ -64,6 +64,10 @@ class MockAclDataChannel final : public AclDataChannel {
   void UnregisterConnection(hci_spec::ConnectionHandle handle) override;
   void OnOutboundPacketAvailable() override;
   void ClearControllerPacketCount(hci_spec::ConnectionHandle) override {}
+  std::optional<pw::chrono::SystemClock::time_point> GetLastPacketTime(
+      hci_spec::ConnectionHandle) const override {
+    return std::nullopt;
+  }
   const DataBufferInfo& GetBufferInfo() const override;
   const DataBufferInfo& GetLeBufferInfo() const override;
   void RequestAclPriority(

@@ -15,7 +15,8 @@
 #pragma once
 #include <string>
 
-#include "pw_bluetooth_sapphire/internal/host/hci-spec/protocol.h"
+#include "pw_bluetooth/hci_events.emb.h"
+#include "pw_bluetooth_sapphire/internal/host/hci-spec/constants.h"
 
 namespace bt::hci_spec {
 
@@ -36,5 +37,4 @@ const char* LinkKeyTypeToString(hci_spec::LinkKeyType key_type);
 
 // Returns a user-friendly string representation of |role|.
 std::string ConnectionRoleToString(pw::bluetooth::emboss::ConnectionRole role);
-
 }  // namespace bt::hci_spec

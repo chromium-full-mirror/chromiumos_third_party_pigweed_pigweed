@@ -74,6 +74,7 @@ pw_source_set("hci") {
   deps = [
     "$dir_pw_async:heap_dispatcher",
     "$dir_pw_bluetooth:emboss_hci_group",
+    "$dir_pw_string:builder",
     dir_pw_preprocessor,
   ]
 }

@@ -26,6 +26,8 @@
 #include "pw_bluetooth_sapphire/internal/host/hci-spec/util.h"
 #include "pw_bluetooth_sapphire/internal/host/transport/command_channel.h"
 #include "pw_bluetooth_sapphire/internal/host/transport/transport.h"
+#include "pw_chrono/system_clock.h"
+#include "pw_string/string_builder.h"
 
 namespace bt::hci {
 
@@ -87,13 +89,7 @@ CommandChannel::EventCallbackResult Connection::OnDisconnectionComplete(
     return CommandChannel::EventCallbackResult::kContinue;
   }
 
-  bt_log(INFO,
-         "hci",
-         "disconnection complete - %s, handle: %#.4x, reason: %#.2hhx (%s)",
-         bt_str(event.ToResult()),
-         handle,
-         static_cast<unsigned char>(view.reason().Read()),
-         hci_spec::StatusCodeToString(view.reason().Read()).c_str());
+  LogDisconnectionComplete(self, handle, event);
 
   if (self.is_alive()) {
     self->conn_state_ = State::kDisconnected;
@@ -111,6 +107,48 @@ CommandChannel::EventCallbackResult Connection::OnDisconnectionComplete(
   }
 
   return CommandChannel::EventCallbackResult::kRemove;
+}
+
+void Connection::LogDisconnectionComplete(
+    const WeakSelf<Connection>::WeakPtr& self,
+    hci_spec::ConnectionHandle handle,
+    const EventPacket& event) {
+  auto view =
+      event.view<pw::bluetooth::emboss::DisconnectionCompleteEventView>();
+
+  pw::StringBuffer<64> buffer;
+  buffer << bt_str(event.ToResult());
+
+  if (self.is_alive()) {
+    buffer << ", " << self->ToString();
+  } else {
+    buffer << ", handle: " << handle;
+  }
+  buffer << ", reason: " << hci_spec::StatusCodeToString(view.reason().Read());
+
+  buffer << ", last packet: ";
+  std::optional<pw::chrono::SystemClock::time_point> last_packet_time;
+  if (self.is_alive() && self->hci().is_alive()) {
+    if (self->hci()->acl_data_channel()) {
+      last_packet_time =
+          self->hci()->acl_data_channel()->GetLastPacketTime(handle);
+    }
+    if (!last_packet_time.has_value() && self->hci()->sco_data_channel()) {
+      last_packet_time =
+          self->hci()->sco_data_channel()->GetLastPacketTime(handle);
+    }
+  }
+
+  if (last_packet_time.has_value()) {
+    pw::chrono::SystemClock::duration duration =
+        self->dispatcher_.now() - *last_packet_time;
+    buffer << std::chrono::duration_cast<std::chrono::milliseconds>(duration)
+           << " ms ago";
+  } else {
+    buffer << "never";
+  }
+
+  bt_log(INFO, "hci", "disconnection complete (%s)", buffer.c_str());
 }
 
 void Connection::Disconnect(pw::bluetooth::emboss::StatusCode reason) {

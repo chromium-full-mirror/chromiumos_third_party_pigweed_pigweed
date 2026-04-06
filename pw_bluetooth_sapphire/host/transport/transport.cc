@@ -86,6 +86,7 @@ bool Transport::InitializeACLDataChannel(
     const DataBufferInfo& le_buffer_info) {
   acl_data_channel_ = AclDataChannel::Create(this,
                                              controller_.get(),
+                                             dispatcher_,
                                              bredr_buffer_info,
                                              le_buffer_info,
                                              wake_lease_provider_);
@@ -113,7 +114,7 @@ bool Transport::InitializeScoDataChannel(const DataBufferInfo& buffer_info) {
   }
 
   sco_data_channel_ = ScoDataChannel::Create(
-      buffer_info, command_channel_.get(), controller_.get());
+      buffer_info, command_channel_.get(), controller_.get(), dispatcher_);
   return true;
 }
 

@@ -324,6 +324,60 @@ TEST_F(AclDataChannelMtuTest, VerifyBREDRAndLEBufferMtus) {
   EXPECT_EQ(LEBufferInfo(), acl_data_channel()->GetLeBufferInfo());
 }
 
+TEST_F(AclDataChannelTest, GetLastPacketTime) {
+  InitializeACLDataChannel(DataBufferInfo(kMaxMtu, kBufferMaxNumPackets),
+                           DataBufferInfo(kMaxMtu, kBufferMaxNumPackets));
+
+  FakeAclConnection connection(
+      acl_data_channel(), kConnectionHandle0, bt::LinkType::kACL);
+  acl_data_channel()->RegisterConnection(connection.GetWeakPtr());
+
+  EXPECT_FALSE(
+      acl_data_channel()->GetLastPacketTime(kConnectionHandle0).has_value());
+
+  const auto kPacketTime = dispatcher().now();
+  const StaticByteBuffer kPacket(LowerBits(kConnectionHandle0),
+                                 UpperBits(kConnectionHandle0),
+                                 // payload length
+                                 0x01,
+                                 0x00,
+                                 // payload
+                                 0x00);
+  EXPECT_ACL_PACKET_OUT(test_device(), kPacket);
+
+  ACLDataPacketPtr packet =
+      ACLDataPacket::New(kConnectionHandle0,
+                         hci_spec::ACLPacketBoundaryFlag::kFirstNonFlushable,
+                         hci_spec::ACLBroadcastFlag::kPointToPoint,
+                         /*payload_size=*/1);
+  packet->mutable_view()->mutable_payload_data()[0] = 0x00;
+  connection.QueuePacket(std::move(packet));
+  RunUntilIdle();
+
+  auto last_packet_time =
+      acl_data_channel()->GetLastPacketTime(kConnectionHandle0);
+  ASSERT_TRUE(last_packet_time.has_value());
+  EXPECT_EQ(kPacketTime, last_packet_time.value());
+
+  // Advance time to distinguish from previous packet
+  RunFor(std::chrono::seconds(1));
+  const auto kRxPacketTime = dispatcher().now();
+  EXPECT_NE(kPacketTime, kRxPacketTime);
+
+  // Simulate RX packet from controller
+  test_device()->SendACLDataChannelPacket(kPacket);
+  RunUntilIdle();
+
+  last_packet_time = acl_data_channel()->GetLastPacketTime(kConnectionHandle0);
+  ASSERT_TRUE(last_packet_time.has_value());
+  EXPECT_EQ(kRxPacketTime, last_packet_time.value());
+
+  acl_data_channel()->UnregisterConnection(kConnectionHandle0);
+  acl_data_channel()->ClearControllerPacketCount(kConnectionHandle0);
+  EXPECT_FALSE(
+      acl_data_channel()->GetLastPacketTime(kConnectionHandle0).has_value());
+}
+
 TEST_F(AclDataChannelOnlyBREDRBufferAvailable,
        NumberOfCompletedPacketsExceedsPendingPackets) {
   FakeAclConnection connection_0(
