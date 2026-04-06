@@ -27,6 +27,8 @@ pw_add_library(pw_bluetooth_proxy.hci.types INTERFACE
 # LINT.IfChange
   HEADERS
     public/pw_bluetooth_proxy/hci/types.h
+  PUBLIC_INCLUDES
+    public
 # LINT.ThenChange(Android.bp, BUILD.bazel, BUILD.gn)
 )
 
@@ -35,6 +37,8 @@ pw_add_library(pw_bluetooth_proxy.hci.command_multiplexer STATIC
   HEADERS
     public/pw_bluetooth_proxy/hci/command_multiplexer.h
     public/pw_bluetooth_proxy/hci/internal/type_safe_ids.h
+  PUBLIC_INCLUDES
+    public
   PUBLIC_DEPS
     pw_bluetooth.emboss_hci_common
     pw_bluetooth.emboss_hci_commands
@@ -59,6 +63,8 @@ pw_add_library(pw_bluetooth_proxy.hci.sniff_offload STATIC
 # LINT.IfChange
   HEADERS
     public/pw_bluetooth_proxy/hci/sniff_offload_manager.h
+  PUBLIC_INCLUDES
+    public
   PUBLIC_DEPS
     pw_allocator
     pw_assert.check
