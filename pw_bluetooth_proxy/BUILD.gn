@@ -267,6 +267,7 @@ pw_test("pw_bluetooth_proxy_async_test") {
 
 _pw_bluetooth_proxy_test_utils_deps = [
   "$dir_pw_allocator:libc_allocator",
+  "$dir_pw_allocator:null_allocator",
   "$dir_pw_allocator:testing",
   "$dir_pw_assert:check",
   "$dir_pw_async2:notified_dispatcher",

@@ -279,13 +279,14 @@ pw_add_test(pw_bluetooth_proxy.pw_bluetooth_proxy_async_test
 )
 
 set(PW_BLUETOOTH_PROXY_TEST_UTILS_PRIVATE_DEPS
+  pw_allocator.libc_allocator
+  pw_allocator.null_allocator
   pw_allocator.testing
   pw_assert.check
+  pw_async2.notified_dispatcher
   pw_bluetooth.emboss_util
   pw_thread.test_thread_context
   pw_thread.thread
-  pw_allocator.libc_allocator
-  pw_async2.notified_dispatcher
 )
 
 set(PW_BLUETOOTH_PROXY_TEST_UTILS_PRIVATE_SRCS

@@ -222,12 +222,13 @@ def pw_bluetooth_proxy_test_utils(name, versioned_deps, **kwargs):
         strip_include_prefix = "private",
         features = ["-conversion_warnings"],
         deps = [
+            "//pw_allocator:libc_allocator",
+            "//pw_allocator:null_allocator",
             "//pw_allocator:testing",
             "//pw_assert:check",
             "//pw_bluetooth:emboss_util",
             "//pw_thread:test_thread_context",
             "//pw_thread:thread",
-            "//pw_allocator:libc_allocator",
             "//pw_async2:notified_dispatcher",
         ] + versioned_deps,
         # LINT.ThenChange(BUILD.gn, CMakeLists.txt)

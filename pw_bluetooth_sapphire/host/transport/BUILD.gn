@@ -58,13 +58,13 @@ pw_source_set("transport") {
     "$dir_pw_bluetooth_sapphire:lease",
     "$dir_pw_bluetooth_sapphire/host/common",
     "$dir_pw_bluetooth_sapphire/host/hci-spec",
+    "$dir_pw_multibuf/v2:multibuf",
     "$dir_pw_result",
     "$dir_pw_status",
     "$pw_external_fuchsia:fit",
     dir_pw_allocator,
     dir_pw_bluetooth,
     dir_pw_bytes,
-    dir_pw_multibuf,
   ]
 }
 
@@ -104,7 +104,7 @@ pw_test("transport_test") {
     "$dir_pw_bluetooth_sapphire/host/testing",
     "$dir_pw_bluetooth_sapphire/host/testing:mock_controller",
     "$dir_pw_bluetooth_sapphire/host/testing:test_helpers",
-    dir_pw_multibuf,
+    "$dir_pw_multibuf/v2:multibuf",
   ]
 }
 

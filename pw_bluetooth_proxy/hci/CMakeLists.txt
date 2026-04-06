@@ -46,7 +46,7 @@ pw_add_library(pw_bluetooth_proxy.hci.command_multiplexer STATIC
     pw_bluetooth.emboss_hci_h4
     pw_containers.flat_map
     pw_function
-    pw_multibuf
+    pw_multibuf.v2.multibuf
     pw_result
     pw_result.expected
     pw_span
@@ -83,7 +83,7 @@ pw_add_library(pw_bluetooth_proxy.hci.sniff_offload STATIC
     pw_chrono.system_clock
     pw_containers.intrusive_map
     pw_function
-    pw_multibuf
+    pw_multibuf.v2.multibuf
     pw_sync.lock_annotations
     pw_sync.mutex
   SOURCES
