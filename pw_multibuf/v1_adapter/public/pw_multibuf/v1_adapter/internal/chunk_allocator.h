@@ -156,6 +156,9 @@ class SingleChunkAllocator : public ChunkAllocator {
   /// @copydoc ChunkAllocator::TryDeallocateRegion
   size_t TryDeallocateRegion(void* ptr) override;
 
+  /// @copydoc pw::multibuf::v1::SingleChunkRegionTracker::Destroy
+  virtual void Destroy() {}
+
  private:
   /// Describes the memory available for allocation.
   Region region_;

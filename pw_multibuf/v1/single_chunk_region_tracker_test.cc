@@ -81,5 +81,24 @@ TEST(SingleChunkRegionTrackerTest, GetChunkAfterReleasedChunkSuccess) {
   EXPECT_TRUE(chunk3.has_value());
 }
 
+struct SingleChunkRegionTrackerWithDestroy : public SingleChunkRegionTracker {
+  bool destroyed = false;
+
+  SingleChunkRegionTrackerWithDestroy(ByteSpan region)
+      : SingleChunkRegionTracker(region) {}
+
+  void Destroy() override { destroyed = true; }
+};
+
+TEST(SingleChunkRegionTrackerTest, EnsureDestroyIsCalled) {
+  std::array<std::byte, kArbitraryRegionSize> chunk_storage{};
+  SingleChunkRegionTrackerWithDestroy chunk_tracker(chunk_storage);
+  std::optional<OwnedChunk> chunk = chunk_tracker.GetChunk(kArbitraryChunkSize);
+
+  EXPECT_FALSE(chunk_tracker.destroyed);
+  chunk.reset();
+  EXPECT_TRUE(chunk_tracker.destroyed);
+}
+
 }  // namespace
 }  // namespace pw::multibuf::v1

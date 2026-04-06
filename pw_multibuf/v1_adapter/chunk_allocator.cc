@@ -122,6 +122,9 @@ void SingleChunkAllocator::DoDeallocate(void* ptr) {
   } else {
     ChunkAllocator::DoDeallocate(ptr);
   }
+  if (num_allocations() == 0 && control_block_free_) {
+    Destroy();
+  }
 }
 
 auto SingleChunkAllocator::AllocateRegion(size_t min_size, size_t desired_size)

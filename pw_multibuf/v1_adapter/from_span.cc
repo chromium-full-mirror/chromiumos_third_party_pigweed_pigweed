@@ -41,16 +41,13 @@ class FromSpanChunkAllocator : public internal::SingleChunkAllocator {
   }
 
  private:
-  /// @copydoc Deallocator::Allocate
-  void DoDeallocate(void* ptr) override {
-    Base::DoDeallocate(ptr);
-    if (num_allocations() == 0 && control_block_free()) {
-      // This corresponds to the call to `New` in `FromSpan`.
-      metadata_allocator().Delete<FromSpanChunkAllocator>(this);
-    }
+  /// @copydoc internal::SingleChunkAllocator::Destroy
+  void Destroy() override {
+    // This corresponds to the call to `New` in `FromSpan`.
+    metadata_allocator().Delete<FromSpanChunkAllocator>(this);
   }
 
-  /// @copydoc BasicChunkAllocator::TryDeallocateRegion
+  /// @copydoc internal::ChunkAllocator::TryDeallocateRegion
   size_t TryDeallocateRegion(void* ptr) override {
     size_t released = Base::TryDeallocateRegion(ptr);
     if (released != 0) {

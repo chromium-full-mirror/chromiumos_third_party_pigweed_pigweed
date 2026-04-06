@@ -36,14 +36,16 @@ namespace pw::multibuf::v1_adapter {
 ///
 /// This type can be used as a drop-in replacement for
 /// `v1::SingleChunkRegionTracker` while migrating to using pw_multibuf/v2.
-class SingleChunkRegionTracker {
+class SingleChunkRegionTracker : private internal::SingleChunkAllocator {
+ private:
+  using Base = internal::SingleChunkAllocator;
+
  public:
   /// Default constructor.
   ///
   /// Callers must call `SetRegion` before calling `GetChunk`.
   SingleChunkRegionTracker()
-      : metadata_allocator_(metadata_buffer_),
-        allocator_(metadata_allocator_) {}
+      : Base(metadata_allocator_), metadata_allocator_(metadata_buffer_) {}
 
   /// Constructs a region tracker with a single `Chunk` that maps to `region`,
   /// which must outlive this tracker and any `OwnedChunk` it creates.
@@ -52,20 +54,15 @@ class SingleChunkRegionTracker {
     SetRegion(region);
   }
 
-  virtual ~SingleChunkRegionTracker() = default;
+  using Base::Destroy;
+  using Base::SetRegion;
 
-  /// @copydoc pw::multibuf::v1::SingleChunkRegionTracker::SetRegion
-  void SetRegion(ByteSpan region) { allocator_.SetRegion(region); }
+  ByteSpan Region() const { return Base::buffer(); }
 
   /// @copydoc pw::multibuf::v1::SingleChunkRegionTracker::GetChunk
   std::optional<OwnedChunk> GetChunk(size_t size) {
-    return allocator_.AllocateChunk(size);
+    return Base::AllocateChunk(size);
   }
-
-  /// @copydoc pw::multibuf::v1::SingleChunkRegionTracker::Destroy
-  virtual void Destroy() {}
-
-  ByteSpan Region() const { return allocator_.buffer(); }
 
  private:
   /// The metadata allocator is primarily used to back the v2 multibuf's deque.
@@ -74,8 +71,6 @@ class SingleChunkRegionTracker {
   std::array<std::byte, kBufSize> metadata_buffer_{};
 
   allocator::FirstFitAllocator<allocator::TinyBlock> metadata_allocator_;
-
-  internal::SingleChunkAllocator allocator_;
 };
 
 /// @}
