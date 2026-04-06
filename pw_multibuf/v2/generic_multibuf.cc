@@ -31,6 +31,7 @@ static constexpr Out CheckedCast(size_t val) {
 }
 
 GenericMultiBuf& GenericMultiBuf::operator=(GenericMultiBuf&& other) {
+  Clear();
   deque_ = std::move(other.deque_);
   entries_per_chunk_ =
       std::exchange(other.entries_per_chunk_, Entry::kMinEntriesPerChunk);

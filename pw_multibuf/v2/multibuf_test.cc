@@ -360,6 +360,54 @@ TEST_F(MultiBufV2Test, MultiBufInstanceMoveAssignment) {
   EXPECT_EQ(mb2->size(), kN);
 }
 
+TEST_F(MultiBufV2Test, MoveIntoExistingMultiBufProperlyReleasesChunks) {
+  auto num_allocations = [this]() -> size_t {
+    auto& metrics = allocator_.metrics();
+    return metrics.num_allocations.value() - metrics.num_deallocations.value();
+  };
+
+  size_t initial = num_allocations();
+
+  // Set up the first multibuf.
+  ConstMultiBufInstance mbi1(allocator_);
+
+  std::array<std::byte, kN> unowned1;
+  unowned1[0] = std::byte(0xA);
+  mbi1->PushBack(unowned1);
+
+  auto owned = allocator_.MakeUnique<std::byte[]>(kN);
+  mbi1->PushBack(std::move(owned));
+
+  auto shared = allocator_.MakeShared<std::byte[]>(kN);
+  shared[0] = std::byte(0xB);
+  mbi1->PushBack(shared);
+
+  size_t before_move = num_allocations();
+
+  // Set up the second multibuf and move it into the first.
+  ConstMultiBufInstance mbi2(allocator_);
+  std::array<std::byte, kN> unowned2;
+  mbi2->PushBack(unowned2);
+
+  mbi1 = std::move(mbi2);
+
+  // The owned chunk should have been freed, and the unowned and shared should
+  // still be accessible.
+  size_t after_move = num_allocations();
+  EXPECT_LT(after_move, before_move);
+  EXPECT_EQ(unowned1[0], std::byte(0xA));
+  EXPECT_EQ(shared[0], std::byte(0xB));
+
+  // The ref count of `shared` should have been decremented.
+  shared.reset();
+  EXPECT_LT(num_allocations(), after_move);
+
+  // Discard the multibuf and verify there are no leaks.
+  std::optional<ConstMultiBufInstance> mbi3(std::move(mbi1));
+  mbi3.reset();
+  EXPECT_EQ(num_allocations(), initial);
+}
+
 TEST_F(MultiBufV2Test, SizeForEmptyMultiBuf) {
   ConstMultiBufInstance mbi(allocator_);
   auto& mb = mbi->as<ConstMultiBuf>();
