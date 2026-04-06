@@ -193,7 +193,10 @@ export class ClangdActiveFilesCache extends Disposable {
     const activeFilesForTarget = [
       ...((await this.getForTarget(target)).keys() ?? []),
     ];
-    let data = yaml.dump(clangdSettingsDisableFiles(activeFilesForTarget));
+    const escapedPaths = activeFilesForTarget.map((p) =>
+      p.replace(/\+/g, '\\+'),
+    );
+    let data = yaml.dump(clangdSettingsDisableFiles(escapedPaths));
 
     // If there are other clangd settings for the project, append this fragment
     // to the end of those settings.

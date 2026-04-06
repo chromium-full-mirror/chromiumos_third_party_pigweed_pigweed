@@ -100,7 +100,7 @@ export async function setTargetWithClangd(
     updatePath(clangdPath),
     updateArgs([
       `--compile-commands-dir=${target.dir}`,
-      '--query-driver=**',
+      '--query-driver=/*',
       '--header-insertion=never',
       '--background-index',
       '-j=' + Math.max(1, Math.round(cores / 4)),
