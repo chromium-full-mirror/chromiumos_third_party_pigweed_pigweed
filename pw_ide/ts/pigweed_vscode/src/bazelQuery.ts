@@ -42,7 +42,7 @@ export async function getPreconfiguredTargets(
     const query =
       'attr(tags, "pw_compile_commands_generator", attr(generator_function, "pw_compile_commands_generator", //:*))';
 
-    const child = spawnFn(bazelBinary, ['query', query, '--output=label'], {
+    const child = spawnFn(bazelBinary, ['query', query, '--output=location'], {
       cwd,
       env,
     });
@@ -60,13 +60,29 @@ export async function getPreconfiguredTargets(
         return;
       }
 
-      // If we get any output, it means we found matching targets.
-      const targets = stdout
+      // Output format: /path/to/BUILD.bazel:123:45: rule_class rule //:target_name
+      const parsedTargets = stdout
         .trim()
         .split('\n')
         .map((t) => t.trim())
-        .filter((t) => t.length > 0);
-      resolve(targets);
+        .filter((t) => t.length > 0)
+        .map((line) => {
+          const match = line.match(/:(\d+):\d+: .* rule (.*)$/);
+          if (match) {
+            return {
+              lineNumber: parseInt(match[1], 10),
+              label: match[2].trim(),
+            };
+          }
+          return null;
+        })
+        .filter(
+          (item): item is { lineNumber: number; label: string } =>
+            item !== null,
+        );
+
+      parsedTargets.sort((a, b) => a.lineNumber - b.lineNumber);
+      resolve(parsedTargets.map((item) => item.label));
     });
 
     child.on('error', () => {

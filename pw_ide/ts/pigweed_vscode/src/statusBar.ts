@@ -69,8 +69,9 @@ export class TargetStatusBarItem extends Disposable {
   };
 
   updateTarget = (target?: string): void => {
-    this.targetText =
+    const rawTarget =
       target ?? settings.codeAnalysisTarget() ?? DEFAULT_TARGET_TEXT;
+    this.targetText = rawTarget.replace(/____/g, '//').replace(/__/g, ':');
 
     this.updateProps();
   };

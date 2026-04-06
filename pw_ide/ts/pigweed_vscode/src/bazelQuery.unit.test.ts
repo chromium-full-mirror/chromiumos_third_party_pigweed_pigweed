@@ -49,7 +49,9 @@ suite('getPreconfiguredTargets', () => {
   }
 
   test('returns targets when they exist', async () => {
-    const stdout = '//:update_compile_commands\n//:other_target\n';
+    const stdout =
+      '/BUILD.bazel:10:1: pw_compile_commands_generator rule //:update_compile_commands\n' +
+      '/BUILD.bazel:20:1: pw_compile_commands_generator rule //:other_target\n';
     const spawnFn = createMockSpawn(stdout, '', 0);
 
     const result = await getPreconfiguredTargets(

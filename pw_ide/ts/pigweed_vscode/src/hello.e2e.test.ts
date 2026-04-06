@@ -17,11 +17,6 @@ import * as vscode from 'vscode';
 import { clangdPath, initBazelClangdPath } from './clangd/bazel';
 import { executeInTerminalAndGetStdout } from './terminal';
 import { patchBazeliskIntoTerminalPath } from './terminal';
-import {
-  createBazelInterceptorFile,
-  deleteBazelInterceptorFile,
-  getBazelInterceptorPath,
-} from './clangd/compileCommandsUtils';
 import { existsSync, writeFileSync, readFileSync, unlinkSync } from 'fs';
 import * as path from 'path';
 import { deactivate as callExtensionDeactivate } from './extension';
@@ -52,41 +47,6 @@ suite('Extension Test Suite', () => {
       );
     });
   }
-
-  test('Bazel Interceptor cleanup on deactivate', async () => {
-    const interceptorPath = getBazelInterceptorPath();
-    if (!interceptorPath) {
-      assert.fail('Could not get Bazel interceptor path. Test setup issue.');
-    }
-
-    // Ensure a clean state: delete if it exists from a previous failed run
-    if (existsSync(interceptorPath)) {
-      await deleteBazelInterceptorFile();
-    }
-    assert.strictEqual(
-      existsSync(interceptorPath),
-      false,
-      'Interceptor file should not exist initially',
-    );
-
-    // 1. Create the interceptor file
-    await createBazelInterceptorFile();
-    assert.strictEqual(
-      existsSync(interceptorPath),
-      true,
-      'Interceptor file should be created',
-    );
-
-    // 2. Call the extension's deactivate function
-    await callExtensionDeactivate();
-
-    // 3. Assert the file is deleted
-    assert.strictEqual(
-      existsSync(interceptorPath),
-      false,
-      'Interceptor file should be deleted after deactivate',
-    );
-  });
 
   suite('Clangd file cleanup on deactivate', () => {
     const workspaceRoot = workingDir.get();

@@ -75,10 +75,6 @@ import { shouldSupportGn } from './gn';
 import { shouldSupportCmake } from './cmake';
 import { CompileCommandsWatcher } from './clangd/compileCommandsWatcher';
 import { existsSync, statSync } from 'node:fs';
-import {
-  createBazelInterceptorFile,
-  deleteBazelInterceptorFile,
-} from './clangd/compileCommandsUtils';
 import { checkClangdVersion } from './clangd/extensionChecker';
 import { handleInactiveFileCodeIntelligenceEnabled } from './clangd/activeFilesCache';
 import * as path from 'path';
@@ -443,12 +439,6 @@ export async function activate(context: vscode.ExtensionContext) {
       await initAsBazelProject(refreshManager);
     }
 
-    await manageBazelInterceptor(
-      settings.disableBazelInterceptor(),
-      isPreconfigured,
-      createBazelInterceptorFile,
-    );
-
     registerCommands(
       projectType,
       context,
@@ -470,14 +460,19 @@ export async function activate(context: vscode.ExtensionContext) {
   }
 
   logger.info('Extension initialization complete');
+
+  if (projectType === 'bazel' || projectType === 'both') {
+    const allTargets = await availableTargets();
+    if (!isPreconfigured || allTargets.length === 0) {
+      vscode.commands.executeCommand(`${WebviewProvider.viewType}.focus`);
+    }
+  }
+
   didInit.fire();
   refreshManager.refresh();
 }
 
 export async function deactivate() {
-  // Clean up the Bazel interceptor script
-  deleteBazelInterceptorFile();
-
   // Clean up the .clangd file to a default state
   const rootClangdPath = path.join(workingDir.get(), '.clangd');
   const sharedClangdPath = path.join(workingDir.get(), '.clangd.shared');

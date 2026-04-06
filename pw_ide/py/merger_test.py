@@ -165,9 +165,12 @@ class MergerTest(fake_filesystem_unittest.TestCase):
                 # Fallback to globbing for tests that don't invoke Bazel.
                 # This mimics the old behavior solely for the purpose of testing
                 # the merging logic on pre-existing files.
-                yield from execution_root.joinpath('bazel-out').rglob(
+                for path in execution_root.joinpath('bazel-out').rglob(
                     f'*{_FRAGMENT_SUFFIX}'
-                )
+                ):
+                    base_name = path.name[: -len(_FRAGMENT_SUFFIX)]
+                    config_str = base_name.split('.')[-1]
+                    yield config_str, path
 
         self.mock_collect_fragments.side_effect = collect_fragments_side_effect
 

@@ -89,10 +89,13 @@ def _get_host_platform() -> str:
     return cwd_parts[bazel_out_idx + 1]
 
 
-_HOST_PLATFORM = _get_host_platform()
+_OLD_HOST_PLATFORM = _get_host_platform()
 
 # Use the same suffix (e.g. fastbuild) as the host build.
-_DEVICE_PLATFORM = 'rp2040-' + _HOST_PLATFORM.split('-')[1]
+_OLD_DEVICE_PLATFORM = 'rp2040-' + _OLD_HOST_PLATFORM.split('-')[1]
+
+_HOST_PLATFORM = f'({_OLD_HOST_PLATFORM}|@@bazel_tools____tools__host_platform)'
+_DEVICE_PLATFORM = f'({_OLD_DEVICE_PLATFORM}|@@____targets__rp2040__rp2040)'
 
 # Helpful pattern to cover both host and target test platforms.
 _HOST_OR_DEVICE = f'({_HOST_PLATFORM})|({_DEVICE_PLATFORM})'

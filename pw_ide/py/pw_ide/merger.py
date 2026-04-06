@@ -295,7 +295,7 @@ def _build_and_collect_fragments(
     forwarded_args: list[str],
     verbose: bool,
     execution_root: Path,
-) -> Iterator[Path]:
+) -> Iterator[tuple[str, Path]]:
     """Collects fragments using `bazel cquery`."""
     if forwarded_args and forwarded_args[0] == '--':
         # Remove initial double-dash.
@@ -321,16 +321,22 @@ def _build_and_collect_fragments(
     _LOG.info('⏳ Generating compile commands...')
     build_args = list(forwarded_args)
     build_args[subcommand_index] = 'build'
-    yield from _run_bazel_build_for_fragments(
+    fragments = _run_bazel_build_for_fragments(
         build_args, verbose, execution_root
     )
+    for fragment in fragments:
+        base_name = fragment.name.removesuffix(_FRAGMENT_SUFFIX)
+        config_str = base_name.split(".")[-1]
+        if "size_report" in config_str or config_str.endswith("-exec"):
+            continue
+        yield config_str, fragment
 
 
 def _build_and_collect_fragments_from_groups(
     groups_file: Path,
     verbose: bool,
     execution_root: Path,
-) -> Iterator[Path]:
+) -> Iterator[tuple[str, Path]]:
     """Collects fragments using patterns from a JSON file."""
     # When running interactively, passing a local file will cause this to fail
     # since the path isn't relative to the sandbox. This is intentional, as
@@ -347,6 +353,9 @@ def _build_and_collect_fragments_from_groups(
     has_errors = False
     compile_commands_patterns = patterns.get('compile_commands_patterns', [])
     total_groups = len(compile_commands_patterns)
+
+    # Dictionary keeping track of platform names for valid fragments found.
+    fragment_platform_map: dict[Path, str] = {}
 
     for i, group in enumerate(compile_commands_patterns):
         platform = group.get('platform')
@@ -367,6 +376,8 @@ def _build_and_collect_fragments_from_groups(
             build_args, verbose, execution_root
         )
 
+        sanitized_platform = platform.replace('/', '__').replace(':', '__')
+
         # Multiple builds may generate the same fragments. It's possible that
         # you can end up with multiple conflicting definitions of the same
         # compile commands fragment due to how transitions work. This catches
@@ -374,6 +385,11 @@ def _build_and_collect_fragments_from_groups(
         # went wrong.
         for fragment in group_fragments:
             if fragment in ignored_fragments:
+                continue
+
+            base_name = fragment.name.removesuffix(_FRAGMENT_SUFFIX)
+            config_str = base_name.split(".")[-1]
+            if "size_report" in config_str or config_str.endswith("-exec"):
                 continue
 
             content_hash = hash(fragment.read_text())
@@ -388,13 +404,17 @@ def _build_and_collect_fragments_from_groups(
                     )
                     ignored_fragments.add(fragment)
                     del known_fragments[fragment]
+                    if fragment in fragment_platform_map:
+                        del fragment_platform_map[fragment]
             else:
                 known_fragments[fragment] = content_hash
+                fragment_platform_map[fragment] = sanitized_platform
 
     if has_errors:
         return
 
-    yield from known_fragments.keys()
+    for fragment in known_fragments.keys():
+        yield fragment_platform_map[fragment], fragment
 
 
 def _collect_fragments(
@@ -402,7 +422,7 @@ def _collect_fragments(
     forwarded_args: list[str],
     verbose: bool,
     compile_command_groups: Path | None = None,
-) -> Iterator[Path]:
+) -> Iterator[tuple[str, Path]]:
     """Dispatches to the correct fragment collection method."""
     if compile_command_groups:
         yield from _build_and_collect_fragments_from_groups(
@@ -690,10 +710,8 @@ def _find_fragments(
         sys.exit(1)
 
     fragments_by_platform: dict[str, list[Path]] = collections.defaultdict(list)
-    for fragment in all_fragments:
-        base_name = fragment.name.removesuffix(_FRAGMENT_SUFFIX)
-        platform = base_name.split(".")[-1]
-        fragments_by_platform[platform].append(fragment)
+    for platform_str, fragment in all_fragments:
+        fragments_by_platform[platform_str].append(fragment)
 
     return fragments_by_platform
 
