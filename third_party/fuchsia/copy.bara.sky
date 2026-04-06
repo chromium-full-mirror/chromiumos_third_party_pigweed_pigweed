@@ -35,10 +35,7 @@ fuchsia_repo_files = [
     "sdk/lib/stdcompat/include/lib/stdcompat/utility.h",
     "sdk/lib/stdcompat/include/lib/stdcompat/version.h",
     "sdk/lib/stdcompat/include/lib/stdcompat/internal/bit.h",
-    "sdk/lib/stdcompat/include/lib/stdcompat/internal/constructors.h",
-    "sdk/lib/stdcompat/include/lib/stdcompat/internal/exception.h",
     "sdk/lib/stdcompat/include/lib/stdcompat/internal/functional.h",
-    "sdk/lib/stdcompat/include/lib/stdcompat/internal/storage.h",
     "sdk/lib/stdcompat/include/lib/stdcompat/internal/type_traits.h",
     "sdk/lib/stdcompat/include/lib/stdcompat/internal/utility.h",
     # lazy_init

@@ -42,19 +42,19 @@ struct arrow_operator {
   static constexpr const T* forward(const T& value) { return &value; }
 };
 template <typename T>
-struct arrow_operator<T, std::enable_if_t<cpp17::is_pointer_v<T>>> {
+struct arrow_operator<T, std::enable_if_t<std::is_pointer_v<T>>> {
   static constexpr T& forward(T& value) { return value; }
   static constexpr const T& forward(const T& value) { return value; }
 };
 template <typename T>
-struct arrow_operator<T, cpp17::void_t<decltype(std::declval<T>().operator->())>> {
+struct arrow_operator<T, std::void_t<decltype(std::declval<T>().operator->())>> {
   static constexpr T& forward(T& value) { return value; }
   static constexpr const T& forward(const T& value) { return value; }
 };
 
 // Concept helper for constructor, method, and operator overloads.
 template <typename... Conditions>
-using requires_conditions = std::enable_if_t<cpp17::conjunction_v<Conditions...>, bool>;
+using requires_conditions = std::enable_if_t<std::conjunction_v<Conditions...>, bool>;
 
 // Detects whether the given expression evaluates to an instance of the template T.
 template <template <typename...> class T>
@@ -82,7 +82,7 @@ static constexpr bool is_error_v = is_error<T>::value;
 
 // Predicate indicating whether type T is not an instantiation of fit::error.
 template <typename T>
-struct not_error_type : cpp17::negation<is_error<T>>::type {};
+struct not_error_type : std::negation<is_error<T>>::type {};
 
 // Predicate indicating whether type T is an instantiation of fit::success.
 template <typename T>
@@ -100,21 +100,20 @@ static constexpr bool is_result_v = is_result<T>::value;
 
 // Predicate indicating whether type T is not an instantiation of fit::result.
 template <typename T>
-struct not_result_type : cpp17::negation<is_result<T>>::type {};
+struct not_result_type : std::negation<is_result<T>>::type {};
 
 // Determines whether T += U is well defined.
 template <typename T, typename U, typename = void>
 struct has_plus_equals : std::false_type {};
 template <typename T, typename U>
-struct has_plus_equals<T, U, cpp17::void_t<decltype(std::declval<T>() += std::declval<U>())>>
+struct has_plus_equals<T, U, std::void_t<decltype(std::declval<T>() += std::declval<U>())>>
     : std::true_type {};
 
 // Enable if relational operator is convertible to bool and the optional
 // conditions are true.
 template <typename Op, typename... Conditions>
 using enable_rel_op =
-    std::enable_if_t<(cpp17::is_convertible_v<Op, bool> && cpp17::conjunction_v<Conditions...>),
-                     bool>;
+    std::enable_if_t<(std::is_convertible_v<Op, bool> && std::conjunction_v<Conditions...>), bool>;
 
 // Specifies whether a type is trivially or non-trivially destructible.
 enum class storage_class_e {
@@ -126,8 +125,8 @@ enum class storage_class_e {
 // destructible, storage_class_e::non_trivial otherwise.
 template <typename... Ts>
 static constexpr storage_class_e storage_class_trait =
-    cpp17::conjunction_v<std::is_trivially_destructible<Ts>...> ? storage_class_e::trivial
-                                                                : storage_class_e::non_trivial;
+    std::conjunction_v<std::is_trivially_destructible<Ts>...> ? storage_class_e::trivial
+                                                              : storage_class_e::non_trivial;
 
 // Trivial type for the default variant of the union below.
 struct empty_type {};
@@ -151,10 +150,14 @@ union error_or_value_type {
   constexpr error_or_value_type& operator=(error_or_value_type&&) = default;
 
   template <typename F>
-  constexpr error_or_value_type(error_t, F&& error) : error(std::forward<F>(error)) {}
+  constexpr error_or_value_type(error_t, F&& err) : error(std::forward<F>(err)) {}
 
   template <typename U>
-  constexpr error_or_value_type(value_t, U&& value) : value(std::forward<U>(value)) {}
+  constexpr error_or_value_type(value_t, U&& val) : value(std::forward<U>(val)) {}
+
+  template <class... Args>
+  constexpr error_or_value_type(std::in_place_t, value_t, Args&&... args)
+      : value{std::forward<Args>(args)...} {}
 
   ~error_or_value_type() = default;
 
@@ -175,10 +178,14 @@ union error_or_value_type<E, T, storage_class_e::non_trivial> {
   constexpr error_or_value_type& operator=(error_or_value_type&&) = default;
 
   template <typename F>
-  constexpr error_or_value_type(error_t, F&& error) : error(std::forward<F>(error)) {}
+  constexpr error_or_value_type(error_t, F&& err) : error(std::forward<F>(err)) {}
 
   template <typename U>
-  constexpr error_or_value_type(value_t, U&& value) : value(std::forward<U>(value)) {}
+  constexpr error_or_value_type(value_t, U&& val) : value(std::forward<U>(val)) {}
+
+  template <class... Args>
+  constexpr error_or_value_type(std::in_place_t, value_t, Args&&... args)
+      : value{std::forward<Args>(args)...} {}
 
   ~error_or_value_type() {}
 
@@ -230,6 +237,11 @@ struct storage_type<storage_class, E, T> {
   ~storage_type() = default;
 
   explicit constexpr storage_type(empty_t) {}
+
+  template <class... Args>
+  explicit constexpr storage_type(std::in_place_t, value_t, Args&&... args)
+      : state{state_e::has_value},
+        error_or_value{std::in_place, value_v, std::forward<Args>(args)...} {}
 
   template <typename F>
   constexpr storage_type(error_t, F&& error)
@@ -307,6 +319,11 @@ struct storage_type<storage_class_e::non_trivial, E, T> {
   }
 
   ~storage_type() { destroy(); }
+
+  template <class... Args>
+  explicit constexpr storage_type(std::in_place_t, value_t, Args&&... args)
+      : state{state_e::has_value},
+        error_or_value{std::in_place, value_v, std::forward<Args>(args)...} {}
 
   explicit constexpr storage_type(empty_t) {}
 

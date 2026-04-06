@@ -37,9 +37,6 @@ pw_source_set("stdcompat") {
   ]
   sources = [
     "include/lib/stdcompat/internal/bit.h",
-    "include/lib/stdcompat/internal/constructors.h",
-    "include/lib/stdcompat/internal/exception.h",
-    "include/lib/stdcompat/internal/storage.h",
     "include/lib/stdcompat/internal/type_traits.h",
     "include/lib/stdcompat/internal/utility.h",
   ]
