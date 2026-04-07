@@ -27,22 +27,3 @@
 /// communicate with tasks running on the dispatcher thread.
 #define PW_BLUETOOTH_PROXY_ASYNC 0
 #endif  // PW_BLUETOOTH_PROXY_ASYNC
-
-#ifndef PW_BLUETOOTH_PROXY_INTERNAL_ALLOCATOR_SIZE
-#if PW_BLUETOOTH_PROXY_ASYNC == 0
-
-/// Sets the size of the internally provided memory region. If the proxy
-/// container provides an allocator, the internal allocator is not used and this
-/// should be set to 0.
-///
-/// TODO: https://pwbug.dev/369849508 - Fully migrate to container-provided
-/// allocator and remove internal allocator.
-#define PW_BLUETOOTH_PROXY_INTERNAL_ALLOCATOR_SIZE 13000
-
-#else  // PW_BLUETOOTH_PROXY_ASYNC != 0
-
-// No internal allocator when PW_BLUETOOTH_PROXY_ASYNC is enabled
-#define PW_BLUETOOTH_PROXY_INTERNAL_ALLOCATOR_SIZE 0
-
-#endif  // PW_BLUETOOTH_PROXY_ASYNC
-#endif  // PW_BLUETOOTH_PROXY_INTERNAL_ALLOCATOR_SIZE

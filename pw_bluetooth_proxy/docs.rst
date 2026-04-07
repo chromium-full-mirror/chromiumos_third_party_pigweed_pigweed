@@ -106,13 +106,6 @@ more details.
 
 Module configuration options include:
 
-- :cc:`PW_BLUETOOTH_PROXY_INTERNAL_ALLOCATOR_SIZE`: The
-  :cc:`pw::bluetooth::proxy::ProxyHost` can either use a provided allocator or
-  provide an internal one. To use an internal allocator, set the value of
-  this option to a non-zero value and omit the ``allocator`` parameter from the
-  ``ProxyHost`` constructor invocation. When providing an allocator, it is
-  strongly recommended to set the value of this option to zero to avoiding
-  reserving space that will not be used.
 - :cc:`PW_BLUETOOTH_PROXY_ASYNC`: This module supports two modes of operation,
   both of which provide thread-safe APIs. When this option is zero (the
   default), it will use synchronization primitives to allow for parallel
