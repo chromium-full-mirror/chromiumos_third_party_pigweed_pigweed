@@ -100,7 +100,7 @@ class InlineBorrowable : private internal::BorrowableStorage<GuardedType, Lock>,
   ///        [&]{ return MyLock{lock_arg1, lock_arg2}; }
   /// @endcode
   template <typename ObjectConstructor,
-            typename LockConstructor = Lock(),
+            typename LockConstructor = Lock (*)(),
             typename = std::enable_if_t<
                 std::is_invocable_r_v<GuardedType&&, ObjectConstructor>>,
             typename = std::enable_if_t<
@@ -112,7 +112,7 @@ class InlineBorrowable : private internal::BorrowableStorage<GuardedType, Lock>,
         Base(Storage::object_, Storage::lock_) {}
 
   template <typename ObjectConstructor,
-            typename LockConstructor = Lock(),
+            typename LockConstructor = Lock (*)(),
             typename = std::enable_if_t<
                 std::is_invocable_r_v<GuardedType&&, ObjectConstructor>>,
             typename = std::enable_if_t<
@@ -124,7 +124,7 @@ class InlineBorrowable : private internal::BorrowableStorage<GuardedType, Lock>,
         Base(Storage::object_, Storage::lock_) {}
 
   template <typename ObjectConstructor,
-            typename LockConstructor = Lock(),
+            typename LockConstructor = Lock (*)(),
             typename = std::enable_if_t<
                 std::is_invocable_r_v<GuardedType&&, ObjectConstructor>>,
             typename = std::enable_if_t<
@@ -135,7 +135,7 @@ class InlineBorrowable : private internal::BorrowableStorage<GuardedType, Lock>,
         Base(Storage::object_, Storage::lock_) {}
 
   template <typename ObjectConstructor,
-            typename LockConstructor = Lock(),
+            typename LockConstructor = Lock (*)(),
             typename = std::enable_if_t<
                 std::is_invocable_r_v<GuardedType&&, ObjectConstructor>>,
             typename = std::enable_if_t<
