@@ -12,7 +12,7 @@
 # License for the specific language governing permissions and limitations under
 # the License.
 
-load("//pw_build:python.bzl", "pw_py_library", "pw_py_test")
+load("//pw_build:python.bzl", "pw_py_binary", "pw_py_library", "pw_py_test")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -36,6 +36,13 @@ pw_py_library(
         "@pigweed_python_packages//jinja2",
         "@pigweed_python_packages//prompt_toolkit",
     ],
+)
+
+pw_py_binary(
+    name = "module",
+    srcs = ["pw_module/__main__.py"],
+    main = "pw_module/__main__.py",
+    deps = [":pw_module"],
 )
 
 pw_py_test(

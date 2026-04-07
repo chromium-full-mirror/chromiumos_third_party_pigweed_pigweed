@@ -37,6 +37,8 @@ import pw_cli.color
 import pw_cli.env
 from pw_cli.diff import colorize_diff
 from pw_cli.status_reporter import StatusReporter
+from pw_cli import git_repo
+from pw_cli.tool_runner import BasicSubprocessRunner
 
 from pw_module.templates import get_template
 
@@ -1128,19 +1130,29 @@ def _add_to_root_cmakelists(
 def _project_root() -> Path:
     """Returns the path to the root directory of the current project."""
     project_root = _PW_ENV.PW_PROJECT_ROOT
-    if not project_root.is_dir():
+    if project_root:
+        return project_root
+    try:
+        return git_repo.find_git_repo(
+            Path.cwd(), BasicSubprocessRunner()
+        ).root()
+    except git_repo.GitError as err:
         _LOG.error(
-            'Expected env var $PW_PROJECT_ROOT to point to a directory, but '
-            'found `%s` which is not a directory.',
-            project_root,
+            'Cannot find project root. Either run from within a git '
+            'repository or set the $PW_PROJECT_ROOT environment variable.'
         )
+        _LOG.debug(err)
         sys.exit(1)
-    return project_root
 
 
 def _is_upstream() -> bool:
     """Returns whether this command is being run within Pigweed itself."""
-    return _PW_ROOT == _project_root()
+    # In the Bazel case, PW_ROOT may not be set. In that case, check for a
+    # sentinel file to determine if we are in the upstream Pigweed repo.
+    project_root = _project_root()
+    if _PW_ROOT:
+        return _PW_ROOT == project_root
+    return (project_root / 'PIGWEED_MODULES').is_file()
 
 
 _COMMENTS = re.compile(r'\w*#.*$')

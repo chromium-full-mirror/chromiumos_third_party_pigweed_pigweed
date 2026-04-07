@@ -14,6 +14,7 @@
 """Utilities for managing modules."""
 
 import argparse
+import sys
 
 import pw_module.check
 import pw_module.create
@@ -25,7 +26,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.set_defaults(func=lambda **_kwargs: parser.print_help())
 
-    subparsers = parser.add_subparsers(title='subcommands')
+    subparsers = parser.add_subparsers(title='subcommands', dest='command')
 
     pw_module.check.register_subcommand(
         subparsers.add_parser('check', help=pw_module.check.__doc__)
@@ -34,7 +35,8 @@ def main() -> int:
         subparsers.add_parser('create', help=pw_module.create.__doc__)
     )
 
-    args = {**vars(parser.parse_args())}
+    parsed_args = parser.parse_args()
+    args = {**vars(parsed_args)}
     func = args['func']
     del args['func']
     func(**args)
@@ -43,4 +45,4 @@ def main() -> int:
 
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())

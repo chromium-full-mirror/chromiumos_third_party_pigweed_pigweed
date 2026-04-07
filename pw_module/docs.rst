@@ -25,7 +25,7 @@ its own lint:
 
 .. code-block:: none
 
-   $ pw module check pw_module
+   $ ./pw module check pw_module
 
     ▒█████▄   █▓  ▄███▒  ▒█    ▒█ ░▓████▒ ░▓████▒ ▒▓████▄
      ▒█░  █░ ░█▒ ██▒ ▀█▒ ▒█░ █ ▒█  ▒█   ▀  ▒█   ▀  ▒█  ▀█▌
@@ -52,4 +52,4 @@ boilerplate for a new Pigweed module.
    a command-line API subject to change.
 
    Once the command is more stable, it will be properly documented. For now,
-   running ``pw module create --help`` will display the current set of options.
+   running ``./pw module create --help`` will display the current set of options.

@@ -565,7 +565,7 @@ See :ref:`seed-0102`.
 Creating a new Pigweed module
 -----------------------------
 New Pigweed modules can be easily created using
-``pw module create MODULE_NAME`` (refer to the `Module name`_ guidelines).
+``./pw module create MODULE_NAME`` (refer to the `Module name`_ guidelines).
 
 .. tip::
 
@@ -598,6 +598,6 @@ added in the following locations:
 7. Run :ref:`module-pw_module-module-check` to ensure that the new module has
    been properly configured.
 
-    - ``$ pw module check {pw_module_dir}``
+    - ``$ ./pw module check {pw_module_dir}``
 
 8. Contribute your module to upstream Pigweed (optional but encouraged!)

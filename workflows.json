@@ -579,6 +579,12 @@
       "target": "//pw_presubmit/py:keep_sorted"
     },
     {
+      "name": "module",
+      "description": "Create and manage Pigweed modules.",
+      "use_config": "bazel_default",
+      "target": "//pw_module/py:module"
+    },
+    {
       "name": "pw_presubmit_checks",
       "description": "Run checks that use the pw_presubmit framework",
       "use_config": "bazel_default",
