@@ -40,7 +40,10 @@ cc_library(
 # Basic coverage of a library with headers/cc files.
 cc_library(
     name = "basic_library_direct_includes",
-    srcs = ["basic_source_test.cc"],
+    srcs = [
+        "basic_source_test.cc",
+        "private_header.h",
+    ],
     hdrs = ["public/real_included_header.h"],
     additional_compiler_inputs = ["uncompiled_cc_test.cc"],
     includes = ["public"],

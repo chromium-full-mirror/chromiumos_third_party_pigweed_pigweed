@@ -399,6 +399,31 @@ class StandardCompileCommandsTests(CompileCommandsTestBase):
                     )
                 self._check_no_heuristics(clangd_result, db_path, command)
 
+    def test_headers_in_srcs_are_present(self):
+        """Checks header files in srcs are present in the command databases."""
+        matches = self._find_commands_for_file(
+            _TEST_PACKAGE + r'private_header\.h',
+            platform_pattern=_HOST_OR_DEVICE,
+        )
+        self.assertGreater(
+            len(matches),
+            0,
+            'Headers in srcs should be present in the database.',
+        )
+
+        for db_path, command in matches:
+            with self.subTest(
+                f'Checking header in srcs {command["file"]} '
+                f'from {db_path.parent}'
+            ):
+                clangd_result = self._run_clangd_check(db_path, command)
+                self.assertEqual(
+                    clangd_result.returncode,
+                    0,
+                    _format_clangd_error(clangd_result, db_path, command),
+                )
+                self._check_no_heuristics(clangd_result, db_path, command)
+
     def test_deep_chain_header_is_present(self):
         """Verify that a header in a deep chain is present."""
         matches = self._find_commands_for_file(

@@ -568,7 +568,7 @@ def _load_commands_for_platform(
                 if borrowed_args:
                     src_files = {cmd["file"] for cmd in commands_list}
                     for info in target_infos:
-                        for hdr in info.get("hdrs", []):
+                        for hdr in info.get("hdrs", []) + info.get("srcs", []):
                             if hdr not in src_files and hdr.endswith(
                                 (".h", ".hh", ".hpp", ".hxx")
                             ):
@@ -917,7 +917,7 @@ def _enrich_with_global_flags(
         return None
 
     for label, info in final_target_infos.items():
-        for hdr in info.get("hdrs", []):
+        for hdr in info.get("hdrs", []) + info.get("srcs", []):
             if hdr in files_with_commands:
                 continue
 

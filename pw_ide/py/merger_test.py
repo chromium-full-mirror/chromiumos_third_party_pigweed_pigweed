@@ -269,6 +269,47 @@ class MergerTest(fake_filesystem_unittest.TestCase):
         header_cmd = next(item for item in data if item['file'] == 'a.h')
         self.assertEqual(header_cmd['arguments'], ['c', 'd'])
 
+    def test_merge_with_headers_in_srcs(self):
+        """Test that headers in srcs are included with source flags."""
+        _create_fragment(
+            self.fs,
+            self.output_path,
+            'target1',
+            'k8-fastbuild',
+            [
+                {
+                    'file': 'a.cc',
+                    'directory': '__WORKSPACE_ROOT__',
+                    'arguments': ['c', 'd'],
+                }
+            ],
+            target_info=[
+                {
+                    'label': '//target1',
+                    'srcs': ['a.cc', 'private.h'],
+                    'hdrs': [],
+                    'deps': [],
+                }
+            ],
+        )
+        self.assertEqual(merger.main(), 0)
+        merged_path = (
+            self.workspace_root
+            / '.compile_commands'
+            / 'k8-fastbuild'
+            / 'compile_commands.json'
+        )
+        with open(merged_path, 'r') as f:
+            data = json.load(f)
+        # Should have a.cc AND private.h
+        self.assertEqual(len(data), 2)
+        files = {item['file'] for item in data}
+        self.assertIn('a.cc', files)
+        self.assertIn('private.h', files)
+        # Verify private.h has the same arguments as a.cc
+        header_cmd = next(item for item in data if item['file'] == 'private.h')
+        self.assertEqual(header_cmd['arguments'], ['c', 'd'])
+
     def test_validate_environment_symlinks(self):
         """Test that _validate_environment resolves symlinks (e.g. /var vs
         /private/var)."""
