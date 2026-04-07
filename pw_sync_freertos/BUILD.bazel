@@ -49,6 +49,28 @@ cc_library(
 )
 
 cc_library(
+    name = "config",
+    hdrs = [
+        "public/pw_sync_freertos/config.h",
+    ],
+    includes = [
+        "public",
+    ],
+    target_compatible_with = [
+        "//pw_build/constraints/rtos:freertos",
+    ],
+    deps = [
+        ":config_override",
+        "@freertos",
+    ],
+)
+
+label_flag(
+    name = "config_override",
+    build_setting_default = "//pw_build:default_module_config",
+)
+
+cc_library(
     name = "counting_semaphore",
     srcs = [
         "counting_semaphore.cc",
@@ -128,7 +150,7 @@ cc_library(
         "//pw_build/constraints/rtos:freertos",
     ],
     deps = [
-        ":config_override",
+        ":config",
         "//pw_assert:assert",
         "//pw_interrupt:context",
         "//pw_polyfill",
@@ -137,11 +159,6 @@ cc_library(
         "//pw_sync:thread_notification.facade",
         "@freertos",
     ],
-)
-
-label_flag(
-    name = "config_override",
-    build_setting_default = "//pw_build:default_module_config",
 )
 
 cc_library(
@@ -212,6 +229,7 @@ cc_library(
         "//pw_build/constraints/rtos:freertos",
     ],
     deps = [
+        ":config",
         "//pw_assert:assert",
         "//pw_interrupt:context",
         "//pw_sync:interrupt_spin_lock.facade",
