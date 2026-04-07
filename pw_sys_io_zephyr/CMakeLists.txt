@@ -14,7 +14,7 @@
 
 include($ENV{PW_ROOT}/pw_build/pigweed.cmake)
 
-if(NOT CONFIG_PIGWEED_SYS_IO)
+if(NOT CONFIG_ZEPHYR_PIGWEED_MODULE AND NOT CONFIG_PIGWEED_SYS_IO)
   return()
 endif()
 
