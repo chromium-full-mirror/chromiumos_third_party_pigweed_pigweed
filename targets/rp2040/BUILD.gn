@@ -35,7 +35,6 @@ if (current_toolchain != default_toolchain) {
       "$PICO_ROOT/src/rp2_common/hardware_exception",
       "$PICO_ROOT/src/rp2_common/hardware_watchdog",
       "$PICO_ROOT/src/rp2_common/pico_malloc",
-      "$dir_pigweed/targets/rp2040:memmap_default_ld",
       "$dir_pw_cpu_exception:entry",
       "$dir_pw_system",
       "$dir_pw_system:crash_handler",
@@ -79,23 +78,20 @@ if (current_toolchain != default_toolchain) {
                rebase_path("config/rp2040_hal_config.h", root_build_dir) ]
   }
 
-  pw_copy_and_patch_file("memmap_default_ld") {
-    source =
-        "${PICO_SRC_DIR}/src/rp2_common/pico_standard_link/memmap_default.ld"
-    out = "patched_memmap_default.ld"
-    patch_file = "patches/pico_sdk_v1_memmap_default.ld.patch"
-
-    # Check if PICO_SRC_DIR is defined, as in build configurations which don't
-    # define PICO_SRC_DIR, GN will complain, as root can't be an empty string.
-    if (PICO_SRC_DIR != "") {
-      root = "${PICO_SRC_DIR}"
-    }
-  }
-
   config("linker_script") {
-    _linker_scripts = get_target_outputs(":memmap_default_ld")
-    _linker_script_path = rebase_path(_linker_scripts[0], root_build_dir)
-    ldflags = [ "-T${_linker_script_path}" ]
+    ldflags = [
+      "-T" + rebase_path(
+              "${PICO_SRC_DIR}/src/rp2_common/pico_standard_link/memmap_default.ld",
+              root_build_dir),
+      "-T" + rebase_path("pw_symbols.ld", root_build_dir),
+      "-L" +
+          rebase_path("${PICO_SRC_DIR}/src/rp2040/pico_platform/script_include",
+                      root_build_dir),
+      "-L" + rebase_path(
+              "${PICO_SRC_DIR}/src/rp2_common/pico_standard_link/script_include",
+              root_build_dir),
+      "-L" + rebase_path(".", root_build_dir),
+    ]
   }
 
   pw_source_set("rp2040_freertos_config") {

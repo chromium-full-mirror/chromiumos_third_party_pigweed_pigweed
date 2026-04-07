@@ -30,7 +30,7 @@ bazel_dep(name = "googletest", version = "1.17.0.bcr.2", repo_name = "com_google
 bazel_dep(name = "grpc-java", version = "1.69.0")
 bazel_dep(name = "nanopb", version = "0.4.9.1.bcr.2")
 bazel_dep(name = "mbedtls", version = "3.6.0")
-bazel_dep(name = "pico-sdk", version = "2.2.2-develop.bcr.20260105-1cc19a21")
+bazel_dep(name = "pico-sdk", version = "2.2.2-develop.bcr.20260401-79b38e95")
 bazel_dep(name = "picotool", version = "2.2.0")
 bazel_dep(name = "platforms", version = "1.0.0")
 
