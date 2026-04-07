@@ -32,6 +32,7 @@ pw_py_library(
         "pw_ide/python.py",
         "pw_ide/settings.py",
         "pw_ide/symlinks.py",
+        "pw_ide/verify_db.py",
         "pw_ide/vscode.py",
     ],
     data = [
@@ -42,6 +43,7 @@ pw_py_library(
         "//pw_cli/py:pw_cli",
         "//pw_config_loader/py:pw_config_loader",
         "@pigweed_python_packages//json5",
+        "@pigweed_python_packages//jsonschema",
         "@pigweed_python_packages//pyyaml",
     ],
 )
@@ -130,6 +132,24 @@ pw_py_binary(
     main = "pw_ide/ide_query.py",
 )
 
+pw_py_binary(
+    name = "verify_db",
+    srcs = ["pw_ide/verify_db.py"],
+    main = "pw_ide/verify_db.py",
+    deps = [
+        "//pw_cli/py:pw_cli",
+        "@pigweed_python_packages//jsonschema",
+    ],
+)
+
+pw_py_test(
+    name = "verify_db_test",
+    srcs = ["verify_db_test.py"],
+    deps = [
+        ":pw_ide",
+    ],
+)
+
 pw_py_test(
     name = "merger_test",
     srcs = ["merger_test.py"],
@@ -180,6 +200,7 @@ pw_py_binary(
     ],
     deps = [
         ":clangd_binary",
+        ":pw_ide",
         ":update_compile_commands_binary",
         "@rules_python//python/runfiles",
     ],
