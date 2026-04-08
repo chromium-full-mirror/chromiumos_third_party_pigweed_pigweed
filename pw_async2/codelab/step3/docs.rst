@@ -26,23 +26,6 @@ that indicate which keypad button was pressed. Your mission is to process
 these keypad events safely and to allow your task to wait for keypad
 numbers after receiving coins.
 
-#. Use the keypad in ``main.cc``:
-
-   * Declare a global ``keypad`` instance
-
-   * Update ``key_press_isr()`` to handle keypad input events by invoking
-     ``keypad.Press(key)``
-
-   * Pass a reference to the keypad when creating your task instance
-
-   .. dropdown:: Hint
-
-      .. literalinclude:: ./checkpoint1/main.cc
-         :language: cpp
-         :start-at: namespace {
-         :linenos:
-         :emphasize-lines: 4,14,29
-
 #. Set up the ``Keypad`` and ``KeyPressFuture`` classes in
    ``vending_machine.h``:
 
@@ -117,6 +100,23 @@ numbers after receiving coins.
          :linenos:
          :emphasize-lines: 13,20-23,26-28,30-31
 
+#. Use the keypad in ``main.cc``:
+
+   * Declare a global ``keypad`` instance
+
+   * Update ``key_press_isr()`` to handle keypad input events by invoking
+     ``keypad.Press(key)``
+
+   * Pass a reference to the keypad when creating your task instance
+
+   .. dropdown:: Hint
+
+      .. literalinclude:: ./checkpoint1/main.cc
+         :language: cpp
+         :start-at: namespace {
+         :linenos:
+         :emphasize-lines: 4,14,29
+
 ------------------------------
 Verify the stub implementation
 ------------------------------
@@ -129,8 +129,7 @@ Verify the stub implementation
 #. Press :kbd:`c` :kbd:`Enter` to insert a coin.
 
    You should see a log stating that ``-1`` was pressed. This is expected since
-   the ``KeyPad::Pend()`` stub implementation returns ``key_pressed_``, which
-   was initialized to ``kNone`` (``-1``).
+   the ``Keypad::WaitForKeyPress()`` stub implementation returns ``KeyPressFuture(-1)``.
 
    .. code-block:: none
 
