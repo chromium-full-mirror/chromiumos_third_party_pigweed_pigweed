@@ -38,7 +38,7 @@ def _resolve_env(env: Mapping[str, str] | None) -> Mapping[str, str]:
 
 
 def _get_project_root(env: Mapping[str, str]) -> Path:
-    for var in ('PW_PROJECT_ROOT', 'PW_ROOT'):
+    for var in ('PW_PROJECT_ROOT', 'PW_ROOT', 'BUILD_WORKSPACE_DIRECTORY'):
         if var in env:
             return Path(env[var])
     raise ValueError('environment variable PW_PROJECT_ROOT not set')
@@ -49,7 +49,16 @@ def _pw_env_substitute(env: Mapping[str, str], string: Any) -> str:
         return string
 
     # Substitute in environment variables based on $pw_env{VAR_NAME} tokens.
-    for key, value in env.items():
+    env_copy = dict(env)
+    if 'PW_ROOT' not in env_copy and 'BUILD_WORKSPACE_DIRECTORY' in env_copy:
+        env_copy['PW_ROOT'] = env_copy['BUILD_WORKSPACE_DIRECTORY']
+    if (
+        'PW_PROJECT_ROOT' not in env_copy
+        and 'BUILD_WORKSPACE_DIRECTORY' in env_copy
+    ):
+        env_copy['PW_PROJECT_ROOT'] = env_copy['BUILD_WORKSPACE_DIRECTORY']
+
+    for key, value in env_copy.items():
         string = string.replace('$pw_env{' + key + '}', value)
 
     if '$pw_env{' in string:
@@ -69,6 +78,9 @@ def path_from_runfiles() -> Path:
     assert r is not None
     location = r.Rlocation("pigweed.json")
     if location is None:
+        # Under bzlmod, the runfiles root for the main repo is always _main/.
+        location = r.Rlocation("_main/pigweed.json")
+    if location is None:
         # Failed to find pigweed.json
         raise ValueError("Failed to find pigweed.json")
 
@@ -77,10 +89,12 @@ def path_from_runfiles() -> Path:
 
 def load(env: Mapping[str, str] | None = None) -> dict:
     """Load pigweed.json if it exists and return the contents."""
-    if env is None and runfiles is not None:
+    use_runfiles = env is None and runfiles is not None
+    env = _resolve_env(env)
+
+    if use_runfiles:
         config_path = path_from_runfiles()
     else:
-        env = _resolve_env(env)
         config_path = path(env=env)
 
     if not os.path.isfile(config_path):
