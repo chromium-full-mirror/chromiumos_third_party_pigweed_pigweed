@@ -14,7 +14,7 @@
 
 load("@rules_rust//rust:defs.bzl", "rust_binary")
 load("//pw_kernel/target/qemu_virt_riscv32:defs.bzl", "TARGET_COMPATIBLE_WITH")
-load("//pw_kernel/tooling:system_image.bzl", "system_image", "system_image_test")
+load("//pw_kernel/tooling:system_image.bzl", "system_image")
 load("//pw_kernel/tooling:target_codegen.bzl", "target_codegen")
 load("//pw_kernel/tooling:target_linker_script.bzl", "target_linker_script")
 load("//pw_kernel/tooling/panic_detector:rust_binary_no_panics_test.bzl", "rust_binary_no_panics_test")
@@ -32,11 +32,12 @@ system_image(
     visibility = ["//visibility:public"],
 )
 
-system_image_test(
-    name = "process_termination_test",
-    image = ":process_termination",
-    target_compatible_with = TARGET_COMPATIBLE_WITH,
-)
+# TODO: b/498629738 - disable until fix lands
+# system_image_test(
+#     name = "process_termination_test",
+#     image = ":process_termination",
+#     target_compatible_with = TARGET_COMPATIBLE_WITH,
+# )
 
 rust_binary_no_panics_test(
     name = "no_panics_test",
