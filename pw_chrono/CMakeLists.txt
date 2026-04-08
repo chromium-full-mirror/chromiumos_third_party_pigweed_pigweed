@@ -40,8 +40,10 @@ pw_add_facade(pw_chrono.system_clock STATIC
   PUBLIC_INCLUDES
     public
   PUBLIC_DEPS
+    pw_assert.assert
     pw_chrono.epoch
     pw_chrono.virtual_clock
+    pw_numeric.checked_arithmetic
     pw_preprocessor
   SOURCES
     system_clock.cc

@@ -199,8 +199,6 @@ using VirtualSystemClock = VirtualClock<SystemClock>;
 
 #endif  // __cplusplus
 
-PW_EXTERN_C_START
-
 // C API Users should not create pw_chrono_SystemClock_Duration's directly,
 // instead it is strongly recommended to use macros which express the duration
 // in time units, instead of non-portable ticks.
@@ -224,6 +222,8 @@ PW_EXTERN_C_START
 //   PW_SYSTEM_CLOCK_MIN_FLOOR(minutes)
 //   PW_SYSTEM_CLOCK_H_FLOOR(hours)
 #include "pw_chrono/internal/system_clock_macros.h"
+
+PW_EXTERN_C_START
 
 typedef struct {
   int64_t ticks;

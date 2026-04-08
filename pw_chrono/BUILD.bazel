@@ -57,6 +57,8 @@ pw_facade(
     deps = [
         ":epoch",
         ":virtual_clock",
+        "//pw_assert:assert",
+        "//pw_numeric:checked_arithmetic",
         "//pw_preprocessor",
     ],
 )

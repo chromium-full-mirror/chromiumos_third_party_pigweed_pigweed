@@ -13,6 +13,11 @@
 // the License.
 #pragma once
 
+#include <stdbool.h>
+
+#include "pw_assert/assert.h"
+#include "pw_numeric/checked_arithmetic.h"
+
 // The C implementation of this macro requires a C99 compound literal. In C++,
 // avoid the compound literal in case -Wc99-extensions is enabled.
 #ifdef __cplusplus
@@ -23,24 +28,60 @@
   ((pw_chrono_SystemClock_Duration){.ticks = (num_ticks)})
 #endif  // __cplusplus
 
+/// Returns the number of ticks for a given number of time units.
+///
+/// The seconds per time unit is the reciprocal of the given numerator and
+/// denominator. The ticks per second is the reciprocal of the system clock
+/// period. Together 'count * (seconds/time unit) * (ticks/second)' gives the
+/// total number of ticks, which must then be rounded up or down to an integer
+/// value.
+///
+/// This function will crash if the given `count` causes it an overflow. For any
+/// reasonable time granularities and time units, e.g. nanoseconds and hours,
+/// this only occurs when converting durations representing hundreds of billions
+/// of years, and very likely indicates an error.
+///
+/// The numerator and denominator parameters are NOT checked for overflow, as
+/// this method should not be called directly. Instead, use the
+/// `PW_SYSTEM_CLOCK_*_CEIL` and `PW_SYSTEM_CLOCK_*_FLOOR` macros below, which
+/// provide values that will not overflow for any supported time unit.
+#ifdef __cplusplus
+constexpr
+#else
+static inline
+#endif
+    int64_t pw_chrono_internal_TimeToTicks(
+        int64_t count,
+        int64_t time_unit_seconds_numerator,
+        int64_t time_unit_seconds_denominator,
+        bool round_up) {
+  int64_t divisor = time_unit_seconds_numerator *
+                    PW_CHRONO_SYSTEM_CLOCK_PERIOD_SECONDS_NUMERATOR;
+  int64_t dividend = time_unit_seconds_denominator *
+                     PW_CHRONO_SYSTEM_CLOCK_PERIOD_SECONDS_DENOMINATOR;
+  PW_ASSERT(!PW_MUL_OVERFLOW(dividend, count, &dividend));
+  if (round_up) {
+    PW_ASSERT(!PW_ADD_OVERFLOW(dividend, divisor - 1, &dividend));
+  }
+  return dividend / divisor;
+}
+
+#define _PW_SYSTEM_CLOCK_TIME_TO_DURATION_CEIL(                        \
+    count, time_unit_seconds_numerator, time_unit_seconds_denominator) \
+  _PW_SYSTEM_CLOCK_DURATION(                                           \
+      pw_chrono_internal_TimeToTicks(count,                            \
+                                     time_unit_seconds_numerator,      \
+                                     time_unit_seconds_denominator,    \
+                                     /* round_up: */ 1))
+#define _PW_SYSTEM_CLOCK_TIME_TO_DURATION_FLOOR(                       \
+    count, time_unit_seconds_numerator, time_unit_seconds_denominator) \
+  _PW_SYSTEM_CLOCK_DURATION(                                           \
+      pw_chrono_internal_TimeToTicks(count,                            \
+                                     time_unit_seconds_numerator,      \
+                                     time_unit_seconds_denominator,    \
+                                     /* round_up: */ 0))
+
 // clang-format off
-
-// ticks_ceil = ((count * clock_period_den + time_unit_num - 1) * time_unit_den) /
-//              (clock_period_num * time_unit_num)
-#define _PW_SYSTEM_CLOCK_TIME_TO_DURATION_CEIL(                                                                                                    \
-    count, time_unit_seconds_numerator, time_unit_seconds_denominator)                                                                             \
-  _PW_SYSTEM_CLOCK_DURATION(                                                                                                                       \
-      (((int64_t)(count) * PW_CHRONO_SYSTEM_CLOCK_PERIOD_SECONDS_DENOMINATOR + time_unit_seconds_numerator - 1) * time_unit_seconds_denominator) / \
-       (PW_CHRONO_SYSTEM_CLOCK_PERIOD_SECONDS_NUMERATOR * time_unit_seconds_numerator))
-
-// ticks_floor = (count * clock_period_den * time_unit_den) /
-//               (clock_period_num * time_unit_num)
-#define _PW_SYSTEM_CLOCK_TIME_TO_DURATION_FLOOR(                                                               \
-    count, time_unit_seconds_numerator, time_unit_seconds_denominator)                                         \
-  _PW_SYSTEM_CLOCK_DURATION(                                                                                   \
-      ((int64_t)(count) * PW_CHRONO_SYSTEM_CLOCK_PERIOD_SECONDS_DENOMINATOR * time_unit_seconds_denominator) / \
-      (PW_CHRONO_SYSTEM_CLOCK_PERIOD_SECONDS_NUMERATOR * time_unit_seconds_numerator))
-
 
 #define PW_SYSTEM_CLOCK_MS_CEIL(milliseconds) \
   _PW_SYSTEM_CLOCK_TIME_TO_DURATION_CEIL(milliseconds, 1000, 1)

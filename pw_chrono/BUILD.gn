@@ -44,6 +44,8 @@ pw_facade("system_clock") {
   public_deps = [
     ":epoch",
     ":virtual_clock",
+    "$dir_pw_assert:assert",
+    "$dir_pw_numeric:checked_arithmetic",
     "$dir_pw_preprocessor",
   ]
   sources = [ "system_clock.cc" ]
