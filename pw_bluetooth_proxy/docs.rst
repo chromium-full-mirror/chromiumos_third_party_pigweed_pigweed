@@ -113,6 +113,10 @@ Module configuration options include:
   using a provided :cc`pw::async2::Dispatcher`. When using this mode of
   operation, an allocator and a dispatcher must be provided that outlive the
   :cc:`pw::bluetooth::proxy::ProxyHost`.
+- :cc:`PW_BLUETOOTH_PROXY_MULTIBUF_ALLOCATOR_SIZE`: The size of the temporary
+  internal multibuf allocator, which is used by the ChannelProxy and RFCOMM
+  APIs. Configure this value to be large enough to allocate multiple RFCOMM
+  packets if you are using RFCOMM.
 
 .. _module-pw_bluetooth_proxy-reference:
 

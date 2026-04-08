@@ -27,3 +27,10 @@
 /// communicate with tasks running on the dispatcher thread.
 #define PW_BLUETOOTH_PROXY_ASYNC 0
 #endif  // PW_BLUETOOTH_PROXY_ASYNC
+
+#ifndef PW_BLUETOOTH_PROXY_MULTIBUF_ALLOCATOR_SIZE
+/// The size of the internal multibuf allocator used for ChannelProxy & RFCOMM
+/// channels. This is temporary until all code is migrated to MultiBuf v2, at
+/// which point the client provided pw::Allocator will be used instead.
+#define PW_BLUETOOTH_PROXY_MULTIBUF_ALLOCATOR_SIZE 1024
+#endif  // PW_BLUETOOTH_PROXY_MULTIBUF_ALLOCATOR_SIZE

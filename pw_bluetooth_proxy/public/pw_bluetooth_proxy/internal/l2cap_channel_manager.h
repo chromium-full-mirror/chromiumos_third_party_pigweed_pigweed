@@ -18,6 +18,7 @@
 
 #include "pw_allocator/allocator.h"
 #include "pw_bluetooth_proxy/basic_l2cap_channel.h"
+#include "pw_bluetooth_proxy/config.h"
 #include "pw_bluetooth_proxy/gatt_notify_channel.h"
 #include "pw_bluetooth_proxy/internal/acl_data_channel.h"
 #include "pw_bluetooth_proxy/internal/l2cap_channel.h"
@@ -293,7 +294,8 @@ class L2capChannelManager final : public L2capChannelManagerInterface {
   IntrusiveMap<uint16_t, internal::L2capLogicalLinkInterface> logical_links_
       PW_GUARDED_BY(links_mutex_);
 
-  std::array<std::byte, 1024> allocator_buffer_;
+  std::array<std::byte, PW_BLUETOOTH_PROXY_MULTIBUF_ALLOCATOR_SIZE>
+      allocator_buffer_;
   multibuf::SimpleAllocator multibuf_allocator_{allocator_buffer_,
                                                 impl_.allocator()};
 };
