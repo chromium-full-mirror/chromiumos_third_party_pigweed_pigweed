@@ -120,6 +120,10 @@ const char* kInspectLastDisconnectedItemConnectedTimePropertyName =
     "connected_@time";
 const char* kInspectLastDisconnectedItemTimePropertyName = "@time";
 const char* kInspectLastDisconnectedItemReasonPropertyName = "reason";
+const char* kInspectLastDisconnectedItemConnectionIntervalPropertyName =
+    "connection_interval_ms";
+const char* kInspectLastDisconnectedItemSupervisionTimeoutPropertyName =
+    "supervision_timeout_ms";
 
 }  // namespace
 
@@ -402,6 +406,7 @@ void LowEnergyConnectionManager::AttachInspect(inspect::Node& parent,
       inspect_node_, kInspectDisconnectZeroRefNodeName);
   inspect_properties_.disconnect_remote_disconnection_count_.AttachInspect(
       inspect_node_, kInspectDisconnectRemoteDisconnectionNodeName);
+
   last_disconnected_list_.AttachInspect(inspect_node_,
                                         kInspectLastDisconnectedListName);
 }
@@ -798,6 +803,25 @@ void LowEnergyConnectionManager::RecordDisconnectInspect(
                               dispatcher_.now().time_since_epoch().count());
   inspect_item.node.RecordString(kInspectLastDisconnectedItemReasonPropertyName,
                                  LowEnergyDisconnectReasonToString(reason));
+
+  if (conn.link()) {
+    // The Controller accepts the connection interval n * 1.25. We store it the
+    // same way in memory. This multiplier converts it back to milliseconds.
+    static float kConnectionIntervalMultiplier = 1.25;
+    inspect_item.node.RecordUint(
+        kInspectLastDisconnectedItemConnectionIntervalPropertyName,
+        conn.link()->low_energy_parameters().interval() *
+            kConnectionIntervalMultiplier);
+
+    // The Controller accepts the supervision timeout as centiseconds. We store
+    // it the same way in memory. This multiplier converts it back to
+    // milliseconds.
+    static float kSupervisionTimeoutMultiplier = 10;
+    inspect_item.node.RecordUint(
+        kInspectLastDisconnectedItemSupervisionTimeoutPropertyName,
+        conn.link()->low_energy_parameters().supervision_timeout() *
+            kSupervisionTimeoutMultiplier);
+  }
 }
 
 void LowEnergyConnectionManager::CleanUpConnection(

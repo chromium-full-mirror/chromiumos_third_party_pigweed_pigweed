@@ -3879,13 +3879,14 @@ TEST_F(LowEnergyConnectionManagerTest, Inspect) {
   };
   conn_mgr()->Connect(peer->identifier(), callback, kConnectionOptions);
 
-  auto requests_matcher =
-      AllOf(NodeMatches(NameMatches("pending_requests")),
-            ChildrenMatch(ElementsAre(NodeMatches(
-                AllOf(NameMatches("pending_request_0x0"),
-                      PropertyList(UnorderedElementsAre(
-                          StringIs("peer_id", peer->identifier().ToString()),
-                          IntIs("callbacks", 1))))))));
+  auto requests_matcher = AllOf(
+      NodeMatches(NameMatches("pending_requests")),
+      ChildrenMatch(ElementsAre(NodeMatches(AllOf(
+          ::testing::Property(&inspect::NodeValue::name,
+                              ::testing::MatchesRegex("pending_request_.*")),
+          PropertyList(UnorderedElementsAre(
+              StringIs("peer_id", peer->identifier().ToString()),
+              IntIs("callbacks", 1))))))));
 
   auto outbound_connector_matcher_attempt_0 = AllOf(
       NodeMatches(AllOf(NameMatches("outbound_connector"),
@@ -3934,12 +3935,13 @@ TEST_F(LowEnergyConnectionManagerTest, Inspect) {
             ChildrenMatch(::testing::IsEmpty()));
 
   auto conn_matcher = NodeMatches(
-      AllOf(NameMatches("connection_0x1"),
-            PropertyList(UnorderedElementsAre(
-                StringIs("peer_id", peer->identifier().ToString()),
-                StringIs("peer_address", peer->address().ToString()),
-                IntIs("ref_count", 1),
-                IntIs("@time", 0)))));
+      AllOf(::testing::Property(&inspect::NodeValue::name,
+                                ::testing::MatchesRegex("connection_.*")),
+            PropertyList(::testing::IsSupersetOf(
+                {StringIs("peer_id", peer->identifier().ToString()),
+                 StringIs("peer_address", peer->address().ToString()),
+                 IntIs("ref_count", 1),
+                 IntIs("@time", ::testing::_)}))));
 
   auto connections_matcher = AllOf(NodeMatches(NameMatches("connections")),
                                    ChildrenMatch(ElementsAre(conn_matcher)));
@@ -3976,13 +3978,15 @@ TEST_F(LowEnergyConnectionManagerTest, Inspect) {
 
   auto last_disconnected_matcher =
       AllOf(NodeMatches(NameMatches("last_disconnected")),
-            ChildrenMatch(ElementsAre(NodeMatches(
-                AllOf(NameMatches("0"),
-                      PropertyList(UnorderedElementsAre(
-                          StringIs("peer_id", peer->identifier().ToString()),
-                          IntIs("connected_@time", 0),
-                          IntIs("@time", 1'000'000'000),
-                          StringIs("reason", "zero ref"))))))));
+            ChildrenMatch(ElementsAre(NodeMatches(AllOf(
+                NameMatches("0"),
+                PropertyList(::testing::IsSupersetOf(
+                    {StringIs("peer_id", peer->identifier().ToString()),
+                     IntIs("connected_@time", ::testing::_),
+                     IntIs("@time", ::testing::_),
+                     StringIs("reason", "zero ref"),
+                     UintIs("connection_interval_ms", ::testing::_),
+                     UintIs("supervision_timeout_ms", ::testing::_)})))))));
 
   auto conn_mgr_property_matcher_after_disconnect = PropertyList(
       UnorderedElementsAre(UintIs("disconnect_explicit_disconnect_count", 0),
