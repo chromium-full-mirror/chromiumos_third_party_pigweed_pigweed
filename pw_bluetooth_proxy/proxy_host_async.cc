@@ -32,16 +32,6 @@ Status ProxyHost::SetDispatcher(async2::Dispatcher& dispatcher) {
   return OkStatus();
 }
 
-static span<uint8_t> CreateOwnedSpan(Allocator& allocator, span<uint8_t> buf) {
-  uint8_t* owned_buf = static_cast<uint8_t*>(
-      allocator.Allocate(allocator::Layout::Of<uint8_t[]>(buf.size())));
-  if (owned_buf == nullptr) {
-    return span<uint8_t>();
-  }
-  std::memcpy(owned_buf, buf.data(), buf.size());
-  return span<uint8_t>(owned_buf, buf.size());
-}
-
 void ProxyHost::HandleH4HciFromHost(H4PacketWithH4&& h4_packet) {
   if (l2cap_channel_manager_.impl().IsRunningOnDispatcherThread()) {
     DoHandleH4HciFromHost(std::move(h4_packet));
@@ -62,18 +52,15 @@ void ProxyHost::HandleH4HciFromHost(H4PacketWithH4&& h4_packet) {
     return;
   }
   Allocator& allocator = l2cap_channel_manager_.impl().allocator();
-  span<uint8_t> owned = CreateOwnedSpan(allocator, h4_packet.GetH4Span());
-  if (owned.empty()) {
+  Result<H4PacketWithH4> owned_h4_packet_result =
+      H4PacketWithH4::CopyFrom(allocator, h4_packet);
+  if (!owned_h4_packet_result.ok()) {
     PW_LOG_ERROR(
         "Dropping H4 packet from host: unable to allocate storage to handle "
         "asynchronously!");
     return;
   }
-  H4PacketInterface::ReleaseFn release_fn = [&allocator](const uint8_t* data) {
-    allocator.Deallocate(const_cast<uint8_t*>(data));
-  };
-  H4PacketWithH4 owned_h4_packet(owned, std::move(release_fn));
-  impl_.SendH4PacketFromHost(std::move(owned_h4_packet));
+  impl_.SendH4PacketFromHost(std::move(owned_h4_packet_result.value()));
 }
 
 void ProxyHost::HandleH4HciFromController(H4PacketWithHci&& h4_packet) {
@@ -89,19 +76,15 @@ void ProxyHost::HandleH4HciFromController(H4PacketWithHci&& h4_packet) {
     return;
   }
   Allocator& allocator = l2cap_channel_manager_.impl().allocator();
-  emboss::H4PacketType h4_type = h4_packet.GetH4Type();
-  span<uint8_t> owned = CreateOwnedSpan(allocator, h4_packet.GetHciSpan());
-  if (owned.empty()) {
+  Result<H4PacketWithHci> owned_h4_packet_result =
+      H4PacketWithHci::CopyFrom(allocator, h4_packet);
+  if (!owned_h4_packet_result.ok()) {
     PW_LOG_ERROR(
         "Dropping H4 packet from controller: unable to allocate storage to "
         "handle asynchronously!");
     return;
   }
-  H4PacketInterface::ReleaseFn release_fn = [&allocator](const uint8_t* data) {
-    allocator.Deallocate(const_cast<uint8_t*>(data));
-  };
-  H4PacketWithHci owned_h4_packet(h4_type, owned, std::move(release_fn));
-  impl_.SendH4PacketFromController(std::move(owned_h4_packet));
+  impl_.SendH4PacketFromController(std::move(owned_h4_packet_result.value()));
 }
 
 void ProxyHost::Reset() {

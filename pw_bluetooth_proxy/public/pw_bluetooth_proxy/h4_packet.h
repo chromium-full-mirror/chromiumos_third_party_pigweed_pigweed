@@ -15,10 +15,13 @@
 #pragma once
 
 #include <cstdint>
+#include <cstring>
 
 #include "lib/stdcompat/utility.h"
+#include "pw_allocator/allocator.h"
 #include "pw_bluetooth/hci_h4.emb.h"
 #include "pw_function/function.h"
+#include "pw_result/result.h"
 #include "pw_span/span.h"
 
 namespace pw::bluetooth::proxy {
@@ -109,6 +112,28 @@ class H4PacketInterface {
   ReleaseFn release_fn_{};
 };
 
+namespace internal {
+
+/// Create an owned copy of a packet using the provided allocator.
+template <typename T, typename... Args>
+Result<T> CopyPacketFrom(Allocator& allocator,
+                         span<const uint8_t> src,
+                         Args&&... args) {
+  uint8_t* owned_buf = static_cast<uint8_t*>(
+      allocator.Allocate(allocator::Layout::Of<uint8_t[]>(src.size())));
+  if (owned_buf == nullptr) {
+    return Status::ResourceExhausted();
+  }
+  std::memcpy(owned_buf, src.data(), src.size());
+  return T(std::forward<Args>(args)...,
+           span<uint8_t>(owned_buf, src.size()),
+           [&allocator](const uint8_t* data) {
+             allocator.Deallocate(const_cast<uint8_t*>(data));
+           });
+}
+
+}  // namespace internal
+
 /// H4PacketWithHci is an H4Packet backed by an HCI buffer.
 class H4PacketWithHci final : public H4PacketInterface {
  public:
@@ -127,6 +152,13 @@ class H4PacketWithHci final : public H4PacketInterface {
 
   H4PacketWithHci(H4PacketWithHci&& other) = default;
   H4PacketWithHci& operator=(H4PacketWithHci&& other) = default;
+
+  /// Create an owned copy of the packet using the provided allocator.
+  static Result<H4PacketWithHci> CopyFrom(Allocator& allocator,
+                                          const H4PacketWithHci& packet) {
+    return internal::CopyPacketFrom<H4PacketWithHci>(
+        allocator, packet.GetHciSpan(), packet.GetH4Type());
+  }
 
  private:
   emboss::H4PacketType DoGetH4Type() const override { return h4_type_; }
@@ -155,6 +187,13 @@ class H4PacketWithH4 final : public H4PacketInterface {
 
   constexpr span<uint8_t> GetH4Span() { return buffer(); }
   constexpr span<const uint8_t> GetH4Span() const { return buffer(); }
+
+  /// Create an owned copy of the packet using the provided allocator.
+  static Result<H4PacketWithH4> CopyFrom(Allocator& allocator,
+                                         const H4PacketWithH4& packet) {
+    return internal::CopyPacketFrom<H4PacketWithH4>(allocator,
+                                                    packet.GetH4Span());
+  }
 
  private:
   emboss::H4PacketType DoGetH4Type() const override {
