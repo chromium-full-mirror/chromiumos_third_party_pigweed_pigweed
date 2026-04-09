@@ -9,19 +9,21 @@ Highlights:
   syscalls to ``pw_kernel``.
 
 * C++ data structures and utilities: :ref:`changelog-2026-03-cpp-dynamic-map` -
-  ``pw::DynamicMap`` is a new sorted map container that uses a
-  caller-provided ``pw::Allocator`` to dynamically allocate nodes.
+  A new sorted map container that uses a caller-provided ``pw::Allocator`` to
+  dynamically allocate nodes.
 
 * Kernel: :ref:`changelog-2026-03-kernel-process-management` - ``pw_kernel``
   processes can now be terminated from inside or outside of the process, and
-  the new ownership model makes it possible to wait for a process to terminate.
+  the new process ownership model makes it possible to wait for a process
+  to terminate.
 
 * Toolchains and compilers: :ref:`changelog-2026-03-toolchain-toolchain-tools` -
   The active toolchain's tools (e.g. ``objdump``, ``readelf``, etc.) can now be
   used interactively via ``bazelisk run``.
 
-* Async and concurrency: :ref:`changelog-2026-03-async-await-macro` - Simplified
-  future polling with less boilerplate.
+* Async and concurrency: :ref:`changelog-2026-03-async-boxed-future` -
+  ``BoxedFuture`` uses type-erasure and dynamic allocation to make it
+  easier to work with futures of different types.
 
 .. changelog_highlights_end
 
@@ -29,34 +31,93 @@ Highlights:
 Async and concurrency
 ---------------------
 
+.. _changelog-2026-03-async-boxed-future:
+
+Handle futures of varying types with BoxedFuture
+================================================
+``pw::async2::BoxedFuture`` makes it easier to store or return futures
+of different concrete types. It type-erases futures and stores them
+dynamically via ``pw::Allocator``, hiding the concrete type. Example:
+
+.. code-block:: cpp
+
+   #include "pw_async2/box.h"
+
+   pw::async2::BoxedFuture<MyData> GetData(pw::Allocator& alloc, bool use_cache) {
+     if (use_cache) {
+       // Return a future of one type in this scenario…
+       return pw::async2::BoxFuture(alloc, cache_.ReadData());
+     } else {
+       // And a future of a different type in this other scenario.
+       return pw::async2::BoxFuture(alloc, network_.FetchData());
+     }
+   }
+
+Commits: `1 <https://pwrev.dev/374633>`__
+
 .. _changelog-2026-03-async-await-macro:
 
-New PW_AWAIT macro
-==================
-Introduced the ``PW_AWAIT`` macro, which simplifies polling ``pw_async2``
-futures by returning ``Pending`` if the future is not ready. CLs:
-`1 <https://pwrev.dev/371733>`__
+Simplified polling with PW_AWAIT
+================================
+``PW_AWAIT`` is a helper macro that simplifies the process of
+blocking on a future that's not ready. Example:
+
+.. code-block:: cpp
+
+   #include "pw_async2/await.h"
+
+   Poll<> MyReceiverTask::DoPend(Context& cx) {
+     // If we don't have a future to wait on, start one.
+     if (!receive_future_.is_pendable()) {
+       receive_future_ = channel_.Receive();
+     }
+
+     // Wait for the future to complete. If it returns Pending,
+     // this function itself will also return Pending.
+     PW_AWAIT(auto result, receive_future_, cx);
+
+     // Once ready, we can use the result.
+     ProcessData(result);
+
+     return Ready();
+   }
+
+Commits: `1 <https://pwrev.dev/371733>`__
 
 .. _changelog-2026-03-async-rework:
 
 Coroutine and task rework
 =========================
-Reworked task and coroutine allocation in ``pw_async2`` to separate allocation
-from creation, simplify templates, and use standard allocators. Coroutines now
-support void return types and crash on allocation failure by default, with
-``pw::async2::FallibleCoroTask`` available for error handling. CLs:
-`1 <https://pwrev.dev/382232>`__, `2 <https://pwrev.dev/374695>`__,
+Allocation failures within coroutines are now easier to manage. A failure
+now automatically goes up to the top-level ``CoroTask`` (which crashes) or
+``FallibleCoroTask`` (if you want to handle the failures). This means that
+you're no longer required to return ``Status`` or ``Result`` from your coro
+functions and can instead use any return type, as in typical in async code
+from other languages. Example:
+
+.. code-block:: cpp
+
+   // Previously had to return `Result<int>` to account for potential
+   // allocation failure.
+   Coro<int> AsyncAdd(ValueProvider<int>& a, ValueProvider<int>& b) {
+     co_return co_await a.Get() + co_await b.Get();
+   }
+
+Commits: `1 <https://pwrev.dev/382232>`__, `2 <https://pwrev.dev/374695>`__,
 `3 <https://pwrev.dev/373733>`__
 
-.. _changelog-2026-03-async-boxed-future:
+---------
+Bluetooth
+---------
 
-Type-erasure with BoxedFuture
-=============================
-Added ``pw::async2::BoxedFuture`` and a ``pw::async2::Box`` helper to support
-dynamically allocated futures. ``BoxedFuture`` type-erases a future and stores
-it dynamically via a ``pw::Allocator``, hiding the concrete type. This is useful
-when storing or returning futures of different concrete types. CLs:
-`1 <https://pwrev.dev/374633>`__
+.. _changelog-2026-03-net-sapphire-allocator:
+
+Allocator support for buffers and packets in pw_bluetooth_sapphire
+==================================================================
+Updated ``DynamicByteBuffer``, ``CommandPacket``, and ``EventPacket`` to accept
+an optional ``pw::Allocator&``, allowing for more flexible memory management.
+
+Commits: `1 <https://pwrev.dev/373375>`__
 
 ---------------------------------
 C++ data structures and utilities
@@ -64,18 +125,66 @@ C++ data structures and utilities
 
 .. _changelog-2026-03-cpp-dynamic-map:
 
-New dynamically allocated map
-=============================
-Introduced ``pw::DynamicMap``, a sorted map container that uses a
-caller-provided ``pw::Allocator`` to dynamically allocate nodes. CLs:
-`1 <https://pwrev.dev/359892>`__, `2 <https://pwrev.dev/377812>`__
+Dynamically allocated maps with pw::DynamicMap
+==============================================
+``pw::DynamicMap`` is a new sorted map container that uses a
+caller-provided ``pw::Allocator`` to dynamically allocate nodes.
+Example:
+
+.. code-block:: cpp
+
+   #include "pw_containers/dynamic_map.h"
+
+   void UseDynamicMap(pw::Allocator& alloc) {
+     pw::DynamicMap<int, std::string> map(alloc);
+
+     // Add elements to the map in all the usual ways.
+     map.insert({1, "one"});
+     map.emplace(2, "two");
+     map[3] = "three";
+   }
+
+Commits: `1 <https://pwrev.dev/359892>`__, `2 <https://pwrev.dev/377812>`__
 
 .. _changelog-2026-03-cpp-intrusive-queue:
 
-New intrusive FIFO queue
-========================
+New FIFO queue with performant push and pop operations
+======================================================
 ``pw::IntrusiveQueue`` is a new FIFO queue container that uses intrusive links
-to provide O(1) push and pop operations. CLs: `1 <https://pwrev.dev/388292>`__
+to provide O(1) push and pop operations. Example:
+
+.. code-block:: cpp
+
+   #include "pw_containers/intrusive_queue.h"
+
+   // Elements must derive from IntrusiveQueue<T>::Item
+   class MyItem : public pw::IntrusiveQueue<MyItem>::Item {
+    public:
+     MyItem(int value) : value_(value) {}
+     int value() const { return value_; }
+
+    private:
+     int value_;
+   };
+
+   void UseQueue() {
+     pw::IntrusiveQueue<MyItem> queue;
+
+     MyItem item1(1);
+     MyItem item2(2);
+
+     // O(1) push to back
+     queue.push_back(item1);
+     queue.push_back(item2);
+
+     // O(1) pop from front
+     if (!queue.empty()) {
+       MyItem& front = queue.front();
+       queue.pop_front();
+     }
+   }
+
+Commits: `1 <https://pwrev.dev/388292>`__
 
 ---------------
 Developer tools
@@ -83,14 +192,15 @@ Developer tools
 
 .. _changelog-2026-03-dev-ide-tools:
 
-New ide_query tool and improved compile commands
-================================================
+Improved pw_ide reliability
+===========================
 The new ``ide_query`` tool in ``pw_ide`` provides a unified interface for
-querying IDE-related information from the build system. Compile commands were
-updated to extract dependencies and use relative paths, improving
-reliability. CLs: `1 <https://pwrev.dev/379120>`__,
-`2 <https://pwrev.dev/385152>`__, `3 <https://pwrev.dev/388960>`__,
-`4 <https://pwrev.dev/379121>`__
+querying IDE-related information from the build system, abstracting away the
+specifics of underlying build systems. Compile commands were updated to
+extract dependencies and use relative paths for better portability.
+
+Commits: `1 <https://pwrev.dev/379120>`__, `2 <https://pwrev.dev/385152>`__,
+`3 <https://pwrev.dev/388960>`__, `4 <https://pwrev.dev/379121>`__
 
 ------
 Kernel
@@ -102,7 +212,8 @@ Async IPC
 =========
 Added ``channel_async_transact``, ``channel_async_transact_complete``, and
 ``channel_async_cancel`` syscalls to ``pw_kernel``, enabling non-blocking IPC.
-CLs: `1 <https://pwrev.dev/381192>`__
+
+Commits: `1 <https://pwrev.dev/381192>`__
 
 .. _changelog-2026-03-kernel-process-management:
 
@@ -110,28 +221,35 @@ Process termination and ownership
 =================================
 Processes and their associated threads can now be terminated from either
 inside or outside the process. The new process ownership model enables
-waiting for a process to terminate via ``join``. CLs:
-`1 <https://pwrev.dev/381532>`__, `2 <https://pwrev.dev/380472>`__
+waiting for threads and processes to terminate via ``join``. Example:
+
+.. code-block:: rust
+
+   // 1. Wait for all threads in the process to terminate.
+   for thread_ref in thread_refs {
+       let thread = thread_ref.join(kernel)?;
+       let _ = thread.consume();
+   }
+
+   // 2. Wait for the process itself to terminate.
+   let process = process_ref.join(kernel)?;
+   let _ = process.consume();
+
+Commits: `1 <https://pwrev.dev/381532>`__, `2 <https://pwrev.dev/380472>`__
 
 .. _changelog-2026-03-kernel-reduce-footprint:
 
 Reduce footprint of kernel-only applications
 ============================================
 The kernel no longer compiles userspace support code when building a kernel-only
-application, reducing binary size by over 2.6 KB on Cortex-M and RISC-V. CLs:
-`1 <https://pwrev.dev/380032>`__
+application, reducing binary size by over 2.6 KB on Cortex-M and RISC-V.
 
-----------
-Networking
-----------
+.. note::
 
-.. _changelog-2026-03-net-sapphire-allocator:
+   Userspace is compiled in by default. When building a kernel-only image you
+   need to disable userspace in the ``system_image``.
 
-Allocator support for buffers and packets in pw_bluetooth_sapphire
-==================================================================
-Updated ``DynamicByteBuffer``, ``CommandPacket``, and ``EventPacket`` to accept
-an optional ``pw::Allocator&``, allowing for more flexible memory management.
-CLs: `1 <https://pwrev.dev/373375>`__
+Commits: `1 <https://pwrev.dev/380032>`__
 
 ---
 RPC
@@ -142,7 +260,28 @@ RPC
 Support multiple clients on a transfer thread in pw_transfer
 ============================================================
 Multiple ``pw_transfer`` clients can now share a single transfer thread.
-CLs: `1 <https://pwrev.dev/386752>`__
+Note that they can't run transfers concurrently. Starting a transfer on
+one will terminate active transfers on the other. Example:
+
+.. code-block:: cpp
+
+   #include "pw_transfer/client.h"
+   #include "pw_transfer/transfer_thread.h"
+
+   void SetupTransferClients(pw::rpc::Client& rpc_client, uint32_t channel_id) {
+     // Create a single transfer thread supporting 2 concurrent client transfers.
+     std::array<std::byte, 64> chunk_buffer;
+     std::array<std::byte, 64> encode_buffer;
+     pw::transfer::Thread<2, 0> transfer_thread(chunk_buffer, encode_buffer);
+
+     // Create multiple clients sharing the same thread.
+     pw::transfer::Client client1(rpc_client, channel_id, transfer_thread);
+     pw::transfer::Client client2(rpc_client, channel_id, transfer_thread);
+
+     // Both clients can now be used independently but share the same thread.
+   }
+
+Commits: `1 <https://pwrev.dev/386752>`__
 
 ------------------------
 Toolchains and compilers
@@ -150,9 +289,59 @@ Toolchains and compilers
 
 .. _changelog-2026-03-toolchain-toolchain-tools:
 
-Newly exposed toolchain tools
-=============================
-The active toolchain's tools are now exposed for interactive use through
-``bazelisk run``. Available tools include ``cc``, ``c++``, ``ld``, ``ar``,
-``objdump``, ``nm``, ``readelf``, ``size``, ``strip``, and ``cov``.
-CLs: `1 <https://pwrev.dev/382478>`__
+Access toolchain tools through Bazelisk
+=======================================
+Because compilers, linkers, and other toolchain tools are downloaded
+and managed automatically via Bazel, they are part of the Bazel environment rather than
+your local shell environment. This means there is typically no easy way to
+simply run tools like ``nm`` or ``objdump``.
+
+To address this, Pigweed now provides wrapper targets that allow you to run
+the following toolchain tools interactively via ``bazelisk run``:
+
+* ``ar``,
+* ``c++``
+* ``cc``
+* ``cov``
+* ``ld``
+* ``nm``
+* ``objdump``
+* ``readelf``
+* ``size``
+* ``strip``
+
+Example:
+
+.. code-block:: console
+
+   $ bazelisk run --config=rp2350 //pw_toolchain/cc/current_toolchain:nm -- "$PWD/bazel-bin/pw_status/status_test"
+   INFO: Analyzed target //pw_toolchain/cc/current_toolchain:nm (0 packages loaded, 1 target configured).
+   INFO: Found 1 target...
+   Target //pw_toolchain/cc/current_toolchain:nm up-to-date:
+     bazel-bin/pw_toolchain/cc/current_toolchain/nm
+   INFO: Elapsed time: 1.812s, Critical Path: 1.05s
+   INFO: 5 processes: 5 internal.
+   INFO: Build completed successfully, 5 total actions
+   INFO: Running command line: bazel-bin/pw_toolchain/cc/current_toolchain/nm <args omitted>
+   10000110 W ADC_IRQ_FIFO_Handler
+   10000110 W BusFault_Handler
+   10000110 W CLOCKS_IRQ_Handler
+   10000110 W DMA_IRQ_0_Handler
+   10000110 W DMA_IRQ_1_Handler
+   10000110 W DMA_IRQ_2_Handler
+   10000110 W DMA_IRQ_3_Handler
+   10000110 W DebugMon_Handler
+   1000011c W HardFault_Handler
+   00000800 a HeapSize
+   10000110 W I2C0_IRQ_Handler
+   10000110 W I2C1_IRQ_Handler
+   10000110 W IO_IRQ_BANK0_Handler
+   10000110 W IO_IRQ_BANK0_NS_Handler
+   10000110 W IO_IRQ_QSPI_Handler
+   10000110 W IO_IRQ_QSPI_NS_Handler
+   10000110 W MemManage_Handler
+   1000011a W NMI_Handler
+   10000110 W OTP_IRQ_Handler
+   # …
+
+Commits: `1 <https://pwrev.dev/382478>`__
