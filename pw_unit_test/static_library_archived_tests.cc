@@ -19,11 +19,8 @@ namespace pw::unit_test {
 extern int test_1_executions;
 extern int test_2_executions;
 
-namespace {
-
 TEST(StaticLibraryArchivedTest, Test1) { test_1_executions += 1; }
 
 TEST(StaticLibraryArchivedTest, Test2) { test_2_executions += 1; }
 
-}  // namespace
 }  // namespace pw::unit_test
