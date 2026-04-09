@@ -779,11 +779,11 @@ TEST(SpanTest, SubscriptedBeginIterator) {
   int array[] = {1, 2, 3};
   span<const int> const_span(array);
   for (size_t i = 0; i < const_span.size(); ++i)
-    EXPECT_EQ(array[i], const_span.begin()[i]);
+    EXPECT_EQ(array[i], const_span.begin()[static_cast<ptrdiff_t>(i)]);
 
   span<int> mutable_span(array);
   for (size_t i = 0; i < mutable_span.size(); ++i)
-    EXPECT_EQ(array[i], mutable_span.begin()[i]);
+    EXPECT_EQ(array[i], mutable_span.begin()[static_cast<ptrdiff_t>(i)]);
 }
 
 TEST(SpanTest, TemplatedFirstOnDynamicSpan) {
