@@ -151,5 +151,13 @@ TEST(SystemClock, DurationMacros) {
             PW_SYSTEM_CLOCK_H_FLOOR(2).ticks);
 }
 
+TEST(SystemClock, TimePointAfterAtLeastSaturates) {
+  EXPECT_EQ(SystemClock::TimePointAfterAtLeast(SystemClock::time_point::max() -
+                                               SystemClock::now()),
+            SystemClock::time_point::max());
+  EXPECT_EQ(SystemClock::TimePointAfterAtLeast(SystemClock::duration::max()),
+            SystemClock::time_point::max());
+}
+
 }  // namespace
 }  // namespace pw::chrono

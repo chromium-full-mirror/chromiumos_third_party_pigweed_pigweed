@@ -34,6 +34,7 @@
 #include <ratio>
 
 #include "pw_chrono/virtual_clock.h"
+#include "pw_numeric/saturating_arithmetic.h"
 
 /// Portable std::chrono library for embedded
 namespace pw::chrono {
@@ -130,12 +131,12 @@ struct SystemClock {
   ///
   /// This is useful for translating delay or timeout durations into deadlines.
   ///
-  /// The time_point is computed based on now() plus the specified duration
-  /// where a singular clock tick is added to handle partial ticks. This ensures
-  /// that a duration of at least 1 tick does not result in [0,1] ticks and
-  /// instead in [1,2] ticks.
+  /// The returned time_point will either be strictly after the specified
+  /// duration from now, or the latest expressible time_point for the
+  /// SystemClock's epoch, whichever is sooner.
   static time_point TimePointAfterAtLeast(duration after_at_least) {
-    return now() + after_at_least + duration(1);
+    rep ticks = backend::GetSystemClockTickCount() + 1;
+    return time_point(duration(add_sat(ticks, after_at_least.count())));
   }
 };
 

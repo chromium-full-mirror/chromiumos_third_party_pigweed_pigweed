@@ -44,6 +44,7 @@ pw_add_facade(pw_chrono.system_clock STATIC
     pw_chrono.epoch
     pw_chrono.virtual_clock
     pw_numeric.checked_arithmetic
+    pw_numeric.saturating_arithmetic
     pw_preprocessor
   SOURCES
     system_clock.cc
