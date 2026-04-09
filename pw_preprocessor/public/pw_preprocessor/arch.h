@@ -92,4 +92,6 @@
 #error "More than one ARM Cortex M architecture is active."
 #elif _PW_ARCH_ARM_CORTEX_M_ACTIVE_COUNT == 1
 #define _PW_ARCH_ARM_CORTEX_M 1
+#else
+#define _PW_ARCH_ARM_CORTEX_M 0
 #endif
