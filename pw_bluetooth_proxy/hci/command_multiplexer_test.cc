@@ -328,6 +328,28 @@ void TestSendCommand(Accessor test) {
       // Parameter size
       std::byte(0x00),
   };
+  static constexpr std::array<std::byte, 4> inquiry_command_packet_bytes{
+      // OpCode (Inquiry)
+      std::byte(0x01),
+      std::byte(0x04),
+      // Parameter size
+      std::byte(0x00),
+  };
+  static constexpr std::array<std::byte, 7> inquiry_command_status_packet_bytes{
+      // Packet type (event)
+      std::byte(0x04),
+      // Event code (Command Status)
+      std::byte(0x0F),
+      // Parameter size
+      std::byte(0x04),
+      // Status (Success)
+      std::byte(0x00),
+      // Num_HCI_Command_Packets
+      std::byte(0x01),
+      // OpCode (Inquiry)
+      std::byte(0x01),
+      std::byte(0x04),
+  };
 
   // Try sending empty buffer.
   {
@@ -372,6 +394,42 @@ void TestSendCommand(Accessor test) {
         auto command_complete,
         test.AllocBuf(MakeCommandCompletePacket(0x0C03, 1)));
     test.hci_cmd_mux().HandleH4FromController(std::move(command_complete));
+    EXPECT_TRUE(event_handler_called);
+    EXPECT_TRUE(test.packets_to_host().empty());
+  }
+
+  test.GiveCommandCredit({.opcode = 0x0C03});
+
+  // Try sending buffer containing a valid command and expecting COMMAND_STATUS.
+  {
+    MultiBuf::Instance buf(test.allocator());
+    buf->Insert(buf->end(), inquiry_command_packet_bytes);
+
+    bool event_handler_called = false;
+    auto result = test.hci_cmd_mux().SendCommand(
+        {std::move(buf)},
+        [&](EventPacket&&) -> CommandMultiplexer::EventInterceptorReturn {
+          event_handler_called = true;
+          return {};
+        },
+        emboss::EventCode::COMMAND_STATUS);
+    EXPECT_TRUE(result.has_value());
+    ASSERT_EQ(test.packets_to_controller().size(), 1u);
+    std::array<std::byte, 1> out_h4_header{};
+    std::array<std::byte, inquiry_command_packet_bytes.size()> out_payload{};
+    test.packets_to_controller().front()->CopyTo(out_h4_header);
+    test.packets_to_controller().front()->CopyTo(out_payload, 1);
+    EXPECT_EQ(out_h4_header[0], std::byte(emboss::H4PacketType::COMMAND));
+    EXPECT_EQ(inquiry_command_packet_bytes, out_payload);
+    test.packets_to_controller().pop_front();
+
+    EXPECT_FALSE(event_handler_called);
+    EXPECT_TRUE(test.packets_to_host().empty());
+
+    PW_TEST_ASSERT_OK_AND_ASSIGN(
+        auto command_status,
+        test.AllocBuf(inquiry_command_status_packet_bytes));
+    test.hci_cmd_mux().HandleH4FromController(std::move(command_status));
     EXPECT_TRUE(event_handler_called);
     EXPECT_TRUE(test.packets_to_host().empty());
   }

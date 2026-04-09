@@ -314,6 +314,11 @@ expected<void, FailureWithBuffer> CommandMultiplexer::SendCommand(
     complete_event_code = CommandCompleteOpcode{command_opcode};
   }
 
+  if (complete_event_code ==
+      EventCodeVariant{emboss::EventCode::COMMAND_STATUS}) {
+    complete_event_code = CommandStatusOpcode{command_opcode};
+  }
+
   auto data = allocator_.MakeUnique<QueuedSentCommandData>();
   if (data == nullptr) {
     EventHandler _(std::move(event_handler));
