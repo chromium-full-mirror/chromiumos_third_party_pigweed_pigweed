@@ -466,18 +466,14 @@ class AdapterImpl final : public Adapter {
     uint8_t max_filters = 0;
     PeerDeliveryMode peer_delivery_mode = PeerDeliveryMode::kImmediate;
 
-    // TODO(b/448475405): We suspect there is a bug with advertising packet
-    // filtering where we don't get scan results on time from the Controller. So
-    // as not to affect others who use Bluetooth scanning, disable advertising
-    // packet filtering for now while we investigate.
-    // constexpr pw::bluetooth::Controller::FeaturesBits feature =
-    //     pw::bluetooth::Controller::FeaturesBits::kAndroidVendorExtensions;
-    // if (state().IsControllerFeatureSupported(feature) &&
-    //     state().android_vendor_capabilities.has_value() &&
-    //     state().android_vendor_capabilities->supports_filtering()) {
-    //   offloading_enabled = true;
-    //   max_filters = state().android_vendor_capabilities->max_filters();
-    // }
+    constexpr pw::bluetooth::Controller::FeaturesBits feature =
+        pw::bluetooth::Controller::FeaturesBits::kAndroidVendorExtensions;
+    if (state().IsControllerFeatureSupported(feature) &&
+        state().android_vendor_capabilities.has_value() &&
+        state().android_vendor_capabilities->supports_filtering()) {
+      offloading_enabled = true;
+      max_filters = state().android_vendor_capabilities->max_filters();
+    }
 
     bt_log(INFO,
            "gap",
