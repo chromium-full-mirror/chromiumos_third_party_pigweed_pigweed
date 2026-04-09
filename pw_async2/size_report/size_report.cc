@@ -34,7 +34,7 @@ sync::ThreadNotification notification;
 sync::Mutex mutex;
 sync::InterruptSpinLock isl;
 
-int value = 0;
+[[maybe_unused]] int value = 0;
 
 class Item : public IntrusiveForwardList<Item>::Item {
  public:
