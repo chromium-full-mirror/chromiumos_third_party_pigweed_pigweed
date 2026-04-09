@@ -16,93 +16,15 @@
 import json
 import re
 import subprocess
-
-from pathlib import PurePosixPath
 from typing import (
     Any,
     Callable,
     Iterable,
 )
+from pw_build.bazel_label import BazelLabel
+from pw_build.bazel_errors import ParseError
 
 BazelValue = bool | int | str | list[str] | dict[str, str]
-
-LABEL_PAT = re.compile(
-    r'^(?:(?:@(?P<repo>[^/]*))?//(?P<package>[^:]*))?' r'(?::(?P<name>.+))?$'
-)
-
-
-class ParseError(Exception):
-    """Raised when a Bazel query returns data that can't be parsed."""
-
-
-class BazelLabel:
-    """Represents a Bazel target identifier."""
-
-    def __init__(
-        self,
-        repo_name: str,
-        package: str,
-        name: str,
-    ) -> None:
-        self._repo_name = repo_name
-        self._package = package
-        self._name = name
-
-    def __str__(self) -> str:
-        """Canonical representation of a Bazel label."""
-        return f'@{self._repo_name}//{self._package}:{self._name}'
-
-    def repo_name(self) -> str:
-        """Returns the repository identifier associated with this label."""
-        return self._repo_name
-
-    def package(self) -> str:
-        """Returns the package path associated with this label."""
-        return self._package
-
-    def name(self) -> str:
-        """Returns the target name associated with this label."""
-        return self._name
-
-    @classmethod
-    def from_string(
-        cls,
-        label_str: str,
-        repo_name: str | None = None,
-        package: str | None = None,
-    ) -> 'BazelLabel':
-        """Creates a Bazel label.
-
-        This method will attempt to parse the repo, package, and target portion
-        of the given label string. If the repo portion of the label is omitted,
-        it will use the given repo, if provided. If the repo and the package
-        portions of the label are omitted, it will use the given package, if
-        provided. If the target portion is omitted, the last segment of the
-        package will be used.
-
-        Note: This script currently does not accept labels with canonical repo
-        names, i.e. labels starting with '@@' such as '@@foo//bar:baz.
-
-        Args:
-            label_str: Bazel label string, like "@repo//pkg:target".
-            repo: Repo to use if omitted from label, e.g. as in "//pkg:target".
-            package: Package to use if omitted from label, e.g. as in ":target".
-        """
-        match = re.match(LABEL_PAT, label_str)
-        if not label_str or not match:
-            raise ParseError(f'invalid label: "{label_str}"')
-        if match.group(1) or not package:
-            package = ''
-        if match.group(1):
-            repo_name = match.group(1)
-        elif not repo_name:
-            raise ParseError(f'unable to determine repo name: "{label_str}"')
-        package = match.group(2) if match.group(2) else package
-        if match.group(3):
-            name = match.group(3)
-        else:
-            name = PurePosixPath(package).name
-        return cls(repo_name, package, name)
 
 
 def parse_invalid(attr: dict[str, Any]) -> BazelValue:

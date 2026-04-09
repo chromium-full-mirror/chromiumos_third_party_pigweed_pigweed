@@ -26,6 +26,12 @@ pw_py_library(
     name = "pw_build",
     srcs = [
         "pw_build/__init__.py",
+        "pw_build/bazel_cquery.py",
+        "pw_build/bazel_errors.py",
+        "pw_build/bazel_exec.py",
+        "pw_build/bazel_info.py",
+        "pw_build/bazel_label.py",
+        "pw_build/bazel_mod.py",
         "pw_build/bazel_query.py",
         "pw_build/bazel_to_gn.py",
         "pw_build/build_recipe.py",
@@ -232,6 +238,56 @@ pw_py_binary(
     # https://github.com/bazel-contrib/rules_python/blob/main/docs/precompiling.md#known-issues-caveats-and-idiosyncrasies
     tags = ["nomypy"],
     deps = [":pw_build"],
+)
+
+pw_py_test(
+    name = "bazel_info_test",
+    srcs = [
+        "bazel_info_test.py",
+    ],
+    deps = [
+        ":pw_build",
+    ],
+)
+
+pw_py_test(
+    name = "bazel_label_test",
+    srcs = [
+        "bazel_label_test.py",
+    ],
+    deps = [
+        ":pw_build",
+    ],
+)
+
+pw_py_test(
+    name = "bazel_mod_test",
+    srcs = [
+        "bazel_mod_test.py",
+    ],
+    deps = [
+        ":pw_build",
+    ],
+)
+
+pw_py_test(
+    name = "bazel_cquery_test",
+    srcs = [
+        "bazel_cquery_test.py",
+    ],
+    deps = [
+        ":pw_build",
+    ],
+)
+
+pw_py_test(
+    name = "bazel_exec_test",
+    srcs = [
+        "bazel_exec_test.py",
+    ],
+    deps = [
+        ":pw_build",
+    ],
 )
 
 pw_py_test(

@@ -14,6 +14,7 @@
 """Tests for pw_ide.verify_db"""
 
 import unittest
+from pathlib import Path
 
 from pw_ide import verify_db
 
@@ -103,6 +104,18 @@ _TEST_DB_UNEXPECTED_SOURCE_FILE = [
         "arguments": ["clang", "a.cc", "b.cc", "-o", "out.exe"],
     }
 ]
+_TEST_DB_HEADER_ENTRY = [
+    {
+        "file": "a.h",
+        "directory": "/home/user/pigweed",
+        "arguments": ["clang", "a.cc"],
+    },
+    {
+        "file": "a.cc",
+        "directory": "/home/user/pigweed",
+        "arguments": ["clang", "a.cc"],
+    },
+]
 
 
 class VerifyDbTest(unittest.TestCase):
@@ -183,38 +196,38 @@ class VerifyDbTest(unittest.TestCase):
 
     def test_missing_check_one_file_missing(self):
         # One file is missing.
-        target_files = ['a.cc']
+        target_files = [Path('a.cc')]
         db_files = []
         self.assertFalse(verify_db.missing_check(target_files, db_files))
 
     def test_missing_check_one_file_present(self):
         # One file is present.
-        target_files = ['a.cc']
-        db_files = ['a.cc']
+        target_files = [Path('a.cc')]
+        db_files = [Path('a.cc')]
         self.assertTrue(verify_db.missing_check(target_files, db_files))
 
     def test_missing_check_multiple_files_missing(self):
         # Multiple files are missing.
-        target_files = ['a.cc', 'b.cc']
+        target_files = [Path('a.cc'), Path('b.cc')]
         db_files = []
         self.assertFalse(verify_db.missing_check(target_files, db_files))
 
     def test_missing_check_multiple_files_present(self):
         # Multiple files are present.
-        target_files = ['a.cc', 'b.cc']
-        db_files = ['a.cc', 'b.cc']
+        target_files = [Path('a.cc'), Path('b.cc')]
+        db_files = [Path('a.cc'), Path('b.cc')]
         self.assertTrue(verify_db.missing_check(target_files, db_files))
 
     def test_missing_check_multiple_files_mixed(self):
         # Multiple files, some present, some missing.
-        target_files = ['a.cc', 'b.cc']
-        db_files = ['a.cc']
+        target_files = [Path('a.cc'), Path('b.cc')]
+        db_files = [Path('a.cc')]
         self.assertFalse(verify_db.missing_check(target_files, db_files))
 
     def test_missing_check_no_continue(self):
         # Multiple files, some present, some missing, but stop on first error.
-        target_files = ['a.cc', 'b.cc', 'c.cc']
-        db_files = ['a.cc']
+        target_files = [Path('a.cc'), Path('b.cc'), Path('c.cc')]
+        db_files = [Path('a.cc')]
         self.assertFalse(
             verify_db.missing_check(
                 target_files, db_files, should_continue=False
@@ -223,8 +236,8 @@ class VerifyDbTest(unittest.TestCase):
 
     def test_missing_check_continue(self):
         # Multiple files, some present, some missing, but continue on error.
-        target_files = ['a.cc', 'b.cc', 'c.cc']
-        db_files = ['a.cc']
+        target_files = [Path('a.cc'), Path('b.cc'), Path('c.cc')]
+        db_files = [Path('a.cc')]
         self.assertFalse(
             verify_db.missing_check(
                 target_files, db_files, should_continue=True
@@ -233,55 +246,55 @@ class VerifyDbTest(unittest.TestCase):
 
     def test_duplicate_check_no_duplicates(self):
         # No duplicates.
-        db_files = ['a.cc', 'b.cc']
+        db_files = [Path('a.cc'), Path('b.cc')]
         self.assertTrue(verify_db.duplicate_check(db_files))
 
     def test_duplicate_check_one_duplicate(self):
         # One duplicate.
-        db_files = ['a.cc', 'a.cc']
+        db_files = [Path('a.cc'), Path('a.cc')]
         self.assertFalse(verify_db.duplicate_check(db_files))
 
     def test_duplicate_check_multiple_duplicates(self):
         # Multiple duplicates.
-        db_files = ['a.cc', 'a.cc', 'b.cc', 'b.cc']
+        db_files = [Path('a.cc'), Path('a.cc'), Path('b.cc'), Path('b.cc')]
         self.assertFalse(verify_db.duplicate_check(db_files))
 
     def test_duplicate_check_no_continue(self):
         # Multiple duplicates, but stop on first error.
-        db_files = ['a.cc', 'a.cc', 'b.cc', 'b.cc']
+        db_files = [Path('a.cc'), Path('a.cc'), Path('b.cc'), Path('b.cc')]
         self.assertFalse(
             verify_db.duplicate_check(db_files, should_continue=False)
         )
 
     def test_duplicate_check_continue(self):
         # Multiple duplicates, but continue on error.
-        db_files = ['a.cc', 'a.cc', 'b.cc', 'b.cc']
+        db_files = [Path('a.cc'), Path('a.cc'), Path('b.cc'), Path('b.cc')]
         self.assertFalse(
             verify_db.duplicate_check(db_files, should_continue=True)
         )
 
     def test_unnecessary_check_no_unnecessary(self):
         # No unnecessary files.
-        target_files = ['a.cc', 'b.cc']
-        db_files = ['a.cc', 'b.cc']
+        target_files = [Path('a.cc'), Path('b.cc')]
+        db_files = [Path('a.cc'), Path('b.cc')]
         self.assertTrue(verify_db.unnecessary_check(target_files, db_files))
 
     def test_unnecessary_check_one_unnecessary(self):
         # One unnecessary file.
-        target_files = ['a.cc']
-        db_files = ['a.cc', 'b.cc']
+        target_files = [Path('a.cc')]
+        db_files = [Path('a.cc'), Path('b.cc')]
         self.assertFalse(verify_db.unnecessary_check(target_files, db_files))
 
     def test_unnecessary_check_multiple_unnecessary(self):
         # Multiple unnecessary files.
-        target_files = ['a.cc']
-        db_files = ['a.cc', 'b.cc', 'c.cc']
+        target_files = [Path('a.cc')]
+        db_files = [Path('a.cc'), Path('b.cc'), Path('c.cc')]
         self.assertFalse(verify_db.unnecessary_check(target_files, db_files))
 
     def test_unnecessary_check_no_continue(self):
         # Multiple unnecessary files, but stop on first error.
-        target_files = ['a.cc']
-        db_files = ['a.cc', 'b.cc', 'c.cc']
+        target_files = [Path('a.cc')]
+        db_files = [Path('a.cc'), Path('b.cc'), Path('c.cc')]
         self.assertFalse(
             verify_db.unnecessary_check(
                 target_files, db_files, should_continue=False
@@ -290,8 +303,8 @@ class VerifyDbTest(unittest.TestCase):
 
     def test_unnecessary_check_continue(self):
         # Multiple unnecessary files, but continue on error.
-        target_files = ['a.cc']
-        db_files = ['a.cc', 'b.cc', 'c.cc']
+        target_files = [Path('a.cc')]
+        db_files = [Path('a.cc'), Path('b.cc'), Path('c.cc')]
         self.assertFalse(
             verify_db.unnecessary_check(
                 target_files, db_files, should_continue=True
@@ -300,8 +313,8 @@ class VerifyDbTest(unittest.TestCase):
 
     def test_unnecessary_check_ignore_headers_true(self):
         # Header files are ignored.
-        target_files = ['a.cc']
-        db_files = ['a.cc', 'b.h']
+        target_files = [Path('a.cc')]
+        db_files = [Path('a.cc'), Path('b.h')]
         self.assertTrue(
             verify_db.unnecessary_check(
                 target_files, db_files, ignore_header_entries=True
@@ -310,8 +323,8 @@ class VerifyDbTest(unittest.TestCase):
 
     def test_unnecessary_check_ignore_headers_false(self):
         # Header files are not ignored.
-        target_files = ['a.cc']
-        db_files = ['a.cc', 'b.h']
+        target_files = [Path('a.cc')]
+        db_files = [Path('a.cc'), Path('b.h')]
         self.assertFalse(
             verify_db.unnecessary_check(
                 target_files, db_files, ignore_header_entries=False
@@ -348,18 +361,7 @@ class VerifyDbTest(unittest.TestCase):
 
     def test_unexpected_source_file_check_ignore_headers_true(self):
         # Header file entries are ignored.
-        db = [
-            {
-                "file": "a.h",
-                "directory": "/home/user/pigweed",
-                "arguments": ["clang", "a.cc"],
-            },
-            {
-                "file": "a.cc",
-                "directory": "/home/user/pigweed",
-                "arguments": ["clang", "a.cc"],
-            },
-        ]
+        db = _TEST_DB_HEADER_ENTRY
         self.assertTrue(
             verify_db.unexpected_source_files_check(
                 db, ignore_header_entries=True
@@ -368,18 +370,9 @@ class VerifyDbTest(unittest.TestCase):
 
     def test_unexpected_source_file_check_ignore_headers_false(self):
         # Header file entries are not ignored.
-        db = [
-            {
-                "file": "a.h",
-                "directory": "/home/user/pigweed",
-                "arguments": ["clang", "a.cc"],
-            },
-            {
-                "file": "a.cc",
-                "directory": "/home/user/pigweed",
-                "arguments": ["clang", "a.cc"],
-            },
-        ]
+        # Header entries will always trigger an unexpected source file in the
+        # arguments because the "file" does not match the file being compiled.
+        db = _TEST_DB_HEADER_ENTRY
         self.assertFalse(
             verify_db.unexpected_source_files_check(
                 db, ignore_header_entries=False
@@ -387,184 +380,185 @@ class VerifyDbTest(unittest.TestCase):
         )
 
     def test_verify_db_default(self):
-        # Default options.
-        self.assertTrue(verify_db.verify_db(_TEST_DB_ONE_ENTRY))
+        # Default options (all checks enabled, no target files).
+        # Non-empty DB fails unnecessary check.
+        self.assertFalse(verify_db.verify_db(_TEST_DB_ONE_ENTRY))
+        # Empty DB succeeds all checks.
+        self.assertTrue(verify_db.verify_db(_TEST_DB_EMPTY))
 
     def test_verify_db_no_checks(self):
         # No checks performed.
-        target_files = ['a.cc']
+        target_files = [Path('a.cc')]
         db = _TEST_DB_ONE_ENTRY
         options = verify_db.Options()
-        options.checks['format'] = False
-        options.checks['missing'] = False
-        options.checks['duplicate'] = False
-        options.checks['unnecessary'] = False
-        options.checks['virtual_include'] = False
-        options.checks['unexpected_source_file'] = False
+        options.format_check(False)
+        options.missing_check(False)
+        options.duplicate_check(False)
+        options.unnecessary_check(False)
+        options.virtual_include_check(False)
+        options.unexpected_source_file_check(False)
         self.assertTrue(verify_db.verify_db(db, target_files, options))
 
     def test_verify_db_format_check_only_valid_strict(self):
         # Format check only, valid database, strict mode.
-        target_files = ['a.cc']
+        target_files = [Path('a.cc')]
         db = _TEST_DB_ONE_ENTRY
         options = verify_db.Options()
-        options.checks['format'] = True
-        options.checks['missing'] = False
-        options.checks['duplicate'] = False
-        options.checks['unnecessary'] = False
-        options.checks['virtual_include'] = False
-        options.checks['unexpected_source_file'] = False
-        options.strict_format = True
+        options.format_check(True, strict=True)
+        options.missing_check(False)
+        options.duplicate_check(False)
+        options.unnecessary_check(False)
+        options.virtual_include_check(False)
+        options.unexpected_source_file_check(False)
         self.assertTrue(verify_db.verify_db(db, target_files, options))
 
     def test_verify_db_format_check_only_invalid_strict(self):
         # Format check only, invalid database (unknown field), strict mode.
-        target_files = ['a.cc']
+        target_files = [Path('a.cc')]
         db = _TEST_DB_UNKNOWN_FIELD
         options = verify_db.Options()
-        options.checks['format'] = True
-        options.checks['missing'] = False
-        options.checks['duplicate'] = False
-        options.checks['unnecessary'] = False
-        options.checks['virtual_include'] = False
-        options.checks['unexpected_source_file'] = False
-        options.strict_format = True
+        options.format_check(True, strict=True)
+        options.missing_check(False)
+        options.duplicate_check(False)
+        options.unnecessary_check(False)
+        options.virtual_include_check(False)
+        options.unexpected_source_file_check(False)
         self.assertFalse(verify_db.verify_db(db, target_files, options))
 
     def test_verify_db_missing_check_only_valid(self):
         # Missing check only, valid database.
-        target_files = ['a.cc']
+        target_files = [Path('a.cc')]
         db = _TEST_DB_ONE_ENTRY
         options = verify_db.Options()
-        options.checks['format'] = False
-        options.checks['missing'] = True
-        options.checks['duplicate'] = False
-        options.checks['unnecessary'] = False
-        options.checks['virtual_include'] = False
-        options.checks['unexpected_source_file'] = False
+        options.format_check(False)
+        options.missing_check(True)
+        options.duplicate_check(False)
+        options.unnecessary_check(False)
+        options.virtual_include_check(False)
+        options.unexpected_source_file_check(False)
         self.assertTrue(verify_db.verify_db(db, target_files, options))
 
     def test_verify_db_missing_check_only_invalid(self):
         # Missing check only, invalid database (missing entry).
-        target_files = ['a.cc', 'b.cc']
+        target_files = [Path('a.cc'), Path('b.cc')]
         db = _TEST_DB_ONE_ENTRY
         options = verify_db.Options()
-        options.checks['format'] = False
-        options.checks['missing'] = True
-        options.checks['duplicate'] = False
-        options.checks['unnecessary'] = False
-        options.checks['virtual_include'] = False
-        options.checks['unexpected_source_file'] = False
+        options.format_check(False)
+        options.missing_check(True)
+        options.duplicate_check(False)
+        options.unnecessary_check(False)
+        options.virtual_include_check(False)
+        options.unexpected_source_file_check(False)
         self.assertFalse(verify_db.verify_db(db, target_files, options))
 
     def test_verify_db_duplicate_check_only_valid(self):
         # Duplicate check only, valid database.
-        target_files = ['a.cc']
+        target_files = [Path('a.cc')]
         db = _TEST_DB_ONE_ENTRY
         options = verify_db.Options()
-        options.checks['format'] = False
-        options.checks['missing'] = False
-        options.checks['duplicate'] = True
-        options.checks['unnecessary'] = False
-        options.checks['virtual_include'] = False
-        options.checks['unexpected_source_file'] = False
+        options.format_check(False)
+        options.missing_check(False)
+        options.duplicate_check(True)
+        options.unnecessary_check(False)
+        options.virtual_include_check(False)
+        options.unexpected_source_file_check(False)
         self.assertTrue(verify_db.verify_db(db, target_files, options))
 
     def test_verify_db_duplicate_check_only_invalid(self):
         # Duplicate check only, invalid database (duplicate entry).
-        target_files = ['a.cc']
+        target_files = [Path('a.cc')]
         db = _TEST_DB_DUPLICATE_ENTRY
         options = verify_db.Options()
-        options.checks['format'] = False
-        options.checks['missing'] = False
-        options.checks['duplicate'] = True
-        options.checks['unnecessary'] = False
-        options.checks['virtual_include'] = False
-        options.checks['unexpected_source_file'] = False
+        options.format_check(False)
+        options.missing_check(False)
+        options.duplicate_check(True)
+        options.unnecessary_check(False)
+        options.virtual_include_check(False)
+        options.unexpected_source_file_check(False)
         self.assertFalse(verify_db.verify_db(db, target_files, options))
 
     def test_verify_db_unnecessary_check_only_valid(self):
         # Unnecessary check only, valid database.
-        target_files = ['a.cc']
+        target_files = [Path('a.cc')]
         db = _TEST_DB_ONE_ENTRY
         options = verify_db.Options()
-        options.checks['format'] = False
-        options.checks['missing'] = False
-        options.checks['duplicate'] = False
-        options.checks['unnecessary'] = True
-        options.checks['virtual_include'] = False
-        options.checks['unexpected_source_file'] = False
+        options.format_check(False)
+        options.missing_check(False)
+        options.duplicate_check(False)
+        options.unnecessary_check(True)
+        options.virtual_include_check(False)
+        options.unexpected_source_file_check(False)
         self.assertTrue(verify_db.verify_db(db, target_files, options))
 
     def test_verify_db_unnecessary_check_only_invalid(self):
         # Unnecessary check only, invalid database (unnecessary entry).
-        target_files = ['a.cc']
+        target_files = [Path('a.cc')]
         db = _TEST_DB_UNNECESSARY_ENTRY
         options = verify_db.Options()
-        options.checks['format'] = False
-        options.checks['missing'] = False
-        options.checks['duplicate'] = False
-        options.checks['unnecessary'] = True
-        options.checks['virtual_include'] = False
-        options.checks['unexpected_source_file'] = False
+        options.format_check(False)
+        options.missing_check(False)
+        options.duplicate_check(False)
+        options.unnecessary_check(True)
+        options.virtual_include_check(False)
+        options.unexpected_source_file_check(False)
         self.assertFalse(verify_db.verify_db(db, target_files, options))
 
     def test_verify_db_virtual_include_check_only_valid(self):
         # Virtual include check only, valid database.
-        target_files = ['a.cc']
+        target_files = [Path('a.cc')]
         db = _TEST_DB_ONE_ENTRY
         options = verify_db.Options()
-        options.checks['format'] = False
-        options.checks['missing'] = False
-        options.checks['duplicate'] = False
-        options.checks['unnecessary'] = False
-        options.checks['virtual_include'] = True
-        options.checks['unexpected_source_file'] = False
+        options.format_check(False)
+        options.missing_check(False)
+        options.duplicate_check(False)
+        options.unnecessary_check(False)
+        options.virtual_include_check(True)
+        options.unexpected_source_file_check(False)
         self.assertTrue(verify_db.verify_db(db, target_files, options))
 
     def test_verify_db_virtual_include_check_only_invalid(self):
         # Virtual include check only, invalid database (virtual include).
-        target_files = ['a.cc']
+        target_files = [Path('a.cc')]
         db = _TEST_DB_VIRTUAL_INCLUDE
         options = verify_db.Options()
-        options.checks['format'] = False
-        options.checks['missing'] = False
-        options.checks['duplicate'] = False
-        options.checks['unnecessary'] = False
-        options.checks['virtual_include'] = True
-        options.checks['unexpected_source_file'] = False
+        options.format_check(False)
+        options.missing_check(False)
+        options.duplicate_check(False)
+        options.unnecessary_check(False)
+        options.virtual_include_check(True)
+        options.unexpected_source_file_check(False)
         self.assertFalse(verify_db.verify_db(db, target_files, options))
 
     def test_verify_db_unexpected_source_file_check_only_valid(self):
         # Unexpected source file check only, valid database.
-        target_files = ['a.cc']
+        target_files = [Path('a.cc')]
         db = _TEST_DB_ONE_ENTRY
         options = verify_db.Options()
-        options.checks['format'] = False
-        options.checks['missing'] = False
-        options.checks['duplicate'] = False
-        options.checks['unnecessary'] = False
-        options.checks['virtual_include'] = False
-        options.checks['unexpected_source_file'] = True
+        options.format_check(False)
+        options.missing_check(False)
+        options.duplicate_check(False)
+        options.unnecessary_check(False)
+        options.virtual_include_check(False)
+        options.unexpected_source_file_check(True)
         self.assertTrue(verify_db.verify_db(db, target_files, options))
 
     def test_verify_db_unexpected_source_file_check_only_invalid(self):
         # Unexpected source file check only, invalid database (unexpected
         # source file).
-        target_files = ['a.cc']
+        target_files = [Path('a.cc')]
         db = _TEST_DB_UNEXPECTED_SOURCE_FILE
         options = verify_db.Options()
-        options.checks['format'] = False
-        options.checks['missing'] = False
-        options.checks['duplicate'] = False
-        options.checks['unnecessary'] = False
-        options.checks['virtual_include'] = False
-        options.checks['unexpected_source_file'] = True
+        options.format_check(False)
+        options.missing_check(False)
+        options.duplicate_check(False)
+        options.unnecessary_check(False)
+        options.virtual_include_check(False)
+        options.unexpected_source_file_check(True)
         self.assertFalse(verify_db.verify_db(db, target_files, options))
 
     def test_verify_db_all_checks_valid(self):
         # All checks performed, valid database.
-        target_files = ['a.cc']
+        target_files = [Path('a.cc')]
         db = _TEST_DB_ONE_ENTRY
         options = verify_db.Options()
         options.should_continue = True

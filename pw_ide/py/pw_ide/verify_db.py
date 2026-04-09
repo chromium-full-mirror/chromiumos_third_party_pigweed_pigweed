@@ -28,12 +28,14 @@ from collections.abc import Iterator
 import io
 import json
 import logging
-import subprocess
+from pathlib import Path
 import sys
 
 from jsonschema import validate  # type: ignore
 from jsonschema.exceptions import ValidationError  # type: ignore
 
+from pw_build import bazel_cquery
+from pw_build.bazel_label import BazelLabel
 from pw_cli import color
 
 _LOG = logging.getLogger(__name__)
@@ -365,47 +367,17 @@ def _setup_logging(log_level: int):
     root_logger.setLevel(log_level)
 
 
-def _get_target_source_files(target: str, platform: str) -> list[str]:
+def _get_target_source_files(target: BazelLabel, platform: str) -> list[Path]:
     """Get the source files for a bazel target."""
-    cquery_cmd = [
-        'bazel',
-        'cquery',
-        f"kind('source file', deps({target}))",
-        '--noimplicit_deps',
-        f'--platforms={platform}',
-        '--noshow_progress',
-        '--ui_event_filters=-info,-warning',
-    ]
+    srcs = bazel_cquery.source_files(target, platform=platform)
+    gens = bazel_cquery.generated_files(target, platform=platform)
 
-    try:
-        result = subprocess.run(
-            cquery_cmd,
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-    except subprocess.CalledProcessError as e:
-        _LOG.error('Failed to run bazel cquery: %s', e)
-        return []
+    source_files = []
+    for file in srcs + gens:
+        if file.suffix in _SOURCE_FILE_EXTENSIONS:
+            source_files.append(file)
 
-    deps = result.stdout.strip().splitlines()
-
-    srcs = []
-    for dep in deps:
-        if not dep.startswith('//'):
-            continue
-
-        parts = dep[2:].split(' ')
-        if not parts:
-            continue
-
-        file_path_with_colon = parts[0]
-        file_name = file_path_with_colon.replace(':', '/')
-
-        if file_name.endswith(_SOURCE_FILE_EXTENSIONS):
-            srcs.append(file_name)
-
-    return srcs
+    return source_files
 
 
 def _load_db(db_file: io.IOBase) -> list[dict] | None:
@@ -417,9 +389,9 @@ def _load_db(db_file: io.IOBase) -> list[dict] | None:
         return None
 
 
-def _get_db_source_files(db: list[dict]) -> list[str]:
+def _get_db_source_files(db: list[dict]) -> list[Path]:
     """Get the source files from a compile_commands.json file."""
-    return [entry["file"] for entry in db]
+    return [Path(entry["file"]) for entry in db]
 
 
 def _convert_command_to_arguments(command: str) -> list[str]:
@@ -428,8 +400,8 @@ def _convert_command_to_arguments(command: str) -> list[str]:
 
 
 def _find_missing(
-    target_files: list[str], db_files: list[str]
-) -> Iterator[str]:
+    target_files: list[Path], db_files: list[Path]
+) -> Iterator[Path]:
     """Find missing entries between target files and database files."""
     for src in target_files:
         if src not in db_files:
@@ -438,7 +410,7 @@ def _find_missing(
             _LOG.debug('Found source file in db: %s', src)
 
 
-def _find_duplicates(db_files: list[str]) -> Iterator[str]:
+def _find_duplicates(db_files: list[Path]) -> Iterator[Path]:
     """Find duplicate entries in database files."""
     duplicates = []
     for file in db_files:
@@ -448,8 +420,8 @@ def _find_duplicates(db_files: list[str]) -> Iterator[str]:
 
 
 def _find_unnecessary(
-    target_files: list[str], db_files: list[str]
-) -> Iterator[str]:
+    target_files: list[Path], db_files: list[Path]
+) -> Iterator[Path]:
     """Find unnecessary entries in database files."""
     for file in db_files:
         if file not in target_files:
@@ -490,8 +462,8 @@ def format_check(db: list[dict], strict: bool = False) -> bool:
 
 
 def missing_check(
-    target_files: list[str],
-    db_files: list[str],
+    target_files: list[Path],
+    db_files: list[Path],
     should_continue: bool = False,
 ) -> bool:
     """Check for missing entries in database files.
@@ -520,7 +492,10 @@ def missing_check(
     return result
 
 
-def duplicate_check(db_files: list[str], should_continue: bool = False) -> bool:
+def duplicate_check(
+    db_files: list[Path],
+    should_continue: bool = False,
+) -> bool:
     """Check for duplicate entries in database files.
 
     Args:
@@ -545,8 +520,8 @@ def duplicate_check(db_files: list[str], should_continue: bool = False) -> bool:
 
 
 def unnecessary_check(
-    target_files: list[str],
-    db_files: list[str],
+    target_files: list[Path],
+    db_files: list[Path],
     ignore_header_entries: bool = False,
     should_continue: bool = False,
 ) -> bool:
@@ -562,7 +537,9 @@ def unnecessary_check(
         True if no unnecessary entries are found, False otherwise.
     """
     if ignore_header_entries:
-        db_files = [f for f in db_files if f.endswith(_SOURCE_FILE_EXTENSIONS)]
+        db_files = [
+            f for f in db_files if f.suffix not in _HEADER_FILE_EXTENSIONS
+        ]
     result = True
     unnecessary = _find_unnecessary(target_files, db_files)
     for file in unnecessary:
@@ -627,7 +604,9 @@ def unexpected_source_files_check(
 
     Args:
         db: The database object.
-        ignore_header_entries: Whether to ignore header entries.
+        ignore_header_entries: Whether to ignore header entries. Header entries
+            will always have a .cc file in the command (the actual file being
+            compiled).
         should_continue: Whether to continue checking after finding an error.
 
     Returns:
@@ -675,7 +654,7 @@ def unexpected_source_files_check(
 
 def verify_db(
     db: list[dict],
-    target_files: list[str] | None = None,
+    target_files: list[Path] | None = None,
     options: Options = Options(),
 ) -> bool:
     """
@@ -692,12 +671,7 @@ def verify_db(
 
     if target_files is None:
         target_files = []
-        _LOG.debug(
-            'No target files provided, skipping missing and unnecessary'
-            ' checks.'
-        )
-        options.checks['missing'] = False
-        options.checks['unnecessary'] = False
+        _LOG.debug('No target files provided.')
 
     if not any(options.checks.values()):
         _LOG.warning('No checks enabled!')
@@ -787,7 +761,10 @@ def main() -> int:
 
     if args.target:
         _LOG.info('Getting source files for target %s...', args.target)
-        target_srcs = _get_target_source_files(args.target, args.platform)
+        target_srcs = _get_target_source_files(
+            BazelLabel.from_string(args.target),
+            args.platform,
+        )
     else:
         target_srcs = []
 

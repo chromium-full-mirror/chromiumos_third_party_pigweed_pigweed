@@ -60,6 +60,12 @@ pw_python_package("py") {
   ]
   sources = [
     "pw_build/__init__.py",
+    "pw_build/bazel_cquery.py",
+    "pw_build/bazel_errors.py",
+    "pw_build/bazel_exec.py",
+    "pw_build/bazel_info.py",
+    "pw_build/bazel_label.py",
+    "pw_build/bazel_mod.py",
     "pw_build/bazel_query.py",
     "pw_build/bazel_to_gn.py",
     "pw_build/build_recipe.py",
@@ -101,6 +107,11 @@ pw_python_package("py") {
     "pw_build/zip.py",
   ]
   tests = [
+    "bazel_cquery_test.py",
+    "bazel_exec_test.py",
+    "bazel_info_test.py",
+    "bazel_label_test.py",
+    "bazel_mod_test.py",
     "bazel_query_test.py",
     "bazel_to_gn_test.py",
     "build_recipe_test.py",

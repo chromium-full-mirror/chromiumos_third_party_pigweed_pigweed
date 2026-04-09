@@ -19,8 +19,8 @@ import unittest
 from unittest import mock
 from unittest.mock import call
 
+from pw_build.bazel_label import BazelLabel
 from pw_build.bazel_query import (
-    BazelLabel,
     ParseError,
     BazelRule,
     BazelRepo,
@@ -50,93 +50,6 @@ class MockCalls:
 
 
 # Unit tests.
-
-
-class TestBazelLabel(unittest.TestCase):
-    """Tests for bazel_query.BazelLabel."""
-
-    def test_label_with_repo_package_target(self):
-        """Tests a label with a repo, package, and target."""
-        label = BazelLabel.from_string(
-            '@repo1//foo/bar:baz', repo_name='repo2', package='qux'
-        )
-        self.assertEqual(label.repo_name(), 'repo1')
-        self.assertEqual(label.package(), 'foo/bar')
-        self.assertEqual(label.name(), 'baz')
-        self.assertEqual(str(label), '@repo1//foo/bar:baz')
-
-    def test_label_with_repo_package(self):
-        """Tests a label with a repo and package."""
-        label = BazelLabel.from_string(
-            '@repo1//foo/bar', repo_name='repo2', package='qux'
-        )
-        self.assertEqual(label.repo_name(), 'repo1')
-        self.assertEqual(label.package(), 'foo/bar')
-        self.assertEqual(label.name(), 'bar')
-        self.assertEqual(str(label), '@repo1//foo/bar:bar')
-
-    def test_label_with_repo_target(self):
-        """Tests a label with a repo and target."""
-        label = BazelLabel.from_string(
-            '@repo1//:baz', repo_name='repo2', package='qux'
-        )
-        self.assertEqual(label.repo_name(), 'repo1')
-        self.assertEqual(label.package(), '')
-        self.assertEqual(label.name(), 'baz')
-        self.assertEqual(str(label), '@repo1//:baz')
-
-    def test_label_with_repo_only(self):
-        """Tests a label with a repo only."""
-        with self.assertRaises(ParseError):
-            BazelLabel.from_string('@repo1', repo_name='repo2', package='qux')
-
-    def test_label_with_package_target(self):
-        """Tests a label with a package and target."""
-        label = BazelLabel.from_string(
-            '//foo/bar:baz', repo_name='repo2', package='qux'
-        )
-        self.assertEqual(label.repo_name(), 'repo2')
-        self.assertEqual(label.package(), 'foo/bar')
-        self.assertEqual(label.name(), 'baz')
-        self.assertEqual(str(label), '@repo2//foo/bar:baz')
-
-    def test_label_with_package_only(self):
-        """Tests a label with a package only."""
-        label = BazelLabel.from_string(
-            '//foo/bar', repo_name='repo2', package='qux'
-        )
-        self.assertEqual(label.repo_name(), 'repo2')
-        self.assertEqual(label.package(), 'foo/bar')
-        self.assertEqual(label.name(), 'bar')
-        self.assertEqual(str(label), '@repo2//foo/bar:bar')
-
-    def test_label_with_target_only(self):
-        """Tests a label with a target only."""
-        label = BazelLabel.from_string(':baz', repo_name='repo2', package='qux')
-        self.assertEqual(label.repo_name(), 'repo2')
-        self.assertEqual(label.package(), 'qux')
-        self.assertEqual(label.name(), 'baz')
-        self.assertEqual(str(label), '@repo2//qux:baz')
-
-    def test_label_with_none(self):
-        """Tests an empty label."""
-        with self.assertRaises(ParseError):
-            BazelLabel.from_string('', repo_name='repo2', package='qux')
-
-    def test_label_invalid_no_repo(self):
-        """Tests a label with an invalid (non-absolute) package name."""
-        with self.assertRaises(ParseError):
-            BazelLabel.from_string('//foo/bar:baz')
-
-    def test_label_invalid_relative(self):
-        """Tests a label with an invalid (non-absolute) package name."""
-        with self.assertRaises(ParseError):
-            BazelLabel.from_string('../foo/bar:baz')
-
-    def test_label_invalid_double_colon(self):
-        """Tests a label with an invalid (non-absolute) package name."""
-        with self.assertRaises(ParseError):
-            BazelLabel.from_string('//foo:bar:baz')
 
 
 class TestBazelRule(unittest.TestCase):

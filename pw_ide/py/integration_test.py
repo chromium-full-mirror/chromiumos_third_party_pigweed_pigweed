@@ -43,6 +43,7 @@ from pw_ide import clangd_binary, update_compile_commands_binary, verify_db
 
 # pylint: enable=import-error,no-name-in-module
 
+from pw_build import bazel_info
 
 _HEURISTIC_FALLBACK_MSG = (
     'Found definition heuristically using nearby identifier'
@@ -71,31 +72,13 @@ _TEST_PREFIX_COMPILE_COMMANDS_GENERATOR = (
 
 # pylint: enable=line-too-long
 
+_HOST_PLATFORM_NAME = bazel_info.config_name()
+_DEVICE_PLATFORM_NAME = bazel_info.config_name(platform='//targets/rp2040')
 
-def _get_host_platform() -> str:
-    """Searches the CWD to determine the current execution platform name.
-
-    The output structure is shaped something like this:
-
-        execroot/_main/bazel-out/darwin_arm64-fastbuild/bin/pw_ide/...
-                                 ~~~~~~~~~~~~~~~~~~~~~~
-
-    So we can find the "host" platform name after the `bazel-out` bit. This
-    is a little hacky, but BUILD_EXECROOT should give us more direct access
-    to this information in Bazel 9.0.0, so for now it's good enough.
-    """
-    cwd_parts = Path.cwd().parts
-    bazel_out_idx = cwd_parts.index('bazel-out')
-    return cwd_parts[bazel_out_idx + 1]
-
-
-_OLD_HOST_PLATFORM = _get_host_platform()
-
-# Use the same suffix (e.g. fastbuild) as the host build.
-_OLD_DEVICE_PLATFORM = 'rp2040-' + _OLD_HOST_PLATFORM.split('-')[1]
-
-_HOST_PLATFORM = f'({_OLD_HOST_PLATFORM}|@@bazel_tools____tools__host_platform)'
-_DEVICE_PLATFORM = f'({_OLD_DEVICE_PLATFORM}|@@____targets__rp2040__rp2040)'
+_HOST_PLATFORM = (
+    f'({_HOST_PLATFORM_NAME}|@@bazel_tools____tools__host_platform)'
+)
+_DEVICE_PLATFORM = f'({_DEVICE_PLATFORM_NAME}|@@____targets__rp2040__rp2040)'
 
 # Helpful pattern to cover both host and target test platforms.
 _HOST_OR_DEVICE = f'({_HOST_PLATFORM})|({_DEVICE_PLATFORM})'
@@ -145,38 +128,16 @@ class CompileCommandsTestBase(unittest.TestCase):
         cls.updater_path = cls.runfiles.Rlocation(
             *update_compile_commands_binary.RLOCATION
         )
-        assert 'BUILD_WORKSPACE_DIRECTORY' in os.environ, (
-            'This must be `bazel run` to work properly, and cannot be tested '
-            'via `bazel test`'
-        )
-        cls.project_root = Path(os.environ.get('BUILD_WORKSPACE_DIRECTORY'))
+        cls.project_root = bazel_info.workspace_root()
         cls.temp_dir = tempfile.TemporaryDirectory()
         cls._all_compile_commands = {}
 
-        cls.output_base = Path(
-            subprocess.check_output(
-                ['bazel', 'info', 'output_base'],
-                cwd=cls.project_root,
-                text=True,
-            ).strip()
-        )
+        cls.output_base = bazel_info.output_base()
 
         # Get bazel_output_path for validating bazel-out/ paths
-        cls.bazel_output_path = Path(
-            subprocess.check_output(
-                ['bazel', 'info', 'output_path'],
-                cwd=cls.project_root,
-                text=True,
-            ).strip()
-        )
+        cls.bazel_output_path = bazel_info.output_path()
 
-        cls.execution_root = Path(
-            subprocess.check_output(
-                ['bazel', 'info', 'execution_root'],
-                cwd=cls.project_root,
-                text=True,
-            ).strip()
-        )
+        cls.execution_root = bazel_info.execution_root()
 
         # In some CI environments (e.g. when run with
         # --experimental_convenience_symlinks=ignore), the bazel-out symlink

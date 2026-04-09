@@ -40,6 +40,7 @@ pw_py_library(
     ],
     imports = ["."],
     deps = [
+        "//pw_build/py:pw_build",
         "//pw_cli/py:pw_cli",
         "//pw_config_loader/py:pw_config_loader",
         "@pigweed_python_packages//json5",
@@ -137,6 +138,7 @@ pw_py_binary(
     srcs = ["pw_ide/verify_db.py"],
     main = "pw_ide/verify_db.py",
     deps = [
+        "//pw_build/py:pw_build",
         "//pw_cli/py:pw_cli",
         "@pigweed_python_packages//jsonschema",
     ],
@@ -202,6 +204,7 @@ pw_py_binary(
         ":clangd_binary",
         ":pw_ide",
         ":update_compile_commands_binary",
+        "//pw_build/py:pw_build",
         "@rules_python//python/runfiles",
     ],
 )

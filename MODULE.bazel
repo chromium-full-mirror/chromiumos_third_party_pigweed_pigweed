@@ -528,6 +528,12 @@ local_repository(
     path = "pw_ide/bazel/compile_commands/test/external_repo",
 )
 
+local_repository(
+    name = "pw_bazel_test_external",
+    dev_dependency = True,
+    path = "pw_bazel/test/external_repo",
+)
+
 # Doxygen setup
 # =============
 
