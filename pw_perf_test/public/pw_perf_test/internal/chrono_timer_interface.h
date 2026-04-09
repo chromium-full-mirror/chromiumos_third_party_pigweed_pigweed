@@ -14,7 +14,6 @@
 #pragma once
 
 #include <chrono>
-#include <cstdbool>
 
 #include "pw_chrono/system_clock.h"
 #include "pw_perf_test/internal/duration_unit.h"
