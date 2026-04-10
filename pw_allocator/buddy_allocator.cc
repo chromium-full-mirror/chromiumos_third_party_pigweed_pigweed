@@ -47,11 +47,11 @@ BuddyBlock* BuddyBlock::Merge(BuddyBlock*&& left, BuddyBlock*&& right) {
   return left;
 }
 
-GenericBuddyAllocator::GenericBuddyAllocator(span<BucketType> buckets,
-                                             size_t min_outer_size)
-    : buckets_(buckets) {
+void GenericBuddyAllocator::InitBuckets(
+    span<UnorderedBucket<BuddyBlock>> buckets, size_t min_outer_size) {
+  buckets_ = buckets;
   min_outer_size_ = min_outer_size;
-  for (BucketType& bucket : buckets) {
+  for (auto& bucket : buckets) {
     size_t max_inner_size = BuddyBlock::InnerSizeFromOuterSize(min_outer_size);
     bucket.set_max_inner_size(max_inner_size);
     min_outer_size <<= 1;
@@ -107,7 +107,10 @@ void GenericBuddyAllocator::CrashIfAllocated() {
   region_ = ByteSpan();
 }
 
-void* GenericBuddyAllocator::Allocate(Layout layout) {
+void* GenericBuddyAllocator::DoAllocate(Layout layout) {
+  // Reserve one byte to save the bucket index.
+  layout = layout.Extend(1);
+
   if (layout.size() > buckets_.back().max_inner_size()) {
     return nullptr;
   }
@@ -143,13 +146,13 @@ void* GenericBuddyAllocator::Allocate(Layout layout) {
   return nullptr;
 }
 
-void GenericBuddyAllocator::Deallocate(void* ptr) {
+void GenericBuddyAllocator::DoDeallocate(void* ptr) {
   if (ptr == nullptr) {
     return;
   }
 
   auto* block = BuddyBlock::FromUsableSpace(ptr);
-  BucketType* bucket = nullptr;
+  UnorderedBucket<BuddyBlock>* bucket = nullptr;
   if constexpr (Hardening::kIncludesDebugChecks) {
     PW_CHECK_INT_GT(buckets_.size(), 0);
   }
@@ -193,7 +196,21 @@ void GenericBuddyAllocator::Deallocate(void* ptr) {
   std::ignore = bucket->Add(*block);
 }
 
-Result<Layout> GenericBuddyAllocator::GetLayout(const void* ptr) const {
+/// @copydoc Deallocator::GetInfo
+Result<Layout> GenericBuddyAllocator::DoGetInfo(InfoType info_type,
+                                                const void* ptr) const {
+  switch (info_type) {
+    case InfoType::kCapacity:
+      return Layout(region_.size(), min_outer_size_);
+    case InfoType::kUsableLayoutOf:
+    case InfoType::kAllocatedLayoutOf:
+    case InfoType::kRecognizes:
+      break;
+    case InfoType::kRequestedLayoutOf:
+    default:
+      return Status::Unimplemented();
+  }
+
   if (ptr < region_.data()) {
     return Status::OutOfRange();
   }
@@ -203,7 +220,20 @@ Result<Layout> GenericBuddyAllocator::GetLayout(const void* ptr) const {
     return Status::OutOfRange();
   }
   const auto* block = BuddyBlock::FromUsableSpace(ptr);
-  return Layout(block->InnerSize(), min_outer_size_);
+  Layout layout(block->InnerSize(), min_outer_size_);
+
+  switch (info_type) {
+    case InfoType::kUsableLayoutOf:
+      return Layout(layout.size() - 1, layout.alignment());
+    case InfoType::kAllocatedLayoutOf:
+      return layout;
+    case InfoType::kRecognizes:
+      return Layout();
+    case InfoType::kCapacity:
+    case InfoType::kRequestedLayoutOf:
+    default:
+      return Status::Unimplemented();
+  }
 }
 
 }  // namespace pw::allocator::internal

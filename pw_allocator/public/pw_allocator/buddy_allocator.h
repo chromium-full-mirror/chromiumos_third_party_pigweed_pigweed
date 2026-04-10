@@ -65,10 +65,8 @@ class BuddyBlock : public BasicBlock<BuddyBlock> {
 ///
 /// Compared to `BuddyAllocator`, this implementation is size-agnostic with
 /// respect to the number of buckets.
-class GenericBuddyAllocator final {
+class GenericBuddyAllocator : public pw::Allocator {
  public:
-  using BucketType = UnorderedBucket<BuddyBlock>;
-
   static constexpr Capabilities kCapabilities =
       kImplementsGetUsableLayout | kImplementsGetAllocatedLayout |
       kImplementsGetCapacity | kImplementsRecognizes;
@@ -76,33 +74,32 @@ class GenericBuddyAllocator final {
   static constexpr size_t kDefaultMinOuterSize = 16;
   static constexpr size_t kDefaultNumBuckets = 16;
 
-  /// Constructs a buddy allocator.
+  /// Sets up buckets for a buddy allocator.
   ///
   /// @param[in] buckets        Storage for buckets of free blocks.
   /// @param[in] min_outer_size Outer size of the blocks in the first bucket.
-  GenericBuddyAllocator(span<BucketType> buckets, size_t min_outer_size);
+  void InitBuckets(span<UnorderedBucket<BuddyBlock>> buckets,
+                   size_t min_outer_size);
 
   /// Sets the memory used to allocate blocks.
   void Init(ByteSpan region);
 
-  /// @copydoc Allocator::Allocate
-  void* Allocate(Layout layout);
-
-  /// @copydoc Deallocator::Deallocate
-  void Deallocate(void* ptr);
-
-  /// Returns the total capacity of this allocator.
-  size_t GetCapacity() const { return region_.size(); }
-
-  /// Returns the allocated layout for a given pointer.
-  Result<Layout> GetLayout(const void* ptr) const;
-
+ protected:
   /// Ensures all allocations have been freed. Crashes with a diagnostic message
   /// If any allocations remain outstanding.
   void CrashIfAllocated();
 
  private:
-  span<BucketType> buckets_;
+  /// @copydoc Allocator::Allocate
+  void* DoAllocate(Layout layout) override;
+
+  /// @copydoc Deallocator::DoDeallocate
+  void DoDeallocate(void* ptr) override;
+
+  /// @copydoc Deallocator::GetInfo
+  Result<Layout> DoGetInfo(InfoType info_type, const void* ptr) const override;
+
+  span<UnorderedBucket<BuddyBlock>> buckets_;
   size_t min_outer_size_ = 0;
   ByteSpan region_;
 };
@@ -136,69 +133,30 @@ template <size_t kMinOuterSize_ =
               internal::GenericBuddyAllocator::kDefaultMinOuterSize,
           size_t kNumBuckets =
               internal::GenericBuddyAllocator::kDefaultNumBuckets>
-class BuddyAllocator : public pw::Allocator {
- public:
-  using BucketType = internal::GenericBuddyAllocator::BucketType;
+class BuddyAllocator : public internal::GenericBuddyAllocator {
+ private:
+  using Base = internal::GenericBuddyAllocator;
 
+ public:
   static constexpr size_t kMinOuterSize = kMinOuterSize_;
 
   static_assert((kMinOuterSize & (kMinOuterSize - 1)) == 0,
                 "kMinOuterSize must be a power of 2");
 
   /// Constructs an allocator. Callers must call `Init`.
-  BuddyAllocator() : impl_(buckets_, kMinOuterSize) {}
+  constexpr BuddyAllocator() { Base::InitBuckets(buckets_, kMinOuterSize); }
 
   /// Constructs an allocator, and initializes it with the given memory region.
   ///
   /// @param[in]  region  Region of memory to use when satisfying allocation
   ///                     requests. The region MUST be large enough to fit a
   ///                     least one minimally-size `BuddyBlock`.
-  BuddyAllocator(ByteSpan region) : BuddyAllocator() { Init(region); }
+  BuddyAllocator(ByteSpan region) : BuddyAllocator() { Base::Init(region); }
 
-  /// Sets the memory region used by the allocator.
-  ///
-  /// @param[in]  region  Region of memory to use when satisfying allocation
-  ///                     requests. The region MUST be large enough to fit a
-  ///                     least one minimally-size `BuddyBlock`.
-  void Init(ByteSpan region) { impl_.Init(region); }
-
-  ~BuddyAllocator() override { impl_.CrashIfAllocated(); }
+  ~BuddyAllocator() override { Base::CrashIfAllocated(); }
 
  private:
-  /// @copydoc Allocator::Allocate
-  void* DoAllocate(Layout layout) override {
-    // Reserve one byte to save the bucket index.
-    return impl_.Allocate(layout.Extend(1));
-  }
-
-  /// @copydoc Deallocator::DoDeallocate
-  void DoDeallocate(void* ptr) override { impl_.Deallocate(ptr); }
-
-  /// @copydoc Deallocator::GetInfo
-  Result<Layout> DoGetInfo(InfoType info_type, const void* ptr) const override {
-    switch (info_type) {
-      case InfoType::kUsableLayoutOf: {
-        Layout layout;
-        PW_TRY_ASSIGN(layout, impl_.GetLayout(ptr));
-        return Layout(layout.size() - 1, layout.alignment());
-      }
-      case InfoType::kAllocatedLayoutOf:
-        return impl_.GetLayout(ptr);
-      case InfoType::kCapacity:
-        return Layout(impl_.GetCapacity(), kMinOuterSize);
-      case InfoType::kRecognizes: {
-        Layout layout;
-        PW_TRY_ASSIGN(layout, impl_.GetLayout(ptr));
-        return Layout();
-      }
-      case InfoType::kRequestedLayoutOf:
-      default:
-        return Status::Unimplemented();
-    }
-  }
-
-  std::array<BucketType, kNumBuckets> buckets_;
-  internal::GenericBuddyAllocator impl_;
+  std::array<UnorderedBucket<internal::BuddyBlock>, kNumBuckets> buckets_;
 };
 
 /// @}

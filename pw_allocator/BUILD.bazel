@@ -290,12 +290,19 @@ cc_library(
 cc_library(
     name = "freertos_allocator",
     srcs = ["freertos_allocator.cc"],
-    hdrs = ["public/pw_allocator/freertos_allocator.h"],
-    strip_include_prefix = "public",
     deps = [
-        ":pw_allocator",
+        ":freertos_allocator_headers",
         "@freertos",
     ],
+)
+
+# Provide a separate header library to allow the unit tests to use a stub
+# implementation of FreeRTOS.
+cc_library(
+    name = "freertos_allocator_headers",
+    hdrs = ["public/pw_allocator/freertos_allocator.h"],
+    strip_include_prefix = "public",
+    deps = [":pw_allocator"],
 )
 
 cc_library(
@@ -466,6 +473,19 @@ cc_library(
         ":pw_allocator",
         ":testing",
         "//pw_unit_test",
+    ],
+)
+
+cc_library(
+    name = "freertos_testing",
+    testonly = True,
+    srcs = ["freertos_testing.cc"],
+    hdrs = ["private_overrides/FreeRTOS.h"],
+    strip_include_prefix = "private_overrides",
+    visibility = ["//pw_allocator:__subpackages__"],
+    deps = [
+        ":pw_allocator",
+        ":testing",
     ],
 )
 
@@ -651,6 +671,19 @@ pw_cc_test(
     srcs = ["fragmentation_test.cc"],
     deps = [
         ":fragmentation",
+        ":testing",
+    ],
+)
+
+pw_cc_test(
+    name = "freertos_allocator_test",
+    srcs = [
+        "freertos_allocator.cc",
+        "freertos_allocator_test.cc",
+    ],
+    deps = [
+        ":freertos_allocator_headers",
+        ":freertos_testing",
         ":testing",
     ],
 )

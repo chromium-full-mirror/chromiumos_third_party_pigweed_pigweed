@@ -292,16 +292,23 @@ pw_add_library(pw_allocator.libc_allocator STATIC
 )
 
 pw_add_library(pw_allocator.freertos_allocator STATIC
+  PUBLIC_DEPS
+    pw_allocator.freertos_allocator_headers
+  SOURCES
+    freertos_allocator.cc
+  PRIVATE_DEPS
+    pw_third_party.freertos
+)
+
+# Provide a separate header library to allow the unit tests to use a stub
+# implementation of FreeRTOS.
+pw_add_library(pw_allocator.freertos_allocator_headers INTERFACE
   HEADERS
     public/pw_allocator/freertos_allocator.h
   PUBLIC_INCLUDES
     public
   PUBLIC_DEPS
     pw_allocator
-  SOURCES
-    freertos_allocator.cc
-  PRIVATE_DEPS
-    pw_third_party.freertos
 )
 
 pw_add_library(pw_allocator.null_allocator STATIC
@@ -454,6 +461,18 @@ pw_add_library(pw_allocator.counter STATIC
     pw_unit_test
   SOURCES
     counter.cc
+)
+
+pw_add_library(pw_allocator._freertos_testing STATIC
+  HEADERS
+    private_overrides/FreeRTOS.h
+  PUBLIC_INCLUDES
+    private_overrides
+  PUBLIC_DEPS
+    pw_allocator
+    pw_allocator.testing
+  SOURCES
+    freertos_testing.cc
 )
 
 pw_add_library(pw_allocator.sync_allocator_testing STATIC
@@ -663,6 +682,16 @@ pw_add_test(pw_allocator.fragmentation_test
   GROUPS
     modules
     pw_allocator
+)
+
+pw_add_test(pw_allocator.freertos_allocator_test
+  SOURCES
+    freertos_allocator.cc
+    freertos_allocator_test.cc
+  PRIVATE_DEPS
+    pw_allocator.freertos_allocator_headers
+    pw_allocator.testing
+    pw_allocator._freertos_testing
 )
 
 pw_add_test(pw_allocator.guarded_allocator_test

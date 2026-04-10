@@ -53,6 +53,7 @@ cc_library {
         "block/contiguous.cc",
         "block/poisonable.cc",
         "block_allocator.cc",
+        "buddy_allocator.cc",
         "chunk_pool.cc",
         "control_block.cc",
         "fragmentation.cc",

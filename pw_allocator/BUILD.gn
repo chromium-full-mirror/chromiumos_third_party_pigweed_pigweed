@@ -99,6 +99,11 @@ config("test_config") {
   ]
 }
 
+config("private_override_config") {
+  include_dirs = [ "private_overrides" ]
+  visibility = [ ":*" ]
+}
+
 # Libraries
 
 pw_source_set("allocator_as_pool") {
@@ -275,13 +280,17 @@ pw_source_set("libc_allocator") {
 }
 
 pw_source_set("freertos_allocator") {
+  public_deps = [ ":freertos_allocator_headers" ]
+  deps = [ "$pw_external_freertos" ]
+  sources = [ "freertos_allocator.cc" ]
+}
+
+# Provide a separate header library to allow the unit tests to use a stub
+# implementation of FreeRTOS.
+pw_source_set("freertos_allocator_headers") {
   public_configs = [ ":public_include_path" ]
   public = [ "public/pw_allocator/freertos_allocator.h" ]
-  public_deps = [
-    ":pw_allocator",
-    "$pw_external_freertos",
-  ]
-  sources = [ "freertos_allocator.cc" ]
+  public_deps = [ ":pw_allocator" ]
 }
 
 pw_source_set("null_allocator") {
@@ -436,6 +445,18 @@ pw_source_set("counter") {
     dir_pw_unit_test,
   ]
   sources = [ "counter.cc" ]
+}
+
+pw_source_set("freertos_testing") {
+  testonly = pw_unit_test_TESTONLY
+  visibility = [ "$dir_pw_allocator/*" ]
+  public_configs = [ ":private_override_config" ]
+  public = [ "private_overrides/FreeRTOS.h" ]
+  sources = [ "freertos_testing.cc" ]
+  deps = [
+    ":pw_allocator",
+    ":testing",
+  ]
 }
 
 pw_source_set("sync_allocator_testing") {
@@ -600,6 +621,18 @@ pw_test("fragmentation_test") {
   sources = [ "fragmentation_test.cc" ]
 }
 
+pw_test("freertos_allocator_test") {
+  deps = [
+    ":freertos_allocator_headers",
+    ":freertos_testing",
+    ":testing",
+  ]
+  sources = [
+    "freertos_allocator.cc",
+    "freertos_allocator_test.cc",
+  ]
+}
+
 pw_test("guarded_allocator_test") {
   enable_if =
       pw_sync_BINARY_SEMAPHORE_BACKEND != "" && pw_sync_MUTEX_BACKEND != "" &&
@@ -753,6 +786,7 @@ pw_test_group("tests") {
     ":fallback_allocator_test",
     ":first_fit_test",
     ":fragmentation_test",
+    ":freertos_allocator_test",
     ":guarded_allocator_test",
     ":layout_test",
     ":libc_allocator_test",
