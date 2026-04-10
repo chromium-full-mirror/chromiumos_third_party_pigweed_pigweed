@@ -274,7 +274,8 @@ class SniffOffloadManagerTest : public ::testing::Test {
   bool CheckSniffExitSent(
       std::optional<uint16_t> connection_handle = std::nullopt);
   bool CheckCommandCompleteEventSent(
-      std::optional<CommandOpcode> opcode = std::nullopt);
+      std::optional<CommandOpcode> opcode = std::nullopt,
+      std::optional<emboss::StatusCode> status = std::nullopt);
   bool CheckCommandStatusEventSent(
       std::optional<CommandOpcode> opcode = std::nullopt,
       std::optional<emboss::StatusCode> status = std::nullopt);
@@ -352,7 +353,8 @@ TEST_F(SniffOffloadManagerTest, CreationAndDestructionAllConnectionsClosed) {
 TEST_F(SniffOffloadManagerTest, EnableSniffBeforeConnection) {
   EXPECT_EQ(Simulate(WriteSniffOffloadEnable(true)), kInterceptResume);
   EXPECT_TRUE(CheckCommandCompleteEventSent(
-      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE));
+      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE,
+      emboss::StatusCode::SUCCESS));
   EXPECT_EQ(Simulate(ConnectionComplete(0x123)), kPassthroughResume);
   EXPECT_EQ(Simulate(DisconnectionComplete(0x123)), kPassthroughResume);
 
@@ -363,7 +365,8 @@ TEST_F(SniffOffloadManagerTest, EnableSniffAfterConnection) {
   EXPECT_EQ(Simulate(ConnectionComplete(0x123)), kPassthroughResume);
   EXPECT_EQ(Simulate(WriteSniffOffloadEnable(true)), kInterceptResume);
   EXPECT_TRUE(CheckCommandCompleteEventSent(
-      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE));
+      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE,
+      emboss::StatusCode::SUCCESS));
   EXPECT_EQ(Simulate(DisconnectionComplete(0x123)), kPassthroughResume);
 
   EXPECT_TRUE(NoErrors());
@@ -373,10 +376,12 @@ TEST_F(SniffOffloadManagerTest, AutosniffOnTimeout) {
   EXPECT_EQ(Simulate(ConnectionComplete(0x123)), kPassthroughResume);
   EXPECT_EQ(Simulate(WriteSniffOffloadEnable(true)), kInterceptResume);
   EXPECT_TRUE(CheckCommandCompleteEventSent(
-      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE));
+      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE,
+      emboss::StatusCode::SUCCESS));
   EXPECT_EQ(Simulate(WriteSniffOffloadParameters(0x123)), kInterceptResume);
   EXPECT_TRUE(CheckCommandCompleteEventSent(
-      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_PARAMETERS));
+      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_PARAMETERS,
+      emboss::StatusCode::SUCCESS));
 
   EXPECT_TRUE(CheckSniffSubratingSent(0x123));
   EXPECT_TRUE(NoErrors());
@@ -391,10 +396,12 @@ TEST_F(SniffOffloadManagerTest, AutoSniffOnTimeoutExitOnRx) {
   EXPECT_EQ(Simulate(ConnectionComplete(0x123)), kPassthroughResume);
   EXPECT_EQ(Simulate(WriteSniffOffloadEnable(true)), kInterceptResume);
   EXPECT_TRUE(CheckCommandCompleteEventSent(
-      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE));
+      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE,
+      emboss::StatusCode::SUCCESS));
   EXPECT_EQ(Simulate(WriteSniffOffloadParameters(0x123)), kInterceptResume);
   EXPECT_TRUE(CheckCommandCompleteEventSent(
-      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_PARAMETERS));
+      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_PARAMETERS,
+      emboss::StatusCode::SUCCESS));
 
   EXPECT_TRUE(CheckSniffSubratingSent(0x123));
   EXPECT_TRUE(NoErrors());
@@ -413,10 +420,12 @@ TEST_F(SniffOffloadManagerTest, AutoSniffOnTimeoutExitOnTx) {
   EXPECT_EQ(Simulate(ConnectionComplete(0x123)), kPassthroughResume);
   EXPECT_EQ(Simulate(WriteSniffOffloadEnable(true)), kInterceptResume);
   EXPECT_TRUE(CheckCommandCompleteEventSent(
-      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE));
+      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE,
+      emboss::StatusCode::SUCCESS));
   EXPECT_EQ(Simulate(WriteSniffOffloadParameters(0x123)), kInterceptResume);
   EXPECT_TRUE(CheckCommandCompleteEventSent(
-      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_PARAMETERS));
+      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_PARAMETERS,
+      emboss::StatusCode::SUCCESS));
 
   EXPECT_TRUE(CheckSniffSubratingSent(0x123));
   EXPECT_TRUE(NoErrors());
@@ -435,12 +444,14 @@ TEST_F(SniffOffloadManagerTest, AutoSniffOnTimeoutNoExitOnRx) {
   EXPECT_EQ(Simulate(ConnectionComplete(0x123)), kPassthroughResume);
   EXPECT_EQ(Simulate(WriteSniffOffloadEnable(true)), kInterceptResume);
   EXPECT_TRUE(CheckCommandCompleteEventSent(
-      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE));
+      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE,
+      emboss::StatusCode::SUCCESS));
   EXPECT_EQ(Simulate(WriteSniffOffloadParameters(
                 0x123, {.allow_exit_sniff_on_rx = false})),
             kInterceptResume);
   EXPECT_TRUE(CheckCommandCompleteEventSent(
-      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_PARAMETERS));
+      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_PARAMETERS,
+      emboss::StatusCode::SUCCESS));
 
   EXPECT_TRUE(CheckSniffSubratingSent(0x123));
   EXPECT_TRUE(NoErrors());
@@ -459,12 +470,14 @@ TEST_F(SniffOffloadManagerTest, AutoSniffOnTimeoutNoExitOnTx) {
   EXPECT_EQ(Simulate(ConnectionComplete(0x123)), kPassthroughResume);
   EXPECT_EQ(Simulate(WriteSniffOffloadEnable(true)), kInterceptResume);
   EXPECT_TRUE(CheckCommandCompleteEventSent(
-      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE));
+      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE,
+      emboss::StatusCode::SUCCESS));
   EXPECT_EQ(Simulate(WriteSniffOffloadParameters(
                 0x123, {.allow_exit_sniff_on_tx = false})),
             kInterceptResume);
   EXPECT_TRUE(CheckCommandCompleteEventSent(
-      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_PARAMETERS));
+      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_PARAMETERS,
+      emboss::StatusCode::SUCCESS));
 
   EXPECT_TRUE(CheckSniffSubratingSent(0x123));
   EXPECT_TRUE(NoErrors());
@@ -483,10 +496,12 @@ TEST_F(SniffOffloadManagerTest, AutoSniffDelaysOnAclActivityTx) {
   EXPECT_EQ(Simulate(ConnectionComplete(0x123)), kPassthroughResume);
   EXPECT_EQ(Simulate(WriteSniffOffloadEnable(true)), kInterceptResume);
   EXPECT_TRUE(CheckCommandCompleteEventSent(
-      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE));
+      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE,
+      emboss::StatusCode::SUCCESS));
   EXPECT_EQ(Simulate(WriteSniffOffloadParameters(0x123)), kInterceptResume);
   EXPECT_TRUE(CheckCommandCompleteEventSent(
-      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_PARAMETERS));
+      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_PARAMETERS,
+      emboss::StatusCode::SUCCESS));
 
   EXPECT_TRUE(CheckSniffSubratingSent(0x123));
   EXPECT_TRUE(NoErrors());
@@ -536,10 +551,12 @@ TEST_F(SniffOffloadManagerTest, AutoSniffDelaysOnAclActivityRx) {
   EXPECT_EQ(Simulate(ConnectionComplete(0x123)), kPassthroughResume);
   EXPECT_EQ(Simulate(WriteSniffOffloadEnable(true)), kInterceptResume);
   EXPECT_TRUE(CheckCommandCompleteEventSent(
-      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE));
+      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE,
+      emboss::StatusCode::SUCCESS));
   EXPECT_EQ(Simulate(WriteSniffOffloadParameters(0x123)), kInterceptResume);
   EXPECT_TRUE(CheckCommandCompleteEventSent(
-      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_PARAMETERS));
+      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_PARAMETERS,
+      emboss::StatusCode::SUCCESS));
 
   EXPECT_TRUE(CheckSniffSubratingSent(0x123));
   EXPECT_TRUE(NoErrors());
@@ -589,10 +606,12 @@ TEST_F(SniffOffloadManagerTest, AutoSniffDelaysOnAclActivityMixed) {
   EXPECT_EQ(Simulate(ConnectionComplete(0x123)), kPassthroughResume);
   EXPECT_EQ(Simulate(WriteSniffOffloadEnable(true)), kInterceptResume);
   EXPECT_TRUE(CheckCommandCompleteEventSent(
-      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE));
+      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE,
+      emboss::StatusCode::SUCCESS));
   EXPECT_EQ(Simulate(WriteSniffOffloadParameters(0x123)), kInterceptResume);
   EXPECT_TRUE(CheckCommandCompleteEventSent(
-      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_PARAMETERS));
+      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_PARAMETERS,
+      emboss::StatusCode::SUCCESS));
 
   EXPECT_TRUE(CheckSniffSubratingSent(0x123));
   EXPECT_TRUE(NoErrors());
@@ -642,10 +661,12 @@ TEST_F(SniffOffloadManagerTest, AutosniffResetsTimerOnModeChangeActive) {
   EXPECT_EQ(Simulate(ConnectionComplete(0x123)), kPassthroughResume);
   EXPECT_EQ(Simulate(WriteSniffOffloadEnable(true)), kInterceptResume);
   EXPECT_TRUE(CheckCommandCompleteEventSent(
-      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE));
+      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE,
+      emboss::StatusCode::SUCCESS));
   EXPECT_EQ(Simulate(WriteSniffOffloadParameters(0x123)), kInterceptResume);
   EXPECT_TRUE(CheckCommandCompleteEventSent(
-      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_PARAMETERS));
+      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_PARAMETERS,
+      emboss::StatusCode::SUCCESS));
 
   EXPECT_TRUE(CheckSniffSubratingSent(0x123));
   EXPECT_TRUE(NoErrors());
@@ -672,10 +693,12 @@ TEST_F(SniffOffloadManagerTest, AutosniffDoesNotSendSniffModeIfAlreadySniff) {
   EXPECT_EQ(Simulate(ConnectionComplete(0x123)), kPassthroughResume);
   EXPECT_EQ(Simulate(WriteSniffOffloadEnable(true)), kInterceptResume);
   EXPECT_TRUE(CheckCommandCompleteEventSent(
-      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE));
+      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE,
+      emboss::StatusCode::SUCCESS));
   EXPECT_EQ(Simulate(WriteSniffOffloadParameters(0x123)), kInterceptResume);
   EXPECT_TRUE(CheckCommandCompleteEventSent(
-      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_PARAMETERS));
+      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_PARAMETERS,
+      emboss::StatusCode::SUCCESS));
 
   EXPECT_TRUE(CheckSniffSubratingSent(0x123));
   EXPECT_TRUE(NoErrors());
@@ -702,10 +725,12 @@ TEST_F(SniffOffloadManagerTest, AutosniffTreatsHoldModeAsSniff) {
   EXPECT_EQ(Simulate(ConnectionComplete(0x123)), kPassthroughResume);
   EXPECT_EQ(Simulate(WriteSniffOffloadEnable(true)), kInterceptResume);
   EXPECT_TRUE(CheckCommandCompleteEventSent(
-      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE));
+      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE,
+      emboss::StatusCode::SUCCESS));
   EXPECT_EQ(Simulate(WriteSniffOffloadParameters(0x123)), kInterceptResume);
   EXPECT_TRUE(CheckCommandCompleteEventSent(
-      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_PARAMETERS));
+      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_PARAMETERS,
+      emboss::StatusCode::SUCCESS));
 
   EXPECT_TRUE(CheckSniffSubratingSent(0x123));
   EXPECT_TRUE(NoErrors());
@@ -732,10 +757,12 @@ TEST_F(SniffOffloadManagerTest, AutosniffDisable) {
   EXPECT_EQ(Simulate(ConnectionComplete(0x123)), kPassthroughResume);
   EXPECT_EQ(Simulate(WriteSniffOffloadEnable(true)), kInterceptResume);
   EXPECT_TRUE(CheckCommandCompleteEventSent(
-      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE));
+      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE,
+      emboss::StatusCode::SUCCESS));
   EXPECT_EQ(Simulate(WriteSniffOffloadParameters(0x123)), kInterceptResume);
   EXPECT_TRUE(CheckCommandCompleteEventSent(
-      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_PARAMETERS));
+      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_PARAMETERS,
+      emboss::StatusCode::SUCCESS));
 
   EXPECT_TRUE(CheckSniffSubratingSent(0x123));
   EXPECT_TRUE(NoErrors());
@@ -746,7 +773,8 @@ TEST_F(SniffOffloadManagerTest, AutosniffDisable) {
 
   EXPECT_EQ(Simulate(WriteSniffOffloadEnable(false)), kInterceptResume);
   EXPECT_TRUE(CheckCommandCompleteEventSent(
-      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE));
+      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE,
+      emboss::StatusCode::SUCCESS));
   EXPECT_TRUE(packets_to_controller().empty());
   EXPECT_TRUE(NoErrors());
 
@@ -761,25 +789,29 @@ TEST_F(SniffOffloadManagerTest, SuppressModeChange) {
   EXPECT_EQ(Simulate(WriteSniffOffloadEnable(true, true, true)),
             kInterceptResume);
   EXPECT_TRUE(CheckCommandCompleteEventSent(
-      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE));
+      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE,
+      emboss::StatusCode::SUCCESS));
   EXPECT_EQ(Simulate(ModeChangeEvent(0x123)), kInterceptResume);
   EXPECT_TRUE(NoErrors());
   EXPECT_EQ(Simulate(WriteSniffOffloadEnable(true, true, false)),
             kInterceptResume);
   EXPECT_TRUE(CheckCommandCompleteEventSent(
-      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE));
+      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE,
+      emboss::StatusCode::SUCCESS));
   EXPECT_EQ(Simulate(ModeChangeEvent(0x123)), kInterceptResume);
   EXPECT_TRUE(NoErrors());
   EXPECT_EQ(Simulate(WriteSniffOffloadEnable(true, false, true)),
             kInterceptResume);
   EXPECT_TRUE(CheckCommandCompleteEventSent(
-      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE));
+      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE,
+      emboss::StatusCode::SUCCESS));
   EXPECT_EQ(Simulate(ModeChangeEvent(0x123)), kPassthroughResume);
   EXPECT_TRUE(NoErrors());
   EXPECT_EQ(Simulate(WriteSniffOffloadEnable(true, false, false)),
             kInterceptResume);
   EXPECT_TRUE(CheckCommandCompleteEventSent(
-      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE));
+      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE,
+      emboss::StatusCode::SUCCESS));
   EXPECT_EQ(Simulate(ModeChangeEvent(0x123)), kPassthroughResume);
   EXPECT_TRUE(NoErrors());
 }
@@ -789,25 +821,29 @@ TEST_F(SniffOffloadManagerTest, SuppressSniffSubrating) {
   EXPECT_EQ(Simulate(WriteSniffOffloadEnable(true, true, true)),
             kInterceptResume);
   EXPECT_TRUE(CheckCommandCompleteEventSent(
-      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE));
+      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE,
+      emboss::StatusCode::SUCCESS));
   EXPECT_EQ(Simulate(SniffSubratingEvent(0x123)), kInterceptResume);
   EXPECT_TRUE(NoErrors());
   EXPECT_EQ(Simulate(WriteSniffOffloadEnable(true, true, false)),
             kInterceptResume);
   EXPECT_TRUE(CheckCommandCompleteEventSent(
-      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE));
+      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE,
+      emboss::StatusCode::SUCCESS));
   EXPECT_EQ(Simulate(SniffSubratingEvent(0x123)), kPassthroughResume);
   EXPECT_TRUE(NoErrors());
   EXPECT_EQ(Simulate(WriteSniffOffloadEnable(true, false, true)),
             kInterceptResume);
   EXPECT_TRUE(CheckCommandCompleteEventSent(
-      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE));
+      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE,
+      emboss::StatusCode::SUCCESS));
   EXPECT_EQ(Simulate(SniffSubratingEvent(0x123)), kInterceptResume);
   EXPECT_TRUE(NoErrors());
   EXPECT_EQ(Simulate(WriteSniffOffloadEnable(true, false, false)),
             kInterceptResume);
   EXPECT_TRUE(CheckCommandCompleteEventSent(
-      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE));
+      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE,
+      emboss::StatusCode::SUCCESS));
   EXPECT_EQ(Simulate(SniffSubratingEvent(0x123)), kPassthroughResume);
   EXPECT_TRUE(NoErrors());
 }
@@ -1023,10 +1059,12 @@ TEST_F(SniffOffloadManagerTest, ErrorSendCommandFailed) {
   EXPECT_EQ(Simulate(ConnectionComplete(0x123)), kPassthroughResume);
   EXPECT_EQ(Simulate(WriteSniffOffloadEnable(true)), kInterceptResume);
   EXPECT_TRUE(CheckCommandCompleteEventSent(
-      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE));
+      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE,
+      emboss::StatusCode::SUCCESS));
   EXPECT_EQ(Simulate(WriteSniffOffloadParameters(0x123)), kInterceptResume);
   EXPECT_TRUE(CheckCommandCompleteEventSent(
-      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_PARAMETERS));
+      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_PARAMETERS,
+      emboss::StatusCode::SUCCESS));
 
   EXPECT_TRUE(packets_to_controller().empty());
   EXPECT_EQ(PopLastError(),
@@ -1058,10 +1096,12 @@ TEST_F(SniffOffloadManagerTest, ProcessCommandStatus) {
   EXPECT_EQ(Simulate(ConnectionComplete(0x123)), kPassthroughResume);
   EXPECT_EQ(Simulate(WriteSniffOffloadEnable(true)), kInterceptResume);
   EXPECT_TRUE(CheckCommandCompleteEventSent(
-      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE));
+      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE,
+      emboss::StatusCode::SUCCESS));
   EXPECT_EQ(Simulate(WriteSniffOffloadParameters(0x123)), kInterceptResume);
   EXPECT_TRUE(CheckCommandCompleteEventSent(
-      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_PARAMETERS));
+      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_PARAMETERS,
+      emboss::StatusCode::SUCCESS));
 
   EXPECT_TRUE(CheckSniffSubratingSent(0x123));
   EXPECT_TRUE(NoErrors());
@@ -1628,20 +1668,28 @@ bool SniffOffloadManagerTest::CheckSniffExitSent(
 }
 
 bool SniffOffloadManagerTest::CheckCommandCompleteEventSent(
-    std::optional<CommandOpcode> opcode) {
+    std::optional<CommandOpcode> opcode,
+    std::optional<emboss::StatusCode> status) {
   VERIFY_OR_RETURN(!packets_to_host().empty());
 
-  std::array<std::byte, emboss::CommandCompleteEvent::IntrinsicSizeInBytes()>
+  std::array<std::byte,
+             emboss::SimpleCommandCompleteEvent::IntrinsicSizeInBytes()>
       scratch;
   auto span = packets_to_host().front()->Get(scratch);
-  emboss::CommandCompleteEventView view(span.data(), span.size());
+  emboss::SimpleCommandCompleteEventView view(span.data(), span.size());
 
-  VERIFY_OR_RETURN(view.Ok());
-  VERIFY_OR_RETURN(view.header().event_code().Read() ==
+  VERIFY_OR_RETURN(view.command_complete().Ok());
+  VERIFY_OR_RETURN(view.command_complete().header().event_code().Read() ==
                    emboss::EventCode::COMMAND_COMPLETE);
 
   if (opcode.has_value()) {
-    VERIFY_OR_RETURN(view.command_opcode().Read() == *opcode);
+    VERIFY_OR_RETURN(view.command_complete().command_opcode().Read() ==
+                     *opcode);
+  }
+
+  if (status.has_value()) {
+    VERIFY_OR_RETURN(view.status().Ok());
+    VERIFY_OR_RETURN(view.status().Read() == *status);
   }
 
   packets_to_host().pop_front();

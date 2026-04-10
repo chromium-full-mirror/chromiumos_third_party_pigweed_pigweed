@@ -77,11 +77,13 @@ namespace DisconnectionCompleteEvent = emboss::DisconnectionCompleteEvent;
 namespace CommandCompleteEvent = emboss::CommandCompleteEvent;
 namespace CommandStatusEvent = emboss::CommandStatusEvent;
 namespace EventHeader = emboss::EventHeader;
+namespace SimpleCommandCompleteEvent = emboss::SimpleCommandCompleteEvent;
 
 using emboss::CommandCompleteEventWriter;
 using emboss::CommandStatusEventWriter;
 using emboss::ConnectionCompleteEventView;
 using emboss::DisconnectionCompleteEventView;
+using emboss::SimpleCommandCompleteEventWriter;
 using vendor::android_hci::WriteSniffOffloadEnableCommandView;
 using vendor::android_hci::WriteSniffOffloadParametersCommandView;
 
@@ -720,16 +722,20 @@ SniffOffloadManager::ProcessLeGetVendorCapabilitiesCommandComplete(
 }
 
 void SniffOffloadManager::SendCommandComplete(uint16_t opcode) {
-  Scratch<CommandCompleteEvent::IntrinsicSizeInBytes()> scratch;
-  auto writer = MakeEmbossWriter<CommandCompleteEventWriter>(scratch);
+  Scratch<SimpleCommandCompleteEvent::IntrinsicSizeInBytes()> scratch;
+  auto writer = MakeEmbossWriter<SimpleCommandCompleteEventWriter>(scratch);
   PW_CHECK_OK(writer.status());
 
-  writer->header().event_code().Write(emboss::EventCode::COMMAND_COMPLETE);
-  writer->header().parameter_total_size().Write(
+  auto cmd_complete = writer->command_complete();
+  auto evt_header = cmd_complete.header();
+
+  evt_header.event_code().Write(emboss::EventCode::COMMAND_COMPLETE);
+  evt_header.parameter_total_size().Write(
       CommandCompleteEvent::IntrinsicSizeInBytes() -
       EventHeader::IntrinsicSizeInBytes());
-  writer->num_hci_command_packets().Write(1);
-  writer->command_opcode_uint().Write(opcode);
+  cmd_complete.num_hci_command_packets().Write(1);
+  cmd_complete.command_opcode_uint().Write(opcode);
+  writer->status().Write(emboss::StatusCode::SUCCESS);
 
   PW_CHECK(writer->Ok());
 
