@@ -19,6 +19,8 @@
 #include <limits>
 #include <mutex>
 
+#include "pw_assert/check.h"
+#include "pw_numeric/checked_arithmetic.h"
 #include "pw_sync/interrupt_spin_lock.h"
 #include "tx_api.h"
 
@@ -31,6 +33,7 @@ namespace {
 
 sync::InterruptSpinLock system_clock_interrupt_spin_lock;
 int64_t overflow_tick_count = 0;
+
 ULONG native_tick_count = 0;
 static_assert(!SystemClock::is_nmi_safe,
               "global state is not atomic nor double buferred");
@@ -47,7 +50,12 @@ int64_t GetSystemClockTickCount() {
   // WARNING: This must be called more than once per overflow period!
   if (new_native_tick_count < native_tick_count) {
     // Native tick count overflow detected!
-    overflow_tick_count += kNativeOverflowTickCount;
+    if constexpr (sizeof(ULONG) < sizeof(int64_t)) {
+      PW_CHECK(CheckedIncrement(overflow_tick_count, kNativeOverflowTickCount),
+               "clock tick count overflow");
+    } else {
+      PW_CRASH("clock tick count overflow");
+    }
   }
   native_tick_count = new_native_tick_count;
   return overflow_tick_count + native_tick_count;

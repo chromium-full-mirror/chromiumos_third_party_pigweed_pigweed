@@ -52,6 +52,10 @@ pw_facade(
         "public/pw_chrono/system_clock.h",
     ],
     backend = ":system_clock_backend",
+    implementation_deps = [
+        "//pw_assert:check",
+        "//pw_numeric:checked_arithmetic",
+    ],
     strip_include_prefix = "public",
     tags = ["noclangtidy"],
     deps = [

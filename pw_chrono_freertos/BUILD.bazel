@@ -31,6 +31,10 @@ cc_library(
         "public/pw_chrono_freertos/system_clock_constants.h",
         "public_overrides/pw_chrono_backend/system_clock_config.h",
     ],
+    implementation_deps = [
+        "//pw_assert:check",
+        "//pw_numeric:checked_arithmetic",
+    ],
     includes = [
         "public",
         "public_overrides",

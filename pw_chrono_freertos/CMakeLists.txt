@@ -44,7 +44,9 @@ pw_add_library(pw_chrono_freertos.system_clock STATIC
   SOURCES
     system_clock.cc
   PRIVATE_DEPS
+    pw_assert.check
     pw_interrupt.context
+    pw_numeric.checked_arithmetic
     pw_sync.interrupt_spin_lock
 )
 

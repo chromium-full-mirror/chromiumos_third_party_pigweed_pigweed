@@ -20,6 +20,8 @@
 #include <mutex>
 
 #include "RTOS.h"
+#include "pw_assert/check.h"
+#include "pw_numeric/checked_arithmetic.h"
 #include "pw_sync/interrupt_spin_lock.h"
 
 namespace pw::chrono::backend {
@@ -53,7 +55,8 @@ int64_t GetSystemClockTickCount() {
   // WARNING: This must be called more than once per overflow period!
   if (new_native_tick_count < native_tick_count) {
     // Native tick count overflow detected!
-    overflow_tick_count += kNativeOverflowTickCount;
+    PW_CHECK(CheckedIncrement(overflow_tick_count, kNativeOverflowTickCount),
+             "clock tick count overflow");
   }
   native_tick_count = new_native_tick_count;
   return overflow_tick_count + native_tick_count;

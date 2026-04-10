@@ -49,6 +49,10 @@ pw_facade("system_clock") {
     "$dir_pw_numeric:saturating_arithmetic",
     dir_pw_preprocessor,
   ]
+  deps = [
+    "$dir_pw_assert:check",
+    "$dir_pw_numeric:checked_arithmetic",
+  ]
   sources = [ "system_clock.cc" ]
 }
 

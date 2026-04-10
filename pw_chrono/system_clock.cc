@@ -14,6 +14,9 @@
 
 #include "pw_chrono/system_clock.h"
 
+#include "pw_assert/check.h"
+#include "pw_numeric/checked_arithmetic.h"
+
 namespace pw::chrono {
 namespace {
 
@@ -40,8 +43,11 @@ extern "C" pw_chrono_SystemClock_TimePoint pw_chrono_SystemClock_Now() {
 extern "C" pw_chrono_SystemClock_Duration pw_chrono_SystemClock_TimeElapsed(
     pw_chrono_SystemClock_TimePoint last_time,
     pw_chrono_SystemClock_TimePoint current_time) {
-  return {.ticks = current_time.duration_since_epoch.ticks -
-                   last_time.duration_since_epoch.ticks};
+  int64_t ticks = 0;
+  PW_CHECK(pw::CheckedSub(current_time.duration_since_epoch.ticks,
+                          last_time.duration_since_epoch.ticks,
+                          ticks));
+  return {.ticks = ticks};
 }
 
 extern "C" pw_chrono_SystemClock_Nanoseconds
