@@ -133,4 +133,3 @@ pw_add_test(pw_channel.stream_channel_test
     pw_thread.thread
     pw_thread.test_thread_context
 )
-

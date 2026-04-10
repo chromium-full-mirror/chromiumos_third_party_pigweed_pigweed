@@ -16,7 +16,7 @@
 
 namespace pw::allocator {
 
-AllocatorAsPool::AllocatorAsPool(Allocator& allocator, const Layout& layout)
+AllocatorAsPool::AllocatorAsPool(pw::Allocator& allocator, const Layout& layout)
     : Pool(allocator.capabilities(), layout), allocator_(allocator) {}
 
 void* AllocatorAsPool::DoAllocate() { return allocator_.Allocate(layout()); }

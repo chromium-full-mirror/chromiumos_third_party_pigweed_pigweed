@@ -35,7 +35,7 @@ namespace pw::allocator {
 /// @tparam LockType  The type of the lock used to synchronize allocator access.
 ///                   Must be default-constructible.
 template <typename LockType>
-class SynchronizedAllocator : public Allocator {
+class SynchronizedAllocator : public pw::Allocator {
  private:
   using Pointer = sync::BorrowedPointer<Allocator, LockType>;
 
@@ -75,9 +75,6 @@ class SynchronizedAllocator : public Allocator {
     std::lock_guard lock(lock_);
     return allocator_.Deallocate(ptr);
   }
-
-  /// @copydoc Allocator::Deallocate
-  void DoDeallocate(void* ptr, Layout) override { DoDeallocate(ptr); }
 
   /// @copydoc Allocator::Resize
   bool DoResize(void* ptr, size_t new_size) override {

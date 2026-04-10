@@ -13,9 +13,6 @@
 // the License.
 #pragma once
 
-#ifndef PW_ALLOCATOR_PUBLIC_PW_ALLOCATOR_SHARED_PTR_H_
-#define PW_ALLOCATOR_PUBLIC_PW_ALLOCATOR_SHARED_PTR_H_
-
 #include "pw_allocator/config.h"
 
 // TODO(b/402489948): Remove when portable atomics are provided by `pw_atomic`.
@@ -25,7 +22,6 @@
 #include <cstdint>
 #include <utility>
 
-#include "pw_allocator/allocator.h"
 #include "pw_allocator/deallocator.h"
 #include "pw_allocator/internal/control_block.h"
 #include "pw_allocator/internal/managed_ptr.h"
@@ -522,5 +518,3 @@ constexpr void SharedPtr<T>::CheckArrayTypes() {
 
 // TODO(b/402489948): Remove when portable atomics are provided by `pw_atomic`.
 #endif  // PW_ALLOCATOR_HAS_ATOMICS
-
-#endif  // PW_ALLOCATOR_PUBLIC_PW_ALLOCATOR_SHARED_PTR_H_

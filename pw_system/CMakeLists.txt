@@ -391,7 +391,7 @@ pw_add_library(pw_system.async STATIC
     system.cc
     threads.cc
   PUBLIC_DEPS
-    pw_allocator.allocator
+    pw_allocator
     pw_async2
     pw_channel
     pw_rpc.server
@@ -404,7 +404,7 @@ pw_add_library(pw_system.async STATIC
     pw_system.thread_snapshot_service
     pw_system.transfer_service
     pw_system.work_queue
-    pw_allocator.best_fit_block_allocator
+    pw_allocator.best_fit
     pw_allocator.synchronized_allocator
     pw_async2
     pw_async2.basic_dispatcher
@@ -433,7 +433,7 @@ pw_add_library(pw_system.async_packet_io STATIC
     pw_sync.thread_notification
     pw_thread.thread
     pw_thread.thread_core
-    pw_allocator.allocator
+    pw_allocator
     pw_channel
     pw_multibuf
   PRIVATE_DEPS

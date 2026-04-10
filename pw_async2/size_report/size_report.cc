@@ -106,7 +106,7 @@ int SetBaseline(uint32_t mask) {
   return item_count - 1;
 }
 
-allocator::Allocator& GetAllocator() {
+Allocator& GetAllocator() {
   static std::array<std::byte, 1024> region;
   static allocator::FirstFitAllocator<> allocator(region);
   return allocator;

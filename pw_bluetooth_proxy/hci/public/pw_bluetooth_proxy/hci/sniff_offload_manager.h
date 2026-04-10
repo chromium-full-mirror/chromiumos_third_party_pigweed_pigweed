@@ -128,7 +128,7 @@ class SniffOffloadManager final {
   using OnErrorFunc = Function<ErrorAction(
       ErrorReason reason, std::optional<ConnectionHandle> connection_handle)>;
 
-  SniffOffloadManager(allocator::Allocator& allocator,
+  SniffOffloadManager(Allocator& allocator,
                       async2::Dispatcher& dispatcher,
                       SendCommandFunc&& send_command,
                       SendEventFunc&& send_event,

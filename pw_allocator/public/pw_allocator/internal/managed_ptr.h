@@ -19,13 +19,13 @@
 #include <utility>
 
 #include "pw_allocator/capability.h"
+#include "pw_allocator/deallocator.h"
 #include "pw_allocator/hardening.h"
 
 namespace pw {
 
 // Forward declarations.
 class Allocator;
-class Deallocator;
 
 namespace allocator::internal {
 
@@ -35,14 +35,14 @@ struct Empty {};
 
 /// This class simply provides type-erased static methods to check capabilities
 /// and manage memory in a managed pointer. This allows `ManagedPtr<T>` to
-/// be declared without a complete declaration of `Allocator` or
-/// `Deallocator`, breaking the dependency cycle between `ManagedPtr<T>` and
-/// `Allocator`methods including `MakeUnique<T>()` and `MakeShared<T>()`.
+/// be declared without a complete declaration of `Allocator`, breaking the
+/// dependency cycle between `ManagedPtr<T>` and `Allocator`methods including
+/// `MakeUnique<T>()` and `MakeShared<T>()`.
 class BaseManagedPtr {
  protected:
-  static bool HasCapability(Deallocator* deallocator, Capability capability);
-  static void Deallocate(Deallocator* deallocator, void* ptr);
-  static bool Resize(Allocator* deallocator, void* ptr, size_t new_size);
+  static bool HasCapability(pw::Allocator* deallocator, Capability capability);
+  static void Deallocate(pw::Allocator* deallocator, void* ptr);
+  static bool Resize(pw::Allocator* deallocator, void* ptr, size_t new_size);
 };
 
 /// This class extends `BaseManagerPtr` to provide type checking for methods

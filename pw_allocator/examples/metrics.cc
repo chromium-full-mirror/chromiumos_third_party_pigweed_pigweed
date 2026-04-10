@@ -35,8 +35,7 @@ struct CustomMetrics : public ::pw::allocator::NoMetrics {
 void CollectCustomMetrics(pw::Allocator& allocator) {
   // DOCSTAG: [pw_allocator-examples-metrics-custom_metrics2]
   constexpr pw::metric::Token kToken = PW_METRIC_TOKEN("CustomMetrics");
-  pw::allocator::TrackingAllocatorImpl<CustomMetrics> tracker(kToken,
-                                                              allocator);
+  pw::allocator::TrackingAllocator<CustomMetrics> tracker(kToken, allocator);
   // DOCSTAG: [pw_allocator-examples-metrics-custom_metrics2]
 
   // Keep one UniquePtr in scope, and let the other deallocate immediately.
@@ -51,7 +50,7 @@ void CollectCustomMetrics(pw::Allocator& allocator) {
 void CollectMultipleTrackers(pw::Allocator& allocator) {
   // DOCSTAG: [pw_allocator-examples-metrics-multiple_trackers]
   using MyTrackingAllocator =
-      pw::allocator::TrackingAllocatorImpl<pw::allocator::internal::AllMetrics>;
+      pw::allocator::TrackingAllocator<pw::allocator::internal::AllMetrics>;
 
   constexpr pw::metric::Token kToken0 = PW_METRIC_TOKEN("Combined");
   MyTrackingAllocator combined(kToken0, allocator);

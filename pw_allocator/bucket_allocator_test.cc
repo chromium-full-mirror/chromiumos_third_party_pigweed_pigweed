@@ -16,7 +16,6 @@
 
 #include "pw_allocator/allocator.h"
 #include "pw_allocator/block_allocator_testing.h"
-#include "pw_allocator/bucket_block_allocator.h"
 #include "pw_unit_test/framework.h"
 
 namespace {
@@ -229,77 +228,6 @@ TEST_F(BucketAllocatorTest, MeasureFragmentation) { MeasureFragmentation(); }
 
 TEST_F(BucketAllocatorTest, PoisonPeriodically) { PoisonPeriodically(); }
 
-// TODO(b/376730645): Remove this test when the legacy alias is deprecated.
-using BucketBlockAllocator = ::pw::allocator::BucketBlockAllocator<uint16_t>;
-
-class BucketBlockAllocatorTest
-    : public BlockAllocatorTest<BucketBlockAllocator> {
- public:
-  BucketBlockAllocatorTest() : BlockAllocatorTest(allocator_) {}
-
- private:
-  BucketBlockAllocator allocator_;
-};
-
-TEST_F(BucketBlockAllocatorTest, AllocatesFromCompatibleBucket) {
-  // Bucket sizes are: [ 64, 128, 256 ]
-  // Start with everything allocated in order to recycle blocks into buckets.
-  auto& allocator = GetAllocator({
-      {63 + BlockType::kBlockOverhead, Preallocation::kUsed},
-      {kSmallerOuterSize, Preallocation::kUsed},
-      {128 + BlockType::kBlockOverhead, Preallocation::kUsed},
-      {kSmallerOuterSize, Preallocation::kUsed},
-      {255 + BlockType::kBlockOverhead, Preallocation::kUsed},
-      {kSmallerOuterSize, Preallocation::kUsed},
-      {257 + BlockType::kBlockOverhead, Preallocation::kUsed},
-      {Preallocation::kSizeRemaining, Preallocation::kUsed},
-  });
-
-  // Deallocate to fill buckets.
-  void* bucket0_ptr = Fetch(0);
-  Store(0, nullptr);
-  allocator.Deallocate(bucket0_ptr);
-
-  void* bucket1_ptr = Fetch(2);
-  Store(2, nullptr);
-  allocator.Deallocate(bucket1_ptr);
-
-  void* bucket2_ptr = Fetch(4);
-  Store(4, nullptr);
-  allocator.Deallocate(bucket2_ptr);
-
-  // Bucket 3 is the implicit, unbounded bucket.
-  void* bucket3_ptr = Fetch(6);
-  Store(6, nullptr);
-  allocator.Deallocate(bucket3_ptr);
-
-  // Allocate in a different order. The correct bucket should be picked for each
-  // allocation
-
-  // The allocation from bucket 2 splits off a leading block.
-  Store(4, allocator.Allocate(Layout(129, 1)));
-  auto* block2 = BlockType::FromUsableSpace(bucket2_ptr);
-  EXPECT_TRUE(block2->Next()->IsFree());
-  EXPECT_EQ(Fetch(4), block2->UsableSpace());
-
-  // This allocation exactly matches the max inner size of bucket 1.
-  Store(2, allocator.Allocate(Layout(128, 1)));
-  EXPECT_EQ(Fetch(2), bucket1_ptr);
-
-  // 129 should start with bucket 2, then use bucket 3 since 2 is empty.
-  // The allocation from bucket 3 splits off a leading block.
-  auto* block3 = BlockType::FromUsableSpace(bucket3_ptr);
-  Store(6, allocator.Allocate(Layout(129, 1)));
-  EXPECT_TRUE(block3->Next()->IsFree());
-  EXPECT_EQ(Fetch(6), block3->UsableSpace());
-
-  // The allocation from bucket 0 splits off a leading block.
-  auto* block0 = BlockType::FromUsableSpace(bucket0_ptr);
-  Store(0, allocator.Allocate(Layout(32, 1)));
-  EXPECT_TRUE(block0->Next()->IsFree());
-  EXPECT_EQ(Fetch(0), block0->UsableSpace());
-}
-
 // Fuzz tests.
 
 using ::pw::allocator::test::BlockAlignedBuffer;
@@ -309,7 +237,7 @@ using ::pw::allocator::test::Request;
 
 void DoesNotCorruptBlocks(const pw::Vector<Request>& requests) {
   static BlockAlignedBuffer<BlockType> buffer;
-  static BucketBlockAllocator allocator(buffer.as_span());
+  static BucketAllocator allocator(buffer.as_span());
   static BlockAllocatorFuzzer fuzzer(allocator);
   fuzzer.DoesNotCorruptBlocks(requests);
 }

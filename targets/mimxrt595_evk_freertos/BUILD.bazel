@@ -58,7 +58,7 @@ platform(
         "@pigweed//pw_boot:backend": "//pw_boot_cortex_m:armv8m",
         "@pigweed//pw_log:backend": "//pw_log_basic",
         "@pigweed//pw_log:backend_impl": "//pw_log_basic:impl",
-        "@pigweed//pw_malloc:backend": "//pw_malloc:bucket_block_allocator",
+        "@pigweed//pw_malloc:backend": "//pw_malloc:bucket_allocator",
         "@pigweed//pw_sys_io:backend": "//pw_sys_io_mcuxpresso",
         "@pigweed//pw_system:extra_platform_libs": "//targets/mimxrt595_evk_freertos:extra_platform_libs",
         "@pigweed//pw_unit_test:main": "//targets/mimxrt595_evk_freertos:unit_test_app",

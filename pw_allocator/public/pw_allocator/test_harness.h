@@ -81,13 +81,13 @@ class TestHarness {
   };
 
   TestHarness() = default;
-  explicit TestHarness(Allocator& allocator) : allocator_(&allocator) {}
+  explicit TestHarness(pw::Allocator& allocator) : allocator_(&allocator) {}
   virtual ~TestHarness() = default;
 
   size_t num_allocations() const { return num_allocations_; }
   size_t allocated() const { return allocated_; }
 
-  void set_allocator(Allocator* allocator) { allocator_ = allocator; }
+  void set_allocator(pw::Allocator* allocator) { allocator_ = allocator; }
   void set_prng_seed(uint64_t seed) { prng_ = random::XorShiftStarRng64(seed); }
   void set_available(size_t available) { available_ = available; }
 
@@ -171,7 +171,7 @@ class TestHarness {
   Allocation* RemoveAllocation(size_t index);
 
   /// An allocator used to manage memory.
-  Allocator* allocator_ = nullptr;
+  pw::Allocator* allocator_ = nullptr;
 
   /// A list of allocated pointers.
   IntrusiveList<Allocation> allocations_;

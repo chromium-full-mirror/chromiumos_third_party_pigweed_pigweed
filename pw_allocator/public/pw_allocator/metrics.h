@@ -113,7 +113,7 @@ struct NoMetrics {
   /// request these values on-demand.
   ///
   /// For this empty base struct, this is simply a no-op.
-  void UpdateDeferred(Allocator&) {}
+  void UpdateDeferred(pw::Allocator&) {}
 };
 
 #undef PW_ALLOCATOR_METRICS_DECLARE
@@ -251,7 +251,7 @@ class Metrics final {
   /// Updates metrics by querying an allocator directly.
   ///
   /// See also `NoMetrics::UpdateDeferred`.
-  void UpdateDeferred(Allocator& allocator) {
+  void UpdateDeferred(pw::Allocator& allocator) {
     metrics_.UpdateDeferred(allocator);
   }
 

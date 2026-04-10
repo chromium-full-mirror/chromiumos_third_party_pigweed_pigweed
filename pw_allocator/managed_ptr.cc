@@ -19,16 +19,18 @@
 
 namespace pw::allocator::internal {
 
-bool BaseManagedPtr::HasCapability(Deallocator* deallocator,
+bool BaseManagedPtr::HasCapability(pw::Allocator* allocator,
                                    Capability capability) {
-  return deallocator->HasCapability(capability);
+  return allocator->HasCapability(capability);
 }
 
-void BaseManagedPtr::Deallocate(Deallocator* deallocator, void* ptr) {
-  deallocator->Deallocate(ptr);
+void BaseManagedPtr::Deallocate(pw::Allocator* allocator, void* ptr) {
+  allocator->Deallocate(ptr);
 }
 
-bool BaseManagedPtr::Resize(Allocator* allocator, void* ptr, size_t new_size) {
+bool BaseManagedPtr::Resize(pw::Allocator* allocator,
+                            void* ptr,
+                            size_t new_size) {
   return allocator->Resize(ptr, new_size);
 }
 

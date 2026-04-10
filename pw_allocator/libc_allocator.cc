@@ -22,8 +22,6 @@
 namespace pw::allocator {
 
 void* LibCAllocator::DoAllocate(Layout layout) {
-  // TODO: b/301930507 - `aligned_alloc` is not portable. Return null for larger
-  // allocations for now.
   return layout.alignment() <= alignof(std::max_align_t)
              ? std::malloc(layout.size())
              : nullptr;
@@ -32,8 +30,6 @@ void* LibCAllocator::DoAllocate(Layout layout) {
 void LibCAllocator::DoDeallocate(void* ptr) { std::free(ptr); }
 
 void* LibCAllocator::DoReallocate(void* ptr, Layout new_layout) {
-  // TODO: b/301930507 - `aligned_alloc` is not portable. Return null for larger
-  // allocations for now.
   return new_layout.alignment() <= alignof(std::max_align_t)
              ? std::realloc(ptr, new_layout.size())
              : nullptr;

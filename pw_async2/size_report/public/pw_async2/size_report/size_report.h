@@ -66,7 +66,7 @@ using PendableInt = PendableValue<int>;
 using PendableUint = PendableValue<unsigned int>;
 using PendableChar = PendableValue<char>;
 
-allocator::Allocator& GetAllocator();
+Allocator& GetAllocator();
 
 int SetBaseline(uint32_t mask);
 

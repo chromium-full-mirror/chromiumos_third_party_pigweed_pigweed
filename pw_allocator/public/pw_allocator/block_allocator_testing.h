@@ -20,7 +20,6 @@
 #include "pw_allocator/block/detailed_block.h"
 #include "pw_allocator/block/testing.h"
 #include "pw_allocator/block_allocator.h"
-#include "pw_allocator/buffer.h"
 #include "pw_allocator/deallocator.h"
 #include "pw_allocator/fuzzing.h"
 #include "pw_allocator/layout.h"
@@ -75,13 +74,13 @@ class BlockAllocatorTest : public ::testing::Test {
 
   /// Initialize the allocator with a region of memory and return it as a
   /// generic Allocator.
-  Allocator& GetGenericAllocator() { return GetAllocator(); }
+  pw::Allocator& GetGenericAllocator() { return GetAllocator(); }
 
   /// Initialize the allocator with a sequence of preallocated blocks and return
   /// it as a generic allocator.
   ///
   /// See also ``Preallocation``.
-  Allocator& GetGenericAllocator(
+  pw::Allocator& GetGenericAllocator(
       std::initializer_list<Preallocation> preallocations) {
     return GetAllocator(preallocations);
   }
@@ -253,7 +252,7 @@ void BlockAllocatorTest<BlockAllocatorType, kCapacity>::ExplicitlyInit(
 template <typename BlockAllocatorType, size_t kCapacity>
 void BlockAllocatorTest<BlockAllocatorType, kCapacity>::GetCapacity(
     size_t expected) {
-  Allocator& allocator = GetGenericAllocator();
+  pw::Allocator& allocator = GetGenericAllocator();
   StatusWithSize capacity = allocator.GetCapacity();
   EXPECT_EQ(capacity.status(), OkStatus());
   EXPECT_EQ(capacity.size(), expected);
@@ -261,7 +260,7 @@ void BlockAllocatorTest<BlockAllocatorType, kCapacity>::GetCapacity(
 
 template <typename BlockAllocatorType, size_t kCapacity>
 void BlockAllocatorTest<BlockAllocatorType, kCapacity>::AllocateLarge() {
-  Allocator& allocator = GetGenericAllocator();
+  pw::Allocator& allocator = GetGenericAllocator();
   constexpr Layout layout = Layout::Of<std::byte[kLargeInnerSize]>();
   Store(0, allocator.Allocate(layout));
   ASSERT_NE(Fetch(0), nullptr);
@@ -273,7 +272,7 @@ void BlockAllocatorTest<BlockAllocatorType, kCapacity>::AllocateLarge() {
 
 template <typename BlockAllocatorType, size_t kCapacity>
 void BlockAllocatorTest<BlockAllocatorType, kCapacity>::AllocateSmall() {
-  Allocator& allocator = GetGenericAllocator();
+  pw::Allocator& allocator = GetGenericAllocator();
   constexpr Layout layout = Layout::Of<std::byte[kSmallInnerSize]>();
   Store(0, allocator.Allocate(layout));
   ASSERT_NE(Fetch(0), nullptr);
@@ -285,7 +284,7 @@ void BlockAllocatorTest<BlockAllocatorType, kCapacity>::AllocateSmall() {
 
 template <typename BlockAllocatorType, size_t kCapacity>
 void BlockAllocatorTest<BlockAllocatorType, kCapacity>::AllocateTooLarge() {
-  Allocator& allocator = GetGenericAllocator();
+  pw::Allocator& allocator = GetGenericAllocator();
   Store(0, allocator.Allocate(Layout::Of<std::byte[kCapacity * 2]>()));
   EXPECT_EQ(Fetch(0), nullptr);
 }
@@ -294,7 +293,7 @@ template <typename BlockAllocatorType, size_t kCapacity>
 void BlockAllocatorTest<BlockAllocatorType,
                         kCapacity>::AllocateLargeAlignment() {
   if constexpr (is_alignable_v<BlockType>) {
-    Allocator& allocator = GetGenericAllocator();
+    pw::Allocator& allocator = GetGenericAllocator();
 
     constexpr size_t kAlignment = 64;
     Store(0, allocator.Allocate(Layout(kLargeInnerSize, kAlignment)));
@@ -321,7 +320,7 @@ void BlockAllocatorTest<BlockAllocatorType,
     size_t outer_size =
         GetAlignedOffsetAfter(bytes.data(), kAlignment, kSmallInnerSize) +
         kAlignment;
-    Allocator& allocator = GetGenericAllocator({
+    pw::Allocator& allocator = GetGenericAllocator({
         {outer_size, Preallocation::kUsed},
         {kLargeOuterSize, Preallocation::kFree},
         {Preallocation::kSizeRemaining, Preallocation::kUsed},
@@ -337,13 +336,13 @@ void BlockAllocatorTest<BlockAllocatorType,
 
 template <typename BlockAllocatorType, size_t kCapacity>
 void BlockAllocatorTest<BlockAllocatorType, kCapacity>::DeallocateNull() {
-  Allocator& allocator = GetGenericAllocator();
+  pw::Allocator& allocator = GetGenericAllocator();
   allocator.Deallocate(nullptr);
 }
 
 template <typename BlockAllocatorType, size_t kCapacity>
 void BlockAllocatorTest<BlockAllocatorType, kCapacity>::DeallocateShuffled() {
-  Allocator& allocator = GetGenericAllocator();
+  pw::Allocator& allocator = GetGenericAllocator();
   constexpr Layout layout = Layout::Of<std::byte[kSmallInnerSize]>();
   for (size_t i = 0; i < kNumPtrs; ++i) {
     Store(i, allocator.Allocate(layout));
@@ -371,14 +370,14 @@ void BlockAllocatorTest<BlockAllocatorType, kCapacity>::DeallocateShuffled() {
 
 template <typename BlockAllocatorType, size_t kCapacity>
 void BlockAllocatorTest<BlockAllocatorType, kCapacity>::ResizeNull() {
-  Allocator& allocator = GetGenericAllocator();
+  pw::Allocator& allocator = GetGenericAllocator();
   size_t new_size = 1;
   EXPECT_FALSE(allocator.Resize(nullptr, new_size));
 }
 
 template <typename BlockAllocatorType, size_t kCapacity>
 void BlockAllocatorTest<BlockAllocatorType, kCapacity>::ResizeLargeSame() {
-  Allocator& allocator = GetGenericAllocator({
+  pw::Allocator& allocator = GetGenericAllocator({
       {kLargeOuterSize, Preallocation::kUsed},
       {Preallocation::kSizeRemaining, Preallocation::kUsed},
   });
@@ -389,7 +388,7 @@ void BlockAllocatorTest<BlockAllocatorType, kCapacity>::ResizeLargeSame() {
 
 template <typename BlockAllocatorType, size_t kCapacity>
 void BlockAllocatorTest<BlockAllocatorType, kCapacity>::ResizeLargeSmaller() {
-  Allocator& allocator = GetGenericAllocator({
+  pw::Allocator& allocator = GetGenericAllocator({
       {kLargeOuterSize, Preallocation::kUsed},
       {Preallocation::kSizeRemaining, Preallocation::kUsed},
   });
@@ -400,7 +399,7 @@ void BlockAllocatorTest<BlockAllocatorType, kCapacity>::ResizeLargeSmaller() {
 
 template <typename BlockAllocatorType, size_t kCapacity>
 void BlockAllocatorTest<BlockAllocatorType, kCapacity>::ResizeLargeLarger() {
-  Allocator& allocator = GetGenericAllocator({
+  pw::Allocator& allocator = GetGenericAllocator({
       {kLargeOuterSize, Preallocation::kUsed},
       {kLargeOuterSize, Preallocation::kFree},
       {Preallocation::kSizeRemaining, Preallocation::kUsed},
@@ -413,7 +412,7 @@ void BlockAllocatorTest<BlockAllocatorType, kCapacity>::ResizeLargeLarger() {
 template <typename BlockAllocatorType, size_t kCapacity>
 void BlockAllocatorTest<BlockAllocatorType,
                         kCapacity>::ResizeLargeLargerFailure() {
-  Allocator& allocator = GetGenericAllocator({
+  pw::Allocator& allocator = GetGenericAllocator({
       {kLargeOuterSize, Preallocation::kUsed},
       {Preallocation::kSizeRemaining, Preallocation::kUsed},
   });
@@ -424,7 +423,7 @@ void BlockAllocatorTest<BlockAllocatorType,
 
 template <typename BlockAllocatorType, size_t kCapacity>
 void BlockAllocatorTest<BlockAllocatorType, kCapacity>::ResizeSmallSame() {
-  Allocator& allocator = GetGenericAllocator({
+  pw::Allocator& allocator = GetGenericAllocator({
       {kSmallOuterSize, Preallocation::kUsed},
       {Preallocation::kSizeRemaining, Preallocation::kUsed},
   });
@@ -435,7 +434,7 @@ void BlockAllocatorTest<BlockAllocatorType, kCapacity>::ResizeSmallSame() {
 
 template <typename BlockAllocatorType, size_t kCapacity>
 void BlockAllocatorTest<BlockAllocatorType, kCapacity>::ResizeSmallSmaller() {
-  Allocator& allocator = GetGenericAllocator({
+  pw::Allocator& allocator = GetGenericAllocator({
       {kSmallOuterSize, Preallocation::kUsed},
       {Preallocation::kSizeRemaining, Preallocation::kUsed},
   });
@@ -446,7 +445,7 @@ void BlockAllocatorTest<BlockAllocatorType, kCapacity>::ResizeSmallSmaller() {
 
 template <typename BlockAllocatorType, size_t kCapacity>
 void BlockAllocatorTest<BlockAllocatorType, kCapacity>::ResizeSmallLarger() {
-  Allocator& allocator = GetGenericAllocator({
+  pw::Allocator& allocator = GetGenericAllocator({
       {kSmallOuterSize, Preallocation::kUsed},
       {kSmallOuterSize, Preallocation::kFree},
       {Preallocation::kSizeRemaining, Preallocation::kUsed},
@@ -459,7 +458,7 @@ void BlockAllocatorTest<BlockAllocatorType, kCapacity>::ResizeSmallLarger() {
 template <typename BlockAllocatorType, size_t kCapacity>
 void BlockAllocatorTest<BlockAllocatorType,
                         kCapacity>::ResizeSmallLargerFailure() {
-  Allocator& allocator = GetGenericAllocator({
+  pw::Allocator& allocator = GetGenericAllocator({
       {kSmallOuterSize, Preallocation::kUsed},
       {Preallocation::kSizeRemaining, Preallocation::kUsed},
   });
@@ -470,7 +469,7 @@ void BlockAllocatorTest<BlockAllocatorType,
 
 template <typename BlockAllocatorType, size_t kCapacity>
 void BlockAllocatorTest<BlockAllocatorType, kCapacity>::IterateOverBlocks() {
-  Allocator& allocator = GetGenericAllocator({
+  pw::Allocator& allocator = GetGenericAllocator({
       {kSmallOuterSize, Preallocation::kFree},
       {kLargeOuterSize, Preallocation::kUsed},
       {kSmallOuterSize, Preallocation::kFree},
@@ -560,7 +559,7 @@ void BlockAllocatorTest<BlockAllocatorType,
 
 template <typename BlockAllocatorType, size_t kCapacity>
 void BlockAllocatorTest<BlockAllocatorType, kCapacity>::MeasureFragmentation() {
-  Allocator& allocator = GetGenericAllocator({
+  pw::Allocator& allocator = GetGenericAllocator({
       {0x020, Preallocation::kFree},
       {0x040, Preallocation::kUsed},
       {0x080, Preallocation::kFree},
@@ -591,7 +590,7 @@ template <typename BlockAllocatorType, size_t kCapacity>
 void BlockAllocatorTest<BlockAllocatorType, kCapacity>::PoisonPeriodically() {
   if constexpr (is_poisonable_v<BlockType>) {
     // Allocate 8 blocks to prevent every other from being merged when freed.
-    Allocator& allocator = GetGenericAllocator({
+    pw::Allocator& allocator = GetGenericAllocator({
         {kLargeOuterSize, Preallocation::kUsed},
         {kLargeOuterSize, Preallocation::kUsed},
         {kLargeOuterSize, Preallocation::kUsed},

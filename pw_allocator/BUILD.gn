@@ -101,11 +101,6 @@ config("test_config") {
 
 # Libraries
 
-# TODO(b/376730645): Remove deprecated alias.
-group("allocator") {
-  public_deps = [ dir_pw_allocator ]
-}
-
 pw_source_set("allocator_as_pool") {
   public_configs = [ ":public_include_path" ]
   public = [ "public/pw_allocator/allocator_as_pool.h" ]
@@ -120,7 +115,6 @@ pw_source_set("async_pool") {
   public_configs = [ ":public_include_path" ]
   public = [ "public/pw_allocator/async_pool.h" ]
   public_deps = [
-    ":pool",
     ":pw_allocator",
     "$dir_pw_async2:pw_async2",
   ]
@@ -137,13 +131,6 @@ pw_source_set("best_fit") {
     "bucket:fast_sorted",
     "bucket:sorted",
   ]
-}
-
-# TODO(b/376730645): Remove deprecated interfaces.
-pw_source_set("best_fit_block_allocator") {
-  public_configs = [ ":public_include_path" ]
-  public = [ "public/pw_allocator/best_fit_block_allocator.h" ]
-  public_deps = [ ":best_fit" ]
 }
 
 pw_source_set("block_allocator") {
@@ -180,13 +167,6 @@ pw_source_set("bucket_allocator") {
   ]
 }
 
-# TODO(b/376730645): Remove deprecated interfaces.
-pw_source_set("bucket_block_allocator") {
-  public_configs = [ ":public_include_path" ]
-  public = [ "public/pw_allocator/bucket_block_allocator.h" ]
-  public_deps = [ ":bucket_allocator" ]
-}
-
 pw_source_set("buddy_allocator") {
   public_configs = [ ":public_include_path" ]
   public = [ "public/pw_allocator/buddy_allocator.h" ]
@@ -207,16 +187,6 @@ pw_source_set("buddy_allocator") {
   sources = [ "buddy_allocator.cc" ]
 }
 
-pw_source_set("buffer") {
-  public_configs = [ ":public_include_path" ]
-  public = [ "public/pw_allocator/buffer.h" ]
-  public_deps = [
-    dir_pw_bytes,
-    dir_pw_result,
-  ]
-  deps = [ "$dir_pw_bytes:alignment" ]
-}
-
 pw_source_set("bump_allocator") {
   public_configs = [ ":public_include_path" ]
   public = [ "public/pw_allocator/bump_allocator.h" ]
@@ -225,7 +195,6 @@ pw_source_set("bump_allocator") {
     "$dir_pw_bytes:alignment",
     dir_pw_bytes,
   ]
-  deps = [ ":buffer" ]
   sources = [ "bump_allocator.cc" ]
 }
 
@@ -239,17 +208,11 @@ pw_source_set("chunk_pool") {
     dir_pw_status,
   ]
   deps = [
-    ":buffer",
     "$dir_pw_assert:check",
     "$dir_pw_bytes:alignment",
     "$pw_external_fuchsia:stdcompat",
   ]
   sources = [ "chunk_pool.cc" ]
-}
-
-# TODO(b/376730645): Remove deprecated alias.
-group("deallocator") {
-  public_deps = [ dir_pw_allocator ]
 }
 
 pw_source_set("dl_allocator") {
@@ -263,13 +226,6 @@ pw_source_set("dl_allocator") {
     "bucket:fast_sorted",
     "bucket:unordered",
   ]
-}
-
-# TODO(b/376730645): Remove deprecated interfaces.
-pw_source_set("dual_first_fit_block_allocator") {
-  public_configs = [ ":public_include_path" ]
-  public = [ "public/pw_allocator/dual_first_fit_block_allocator.h" ]
-  public_deps = [ ":first_fit" ]
 }
 
 pw_source_set("fallback_allocator") {
@@ -295,27 +251,10 @@ pw_source_set("first_fit") {
   ]
 }
 
-# TODO(b/376730645): Remove deprecated interfaces.
-pw_source_set("first_fit_block_allocator") {
-  public_configs = [ ":public_include_path" ]
-  public = [ "public/pw_allocator/first_fit_block_allocator.h" ]
-  public_deps = [ ":first_fit" ]
-}
-
 pw_source_set("fragmentation") {
   public_configs = [ ":public_include_path" ]
   public = [ "public/pw_allocator/fragmentation.h" ]
   sources = [ "fragmentation.cc" ]
-}
-
-pw_source_set("freelist_heap") {
-  public_configs = [ ":public_include_path" ]
-  public = [ "public/pw_allocator/freelist_heap.h" ]
-  public_deps = [
-    ":bucket_allocator",
-    ":hardening",
-    dir_pw_bytes,
-  ]
 }
 
 pw_source_set("hardening") {
@@ -326,13 +265,6 @@ pw_source_set("hardening") {
     "$dir_pw_assert:assert",
     "$dir_pw_numeric:checked_arithmetic",
   ]
-}
-
-# TODO(b/376730645): Remove deprecated interfaces.
-pw_source_set("last_fit_block_allocator") {
-  public_configs = [ ":public_include_path" ]
-  public = [ "public/pw_allocator/last_fit_block_allocator.h" ]
-  public_deps = [ ":first_fit" ]
 }
 
 pw_source_set("libc_allocator") {
@@ -378,11 +310,6 @@ pw_source_set("pmr_allocator") {
   ]
   sources = [ "pmr_allocator.cc" ]
   deps = [ "$dir_pw_assert:check" ]
-}
-
-# TODO(b/376730645): Remove deprecated alias.
-group("pool") {
-  public_deps = [ dir_pw_allocator ]
 }
 
 pw_source_set("synchronized_allocator") {
@@ -460,13 +387,6 @@ pw_source_set("worst_fit") {
   ]
 }
 
-# TODO(b/376730645): Remove deprecated interfaces.
-pw_source_set("worst_fit_block_allocator") {
-  public_configs = [ ":public_include_path" ]
-  public = [ "public/pw_allocator/worst_fit_block_allocator.h" ]
-  public_deps = [ ":worst_fit" ]
-}
-
 # Test support
 
 pw_source_set("testing") {
@@ -476,7 +396,6 @@ pw_source_set("testing") {
     "public/pw_allocator/testing.h",
   ]
   public_deps = [
-    ":buffer",
     ":first_fit",
     ":hardening",
     ":metrics",
@@ -495,7 +414,6 @@ pw_source_set("block_allocator_testing") {
   public = [ "public/pw_allocator/block_allocator_testing.h" ]
   public_deps = [
     ":block_allocator",
-    ":buffer",
     ":fuzzing",
     ":pw_allocator",
     ":test_harness",
@@ -524,16 +442,15 @@ pw_source_set("sync_allocator_testing") {
   public_configs = [ ":test_config" ]
   public = [ "public/pw_allocator/sync_allocator_testing.h" ]
   public_deps = [
-    ":allocator",
     "$dir_pw_containers:vector",
     "$dir_pw_sync:binary_semaphore",
     "$dir_pw_thread:test_thread_context",
     "$dir_pw_thread:thread",
     "$dir_pw_thread:thread_core",
     "$dir_pw_unit_test",
+    dir_pw_allocator,
   ]
   deps = [
-    ":deallocator",
     "$dir_pw_status",
     "$dir_pw_thread:yield",
   ]
@@ -602,9 +519,7 @@ pw_test("async_pool_test") {
 pw_test("best_fit_test") {
   deps = [
     ":best_fit",
-    ":best_fit_block_allocator",
     ":block_allocator_testing",
-    ":buffer",
   ]
   sources = [ "best_fit_test.cc" ]
 }
@@ -613,7 +528,6 @@ pw_test("bucket_allocator_test") {
   deps = [
     ":block_allocator_testing",
     ":bucket_allocator",
-    ":bucket_block_allocator",
     ":pw_allocator",
   ]
   sources = [ "bucket_allocator_test.cc" ]
@@ -626,17 +540,6 @@ pw_test("buddy_allocator_test") {
     ":testing",
   ]
   sources = [ "buddy_allocator_test.cc" ]
-}
-
-pw_test("buffer_test") {
-  deps = [
-    ":buffer",
-    ":testing",
-    "$pw_external_fuchsia:stdcompat",
-    dir_pw_bytes,
-    dir_pw_result,
-  ]
-  sources = [ "buffer_test.cc" ]
 }
 
 pw_test("bump_allocator_test") {
@@ -682,11 +585,7 @@ pw_test("fallback_allocator_test") {
 pw_test("first_fit_test") {
   deps = [
     ":block_allocator_testing",
-    ":buffer",
-    ":dual_first_fit_block_allocator",
     ":first_fit",
-    ":first_fit_block_allocator",
-    ":last_fit_block_allocator",
     "$pw_external_fuchsia:stdcompat",
     "block:detailed_block",
   ]
@@ -701,16 +600,6 @@ pw_test("fragmentation_test") {
   sources = [ "fragmentation_test.cc" ]
 }
 
-pw_test("freelist_heap_test") {
-  deps = [
-    ":freelist_heap",
-    "$dir_pw_bytes:alignment",
-    "$pw_external_fuchsia:stdcompat",
-    "block:testing",
-  ]
-  sources = [ "freelist_heap_test.cc" ]
-}
-
 pw_test("guarded_allocator_test") {
   enable_if =
       pw_sync_BINARY_SEMAPHORE_BACKEND != "" && pw_sync_MUTEX_BACKEND != "" &&
@@ -718,7 +607,7 @@ pw_test("guarded_allocator_test") {
       pw_thread_YIELD_BACKEND != "" &&
       pw_thread_TEST_THREAD_CONTEXT_BACKEND != ""
   deps = [
-    ":first_fit_block_allocator",
+    ":first_fit",
     ":guarded_allocator",
     ":sync_allocator_testing",
     "$dir_pw_sync:interrupt_spin_lock",
@@ -846,7 +735,6 @@ pw_test("worst_fit_test") {
   deps = [
     ":block_allocator_testing",
     ":worst_fit",
-    ":worst_fit_block_allocator",
   ]
   sources = [ "worst_fit_test.cc" ]
 }
@@ -858,7 +746,6 @@ pw_test_group("tests") {
     ":best_fit_test",
     ":bucket_allocator_test",
     ":buddy_allocator_test",
-    ":buffer_test",
     ":bump_allocator_test",
     ":chunk_pool_test",
     ":dl_allocator_test",
@@ -866,7 +753,6 @@ pw_test_group("tests") {
     ":fallback_allocator_test",
     ":first_fit_test",
     ":fragmentation_test",
-    ":freelist_heap_test",
     ":guarded_allocator_test",
     ":layout_test",
     ":libc_allocator_test",

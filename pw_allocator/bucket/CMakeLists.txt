@@ -72,7 +72,6 @@ pw_add_library(pw_allocator.bucket.testing INTERFACE
     public
   PUBLIC_DEPS
     pw_allocator.bump_allocator
-    pw_allocator.buffer
 )
 
 pw_add_test(pw_allocator.bucket.fast_sorted_test

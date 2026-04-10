@@ -19,7 +19,6 @@
 #include "lib/stdcompat/bit.h"
 #include "pw_allocator/block/allocatable.h"
 #include "pw_allocator/block/result.h"
-#include "pw_allocator/buffer.h"
 #include "pw_allocator/layout.h"
 #include "pw_assert/assert.h"
 #include "pw_bytes/alignment.h"
@@ -35,8 +34,13 @@ static constexpr size_t kDefaultCapacity = 1024;
 // The large alignment used in alignment-related tests.
 static constexpr size_t kAlign = 64;
 
+/// Convenience alias for creating block-aligned byte buffers.
 template <typename BlockType, size_t kBufferSize = kDefaultCapacity>
-using BlockAlignedBuffer = AlignedBuffer<kBufferSize, BlockType::kAlignment>;
+struct BlockAlignedBuffer {
+  constexpr ByteSpan as_span() { return ByteSpan(bytes_); }
+
+  alignas(BlockType::kAlignment) std::array<std::byte, kBufferSize> bytes_;
+};
 
 /// Utility function that returns the offset from an addres a given number of
 /// bytes `after` a given `ptr` to the next address that has a given

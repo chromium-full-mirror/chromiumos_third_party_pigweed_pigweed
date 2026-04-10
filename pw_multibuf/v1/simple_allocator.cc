@@ -62,7 +62,7 @@ static bool IsAlignedSize(size_t num, size_t alignment) {
 }
 
 SimpleAllocator::SimpleAllocator(ByteSpan data_area,
-                                 pw::allocator::Allocator& metadata_alloc,
+                                 pw::Allocator& metadata_alloc,
                                  size_t alignment)
     : metadata_alloc_(metadata_alloc),
       data_area_(data_area),

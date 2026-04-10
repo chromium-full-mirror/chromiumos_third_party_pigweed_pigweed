@@ -84,7 +84,7 @@ class Background {
 class SyncAllocatorTest : public ::testing::Test {
  protected:
   /// Returns the allocator to be used in the unit tests.
-  virtual Allocator& GetAllocator() = 0;
+  virtual pw::Allocator& GetAllocator() = 0;
 
   /// Returns the thread core to be used for the background thread.
   virtual BackgroundThreadCore& GetCore() = 0;

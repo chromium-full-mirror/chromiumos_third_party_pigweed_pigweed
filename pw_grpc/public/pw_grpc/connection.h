@@ -245,7 +245,7 @@ class Connection {
 
   class SharedState {
    public:
-    SharedState(allocator::Allocator* message_assembly_allocator,
+    SharedState(Allocator* message_assembly_allocator,
                 Allocator& send_allocator,
                 SendQueue& send_queue);
 
@@ -290,7 +290,7 @@ class Connection {
                              uint32_t stream_increment);
     Status SendSettingsAck();
 
-    allocator::Allocator* message_assembly_allocator() {
+    Allocator* message_assembly_allocator() {
       return message_assembly_allocator_;
     }
 
@@ -313,7 +313,7 @@ class Connection {
     int32_t connection_recv_window_ = kTargetConnectionWindowSize;
 
     // Allocator for fragmented grpc message reassembly
-    allocator::Allocator* message_assembly_allocator_;
+    Allocator* message_assembly_allocator_;
 
     // Allocator for creating send buffers to queue.
     Allocator& send_allocator_;
@@ -397,7 +397,7 @@ class ConnectionThread : public Connection, public thread::ThreadCore {
                    const thread::Options& send_thread_options,
                    RequestCallbacks& callbacks,
                    ConnectionCloseCallback&& connection_close_callback,
-                   allocator::Allocator* message_assembly_allocator,
+                   Allocator* message_assembly_allocator,
                    Allocator& send_allocator)
       : Connection(stream.as_reader(),
                    send_queue_,

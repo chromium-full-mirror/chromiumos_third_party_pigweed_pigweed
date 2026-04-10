@@ -30,7 +30,7 @@ class AllocatorAsPool : public Pool {
   /// @param  allocator   The allocator used to create fixed-size allocations.
   /// @param  layout      The size and alignment of the memory to be returned
   ///                     from this pool.
-  AllocatorAsPool(Allocator& allocator, const Layout& layout);
+  AllocatorAsPool(pw::Allocator& allocator, const Layout& layout);
 
  private:
   /// @copydoc Pool::Allocate
@@ -42,7 +42,7 @@ class AllocatorAsPool : public Pool {
   /// @copydoc Deallocator::GetInfo
   Result<Layout> DoGetInfo(InfoType info_type, const void* ptr) const override;
 
-  Allocator& allocator_;
+  pw::Allocator& allocator_;
 };
 
 /// @}

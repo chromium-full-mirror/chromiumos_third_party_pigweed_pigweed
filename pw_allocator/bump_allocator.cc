@@ -14,7 +14,6 @@
 
 #include "pw_allocator/bump_allocator.h"
 
-#include "pw_allocator/buffer.h"
 #include "pw_bytes/alignment.h"
 
 namespace pw::allocator {

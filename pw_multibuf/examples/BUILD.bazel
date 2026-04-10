@@ -178,7 +178,7 @@ pw_cc_test(
     deps = [
         ":emboss_protocol",
         ":protocol",
-        "//pw_allocator:allocator",
+        "//pw_allocator",
         "//pw_allocator:libc_allocator",
         "//pw_assert:check",
         "//pw_bytes",

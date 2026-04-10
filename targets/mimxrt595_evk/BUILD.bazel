@@ -41,7 +41,7 @@ platform(
         "@pigweed//pw_boot:backend": "//pw_boot_cortex_m:armv8m",
         "@pigweed//pw_log:backend": "//pw_log_basic",
         "@pigweed//pw_log:backend_impl": "//pw_log_basic:impl",
-        "@pigweed//pw_malloc:backend": "//pw_malloc:bucket_block_allocator",
+        "@pigweed//pw_malloc:backend": "//pw_malloc:bucket_allocator",
         "@pigweed//pw_sync:interrupt_spin_lock_backend": "//pw_sync_baremetal:interrupt_spin_lock",
         "@pigweed//pw_sync:mutex_backend": "//pw_sync_baremetal:mutex",
         "@pigweed//pw_sys_io:backend": "//pw_sys_io_mcuxpresso",

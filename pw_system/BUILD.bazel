@@ -629,7 +629,7 @@ cc_library(
         ":thread_snapshot_service",
         ":transfer_service",
         ":work_queue",
-        "//pw_allocator:best_fit_block_allocator",
+        "//pw_allocator:best_fit",
         "//pw_allocator:synchronized_allocator",
         "//pw_assert:check",
         "//pw_async2",
@@ -648,7 +648,7 @@ cc_library(
     strip_include_prefix = "public",
     tags = ["noclangtidy"],
     deps = [
-        "//pw_allocator:allocator",
+        "//pw_allocator",
         "//pw_async2",
         "//pw_channel",
         "//pw_rpc",
@@ -668,7 +668,7 @@ cc_library(
     visibility = ["//visibility:private"],
     deps = [
         ":config",
-        "//pw_allocator:allocator",
+        "//pw_allocator",
         "//pw_async2",
         "//pw_channel",
         "//pw_channel:forwarding_channel",

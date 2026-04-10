@@ -69,7 +69,7 @@ pw_add_library(pw_multibuf.v1.header_chunk_region_tracker INTERFACE
   PUBLIC_INCLUDES
     public
   PUBLIC_DEPS
-    pw_allocator.allocator
+    pw_allocator
     pw_bytes
     pw_multibuf.config
     pw_multibuf.v1.chunk
@@ -202,7 +202,7 @@ pw_add_library(pw_multibuf.v1.simple_allocator STATIC
   PUBLIC_INCLUDES
     public
   PUBLIC_DEPS
-    pw_allocator.allocator
+    pw_allocator
     pw_containers.intrusive_list
     pw_multibuf.config
     pw_multibuf.v1.allocator
@@ -265,7 +265,7 @@ pw_add_library(pw_multibuf.v1.from_span STATIC
   PUBLIC_INCLUDES
     public
   PUBLIC_DEPS
-    pw_allocator.allocator
+    pw_allocator
     pw_multibuf.v1.multibuf
     pw_function
   SOURCES

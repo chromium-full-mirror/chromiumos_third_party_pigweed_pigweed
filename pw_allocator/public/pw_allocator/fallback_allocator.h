@@ -28,13 +28,13 @@ namespace pw::allocator {
 /// attempt to allocate memory will first be handled by the primary allocator.
 /// If it cannot allocate memory, e.g. because it is out of memory, the
 /// secondary alloator will try to allocate memory instead.
-class FallbackAllocator : public Allocator {
+class FallbackAllocator : public pw::Allocator {
  public:
   /// Constructor.
   ///
   /// @param[in]  primary     Allocator tried first. Must implement `Query`.
   /// @param[in]  secondary   Allocator tried if `primary` fails a request.
-  FallbackAllocator(Allocator& primary, Allocator& secondary);
+  FallbackAllocator(pw::Allocator& primary, pw::Allocator& secondary);
 
  private:
   /// @copydoc Allocator::Allocate
@@ -42,9 +42,6 @@ class FallbackAllocator : public Allocator {
 
   /// @copydoc Allocator::Deallocate
   void DoDeallocate(void* ptr) override;
-
-  /// @copydoc Allocator::Deallocate
-  void DoDeallocate(void* ptr, Layout) override;
 
   /// @copydoc Allocator::Resize
   bool DoResize(void* ptr, size_t new_size) override;
@@ -63,8 +60,8 @@ class FallbackAllocator : public Allocator {
   }
 
  private:
-  Allocator& primary_;
-  Allocator& secondary_;
+  pw::Allocator& primary_;
+  pw::Allocator& secondary_;
 };
 
 /// @}

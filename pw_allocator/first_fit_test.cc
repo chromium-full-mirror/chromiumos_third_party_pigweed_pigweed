@@ -18,10 +18,6 @@
 
 #include "pw_allocator/block/detailed_block.h"
 #include "pw_allocator/block_allocator_testing.h"
-#include "pw_allocator/buffer.h"
-#include "pw_allocator/dual_first_fit_block_allocator.h"
-#include "pw_allocator/first_fit_block_allocator.h"
-#include "pw_allocator/last_fit_block_allocator.h"
 #include "pw_unit_test/framework.h"
 
 namespace {
@@ -69,7 +65,7 @@ TEST_F(FirstFitAllocatorTest, AllocateAlignmentFailure) {
   AllocateAlignmentFailure();
 }
 
-TEST_F(FirstFitAllocatorTest, AllocatesZeroThreshold) {
+TEST_F(FirstFitAllocatorTest, AllocatesFirstCompatible) {
   FirstFitAllocator& allocator = GetAllocator({
       {kSmallOuterSize, Preallocation::kFree},
       {kSmallerOuterSize, Preallocation::kUsed},
@@ -86,7 +82,7 @@ TEST_F(FirstFitAllocatorTest, AllocatesZeroThreshold) {
   EXPECT_EQ(NextAfter(4), Fetch(5));
 }
 
-TEST_F(FirstFitAllocatorTest, AllocatesMaxThreshold) {
+TEST_F(FirstFitAllocatorTest, AllocatesLastCompatible) {
   FirstFitAllocator& allocator = GetAllocator({
       {kLargeOuterSize, Preallocation::kFree},
       {kSmallerOuterSize, Preallocation::kUsed},
@@ -228,97 +224,6 @@ TEST_F(FirstFitAllocatorTest, GetMaxAllocatableWhenNoBlocksFree) {
 TEST_F(FirstFitAllocatorTest, MeasureFragmentation) { MeasureFragmentation(); }
 
 TEST_F(FirstFitAllocatorTest, PoisonPeriodically) { PoisonPeriodically(); }
-
-// TODO(b/376730645): Remove this test when the legacy alias is deprecated.
-using DualFirstFitBlockAllocator =
-    ::pw::allocator::DualFirstFitBlockAllocator<uint16_t>;
-class DualFirstFitBlockAllocatorTest
-    : public BlockAllocatorTest<DualFirstFitBlockAllocator> {
- public:
-  DualFirstFitBlockAllocatorTest() : BlockAllocatorTest(allocator_) {}
-
- private:
-  DualFirstFitBlockAllocator allocator_;
-};
-TEST_F(DualFirstFitBlockAllocatorTest, AllocatesUsingThreshold) {
-  auto& allocator = GetAllocator({
-      {kLargeOuterSize, Preallocation::kFree},
-      {kSmallerOuterSize, Preallocation::kUsed},
-      {kSmallOuterSize, Preallocation::kFree},
-      {Preallocation::kSizeRemaining, Preallocation::kUsed},
-      {kLargeOuterSize, Preallocation::kFree},
-      {kSmallerOuterSize, Preallocation::kUsed},
-      {kSmallOuterSize, Preallocation::kFree},
-  });
-  allocator.set_threshold(kThreshold);
-
-  Store(0, allocator.Allocate(Layout(kLargeInnerSize, 1)));
-  EXPECT_EQ(NextAfter(0), Fetch(1));
-  Store(4, allocator.Allocate(Layout(kLargeInnerSize, 1)));
-  EXPECT_EQ(NextAfter(3), Fetch(4));
-  EXPECT_EQ(NextAfter(4), Fetch(5));
-  Store(6, allocator.Allocate(Layout(kSmallInnerSize, 1)));
-  EXPECT_EQ(NextAfter(5), Fetch(6));
-  EXPECT_EQ(NextAfter(6), Fetch(7));
-  Store(2, allocator.Allocate(Layout(kSmallInnerSize, 1)));
-  EXPECT_EQ(NextAfter(1), Fetch(2));
-  EXPECT_EQ(NextAfter(2), Fetch(3));
-}
-
-// TODO(b/376730645): Remove this test when the legacy alias is deprecated.
-using FirstFitBlockAllocator =
-    ::pw::allocator::FirstFitBlockAllocator<uint16_t>;
-class FirstFitBlockAllocatorTest
-    : public BlockAllocatorTest<FirstFitBlockAllocator> {
- public:
-  FirstFitBlockAllocatorTest() : BlockAllocatorTest(allocator_) {}
-
- private:
-  FirstFitBlockAllocator allocator_;
-};
-TEST_F(FirstFitBlockAllocatorTest, AllocatesFirstCompatible) {
-  auto& allocator = GetAllocator({
-      {kSmallOuterSize, Preallocation::kFree},
-      {kSmallerOuterSize, Preallocation::kUsed},
-      {kSmallOuterSize, Preallocation::kFree},
-      {kSmallerOuterSize, Preallocation::kUsed},
-      {kLargeOuterSize, Preallocation::kFree},
-      {Preallocation::kSizeRemaining, Preallocation::kUsed},
-  });
-
-  Store(0, allocator.Allocate(Layout(kSmallInnerSize, 1)));
-  EXPECT_EQ(NextAfter(0), Fetch(1));
-  Store(4, allocator.Allocate(Layout(kLargeInnerSize, 1)));
-  EXPECT_EQ(NextAfter(3), Fetch(4));
-  EXPECT_EQ(NextAfter(4), Fetch(5));
-}
-
-// TODO(b/376730645): Remove this test when the legacy alias is deprecated.
-using LastFitBlockAllocator = ::pw::allocator::LastFitBlockAllocator<uint16_t>;
-class LastFitBlockAllocatorTest
-    : public BlockAllocatorTest<LastFitBlockAllocator> {
- public:
-  LastFitBlockAllocatorTest() : BlockAllocatorTest(allocator_) {}
-
- private:
-  LastFitBlockAllocator allocator_;
-};
-TEST_F(LastFitBlockAllocatorTest, AllocatesLastCompatible) {
-  auto& allocator = GetAllocator({
-      {kLargeOuterSize, Preallocation::kFree},
-      {kSmallerOuterSize, Preallocation::kUsed},
-      {kSmallOuterSize, Preallocation::kFree},
-      {kSmallerOuterSize, Preallocation::kUsed},
-      {kSmallOuterSize, Preallocation::kFree},
-      {Preallocation::kSizeRemaining, Preallocation::kUsed},
-  });
-
-  Store(0, allocator.Allocate(Layout(kLargeInnerSize, 1)));
-  EXPECT_EQ(NextAfter(0), Fetch(1));
-  Store(4, allocator.Allocate(Layout(kSmallInnerSize, 1)));
-  EXPECT_EQ(NextAfter(3), Fetch(4));
-  EXPECT_EQ(NextAfter(4), Fetch(5));
-}
 
 // Fuzz tests.
 

@@ -50,7 +50,7 @@ namespace internal {
 /// Since this base class is only concerned with adjusting layouts and sizes
 /// and is agnostic to specific allocator and block details, all of its methods
 /// are static.
-class GenericGuardedAllocator : public Allocator {
+class GenericGuardedAllocator : public pw::Allocator {
  protected:
   constexpr explicit GenericGuardedAllocator(const Capabilities& capabilities)
       : Allocator(capabilities) {}
@@ -153,9 +153,6 @@ class GuardedAllocator : public internal::GenericGuardedAllocator {
   /// @copydoc Allocator::Deallocate
   void DoDeallocate(void* ptr) override;
 
-  /// @copydoc Allocator::Deallocate
-  void DoDeallocate(void* ptr, Layout) override { DoDeallocate(ptr); }
-
   /// @copydoc Allocator::Resize
   bool DoResize(void* ptr, size_t new_size) override;
 
@@ -196,7 +193,7 @@ void* GuardedAllocator<BlockAllocatorType, LockType>::ValidateOne() {
 
   // Find the next used block.
   BlockType* prev = block_;
-  while (!block_->Used()) {
+  while (block_->IsFree()) {
     BlockType* next = block_->Next();
     if (next == end) {
       // Loop around.
@@ -219,7 +216,7 @@ template <typename BlockAllocatorType, typename LockType>
 void* GuardedAllocator<BlockAllocatorType, LockType>::ValidateAll() {
   auto allocator = borrowable_.acquire();
   for (BlockType* block : allocator->blocks()) {
-    if (!block->Used()) {
+    if (block->IsFree()) {
       continue;
     }
     void* ptr = block->UsableSpace();
@@ -244,7 +241,7 @@ void* GuardedAllocator<BlockAllocatorType, LockType>::DoAllocate(
 
   // Bytes may be shifted to the previous block.
   BlockType* prev = block->Prev();
-  if (prev != nullptr && prev->Used()) {
+  if (prev != nullptr && !prev->IsFree()) {
     Base::AddSuffix(prev->UsableSpace(), prev->InnerSize());
   }
 
@@ -266,7 +263,7 @@ void GuardedAllocator<BlockAllocatorType, LockType>::DoDeallocate(void* ptr) {
   allocator->Deallocate(ptr);
 
   // Bytes may have been shifted from the previous block.
-  if (prev != nullptr && prev->Used()) {
+  if (prev != nullptr && !prev->IsFree()) {
     Base::AddSuffix(prev->UsableSpace(), prev->InnerSize());
   }
 }

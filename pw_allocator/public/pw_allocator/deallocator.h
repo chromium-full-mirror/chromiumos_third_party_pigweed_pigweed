@@ -16,7 +16,6 @@
 #include "pw_allocator/capability.h"
 #include "pw_allocator/hardening.h"
 #include "pw_allocator/layout.h"
-#include "pw_allocator/unique_ptr.h"
 #include "pw_result/result.h"
 #include "pw_status/status.h"
 #include "pw_status/status_with_size.h"
@@ -60,15 +59,6 @@ class Deallocator {
   void Deallocate(void* ptr) {
     if (ptr != nullptr) {
       DoDeallocate(ptr);
-    }
-  }
-
-  /// Deprecated version of `Deallocate` that takes a `Layout`.
-  /// Do not use this method. It will be removed.
-  /// TODO(b/326509341): Remove when downstream consumers migrate.
-  void Deallocate(void* ptr, Layout layout) {
-    if (ptr != nullptr) {
-      DoDeallocate(ptr, layout);
     }
   }
 
@@ -180,23 +170,6 @@ class Deallocator {
 
   explicit constexpr Deallocator(const Capabilities& capabilities)
       : capabilities_(capabilities) {}
-
-  /// Wraps an array of type ``T`` in a ``UniquePtr``
-  ///
-  /// @deprecated  Construct a UniquePtr<T> directly instead.
-  ///
-  /// TODO(b/326509341): Remove when downstream consumers migrate.
-  ///
-  /// @param[in]  ptr         Pointer to memory provided by this object.
-  /// @param[in]  size        The size of the array.
-  template <typename T,
-            int&... kExplicitGuard,
-            typename ElementType = std::remove_extent_t<T>,
-            std::enable_if_t<is_unbounded_array_v<T>, int> = 0>
-  [[deprecated("Use `UniquePtr<T>(...)` instead.")]] UniquePtr<T> WrapUnique(
-      ElementType* ptr, size_t size) {
-    return UniquePtr<T>(ptr, size, this);
-  }
 
   /// Indicates what kind of information to retrieve using `GetInfo`.
   ///
@@ -355,16 +328,7 @@ class Deallocator {
   /// Virtual `Deallocate` function implemented by derived classes.
   ///
   /// @param[in]  ptr           Pointer to memory, guaranteed to not be null.
-  virtual void DoDeallocate([[maybe_unused]] void* ptr) {
-    // This method will be pure virtual once consumer migrate from the
-    // deprecated version that takes a `Layout` parameter. In the meantime, the
-    // check that this method is implemented is deferred to run-time.
-    PW_ASSERT(false);
-  }
-
-  /// Deprecated version of `DoDeallocate` that takes a `Layout`.
-  /// Do not use this method. It will be removed.
-  virtual void DoDeallocate(void* ptr, Layout) { DoDeallocate(ptr); }
+  virtual void DoDeallocate([[maybe_unused]] void* ptr) = 0;
 
   /// Virtual `GetInfo` function that can be overridden by derived classes.
   virtual Result<Layout> DoGetInfo(InfoType, const void*) const {
@@ -373,13 +337,6 @@ class Deallocator {
 
   const Capabilities capabilities_;
 };
-
-namespace allocator {
-
-// Alias for module consumers using the older name for the above type.
-using Deallocator = ::pw::Deallocator;
-
-}  // namespace allocator
 
 /// @}
 

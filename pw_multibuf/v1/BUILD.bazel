@@ -81,7 +81,7 @@ cc_library(
     strip_include_prefix = "public",
     deps = [
         ":chunk",
-        "//pw_allocator:allocator",
+        "//pw_allocator",
         "//pw_bytes",
         "//pw_multibuf:config",
     ],
@@ -231,7 +231,7 @@ cc_library(
     deps = [
         ":allocator",
         ":multibuf",
-        "//pw_allocator:allocator",
+        "//pw_allocator",
         "//pw_bytes:alignment",
         "//pw_containers:intrusive_list",
         "//pw_multibuf:config",

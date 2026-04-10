@@ -13,9 +13,6 @@
 // the License.
 #pragma once
 
-#ifndef PW_ALLOCATOR_PUBLIC_PW_ALLOCATOR_ALLOCATOR_H_
-#define PW_ALLOCATOR_PUBLIC_PW_ALLOCATOR_ALLOCATOR_H_
-
 #include <cstddef>
 #include <optional>
 
@@ -117,24 +114,6 @@ class Allocator : public Deallocator {
     return NewArrayImpl<ElementType>(count, alignment);
   }
 
-  /// Deprecated version of `New` with a different name and templated on
-  /// the object type instead of the array type.
-  /// Do not use this method. It will be removed.
-  /// TODO(b/326509341): Remove when downstream consumers migrate.
-  template <typename T>
-  T* NewArray(size_t count) {
-    return New<T[]>(count, alignof(T));
-  }
-
-  /// Deprecated version of `New` with a different name and templated on
-  /// the object type instead of the array type.
-  /// Do not use this method. It will be removed.
-  /// TODO(b/326509341): Remove when downstream consumers migrate.
-  template <typename T>
-  T* NewArray(size_t count, size_t alignment) {
-    return New<T[]>(count, alignment);
-  }
-
   /// Constructs and object of type `T` from the given `args`, and wraps it in a
   /// `UniquePtr`
   ///
@@ -192,24 +171,6 @@ class Allocator : public Deallocator {
             std::enable_if_t<is_bounded_array_v<T>, int> = 0>
   [[nodiscard]] UniquePtr<T> MakeUnique() {
     return UniquePtr<T>(New<T>(), std::extent_v<T>, this);
-  }
-
-  /// Deprecated version of `MakeUnique` with a different name and templated on
-  /// the object type instead of the array type.
-  /// Do not use this method. It will be removed.
-  /// TODO(b/326509341): Remove when downstream consumers migrate.
-  template <typename T>
-  [[nodiscard]] UniquePtr<T[]> MakeUniqueArray(size_t size) {
-    return MakeUnique<T[]>(size, alignof(std::remove_extent_t<T>));
-  }
-
-  /// Deprecated version of `MakeUnique` with a different name and templated on
-  /// the object type instead of the array type.
-  /// Do not use this method. It will be removed.
-  /// TODO(b/326509341): Remove when downstream consumers migrate.
-  template <typename T>
-  [[nodiscard]] UniquePtr<T[]> MakeUniqueArray(size_t size, size_t alignment) {
-    return MakeUnique<T[]>(size, alignment);
   }
 
 // TODO(b/402489948): Remove when portable atomics are provided by `pw_atomic`.
@@ -297,13 +258,6 @@ class Allocator : public Deallocator {
     return ptr != nullptr && new_size != 0 && DoResize(ptr, new_size);
   }
 
-  /// Deprecated version of `Resize` that takes a `Layout`.
-  /// Do not use this method. It will be removed.
-  /// TODO(b/326509341): Remove when downstream consumers migrate.
-  bool Resize(void* ptr, Layout layout, size_t new_size) {
-    return ptr != nullptr && new_size != 0 && DoResize(ptr, layout, new_size);
-  }
-
   /// Modifies the size of a previously-allocated block of memory.
   ///
   /// Returns pointer to the modified block of memory, or `nullptr` if the
@@ -335,19 +289,6 @@ class Allocator : public Deallocator {
       return Allocate(new_layout);
     }
     return DoReallocate(ptr, new_layout);
-  }
-
-  /// Deprecated version of `Reallocate` that takes a `Layout`.
-  /// Do not use this method. It will be removed.
-  /// TODO(b/326509341): Remove when downstream consumers migrate.
-  void* Reallocate(void* ptr, Layout old_layout, size_t new_size) {
-    if (new_size == 0) {
-      return nullptr;
-    }
-    if (ptr == nullptr) {
-      return Allocate(Layout(new_size, old_layout.alignment()));
-    }
-    return DoReallocate(ptr, old_layout, new_size);
   }
 
   /// Returns the total bytes that have been allocated by this allocator, or
@@ -397,11 +338,6 @@ class Allocator : public Deallocator {
     return false;
   }
 
-  /// Deprecated version of `DoResize` that takes a `Layout`.
-  /// Do not use this method. It will be removed.
-  /// TODO(b/326509341): Remove when downstream consumers migrate.
-  virtual bool DoResize(void*, Layout, size_t) { return false; }
-
   /// Virtual `Reallocate` function that can be overridden by derived classes.
   ///
   /// The default implementation will first try to `Resize` the data. If that is
@@ -412,11 +348,6 @@ class Allocator : public Deallocator {
   /// @param[in]  new_layout    Describes the memory to be allocated. Guaranteed
   ///                           to have a non-zero size.
   virtual void* DoReallocate(void* ptr, Layout new_layout);
-
-  /// Deprecated version of `DoReallocate` that takes a `Layout`.
-  /// Do not use this method. It will be removed.
-  /// TODO(b/326509341): Remove when downstream consumers migrate.
-  virtual void* DoReallocate(void* ptr, Layout old_layout, size_t new_size);
 
   /// Virtual `GetAllocated` function that can be overridden by derived classes.
   ///
@@ -434,13 +365,12 @@ class Allocator : public Deallocator {
 
 namespace allocator {
 
-// Alias for module consumers using the older name for the above type.
-using Allocator = ::pw::Allocator;
+// TODO(b/376730645): This deprecated alias cannot be removed yet due to a
+// downstream dependency.
+using Allocator [[deprecated("Use pw::Allocator instead")]] = ::pw::Allocator;
 
 }  // namespace allocator
 
 /// @}
 
 }  // namespace pw
-
-#endif  // PW_ALLOCATOR_PUBLIC_PW_ALLOCATOR_ALLOCATOR_H_

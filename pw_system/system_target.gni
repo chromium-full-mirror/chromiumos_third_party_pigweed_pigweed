@@ -397,7 +397,7 @@ template("pw_system_target") {
     _default_configs += [ "$dir_pw_malloc:wrap_functions" ]
     _link_deps += [ dir_pw_malloc ]
     _malloc_build_args = {
-      pw_malloc_BACKEND = "$dir_pw_malloc:bucket_block_allocator"
+      pw_malloc_BACKEND = "$dir_pw_malloc:bucket_allocator"
     }
   } else {
     _malloc_build_args = {

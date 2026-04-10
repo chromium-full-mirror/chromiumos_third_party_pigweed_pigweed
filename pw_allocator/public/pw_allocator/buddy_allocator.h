@@ -136,7 +136,7 @@ template <size_t kMinOuterSize_ =
               internal::GenericBuddyAllocator::kDefaultMinOuterSize,
           size_t kNumBuckets =
               internal::GenericBuddyAllocator::kDefaultNumBuckets>
-class BuddyAllocator : public Allocator {
+class BuddyAllocator : public pw::Allocator {
  public:
   using BucketType = internal::GenericBuddyAllocator::BucketType;
 

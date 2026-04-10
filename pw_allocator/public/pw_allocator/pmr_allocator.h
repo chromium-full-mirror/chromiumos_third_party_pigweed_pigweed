@@ -50,18 +50,18 @@ class MemoryResource final : public pw::pmr::memory_resource {
  public:
   constexpr MemoryResource() = default;
 
-  Allocator& allocator() { return *allocator_; }
+  pw::Allocator& allocator() { return *allocator_; }
 
  private:
   friend class ::pw::allocator::PmrAllocator;
-  void set_allocator(Allocator& allocator) { allocator_ = &allocator; }
+  void set_allocator(pw::Allocator& allocator) { allocator_ = &allocator; }
 
   void* do_allocate(size_t bytes, size_t alignment) override;
   void do_deallocate(void* p, size_t bytes, size_t alignment) override;
   bool do_is_equal(
       const pw::pmr::memory_resource& other) const noexcept override;
 
-  Allocator* allocator_ = nullptr;
+  pw::Allocator* allocator_ = nullptr;
 };
 
 }  // namespace internal
@@ -79,11 +79,11 @@ class PmrAllocator final : public pw::pmr::polymorphic_allocator<std::byte> {
  public:
   using Base = pw::pmr::polymorphic_allocator<std::byte>;
 
-  explicit PmrAllocator(Allocator& allocator) : Base(&memory_resource_) {
+  explicit PmrAllocator(pw::Allocator& allocator) : Base(&memory_resource_) {
     memory_resource_.set_allocator(allocator);
   }
 
-  Allocator& allocator() { return memory_resource_.allocator(); }
+  pw::Allocator& allocator() { return memory_resource_.allocator(); }
 
  private:
   internal::MemoryResource memory_resource_;

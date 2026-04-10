@@ -189,10 +189,9 @@ Connection::Connection(stream::Reader& reader,
       reader_(*this, callbacks, reader),
       writer_(*this) {}
 
-Connection::SharedState::SharedState(
-    allocator::Allocator* message_assembly_allocator,
-    Allocator& send_allocator,
-    SendQueue& send_queue)
+Connection::SharedState::SharedState(Allocator* message_assembly_allocator,
+                                     Allocator& send_allocator,
+                                     SendQueue& send_queue)
     : streams_(
           MakeArrayWithValue<Stream, kMaxConcurrentStreams>(send_allocator)),
       message_assembly_allocator_(message_assembly_allocator),

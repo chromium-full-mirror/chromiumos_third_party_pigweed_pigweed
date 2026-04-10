@@ -271,7 +271,6 @@ class BaseAllocator : public pw::Allocator {
   }
 
   void DoDeallocate(void*) override {}
-  void DoDeallocate(void*, Layout) override {}
 
   void* ptr_;
 };

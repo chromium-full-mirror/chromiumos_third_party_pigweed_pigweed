@@ -83,7 +83,6 @@ cc_library(
     strip_include_prefix = "public",
     tags = ["noclangtidy"],
     deps = [
-        "//pw_allocator:buffer",
         "//pw_allocator:bump_allocator",
     ],
 )

@@ -18,6 +18,7 @@
 #include <utility>
 
 #include "pw_allocator/config.h"
+#include "pw_allocator/deallocator.h"
 #include "pw_allocator/internal/managed_ptr.h"
 #include "pw_allocator/layout.h"
 #include "pw_preprocessor/compiler.h"
@@ -225,14 +226,6 @@ class UniquePtr : public ::pw::allocator::internal::ManagedPtr<T> {
   Deallocator* deallocator_ = nullptr;
 };
 
-namespace allocator {
-
-// Alias for module consumers using the older name for the above type.
-template <typename T>
-using UniquePtr = PW_ALLOCATOR_DEPRECATED ::pw::UniquePtr<T>;
-
-}  // namespace allocator
-
 /// @}
 
 // Template method implementations.
@@ -267,7 +260,7 @@ void UniquePtr<T>::Reset() noexcept {
   if (*this == nullptr) {
     return;
   }
-  if (!Base::HasCapability(deallocator_, allocator::kSkipsDestroy)) {
+  if (!deallocator_->HasCapability(allocator::kSkipsDestroy)) {
     if constexpr (std::is_array_v<T>) {
       Base::Destroy(size_);
       size_ = 0;
@@ -277,7 +270,7 @@ void UniquePtr<T>::Reset() noexcept {
   }
   Deallocator* deallocator = deallocator_;
   auto* ptr = const_cast<std::remove_const_t<element_type>*>(Release());
-  Base::Deallocate(deallocator, ptr);
+  deallocator->Deallocate(ptr);
 }
 
 template <typename T>

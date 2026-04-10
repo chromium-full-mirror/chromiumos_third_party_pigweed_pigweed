@@ -52,7 +52,7 @@ static constexpr struct AddTrackingAllocatorAsChild {
 /// tracking allocator cannot account for the overlap in memory usage during
 /// reallocation when it occurs as a "move-and-copy" operation.
 template <typename MetricsType>
-class TrackingAllocator : public Allocator {
+class TrackingAllocator : public pw::Allocator {
  public:
   TrackingAllocator(metric::Token token, Allocator& allocator)
       : Allocator(allocator.capabilities() | kImplementsGetRequestedLayout),
@@ -83,9 +83,6 @@ class TrackingAllocator : public Allocator {
 
   /// @copydoc Allocator::Deallocate
   void DoDeallocate(void* ptr) override;
-
-  /// @copydoc Allocator::Deallocate
-  void DoDeallocate(void* ptr, Layout) override { DoDeallocate(ptr); }
 
   /// @copydoc Allocator::Resize
   bool DoResize(void* ptr, size_t new_size) override;
@@ -207,21 +204,6 @@ void* TrackingAllocator<MetricsType>::DoReallocate(void* ptr,
     return allocator_.Reallocate(ptr, new_layout);
   }
 }
-
-// TODO(b/326509341): This is an interim alias to facilitate refactoring
-// downstream consumers of `TrackingAllocator` to add a template parameter.
-//
-// The following migration steps are complete:
-// 1. Downstream consumers will be updated to use `TrackingAllocatorImpl<...>`.
-// 2. The iterim `TrackingAllocator` class will be removed.
-// 3. `TrackingAllocatorImpl<...>` will be renamed to `TrackingAllocator<...>`,
-//    with a `TrackingAllocatorImpl<...>` alias pointing to it.
-//
-// The following migration steps remain:
-// 4. Downstream consumers will be updated to use `TrackingAllocator<...>`.
-// 5. The `TrackingAllocatorImpl<...>` alias will be removed.
-template <typename MetricsType>
-using TrackingAllocatorImpl = TrackingAllocator<MetricsType>;
 
 /// @}
 

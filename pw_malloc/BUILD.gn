@@ -80,8 +80,8 @@ group("common") {
   ]
   public_deps = [
     ":config",
-    "$dir_pw_allocator:allocator",
     "$dir_pw_numeric:checked_arithmetic",
+    dir_pw_allocator,
     dir_pw_assert,
     dir_pw_bytes,
   ]
@@ -102,25 +102,10 @@ pw_source_set("best_fit") {
   sources = [ "best_fit.cc" ]
 }
 
-# TODO(b/376730645): Remove deprecated backends.
-pw_source_set("best_fit_block_allocator") {
-  public_deps = [ ":best_fit" ]
-}
-
 pw_source_set("bucket_allocator") {
   public_deps = [ ":pw_malloc.facade" ]
   deps = [ "$dir_pw_allocator:bucket_allocator" ]
   sources = [ "bucket_allocator.cc" ]
-}
-
-# TODO(b/376730645): Remove deprecated backends.
-pw_source_set("bucket_block_allocator") {
-  public_deps = [ ":bucket_allocator" ]
-}
-
-# TODO(b/376730645): Remove deprecated backends.
-pw_source_set("dual_first_fit_block_allocator") {
-  public_deps = [ ":first_fit" ]
 }
 
 pw_source_set("first_fit") {
@@ -129,25 +114,10 @@ pw_source_set("first_fit") {
   sources = [ "first_fit.cc" ]
 }
 
-# TODO(b/376730645): Remove deprecated backends.
-pw_source_set("first_fit_block_allocator") {
-  public_deps = [ ":first_fit" ]
-}
-
-# TODO(b/376730645): Remove deprecated backends.
-pw_source_set("last_fit_block_allocator") {
-  public_deps = [ ":first_fit" ]
-}
-
 pw_source_set("worst_fit") {
   public_deps = [ ":pw_malloc.facade" ]
   deps = [ "$dir_pw_allocator:worst_fit" ]
   sources = [ "worst_fit.cc" ]
-}
-
-# TODO(b/376730645): Remove deprecated backends.
-pw_source_set("worst_fit_block_allocator") {
-  public_deps = [ ":worst_fit" ]
 }
 
 # Backend unit tests.

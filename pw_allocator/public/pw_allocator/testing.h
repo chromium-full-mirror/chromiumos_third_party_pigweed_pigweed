@@ -17,7 +17,6 @@
 #include <mutex>
 
 #include "pw_allocator/allocator.h"
-#include "pw_allocator/buffer.h"
 #include "pw_allocator/first_fit.h"
 #include "pw_allocator/hardening.h"
 #include "pw_allocator/metrics.h"
@@ -68,7 +67,7 @@ void FreeAll(typename BlockType::Range range) {
 template <size_t kBufferSize,
           typename BlockType_ = FirstFitBlock<uint32_t>,
           typename MetricsType_ = internal::AllMetrics>
-class AllocatorForTest : public Allocator {
+class AllocatorForTest : public pw::Allocator {
  public:
   using BlockType = BlockType_;
   using MetricsType = MetricsType_;
@@ -80,16 +79,15 @@ class AllocatorForTest : public Allocator {
 
   AllocatorForTest()
       : Allocator(AllocatorType::kCapabilities),
-        allocator_(),
-        tracker_(kToken, *allocator_) {
+        allocator_(buffer_),
+        tracker_(kToken, allocator_) {
     ResetParameters();
-    allocator_->Init(allocator_.as_bytes());
   }
 
   ~AllocatorForTest() override { FreeAll<BlockType>(blocks()); }
 
-  typename BlockType::Range blocks() const { return allocator_->blocks(); }
-  typename BlockType::Range blocks() { return allocator_->blocks(); }
+  typename BlockType::Range blocks() const { return allocator_.blocks(); }
+  typename BlockType::Range blocks() { return allocator_.blocks(); }
 
   const metric::Group& metric_group() const { return tracker_.metric_group(); }
   metric::Group& metric_group() { return tracker_.metric_group(); }
@@ -115,7 +113,7 @@ class AllocatorForTest : public Allocator {
 
   /// Allocates all the memory from this object.
   void Exhaust() {
-    for (auto* block : allocator_->blocks()) {
+    for (auto* block : allocator_.blocks()) {
       if (block->IsFree()) {
         auto result = BlockType::AllocLast(std::move(block),
                                            Layout(block->InnerSize(), 1));
@@ -132,7 +130,7 @@ class AllocatorForTest : public Allocator {
 
   /// @copydoc BlockAllocator::MeasureFragmentation
   Fragmentation MeasureFragmentation() const {
-    return allocator_->MeasureFragmentation();
+    return allocator_.MeasureFragmentation();
   }
 
  protected:
@@ -142,7 +140,7 @@ class AllocatorForTest : public Allocator {
   /// @copydoc Allocator::DoMeasureFragmentation
   std::optional<allocator::Fragmentation> DoMeasureFragmentation()
       const override {
-    return allocator_->MeasureFragmentation();
+    return allocator_.MeasureFragmentation();
   }
 
  private:
@@ -161,9 +159,6 @@ class AllocatorForTest : public Allocator {
     tracker_.Deallocate(ptr);
   }
 
-  /// @copydoc Allocator::Deallocate
-  void DoDeallocate(void* ptr, Layout) override { DoDeallocate(ptr); }
-
   /// @copydoc Allocator::Resize
   bool DoResize(void* ptr, size_t new_size) override {
     Result<Layout> requested = GetRequestedLayout(ptr);
@@ -181,7 +176,8 @@ class AllocatorForTest : public Allocator {
     return GetInfo(tracker_, info_type, ptr);
   }
 
-  WithBuffer<AllocatorType, kBufferSize> allocator_;
+  alignas(BlockType::kAlignment) std::array<std::byte, kBufferSize> buffer_{};
+  AllocatorType allocator_;
   TrackingAllocator<MetricsType> tracker_;
   size_t allocate_size_;
   void* deallocate_ptr_;

@@ -19,8 +19,9 @@
 
 namespace pw::allocator {
 
-FallbackAllocator::FallbackAllocator(Allocator& primary, Allocator& secondary)
-    : Allocator(primary.capabilities() | secondary.capabilities()),
+FallbackAllocator::FallbackAllocator(pw::Allocator& primary,
+                                     pw::Allocator& secondary)
+    : pw::Allocator(primary.capabilities() | secondary.capabilities()),
       primary_(primary),
       secondary_(secondary) {
   if constexpr (Hardening::kIncludesBasicChecks) {
@@ -40,8 +41,6 @@ void FallbackAllocator::DoDeallocate(void* ptr) {
     secondary_.Deallocate(ptr);
   }
 }
-
-void FallbackAllocator::DoDeallocate(void* ptr, Layout) { DoDeallocate(ptr); }
 
 bool FallbackAllocator::DoResize(void* ptr, size_t new_size) {
   return Recognizes(primary_, ptr) ? primary_.Resize(ptr, new_size)

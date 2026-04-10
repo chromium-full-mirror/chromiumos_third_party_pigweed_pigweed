@@ -31,7 +31,7 @@ cc_library(
     hdrs = ["public/pw_malloc_freertos/allocator.h"],
     strip_include_prefix = "public",
     deps = [
-        "//pw_allocator:allocator",
+        "//pw_allocator",
         "@freertos",
     ],
 )

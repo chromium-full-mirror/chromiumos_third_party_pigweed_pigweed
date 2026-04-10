@@ -111,7 +111,7 @@ pw_add_library(pw_containers.dynamic_deque INTERFACE
     public
   PUBLIC_DEPS
     pw_containers._deque_common
-    pw_allocator.allocator
+    pw_allocator
     pw_numeric.saturating_arithmetic
 )
 
@@ -124,7 +124,7 @@ pw_add_library(pw_containers.dynamic_hash_map INTERFACE
     pw_containers.dynamic_deque
     pw_containers.dynamic_ptr_vector
     pw_containers.functional
-    pw_allocator.allocator
+    pw_allocator
     pw_assert.assert
     pw_preprocessor
 )
@@ -135,7 +135,7 @@ pw_add_library(pw_containers.dynamic_map INTERFACE
   PUBLIC_INCLUDES
     public
   PUBLIC_DEPS
-    pw_allocator.allocator
+    pw_allocator
     pw_assert.assert
     pw_containers._common
     pw_containers.intrusive_map
@@ -235,7 +235,7 @@ pw_add_library(pw_containers.deque INTERFACE
     public
   PUBLIC_DEPS
     pw_assert
-    pw_allocator.allocator
+    pw_allocator
     pw_containers._deque_common
     pw_containers.storage
 )
@@ -349,7 +349,7 @@ pw_add_library(pw_containers.dynamic_vector INTERFACE
   PUBLIC_INCLUDES
     public
   PUBLIC_DEPS
-    pw_allocator.allocator
+    pw_allocator
     pw_containers.dynamic_deque
     pw_containers.iterator
 )
@@ -360,7 +360,7 @@ pw_add_library(pw_containers.dynamic_ptr_vector INTERFACE
   PUBLIC_INCLUDES
     public
   PUBLIC_DEPS
-    pw_allocator.allocator
+    pw_allocator
     pw_containers.dynamic_vector
 )
 

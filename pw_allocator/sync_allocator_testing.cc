@@ -105,7 +105,7 @@ void Background::Await() {
 // SyncAllocatorTest unit test methods.
 
 void SyncAllocatorTest::TestGetCapacity(size_t capacity) {
-  Allocator& allocator = GetAllocator();
+  pw::Allocator& allocator = GetAllocator();
   Background background(GetCore());
 
   pw::StatusWithSize actual = allocator.GetCapacity();
@@ -114,7 +114,7 @@ void SyncAllocatorTest::TestGetCapacity(size_t capacity) {
 }
 
 void SyncAllocatorTest::TestAllocate() {
-  Allocator& allocator = GetAllocator();
+  pw::Allocator& allocator = GetAllocator();
   Background background(GetCore());
 
   pw::Vector<Allocation, kNumAllocations> allocations;
@@ -137,7 +137,7 @@ void SyncAllocatorTest::TestAllocate() {
 }
 
 void SyncAllocatorTest::TestResize() {
-  Allocator& allocator = GetAllocator();
+  pw::Allocator& allocator = GetAllocator();
   Background background(GetCore());
 
   pw::Vector<Allocation, kNumAllocations> allocations;
@@ -181,7 +181,7 @@ void SyncAllocatorTest::TestResize() {
 }
 
 void SyncAllocatorTest::TestReallocate() {
-  Allocator& allocator = GetAllocator();
+  pw::Allocator& allocator = GetAllocator();
   Background background(GetCore());
 
   pw::Vector<Allocation, kNumAllocations> allocations;

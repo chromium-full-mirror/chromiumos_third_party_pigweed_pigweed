@@ -120,8 +120,8 @@ pw_source_set("dynamic_deque") {
   public = [ "public/pw_containers/dynamic_deque.h" ]
   public_deps = [
     ":deque_common",
-    "$dir_pw_allocator:allocator",
     "$dir_pw_numeric:saturating_arithmetic",
+    dir_pw_allocator,
   ]
 }
 
@@ -132,7 +132,7 @@ pw_source_set("dynamic_hash_map") {
     ":dynamic_deque",
     ":dynamic_ptr_vector",
     ":functional",
-    "$dir_pw_allocator:allocator",
+    "$dir_pw_allocator",
     "$dir_pw_assert:assert",
     dir_pw_preprocessor,
   ]
@@ -144,7 +144,7 @@ pw_source_set("dynamic_map") {
   public_deps = [
     ":common",
     ":intrusive_map",
-    "$dir_pw_allocator:allocator",
+    "$dir_pw_allocator",
     "$dir_pw_assert:assert",
   ]
 }
@@ -212,7 +212,7 @@ pw_source_set("deque") {
   public_deps = [
     ":deque_common",
     ":storage",
-    "$dir_pw_allocator:allocator",
+    dir_pw_allocator,
     dir_pw_assert,
   ]
 }
@@ -320,7 +320,7 @@ pw_source_set("dynamic_vector") {
   public_deps = [
     ":dynamic_deque",
     ":iterator",
-    "$dir_pw_allocator:allocator",
+    dir_pw_allocator,
   ]
 }
 
@@ -329,7 +329,7 @@ pw_source_set("dynamic_ptr_vector") {
   public = [ "public/pw_containers/dynamic_ptr_vector.h" ]
   public_deps = [
     ":dynamic_vector",
-    "$dir_pw_allocator:allocator",
+    dir_pw_allocator,
   ]
 }
 

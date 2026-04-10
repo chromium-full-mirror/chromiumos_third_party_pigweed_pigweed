@@ -78,7 +78,7 @@ class ControlBlock final {
   /// @param  layout      Layout of an object to allocate and associate with a
   ///                     control block.
   static ControlBlock* Create(const ControlBlockHandle&,
-                              Allocator* allocator,
+                              pw::Allocator* allocator,
                               Layout layout);
 
   /// Factory method for allocating a control block for previously allocated
@@ -107,7 +107,7 @@ class ControlBlock final {
   ~ControlBlock();
 
   /// Returns the allocator that allocated the control block.
-  constexpr Allocator* allocator() const { return allocator_; }
+  constexpr pw::Allocator* allocator() const { return allocator_; }
 
   /// Returns a pointer to the memory location of the associated object.
   constexpr void* data() const { return data_; }
@@ -151,7 +151,10 @@ class ControlBlock final {
 
  private:
   /// Creates a new control block with an initial shared pointer count of 1.
-  ControlBlock(Allocator* allocator, void* data, size_t size, bool coallocated);
+  ControlBlock(pw::Allocator* allocator,
+               void* data,
+               size_t size,
+               bool coallocated);
 
   // Accessors and mutators that handling unpacking values
   constexpr bool IsCoallocated() const { return coallocated_and_size_ & 1u; }
@@ -173,7 +176,7 @@ class ControlBlock final {
     return (static_cast<uint32_t>(num_weak) << 16) | (num_shared & 0xFFFF);
   }
 
-  Allocator* allocator_;
+  pw::Allocator* allocator_;
   void* data_;
   const size_t coallocated_and_size_ = 0;
 

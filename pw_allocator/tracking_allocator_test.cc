@@ -52,16 +52,15 @@ class TrackingAllocatorTest : public ::testing::Test {
   constexpr static size_t kCapacity = 256;
   constexpr static pw::metric::Token kToken = 1U;
 
-  TrackingAllocatorTest() : ::testing::Test(), tracker_(kToken, *allocator_) {}
-
-  void SetUp() override { allocator_->Init(allocator_.as_bytes()); }
+  TrackingAllocatorTest()
+      : ::testing::Test(), allocator_(buffer_), tracker_(kToken, allocator_) {}
 
   void TearDown() override {
-    pw::allocator::test::FreeAll<BlockType>(allocator_->blocks());
+    pw::allocator::test::FreeAll<BlockType>(allocator_.blocks());
   }
 
-  pw::allocator::WithBuffer<AllocatorType, kCapacity, BlockType::kAlignment>
-      allocator_;
+  alignas(BlockType::kAlignment) std::array<std::byte, kCapacity> buffer_{};
+  AllocatorType allocator_;
   TrackingAllocatorForTest tracker_;
 };
 
@@ -537,7 +536,7 @@ TEST(TrackingAllocator, ReallocateWithoutLayoutInfo) {
 
 TEST_F(TrackingAllocatorTest, MeasureFragmentation) {
   std::optional<Fragmentation> fragmentation1 =
-      allocator_->MeasureFragmentation();
+      allocator_.MeasureFragmentation();
   ASSERT_TRUE(fragmentation1.has_value());
   EXPECT_GT(fragmentation1->sum, 0U);
 
@@ -552,7 +551,7 @@ TEST_F(TrackingAllocatorTest, MeasureFragmentation) {
 
   // Measure fragmentation with several allocated blocks.
   std::optional<Fragmentation> fragmentation2 =
-      allocator_->MeasureFragmentation();
+      allocator_.MeasureFragmentation();
   ASSERT_TRUE(fragmentation2.has_value());
   EXPECT_LT(fragmentation2->sum, fragmentation1->sum);
 
@@ -560,7 +559,7 @@ TEST_F(TrackingAllocatorTest, MeasureFragmentation) {
   tracker_.Deallocate(ptr2);
 
   std::optional<Fragmentation> fragmentation3 =
-      allocator_->MeasureFragmentation();
+      allocator_.MeasureFragmentation();
   ASSERT_TRUE(fragmentation3.has_value());
 
   // Fragmentation should have changed (more free bytes).

@@ -76,7 +76,7 @@ struct MoveOnly {
   SetBaseline(mask);
 
   BasicDispatcher dispatcher;
-  allocator::Allocator& alloc = GetAllocator();
+  Allocator& alloc = GetAllocator();
 
   std::optional<MpmcChannelHandle<int>> channel =
       CreateMpmcChannel<int>(alloc, 2);

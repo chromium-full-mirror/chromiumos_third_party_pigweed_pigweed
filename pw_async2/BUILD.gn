@@ -282,7 +282,7 @@ pw_source_set("box") {
   public = [ "public/pw_async2/box.h" ]
   public_deps = [
     ":pw_async2",
-    "$dir_pw_allocator:allocator",
+    dir_pw_allocator,
   ]
 }
 
@@ -407,9 +407,9 @@ if (pw_toolchain_CXX_STANDARD >= pw_toolchain_STANDARD.CXX20) {
     public_deps = [
       ":internal",
       ":pw_async2",
-      "$dir_pw_allocator:allocator",
       "$dir_pw_assert:assert",
       "$dir_pw_containers:optional",
+      dir_pw_allocator,
       dir_pw_function,
     ]
     deps = [

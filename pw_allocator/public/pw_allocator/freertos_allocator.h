@@ -21,14 +21,12 @@ namespace pw::allocator {
 /// @submodule{pw_allocator,concrete}
 
 /// Memory allocator that uses FreeRTOS memory management.
-class FreeRtosAllocator final : public Allocator {
+class FreeRtosAllocator final : public pw::Allocator {
  public:
-  friend FreeRtosAllocator& GetFreeRtosAllocator();
-
- private:
   static constexpr Capabilities kCapabilities = 0;
   constexpr FreeRtosAllocator() : Allocator(kCapabilities) {}
 
+ private:
   /// @copydoc Allocator::Allocate
   void* DoAllocate(Layout layout) override;
 
@@ -36,7 +34,7 @@ class FreeRtosAllocator final : public Allocator {
   void DoDeallocate(void* ptr) override;
 };
 
-/// Returns a reference to the FreeRtosAllocator singleton.
+/// Returns a reference to a FreeRtosAllocator singleton.
 FreeRtosAllocator& GetFreeRtosAllocator();
 
 /// @}

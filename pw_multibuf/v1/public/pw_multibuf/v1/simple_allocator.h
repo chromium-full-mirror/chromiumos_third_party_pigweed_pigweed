@@ -81,7 +81,7 @@ class PW_MULTIBUF_DEPRECATED SimpleAllocator : public MultiBufAllocator {
   ///  `data_area` *must* be aligned (both start and end) to the specified
   ///  alignment. Defaults to 1.
   SimpleAllocator(ByteSpan data_area,
-                  pw::allocator::Allocator& metadata_alloc,
+                  pw::Allocator& metadata_alloc,
                   size_t alignment = 1);
 
   /// Returns the minimum alignment of chunk memory allocated by this object.
@@ -183,7 +183,7 @@ class PW_MULTIBUF_DEPRECATED SimpleAllocator : public MultiBufAllocator {
 
   pw::sync::Mutex lock_;
   IntrusiveList<internal::LinkedRegionTracker> regions_ PW_GUARDED_BY(lock_);
-  pw::allocator::Allocator& metadata_alloc_;
+  pw::Allocator& metadata_alloc_;
   const ByteSpan data_area_;
   const size_t alignment_;
 

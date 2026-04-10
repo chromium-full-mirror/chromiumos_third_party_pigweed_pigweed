@@ -24,16 +24,13 @@ namespace pw::allocator {
 
 /// Memory allocator that uses `malloc` and `free`.
 ///
-/// TODO: b/301930507 - `aligned_alloc` is not portable. As a result, this
-/// allocator has a maximum alignment of `std::align_max_t`.
-class LibCAllocator final : public Allocator {
+/// As a result of using `malloc`, this allocator always uses an alignment of
+/// `std::align_max_t`.
+class LibCAllocator final : public pw::Allocator {
  public:
   static constexpr Capabilities kCapabilities = 0;
 
-  // TODO(b/326509341): Make the constructor private once downstream consumers
-  // are migrated.
-  friend LibCAllocator& GetLibCAllocator();
-  constexpr LibCAllocator() : Allocator(kCapabilities) {}
+  constexpr LibCAllocator() : pw::Allocator(kCapabilities) {}
 
  private:
   /// @copydoc Allocator::Allocate
@@ -42,9 +39,6 @@ class LibCAllocator final : public Allocator {
   /// @copydoc Allocator::Deallocate
   void DoDeallocate(void* ptr) override;
 
-  /// @copydoc Allocator::Deallocate
-  void DoDeallocate(void* ptr, Layout) override { DoDeallocate(ptr); }
-
   /// @copydoc Allocator::Reallocate
   void* DoReallocate(void* ptr, Layout new_layout) override;
 
@@ -52,7 +46,7 @@ class LibCAllocator final : public Allocator {
   static LibCAllocator kSingleton;
 };
 
-/// Returns a reference to the LibCAllocator singleton.
+/// Returns a reference to a LibCAllocator singleton.
 LibCAllocator& GetLibCAllocator();
 
 /// @}

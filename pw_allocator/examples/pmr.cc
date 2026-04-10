@@ -27,7 +27,7 @@ class LibraryIndex {
   using MapType = ::std::pmr::multimap<StringType, StringType>;
   using Iterator = typename MapType::iterator;
 
-  LibraryIndex(pw::allocator::Allocator& allocator)
+  LibraryIndex(pw::Allocator& allocator)
       : allocator_(allocator), by_author_(allocator_) {}
 
   void AddBook(std::string_view title, std::string_view author) {

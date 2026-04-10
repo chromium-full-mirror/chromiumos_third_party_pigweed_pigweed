@@ -25,7 +25,7 @@ namespace pw::allocator::test {
 ///
 /// @warning FaultInjectingAllocator is NOT thread safe, even if used with
 /// `SynchronizedAllocator`.
-class FaultInjectingAllocator : public Allocator {
+class FaultInjectingAllocator : public pw::Allocator {
  public:
   explicit constexpr FaultInjectingAllocator(Allocator& allocator)
       : Allocator(allocator.capabilities()),

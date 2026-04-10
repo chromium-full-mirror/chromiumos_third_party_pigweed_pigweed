@@ -100,12 +100,6 @@ cc_library(
 
 # Libraries
 
-# TODO(b/376730645): Remove deprecated alias.
-alias(
-    name = "allocator",
-    actual = ":pw_allocator",
-)
-
 cc_library(
     name = "allocator_as_pool",
     srcs = ["allocator_as_pool.cc"],
@@ -123,7 +117,6 @@ cc_library(
     hdrs = ["public/pw_allocator/async_pool.h"],
     strip_include_prefix = "public",
     deps = [
-        ":pool",
         ":pw_allocator",
         "//pw_async2",
     ],
@@ -139,16 +132,6 @@ cc_library(
         "//pw_allocator/block:detailed_block",
         "//pw_allocator/bucket:fast_sorted",
         "//pw_allocator/bucket:sorted",
-    ],
-)
-
-cc_library(
-    name = "best_fit_block_allocator",
-    hdrs = ["public/pw_allocator/best_fit_block_allocator.h"],
-    strip_include_prefix = "public",
-    deps = [
-        ":best_fit",
-        ":config",
     ],
 )
 
@@ -188,14 +171,6 @@ cc_library(
     ],
 )
 
-# TODO(b/376730645): Remove deprecated interfaces.
-cc_library(
-    name = "bucket_block_allocator",
-    hdrs = ["public/pw_allocator/bucket_block_allocator.h"],
-    strip_include_prefix = "public",
-    deps = [":bucket_allocator"],
-)
-
 cc_library(
     name = "buddy_allocator",
     srcs = ["buddy_allocator.cc"],
@@ -218,23 +193,11 @@ cc_library(
 )
 
 cc_library(
-    name = "buffer",
-    hdrs = ["public/pw_allocator/buffer.h"],
-    strip_include_prefix = "public",
-    deps = [
-        "//pw_bytes",
-        "//pw_bytes:alignment",
-        "//pw_result",
-    ],
-)
-
-cc_library(
     name = "bump_allocator",
     srcs = ["bump_allocator.cc"],
     hdrs = ["public/pw_allocator/bump_allocator.h"],
     strip_include_prefix = "public",
     deps = [
-        ":buffer",
         ":pw_allocator",
         "//pw_bytes",
         "//pw_bytes:alignment",
@@ -246,7 +209,6 @@ cc_library(
     srcs = ["chunk_pool.cc"],
     hdrs = ["public/pw_allocator/chunk_pool.h"],
     implementation_deps = [
-        ":buffer",
         "//pw_assert:check",
         "//pw_bytes:alignment",
         "//third_party/fuchsia:stdcompat",
@@ -258,12 +220,6 @@ cc_library(
         "//pw_result",
         "//pw_status",
     ],
-)
-
-# TODO(b/376730645): Remove deprecated alias.
-alias(
-    name = "deallocator",
-    actual = ":pw_allocator",
 )
 
 cc_library(
@@ -278,14 +234,6 @@ cc_library(
         "//pw_allocator/bucket:unordered",
         "//third_party/fuchsia:stdcompat",
     ],
-)
-
-# TODO(b/376730645): Remove deprecated interfaces.
-cc_library(
-    name = "dual_first_fit_block_allocator",
-    hdrs = ["public/pw_allocator/dual_first_fit_block_allocator.h"],
-    strip_include_prefix = "public",
-    deps = [":first_fit"],
 )
 
 cc_library(
@@ -313,30 +261,11 @@ cc_library(
     ],
 )
 
-# TODO(b/376730645): Remove deprecated interfaces.
-cc_library(
-    name = "first_fit_block_allocator",
-    hdrs = ["public/pw_allocator/first_fit_block_allocator.h"],
-    strip_include_prefix = "public",
-    deps = [":first_fit"],
-)
-
 cc_library(
     name = "fragmentation",
     srcs = ["fragmentation.cc"],
     hdrs = ["public/pw_allocator/fragmentation.h"],
     strip_include_prefix = "public",
-)
-
-cc_library(
-    name = "freelist_heap",
-    hdrs = ["public/pw_allocator/freelist_heap.h"],
-    strip_include_prefix = "public",
-    deps = [
-        ":bucket_allocator",
-        ":hardening",
-        "//pw_bytes",
-    ],
 )
 
 cc_library(
@@ -348,14 +277,6 @@ cc_library(
         "//pw_assert:assert",
         "//pw_numeric:checked_arithmetic",
     ],
-)
-
-# TODO(b/376730645): Remove deprecated interfaces.
-cc_library(
-    name = "last_fit_block_allocator",
-    hdrs = ["public/pw_allocator/last_fit_block_allocator.h"],
-    strip_include_prefix = "public",
-    deps = [":first_fit"],
 )
 
 cc_library(
@@ -406,12 +327,6 @@ cc_library(
         ":pw_allocator",
         "//pw_status",
     ],
-)
-
-# TODO(b/376730645): Remove deprecated alias.
-alias(
-    name = "pool",
-    actual = ":pw_allocator",
 )
 
 cc_library(
@@ -496,16 +411,6 @@ cc_library(
     ],
 )
 
-cc_library(
-    name = "worst_fit_block_allocator",
-    hdrs = ["public/pw_allocator/worst_fit_block_allocator.h"],
-    strip_include_prefix = "public",
-    deps = [
-        ":config",
-        ":worst_fit",
-    ],
-)
-
 # Test support
 
 cc_library(
@@ -517,7 +422,6 @@ cc_library(
     ],
     strip_include_prefix = "public",
     deps = [
-        ":buffer",
         ":first_fit",
         ":hardening",
         ":metrics",
@@ -539,7 +443,6 @@ cc_library(
     strip_include_prefix = "public",
     deps = [
         ":block_allocator",
-        ":buffer",
         ":fuzzing",
         ":pw_allocator",
         ":test_harness",
@@ -572,13 +475,12 @@ cc_library(
     srcs = ["sync_allocator_testing.cc"],
     hdrs = ["public/pw_allocator/sync_allocator_testing.h"],
     implementation_deps = [
-        ":deallocator",
         "//pw_status",
         "//pw_thread:yield",
     ],
     strip_include_prefix = "public",
     deps = [
-        ":allocator",
+        "//pw_allocator",
         "//pw_containers:vector",
         "//pw_sync:binary_semaphore",
         "//pw_thread:test_thread_context",
@@ -660,9 +562,7 @@ pw_cc_test(
     srcs = ["best_fit_test.cc"],
     deps = [
         ":best_fit",
-        ":best_fit_block_allocator",
         ":block_allocator_testing",
-        ":buffer",
     ],
 )
 
@@ -672,7 +572,6 @@ pw_cc_test(
     deps = [
         ":block_allocator_testing",
         ":bucket_allocator",
-        ":bucket_block_allocator",
         ":pw_allocator",
     ],
 )
@@ -684,18 +583,6 @@ pw_cc_test(
         ":buddy_allocator",
         ":fuzzing",
         ":testing",
-    ],
-)
-
-pw_cc_test(
-    name = "buffer_test",
-    srcs = ["buffer_test.cc"],
-    deps = [
-        ":buffer",
-        ":testing",
-        "//pw_bytes",
-        "//pw_result",
-        "//third_party/fuchsia:stdcompat",
     ],
 )
 
@@ -733,8 +620,8 @@ pw_cc_test(
     name = "fault_injecting_allocator_test",
     srcs = ["fault_injecting_allocator_test.cc"],
     deps = [
-        ":allocator",
         ":testing",
+        "//pw_allocator",
     ],
 )
 
@@ -753,11 +640,7 @@ pw_cc_test(
     srcs = ["first_fit_test.cc"],
     deps = [
         ":block_allocator_testing",
-        ":buffer",
-        ":dual_first_fit_block_allocator",
         ":first_fit",
-        ":first_fit_block_allocator",
-        ":last_fit_block_allocator",
         "//pw_allocator/block:detailed_block",
         "//third_party/fuchsia:stdcompat",
     ],
@@ -773,22 +656,10 @@ pw_cc_test(
 )
 
 pw_cc_test(
-    name = "freelist_heap_test",
-    srcs = ["freelist_heap_test.cc"],
-    deps = [
-        ":freelist_heap",
-        ":testing",
-        "//pw_allocator/block:testing",
-        "//pw_bytes:alignment",
-        "//third_party/fuchsia:stdcompat",
-    ],
-)
-
-pw_cc_test(
     name = "guarded_allocator_test",
     srcs = ["guarded_allocator_test.cc"],
     deps = [
-        ":first_fit_block_allocator",
+        ":first_fit",
         ":guarded_allocator",
         ":sync_allocator_testing",
         "//pw_sync:interrupt_spin_lock",
@@ -932,7 +803,6 @@ pw_cc_test(
     deps = [
         ":block_allocator_testing",
         ":worst_fit",
-        ":worst_fit_block_allocator",
     ],
 )
 
@@ -948,7 +818,6 @@ filegroup(
         "public/pw_allocator/block_allocator.h",
         "public/pw_allocator/bucket_allocator.h",
         "public/pw_allocator/buddy_allocator.h",
-        "public/pw_allocator/buffer.h",
         "public/pw_allocator/bump_allocator.h",
         "public/pw_allocator/capability.h",
         "public/pw_allocator/chunk_pool.h",

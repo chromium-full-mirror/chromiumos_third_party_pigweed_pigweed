@@ -48,6 +48,11 @@ pw_add_library(pw_allocator STATIC
     managed_ptr.cc
 )
 
+# TODO(b/376730645): These deprecated aliases cannot be removed yet due to
+# downstream dependencies.
+add_library(pw_allocator.allocator ALIAS pw_allocator)
+add_library(pw_allocator.deallocator ALIAS pw_allocator)
+
 # Module configuration
 
 pw_add_module_config(pw_allocator_CONFIG)
@@ -69,12 +74,6 @@ pw_add_library(pw_allocator.test_config INTERFACE
 
 # Libraries
 
-# TODO(b/376730645): Remove deprecated alias.
-pw_add_library(pw_allocator.allocator INTERFACE
-  PUBLIC_DEPS
-    pw_allocator
-)
-
 pw_add_library(pw_allocator.allocator_as_pool STATIC
   HEADERS
     public/pw_allocator/allocator_as_pool.h
@@ -94,7 +93,6 @@ pw_add_library(pw_allocator.async_pool STATIC
     public
   PUBLIC_DEPS
     pw_allocator
-    pw_allocator.pool
     pw_async2
   SOURCES
     async_pool.cc
@@ -111,23 +109,6 @@ pw_add_library(pw_allocator.best_fit INTERFACE
     pw_allocator.bucket.sorted
     pw_allocator.bucket.fast_sorted
     pw_allocator.config
-)
-
-pw_add_library(pw_allocator.best_fit_block_allocator INTERFACE
-  HEADERS
-    public/pw_allocator/best_fit_block_allocator.h
-  PUBLIC_INCLUDES
-    public
-  PUBLIC_DEPS
-    pw_allocator.best_fit
-    pw_allocator.config
-)
-
-# TODO(b/376730645): Deprecated; use pw_allocator.block.detailed_block or
-# similar instead.
-pw_add_library(pw_allocator.block INTERFACE
-  PUBLIC_DEPS
-    pw_allocator.block.detailed_block
 )
 
 pw_add_library(pw_allocator.block_allocator STATIC
@@ -168,12 +149,6 @@ pw_add_library(pw_allocator.bucket_allocator INTERFACE
     pw_status
 )
 
-# TODO(b/376730645): Remove deprecated interfaces.
-pw_add_library(pw_allocator.bucket_block_allocator INTERFACE
-  PUBLIC_DEPS
-    pw_allocator.bucket_allocator
-)
-
 pw_add_library(pw_allocator.buddy_allocator STATIC
   HEADERS
     public/pw_allocator/buddy_allocator.h
@@ -194,16 +169,6 @@ pw_add_library(pw_allocator.buddy_allocator STATIC
     buddy_allocator.cc
 )
 
-pw_add_library(pw_allocator.buffer INTERFACE
-  HEADERS
-    public/pw_allocator/buffer.h
-  PUBLIC_INCLUDES
-    public
-  PUBLIC_DEPS
-    pw_bytes
-    pw_result
-)
-
 pw_add_library(pw_allocator.bump_allocator STATIC
   HEADERS
     public/pw_allocator/bump_allocator.h
@@ -213,7 +178,6 @@ pw_add_library(pw_allocator.bump_allocator STATIC
     pw_allocator
     pw_bytes
   PRIVATE_DEPS
-    pw_allocator.buffer
     pw_bytes.alignment
   SOURCES
     bump_allocator.cc
@@ -230,18 +194,11 @@ pw_add_library(pw_allocator.chunk_pool STATIC
     pw_result
     pw_status
   PRIVATE_DEPS
-    pw_allocator.buffer
     pw_bytes.alignment
     pw_assert.check
     pw_third_party.fuchsia.stdcompat
   SOURCES
     chunk_pool.cc
-)
-
-# TODO(b/376730645): Remove deprecated alias.
-pw_add_library(pw_allocator.deallocator INTERFACE
-  PUBLIC_DEPS
-    pw_allocator
 )
 
 pw_add_library(pw_allocator.dl_allocator INTERFACE
@@ -256,16 +213,6 @@ pw_add_library(pw_allocator.dl_allocator INTERFACE
     pw_allocator.bucket.unordered
     pw_allocator.config
     pw_third_party.fuchsia.stdcompat
-)
-
-  # TODO(b/376730645): Remove deprecated interfaces.
-pw_add_library(pw_allocator.dual_first_fit_block_allocator INTERFACE
-  HEADERS
-    public/pw_allocator/dual_first_fit_block_allocator.h
-  PUBLIC_INCLUDES
-    public
-  PUBLIC_DEPS
-    pw_allocator.first_fit
 )
 
 pw_add_library(pw_allocator.fallback_allocator STATIC
@@ -295,16 +242,6 @@ pw_add_library(pw_allocator.first_fit INTERFACE
     pw_allocator.bucket.sequenced
 )
 
-# TODO(b/376730645): Remove deprecated interfaces.
-pw_add_library(pw_allocator.first_fit_block_allocator INTERFACE
-  HEADERS
-    public/pw_allocator/first_fit_block_allocator.h
-  PUBLIC_INCLUDES
-    public
-  PUBLIC_DEPS
-    pw_allocator.first_fit
-)
-
 pw_add_library(pw_allocator.fragmentation STATIC
   HEADERS
     public/pw_allocator/fragmentation.h
@@ -312,17 +249,6 @@ pw_add_library(pw_allocator.fragmentation STATIC
     public
   SOURCES
     fragmentation.cc
-)
-
-pw_add_library(pw_allocator.freelist_heap INTERFACE
-  HEADERS
-    public/pw_allocator/freelist_heap.h
-  PUBLIC_INCLUDES
-    public
-  PUBLIC_DEPS
-    pw_allocator.bucket_allocator
-    pw_allocator.hardening
-    pw_bytes
 )
 
 pw_add_library(pw_allocator.hardening INTERFACE
@@ -342,8 +268,7 @@ pw_add_library(pw_allocator.guarded_allocator STATIC
   PUBLIC_INCLUDES
     public
   PUBLIC_DEPS
-    pw_allocator.allocator
-    pw_allocator.deallocator
+    pw_allocator
     pw_result
     pw_sync.borrow
   PRIVATE_DEPS
@@ -353,16 +278,6 @@ pw_add_library(pw_allocator.guarded_allocator STATIC
     pw_third_party.fuchsia.stdcompat
   SOURCES
     guarded_allocator.cc
-)
-
-# TODO(b/376730645): Remove deprecated interfaces.
-pw_add_library(pw_allocator.last_fit_block_allocator INTERFACE
-  HEADERS
-    public/pw_allocator/last_fit_block_allocator.h
-  PUBLIC_INCLUDES
-    public
-  PUBLIC_DEPS
-    pw_allocator.first_fit
 )
 
 pw_add_library(pw_allocator.libc_allocator STATIC
@@ -423,12 +338,6 @@ pw_add_library(pw_allocator.pmr_allocator STATIC
     pmr_allocator.cc
   PRIVATE_DEPS
     pw_assert.check
-)
-
-# TODO(b/376730645): Remove deprecated alias.
-pw_add_library(pw_allocator.pool INTERFACE
-  PUBLIC_DEPS
-    pw_allocator
 )
 
 pw_add_library(pw_allocator.synchronized_allocator INTERFACE
@@ -493,18 +402,6 @@ pw_add_library(pw_allocator.worst_fit INTERFACE
     pw_allocator.config
 )
 
-# TODO(b/376730645): Remove deprecated interfaces.
-pw_add_library(pw_allocator.worst_fit_block_allocator INTERFACE
-  HEADERS
-    public/pw_allocator/worst_fit_block_allocator.h
-  PUBLIC_INCLUDES
-    public
-  PUBLIC_DEPS
-    pw_allocator.worst_fit
-    pw_allocator.config
-)
-
-
 # Test support
 
 pw_add_library(pw_allocator.testing INTERFACE
@@ -515,7 +412,6 @@ pw_add_library(pw_allocator.testing INTERFACE
     public
   PUBLIC_DEPS
     pw_allocator
-    pw_allocator.buffer
     pw_allocator.first_fit
     pw_allocator.hardening
     pw_allocator.metrics
@@ -538,7 +434,6 @@ pw_add_library(pw_allocator.block_allocator_testing INTERFACE
     pw_allocator.block.testing
     pw_allocator.block_allocator
     pw_allocator.block.detailed_block
-    pw_allocator.buffer
     pw_allocator.fuzzing
     pw_allocator.test_harness
     pw_assert.assert
@@ -567,7 +462,7 @@ pw_add_library(pw_allocator.sync_allocator_testing STATIC
   PUBLIC_INCLUDES
     public
   PUBLIC_DEPS
-    pw_allocator.allocator
+    pw_allocator
     pw_allocator.test_config
     pw_containers.vector
     pw_sync.binary_semaphore
@@ -576,7 +471,6 @@ pw_add_library(pw_allocator.sync_allocator_testing STATIC
     pw_thread.thread_core
     pw_unit_test
   PRIVATE_DEPS
-    pw_allocator.deallocator
     pw_status
     pw_thread.yield
   SOURCES
@@ -661,9 +555,7 @@ pw_add_test(pw_allocator.best_fit_test
     best_fit_test.cc
   PRIVATE_DEPS
     pw_allocator.best_fit
-    pw_allocator.best_fit_block_allocator
     pw_allocator.block_allocator_testing
-    pw_allocator.buffer
   GROUPS
     modules
     pw_allocator
@@ -676,7 +568,6 @@ pw_add_test(pw_allocator.bucket_allocator_test
     pw_allocator
     pw_allocator.block_allocator_testing
     pw_allocator.bucket_allocator
-    pw_allocator.bucket_block_allocator
   GROUPS
     modules
     pw_allocator
@@ -689,20 +580,6 @@ pw_add_test(pw_allocator.buddy_allocator_test
     pw_allocator.buddy_allocator
     pw_allocator.fuzzing
     pw_allocator.testing
-  GROUPS
-    modules
-    pw_allocator
-)
-
-pw_add_test(pw_allocator.buffer_test
-  SOURCES
-    buffer_test.cc
-  PRIVATE_DEPS
-    pw_allocator.buffer
-    pw_allocator.testing
-    pw_bytes
-    pw_result
-    pw_third_party.fuchsia.stdcompat
   GROUPS
     modules
     pw_allocator
@@ -770,11 +647,7 @@ pw_add_test(pw_allocator.first_fit_test
     first_fit_test.cc
   PRIVATE_DEPS
     pw_allocator.block_allocator_testing
-    pw_allocator.buffer
-    pw_allocator.dual_first_fit_block_allocator
     pw_allocator.first_fit
-    pw_allocator.first_fit_block_allocator
-    pw_allocator.last_fit_block_allocator
     pw_third_party.fuchsia.stdcompat
   GROUPS
     modules
@@ -792,25 +665,11 @@ pw_add_test(pw_allocator.fragmentation_test
     pw_allocator
 )
 
-pw_add_test(pw_allocator.freelist_heap_test
-  SOURCES
-    freelist_heap_test.cc
-  PRIVATE_DEPS
-    pw_allocator.block.testing
-    pw_allocator.freelist_heap
-    pw_allocator.testing
-    pw_bytes.alignment
-    pw_third_party.fuchsia.stdcompat
-  GROUPS
-    modules
-    pw_allocator
-)
-
 pw_add_test(pw_allocator.guarded_allocator_test
   SOURCES
     guarded_allocator_test.cc
   PRIVATE_DEPS
-    pw_allocator.first_fit_block_allocator
+    pw_allocator.first_fit
     pw_allocator.guarded_allocator
     pw_allocator.sync_allocator_testing
     pw_sync.interrupt_spin_lock
@@ -979,7 +838,6 @@ pw_add_test(pw_allocator.worst_fit_test
   PRIVATE_DEPS
     pw_allocator.block_allocator_testing
     pw_allocator.worst_fit
-    pw_allocator.worst_fit_block_allocator
   GROUPS
     modules
     pw_allocator

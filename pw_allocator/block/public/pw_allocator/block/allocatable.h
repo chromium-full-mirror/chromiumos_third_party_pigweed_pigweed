@@ -62,11 +62,6 @@ class AllocatableBlock : public internal::AllocatableBase {
   /// @returns whether this block is free or is in use.
   constexpr bool IsFree() const;
 
-  /// Indicates whether the block is in use is free.
-  ///
-  /// This method will eventually be deprecated. Prefer `IsFree`.
-  constexpr bool Used() const { return !IsFree(); }
-
   // clang-format off
   /// Checks if a block could be split from the block.
   ///

@@ -19,7 +19,7 @@
 #include <limits>
 #include <mutex>
 
-#include "pw_allocator/first_fit_block_allocator.h"
+#include "pw_allocator/first_fit.h"
 #include "pw_allocator/sync_allocator_testing.h"
 #include "pw_sync/interrupt_spin_lock.h"
 #include "pw_sync/mutex.h"
@@ -39,7 +39,8 @@ using ::pw::allocator::GuardedAllocator;
 using ::pw::allocator::test::Background;
 using ::pw::allocator::test::BackgroundThreadCore;
 using ::pw::allocator::test::SyncAllocatorTest;
-using BlockAllocator = ::pw::allocator::FirstFitBlockAllocator<uint16_t>;
+using BlockType = ::pw::allocator::FirstFitBlock<uintptr_t>;
+using BlockAllocator = ::pw::allocator::FirstFitAllocator<BlockType>;
 
 enum class Mode {
   kValidateOne,
@@ -140,7 +141,7 @@ class GuardedAllocatorTestBase : public SyncAllocatorTest {
 
   void TestValidateAllAfterAllocation() {
     pw::UniquePtr<uint8_t[]> bytes =
-        guarded_.template MakeUniqueArray<uint8_t>(64);
+        guarded_.template MakeUnique<uint8_t[]>(64);
     ASSERT_NE(bytes, nullptr);
 
     core_.SetMode(Mode::kValidateAll);
@@ -152,7 +153,7 @@ class GuardedAllocatorTestBase : public SyncAllocatorTest {
     Background background(core_);
 
     pw::UniquePtr<uint8_t[]> bytes =
-        guarded_.template MakeUniqueArray<uint8_t>(64);
+        guarded_.template MakeUnique<uint8_t[]>(64);
     ASSERT_NE(bytes, nullptr);
 
     // Modify the last byte of the prefix.
@@ -168,7 +169,7 @@ class GuardedAllocatorTestBase : public SyncAllocatorTest {
     Background background(core_);
 
     pw::UniquePtr<uint8_t[]> bytes =
-        guarded_.template MakeUniqueArray<uint8_t>(64);
+        guarded_.template MakeUnique<uint8_t[]>(64);
     ASSERT_NE(bytes, nullptr);
 
     // Modify the first byte of the prefix.
@@ -184,7 +185,7 @@ class GuardedAllocatorTestBase : public SyncAllocatorTest {
     Background background(core_);
 
     pw::UniquePtr<uint8_t[]> bytes =
-        guarded_.template MakeUniqueArray<uint8_t>(64);
+        guarded_.template MakeUnique<uint8_t[]>(64);
     ASSERT_NE(bytes, nullptr);
 
     // Modify the first byte of the suffix.

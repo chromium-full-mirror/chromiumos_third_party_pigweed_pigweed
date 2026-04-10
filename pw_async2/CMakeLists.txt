@@ -274,7 +274,7 @@ pw_add_library(pw_async2.box INTERFACE
   HEADERS
     public/pw_async2/box.h
   PUBLIC_DEPS
-    pw_allocator.allocator
+    pw_allocator
     pw_async2
   PUBLIC_INCLUDES
     public
@@ -331,8 +331,6 @@ pw_add_test(pw_async2.callback_task_test
     pw_function
 )
 
-
-
 pw_add_test(pw_async2.allocate_task_test
   SOURCES
     allocate_task_test.cc
@@ -344,8 +342,6 @@ pw_add_test(pw_async2.allocate_task_test
     pw_function
     pw_status
 )
-
-
 
 pw_add_library(pw_async2.notification INTERFACE
   HEADERS
@@ -378,7 +374,7 @@ if("cxx_std_20" IN_LIST CMAKE_CXX_COMPILE_FEATURES)
       pw_assert.check
       pw_log
     PUBLIC_DEPS
-      pw_allocator.allocator
+      pw_allocator
       pw_assert.assert
       pw_async2
       pw_containers.optional

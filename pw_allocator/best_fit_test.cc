@@ -14,9 +14,7 @@
 
 #include "pw_allocator/best_fit.h"
 
-#include "pw_allocator/best_fit_block_allocator.h"
 #include "pw_allocator/block_allocator_testing.h"
-#include "pw_allocator/buffer.h"
 #include "pw_unit_test/framework.h"
 
 namespace {
@@ -140,42 +138,6 @@ TEST_F(BestFitAllocatorTest, GetMaxAllocatableWhenNoBlocksFree) {
 TEST_F(BestFitAllocatorTest, MeasureFragmentation) { MeasureFragmentation(); }
 
 TEST_F(BestFitAllocatorTest, PoisonPeriodically) { PoisonPeriodically(); }
-
-// TODO(b/376730645): Remove this test when the legacy alias is deprecated.
-using BestFitBlockAllocator = ::pw::allocator::BestFitBlockAllocator<uint16_t>;
-class BestFitBlockAllocatorTest
-    : public BlockAllocatorTest<BestFitBlockAllocator> {
- public:
-  BestFitBlockAllocatorTest() : BlockAllocatorTest(allocator_) {}
-
- private:
-  BestFitBlockAllocator allocator_;
-};
-TEST_F(BestFitBlockAllocatorTest, AllocatesBestCompatible) {
-  auto& allocator = GetAllocator({
-      {kLargeOuterSize, Preallocation::kFree},
-      {kSmallerOuterSize, Preallocation::kUsed},
-      {kSmallOuterSize, Preallocation::kFree},
-      {kSmallerOuterSize, Preallocation::kUsed},
-      {kLargerOuterSize, Preallocation::kFree},
-      {Preallocation::kSizeRemaining, Preallocation::kUsed},
-  });
-
-  void* ptr1 = allocator.Allocate(Layout(kSmallInnerSize, 1));
-  EXPECT_LT(Fetch(1), ptr1);
-  EXPECT_LT(ptr1, Fetch(3));
-
-  void* ptr2 = allocator.Allocate(Layout(kSmallInnerSize, 1));
-  EXPECT_LT(ptr2, Fetch(1));
-
-  // A second small block fits in the leftovers of the first "Large" block.
-  void* ptr3 = allocator.Allocate(Layout(kSmallInnerSize, 1));
-  EXPECT_LT(ptr3, Fetch(1));
-
-  allocator.Deallocate(ptr1);
-  allocator.Deallocate(ptr2);
-  allocator.Deallocate(ptr3);
-}
 
 // Fuzz tests.
 

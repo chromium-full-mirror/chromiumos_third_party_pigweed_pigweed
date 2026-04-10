@@ -153,21 +153,11 @@ TEST_F(UniquePtrTest, DestructorDestroysAndFrees) {
 TEST_F(UniquePtrTest, ArrayElementsAreConstructed) {
   constexpr static size_t kArraySize = 5;
 
-  // TODO(b/326509341): Remove when downstream consumers migrate.
-  // Use the deprecated method...
-  auto ptr1 = allocator_.MakeUniqueArray<Counter>(kArraySize);
-  ASSERT_NE(ptr1, nullptr);
+  auto ptr = allocator_.MakeUnique<Counter[]>(kArraySize);
   EXPECT_EQ(Counter::TakeNumCtorCalls(), kArraySize);
+  ASSERT_NE(ptr, nullptr);
   for (size_t i = 0; i < kArraySize; ++i) {
-    EXPECT_EQ(ptr1[i].value(), i);
-  }
-
-  // ...and the supported method.
-  auto ptr2 = allocator_.MakeUnique<Counter[]>(kArraySize);
-  EXPECT_EQ(Counter::TakeNumCtorCalls(), kArraySize);
-  ASSERT_NE(ptr2, nullptr);
-  for (size_t i = 0; i < kArraySize; ++i) {
-    EXPECT_EQ(ptr2[i].value(), i);
+    EXPECT_EQ(ptr[i].value(), i);
   }
 }
 
@@ -175,22 +165,12 @@ TEST_F(UniquePtrTest, ArrayElementsAreConstructedWithSpecifiedAlignment) {
   constexpr static size_t kArraySize = 5;
   constexpr static size_t kArrayAlignment = 32;
 
-  // TODO(b/326509341): Remove when downstream consumers migrate.
-  // Use the deprecated method...
-  auto ptr1 = allocator_.MakeUniqueArray<Counter>(kArraySize, kArrayAlignment);
-  ASSERT_NE(ptr1, nullptr);
+  auto ptr = allocator_.MakeUnique<Counter[]>(kArraySize, kArrayAlignment);
+  ASSERT_NE(ptr, nullptr);
   EXPECT_EQ(Counter::TakeNumCtorCalls(), kArraySize);
 
-  auto addr1 = reinterpret_cast<uintptr_t>(ptr1.get());
-  EXPECT_EQ(addr1 % kArrayAlignment, 0u);
-
-  // ...and the supported method.
-  auto ptr2 = allocator_.MakeUnique<Counter[]>(kArraySize, kArrayAlignment);
-  ASSERT_NE(ptr2, nullptr);
-  EXPECT_EQ(Counter::TakeNumCtorCalls(), kArraySize);
-
-  auto addr2 = reinterpret_cast<uintptr_t>(ptr2.get());
-  EXPECT_EQ(addr2 % kArrayAlignment, 0u);
+  auto addr = reinterpret_cast<uintptr_t>(ptr.get());
+  EXPECT_EQ(addr % kArrayAlignment, 0u);
 }
 
 TEST_F(UniquePtrTest, DestructorDestroysAndFreesArray) {

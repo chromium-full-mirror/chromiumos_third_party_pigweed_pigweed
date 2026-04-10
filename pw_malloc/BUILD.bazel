@@ -54,7 +54,7 @@ cc_library(
     ],
     visibility = ["//visibility:private"],
     deps = [
-        "//pw_allocator:allocator",
+        "//pw_allocator",
         "//pw_allocator:synchronized_allocator",
         "//pw_allocator:tracking_allocator",
         "//pw_bytes",
@@ -94,43 +94,13 @@ constraint_value(
     constraint_setting = "//pw_malloc:backend_constraint_setting",
 )
 
-# TODO(b/376730645): Remove deprecated backends.
-constraint_value(
-    name = "best_fit_block_allocator_backend",
-    constraint_setting = "//pw_malloc:backend_constraint_setting",
-)
-
 constraint_value(
     name = "bucket_allocator_backend",
     constraint_setting = "//pw_malloc:backend_constraint_setting",
 )
 
-# TODO(b/376730645): Remove deprecated backends.
-constraint_value(
-    name = "bucket_block_allocator_backend",
-    constraint_setting = "//pw_malloc:backend_constraint_setting",
-)
-
 constraint_value(
     name = "first_fit_backend",
-    constraint_setting = "//pw_malloc:backend_constraint_setting",
-)
-
-# TODO(b/376730645): Remove deprecated backends.
-constraint_value(
-    name = "dual_first_fit_block_allocator_backend",
-    constraint_setting = "//pw_malloc:backend_constraint_setting",
-)
-
-# TODO(b/376730645): Remove deprecated backends.
-constraint_value(
-    name = "first_fit_block_allocator_backend",
-    constraint_setting = "//pw_malloc:backend_constraint_setting",
-)
-
-# TODO(b/376730645): Remove deprecated backends.
-constraint_value(
-    name = "last_fit_block_allocator_backend",
     constraint_setting = "//pw_malloc:backend_constraint_setting",
 )
 
@@ -144,23 +114,13 @@ constraint_value(
     constraint_setting = "//pw_malloc:backend_constraint_setting",
 )
 
-# TODO(b/376730645): Remove deprecated backends.
-constraint_value(
-    name = "worst_fit_block_allocator_backend",
-    constraint_setting = "//pw_malloc:backend_constraint_setting",
-)
-
-# TODO(b/376730645): Remove deprecated backends.
 alias(
     name = "backend_multiplexer",
     actual = select({
-        "//pw_malloc:best_fit_block_allocator_backend": "//pw_malloc:best_fit",
+        "//pw_malloc:best_fit_backend": "//pw_malloc:best_fit",
         "//pw_malloc:bucket_allocator_backend": "//pw_malloc:bucket_allocator",
-        "//pw_malloc:bucket_block_allocator_backend": "//pw_malloc:bucket_allocator",
-        "//pw_malloc:dual_first_fit_block_allocator_backend": "//pw_malloc:first_fit",
-        "//pw_malloc:first_fit_block_allocator_backend": "//pw_malloc:first_fit",
-        "//pw_malloc:last_fit_block_allocator_backend": "//pw_malloc:first_fit",
-        "//pw_malloc:worst_fit_block_allocator_backend": "//pw_malloc:worst_fit",
+        "//pw_malloc:first_fit_backend": "//pw_malloc:first_fit",
+        "//pw_malloc:worst_fit_backend": "//pw_malloc:worst_fit",
         "//pw_malloc_freelist:backend": "//pw_malloc:bucket_allocator",
         "//pw_malloc_freertos:backend": "//pw_malloc_freertos",
         "//conditions:default": "//pw_build:unspecified_backend",
@@ -178,13 +138,6 @@ cc_library(
     ],
 )
 
-# TODO(b/376730645): Remove deprecated backends.
-cc_library(
-    name = "best_fit_block_allocator",
-    features = ["-conversion_warnings"],
-    deps = [":best_fit"],
-)
-
 cc_library(
     name = "bucket_allocator",
     srcs = ["bucket_allocator.cc"],
@@ -195,13 +148,6 @@ cc_library(
     ],
 )
 
-# TODO(b/376730645): Remove deprecated backends.
-cc_library(
-    name = "bucket_block_allocator",
-    features = ["-conversion_warnings"],
-    deps = [":bucket_allocator"],
-)
-
 cc_library(
     name = "first_fit",
     srcs = ["first_fit.cc"],
@@ -210,27 +156,6 @@ cc_library(
         "//pw_allocator:first_fit",
         "//pw_malloc:facade",
     ],
-)
-
-# TODO(b/376730645): Remove deprecated backends.
-cc_library(
-    name = "dual_first_fit_block_allocator",
-    features = ["-conversion_warnings"],
-    deps = [":first_fit"],
-)
-
-# TODO(b/376730645): Remove deprecated backends.
-cc_library(
-    name = "first_fit_block_allocator",
-    features = ["-conversion_warnings"],
-    deps = [":first_fit"],
-)
-
-# TODO(b/376730645): Remove deprecated backends.
-cc_library(
-    name = "last_fit_block_allocator",
-    features = ["-conversion_warnings"],
-    deps = [":first_fit"],
 )
 
 cc_library(
@@ -269,13 +194,10 @@ cc_library(
     # Only run the test if no backend is set to ensure there is no system
     # allocator.
     target_compatible_with = select({
-                                 "//pw_malloc:best_fit_block_allocator_backend": ["@platforms//:incompatible"],
+                                 "//pw_malloc:best_fit_backend": ["@platforms//:incompatible"],
                                  "//pw_malloc:bucket_allocator_backend": ["@platforms//:incompatible"],
-                                 "//pw_malloc:bucket_block_allocator_backend": ["@platforms//:incompatible"],
-                                 "//pw_malloc:dual_first_fit_block_allocator_backend": ["@platforms//:incompatible"],
-                                 "//pw_malloc:first_fit_block_allocator_backend": ["@platforms//:incompatible"],
-                                 "//pw_malloc:last_fit_block_allocator_backend": ["@platforms//:incompatible"],
-                                 "//pw_malloc:worst_fit_block_allocator_backend": ["@platforms//:incompatible"],
+                                 "//pw_malloc:first_fit_backend": ["@platforms//:incompatible"],
+                                 "//pw_malloc:worst_fit_backend": ["@platforms//:incompatible"],
                                  "//pw_malloc_freelist:backend": ["@platforms//:incompatible"],
                                  "//pw_malloc_freertos:backend": ["@platforms//:incompatible"],
                                  "//conditions:default": [],

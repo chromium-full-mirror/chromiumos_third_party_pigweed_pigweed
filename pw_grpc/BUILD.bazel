@@ -72,7 +72,7 @@ cc_library(
         ":default_send_queue",
         ":hpack",
         ":send_queue",
-        "//pw_allocator:allocator",
+        "//pw_allocator",
         "//pw_allocator:synchronized_allocator",
         "//pw_async:dispatcher",
         "//pw_async_basic:dispatcher",

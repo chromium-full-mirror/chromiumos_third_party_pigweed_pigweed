@@ -30,7 +30,7 @@ cc_library(
     hdrs = ["public/pw_async2/size_report/size_report.h"],
     strip_include_prefix = "public",
     deps = [
-        "//pw_allocator:allocator",
+        "//pw_allocator",
         "//pw_allocator:first_fit",
         "//pw_async2",
         "//pw_bloat:bloat_this_binary",

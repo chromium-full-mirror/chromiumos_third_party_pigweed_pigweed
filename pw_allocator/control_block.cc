@@ -30,7 +30,7 @@ const ControlBlockHandle& ControlBlockHandle::GetInstance_DO_NOT_USE() {
 }
 
 ControlBlock* ControlBlock::Create(const ControlBlockHandle&,
-                                   Allocator* allocator,
+                                   pw::Allocator* allocator,
                                    Layout layout) {
   size_t size = layout.size();
   layout = layout.Extend(AlignUp(sizeof(ControlBlock), layout.alignment()));
@@ -52,7 +52,7 @@ ControlBlock* ControlBlock::Create(const ControlBlockHandle&,
           allocator::Capability::kCanAllocateArbitraryLayout)) {
     return nullptr;
   }
-  auto* allocator = static_cast<Allocator*>(deallocator);
+  auto* allocator = static_cast<pw::Allocator*>(deallocator);
   void* ptr = allocator->Allocate(Layout::Of<ControlBlock>());
   if (ptr == nullptr) {
     return nullptr;
@@ -60,7 +60,7 @@ ControlBlock* ControlBlock::Create(const ControlBlockHandle&,
   return new (ptr) ControlBlock(allocator, data, size, false);
 }
 
-ControlBlock::ControlBlock(Allocator* allocator,
+ControlBlock::ControlBlock(pw::Allocator* allocator,
                            void* data,
                            size_t size,
                            bool coallocated)

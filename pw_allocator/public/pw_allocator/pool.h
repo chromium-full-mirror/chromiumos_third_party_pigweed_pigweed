@@ -19,6 +19,7 @@
 #include "pw_allocator/capability.h"
 #include "pw_allocator/deallocator.h"
 #include "pw_allocator/layout.h"
+#include "pw_allocator/unique_ptr.h"
 #include "pw_assert/assert.h"
 #include "pw_bytes/span.h"
 #include "pw_result/result.h"

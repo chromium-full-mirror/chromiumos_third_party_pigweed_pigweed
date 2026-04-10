@@ -28,14 +28,11 @@ namespace pw::allocator {
 /// should be disallowed under certain circumstances. For example, a function
 /// that returns different allocators based on an input parameter may return a
 /// null allocator when given an invalid or unsupported parameter value.
-class NullAllocator : public Allocator {
+class NullAllocator : public pw::Allocator {
  public:
   static constexpr Capabilities kCapabilities = 0;
 
-  // TODO(b/326509341): Make the constructor private once downstream consumers
-  // are migrated.
-  friend NullAllocator& GetNullAllocator();
-  constexpr NullAllocator() : Allocator(kCapabilities) {}
+  constexpr NullAllocator() : pw::Allocator(kCapabilities) {}
 
  private:
   /// @copydoc Allocator::Allocate
@@ -43,12 +40,9 @@ class NullAllocator : public Allocator {
 
   /// @copydoc Allocator::Deallocate
   void DoDeallocate(void*) override {}
-
-  /// @copydoc Allocator::Deallocate
-  void DoDeallocate(void* ptr, Layout) override { DoDeallocate(ptr); }
 };
 
-/// Returns a reference to the NullAllocator singleton.
+/// Returns a reference to a NullAllocator singleton.
 NullAllocator& GetNullAllocator();
 
 /// @}

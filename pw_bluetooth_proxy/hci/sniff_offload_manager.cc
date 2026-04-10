@@ -231,7 +231,7 @@ class SniffOffloadManager::ConnectionFsm final : public ConnectionMap::Item {
 };
 
 SniffOffloadManager::SniffOffloadManager(
-    allocator::Allocator& allocator,
+    Allocator& allocator,
     async2::Dispatcher& dispatcher,
     SendCommandFunc&& send_command,
     SendEventFunc&& send_event,

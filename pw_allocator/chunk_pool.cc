@@ -15,7 +15,6 @@
 #include "pw_allocator/chunk_pool.h"
 
 #include "lib/stdcompat/bit.h"
-#include "pw_allocator/buffer.h"
 #include "pw_assert/check.h"
 #include "pw_bytes/alignment.h"
 

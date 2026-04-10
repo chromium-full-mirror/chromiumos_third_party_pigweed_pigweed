@@ -43,7 +43,7 @@ namespace internal {
 ///
 /// This class should not be used directly. Instead, use ``BlockAllocator`` or
 /// one of its specializations.
-class GenericBlockAllocator : public Allocator {
+class GenericBlockAllocator : public pw::Allocator {
  public:
   // Not copyable or movable.
   GenericBlockAllocator(const GenericBlockAllocator&) = delete;
@@ -65,7 +65,7 @@ class GenericBlockAllocator : public Allocator {
   }
 
   constexpr explicit GenericBlockAllocator(Capabilities capabilities)
-      : Allocator(capabilities) {}
+      : pw::Allocator(capabilities) {}
 
   /// Crashes with an informational message that a given block is allocated.
   ///
@@ -205,9 +205,6 @@ class BlockAllocator : public internal::GenericBlockAllocator {
 
   /// @copydoc Allocator::Deallocate
   void DoDeallocate(void* ptr) override;
-
-  /// @copydoc Allocator::Deallocate
-  void DoDeallocate(void* ptr, Layout) override { DoDeallocate(ptr); }
 
   /// @copydoc Allocator::Resize
   bool DoResize(void* ptr, size_t new_size) override;

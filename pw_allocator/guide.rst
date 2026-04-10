@@ -94,10 +94,6 @@ Module configuration options include:
 - :cc:`PW_ALLOCATOR_HARDENING` allows you to set how many
   validation checks are enabled. Additional checks can detect more errors at the
   cost of performance and code size.
-- :cc:`PW_ALLOCATOR_SUPPRESS_DEPRECATED_WARNINGS`
-  allows you to silence warnings about deprecated interfaces. This is a
-  temporary measure. It is strongly advised to migrate away from deprecated
-  interfaces as soon as possible as they will eventually be removed.
 
 -----------------
 Inject allocators

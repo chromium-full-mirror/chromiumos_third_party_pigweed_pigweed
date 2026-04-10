@@ -16,7 +16,6 @@
 #include <cstddef>
 #include <limits>
 
-#include "pw_allocator/buffer.h"
 #include "pw_allocator/bump_allocator.h"
 #include "pw_unit_test/framework.h"
 

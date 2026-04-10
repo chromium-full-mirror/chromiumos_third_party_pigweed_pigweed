@@ -47,7 +47,7 @@ pw_add_library(pw_malloc.common INTERFACE
   HEADERS
     public/pw_malloc/config.h
   PUBLIC_DEPS
-    pw_allocator.allocator
+    pw_allocator
     pw_allocator.synchronized_allocator
     pw_allocator.tracking_allocator
     pw_assert
@@ -82,13 +82,6 @@ pw_add_library(pw_malloc.bucket_allocator STATIC
     pw_allocator.bucket_allocator
   SOURCES
     bucket_allocator.cc
-)
-
-# TODO(b/376730645): Remove deprecated backends.
-pw_add_library(pw_malloc.bucket_block_allocator INTERFACE
-  PUBLIC_DEPS
-    pw_malloc.facade
-    pw_allocator.bucket_allocator
 )
 
 pw_add_library(pw_malloc.first_fit STATIC

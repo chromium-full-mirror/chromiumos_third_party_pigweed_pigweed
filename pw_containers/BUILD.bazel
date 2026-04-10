@@ -221,7 +221,7 @@ cc_library(
     deps = [
         ":deque_common",
         ":storage",
-        "//pw_allocator:allocator",
+        "//pw_allocator",
         "//pw_assert:assert",
     ],
 )
@@ -232,7 +232,7 @@ cc_library(
     strip_include_prefix = "public",
     deps = [
         ":deque_common",
-        "//pw_allocator:allocator",
+        "//pw_allocator",
         "//pw_numeric:saturating_arithmetic",
     ],
 )
@@ -245,7 +245,7 @@ cc_library(
         ":dynamic_deque",
         ":dynamic_ptr_vector",
         ":functional",
-        "//pw_allocator:allocator",
+        "//pw_allocator",
         "//pw_assert:assert",
         "//pw_preprocessor",
     ],
@@ -258,7 +258,7 @@ cc_library(
     deps = [
         ":common",
         ":intrusive_map",
-        "//pw_allocator:allocator",
+        "//pw_allocator",
         "//pw_assert:assert",
     ],
 )
@@ -401,7 +401,7 @@ cc_library(
     deps = [
         ":dynamic_deque",
         ":iterator",
-        "//pw_allocator:allocator",
+        "//pw_allocator",
     ],
 )
 
@@ -411,7 +411,7 @@ cc_library(
     strip_include_prefix = "public",
     deps = [
         ":dynamic_vector",
-        "//pw_allocator:allocator",
+        "//pw_allocator",
     ],
 )
 

@@ -75,12 +75,12 @@ class Owned : public GenericOwned {
 /// `MakeUnique` are NOT called. To have these destructors invoked, you can
 /// allocate "owned" objects using `NewOwned` and `MakeUniqueOwned`. This adds a
 /// small amount of overhead to the allocation.
-class BumpAllocator : public Allocator {
+class BumpAllocator : public pw::Allocator {
  public:
   static constexpr Capabilities kCapabilities = kSkipsDestroy;
 
   /// Constructs a BumpAllocator without initializing it.
-  constexpr BumpAllocator() : Allocator(kCapabilities) {}
+  constexpr BumpAllocator() : pw::Allocator(kCapabilities) {}
 
   /// Constructs a BumpAllocator and initializes it.
   explicit BumpAllocator(ByteSpan region) : BumpAllocator() { Init(region); }

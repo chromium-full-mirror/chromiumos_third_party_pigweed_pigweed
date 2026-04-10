@@ -27,7 +27,7 @@ namespace pw::multibuf::v1 {
 /// @submodule{pw_multibuf,v1_impl}
 
 /// A ``ChunkRegionTracker`` which stores its ``Chunk`` and region metadata
-/// in a ``allocator::Allocator`` allocation alongside the data.
+/// in a ``Allocator`` allocation alongside the data.
 ///
 /// This is useful when testing and when there is no need for asynchronous
 /// allocation.
@@ -41,8 +41,8 @@ class PW_MULTIBUF_DEPRECATED HeaderChunkRegionTracker final
   /// the provided allocator ``alloc``.
   ///
   /// Returns the newly-created ``OwnedChunk`` if successful.
-  static std::optional<OwnedChunk> AllocateRegionAsChunk(
-      allocator::Allocator& alloc, size_t size) {
+  static std::optional<OwnedChunk> AllocateRegionAsChunk(Allocator& alloc,
+                                                         size_t size) {
     HeaderChunkRegionTracker* tracker = AllocateRegion(alloc, size);
     if (tracker == nullptr) {
       return std::nullopt;
@@ -63,7 +63,7 @@ class PW_MULTIBUF_DEPRECATED HeaderChunkRegionTracker final
   ///
   /// Returns a pointer to the newly-created ``HeaderChunkRegionTracker``
   /// or ``nullptr`` if the allocation failed.
-  static HeaderChunkRegionTracker* AllocateRegion(allocator::Allocator& alloc,
+  static HeaderChunkRegionTracker* AllocateRegion(Allocator& alloc,
                                                   size_t size) {
     auto layout =
         allocator::Layout::Of<HeaderChunkRegionTracker>().Extend(size);
@@ -95,11 +95,11 @@ class PW_MULTIBUF_DEPRECATED HeaderChunkRegionTracker final
 
  private:
   ByteSpan region_;
-  allocator::Allocator* alloc_;
+  Allocator* alloc_;
 
   // NOTE: `region` must directly follow this `FakeChunkRegionTracker`
   // in memory allocated by allocated by `alloc`.
-  HeaderChunkRegionTracker(ByteSpan region, allocator::Allocator& alloc)
+  HeaderChunkRegionTracker(ByteSpan region, Allocator& alloc)
       : region_(region), alloc_(&alloc) {}
 };
 

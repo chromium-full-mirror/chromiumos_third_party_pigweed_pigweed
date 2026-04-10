@@ -40,8 +40,4 @@ void* Allocator::DoReallocate(void* ptr, Layout new_layout) {
   return new_ptr;
 }
 
-void* Allocator::DoReallocate(void* ptr, Layout old_layout, size_t new_size) {
-  return Reallocate(ptr, Layout(new_size, old_layout.alignment()));
-}
-
 }  // namespace pw
