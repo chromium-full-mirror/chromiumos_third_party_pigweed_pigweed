@@ -36,7 +36,7 @@ int SetBaseline(uint32_t mask) {
   return mask == bloat::kDefaultMask ? 0 : 1;
 }
 
-int MeasureAllocator(Allocator& allocator, uint32_t mask) {
+int MeasureAllocator(pw::Allocator& allocator, uint32_t mask) {
   if (SetBaseline(mask) != 0) {
     return 1;
   }

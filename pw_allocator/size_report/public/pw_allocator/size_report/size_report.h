@@ -82,7 +82,7 @@ int MeasureBucket(BucketType& bucket, uint32_t mask);
 /// @param[in]  allocator   The allocator to exercise.
 /// @param[in]  mask        A bitmap that can be passed to `PW_BLOAT_COND` and
 ///                         `PW_BLOAT_EXPR`. See those macros for details.
-int MeasureAllocator(Allocator& allocator, uint32_t mask);
+int MeasureAllocator(pw::Allocator& allocator, uint32_t mask);
 
 /// Exercises a block allocator as part of a size report.
 ///
