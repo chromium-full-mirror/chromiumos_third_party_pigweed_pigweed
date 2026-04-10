@@ -32,6 +32,22 @@ namespace pw::work_queue {
 
 /// @module{pw_work_queue}
 
+/// Non-templated base class for metrics to avoid tokenizer section conflicts
+/// if CustomWorkQueue is instantiated multiple times.
+class CustomWorkQueueMetrics {
+ protected:
+  // TODO: b/501206615 - The group and/or its name token should be passed as a
+  // ctor arg instead. Depending on the approach here the group should be
+  // exposed While doing this evaluate whether perhaps we should instead
+  // construct TypedMetric<uint32_t>s directly, avoiding the macro usage given
+  // the min_queue_remaining_ initial value requires dependency injection.  And
+  // lastly when the restructure is finalized add unit tests to ensure these
+  // metrics work as intended.
+  PW_METRIC_GROUP(metrics_, "pw::work_queue::WorkQueue");
+  PW_METRIC(metrics_, max_queue_used_, "max_queue_used", 0u);
+  PW_METRIC(metrics_, min_queue_remaining_, "min_queue_remaining", 0u);
+};
+
 /// Enables threads and interrupts to enqueue work as a
 /// `pw::work_queue::WorkItem` for execution by the work queue.
 ///
@@ -49,7 +65,8 @@ namespace pw::work_queue {
 ///
 /// The entire API is thread-safe and interrupt-safe.
 template <typename WorkItem>
-class CustomWorkQueue : public thread::ThreadCore {
+class CustomWorkQueue : public thread::ThreadCore,
+                        private CustomWorkQueueMetrics {
  public:
   /// @param[in] queue The work entries to enqueue.
   ///
@@ -188,17 +205,6 @@ class CustomWorkQueue : public thread::ThreadCore {
   InlineQueue<WorkItem>& queue_ PW_GUARDED_BY(lock_);
   sync::ThreadNotification work_notification_;
   pw::Function<void(WorkItem&)> fn_;
-
-  // TODO(ewout): The group and/or its name token should be passed as a ctor
-  // arg instead. Depending on the approach here the group should be exposed
-  // While doing this evaluate whether perhaps we should instead construct
-  // TypedMetric<uint32_t>s directly, avoiding the macro usage given the
-  // min_queue_remaining_ initial value requires dependency injection.
-  // And lastly when the restructure is finalized add unit tests to ensure these
-  // metrics work as intended.
-  PW_METRIC_GROUP(metrics_, "pw::work_queue::WorkQueue");
-  PW_METRIC(metrics_, max_queue_used_, "max_queue_used", 0u);
-  PW_METRIC(metrics_, min_queue_remaining_, "min_queue_remaining", 0u);
 };
 
 /// Creates a WorkQueue.
