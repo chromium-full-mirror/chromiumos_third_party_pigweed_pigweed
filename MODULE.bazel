@@ -619,7 +619,7 @@ git_override(
     remote = "https://fuchsia.googlesource.com/fuchsia-infra-bazel-rules",
 )
 
-FUCHSIA_SDK_VERSION = "version:31.20260320.2.1"
+FUCHSIA_SDK_VERSION = "version:31.20260410.4.1"
 
 # Use `cipd_ext` and `fuchsia_clang_ext` from `@fuchsia_infra` to override `@fuchsia_infra`'s
 # instantiations of `@rules_fuchsia`, `@fuchsia_sdk` and `@fuchsia_clang`.

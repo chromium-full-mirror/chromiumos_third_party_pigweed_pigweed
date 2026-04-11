@@ -1329,7 +1329,7 @@
     },
     "@@fuchsia_infra+//:extensions.bzl%fuchsia_clang_ext": {
       "general": {
-        "bzlTransitiveDigest": "33bPwsSrnFylEVzFhbOkusG3j8w4aBpBG6ldi2bMte0=",
+        "bzlTransitiveDigest": "qQTJ5nYvdAWDS74kuXN7ZOVEuH9odX6VO3W3KyvL90s=",
         "usagesDigest": "M6KsSZE/wW+XVlDchA7Qy2V5XGObN0qZP9ffXR4FiuE=",
         "recordedFileInputs": {},
         "recordedDirentsInputs": {},
@@ -1390,7 +1390,7 @@
     "@@fuchsia_infra+//cipd:defs.bzl%cipd_ext": {
       "general": {
         "bzlTransitiveDigest": "A4JUsVhjcvCGlBEaBLNVGyPXW6QgQQworV9ouOYekyM=",
-        "usagesDigest": "ZIL3KepQHj8aOXJuyZynQmsgZxatsfDCZKd6I0vwaZ0=",
+        "usagesDigest": "nEBgKJCtX/yQ08kSVeTiBh0rn1Mpuad2IizL/0kkAHQ=",
         "recordedFileInputs": {},
         "recordedDirentsInputs": {},
         "envVariables": {},
@@ -1399,7 +1399,7 @@
             "repoRuleId": "@@fuchsia_infra+//cipd/private:cipd_repository.bzl%cipd_repository",
             "attributes": {
               "package": "fuchsia/development/rules_fuchsia",
-              "tag": "version:31.20260320.2.1",
+              "tag": "version:31.20260410.4.1",
               "exports_files": false,
               "cipd_bin": "@@+_repo_rules4+cipd_client//:cipd"
             }
@@ -1408,7 +1408,7 @@
             "repoRuleId": "@@fuchsia_infra+//cipd/private:cipd_repository.bzl%cipd_repository",
             "attributes": {
               "package": "fuchsia/sdk/core/fuchsia-bazel-rules/linux-amd64",
-              "tag": "version:31.20260320.2.1",
+              "tag": "version:31.20260410.4.1",
               "exports_files": false,
               "cipd_bin": "@@+_repo_rules4+cipd_client//:cipd"
             }
