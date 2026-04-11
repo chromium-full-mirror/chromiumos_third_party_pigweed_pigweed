@@ -1424,11 +1424,13 @@ struct WriteSniffOffloadParametersCommand:
 
   $next [+2]         UInt                   max_interval
     -- Max interval
-    -- Range: 0x0002 to 0xFFFE; only even values are valid
+    -- Range: 0x0002 to 0xFFFE; only even values are valid, plus special cases:
+    --      * 0x0000: Push active
+    --      * 0x0001: Prefer active
     -- Mandatory Range: 0x0006 to 0x0540
     -- Time = N × 0.625 ms
     -- Time Range: 1.25 ms to 40.9 s
-    [requires: 0x0002 <= this <= 0xFFFE]
+    [requires: 0x0000 <= this <= 0xFFFE]
 
   $next [+2]         UInt                   min_interval
     -- Min interval

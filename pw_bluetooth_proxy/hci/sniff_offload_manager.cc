@@ -68,6 +68,8 @@ constexpr auto kSniffSubratingEventCode =
 constexpr auto kCommandCompleteEventCode =
     cpp23::to_underlying(emboss::EventCode::COMMAND_COMPLETE);
 
+constexpr uint16_t kPushActiveInterval = 0x0000;
+
 namespace WriteSniffOffloadEnableCommand =
     vendor::android_hci::WriteSniffOffloadEnableCommand;
 namespace WriteSniffOffloadParametersCommand =
@@ -91,9 +93,18 @@ template <size_t kSize>
 using Scratch = std::array<std::byte, kSize>;
 
 // State that a connection can be in under the sniff offload spec.
-enum class ConnectionState : bool {
+enum class ConnectionState : uint8_t {
+  /// In kPendingParameters, a connection has been established but no parameters
+  /// have been provided for the specific connection.
   kPendingParameters,
+
+  /// In kControlStarted, a connection is actively being managed by the sniff
+  /// offload manager, entering sniff on timeout and exiting sniff on activity.
   kControlStarted,
+
+  /// In kPushActive, exit sniff immediately and do not return to sniff on any
+  /// inactivity timeout.
+  kPushActive,
 };
 
 // Sniff modes and transitional states between them.
@@ -184,8 +195,17 @@ class SniffOffloadManager::ConnectionFsm final : public ConnectionMap::Item {
 
   ConnectionState connection_state() const
       PW_EXCLUSIVE_LOCKS_REQUIRED(manager_.mutex_) {
-    return ConnectionState{parameters_.has_value()};
+    if (!parameters_.has_value()) {
+      return ConnectionState::kPendingParameters;
+    }
+
+    if (parameters_->sniff_max_interval == kPushActiveInterval) {
+      return ConnectionState::kPushActive;
+    }
+
+    return ConnectionState::kControlStarted;
   }
+
   bool should_control() PW_EXCLUSIVE_LOCKS_REQUIRED(manager_.mutex_) {
     return enabled_ && connection_state() == ConnectionState::kControlStarted;
   }
@@ -885,10 +905,25 @@ void SniffOffloadManager::ConnectionFsm::HandleInput(
     SniffOffloadParametersInput&& input) {
   auto previous_connection_state = connection_state();
   parameters_ = std::move(input);
-  PW_CHECK(connection_state() == ConnectionState::kControlStarted);
-  if (previous_connection_state == ConnectionState::kPendingParameters) {
-    ResetTimer();
+  PW_CHECK(connection_state() != ConnectionState::kPendingParameters);
+
+  if (connection_state() == ConnectionState::kPushActive) {
+    SendExitSniffMode();
+    Stop();  // Do not trigger timeouts.
+    return;
   }
+
+  switch (previous_connection_state) {
+    case ConnectionState::kPushActive:
+      Start();
+      [[fallthrough]];
+    case ConnectionState::kPendingParameters:
+      ResetTimer();
+      break;
+    case ConnectionState::kControlStarted:
+      break;
+  }
+
   SendSniffSubrating();
 }
 
@@ -1019,7 +1054,8 @@ void SniffOffloadManager::ConnectionFsm::SendSniffSubrating() {
 void SniffOffloadManager::ConnectionFsm::SendExitSniffMode() {
   Scratch<emboss::ExitSniffModeCommand::IntrinsicSizeInBytes()> scratch;
 
-  PW_CHECK(should_control());
+  PW_CHECK(should_control() ||
+           connection_state() == ConnectionState::kPushActive);
 
   auto writer = MakeEmbossWriter<emboss::ExitSniffModeCommandWriter>(scratch);
   PW_CHECK_OK(writer);

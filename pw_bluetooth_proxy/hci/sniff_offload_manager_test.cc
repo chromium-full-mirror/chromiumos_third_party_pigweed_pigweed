@@ -48,6 +48,7 @@ constexpr size_t kInternalAllocatorSize = 256;
 constexpr auto kDefaultErrorAction = SniffOffloadManager::ErrorAction::kIgnore;
 constexpr auto kDefaultLinkInactivityTimeout = std::chrono::milliseconds(1000);
 constexpr auto kTick = chrono::SystemClock::duration(1);
+constexpr uint16_t kConnectionHandle = 0x123;
 
 constexpr HandlerAction kPassthroughResume = {
     .intercept = HandlerAction::Interception::kPassthrough,
@@ -845,6 +846,87 @@ TEST_F(SniffOffloadManagerTest, SuppressSniffSubrating) {
       CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE,
       emboss::StatusCode::SUCCESS));
   EXPECT_EQ(Simulate(SniffSubratingEvent(0x123)), kPassthroughResume);
+  EXPECT_TRUE(NoErrors());
+}
+
+TEST_F(SniffOffloadManagerTest, PushActiveFromPending) {
+  EXPECT_EQ(Simulate(ConnectionComplete(kConnectionHandle)),
+            kPassthroughResume);
+  EXPECT_EQ(Simulate(WriteSniffOffloadEnable(true)), kInterceptResume);
+  EXPECT_TRUE(CheckCommandCompleteEventSent(
+      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE));
+
+  // Send parameters with sniff_max_interval = 0
+  EXPECT_EQ(Simulate(WriteSniffOffloadParameters(kConnectionHandle,
+                                                 {.sniff_max_interval = 0})),
+            kInterceptResume);
+  EXPECT_TRUE(CheckCommandCompleteEventSent(
+      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_PARAMETERS));
+
+  // Should send Exit Sniff Mode
+  EXPECT_TRUE(CheckSniffExitSent(kConnectionHandle));
+  EXPECT_TRUE(NoErrors());
+
+  // Timer should be stopped, so advancing time should not send anything.
+  AdvanceTime(kDefaultLinkInactivityTimeout + kTick);
+  EXPECT_TRUE(packets_to_controller().empty());
+  EXPECT_TRUE(NoErrors());
+}
+
+TEST_F(SniffOffloadManagerTest, PushActiveFromControlStarted) {
+  EXPECT_EQ(Simulate(ConnectionComplete(kConnectionHandle)),
+            kPassthroughResume);
+  EXPECT_EQ(Simulate(WriteSniffOffloadEnable(true)), kInterceptResume);
+  EXPECT_TRUE(CheckCommandCompleteEventSent(
+      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE));
+
+  // Send normal parameters
+  EXPECT_EQ(Simulate(WriteSniffOffloadParameters(kConnectionHandle)),
+            kInterceptResume);
+  EXPECT_TRUE(CheckCommandCompleteEventSent(
+      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_PARAMETERS));
+  EXPECT_TRUE(CheckSniffSubratingSent(kConnectionHandle));
+
+  // Send parameters with sniff_max_interval = 0
+  EXPECT_EQ(Simulate(WriteSniffOffloadParameters(kConnectionHandle,
+                                                 {.sniff_max_interval = 0})),
+            kInterceptResume);
+  EXPECT_TRUE(CheckCommandCompleteEventSent(
+      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_PARAMETERS));
+
+  // Should send Exit Sniff Mode
+  EXPECT_TRUE(CheckSniffExitSent(kConnectionHandle));
+  EXPECT_TRUE(NoErrors());
+}
+
+TEST_F(SniffOffloadManagerTest, TransitionFromPushActiveToControlStarted) {
+  EXPECT_EQ(Simulate(ConnectionComplete(kConnectionHandle)),
+            kPassthroughResume);
+  EXPECT_EQ(Simulate(WriteSniffOffloadEnable(true)), kInterceptResume);
+  EXPECT_TRUE(CheckCommandCompleteEventSent(
+      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE));
+
+  // Send parameters with sniff_max_interval = 0
+  EXPECT_EQ(Simulate(WriteSniffOffloadParameters(kConnectionHandle,
+                                                 {.sniff_max_interval = 0})),
+            kInterceptResume);
+  EXPECT_TRUE(CheckCommandCompleteEventSent(
+      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_PARAMETERS));
+  EXPECT_TRUE(CheckSniffExitSent(kConnectionHandle));
+
+  // Send normal parameters
+  EXPECT_EQ(Simulate(WriteSniffOffloadParameters(kConnectionHandle)),
+            kInterceptResume);
+  EXPECT_TRUE(CheckCommandCompleteEventSent(
+      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_PARAMETERS));
+
+  // Should send Sniff Subrating
+  EXPECT_TRUE(CheckSniffSubratingSent(kConnectionHandle));
+  EXPECT_TRUE(NoErrors());
+
+  // Timer should be started, so advancing time should send Sniff Mode.
+  AdvanceTime(kDefaultLinkInactivityTimeout + kTick);
+  EXPECT_TRUE(CheckSniffModeSent(kConnectionHandle));
   EXPECT_TRUE(NoErrors());
 }
 
