@@ -54,22 +54,48 @@ using BucketBlock = DetailedBlock<OffsetType, UnorderedItem>;
 /// bucket[3] (512B) --> block[312B] --> block[512B] --> block[416B] --> NULL
 /// bucket[4] (implicit) --> block[1024B] --> block[513B] --> NULL
 /// @endcode
-template <typename BlockType = BucketBlock<>,
-          size_t kMinInnerSize = 32,
-          size_t kNumBuckets = 5>
-class BucketAllocator : public BlockAllocator<BlockType> {
+template <typename BlockType = BucketBlock<>>
+class BasicBucketAllocator : public BlockAllocator<BlockType> {
  private:
   using Base = BlockAllocator<BlockType>;
 
  public:
+  constexpr BasicBucketAllocator() = default;
+
+  /// Configures bucket sizes.
+  constexpr void InitBuckets(span<UnorderedBucket<BlockType>> buckets,
+                             size_t max_inner_size);
+
+ private:
+  /// @copydoc BlockAllocator::GetMaxAllocatable
+  size_t DoGetMaxAllocatable() override;
+
+  /// @copydoc BlockAllocator::ChooseBlock
+  BlockResult<BlockType> ChooseBlock(Layout layout) override;
+
+  /// @copydoc BlockAllocator::ReserveBlock
+  void ReserveBlock(BlockType& block) override;
+
+  /// @copydoc BlockAllocator::RecycleBlock
+  void RecycleBlock(BlockType& block) override;
+
+  span<UnorderedBucket<BlockType>> buckets_;
+};
+
+/// A BasicBucketAllocator that provides storage for its buckets.
+///
+/// Except for the constructors, methods are implemented on the base class in
+/// order to reduce code duplication.
+template <typename BlockType = BucketBlock<>,
+          size_t kMinInnerSize = 32,
+          size_t kNumBuckets = 5>
+class BucketAllocator : public BasicBucketAllocator<BlockType> {
+ private:
+  using Base = BasicBucketAllocator<BlockType>;
+
+ public:
   /// Constexpr constructor. Callers must explicitly call `Init`.
-  constexpr BucketAllocator() {
-    size_t max_inner_size = kMinInnerSize;
-    for (auto& bucket : span(buckets_.data(), kNumBuckets - 1)) {
-      bucket.set_max_inner_size(max_inner_size);
-      max_inner_size <<= 1;
-    }
-  }
+  constexpr BucketAllocator() { Base::InitBuckets(buckets_, kMinInnerSize); }
 
   /// Non-constexpr constructor that automatically calls `Init`.
   ///
@@ -81,61 +107,77 @@ class BucketAllocator : public BlockAllocator<BlockType> {
     Base::Init(region);
   }
 
-  ~BucketAllocator() override {
-    for (auto& bucket : buckets_) {
-      bucket.Clear();
-    }
-  }
+  ~BucketAllocator() override;
 
  private:
-  /// @copydoc BlockAllocator::GetMaxAllocatable
-  size_t DoGetMaxAllocatable() override {
-    for (auto b = buckets_.rbegin(); b != buckets_.rend(); ++b) {
-      const BlockType* largest = b->FindLargest();
-      if (largest != nullptr) {
-        return largest->InnerSize();
-      }
-    }
-    return 0;
-  }
-
-  /// @copydoc BlockAllocator::ChooseBlock
-  BlockResult<BlockType> ChooseBlock(Layout layout) override {
-    for (auto& bucket : buckets_) {
-      if (bucket.max_inner_size() < layout.size()) {
-        continue;
-      }
-      BlockType* block = bucket.RemoveCompatible(layout);
-      if (block != nullptr) {
-        return BlockType::AllocFirst(std::move(block), layout);
-      }
-    }
-    return BlockResult<BlockType>(nullptr, Status::NotFound());
-  }
-
-  /// @copydoc BlockAllocator::ReserveBlock
-  void ReserveBlock(BlockType& block) override {
-    for (auto& bucket : buckets_) {
-      if (block.InnerSize() <= bucket.max_inner_size()) {
-        std::ignore = bucket.Remove(block);
-        break;
-      }
-    }
-  }
-
-  /// @copydoc BlockAllocator::RecycleBlock
-  void RecycleBlock(BlockType& block) override {
-    for (auto& bucket : buckets_) {
-      if (block.InnerSize() <= bucket.max_inner_size()) {
-        std::ignore = bucket.Add(block);
-        break;
-      }
-    }
-  }
-
   std::array<UnorderedBucket<BlockType>, kNumBuckets> buckets_;
 };
 
 /// @}
+
+// Template method implementations.
+
+template <typename BlockType>
+constexpr void BasicBucketAllocator<BlockType>::InitBuckets(
+    span<UnorderedBucket<BlockType>> buckets, size_t max_inner_size) {
+  buckets_ = buckets;
+  for (auto& bucket : buckets_.subspan(0, buckets_.size() - 1)) {
+    bucket.set_max_inner_size(max_inner_size);
+    max_inner_size <<= 1;
+  }
+}
+
+template <typename BlockType>
+size_t BasicBucketAllocator<BlockType>::DoGetMaxAllocatable() {
+  for (auto b = buckets_.rbegin(); b != buckets_.rend(); ++b) {
+    const BlockType* largest = b->FindLargest();
+    if (largest != nullptr) {
+      return largest->InnerSize();
+    }
+  }
+  return 0;
+}
+
+template <typename BlockType>
+BlockResult<BlockType> BasicBucketAllocator<BlockType>::ChooseBlock(
+    Layout layout) {
+  for (auto& bucket : buckets_) {
+    if (bucket.max_inner_size() < layout.size()) {
+      continue;
+    }
+    BlockType* block = bucket.RemoveCompatible(layout);
+    if (block != nullptr) {
+      return BlockType::AllocFirst(std::move(block), layout);
+    }
+  }
+  return BlockResult<BlockType>(nullptr, Status::NotFound());
+}
+
+template <typename BlockType>
+void BasicBucketAllocator<BlockType>::ReserveBlock(BlockType& block) {
+  for (auto& bucket : buckets_) {
+    if (block.InnerSize() <= bucket.max_inner_size()) {
+      std::ignore = bucket.Remove(block);
+      break;
+    }
+  }
+}
+
+template <typename BlockType>
+void BasicBucketAllocator<BlockType>::RecycleBlock(BlockType& block) {
+  for (auto& bucket : buckets_) {
+    if (block.InnerSize() <= bucket.max_inner_size()) {
+      std::ignore = bucket.Add(block);
+      break;
+    }
+  }
+}
+
+template <typename BlockType, size_t kMinInnerSize, size_t kNumBuckets>
+BucketAllocator<BlockType, kMinInnerSize, kNumBuckets>::~BucketAllocator() {
+  for (auto& bucket : buckets_) {
+    bucket.Clear();
+  }
+}
 
 }  // namespace pw::allocator
