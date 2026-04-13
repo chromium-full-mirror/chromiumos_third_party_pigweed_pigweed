@@ -194,7 +194,7 @@ class CustomWorkQueue : public thread::ThreadCore,
       }
       const uint32_t queue_remaining = queue_.capacity() - queue_entries;
       if (queue_remaining < min_queue_remaining_.value()) {
-        min_queue_remaining_.Set(queue_entries);
+        min_queue_remaining_.Set(queue_remaining);
       }
     }  // Release lock before calling .release() on the semaphore.
     work_notification_.release();
