@@ -192,7 +192,7 @@ LowEnergyConnection::OnLELongTermKeyRequestEvent(const EventPacket& event) {
 }
 
 std::string LowEnergyConnection::ToString() const {
-  pw::StringBuffer<64> buffer;
+  pw::StringBuffer<256> buffer;
   buffer << "[HCI LE connection (handle: ";
   buffer << handle();
 

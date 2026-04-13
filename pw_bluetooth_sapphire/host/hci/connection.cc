@@ -116,7 +116,7 @@ void Connection::LogDisconnectionComplete(
   auto view =
       event.view<pw::bluetooth::emboss::DisconnectionCompleteEventView>();
 
-  pw::StringBuffer<64> buffer;
+  pw::StringBuffer<256> buffer;
   buffer << bt_str(event.ToResult());
 
   if (self.is_alive()) {
