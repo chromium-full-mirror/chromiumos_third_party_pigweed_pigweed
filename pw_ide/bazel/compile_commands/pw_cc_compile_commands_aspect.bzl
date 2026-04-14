@@ -104,8 +104,9 @@ def _package_path(label):
     return paths.join(paths.join("external", repository), package)
 
 def _get_direct_virtual_includes(ctx, target):
-    if not hasattr(ctx.rule.attr, "strip_include_prefix"):
+    if not hasattr(ctx.rule.attr, "strip_include_prefix") or ctx.rule.attr.strip_include_prefix == "":
         return []
+
     label = target.label
     source_package_path = _package_path(label)
 

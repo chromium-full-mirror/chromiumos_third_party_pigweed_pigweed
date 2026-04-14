@@ -1,0 +1,350 @@
+[
+  {
+    "name": "asm_library",
+    "target": "//pw_ide/bazel/compile_commands/test:asm_library",
+    "platforms": [
+      "@bazel_tools//tools:host_platform",
+      "//targets/rp2040:rp2040"
+    ]
+  },
+  {
+    "name": "c_library_no_deps",
+    "target": "//pw_ide/bazel/compile_commands/test:c_library_no_deps",
+    "platforms": [
+      "@bazel_tools//tools:host_platform",
+      "//targets/rp2040:rp2040"
+    ]
+  },
+  {
+    "name": "cpp_library_no_deps",
+    "target": "//pw_ide/bazel/compile_commands/test:cpp_library_no_deps",
+    "platforms": [
+      "@bazel_tools//tools:host_platform",
+      "//targets/rp2040:rp2040"
+    ]
+  },
+  {
+    "name": "cpp_library_no_deps_virtual_include",
+    "target": "//pw_ide/bazel/compile_commands/test:cpp_library_no_deps_virtual_include",
+    "platforms": [
+      "@bazel_tools//tools:host_platform",
+      "//targets/rp2040:rp2040"
+    ]
+  },
+  {
+    "name": "multi_cpp_library_no_deps",
+    "target": "//pw_ide/bazel/compile_commands/test:multi_cpp_library_no_deps",
+    "platforms": [
+      "@bazel_tools//tools:host_platform",
+      "//targets/rp2040:rp2040"
+    ]
+  },
+  {
+    "name": "combined_library_no_deps",
+    "target": "//pw_ide/bazel/compile_commands/test:combined_library_no_deps",
+    "platforms": [
+      "@bazel_tools//tools:host_platform",
+      "//targets/rp2040:rp2040"
+    ]
+  },
+  {
+    "name": "header_only_library_no_deps",
+    "target": "//pw_ide/bazel/compile_commands/test:header_only_library_no_deps",
+    "platforms": [
+      "@bazel_tools//tools:host_platform",
+      "//targets/rp2040:rp2040"
+    ]
+  },
+  {
+    "name": "shim_library_dep_cpp_library",
+    "target": "//pw_ide/bazel/compile_commands/test:shim_library_dep_cpp_library",
+    "platforms": [
+      "@bazel_tools//tools:host_platform",
+      "//targets/rp2040:rp2040"
+    ]
+  },
+  {
+    "name": "shim_library_dep_header_only_library",
+    "target": "//pw_ide/bazel/compile_commands/test:shim_library_dep_header_only_library",
+    "platforms": [
+      "@bazel_tools//tools:host_platform",
+      "//targets/rp2040:rp2040"
+    ]
+  },
+  {
+    "name": "c_library_dep_c_library",
+    "target": "//pw_ide/bazel/compile_commands/test:c_library_dep_c_library",
+    "platforms": [
+      "@bazel_tools//tools:host_platform",
+      "//targets/rp2040:rp2040"
+    ]
+  },
+  {
+    "name": "cpp_library_dep_cpp_library",
+    "target": "//pw_ide/bazel/compile_commands/test:cpp_library_dep_cpp_library",
+    "platforms": [
+      "@bazel_tools//tools:host_platform",
+      "//targets/rp2040:rp2040"
+    ]
+  },
+  {
+    "name": "cpp_library_dep_c_library",
+    "target": "//pw_ide/bazel/compile_commands/test:cpp_library_dep_c_library",
+    "platforms": [
+      "@bazel_tools//tools:host_platform",
+      "//targets/rp2040:rp2040"
+    ]
+  },
+  {
+    "name": "cpp_library_dep_multi_cpp_library",
+    "target": "//pw_ide/bazel/compile_commands/test:cpp_library_dep_multi_cpp_library",
+    "platforms": [
+      "@bazel_tools//tools:host_platform",
+      "//targets/rp2040:rp2040"
+    ]
+  },
+  {
+    "name": "cpp_library_dep_combined_library",
+    "target": "//pw_ide/bazel/compile_commands/test:cpp_library_dep_combined_library",
+    "platforms": [
+      "@bazel_tools//tools:host_platform",
+      "//targets/rp2040:rp2040"
+    ]
+  },
+  {
+    "name": "cpp_library_dep_header_only_library",
+    "target": "//pw_ide/bazel/compile_commands/test:cpp_library_dep_header_only_library",
+    "platforms": [
+      "@bazel_tools//tools:host_platform",
+      "//targets/rp2040:rp2040"
+    ]
+  },
+  {
+    "name": "header_only_library_dep_cpp_library",
+    "target": "//pw_ide/bazel/compile_commands/test:header_only_library_dep_cpp_library",
+    "platforms": [
+      "@bazel_tools//tools:host_platform",
+      "//targets/rp2040:rp2040"
+    ]
+  },
+  {
+    "name": "header_only_library_dep_header_only_library",
+    "target": "//pw_ide/bazel/compile_commands/test:header_only_library_dep_header_only_library",
+    "platforms": [
+      "@bazel_tools//tools:host_platform",
+      "//targets/rp2040:rp2040"
+    ]
+  },
+  {
+    "name": "asm_library_no_deps",
+    "target": "//pw_ide/bazel/compile_commands/test:asm_library_no_deps",
+    "platforms": [
+      "@bazel_tools//tools:host_platform",
+      "//targets/rp2040:rp2040"
+    ]
+  },
+  {
+    "name": "c_library_dep_asm_library",
+    "target": "//pw_ide/bazel/compile_commands/test:c_library_dep_asm_library",
+    "platforms": [
+      "@bazel_tools//tools:host_platform",
+      "//targets/rp2040:rp2040"
+    ]
+  },
+  {
+    "name": "cpp_library_dep_import",
+    "target": "//pw_ide/bazel/compile_commands/test:cpp_library_dep_import",
+    "platforms": [
+      "@bazel_tools//tools:host_platform",
+      "//targets/rp2040:rp2040"
+    ]
+  },
+  {
+    "name": "shim_library_dep_cpp_library_dep_cpp_library",
+    "target": "//pw_ide/bazel/compile_commands/test:shim_library_dep_cpp_library_dep_cpp_library",
+    "platforms": [
+      "@bazel_tools//tools:host_platform",
+      "//targets/rp2040:rp2040"
+    ]
+  },
+  {
+    "name": "c_library_dep_c_library_dep_c_library",
+    "target": "//pw_ide/bazel/compile_commands/test:c_library_dep_c_library_dep_c_library",
+    "platforms": [
+      "@bazel_tools//tools:host_platform",
+      "//targets/rp2040:rp2040"
+    ]
+  },
+  {
+    "name": "cpp_library_dep_shim_library_dep_cpp_library",
+    "target": "//pw_ide/bazel/compile_commands/test:cpp_library_dep_shim_library_dep_cpp_library",
+    "platforms": [
+      "@bazel_tools//tools:host_platform",
+      "//targets/rp2040:rp2040"
+    ]
+  },
+  {
+    "name": "cpp_library_dep_shim_library_dep_header_only_library",
+    "target": "//pw_ide/bazel/compile_commands/test:cpp_library_dep_shim_library_dep_header_only_library",
+    "platforms": [
+      "@bazel_tools//tools:host_platform",
+      "//targets/rp2040:rp2040"
+    ]
+  },
+  {
+    "name": "cpp_library_dep_c_library_dep_asm_library",
+    "target": "//pw_ide/bazel/compile_commands/test:cpp_library_dep_c_library_dep_asm_library",
+    "platforms": [
+      "@bazel_tools//tools:host_platform",
+      "//targets/rp2040:rp2040"
+    ]
+  },
+  {
+    "name": "cpp_library_dep_cpp_library_dep_c_library",
+    "target": "//pw_ide/bazel/compile_commands/test:cpp_library_dep_cpp_library_dep_c_library",
+    "platforms": [
+      "@bazel_tools//tools:host_platform",
+      "//targets/rp2040:rp2040"
+    ]
+  },
+  {
+    "name": "cpp_library_dep_cpp_library_dep_cpp_library",
+    "target": "//pw_ide/bazel/compile_commands/test:cpp_library_dep_cpp_library_dep_cpp_library",
+    "platforms": [
+      "@bazel_tools//tools:host_platform",
+      "//targets/rp2040:rp2040"
+    ]
+  },
+  {
+    "name": "cpp_library_dep_cpp_library_dep_multi_cpp_library",
+    "target": "//pw_ide/bazel/compile_commands/test:cpp_library_dep_cpp_library_dep_multi_cpp_library",
+    "platforms": [
+      "@bazel_tools//tools:host_platform",
+      "//targets/rp2040:rp2040"
+    ]
+  },
+  {
+    "name": "cpp_library_dep_cpp_library_dep_combined_library",
+    "target": "//pw_ide/bazel/compile_commands/test:cpp_library_dep_cpp_library_dep_combined_library",
+    "platforms": [
+      "@bazel_tools//tools:host_platform",
+      "//targets/rp2040:rp2040"
+    ]
+  },
+  {
+    "name": "cpp_library_dep_cpp_library_dep_header_only_library",
+    "target": "//pw_ide/bazel/compile_commands/test:cpp_library_dep_cpp_library_dep_header_only_library",
+    "platforms": [
+      "@bazel_tools//tools:host_platform",
+      "//targets/rp2040:rp2040"
+    ]
+  },
+  {
+    "name": "cpp_library_dep_cpp_library_dep_import",
+    "target": "//pw_ide/bazel/compile_commands/test:cpp_library_dep_cpp_library_dep_import",
+    "platforms": [
+      "@bazel_tools//tools:host_platform",
+      "//targets/rp2040:rp2040"
+    ]
+  },
+  {
+    "name": "cpp_library_dep_header_only_library_dep_header_only_library",
+    "target": "//pw_ide/bazel/compile_commands/test:cpp_library_dep_header_only_library_dep_header_only_library",
+    "platforms": [
+      "@bazel_tools//tools:host_platform",
+      "//targets/rp2040:rp2040"
+    ]
+  },
+  {
+    "name": "header_only_library_dep_shim_library_dep_header_only_library",
+    "target": "//pw_ide/bazel/compile_commands/test:header_only_library_dep_shim_library_dep_header_only_library",
+    "platforms": [
+      "@bazel_tools//tools:host_platform",
+      "//targets/rp2040:rp2040"
+    ]
+  },
+  {
+    "name": "header_only_library_dep_header_only_library_dep_cpp_library",
+    "target": "//pw_ide/bazel/compile_commands/test:header_only_library_dep_header_only_library_dep_cpp_library",
+    "platforms": [
+      "@bazel_tools//tools:host_platform",
+      "//targets/rp2040:rp2040"
+    ]
+  },
+  {
+    "name": "header_only_library_dep_header_only_library_dep_header_only_library",
+    "target": "//pw_ide/bazel/compile_commands/test:header_only_library_dep_header_only_library_dep_header_only_library",
+    "platforms": [
+      "@bazel_tools//tools:host_platform",
+      "//targets/rp2040:rp2040"
+    ]
+  },
+  {
+    "name": "cpp_library_dep_external_library",
+    "target": "//pw_ide/bazel/compile_commands/test:cpp_library_dep_external_library",
+    "platforms": [
+      "@bazel_tools//tools:host_platform",
+      "//targets/rp2040:rp2040"
+    ]
+  },
+  {
+    "name": "cpp_library_no_deps_symlink",
+    "target": "//pw_ide/bazel/compile_commands/test:cpp_library_no_deps",
+    "platforms": [
+      "@bazel_tools//tools:host_platform",
+      "//targets/rp2040:rp2040"
+    ],
+    "build_flags": [
+      "--symlink_prefix=custom_out/"
+    ],
+    "updater_flags": [
+      "--symlink-prefix=custom_out/"
+    ]
+  },
+  {
+    "name": "cpp_library_no_deps_virtual_include_symlink",
+    "target": "//pw_ide/bazel/compile_commands/test:cpp_library_no_deps_virtual_include",
+    "platforms": [
+      "@bazel_tools//tools:host_platform",
+      "//targets/rp2040:rp2040"
+    ],
+    "build_flags": [
+      "--symlink_prefix=custom_out/"
+    ],
+    "updater_flags": [
+      "--symlink-prefix=custom_out/"
+    ]
+  },
+  {
+    "name": "cpp_library_dep_generated",
+    "target": "//pw_ide/bazel/compile_commands/test:cpp_library_dep_generated",
+    "platforms": [
+      "@bazel_tools//tools:host_platform",
+      "//targets/rp2040:rp2040"
+    ]
+  },
+  {
+    "skip": true,
+    "name": "cpp_library_dep_generated_symlink",
+    "target": "//pw_ide/bazel/compile_commands/test:cpp_library_dep_generated",
+    "platforms": [
+      "@bazel_tools//tools:host_platform",
+      "//targets/rp2040:rp2040"
+    ],
+    "build_flags": [
+      "--symlink_prefix=custom_out/"
+    ],
+    "updater_flags": [
+      "--symlink-prefix=custom_out/"
+    ],
+    "doc": "This test is skipped because the base path of the generated compile commands database is not handled correctly when using --symlink_prefix. See pwbug.dev/498678849 for more details."
+  },
+  {
+    "name": "basic_binary",
+    "target": "//pw_ide/bazel/compile_commands/test:basic_binary",
+    "platforms": [
+      "@bazel_tools//tools:host_platform",
+      "//targets/rp2040:rp2040"
+    ]
+  }
+]

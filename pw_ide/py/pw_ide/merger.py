@@ -252,7 +252,7 @@ def _run_bazel_build_for_fragments(
                 f'--build_event_json_file={bep_path}',
             )
         )
-
+        _LOG.debug('Executing Bazel command: %s', shlex.join(command))
         try:
             _run_bazel(
                 command,

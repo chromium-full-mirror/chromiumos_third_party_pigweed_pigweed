@@ -195,6 +195,7 @@ pw_py_binary(
     testonly = True,
     srcs = ["integration_test.py"],
     data = [
+        "integration_test_config.json",
         # Ensure compile commands are always available.
         "//pw_ide/bazel/compile_commands/test:test_compile_commands",
         # Ensure generated files exist.
@@ -205,6 +206,7 @@ pw_py_binary(
         ":pw_ide",
         ":update_compile_commands_binary",
         "//pw_build/py:pw_build",
+        "@pigweed_python_packages//parameterized",
         "@rules_python//python/runfiles",
     ],
 )

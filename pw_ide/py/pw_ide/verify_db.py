@@ -494,12 +494,14 @@ def missing_check(
 
 def duplicate_check(
     db_files: list[Path],
+    ignore_header_entries: bool = False,
     should_continue: bool = False,
 ) -> bool:
     """Check for duplicate entries in database files.
 
     Args:
         db_files: List of source files in the database.
+        ignore_header_entries: Whether to ignore header entries.
         should_continue: Whether to continue checking after finding an error.
 
     Returns:
@@ -508,6 +510,9 @@ def duplicate_check(
     result = True
     duplicates = _find_duplicates(db_files)
     for dup in duplicates:
+        # TODO: https://pwbug.dev/500484180 - Remove after fix is landed
+        if ignore_header_entries and dup.suffix in _HEADER_FILE_EXTENSIONS:
+            continue
         result = False
         _LOG.warning('Found duplicate entries for file: %s', dup)
         if not should_continue:
@@ -699,7 +704,9 @@ def verify_db(
             _LOG.info('No missing entries found in database.')
 
     if options.checks['duplicate']:
-        if not duplicate_check(db_files, options.should_continue):
+        if not duplicate_check(
+            db_files, options.ignore_header_entries, options.should_continue
+        ):
             is_valid = False
             _LOG.warning('Duplicate entries found in database.')
             if not options.should_continue:

@@ -13,10 +13,12 @@
 # the License.
 
 load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@rules_cc//cc:cc_import.bzl", "cc_import")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_platform//platform_data:defs.bzl", "platform_data")
 load("//pw_ide/bazel/compile_commands:pw_cc_compile_commands_aspect.bzl", "pw_cc_compile_commands_fragments")
 load("//pw_ide/bazel/compile_commands:pw_compile_commands_generator.bzl", "pw_compile_commands_generator")
+load(":cpp_gen.bzl", "cpp_gen")
 
 package(
     default_testonly = True,
@@ -89,25 +91,300 @@ cc_library(
     tags = ["manual"],
 )
 
-# Coverage of a binary's transitive dependencies.
-cc_binary(
-    name = "basic_binary",
-    srcs = ["basic_binary_test.cc"],
+cc_library(
+    name = "c_library_no_deps",
+    srcs = ["c_no_deps.c"],
+    hdrs = ["c_no_deps.h"],
     tags = ["manual"],
-    deps = [
-        ":asm_library",
-        ":basic_library_direct_includes",
-        # We should still get compile commands for the transitive dependencies.
-        ":shim_library",
+)
+
+cc_library(
+    name = "cpp_library_no_deps",
+    srcs = ["cpp_no_deps.cc"],
+    hdrs = ["cpp_no_deps.h"],
+    tags = ["manual"],
+)
+
+cc_library(
+    name = "cpp_library_no_deps_virtual_include",
+    srcs = ["cpp_no_deps_virtual_include.cc"],
+    hdrs = ["public/virtual_included_header.h"],
+    strip_include_prefix = "public",
+    tags = ["manual"],
+)
+
+cc_library(
+    name = "multi_cpp_library_no_deps",
+    srcs = [
+        "multi_cpp_1_no_deps.cc",
+        "multi_cpp_2_no_deps.cc",
     ],
+    hdrs = [
+        "multi_cpp_1_no_deps.h",
+        "multi_cpp_2_no_deps.h",
+    ],
+    tags = ["manual"],
+)
+
+cc_library(
+    name = "combined_library_no_deps",
+    srcs = [
+        "combined_c_no_deps.c",
+        "combined_cpp_no_deps.cc",
+    ],
+    hdrs = ["combined_no_deps.h"],
+    tags = ["manual"],
+)
+
+cc_library(
+    name = "header_only_library_no_deps",
+    hdrs = ["header_only_no_deps.h"],
+    tags = ["manual"],
+)
+
+cc_library(
+    name = "shim_library_dep_cpp_library",
+    tags = ["manual"],
+    deps = [":cpp_library_no_deps"],
+)
+
+cc_library(
+    name = "shim_library_dep_header_only_library",
+    tags = ["manual"],
+    deps = [":header_only_library_no_deps"],
+)
+
+cc_library(
+    name = "c_library_dep_c_library",
+    srcs = ["c_to_c.c"],
+    hdrs = ["c_to_c.h"],
+    tags = ["manual"],
+    deps = [":c_library_no_deps"],
+)
+
+cc_library(
+    name = "cpp_library_dep_cpp_library",
+    srcs = ["cpp_to_cpp.cc"],
+    hdrs = ["cpp_to_cpp.h"],
+    tags = ["manual"],
+    deps = [":cpp_library_no_deps"],
+)
+
+cc_library(
+    name = "cpp_library_dep_c_library",
+    srcs = ["cpp_to_c.cc"],
+    hdrs = ["cpp_to_c.h"],
+    tags = ["manual"],
+    deps = [":c_library_no_deps"],
+)
+
+cc_library(
+    name = "cpp_library_dep_multi_cpp_library",
+    srcs = ["cpp_to_multi.cc"],
+    hdrs = ["cpp_to_multi.h"],
+    tags = ["manual"],
+    deps = [":multi_cpp_library_no_deps"],
+)
+
+cc_library(
+    name = "cpp_library_dep_combined_library",
+    srcs = ["cpp_to_combined.cc"],
+    hdrs = ["cpp_to_combined.h"],
+    tags = ["manual"],
+    deps = [":combined_library_no_deps"],
+)
+
+cc_library(
+    name = "cpp_library_dep_header_only_library",
+    srcs = ["cpp_to_header_only.cc"],
+    hdrs = ["cpp_to_header_only.h"],
+    tags = ["manual"],
+    deps = [":header_only_library_no_deps"],
+)
+
+cc_library(
+    name = "header_only_library_dep_cpp_library",
+    hdrs = ["header_only_to_cpp.h"],
+    tags = ["manual"],
+    deps = [":cpp_library_no_deps"],
+)
+
+cc_library(
+    name = "header_only_library_dep_header_only_library",
+    hdrs = ["header_only_to_header_only.h"],
+    tags = ["manual"],
+    deps = [":header_only_library_no_deps"],
+)
+
+cc_library(
+    name = "asm_library_no_deps",
+    srcs = ["asm_no_deps.S"],
+    hdrs = ["asm_no_deps.h"],
+    tags = ["manual"],
+)
+
+cc_library(
+    name = "c_library_dep_asm_library",
+    srcs = ["c_to_asm.c"],
+    hdrs = ["c_to_asm.h"],
+    tags = ["manual"],
+    deps = [":asm_library_no_deps"],
+)
+
+cc_import(
+    name = "pretend_import",
+    hdrs = ["pretend_import.h"],
+    tags = ["manual"],
+)
+
+cc_library(
+    name = "cpp_library_dep_import",
+    srcs = ["cpp_dep_import.cc"],
+    hdrs = ["cpp_dep_import.h"],
+    tags = ["manual"],
+    deps = [":pretend_import"],
+)
+
+cc_library(
+    name = "shim_library_dep_cpp_library_dep_cpp_library",
+    tags = ["manual"],
+    deps = [":cpp_library_dep_cpp_library"],
+)
+
+cc_library(
+    name = "c_library_dep_c_library_dep_c_library",
+    srcs = ["c_to_c_to_c.c"],
+    hdrs = ["c_to_c_to_c.h"],
+    tags = ["manual"],
+    deps = [":c_library_dep_c_library"],
+)
+
+cc_library(
+    name = "cpp_library_dep_shim_library_dep_cpp_library",
+    srcs = ["cpp_to_shim_to_cpp.cc"],
+    hdrs = ["cpp_to_shim_to_cpp.h"],
+    tags = ["manual"],
+    deps = [":shim_library_dep_cpp_library"],
+)
+
+cc_library(
+    name = "cpp_library_dep_shim_library_dep_header_only_library",
+    srcs = ["cpp_to_shim_to_header.cc"],
+    hdrs = ["cpp_to_shim_to_header.h"],
+    tags = ["manual"],
+    deps = [":shim_library_dep_header_only_library"],
+)
+
+cc_library(
+    name = "cpp_library_dep_c_library_dep_asm_library",
+    srcs = ["cpp_to_c_to_asm.cc"],
+    hdrs = ["cpp_to_c_to_asm.h"],
+    tags = ["manual"],
+    deps = [":c_library_dep_asm_library"],
+)
+
+cc_library(
+    name = "cpp_library_dep_cpp_library_dep_c_library",
+    srcs = ["cpp_to_cpp_to_c.cc"],
+    hdrs = ["cpp_to_cpp_to_c.h"],
+    tags = ["manual"],
+    deps = [":cpp_library_dep_c_library"],
+)
+
+cc_library(
+    name = "cpp_library_dep_cpp_library_dep_cpp_library",
+    srcs = ["cpp_to_cpp_to_cpp.cc"],
+    hdrs = ["cpp_to_cpp_to_cpp.h"],
+    tags = ["manual"],
+    deps = [":cpp_library_dep_cpp_library"],
+)
+
+cc_library(
+    name = "cpp_library_dep_cpp_library_dep_multi_cpp_library",
+    srcs = ["cpp_to_cpp_to_multi.cc"],
+    hdrs = ["cpp_to_cpp_to_multi.h"],
+    tags = ["manual"],
+    deps = [":cpp_library_dep_multi_cpp_library"],
+)
+
+cc_library(
+    name = "cpp_library_dep_cpp_library_dep_combined_library",
+    srcs = ["cpp_to_cpp_to_combined.cc"],
+    hdrs = ["cpp_to_cpp_to_combined.h"],
+    tags = ["manual"],
+    deps = [":cpp_library_dep_combined_library"],
+)
+
+cc_library(
+    name = "cpp_library_dep_cpp_library_dep_header_only_library",
+    srcs = ["cpp_to_cpp_to_header.cc"],
+    hdrs = ["cpp_to_cpp_to_header.h"],
+    tags = ["manual"],
+    deps = [":cpp_library_dep_header_only_library"],
+)
+
+cc_library(
+    name = "cpp_library_dep_cpp_library_dep_import",
+    srcs = ["cpp_to_cpp_to_import.cc"],
+    hdrs = ["cpp_to_cpp_to_import.h"],
+    tags = ["manual"],
+    deps = [":cpp_library_dep_import"],
+)
+
+cc_library(
+    name = "cpp_library_dep_header_only_library_dep_header_only_library",
+    srcs = ["cpp_to_header_to_header.cc"],
+    hdrs = ["cpp_to_header_to_header.h"],
+    tags = ["manual"],
+    deps = [":header_only_library_dep_header_only_library"],
+)
+
+cc_library(
+    name = "header_only_library_dep_shim_library_dep_header_only_library",
+    hdrs = ["header_to_shim_to_header.h"],
+    tags = ["manual"],
+    deps = [":shim_library_dep_header_only_library"],
+)
+
+cc_library(
+    name = "header_only_library_dep_header_only_library_dep_cpp_library",
+    hdrs = ["header_to_header_to_cpp.h"],
+    tags = ["manual"],
+    deps = [":header_only_library_dep_cpp_library"],
+)
+
+cc_library(
+    name = "header_only_library_dep_header_only_library_dep_header_only_library",
+    hdrs = ["header_to_header_to_header.h"],
+    tags = ["manual"],
+    deps = [":header_only_library_dep_header_only_library"],
 )
 
 # A library that depends on an external repository.
 cc_library(
-    name = "external_dep_library",
-    srcs = ["external_dep_source.cc"],
+    name = "cpp_library_dep_external_library",
+    srcs = ["cpp_to_external.cc"],
     tags = ["manual"],
     deps = ["@pw_cc_compile_commands_test_external//:external_lib"],
+)
+
+cpp_gen(
+    name = "generated",
+    tags = ["manual"],
+)
+
+cc_library(
+    name = "cpp_library_dep_generated",
+    srcs = [
+        "cpp_to_generated.cc",
+    ],
+    hdrs = [
+        "cpp_to_generated.h",
+    ],
+    tags = ["manual"],
+    deps = [
+        ":generated",
+    ],
 )
 
 cc_library(
@@ -117,6 +394,19 @@ cc_library(
         "@pigweed_python_packages//sphinx",
     ],
     tags = ["manual"],
+)
+
+# Coverage of a binary's transitive dependencies.
+cc_binary(
+    name = "basic_binary",
+    srcs = ["basic_binary_test.cc"],
+    tags = ["manual"],
+    deps = [
+        ":asm_library",
+        ":cpp_library_no_deps_virtual_include",
+        # We should still get compile commands for the transitive dependencies.
+        ":shim_library_dep_cpp_library",
+    ],
 )
 
 # Coverage of platform_data.
@@ -150,8 +440,8 @@ filegroup(
     srcs = [
         ":basic_library_direct_includes",
         ":basic_library_virtual_includes",
+        ":cpp_library_dep_external_library",
         ":deep_chain_binary",
-        ":external_dep_library",
         ":mcu_transition",
         ":non_cpp_deps",
         ":replicated_error_library",
@@ -187,7 +477,7 @@ pw_compile_commands_generator(
     target_patterns = [
         "//pw_ide/bazel/compile_commands/test/...",
         "//pw_ide/bazel/compile_commands/test:test_compile_commands_outputs",
-        "//pw_ide/bazel/compile_commands/test:external_dep_library",
+        "//pw_ide/bazel/compile_commands/test:cpp_library_dep_external_library",
     ],
 )
 
@@ -197,9 +487,8 @@ pw_compile_commands_generator(
     tags = ["manual"],
     target_patterns = [
         "//pw_ide/bazel/compile_commands/test/...",
-        "...",
         ":test_compile_commands_outputs",
-        ":external_dep_library",
+        ":cpp_library_dep_external_library",
     ],
 )
 

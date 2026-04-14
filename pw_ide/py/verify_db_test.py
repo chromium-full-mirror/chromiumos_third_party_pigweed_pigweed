@@ -273,6 +273,18 @@ class VerifyDbTest(unittest.TestCase):
             verify_db.duplicate_check(db_files, should_continue=True)
         )
 
+    def test_duplicate_check_header_entries(self):
+        # Find duplicate header entries
+        db_files = [Path('a.h'), Path('a.h')]
+        self.assertFalse(verify_db.duplicate_check(db_files))
+
+    def test_duplicate_check_header_entries_ignore(self):
+        # Ignore duplicate header entries
+        db_files = [Path('a.h'), Path('a.h')]
+        self.assertTrue(
+            verify_db.duplicate_check(db_files, ignore_header_entries=True)
+        )
+
     def test_unnecessary_check_no_unnecessary(self):
         # No unnecessary files.
         target_files = [Path('a.cc'), Path('b.cc')]
