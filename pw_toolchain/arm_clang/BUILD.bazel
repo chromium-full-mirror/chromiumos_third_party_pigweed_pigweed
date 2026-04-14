@@ -224,7 +224,7 @@ cc_args(
     ],
     args = [
         "-mcpu=cortex-m33",
-        "-mfloat-abi=softfp",
+        "-mfloat-abi=hard",
     ],
 )
 
