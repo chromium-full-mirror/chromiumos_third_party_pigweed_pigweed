@@ -547,5 +547,34 @@ TEST(EmbossTest, WriteRfcommExtended) {
 
   EXPECT_EQ(buffer, expected);
 }
+
+TEST(EmbossTest, WriteSniffOffloadParametersZeroFields) {
+  std::array<uint8_t,
+             vendor::android_hci::WriteSniffOffloadParametersCommandWriter::
+                 SizeInBytes()>
+      buffer{};
+  vendor::android_hci::WriteSniffOffloadParametersCommandWriter writer =
+      vendor::android_hci::MakeWriteSniffOffloadParametersCommandView(&buffer);
+
+  writer.header().opcode().Write(emboss::OpCode::UNSPECIFIED);
+  writer.header().parameter_total_size().Write(
+      vendor::android_hci::WriteSniffOffloadParametersCommandView::
+          SizeInBytes() -
+      emboss::CommandHeaderView::SizeInBytes());
+
+  writer.connection_handle().Write(0x0004);
+  writer.max_interval().Write(0x0000);
+  writer.min_interval().Write(0x0000);
+  writer.attempts().Write(0x0000);
+  writer.sniff_timeout().Write(0x0000);
+  writer.link_inactivity_timeout().Write(0x0000);
+  writer.max_latency().Write(0x0000);
+  writer.min_remote_timeout().Write(0x0000);
+  writer.min_local_timeout().Write(0x0000);
+
+  EXPECT_TRUE(writer.Ok());
+  EXPECT_TRUE(writer.IsComplete());
+}
+
 }  // namespace
 }  // namespace pw::bluetooth

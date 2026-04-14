@@ -1438,7 +1438,7 @@ struct WriteSniffOffloadParametersCommand:
     -- Mandatory Range: 0x0006 to 0x0540
     -- Time = N × 0.625 ms
     -- Time Range: 1.25 ms to 40.9 s
-    [requires: 0x0002 <= this <= 0xFFFE]
+    [requires: 0x0000 <= this <= 0xFFFE]
 
   $next [+2]         UInt                   attempts
     -- Number of Baseband receive slots for sniff attempt.
@@ -1446,7 +1446,7 @@ struct WriteSniffOffloadParametersCommand:
     -- Range: 0x0001 to 0x7FFF
     -- Time Range: 1.25 ms to 40.9 s
     -- Mandatory Range for Controller: 1 to Tsniff/2
-    [requires: 0x0001 <= this <= 0x7FFF]
+    [requires: 0x0000 <= this <= 0x7FFF]
 
   $next [+2]         UInt                   sniff_timeout
     -- Number of Baseband receive slots for sniff timeout.
@@ -1464,7 +1464,7 @@ struct WriteSniffOffloadParametersCommand:
   $next [+2]         UInt                   max_latency
     -- Maximum latency.
     -- Time = N * 0.625 ms
-    [requires: 0x0002 <= this <= 0xFFFE]
+    [requires: 0x0000 <= this <= 0xFFFE]
 
   $next [+2]         UInt                   min_remote_timeout
     -- Minimum sniff mode timeout that the remote device may use.
