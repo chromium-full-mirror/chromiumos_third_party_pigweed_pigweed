@@ -28,16 +28,14 @@
 
 namespace bt::gap {
 
-constexpr uint16_t kLEActiveScanInterval = 80;  // 50ms
-constexpr uint16_t kLEActiveScanWindow = 24;    // 15ms
 constexpr uint16_t kLEPassiveScanInterval = kLEScanSlowInterval1;
 constexpr uint16_t kLEPassiveScanWindow = kLEScanSlowWindow1;
 
 const char* kInspectPausedCountPropertyName = "paused";
 const char* kInspectStatePropertyName = "state";
 const char* kInspectFailedCountPropertyName = "failed_count";
-const char* kInspectScanIntervalPropertyName = "scan_interval_ms";
-const char* kInspectScanWindowPropertyName = "scan_window_ms";
+const char* kInspectScanIntervalPropertyName = "active_scan_interval_ms";
+const char* kInspectScanWindowPropertyName = "active_scan_window_ms";
 
 LowEnergyDiscoverySession::LowEnergyDiscoverySession(
     uint16_t scan_id,
@@ -244,10 +242,28 @@ void LowEnergyDiscoveryManager::AttachInspect(inspect::Node& parent,
   state_.AttachInspect(inspect_.node, kInspectStatePropertyName);
   inspect_.failed_count =
       inspect_.node.CreateUint(kInspectFailedCountPropertyName, 0);
-  inspect_.scan_interval_ms =
+  inspect_.active_scan_interval_ms =
       inspect_.node.CreateDouble(kInspectScanIntervalPropertyName, 0);
-  inspect_.scan_window_ms =
+  inspect_.active_scan_window_ms =
       inspect_.node.CreateDouble(kInspectScanWindowPropertyName, 0);
+}
+
+void LowEnergyDiscoveryManager::set_active_scan_interval(uint16_t interval) {
+  if (interval == 0) {
+    bt_log(WARN, "gap-le", "scan interval is default 0 value, ignoring");
+    return;
+  }
+
+  active_scan_interval_ = interval;
+}
+
+void LowEnergyDiscoveryManager::set_active_scan_window(uint16_t window) {
+  if (window == 0) {
+    bt_log(WARN, "gap-le", "scan window is default 0 value, ignoring");
+    return;
+  }
+
+  active_scan_window_ = window;
 }
 
 std::string LowEnergyDiscoveryManager::StateToString(State state) {
@@ -579,8 +595,8 @@ void LowEnergyDiscoveryManager::StartScan(bool active) {
 
   // See Vol 3, Part C, 9.3.11 "Connection Establishment Timing Parameters".
   if (active) {
-    options.interval = kLEActiveScanInterval;
-    options.window = kLEActiveScanWindow;
+    options.interval = active_scan_interval_;
+    options.window = active_scan_window_;
   } else {
     options.interval = kLEPassiveScanInterval;
     options.window = kLEPassiveScanWindow;
@@ -595,8 +611,8 @@ void LowEnergyDiscoveryManager::StartScan(bool active) {
   state_.Set(State::kStarting);
   scanner_->StartScan(options, std::move(cb));
 
-  inspect_.scan_interval_ms.Set(HciScanIntervalToMs(options.interval));
-  inspect_.scan_window_ms.Set(HciScanWindowToMs(options.window));
+  inspect_.active_scan_interval_ms.Set(HciScanIntervalToMs(options.interval));
+  inspect_.active_scan_window_ms.Set(HciScanWindowToMs(options.window));
 }
 
 void LowEnergyDiscoveryManager::StopScan() {

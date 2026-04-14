@@ -17,6 +17,7 @@
 
 #include "pw_bluetooth_sapphire/internal/host/common/advertising_data.h"
 #include "pw_bluetooth_sapphire/internal/host/common/identifier.h"
+#include "pw_bluetooth_sapphire/internal/host/common/log.h"
 #include "pw_bluetooth_sapphire/internal/host/common/weak_self.h"
 #include "pw_bluetooth_sapphire/internal/host/gap/gap.h"
 #include "pw_bluetooth_sapphire/internal/host/hci-spec/constants.h"
@@ -123,6 +124,14 @@ class LowEnergyAdvertisingManager final {
                         std::optional<DeviceAddress::Type> address_type,
                         AdvertisingStatusCallback status_callback);
 
+  void set_slow_advertising_interval(uint16_t min, uint16_t max);
+  void set_fast_advertising_interval(uint16_t min, uint16_t max);
+  void set_very_fast_advertising_interval(uint16_t min, uint16_t max);
+
+  void set_slow_adv_max_tx_power(int8_t power);
+  void set_fast_adv_max_tx_power(int8_t power);
+  void set_very_fast_adv_max_tx_power(int8_t power);
+
  private:
   // Used to communicate with the controller. |advertiser_| must outlive this
   // advertising manager.
@@ -131,6 +140,20 @@ class LowEnergyAdvertisingManager final {
   // Used to obtain the local device address for advertising. Must outlive this
   // advertising manager.
   hci::LocalAddressDelegate* local_addr_delegate_;  // weak
+
+  hci::AdvertisingIntervalRange slow_interval_ = {
+      kLEAdvertisingSlowIntervalMin, kLEAdvertisingSlowIntervalMax};
+  hci::AdvertisingIntervalRange fast_interval_ = {
+      kLEAdvertisingFastIntervalMin2, kLEAdvertisingFastIntervalMax2};
+  hci::AdvertisingIntervalRange very_fast_interval_ = {
+      kLEAdvertisingFastIntervalMin1, kLEAdvertisingFastIntervalMax1};
+
+  int8_t slow_adv_max_tx_power_ =
+      hci_spec::kLEExtendedAdvertisingTxPowerNoPreference;
+  int8_t fast_adv_max_tx_power_ =
+      hci_spec::kLEExtendedAdvertisingTxPowerNoPreference;
+  int8_t very_fast_adv_max_tx_power_ =
+      hci_spec::kLEExtendedAdvertisingTxPowerNoPreference;
 
   // Note: Should remain the last member so it'll be destroyed and
   // invalidate it's pointers before other members are destroyed.

@@ -82,6 +82,25 @@ class Adapter {
     // version bytes were set to these.
     // TODO(b/450278813): remove this once we have a long term solution
     uint16_t override_vendor_capabilites_version = 0;
+
+    // LE Advertising intervals
+    uint16_t le_slow_adv_interval_min = kLEAdvertisingSlowIntervalMin;
+    uint16_t le_slow_adv_interval_max = kLEAdvertisingSlowIntervalMax;
+    uint16_t le_fast_adv_interval_min = kLEAdvertisingFastIntervalMin2;
+    uint16_t le_fast_adv_interval_max = kLEAdvertisingFastIntervalMax2;
+    uint16_t le_very_fast_adv_interval_min = kLEAdvertisingFastIntervalMin1;
+    uint16_t le_very_fast_adv_interval_max = kLEAdvertisingFastIntervalMax1;
+
+    int8_t le_slow_adv_max_tx_power =
+        hci_spec::kLEExtendedAdvertisingTxPowerNoPreference;
+    int8_t le_fast_adv_max_tx_power =
+        hci_spec::kLEExtendedAdvertisingTxPowerNoPreference;
+    int8_t le_very_fast_adv_max_tx_power =
+        hci_spec::kLEExtendedAdvertisingTxPowerNoPreference;
+
+    // LE Scanning parameters
+    uint16_t le_active_scan_interval = kLEScanFastInterval;
+    uint16_t le_active_scan_window = kLEScanFastWindow;
   };
 
   static constexpr const char* kMetricsInspectNodeName = "metrics";

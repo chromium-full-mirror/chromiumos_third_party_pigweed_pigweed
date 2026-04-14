@@ -117,19 +117,23 @@ class LowEnergyAdvertiser : public LocalAddressClient {
                        AdvFlags init_flags,
                        bool init_extended_pdu,
                        bool init_anonymous,
-                       bool init_include_tx_power_level)
+                       bool init_include_tx_power_level,
+                       int8_t init_max_tx_power =
+                           hci_spec::kLEExtendedAdvertisingTxPowerNoPreference)
         : interval(init_interval),
           flags(init_flags),
           extended_pdu(init_extended_pdu),
           include_tx_power_level(init_include_tx_power_level),
+          max_tx_power(init_max_tx_power),
           anonymous(init_anonymous) {}
 
     AdvertisingIntervalRange interval;
     AdvFlags flags;
     bool extended_pdu;
     bool include_tx_power_level;
+    int8_t max_tx_power;
 
-    // TODO(b/42157563): anonymous advertising is currently not // supported
+    // TODO(b/42157563): anonymous advertising is currently not supported
     bool anonymous;
   };
 
@@ -245,6 +249,7 @@ class LowEnergyAdvertiser : public LocalAddressClient {
   virtual std::optional<SetAdvertisingParams> BuildSetAdvertisingParams(
       const DeviceAddress& address,
       const AdvertisingEventProperties& properties,
+      const AdvertisingOptions& options,
       pw::bluetooth::emboss::LEOwnAddressType own_address_type,
       const AdvertisingIntervalRange& interval) = 0;
 

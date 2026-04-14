@@ -272,12 +272,28 @@ int main() {
     return 1;
   }
 
+  bthost::BtHostComponent::Config host_config = {
+      .legacy_pairing_enabled = config.legacy_pairing_enabled(),
+      .override_vendor_capabilites_version =
+          config.override_vendor_capabilites_version(),
+      .le_slow_adv_interval_min = config.le_slow_adv_interval_min(),
+      .le_slow_adv_interval_max = config.le_slow_adv_interval_max(),
+      .le_fast_adv_interval_min = config.le_fast_adv_interval_min(),
+      .le_fast_adv_interval_max = config.le_fast_adv_interval_max(),
+      .le_very_fast_adv_interval_min = config.le_very_fast_adv_interval_min(),
+      .le_very_fast_adv_interval_max = config.le_very_fast_adv_interval_max(),
+      .le_slow_adv_max_tx_power = config.le_slow_adv_max_tx_power(),
+      .le_fast_adv_max_tx_power = config.le_fast_adv_max_tx_power(),
+      .le_very_fast_adv_max_tx_power = config.le_very_fast_adv_max_tx_power(),
+      .le_active_scan_interval = config.le_active_scan_interval(),
+      .le_active_scan_window = config.le_active_scan_window(),
+  };
+
   bool initialize_res =
       host->Initialize(std::move(vendor_client_end_result.value()),
                        init_cb,
                        error_cb,
-                       config.legacy_pairing_enabled(),
-                       config.override_vendor_capabilites_version());
+                       host_config);
   if (!initialize_res) {
     bt_log(ERROR, "bt-host", "Error initializing bt-host; shutting down...");
     return 1;

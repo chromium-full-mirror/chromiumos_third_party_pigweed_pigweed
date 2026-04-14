@@ -66,8 +66,8 @@ adapter:
         state
         paused
         failed_count
-        scan_interval_ms
-        scan_window_ms
+        active_scan_interval_ms
+        active_scan_window_ms
     bredr_discovery_manager:
         discoverable_sessions
         pending_discoverable
