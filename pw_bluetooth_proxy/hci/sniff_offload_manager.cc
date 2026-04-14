@@ -1048,7 +1048,7 @@ void SniffOffloadManager::ConnectionFsm::SendSniffSubrating() {
     return;
   }
 
-  manager_.SendCommand(std::move(*buf), CompletionEvent::kCommandStatus);
+  manager_.SendCommand(std::move(*buf), CompletionEvent::kCommandComplete);
 }
 
 void SniffOffloadManager::ConnectionFsm::SendExitSniffMode() {

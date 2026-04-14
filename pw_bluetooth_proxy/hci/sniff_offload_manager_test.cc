@@ -1691,6 +1691,9 @@ bool SniffOffloadManagerTest::CheckSniffSubratingSent(
     std::optional<uint16_t> connection_handle) {
   VERIFY_OR_RETURN(!packets_to_controller().empty());
 
+  VERIFY_OR_RETURN(packets_to_controller().front().completion ==
+                   SniffOffloadManager::CompletionEvent::kCommandComplete);
+
   std::array<std::byte, emboss::SniffSubratingCommand::IntrinsicSizeInBytes()>
       scratch;
   auto span = packets_to_controller().front().buf->Get(scratch);
