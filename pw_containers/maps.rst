@@ -193,4 +193,17 @@ The tables below illustrate the following scenarios:
   and an ``IntrusiveMultiMap`` of the same type. These types reuse code, so the
   combined sum is less than the sum of its parts.
 
+* Scenarios related to ``DynamicMap``:
+
+  * The memory and code size cost incurred by a adding a single
+    ``DynamicMap``.
+  * The memory and code size cost incurred by adding another ``DynamicMap``
+    with the same key type, but a different value type. As ``DynamicMap`` is
+    templated on both key and value types, this results in additional code being
+    generated.
+  * The memory and code size cost incurred by adding another ``DynamicMap``
+    with a different key type and a different value type. As ``DynamicMap``
+    is templated on both key and value types, this results in additional code
+    being generated.
+
 .. include:: maps_size_report

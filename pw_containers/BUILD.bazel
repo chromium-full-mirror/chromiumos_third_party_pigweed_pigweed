@@ -1023,6 +1023,27 @@ pw_size_table(
 )
 
 pw_size_diff(
+    name = "dynamic_map_base_size_diff",
+    base = "//pw_containers/size_report:base",
+    label = "DynamicMap",
+    target = "//pw_containers/size_report:dynamic_map_base",
+)
+
+pw_size_diff(
+    name = "dynamic_map_alternate_value_size_diff",
+    base = "//pw_containers/size_report:dynamic_map_base",
+    label = "Additional DynamicMap with different value type",
+    target = "//pw_containers/size_report:dynamic_map_alternate_value",
+)
+
+pw_size_diff(
+    name = "dynamic_map_alternate_types_size_diff",
+    base = "//pw_containers/size_report:dynamic_map_base",
+    label = "Additional DynamicMap with different key and value types",
+    target = "//pw_containers/size_report:dynamic_map_alternate_types",
+)
+
+pw_size_diff(
     name = "flat_map_base_size_diff",
     base = "//pw_containers/size_report:base",
     label = "FlatMap",
@@ -1085,9 +1106,36 @@ pw_size_diff(
     target = "//pw_containers/size_report:intrusive_map_and_multimap",
 )
 
+pw_size_diff(
+    name = "std_map_base_size_diff",
+    base = "//pw_containers/size_report:base",
+    label = "std::map",
+    target = "//pw_containers/size_report:std_map_base",
+)
+
+pw_size_diff(
+    name = "std_map_alternate_value_size_diff",
+    base = "//pw_containers/size_report:std_map_base",
+    label = "Additional std::map with different value type",
+    target = "//pw_containers/size_report:std_map_alternate_value",
+)
+
+pw_size_diff(
+    name = "std_map_alternate_types_size_diff",
+    base = "//pw_containers/size_report:std_map_base",
+    label = "Additional std::map with different key and value types",
+    target = "//pw_containers/size_report:std_map_alternate_types",
+)
+
 pw_size_table(
     name = "maps_size_report",
     reports = [
+        ":std_map_base_size_diff",
+        ":std_map_alternate_value_size_diff",
+        ":std_map_alternate_types_size_diff",
+        ":dynamic_map_base_size_diff",
+        ":dynamic_map_alternate_value_size_diff",
+        ":dynamic_map_alternate_types_size_diff",
         ":flat_map_base_size_diff",
         ":flat_map_alternate_types_size_diff",
         ":intrusive_map_base_size_diff",
