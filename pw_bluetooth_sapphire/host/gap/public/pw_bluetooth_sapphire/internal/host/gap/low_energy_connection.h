@@ -386,6 +386,9 @@ class LowEnergyConnection final : public sm::Delegate {
   fit::callback<void(pw::bluetooth::emboss::StatusCode)>
       le_conn_update_complete_command_callback_;
 
+  // Time this object was constructed.
+  pw::chrono::SystemClock::time_point create_time_;
+
   // Called after kLEConnectionPausePeripheral.
   std::optional<SmartTask> conn_pause_peripheral_timeout_;
 
@@ -408,8 +411,6 @@ class LowEnergyConnection final : public sm::Delegate {
 
   WeakSelf<LowEnergyConnection> weak_self_;
   WeakSelf<sm::Delegate> weak_delegate_;
-
-  pw::chrono::SystemClock::time_point create_time_;
 
   BT_DISALLOW_COPY_AND_ASSIGN_ALLOW_MOVE(LowEnergyConnection);
 };

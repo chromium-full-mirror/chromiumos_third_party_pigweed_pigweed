@@ -15,15 +15,11 @@
 #pragma once
 #include <lib/fit/function.h>
 
-#include <list>
 #include <memory>
 #include <unordered_map>
-#include <unordered_set>
-#include <vector>
 
 #include "lib/fit/result.h"
 #include "pw_bluetooth_sapphire/internal/host/common/bounded_inspect_list_node.h"
-#include "pw_bluetooth_sapphire/internal/host/common/error.h"
 #include "pw_bluetooth_sapphire/internal/host/common/macros.h"
 #include "pw_bluetooth_sapphire/internal/host/common/metrics.h"
 #include "pw_bluetooth_sapphire/internal/host/common/windowed_inspect_numeric_property.h"
@@ -40,8 +36,6 @@
 #include "pw_bluetooth_sapphire/internal/host/sm/error.h"
 #include "pw_bluetooth_sapphire/internal/host/sm/security_manager.h"
 #include "pw_bluetooth_sapphire/internal/host/sm/types.h"
-#include "pw_bluetooth_sapphire/internal/host/transport/command_channel.h"
-#include "pw_bluetooth_sapphire/internal/host/transport/control_packets.h"
 #include "pw_bluetooth_sapphire/internal/host/transport/error.h"
 #include "pw_bluetooth_sapphire/internal/host/transport/transport.h"
 
@@ -108,7 +102,7 @@ class LowEnergyConnectionManager final {
       gatt::GATT::WeakPtr gatt,
       LowEnergyDiscoveryManager::WeakPtr discovery_manager,
       sm::SecurityManagerFactory sm_creator,
-      const AdapterState& adapter_state,
+      AdapterState adapter_state,
       pw::async::Dispatcher& dispatcher,
       pw::bluetooth_sapphire::LeaseProvider& wake_lease_provider,
       PeriodicAdvertisingSyncManager::TransferSyncFn&&

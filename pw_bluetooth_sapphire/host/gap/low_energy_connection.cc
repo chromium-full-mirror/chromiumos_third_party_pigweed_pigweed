@@ -110,10 +110,10 @@ LowEnergyConnection::LowEnergyConnection(
       hci_(std::move(hci)),
       peer_disconnect_callback_(std::move(peer_disconnect_cb)),
       error_callback_(std::move(error_cb)),
+      create_time_(dispatcher.now()),
       refs_(/*convert=*/[](const auto& refs) { return refs.size(); }),
       weak_self_(this),
-      weak_delegate_(this),
-      create_time_(dispatcher.now()) {
+      weak_delegate_(this) {
   PW_CHECK(peer_.is_alive());
   PW_CHECK(link_);
   PW_CHECK(conn_mgr_.is_alive());

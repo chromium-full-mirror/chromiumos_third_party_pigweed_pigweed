@@ -19,6 +19,7 @@
 #include <pw_preprocessor/compiler.h>
 
 #include <optional>
+#include <utility>
 #include <vector>
 
 #include "pw_bluetooth_sapphire/internal/host/gap/gap.h"
@@ -136,7 +137,7 @@ LowEnergyConnectionManager::LowEnergyConnectionManager(
     gatt::GATT::WeakPtr gatt,
     LowEnergyDiscoveryManager::WeakPtr discovery_manager,
     sm::SecurityManagerFactory sm_creator,
-    const AdapterState& adapter_state,
+    AdapterState adapter_state,
     pw::async::Dispatcher& dispatcher,
     pw::bluetooth_sapphire::LeaseProvider& wake_lease_provider,
     PeriodicAdvertisingSyncManager::TransferSyncFn&&
@@ -148,9 +149,9 @@ LowEnergyConnectionManager::LowEnergyConnectionManager(
       request_timeout_(kLECreateConnectionTimeout),
       peer_cache_(peer_cache),
       l2cap_(l2cap),
-      gatt_(gatt),
-      adapter_state_(adapter_state),
-      discovery_manager_(discovery_manager),
+      gatt_(std::move(gatt)),
+      adapter_state_(std::move(adapter_state)),
+      discovery_manager_(std::move(discovery_manager)),
       hci_connector_(connector),
       local_address_delegate_(addr_delegate),
       wake_lease_provider_(wake_lease_provider),
@@ -473,11 +474,9 @@ void LowEnergyConnectionManager::RegisterRemoteInitiatedLink(
       peer_id, RequestAndConnector{std::move(request), std::move(connector)});
   // Wait until the connector is in the map to start in case the result callback
   // is called synchronously.
-  auto result_cb =
-      std::bind(&LowEnergyConnectionManager::OnRemoteInitiatedConnectResult,
-                this,
-                peer_id,
-                std::placeholders::_1);
+  auto result_cb = [this, peer_id](auto&& PH1) {
+    OnRemoteInitiatedConnectResult(peer_id, std::forward<decltype(PH1)>(PH1));
+  };
   conn_iter->second.connector->StartInbound(std::move(link),
                                             std::move(result_cb));
 }
@@ -759,10 +758,9 @@ bool LowEnergyConnectionManager::InitializeConnection(
       inspect_connections_node_,
       inspect_connections_node_.UniqueName(kInspectConnectionNodePrefix));
   connection->set_peer_disconnect_callback(
-      std::bind(&LowEnergyConnectionManager::OnPeerDisconnect,
-                this,
-                connection->link(),
-                std::placeholders::_1));
+      [this, capture0 = connection->link()](auto&& PH1) {
+        OnPeerDisconnect(capture0, std::forward<decltype(PH1)>(PH1));
+      });
   connection->set_error_callback([this, peer_id]() {
     Disconnect(peer_id, LowEnergyDisconnectReason::kError);
   });
@@ -784,8 +782,8 @@ bool LowEnergyConnectionManager::InitializeConnection(
          "notifying connection request callbacks (peer: %s)",
          bt_str(peer_id));
 
-  request.NotifyCallbacks(fit::ok(std::bind(
-      &internal::LowEnergyConnection::AddRef, conn_iter->second.get())));
+  request.NotifyCallbacks(fit::ok(
+      [capture0 = conn_iter->second.get()] { return capture0->AddRef(); }));
 
   return true;
 }
