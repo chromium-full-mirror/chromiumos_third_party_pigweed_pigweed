@@ -105,7 +105,6 @@ std::optional<LowEnergyAdvertiser::SetAdvertisingParams>
 LegacyLowEnergyAdvertiser::BuildSetAdvertisingParams(
     const DeviceAddress&,
     const AdvertisingEventProperties& properties,
-    const AdvertisingOptions&,
     pwemb::LEOwnAddressType own_address_type,
     const AdvertisingIntervalRange& interval) {
   auto packet =

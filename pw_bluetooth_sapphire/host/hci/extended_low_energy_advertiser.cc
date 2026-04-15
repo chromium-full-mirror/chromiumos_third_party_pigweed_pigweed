@@ -104,7 +104,6 @@ std::optional<LowEnergyAdvertiser::SetAdvertisingParams>
 ExtendedLowEnergyAdvertiser::BuildSetAdvertisingParams(
     const DeviceAddress& address,
     const AdvertisingEventProperties& properties,
-    const AdvertisingOptions& options,
     pwemb::LEOwnAddressType own_address_type,
     const AdvertisingIntervalRange& interval) {
   auto packet = hci::CommandPacket::New<
@@ -147,7 +146,8 @@ ExtendedLowEnergyAdvertiser::BuildSetAdvertisingParams(
   view.own_address_type().Write(own_address_type);
   view.advertising_filter_policy().Write(
       pwemb::LEAdvertisingFilterPolicy::ALLOW_ALL);
-  view.advertising_tx_power().Write(options.max_tx_power);
+  view.advertising_tx_power().Write(
+      hci_spec::kLEExtendedAdvertisingTxPowerNoPreference);
   view.scan_request_notification_enable().Write(
       pwemb::GenericEnableParam::DISABLE);
 

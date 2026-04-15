@@ -170,9 +170,6 @@ class LowEnergyDiscoveryManager final
 
   void AttachInspect(inspect::Node& parent, std::string name);
 
-  void set_active_scan_interval(uint16_t interval);
-  void set_active_scan_window(uint16_t window);
-
  private:
   enum class State {
     kIdle,
@@ -186,8 +183,8 @@ class LowEnergyDiscoveryManager final
   struct InspectProperties {
     inspect::Node node;
     inspect::UintProperty failed_count;
-    inspect::DoubleProperty active_scan_interval_ms;
-    inspect::DoubleProperty active_scan_window_ms;
+    inspect::DoubleProperty scan_interval_ms;
+    inspect::DoubleProperty scan_window_ms;
   };
 
   const PeerCache* peer_cache() const { return peer_cache_; }
@@ -278,9 +275,6 @@ class LowEnergyDiscoveryManager final
 
   // The value (in ms) that we use for the duration of each scan period.
   pw::chrono::SystemClock::duration scan_period_ = kLEGeneralDiscoveryScanMin;
-
-  uint16_t active_scan_interval_ = kLEScanFastInterval;
-  uint16_t active_scan_window_ = kLEScanFastWindow;
 
   // Count of the number of outstanding PauseTokens. When |paused_count_| is 0,
   // discovery is unpaused.

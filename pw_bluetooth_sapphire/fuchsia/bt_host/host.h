@@ -50,32 +50,12 @@ class BtHostComponent {
   // returns true.
   using InitCallback = fit::callback<void(bool success)>;
   using ErrorCallback = fit::callback<void()>;
-
-  struct Config {
-    bool legacy_pairing_enabled = false;
-    uint16_t override_vendor_capabilites_version = 0;
-
-    uint16_t le_slow_adv_interval_min = 0;
-    uint16_t le_slow_adv_interval_max = 0;
-    uint16_t le_fast_adv_interval_min = 0;
-    uint16_t le_fast_adv_interval_max = 0;
-    uint16_t le_very_fast_adv_interval_min = 0;
-    uint16_t le_very_fast_adv_interval_max = 0;
-
-    // -127 to +20; 127 (0x7F) means no preference.
-    int8_t le_slow_adv_max_tx_power = 127;
-    int8_t le_fast_adv_max_tx_power = 127;
-    int8_t le_very_fast_adv_max_tx_power = 127;
-
-    uint16_t le_active_scan_interval = 0;
-    uint16_t le_active_scan_window = 0;
-  };
-
   [[nodiscard]] bool Initialize(
       fidl::ClientEnd<fuchsia_hardware_bluetooth::Vendor> vendor_client_end,
       InitCallback init_cb,
       ErrorCallback error_cb,
-      Config config);
+      bool legacy_pairing_enabled,
+      uint16_t override_vendor_capabilites_version);
 
   // Shuts down all systems.
   void ShutDown();

@@ -96,7 +96,6 @@ class AndroidExtendedLowEnergyAdvertiser final : public LowEnergyAdvertiser {
   std::optional<SetAdvertisingParams> BuildSetAdvertisingParams(
       const DeviceAddress& address,
       const AdvertisingEventProperties& properties,
-      const AdvertisingOptions& options,
       pw::bluetooth::emboss::LEOwnAddressType own_address_type,
       const AdvertisingIntervalRange& interval) override;
 

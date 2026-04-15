@@ -120,17 +120,6 @@ fuchsia_structured_config_values(
     values = {
         "device_path": "/dev/class/bt-hci/000",
         "enable_suspend": False,
-        "le_active_scan_interval": 0,
-        "le_active_scan_window": 0,
-        "le_fast_adv_interval_max": 0,
-        "le_fast_adv_interval_min": 0,
-        "le_fast_adv_max_tx_power": 127,  # 127 (0x7F) indicates no preference.
-        "le_slow_adv_interval_max": 0,
-        "le_slow_adv_interval_min": 0,
-        "le_slow_adv_max_tx_power": 127,  # 127 (0x7F) indicates no preference.
-        "le_very_fast_adv_interval_max": 0,
-        "le_very_fast_adv_interval_min": 0,
-        "le_very_fast_adv_max_tx_power": 127,  # 127 (0x7F) indicates no preference.
         "legacy_pairing_enabled": False,
         "override_vendor_capabilites_version": 0,
         "sco_offload_path_index": 6,

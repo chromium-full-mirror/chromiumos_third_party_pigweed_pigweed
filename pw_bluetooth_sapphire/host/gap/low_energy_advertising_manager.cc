@@ -19,10 +19,29 @@
 #include "pw_bluetooth_sapphire/internal/host/common/log.h"
 #include "pw_bluetooth_sapphire/internal/host/gap/low_energy_address_manager.h"
 #include "pw_bluetooth_sapphire/internal/host/gap/peer.h"
-#include "pw_bluetooth_sapphire/internal/host/hci-spec/constants.h"
 #include "pw_bluetooth_sapphire/internal/host/hci-spec/util.h"
 
 namespace bt::gap {
+
+namespace {
+
+// Returns the matching minimum and maximum advertising interval values in
+// controller timeslices.
+hci::AdvertisingIntervalRange GetIntervalRange(AdvertisingInterval interval) {
+  switch (interval) {
+    case AdvertisingInterval::FAST1:
+      return {kLEAdvertisingFastIntervalMin1, kLEAdvertisingFastIntervalMax1};
+    case AdvertisingInterval::FAST2:
+      return {kLEAdvertisingFastIntervalMin2, kLEAdvertisingFastIntervalMax2};
+    case AdvertisingInterval::SLOW:
+      return {kLEAdvertisingSlowIntervalMin, kLEAdvertisingSlowIntervalMax};
+  }
+
+  PW_CRASH("unexpected advertising interval value");
+  return {kLEAdvertisingSlowIntervalMin, kLEAdvertisingSlowIntervalMax};
+}
+
+}  // namespace
 
 AdvertisementInstance::AdvertisementInstance() : id_(kInvalidAdvertisementId) {}
 
@@ -66,48 +85,6 @@ LowEnergyAdvertisingManager::LowEnergyAdvertisingManager(
   PW_DCHECK(local_addr_delegate_);
 }
 
-void LowEnergyAdvertisingManager::set_slow_advertising_interval(uint16_t min,
-                                                                uint16_t max) {
-  if (min == 0 || max == 0) {
-    bt_log(WARN, "gap-le", "advertising interval is default 0 value, ignoring");
-    return;
-  }
-
-  slow_interval_ = {min, max};
-}
-
-void LowEnergyAdvertisingManager::set_fast_advertising_interval(uint16_t min,
-                                                                uint16_t max) {
-  if (min == 0 || max == 0) {
-    bt_log(WARN, "gap-le", "advertising interval is default 0 value, ignoring");
-    return;
-  }
-
-  fast_interval_ = {min, max};
-}
-
-void LowEnergyAdvertisingManager::set_very_fast_advertising_interval(
-    uint16_t min, uint16_t max) {
-  if (min == 0 || max == 0) {
-    bt_log(WARN, "gap-le", "advertising interval is default 0 value, ignoring");
-    return;
-  }
-
-  very_fast_interval_ = {min, max};
-}
-
-void LowEnergyAdvertisingManager::set_slow_adv_max_tx_power(int8_t power) {
-  slow_adv_max_tx_power_ = power;
-}
-
-void LowEnergyAdvertisingManager::set_fast_adv_max_tx_power(int8_t power) {
-  fast_adv_max_tx_power_ = power;
-}
-
-void LowEnergyAdvertisingManager::set_very_fast_adv_max_tx_power(int8_t power) {
-  very_fast_adv_max_tx_power_ = power;
-}
-
 void LowEnergyAdvertisingManager::StartAdvertising(
     AdvertisingData data,
     AdvertisingData scan_rsp,
@@ -133,31 +110,12 @@ void LowEnergyAdvertisingManager::StartAdvertising(
   if (interval == AdvertisingInterval::FAST1 && !connect_callback) {
     interval = AdvertisingInterval::FAST2;
   }
-
-  hci::AdvertisingIntervalRange interval_range = slow_interval_;
-  int8_t tx_power = hci_spec::kLEExtendedAdvertisingTxPowerNoPreference;
-  switch (interval) {
-    case AdvertisingInterval::FAST1:
-      interval_range = very_fast_interval_;
-      tx_power = very_fast_adv_max_tx_power_;
-      break;
-    case AdvertisingInterval::FAST2:
-      interval_range = fast_interval_;
-      tx_power = fast_adv_max_tx_power_;
-      break;
-    case AdvertisingInterval::SLOW:
-      interval_range = slow_interval_;
-      tx_power = slow_adv_max_tx_power_;
-      break;
-  }
-
   hci::LowEnergyAdvertiser::AdvertisingOptions options(
-      interval_range,
+      GetIntervalRange(interval),
       AdvFlag::kLEGeneralDiscoverableMode,
       extended_pdu,
       anonymous,
-      include_tx_power_level,
-      tx_power);
+      include_tx_power_level);
 
   auto self = weak_self_.GetWeakPtr();
 

@@ -84,7 +84,8 @@ bool BtHostComponent::Initialize(
     fidl::ClientEnd<fuchsia_hardware_bluetooth::Vendor> vendor_client_end,
     InitCallback init_cb,
     ErrorCallback error_cb,
-    Config config) {
+    bool legacy_pairing_enabled,
+    uint16_t override_vendor_capabilites_version) {
   std::unique_ptr<bt::controllers::FidlController> controller =
       std::make_unique<bt::controllers::FidlController>(
           std::move(vendor_client_end), async_get_default_dispatcher());
@@ -95,27 +96,15 @@ bool BtHostComponent::Initialize(
 
   bt_log(INFO, "bt-host", "Create GATT layer");
   gatt_ = gatt::GATT::Create();
-  gap::Adapter::Config adapter_config = {
-      .legacy_pairing_enabled = config.legacy_pairing_enabled,
+  gap::Adapter::Config config = {
+      .legacy_pairing_enabled = legacy_pairing_enabled,
       .override_vendor_capabilites_version =
-          config.override_vendor_capabilites_version,
-      .le_slow_adv_interval_min = config.le_slow_adv_interval_min,
-      .le_slow_adv_interval_max = config.le_slow_adv_interval_max,
-      .le_fast_adv_interval_min = config.le_fast_adv_interval_min,
-      .le_fast_adv_interval_max = config.le_fast_adv_interval_max,
-      .le_very_fast_adv_interval_min = config.le_very_fast_adv_interval_min,
-      .le_very_fast_adv_interval_max = config.le_very_fast_adv_interval_max,
-      .le_slow_adv_max_tx_power = config.le_slow_adv_max_tx_power,
-      .le_fast_adv_max_tx_power = config.le_fast_adv_max_tx_power,
-      .le_very_fast_adv_max_tx_power = config.le_very_fast_adv_max_tx_power,
-      .le_active_scan_interval = config.le_active_scan_interval,
-      .le_active_scan_window = config.le_active_scan_window,
+          override_vendor_capabilites_version,
   };
-
   gap_ = gap::Adapter::Create(pw_dispatcher_,
                               hci_->GetWeakPtr(),
                               gatt_->GetWeakPtr(),
-                              adapter_config,
+                              config,
                               lease_provider());
   if (!gap_) {
     bt_log(WARN, "bt-host", "GAP could not be created");

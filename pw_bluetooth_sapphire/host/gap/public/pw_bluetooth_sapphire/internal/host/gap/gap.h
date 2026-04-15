@@ -107,7 +107,7 @@ constexpr float HciScanIntervalToMs(uint16_t i) {
 constexpr float HciScanWindowToMs(uint16_t w) { return HciScanIntervalToMs(w); }
 
 // Recommended scan and advertising parameters that can be passed directly to
-// the HCI commands. A constant that contains the word "Coded" is recommended
+// the HCI commands. A constant that contans the word "Coded" is recommended
 // when using the LE Coded PHY. Otherwise the constant is recommended when using
 // the LE 1M PHY. See Core Spec v5.2, Vol. 3, Part C, Table A for ranges and
 // descriptions.

@@ -1647,8 +1647,8 @@ TEST_F(LowEnergyDiscoveryManagerTest, Inspect) {
               UnorderedElementsAre(StringIs("state", "Idle"),
                                    IntIs("paused", 0),
                                    UintIs("failed_count", 0u),
-                                   DoubleIs("active_scan_interval_ms", 0.0),
-                                   DoubleIs("active_scan_window_ms", 0.0)));
+                                   DoubleIs("scan_interval_ms", 0.0),
+                                   DoubleIs("scan_window_ms", 0.0)));
 
   std::unique_ptr<LowEnergyDiscoverySession> passive_session;
   discovery_manager()->StartDiscovery(
@@ -1659,15 +1659,15 @@ TEST_F(LowEnergyDiscoveryManagerTest, Inspect) {
   EXPECT_THAT(InspectProperties(),
               ::testing::IsSupersetOf(
                   {StringIs("state", "Starting"),
-                   DoubleIs("active_scan_interval_ms", ::testing::Gt(0.0)),
-                   DoubleIs("active_scan_window_ms", ::testing::Gt(0.0))}));
+                   DoubleIs("scan_interval_ms", ::testing::Gt(0.0)),
+                   DoubleIs("scan_window_ms", ::testing::Gt(0.0))}));
 
   RunUntilIdle();
   EXPECT_THAT(InspectProperties(),
               ::testing::IsSupersetOf(
                   {StringIs("state", "Passive"),
-                   DoubleIs("active_scan_interval_ms", ::testing::Gt(0.0)),
-                   DoubleIs("active_scan_window_ms", ::testing::Gt(0.0))}));
+                   DoubleIs("scan_interval_ms", ::testing::Gt(0.0)),
+                   DoubleIs("scan_window_ms", ::testing::Gt(0.0))}));
 
   {
     auto pause_token = discovery_manager()->PauseDiscovery();
@@ -1680,8 +1680,8 @@ TEST_F(LowEnergyDiscoveryManagerTest, Inspect) {
   EXPECT_THAT(InspectProperties(),
               ::testing::IsSupersetOf(
                   {StringIs("state", "Active"),
-                   DoubleIs("active_scan_interval_ms", ::testing::Gt(0.0)),
-                   DoubleIs("active_scan_window_ms", ::testing::Gt(0.0))}));
+                   DoubleIs("scan_interval_ms", ::testing::Gt(0.0)),
+                   DoubleIs("scan_window_ms", ::testing::Gt(0.0))}));
 
   passive_session.reset();
   active_session.reset();

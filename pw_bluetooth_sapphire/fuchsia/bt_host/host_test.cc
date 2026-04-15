@@ -86,21 +86,6 @@ class HostComponentTest : public TestingBase {
 TEST_F(HostComponentTest, InitializeFailsWhenCommandTimesOut) {
   std::optional<bool> init_cb_result;
   bool error_cb_called = false;
-  BtHostComponent::Config host_config = {
-      .legacy_pairing_enabled = false,
-      .override_vendor_capabilites_version = 0,
-      .le_slow_adv_interval_min = 0,
-      .le_slow_adv_interval_max = 0,
-      .le_fast_adv_interval_min = 0,
-      .le_fast_adv_interval_max = 0,
-      .le_very_fast_adv_interval_min = 0,
-      .le_very_fast_adv_interval_max = 0,
-      .le_slow_adv_max_tx_power = 127,
-      .le_fast_adv_max_tx_power = 127,
-      .le_very_fast_adv_max_tx_power = 127,
-      .le_active_scan_interval = 0,
-      .le_active_scan_window = 0,
-  };
   bool init_result = host()->Initialize(
       vendor(),
       [&](bool success) {
@@ -110,7 +95,8 @@ TEST_F(HostComponentTest, InitializeFailsWhenCommandTimesOut) {
         }
       },
       [&]() { error_cb_called = true; },
-      host_config);
+      /*legacy_pairing_enabled=*/false,
+      /*override_vendor_capabilites_version=*/0);
   EXPECT_EQ(init_result, true);
 
   constexpr zx::duration kCommandTimeout = zx::sec(15);
