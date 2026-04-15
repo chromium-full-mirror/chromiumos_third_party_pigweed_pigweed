@@ -19,17 +19,17 @@
     let mut process = unsafe { kernel::declare_non_priv_process!(
         PROCESS_STORAGE,
         "{{process.name}}",
-        MEMORY_CONFIG_{{app.name | to_upper_ident}}_{{process.name | to_upper_ident}},
-        object_table_{{app.name}}_{{process.name | to_lower_ident}}
+        MEMORY_CONFIG_{{process.name | to_upper_ident}},
+        object_table_{{process.name | to_lower_ident}}
     )};
-    process.object = Some(object_{{app.name | to_lower_ident}}_{{process.name | to_lower_ident}}_process.clone());
+    process.object = Some(object_{{process.name | to_lower_ident}}_process.clone());
 
     // TODO: https://pwbug.dev/496950345 - Merge with object declaration.
     {% for thread in process.threads %}
         {% include "thread_decl" %}
     {% endfor %}
 
-    let entry_{{app.name}}_index = {{process_index}}_usize;
+    let entry_{{process.name | to_lower_ident}}_index = {{process_index}}_usize;
 
     // Subdivide App RAM for multi-process apps to prevent stack overlap
     // TODO: b/498642671 - add configuration of stacks.
@@ -43,16 +43,16 @@
 
     // TODO: https://pwbug.dev/496970887 - Don't assume thread 0 is main.
     let main_thread_object =
-        object_{{app.name}}_{{process.name | to_lower_ident}}_{{process.threads[0].name | to_lower_ident}}
+        object_{{process.name | to_lower_ident}}_{{process.threads[0].name | to_lower_ident}}
         .clone();
     let main_thread = Some(kernel::object::MainThread {
         thread: main_thread_object,
-        initial_pc: start_fn_{{app.name}},
+        initial_pc: start_fn_{{process.name | to_lower_ident}},
         initial_sp: initial_sp as usize,
-        args: (entry_{{app.name}}_index, 0, 0)
+        args: (entry_{{process.name | to_lower_ident}}_index, 0, 0)
     });
 
-    if let Err(_e) = object_{{app.name | to_lower_ident}}_{{process.name | to_lower_ident}}_process.set_process(
+    if let Err(_e) = object_{{process.name | to_lower_ident}}_process.set_process(
         arch::Arch,
         process,
         main_thread

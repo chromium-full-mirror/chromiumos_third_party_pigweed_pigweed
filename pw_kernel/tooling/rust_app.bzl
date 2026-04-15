@@ -29,9 +29,10 @@ def _app_codegen_src_impl(ctx):
         "--output",
         output.path,
         "render-app-template",
-        "--app-name",
-        ctx.attr.app_name,
     ]
+
+    if ctx.attr.app_name:
+        args.extend(["--app-name", ctx.attr.app_name])
 
     if ctx.attr.process_name:
         args.extend(["--process-name", ctx.attr.process_name])
@@ -53,7 +54,7 @@ _app_codegen_src = rule(
     attrs = {
         "app_name": attr.string(
             doc = "Name of the application in the configuration file.",
-            mandatory = True,
+            default = "",
         ),
         "process_name": attr.string(
             doc = "Name of the process in the configuration file.",
@@ -78,7 +79,7 @@ _app_codegen_src = rule(
     doc = "Generate the linker script for an app based on the system config.",
 )
 
-def rust_app_codegen(name, app_name, process_name = None, system_config = None, **kwargs):
+def rust_app_codegen(name, app_name = "", process_name = None, system_config = None, **kwargs):
     """Wrapper function to generate an app's codegen src and rust library.
 
     Args:

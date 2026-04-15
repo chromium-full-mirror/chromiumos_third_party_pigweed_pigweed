@@ -39,6 +39,23 @@ pub struct BaseConfig {
     pub userspace: bool,
 }
 
+impl BaseConfig {
+    #[must_use]
+    pub fn get_app(&self, app_name: &str) -> Option<&AppConfig> {
+        self.apps.iter().find(|a| a.name == app_name)
+    }
+
+    #[must_use]
+    pub fn get_process_and_app(&self, process_name: &str) -> Option<(&AppConfig, &ProcessConfig)> {
+        for app in &self.apps {
+            if let Some(p) = app.processes.iter().find(|pr| pr.name == process_name) {
+                return Some((app, p));
+            }
+        }
+        None
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct NvicConfig {
@@ -279,7 +296,7 @@ impl<A: ArchConfigInterface> SystemConfig<A> {
         let mut names = HashSet::new();
         for name in items {
             if !names.insert(name) {
-                return Err(anyhow!("Duplicate name \"{}\" found in {}", name, context));
+                return Err(anyhow!("Duplicate name `{}` found in {}", name, context));
             }
         }
         Ok(())
@@ -341,7 +358,7 @@ impl<A: ArchConfigInterface> SystemConfig<A> {
                         // Check to make sure that channel objects are properly linked.
                         if !self.handler_exists(handler_process, handler_object_name) {
                             return Err(anyhow!(
-                                "Channel initiator \"{app_name}:{initiator_name}\" references non-existent handler \"{handler_process}\":{handler_object_name}",
+                                "Channel initiator `{app_name}:{initiator_name}` references non-existent handler `{handler_process}`:{handler_object_name}",
                                 app_name = app_config.name,
                                 initiator_name = initiator.name,
                             ));

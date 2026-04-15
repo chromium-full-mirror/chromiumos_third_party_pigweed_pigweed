@@ -19,15 +19,12 @@ load(
     "rust_app_codegen",
 )
 
-def rust_process(name, codegen_crate_name, multi_process_app, srcs, deps = None, system_config = None, **kwargs):
+def rust_process(name, codegen_crate_name, srcs, deps = None, system_config = None, **kwargs):
     """Target to generate a userspace rust process.
-
-    Processes must be listed in a multi_process_app to be included in the final image.
 
     Args:
         name: The name of the target.
         codegen_crate_name: Name to use for the generated codegen crate.
-        multi_process_app: Label string to the multi_process_app this process belongs to.
         system_config: System config file which defines the system.
         srcs: The list of source files for the process.
         deps: The list of dependencies for the process.
@@ -36,11 +33,8 @@ def rust_process(name, codegen_crate_name, multi_process_app, srcs, deps = None,
     if deps == None:
         deps = []
 
-    app_name = Label(multi_process_app).name
-
     rust_app_codegen(
         name = codegen_crate_name,
-        app_name = app_name,
         process_name = name,
         system_config = system_config,
         **kwargs

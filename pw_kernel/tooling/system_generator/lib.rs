@@ -73,12 +73,34 @@ enum Command {
 }
 
 #[derive(Args, Debug)]
+#[group(required = true, multiple = false)]
 pub struct AppArgs {
     #[arg(long)]
-    pub app_name: String,
+    pub app_name: Option<String>,
 
     #[arg(long)]
     pub process_name: Option<String>,
+}
+
+enum AppType {
+    SingleProcess { app_name: String },
+    MultiProcess { process_name: String },
+}
+
+impl From<&AppArgs> for AppType {
+    fn from(args: &AppArgs) -> AppType {
+        if let Some(ref app_name) = args.app_name {
+            return AppType::SingleProcess {
+                app_name: app_name.clone(),
+            };
+        }
+        if let Some(ref process_name) = args.process_name {
+            return AppType::MultiProcess {
+                process_name: process_name.clone(),
+            };
+        }
+        unreachable!("AppArgs group requires either app_name or process_name");
+    }
 }
 
 /// Context defining the specific app and process being passed to the app template for rendering.
@@ -361,35 +383,25 @@ impl<'a, A: ArchConfigInterface + Serialize> SystemGenerator<'a, A> {
 
     fn render_app_template(&self, args: &AppArgs) -> Result<String> {
         let template = self.env.get_template("app")?;
-        let app = self
-            .config
-            .base
-            .apps
-            .iter()
-            .find(|a| a.name == args.app_name)
-            .ok_or_else(|| {
-                anyhow!(
-                    "Unable to find app \"{0}\" in system manifest",
-                    args.app_name
-                )
-            })?;
+        let is_multi_process_app = args.process_name.is_some();
 
-        let (process, is_multi_process_app) = match &args.process_name {
-            Some(process_name) => {
-                let p = app
-                    .processes
-                    .iter()
-                    .find(|p| &p.name == process_name)
-                    .ok_or_else(|| {
-                        anyhow!(
-                            "Unable to find process \"{0}\" in app \"{1}\"",
-                            process_name,
-                            args.app_name
-                        )
-                    })?;
-                (p, true)
+        let (app, process) = match AppType::from(args) {
+            AppType::MultiProcess { process_name } => self
+                .config
+                .base
+                .get_process_and_app(&process_name)
+                .ok_or_else(|| {
+                    anyhow!(
+                        "Unable to find process `{}` in system manifest",
+                        process_name
+                    )
+                })?,
+            AppType::SingleProcess { app_name } => {
+                let a = self.config.base.get_app(&app_name).ok_or_else(|| {
+                    anyhow!("Unable to find app `{}` in system manifest", app_name)
+                })?;
+                (a, &a.processes[0])
             }
-            None => (&app.processes[0], false),
         };
 
         let context = AppRenderContext {
@@ -446,10 +458,10 @@ impl<'a, A: ArchConfigInterface + Serialize> SystemGenerator<'a, A> {
     fn resolve_linked_process(
         apps: &[system_config::AppConfig],
         linked_process: &str,
-    ) -> Option<(String, String)> {
+    ) -> Option<String> {
         for app in apps {
             if let Some(proc) = app.processes.iter().find(|pr| pr.name == linked_process) {
-                return Some((app.name.clone(), proc.name.clone()));
+                return Some(proc.name.clone());
             }
         }
         None
@@ -472,14 +484,11 @@ impl<'a, A: ArchConfigInterface + Serialize> SystemGenerator<'a, A> {
                     ));
                 }
 
-                if let Some((resolved_app, resolved_process)) =
+                if let Some(resolved_process) =
                     Self::resolve_linked_process(apps, &p.linked_process)
                 {
-                    p.process_object_name = std::format!(
-                        "object_{}_{}_process",
-                        resolved_app.to_lowercase(),
-                        resolved_process.to_lowercase()
-                    );
+                    p.process_object_name =
+                        std::format!("object_{}_process", resolved_process.to_lowercase());
                 } else {
                     return Err(anyhow::anyhow!(
                         "Process '{}' in App '{}' requested handle to process object '{}' linked to '{}' but no such process found in system config",
@@ -500,11 +509,7 @@ impl<'a, A: ArchConfigInterface + Serialize> SystemGenerator<'a, A> {
             .push(ObjectConfig::Process(ProcessObjectConfig {
                 name: "process".to_string(),
                 linked_process: process.name.clone(),
-                process_object_name: std::format!(
-                    "object_{}_{}_process",
-                    app_name.to_lowercase(),
-                    process.name.to_lowercase()
-                ),
+                process_object_name: std::format!("object_{}_process", process.name.to_lowercase()),
             }));
 
         Ok(())
@@ -579,7 +584,8 @@ impl<'a, A: ArchConfigInterface + Serialize> SystemGenerator<'a, A> {
                     let interrupt_table = self.config.base.kernel.interrupt_table.as_mut().unwrap();
 
                     interrupt_config.object_ref_name =
-                        std::format!("INTERRUPT_OBJECT_{app_name}_{object_name}").to_uppercase();
+                        std::format!("INTERRUPT_OBJECT_{}_{object_name}", process.name)
+                            .to_uppercase();
 
                     if interrupt_config.irqs.len() > 16 {
                         return Err(anyhow!(
@@ -603,9 +609,11 @@ impl<'a, A: ArchConfigInterface + Serialize> SystemGenerator<'a, A> {
                             ));
                         }
 
-                        let handler_name =
-                            std::format!("interrupt_handler_{app_name}_{object_name}_{irq_name}")
-                                .to_lowercase();
+                        let handler_name = std::format!(
+                            "interrupt_handler_{}_{object_name}_{irq_name}",
+                            process.name
+                        )
+                        .to_lowercase();
 
                         interrupt_table
                             .ordered_table

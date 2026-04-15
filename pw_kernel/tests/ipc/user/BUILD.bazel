@@ -31,7 +31,6 @@ rust_process(
     ],
     codegen_crate_name = "initiator_codegen",
     edition = "2024",
-    multi_process_app = ":ipc",
     tags = ["kernel"],
     deps = [
         "//pw_kernel/syscall:syscall_user",
@@ -48,7 +47,6 @@ rust_process(
     ],
     codegen_crate_name = "handler_codegen",
     edition = "2024",
-    multi_process_app = ":ipc",
     tags = ["kernel"],
     deps = [
         "//pw_kernel/syscall:syscall_user",

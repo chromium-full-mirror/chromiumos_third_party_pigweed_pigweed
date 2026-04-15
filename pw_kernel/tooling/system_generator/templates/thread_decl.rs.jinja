@@ -28,10 +28,10 @@
         )
     };
 
-    thread.object = Some(object_{{app.name | to_lower_ident}}_{{process.name | to_lower_ident}}_{{thread.name | to_lower_ident}}.clone());
+    thread.object = Some(object_{{process.name | to_lower_ident}}_{{thread.name | to_lower_ident}}.clone());
 
     // Set thread object
-    if let Err(_e) = object_{{app.name | to_lower_ident}}_{{process.name | to_lower_ident}}_{{thread.name | to_lower_ident}}.set_thread(arch::Arch, thread) {
+    if let Err(_e) = object_{{process.name | to_lower_ident}}_{{thread.name | to_lower_ident}}.set_thread(arch::Arch, thread) {
         kernel::macro_exports::pw_assert::panic!("Failed to set thread object");
     }
 }

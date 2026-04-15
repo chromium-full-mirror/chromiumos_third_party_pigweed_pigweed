@@ -35,7 +35,6 @@ rust_process(
     ],
     codegen_crate_name = "handler1_codegen",
     edition = "2024",
-    multi_process_app = ":handlers",
     tags = ["kernel"],
     deps = [
         "//pw_kernel/userspace",
@@ -52,7 +51,6 @@ rust_process(
     ],
     codegen_crate_name = "handler2_codegen",
     edition = "2024",
-    multi_process_app = ":handlers",
     tags = ["kernel"],
     deps = [
         "//pw_kernel/userspace",
@@ -69,7 +67,6 @@ rust_process(
     ],
     codegen_crate_name = "handler3_codegen",
     edition = "2024",
-    multi_process_app = ":handlers",
     tags = ["kernel"],
     deps = [
         "//pw_kernel/userspace",

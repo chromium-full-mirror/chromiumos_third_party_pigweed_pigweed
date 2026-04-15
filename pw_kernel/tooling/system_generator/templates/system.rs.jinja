@@ -36,7 +36,7 @@ pub fn start() {
     // Declare all main process objects first so that other apps can reference them.
     {%- for app in apps %}
     {%- for process in app.processes %}
-    let object_{{app.name | to_lower_ident}}_{{process.name | to_lower_ident}}_process =
+    let object_{{process.name | to_lower_ident}}_process =
         {% include "object_process" %};
     {%- endfor %}
     {%- endfor %}
@@ -65,10 +65,10 @@ pub fn start() {
 
 
     {%- for app in apps %}
-    let start_fn_{{app.name}} = {{app.start_fn_address | hex}}_usize;
-
     {%- for process in app.processes %}
-    const MEMORY_CONFIG_{{app.name | to_upper_ident }}_{{process.name | to_upper_ident}}: MemoryConfig = MemoryConfig::const_new(&[
+    let start_fn_{{process.name | to_lower_ident}} = {{app.start_fn_address | hex}}_usize;
+
+    const MEMORY_CONFIG_{{process.name | to_upper_ident}}: MemoryConfig = MemoryConfig::const_new(&[
         {%- for mapping in process.memory_mappings %}
         memory_config::MemoryRegion::new(
             {% if mapping.type == "device" -%}
@@ -85,7 +85,7 @@ pub fn start() {
     ]);
 
     {%- for object in process.objects %}
-        let object_{{app.name}}_{{process.name | to_lower_ident}}_{{object.name | to_lower_ident }} =
+        let object_{{process.name | to_lower_ident}}_{{object.name | to_lower_ident }} =
         {% if object.type == "channel_handler" -%}
                 // Reference to handler object already declared above.
                 object_{{process.name | to_lower_ident}}_{{object.name | to_lower_ident}}
@@ -103,13 +103,13 @@ pub fn start() {
         ;
     {%- endfor %}
 
-    let object_table_{{app.name}}_{{process.name | to_lower_ident}}: ForeignBox<dyn ObjectTable<K>> = unsafe {
+    let object_table_{{process.name | to_lower_ident}}: ForeignBox<dyn ObjectTable<K>> = unsafe {
         static_foreign_box!(
             [ForeignRc<<K as kernel::Arch>::AtomicUsize, dyn KernelObject<K>>; {{process.objects | length}}],
             [
                 {%- for object in process.objects %}
                     upcast_foreign_rc!(
-                        object_{{app.name}}_{{process.name | to_lower_ident}}_{{object.name | to_lower_ident}}.clone()
+                        object_{{process.name | to_lower_ident}}_{{object.name | to_lower_ident}}.clone()
                         => dyn KernelObject<K>
                     ),
                 {%- endfor %}
@@ -122,7 +122,7 @@ pub fn start() {
        objects declared above. #}
     {%- include "process_decl" %}
 
-    if let Err(e) = object_{{app.name | to_lower_ident }}_{{process.name | to_lower_ident}}_process.start(arch::Arch) {
+    if let Err(e) = object_{{process.name | to_lower_ident}}_process.start(arch::Arch) {
         kernel::macro_exports::pw_assert::panic!(
             "Error starting process: {{process.name}}: {}",
             e as i32
