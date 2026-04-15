@@ -21,6 +21,7 @@ cc_library(
     name = "size_report",
     hdrs = [
         "public/pw_containers/size_report/dynamic_deque.h",
+        "public/pw_containers/size_report/dynamic_hash_map.h",
         "public/pw_containers/size_report/dynamic_map.h",
         "public/pw_containers/size_report/size_report.h",
     ],
@@ -369,6 +370,40 @@ pw_cc_size_binary(
 )
 
 pw_cc_size_binary(
+    name = "dynamic_hash_map_base",
+    srcs = ["dynamic_hash_map.cc"],
+    deps = [
+        ":size_report",
+        "//pw_bloat:bloat_this_binary",
+        "//pw_containers:dynamic_hash_map",
+    ],
+)
+
+pw_cc_size_binary(
+    name = "dynamic_hash_map_alternate_value",
+    srcs = ["dynamic_hash_map.cc"],
+    defines = ["PW_CONTAINERS_SIZE_REPORT_ALTERNATE_VALUE"],
+    deps = [
+        ":size_report",
+        "//pw_bloat:bloat_this_binary",
+        "//pw_containers:dynamic_hash_map",
+    ],
+)
+
+pw_cc_size_binary(
+    name = "dynamic_hash_map_alternate_types",
+    srcs = ["dynamic_hash_map.cc"],
+    defines = [
+        "PW_CONTAINERS_SIZE_REPORT_ALTERNATE_KEY_AND_VALUE",
+    ],
+    deps = [
+        ":size_report",
+        "//pw_bloat:bloat_this_binary",
+        "//pw_containers:dynamic_hash_map",
+    ],
+)
+
+pw_cc_size_binary(
     name = "dynamic_map_base",
     srcs = ["dynamic_map.cc"],
     deps = [
@@ -500,6 +535,39 @@ pw_cc_size_binary(
 pw_cc_size_binary(
     name = "std_map_alternate_types",
     srcs = ["std_map.cc"],
+    defines = [
+        "PW_CONTAINERS_SIZE_REPORT_ALTERNATE_KEY_AND_VALUE",
+    ],
+    deps = [
+        ":size_report",
+        "//pw_bloat:bloat_this_binary",
+    ],
+)
+
+# Note: This target requires dynamic allocation. If your target platform does
+# not have that, you need to set a pw_malloc backend or avoid this target.
+pw_cc_size_binary(
+    name = "std_unordered_map_base",
+    srcs = ["std_unordered_map.cc"],
+    deps = [
+        ":size_report",
+        "//pw_bloat:bloat_this_binary",
+    ],
+)
+
+pw_cc_size_binary(
+    name = "std_unordered_map_alternate_value",
+    srcs = ["std_unordered_map.cc"],
+    defines = ["PW_CONTAINERS_SIZE_REPORT_ALTERNATE_VALUE"],
+    deps = [
+        ":size_report",
+        "//pw_bloat:bloat_this_binary",
+    ],
+)
+
+pw_cc_size_binary(
+    name = "std_unordered_map_alternate_types",
+    srcs = ["std_unordered_map.cc"],
     defines = [
         "PW_CONTAINERS_SIZE_REPORT_ALTERNATE_KEY_AND_VALUE",
     ],

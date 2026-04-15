@@ -1023,6 +1023,27 @@ pw_size_table(
 )
 
 pw_size_diff(
+    name = "dynamic_hash_map_base_size_diff",
+    base = "//pw_containers/size_report:base",
+    label = "DynamicHashMap",
+    target = "//pw_containers/size_report:dynamic_hash_map_base",
+)
+
+pw_size_diff(
+    name = "dynamic_hash_map_alternate_value_size_diff",
+    base = "//pw_containers/size_report:dynamic_hash_map_base",
+    label = "Additional DynamicHashMap with different value type",
+    target = "//pw_containers/size_report:dynamic_hash_map_alternate_value",
+)
+
+pw_size_diff(
+    name = "dynamic_hash_map_alternate_types_size_diff",
+    base = "//pw_containers/size_report:dynamic_hash_map_base",
+    label = "Additional DynamicHashMap with different key and value types",
+    target = "//pw_containers/size_report:dynamic_hash_map_alternate_types",
+)
+
+pw_size_diff(
     name = "dynamic_map_base_size_diff",
     base = "//pw_containers/size_report:base",
     label = "DynamicMap",
@@ -1127,9 +1148,36 @@ pw_size_diff(
     target = "//pw_containers/size_report:std_map_alternate_types",
 )
 
+pw_size_diff(
+    name = "std_unordered_map_base_size_diff",
+    base = "//pw_containers/size_report:base",
+    label = "std::unordered_map",
+    target = "//pw_containers/size_report:std_unordered_map_base",
+)
+
+pw_size_diff(
+    name = "std_unordered_map_alternate_value_size_diff",
+    base = "//pw_containers/size_report:std_unordered_map_base",
+    label = "Additional std::unordered_map with different value type",
+    target = "//pw_containers/size_report:std_unordered_map_alternate_value",
+)
+
+pw_size_diff(
+    name = "std_unordered_map_alternate_types_size_diff",
+    base = "//pw_containers/size_report:std_unordered_map_base",
+    label = "Additional std::unordered_map with different key and value types",
+    target = "//pw_containers/size_report:std_unordered_map_alternate_types",
+)
+
 pw_size_table(
     name = "maps_size_report",
     reports = [
+        ":std_unordered_map_base_size_diff",
+        ":std_unordered_map_alternate_value_size_diff",
+        ":std_unordered_map_alternate_types_size_diff",
+        ":dynamic_hash_map_base_size_diff",
+        ":dynamic_hash_map_alternate_value_size_diff",
+        ":dynamic_hash_map_alternate_types_size_diff",
         ":std_map_base_size_diff",
         ":std_map_alternate_value_size_diff",
         ":std_map_alternate_types_size_diff",

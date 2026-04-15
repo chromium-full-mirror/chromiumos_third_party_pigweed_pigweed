@@ -193,6 +193,19 @@ The tables below illustrate the following scenarios:
   and an ``IntrusiveMultiMap`` of the same type. These types reuse code, so the
   combined sum is less than the sum of its parts.
 
+* Scenarios related to ``DynamicHashMap``:
+
+  * The memory and code size cost incurred by a adding a single
+    ``DynamicHashMap``.
+  * The memory and code size cost incurred by adding another ``DynamicHashMap``
+    with the same key type, but a different value type. As ``DynamicHashMap`` is
+    templated on both key and value types, this results in additional code being
+    generated.
+  * The memory and code size cost incurred by adding another ``DynamicHashMap``
+    with a different key type and a different value type. As ``DynamicHashMap``
+    is templated on both key and value types, this results in additional code
+    being generated.
+
 * Scenarios related to ``DynamicMap``:
 
   * The memory and code size cost incurred by a adding a single
