@@ -147,6 +147,36 @@ class ValidatorTest(unittest.TestCase):
         with self.assertRaises(validator.ValidationError):
             val.check_group_analyzers_exist(group)
 
+    def test_check_group_groups_exist(self):
+        """Test that group groups exist."""
+        workflow_suite = workflows_pb2.WorkflowSuite()
+        group = workflow_suite.groups.add(name='test-group')
+        group.groups.append('missing-group')
+        val = validator.Validator(workflow_suite, {})
+        with self.assertRaises(validator.ValidationError):
+            val.check_group_groups_exist(group)
+
+    def test_check_group_groups_are_groups(self):
+        """Test that group groups are TaskGroups."""
+        workflow_suite = workflows_pb2.WorkflowSuite()
+        group = workflow_suite.groups.add(name='test-group')
+        group.groups.append('not-a-group')
+        workflow_suite.builds.add(name='not-a-group')
+        val = validator.Validator(workflow_suite, {})
+        with self.assertRaises(validator.ValidationError):
+            val.check_group_groups_exist(group)
+
+    def test_check_group_has_no_cycles(self):
+        """Test that group cycles are detected."""
+        workflow_suite = workflows_pb2.WorkflowSuite()
+        group1 = workflow_suite.groups.add(name='group1')
+        group2 = workflow_suite.groups.add(name='group2')
+        group1.groups.append('group2')
+        group2.groups.append('group1')
+        val = validator.Validator(workflow_suite, {})
+        with self.assertRaises(validator.ValidationError):
+            val.check_group_has_no_cycles(group1)
+
     def test_check_general_tools_do_not_set_rerun_shortcut(self):
         """Test that tools missing analyzer_safe_args do not set shortcut."""
         workflow_suite = workflows_pb2.WorkflowSuite()

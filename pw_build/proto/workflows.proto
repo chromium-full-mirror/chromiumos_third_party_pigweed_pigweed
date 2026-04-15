@@ -203,7 +203,7 @@ message TaskGroup {
   // The name used to launch this workflow.
   string name = 1;
 
-  // A descriptive help string for this tool.
+  // A help string for this tool.
   string description = 2;
 
   // The name of builds that should be performed as part of this workflow.
@@ -214,6 +214,9 @@ message TaskGroup {
   // Note: Only ANALYZER tools, or tools that have analyzer_friendly_args
   // may be listed here.
   repeated string analyzers = 4;
+
+  // TaskGroups that should be run as part of this workflow.
+  repeated string groups = 5;
 }
 
 // The launcher config.

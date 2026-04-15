@@ -190,7 +190,12 @@ class WorkflowsManagerTest(unittest.TestCase):
                     name='my_group',
                     builds=['my_build'],
                     analyzers=['analyzer_tool'],
-                )
+                ),
+                workflows_pb2.TaskGroup(
+                    name='nested_group',
+                    groups=['my_group'],
+                    builds=['build_with_shared_config'],
+                ),
             ],
         )
         self.build_drivers = {'fake_build_type': FakeBuildDriver()}
@@ -359,6 +364,28 @@ class WorkflowsManagerTest(unittest.TestCase):
         tool_recipe = next(r for r in recipes if r.title.startswith('check '))
         self.assertIsNotNone(build_recipe)
         self.assertIsNotNone(tool_recipe)
+
+    def test_program_nested_group_success(self):
+        """Test generating recipes for a nested group."""
+        manager = WorkflowsManager(
+            self.workflow_suite,
+            self.build_drivers,
+            self.working_dir,
+            self.base_out_dir,
+            self.project_root,
+        )
+        recipes = manager.program_group('nested_group')
+        # my_group has 2 recipes, nested_group adds 1 build
+        self.assertEqual(len(recipes), 3)
+        titles = {r.title for r in recipes}
+        self.assertEqual(
+            titles,
+            {
+                'build my_build',
+                'check analyzer_tool',
+                'build build_with_shared_config',
+            },
+        )
 
     def test_program_group_not_a_group_raises_error(self):
         """Test that TypeError is raised for non-group fragments."""

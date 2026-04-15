@@ -309,6 +309,40 @@ class Validator:
                     'has no analyzer_friendly_args.'
                 )
 
+    def check_group_groups_exist(self, group: workflows_pb2.TaskGroup) -> None:
+        for group_name in group.groups:
+            if group_name not in self._fragments_by_name:
+                raise ValidationError(
+                    f'TaskGroup `{group.name}` references missing group '
+                    f'`{group_name}`'
+                )
+            fragment = self._fragments_by_name[group_name]
+            if not isinstance(fragment, workflows_pb2.TaskGroup):
+                raise ValidationError(
+                    f'TaskGroup `{group.name}` references group '
+                    f'`{group_name}` which is not a TaskGroup.'
+                )
+
+    def check_group_has_no_cycles(self, group: workflows_pb2.TaskGroup) -> None:
+        def has_cycle(current_name: str, path: set[str]) -> bool:
+            if current_name in path:
+                return True
+
+            fragment = self._fragments_by_name.get(current_name)
+            if not isinstance(fragment, workflows_pb2.TaskGroup):
+                return False
+
+            new_path = path | {current_name}
+            for sub_group_name in fragment.groups:
+                if has_cycle(sub_group_name, new_path):
+                    return True
+            return False
+
+        if has_cycle(group.name, set()):
+            raise ValidationError(
+                f'TaskGroup `{group.name}` has a cyclic dependency.'
+            )
+
     @staticmethod
     def check_output_has_patterns(
         output: workflows_pb2.OutputGroupSpec,

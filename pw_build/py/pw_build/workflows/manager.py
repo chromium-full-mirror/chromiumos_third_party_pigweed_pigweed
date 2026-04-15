@@ -468,10 +468,15 @@ class WorkflowsManager:
         """
         group = self._get_group_fragment(group_name)
 
+        recipes: list[BuildRecipe] = []
+
+        for sub_group_name in group.groups:
+            recipes.extend(self.program_group(sub_group_name))
+
         builds = [
             self._fragments_by_name[build_name] for build_name in group.builds
         ]
-        recipes = self._create_build_recipes(builds)
+        recipes.extend(self._create_build_recipes(builds))
 
         for tool_name in group.analyzers:
             tool = self._fragments_by_name[tool_name]
