@@ -125,6 +125,13 @@ filegroup {
     ],
 }
 
+filegroup {
+    name: "pw_protobuf_status_proto",
+    srcs: [
+        "pw_protobuf_protos/status.proto",
+    ],
+}
+
 genrule {
     name: "pw_protobuf_common_proto_with_prefix",
     defaults: ["pw_protobuf_add_prefix_to_proto"],
@@ -133,6 +140,41 @@ genrule {
     ],
     out: [
         "pw_protobuf/pw_protobuf_protos/common.proto",
+    ],
+}
+
+genrule {
+    name: "pw_protobuf_status_proto_with_prefix",
+    defaults: ["pw_protobuf_add_prefix_to_proto"],
+    srcs: [
+        "pw_protobuf_protos/status.proto",
+    ],
+    out: [
+        "pw_protobuf/pw_protobuf_protos/status.proto",
+    ],
+}
+
+genrule {
+    name: "pw_protobuf_protos_status_nanopb_h",
+    srcs: [":pw_protobuf_status_proto_with_prefix"],
+    cmd: "python3 $(location pw_protobuf_compiler_py) " +
+        "--proto-path=external/pigweed/pw_protobuf/ " +
+        "--out-dir=$$(dirname $(location pw_protobuf_protos/status.pb.h)) " +
+        "--plugin-path=$(location protoc-gen-nanopb) " +
+        "--compile-dir=$$(dirname $(in)) " +
+        "--sources $(in) " +
+        "--language nanopb " +
+        "--no-experimental-proto3-optional " +
+        "--no-experimental-editions " +
+        "--pwpb-no-oneof-callbacks " +
+        "--protoc=$(location aprotoc) ",
+    out: [
+        "pw_protobuf_protos/status.pb.h",
+    ],
+    tools: [
+        "aprotoc",
+        "protoc-gen-nanopb",
+        "pw_protobuf_compiler_py",
     ],
 }
 
