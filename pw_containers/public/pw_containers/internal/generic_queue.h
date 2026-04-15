@@ -67,6 +67,17 @@ class GenericQueue {
     deque().emplace_back(std::forward<Args>(args)...);
   }
 
+  void push_overwrite(const value_type& value) { emplace_overwrite(value); }
+
+  void push_overwrite(value_type&& value) {
+    emplace_overwrite(std::move(value));
+  }
+
+  template <typename... Args>
+  void emplace_overwrite(Args&&... args) {
+    deque().emplace_back_overwrite(std::forward<Args>(args)...);
+  }
+
   void pop() { deque().pop_front(); }
 
  protected:

@@ -122,6 +122,10 @@ class DynamicQueue
   // Hide full() since the capacity can grow.
   using Base::full;
 
+  // Hide overwrite methods since capacity can grow.
+  using Base::emplace_overwrite;
+  using Base::push_overwrite;
+
   Deque& deque() { return deque_; }
   const Deque& deque() const { return deque_; }
 

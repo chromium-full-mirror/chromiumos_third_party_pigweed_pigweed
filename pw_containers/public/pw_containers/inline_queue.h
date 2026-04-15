@@ -289,22 +289,6 @@ class BasicInlineQueueImpl : public GenericQueue<Derived, Deque> {
   const_iterator end() const noexcept { return cend(); }
   const_iterator cend() const noexcept { return deque().cend(); }
 
-  // Modify
-
-  void push_overwrite(const value_type& value) { emplace_overwrite(value); }
-
-  void push_overwrite(value_type&& value) {
-    emplace_overwrite(std::move(value));
-  }
-
-  template <typename... Args>
-  void emplace_overwrite(Args&&... args) {
-    if (Base::full()) {
-      Base::pop();
-    }
-    Base::emplace(std::forward<Args>(args)...);
-  }
-
  private:
   using Base::deque;
 };

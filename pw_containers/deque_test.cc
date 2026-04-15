@@ -37,6 +37,96 @@ using pw::containers::test::CopyOnly;
 using pw::containers::test::Counter;
 using pw::containers::test::MoveOnly;
 
+TEST(Deque, PushBackOverwrite) {
+  pw::containers::StorageFor<int, 4> storage;
+  pw::Deque<int> deque(storage);
+
+  deque.push_back(1);
+  deque.push_back(2);
+  deque.push_back(3);
+  deque.push_back(4);
+
+  EXPECT_EQ(deque.size(), 4u);
+  EXPECT_EQ(deque.front(), 1);
+  EXPECT_EQ(deque.back(), 4);
+
+  deque.push_back_overwrite(5);
+  EXPECT_EQ(deque.size(), 4u);
+  EXPECT_EQ(deque.front(), 2);
+  EXPECT_EQ(deque.back(), 5);
+
+  int val = 6;
+  deque.push_back_overwrite(val);
+  EXPECT_EQ(deque.size(), 4u);
+  EXPECT_EQ(deque.front(), 3);
+  EXPECT_EQ(deque.back(), 6);
+}
+
+TEST(Deque, EmplaceBackOverwrite) {
+  pw::containers::StorageFor<Counter, 2> storage;
+  pw::Deque<Counter> deque(storage);
+
+  Counter::Reset();
+  deque.emplace_back_overwrite(1);
+  deque.emplace_back_overwrite(2);
+
+  EXPECT_EQ(deque.size(), 2u);
+  EXPECT_EQ(Counter::created, 2);
+  EXPECT_EQ(Counter::destroyed, 0);
+
+  deque.emplace_back_overwrite(3);
+  EXPECT_EQ(deque.size(), 2u);
+  EXPECT_EQ(deque.front().value, 2);
+  EXPECT_EQ(deque.back().value, 3);
+  EXPECT_EQ(Counter::created, 3);
+  EXPECT_EQ(Counter::destroyed, 1);
+}
+
+TEST(Deque, PushFrontOverwrite) {
+  pw::containers::StorageFor<int, 4> storage;
+  pw::Deque<int> deque(storage);
+
+  deque.push_front(1);
+  deque.push_front(2);
+  deque.push_front(3);
+  deque.push_front(4);
+
+  EXPECT_EQ(deque.size(), 4u);
+  EXPECT_EQ(deque.front(), 4);
+  EXPECT_EQ(deque.back(), 1);
+
+  deque.push_front_overwrite(5);
+  EXPECT_EQ(deque.size(), 4u);
+  EXPECT_EQ(deque.front(), 5);
+  EXPECT_EQ(deque.back(), 2);
+
+  int val = 6;
+  deque.push_front_overwrite(val);
+  EXPECT_EQ(deque.size(), 4u);
+  EXPECT_EQ(deque.front(), 6);
+  EXPECT_EQ(deque.back(), 3);
+}
+
+TEST(Deque, EmplaceFrontOverwrite) {
+  pw::containers::StorageFor<Counter, 2> storage;
+  pw::Deque<Counter> deque(storage);
+
+  Counter::Reset();
+  deque.emplace_front_overwrite(1);
+  deque.emplace_front_overwrite(2);
+
+  EXPECT_EQ(deque.size(), 2u);
+  EXPECT_EQ(Counter::created, 2);
+  EXPECT_EQ(Counter::destroyed, 0);
+
+  deque.emplace_front_overwrite(3);
+  EXPECT_EQ(deque.size(), 2u);
+  EXPECT_EQ(deque.front().value, 3);
+  EXPECT_EQ(deque.back().value, 2);
+  EXPECT_EQ(Counter::created, 3);
+  EXPECT_EQ(Counter::destroyed, 1);
+}
+
 TEST(Deque, ZeroCapacity) {
   Counter::Reset();
   {

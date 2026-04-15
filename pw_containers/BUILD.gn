@@ -570,6 +570,7 @@ pw_test("dynamic_deque_test") {
     "$dir_pw_containers:algorithm",
     dir_pw_polyfill,
   ]
+  negative_compilation_tests = true
 }
 
 pw_test("dynamic_hash_map_test") {
@@ -609,6 +610,7 @@ pw_test("dynamic_queue_test") {
     ":test_helpers",
     "$dir_pw_allocator:testing",
   ]
+  negative_compilation_tests = true
 }
 
 pw_test("deque_test") {

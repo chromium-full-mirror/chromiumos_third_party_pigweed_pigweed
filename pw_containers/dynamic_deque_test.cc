@@ -22,6 +22,7 @@
 #include "pw_allocator/fault_injecting_allocator.h"
 #include "pw_allocator/null_allocator.h"
 #include "pw_allocator/testing.h"
+#include "pw_compilation_testing/negative_compilation.h"
 #include "pw_containers/algorithm.h"
 #include "pw_containers/internal/container_tests.h"
 #include "pw_containers/internal/test_helpers.h"
@@ -1124,5 +1125,13 @@ static_assert(sizeof(pw::DynamicDeque<long long, uint16_t>) ==
               4 * sizeof(uint16_t) + 2 * sizeof(void*));
 static_assert(sizeof(pw::DynamicDeque<int, uint32_t>) ==
               4 * sizeof(uint32_t) + 2 * sizeof(void*));
+
+#if PW_NC_TEST(DynamicDeque_EmplaceBackOverwriteHidden)
+PW_NC_EXPECT("(is inaccessible|is (a )?private member of)");
+void Test(pw::DynamicDeque<int>& deque) { deque.emplace_back_overwrite(1); }
+#elif PW_NC_TEST(DynamicDeque_PushBackOverwriteHidden)
+PW_NC_EXPECT("(is inaccessible|is (a )?private member of)");
+void Test(pw::DynamicDeque<int>& deque) { deque.push_back_overwrite(1); }
+#endif
 
 }  // namespace

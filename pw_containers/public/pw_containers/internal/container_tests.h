@@ -202,6 +202,17 @@
           typename ::pw::containers::test::Container<f, int>::const_pointer,   \
           const int*>)
 
+// Instantiates overwrite tests for deques.
+#define PW_CONTAINERS_OVERWRITE_DEQUE_TESTS(f)                                \
+  TEST_F(f, Modify_OverwriteBackTrivial) { Modify_OverwriteBackTrivial(); }   \
+  TEST_F(f, Modify_OverwriteBackNonTrivialDestruction) {                      \
+    Modify_OverwriteBackNonTrivialDestruction();                              \
+  }                                                                           \
+  TEST_F(f, Modify_OverwriteFrontTrivial) { Modify_OverwriteFrontTrivial(); } \
+  TEST_F(f, Modify_OverwriteFrontNonTrivialDestruction) {                     \
+    Modify_OverwriteFrontNonTrivialDestruction();                             \
+  }
+
 namespace pw::containers::test {
 
 class InputIt {
@@ -705,6 +716,126 @@ class CommonTestFixture : public ::testing::Test {
 
     EXPECT_EQ(Counter::created, 1);
     EXPECT_EQ(Counter::destroyed, 1);
+  }
+
+  void Modify_OverwriteBackTrivial() {
+    PW_DECLARE_CONTAINER(container, int);
+    auto cap = container.capacity();
+    if (cap == 0) {
+      return;
+    }
+
+    for (size_t i = 0; i < cap; ++i) {
+      container.push_back(static_cast<int>(i));
+    }
+    EXPECT_TRUE(container.full());
+    EXPECT_EQ(container.front(), 0);
+
+    container.push_back_overwrite(static_cast<int>(cap));
+    EXPECT_EQ(container.size(), cap);
+    EXPECT_EQ(container.back(), static_cast<int>(cap));
+    if (cap > 1) {
+      EXPECT_EQ(container.front(), 1);
+    }
+
+    container.emplace_back_overwrite(static_cast<int>(cap + 1));
+    EXPECT_EQ(container.size(), cap);
+    EXPECT_EQ(container.back(), static_cast<int>(cap + 1));
+    if (cap > 1) {
+      EXPECT_EQ(container.front(), 2);
+    }
+  }
+
+  void Modify_OverwriteBackNonTrivialDestruction() {
+    PW_DECLARE_CONTAINER(container, Counter);
+    auto cap = container.capacity();
+    if (cap == 0) {
+      return;
+    }
+
+    for (size_t i = 0; i < cap; ++i) {
+      container.emplace_back(static_cast<int>(i));
+    }
+    EXPECT_TRUE(container.full());
+    Counter::Reset();
+
+    // Overwrite front. Front (0) should be destroyed.
+    container.emplace_back_overwrite(static_cast<int>(cap));
+    EXPECT_EQ(container.size(), cap);
+    EXPECT_EQ(container.back().value, static_cast<int>(cap));
+    if (cap > 1) {
+      EXPECT_EQ(container.front().value, 1);
+    }
+    EXPECT_EQ(Counter::destroyed, 1);
+
+    // Overwrite front again.
+    container.emplace_back_overwrite(static_cast<int>(cap + 1));
+    EXPECT_EQ(container.size(), cap);
+    EXPECT_EQ(container.back().value, static_cast<int>(cap + 1));
+    if (cap > 1) {
+      EXPECT_EQ(container.front().value, 2);
+    }
+    EXPECT_EQ(Counter::destroyed, 2);
+  }
+
+  void Modify_OverwriteFrontTrivial() {
+    PW_DECLARE_CONTAINER(container, int);
+    auto cap = container.capacity();
+    if (cap == 0) {
+      return;
+    }
+
+    for (size_t i = 0; i < cap; ++i) {
+      container.push_front(static_cast<int>(i));
+    }
+    EXPECT_TRUE(container.full());
+    EXPECT_EQ(container.back(), 0);
+
+    container.push_front_overwrite(static_cast<int>(cap));
+    EXPECT_EQ(container.size(), cap);
+    EXPECT_EQ(container.front(), static_cast<int>(cap));
+    if (cap > 1) {
+      EXPECT_EQ(container.back(), 1);
+    }
+
+    container.emplace_front_overwrite(static_cast<int>(cap + 1));
+    EXPECT_EQ(container.size(), cap);
+    EXPECT_EQ(container.front(), static_cast<int>(cap + 1));
+    if (cap > 1) {
+      EXPECT_EQ(container.back(), 2);
+    }
+  }
+
+  void Modify_OverwriteFrontNonTrivialDestruction() {
+    PW_DECLARE_CONTAINER(container, Counter);
+    auto cap = container.capacity();
+    if (cap == 0) {
+      return;
+    }
+
+    for (size_t i = 0; i < cap; ++i) {
+      container.emplace_front(static_cast<int>(i));
+    }
+    EXPECT_TRUE(container.full());
+    Counter::Reset();
+
+    // Overwrite back. Back (0) should be destroyed.
+    container.emplace_front_overwrite(static_cast<int>(cap));
+    EXPECT_EQ(container.size(), cap);
+    EXPECT_EQ(container.front().value, static_cast<int>(cap));
+    if (cap > 1) {
+      EXPECT_EQ(container.back().value, 1);
+    }
+    EXPECT_EQ(Counter::destroyed, 1);
+
+    // Overwrite back again.
+    container.emplace_front_overwrite(static_cast<int>(cap + 1));
+    EXPECT_EQ(container.size(), cap);
+    EXPECT_EQ(container.front().value, static_cast<int>(cap + 1));
+    if (cap > 1) {
+      EXPECT_EQ(container.back().value, 2);
+    }
+    EXPECT_EQ(Counter::destroyed, 2);
   }
 
   void Modify_PopBack() {

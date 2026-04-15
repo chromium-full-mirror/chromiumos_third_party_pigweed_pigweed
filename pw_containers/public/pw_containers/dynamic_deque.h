@@ -28,6 +28,11 @@
 
 namespace pw {
 
+namespace containers::internal {
+template <typename, typename>
+class GenericQueue;
+}  // namespace containers::internal
+
 /// @module{pw_containers}
 
 /// @addtogroup pw_containers_queues
@@ -210,12 +215,21 @@ class DynamicDeque
   friend Base;
 
   template <typename, typename>
+  friend class containers::internal::GenericQueue;
+
+  template <typename, typename>
   friend class DynamicVector;  // Allow direct access to data()
 
   static constexpr bool kFixedCapacity = false;  // uses dynamic allocation
 
   // Hide full() since the capacity can grow.
   using Base::full;
+
+  // Hide overwrite methods since capacity can grow.
+  using Base::emplace_back_overwrite;
+  using Base::emplace_front_overwrite;
+  using Base::push_back_overwrite;
+  using Base::push_front_overwrite;
 
   pointer data() { return std::launder(reinterpret_cast<pointer>(buffer_)); }
   const_pointer data() const {

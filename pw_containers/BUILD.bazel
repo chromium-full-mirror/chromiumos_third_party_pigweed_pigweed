@@ -643,13 +643,15 @@ pw_cc_test(
 pw_cc_test(
     name = "dynamic_deque_test",
     srcs = ["dynamic_deque_test.cc"],
+    has_nc_test = True,
     deps = [
+        ":algorithm",
         ":dynamic_deque",
         ":test_helpers",
         "//pw_allocator:null_allocator",
         "//pw_allocator:testing",
-        "//pw_containers:algorithm",
         "//pw_polyfill",
+        "//pw_unit_test",
     ],
 )
 
@@ -688,10 +690,12 @@ pw_cc_test(
 pw_cc_test(
     name = "dynamic_queue_test",
     srcs = ["dynamic_queue_test.cc"],
+    has_nc_test = True,
     deps = [
         ":dynamic_queue",
         ":test_helpers",
         "//pw_allocator:testing",
+        "//pw_unit_test",
     ],
 )
 

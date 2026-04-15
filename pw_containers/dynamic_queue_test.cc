@@ -19,6 +19,7 @@
 
 #include "pw_allocator/fault_injecting_allocator.h"
 #include "pw_allocator/testing.h"
+#include "pw_compilation_testing/negative_compilation.h"
 #include "pw_containers/internal/test_helpers.h"
 #include "pw_unit_test/framework.h"
 
@@ -279,5 +280,13 @@ static_assert(
     std::is_same_v<pw::DynamicQueue<int, uint16_t>::size_type, uint16_t>);
 static_assert(
     std::is_same_v<pw::DynamicQueue<int, uint32_t>::size_type, uint32_t>);
+
+#if PW_NC_TEST(DynamicQueue_EmplaceOverwriteHidden)
+PW_NC_EXPECT("(is inaccessible|is (a )?private member of)");
+void Test(pw::DynamicQueue<int>& queue) { queue.emplace_overwrite(1); }
+#elif PW_NC_TEST(DynamicQueue_PushOverwriteHidden)
+PW_NC_EXPECT("(is inaccessible|is (a )?private member of)");
+void Test(pw::DynamicQueue<int>& queue) { queue.push_overwrite(1); }
+#endif
 
 }  // namespace

@@ -93,6 +93,25 @@ TEST(Queue, Emplace) {
   EXPECT_EQ(queue.size(), 2u);
 }
 
+TEST(Queue, Overwrite) {
+  pw::containers::StorageFor<int, 2> storage;
+  pw::Queue<int> queue(storage);
+
+  queue.push(1);
+  queue.push(2);
+  EXPECT_TRUE(queue.full());
+
+  queue.push_overwrite(3);
+  EXPECT_EQ(queue.size(), 2u);
+  EXPECT_EQ(queue.front(), 2);
+  EXPECT_EQ(queue.back(), 3);
+
+  queue.emplace_overwrite(4);
+  EXPECT_EQ(queue.size(), 2u);
+  EXPECT_EQ(queue.front(), 3);
+  EXPECT_EQ(queue.back(), 4);
+}
+
 TEST(FixedQueueStatic, Construct) {
   pw::FixedQueue<int, 10> queue;
   EXPECT_TRUE(queue.empty());

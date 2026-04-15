@@ -57,6 +57,8 @@ using InlineDequeCommonTest16 = CommonTest<16>;
 
 PW_CONTAINERS_COMMON_DEQUE_TESTS(InlineDequeCommonTest9);
 PW_CONTAINERS_COMMON_DEQUE_TESTS(InlineDequeCommonTest16);
+PW_CONTAINERS_OVERWRITE_DEQUE_TESTS(InlineDequeCommonTest9)
+PW_CONTAINERS_OVERWRITE_DEQUE_TESTS(InlineDequeCommonTest16)
 
 TEST(InlineDeque, ZeroCapacity) {
   Counter::Reset();

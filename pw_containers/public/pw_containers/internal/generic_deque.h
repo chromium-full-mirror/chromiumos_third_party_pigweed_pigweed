@@ -163,6 +163,23 @@ class GenericDequeBase {
     DecrementWithWrap(tail_, size_type(1), capacity());
     count_ -= 1;
   }
+  constexpr void PushBackOverwrite() {
+    IncrementWithWrap(tail_, size_type(1), capacity());
+    if (count_ < capacity()) {
+      count_++;
+    } else {
+      head_ = tail_;
+    }
+  }
+
+  constexpr void PushFrontOverwrite() {
+    DecrementWithWrap(head_, size_type(1), capacity());
+    if (count_ < capacity()) {
+      count_++;
+    } else {
+      tail_ = head_;
+    }
+  }
 
   size_type capacity_;
   size_type count_;
@@ -318,6 +335,34 @@ class GenericDeque : public GenericDequeBase<SizeType> {
     PW_ASSERT(try_emplace_back(std::forward<Args>(args)...));
   }
 
+  /// Adds an element to the back of the deque, overwriting the oldest element
+  /// if the deque is full.
+  void push_back_overwrite(const value_type& value) {
+    emplace_back_overwrite(value);
+  }
+
+  /// Adds an element to the back of the deque (move version), overwriting the
+  /// oldest element if the deque is full.
+  void push_back_overwrite(value_type&& value) {
+    emplace_back_overwrite(std::move(value));
+  }
+
+  /// Constructs an element in place at the back of the deque, overwriting the
+  /// oldest element if the deque is full.
+  template <typename... Args>
+  void emplace_back_overwrite(Args&&... args) {
+    PW_ASSERT(Base::capacity() > 0);
+
+    if constexpr (!std::is_trivially_destructible_v<value_type>) {
+      if (Base::full()) {
+        std::destroy_at(&front());
+      }
+    }
+
+    new (&data()[Base::tail_]) value_type(std::forward<Args>(args)...);
+    Base::PushBackOverwrite();
+  }
+
   void pop_back();
 
   void push_front(const value_type& value) { PW_ASSERT(try_push_front(value)); }
@@ -332,6 +377,34 @@ class GenericDeque : public GenericDequeBase<SizeType> {
   }
 
   void pop_front();
+
+  /// Adds an element to the front of the deque, overwriting the last element
+  /// if the deque is full.
+  void push_front_overwrite(const value_type& value) {
+    emplace_front_overwrite(value);
+  }
+
+  /// Adds an element to the front of the deque (move version), overwriting the
+  /// last element if the deque is full.
+  void push_front_overwrite(value_type&& value) {
+    emplace_front_overwrite(std::move(value));
+  }
+
+  /// Constructs an element in place at the front of the deque, overwriting the
+  /// last element if the deque is full.
+  template <typename... Args>
+  void emplace_front_overwrite(Args&&... args) {
+    PW_ASSERT(Base::capacity() > 0);
+
+    if constexpr (!std::is_trivially_destructible_v<value_type>) {
+      if (Base::full()) {
+        std::destroy_at(&back());
+      }
+    }
+
+    Base::PushFrontOverwrite();
+    new (&data()[Base::head_]) value_type(std::forward<Args>(args)...);
+  }
 
   /// Constructs an item in place at `pos`. Crashes if memory allocation
   /// fails.

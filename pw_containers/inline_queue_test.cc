@@ -393,6 +393,61 @@ TEST(InlineQueue, Modify_Overwrite) {
   }
 }
 
+TEST(InlineQueue, Modify_Overwrite_Trivial) {
+  InlineQueue<int, 2> queue;
+
+  // Not full.
+  queue.push_overwrite(1);
+  EXPECT_EQ(queue.size(), 1u);
+  EXPECT_EQ(queue.front(), 1);
+
+  // Full.
+  queue.push_overwrite(2);
+  EXPECT_EQ(queue.size(), 2u);
+  EXPECT_EQ(queue.front(), 1);
+  EXPECT_EQ(queue.back(), 2);
+
+  // Overwrite oldest.
+  queue.push_overwrite(3);
+  EXPECT_EQ(queue.size(), 2u);
+  EXPECT_EQ(queue.front(), 2);
+  EXPECT_EQ(queue.back(), 3);
+
+  // Overwrite oldest again.
+  queue.emplace_overwrite(4);
+  EXPECT_EQ(queue.size(), 2u);
+  EXPECT_EQ(queue.front(), 3);
+  EXPECT_EQ(queue.back(), 4);
+}
+
+TEST(InlineQueue, Modify_Overwrite_NonTrivial_Destruction) {
+  Counter::Reset();
+  {
+    InlineQueue<Counter, 2> queue;
+    queue.emplace_overwrite(1);
+    queue.emplace_overwrite(2);
+
+    EXPECT_EQ(Counter::created, 2);
+    EXPECT_EQ(Counter::destroyed, 0);
+
+    // Overwrite front. Front (1) should be destroyed.
+    queue.emplace_overwrite(3);
+    EXPECT_EQ(Counter::created, 3);
+    EXPECT_EQ(Counter::destroyed, 1);
+    EXPECT_EQ(queue.front().value, 2);
+    EXPECT_EQ(queue.back().value, 3);
+
+    // Overwrite front again. Front (2) should be destroyed.
+    queue.emplace_overwrite(4);
+    EXPECT_EQ(Counter::created, 4);
+    EXPECT_EQ(Counter::destroyed, 2);
+    EXPECT_EQ(queue.front().value, 3);
+    EXPECT_EQ(queue.back().value, 4);
+  }
+  // All destroyed.
+  EXPECT_EQ(Counter::destroyed, 4);
+}
+
 TEST(InlineQueue, Modify_Wrap) {
   Counter::Reset();
 
