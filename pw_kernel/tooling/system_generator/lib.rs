@@ -25,6 +25,7 @@ use serde::de::DeserializeOwned;
 
 pub mod mpu_validation;
 pub mod system_config;
+pub mod validation;
 
 use mpu_validation::MpuValidationMode;
 use mpu_validation::pmsav7::validate_pmsav7_layout;
@@ -298,6 +299,7 @@ pub struct SystemGenerator<'a, A: ArchConfigInterface> {
     cli: Cli,
     config: system_config::SystemConfig<A>,
     env: Environment<'a>,
+    validators: Vec<Box<dyn crate::validation::ManifestValidator<A>>>,
 }
 
 impl<'a, A: ArchConfigInterface + Serialize> SystemGenerator<'a, A> {
@@ -306,7 +308,13 @@ impl<'a, A: ArchConfigInterface + Serialize> SystemGenerator<'a, A> {
             cli,
             config,
             env: Environment::new(),
+            validators: vec![Box::new(crate::validation::IdentifierValidator)],
         };
+
+        // Run manifest validation first before rendering any templates.
+        for validator in &instance.validators {
+            validator.validate(&instance.config)?;
+        }
 
         instance.env.add_filter("hex", hex);
         instance.env.add_filter("to_lower_ident", to_lower_ident);
@@ -494,8 +502,8 @@ impl<'a, A: ArchConfigInterface + Serialize> SystemGenerator<'a, A> {
                 linked_process: process.name.clone(),
                 process_object_name: std::format!(
                     "object_{}_{}_process",
-                    app_name.to_lowercase().replace(" ", "_"),
-                    process.name.to_lowercase().replace(" ", "_")
+                    app_name.to_lowercase(),
+                    process.name.to_lowercase()
                 ),
             }));
 
@@ -661,10 +669,10 @@ pub fn hex(_state: &State, value: usize) -> String {
 
 #[must_use]
 pub fn to_lower_ident(_state: &State, value: String) -> String {
-    value.replace(" ", "_").to_lowercase()
+    value.to_lowercase()
 }
 
 #[must_use]
 pub fn to_upper_ident(_state: &State, value: String) -> String {
-    value.replace(" ", "_").to_uppercase()
+    value.to_uppercase()
 }

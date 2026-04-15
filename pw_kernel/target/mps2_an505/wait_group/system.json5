@@ -33,21 +33,21 @@
           name: "initiator",
           objects: [
             {
-              name: "IPC_A",
+              name: "ipc_a",
               type: "channel_initiator",
               handler_process: "handler",
-              handler_object_name: "IPC_A",
+              handler_object_name: "ipc_a",
             },
             {
-              name: "IPC_B",
+              name: "ipc_b",
               type: "channel_initiator",
               handler_process: "handler",
-              handler_object_name: "IPC_B",
+              handler_object_name: "ipc_b",
             },
           ],
           threads: [
             {
-              name: "initiator thread",
+              name: "initiator_thread",
               // Generous stacks size pending kernel stack size optimization.
               stack_size_bytes: 2048,
             },
@@ -64,25 +64,25 @@
           name: "handler",
           objects: [
             {
-              name: "IPC_A",
+              name: "ipc_a",
               type: "channel_handler",
             },
             {
-              name: "IPC_B",
+              name: "ipc_b",
               type: "channel_handler",
             },
             {
-              name: "WAIT_GROUP_1",
+              name: "wait_group_1",
               type: "wait_group",
             },
             {
-              name: "WAIT_GROUP_2",
+              name: "wait_group_2",
               type: "wait_group",
             },
           ],
           threads: [
             {
-              name: "handler thread",
+              name: "handler_thread",
               // Generous stacks size pending kernel stack size optimization.
               stack_size_bytes: 2048,
             },

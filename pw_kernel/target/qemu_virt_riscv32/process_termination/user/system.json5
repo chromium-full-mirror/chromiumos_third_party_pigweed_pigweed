@@ -41,12 +41,12 @@
           ],
           threads: [
             {
-              name: "main thread",
+              name: "main_thread",
               // Generous stacks size pending kernel stack size optimization.
               stack_size_bytes: 2048,
             },
             {
-              name: "TEST_THREAD",
+              name: "test_thread",
               // Generous stacks size pending kernel stack size optimization.
               stack_size_bytes: 2048,
             },
@@ -64,7 +64,7 @@
           objects: [],
           threads: [
             {
-              name: "extra thread",
+              name: "extra_thread",
               // Generous stacks size pending kernel stack size optimization.
               stack_size_bytes: 2048,
             },

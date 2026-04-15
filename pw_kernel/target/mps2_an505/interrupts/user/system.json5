@@ -39,7 +39,7 @@
           ],
           threads: [
             {
-              name: "interrupt thread",
+              name: "interrupt_thread",
               // Generous stacks size pending kernel stack size optimization.
               stack_size_bytes: 2048,
             },
@@ -81,7 +81,7 @@
           ],
           threads: [
             {
-              name: "interrupt thread",
+              name: "interrupt_thread",
               // Generous stacks size pending kernel stack size optimization.
               stack_size_bytes: 2048,
             },
