@@ -1,4 +1,4 @@
-// Copyright 2025 The Pigweed Authors
+// Copyright 2026 The Pigweed Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License"); you may not
 // use this file except in compliance with the License. You may obtain a copy of
@@ -11,21 +11,28 @@
 // WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 // License for the specific language governing permissions and limitations under
 // the License.
+#![no_std]
+#![no_main]
 
-use kernel_config::{KernelConfig, KernelConfigInterface};
-use syscall_user::{SysCall, SysCallInterface};
+use console_backend as _;
+use entry as _;
+use target_common::{TargetInterface, declare_target};
 
-pub struct Clock;
+pub struct Target {}
 
-impl time::Clock for Clock {
-    const TICKS_PER_SEC: u64 = KernelConfig::SYSTEM_CLOCK_HZ;
-    fn now() -> time::Instant<Self> {
-        // Use the debug_clock_now() system call until userspace time is designed
-        // and implemented.
-        let ticks = SysCall::debug_clock_now();
-        Instant::from_ticks(ticks)
+impl TargetInterface for Target {
+    const NAME: &'static str = "PW RP2350 Clock Test";
+
+    fn console_init() {
+        console_backend::init();
+    }
+
+    fn main() -> ! {
+        codegen::start();
+        loop {
+            let _ = kernel::sleep_until(arch_arm_cortex_m::Arch, time::Instant::MAX);
+        }
     }
 }
 
-pub type Instant = time::Instant<Clock>;
-pub type Duration = time::Duration<Clock>;
+declare_target!(Target);

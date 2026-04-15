@@ -144,4 +144,13 @@ impl SysCallInterface for SysCall {
     fn debug_trigger_interrupt(_irq: u32) -> Result<()> {
         Err(pw_status::Error::Unimplemented)
     }
+
+    #[inline(always)]
+    #[allow(clippy::unimplemented)]
+    fn debug_clock_now() -> u64 {
+        // Using a vanilla panic because:
+        // 1. Using `pw_assert` would introduce a circular dependency.
+        // 2. Host arch is unimplemented and not code size sensitive.
+        unimplemented!("debug_clock_now() unimplemented on host");
+    }
 }

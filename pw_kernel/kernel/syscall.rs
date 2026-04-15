@@ -399,6 +399,10 @@ fn handle_debug_trigger_interrupt<'a, K: Kernel>(
     Ok(0)
 }
 
+fn handle_debug_clock_now<'a, K: Kernel>(kernel: K, mut _args: K::SyscallArgs<'a>) -> u64 {
+    kernel.now().ticks()
+}
+
 pub fn handle_syscall<'a, K: Kernel>(
     kernel: K,
     id: u16,
@@ -436,8 +440,9 @@ pub fn handle_syscall<'a, K: Kernel>(
             SysCallId::DebugPutc => handle_debug_putc(kernel, args).into(),
             SysCallId::DebugShutdown => handle_debug_shutdown(kernel, args).into(),
             SysCallId::DebugLog => handle_debug_log(kernel, args).into(),
-            SysCallId::DebugNop => 0.into(),
+            SysCallId::DebugNop => 0u64.into(),
             SysCallId::DebugTriggerInterrupt => handle_debug_trigger_interrupt(kernel, args).into(),
+            SysCallId::DebugClockNow => handle_debug_clock_now(kernel, args).into(),
             _ => {
                 log_if::debug_if!(SYSCALL_DEBUG, "syscall: unknown syscall {}", id as u32);
                 SysCallReturnValue::from(-(Error::InvalidArgument as isize) as i64)

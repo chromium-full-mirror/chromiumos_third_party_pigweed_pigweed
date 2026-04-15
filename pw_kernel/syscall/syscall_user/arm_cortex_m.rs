@@ -203,6 +203,7 @@ syscall_veneer!(DebugShutdown, 1, shutdown(a: u32));
 syscall_veneer!(DebugLog, 2, log(buffer: *const u8, buffer_len: usize));
 syscall_veneer!(DebugNop, 0, nop());
 syscall_veneer!(DebugTriggerInterrupt, 1, debug_trigger_interrupt(irq: u32));
+syscall_veneer!(DebugClockNow, 0, debug_clock_now());
 
 syscall_veneer!(ThreadStart, 3, thread_start(handle: u32, initial_pc: usize, initial_sp: usize));
 syscall_veneer!(ThreadTerminate, 1, thread_terminate(handle: u32));
@@ -347,5 +348,10 @@ impl SysCallInterface for SysCall {
     #[inline(always)]
     fn debug_trigger_interrupt(irq: u32) -> Result<()> {
         SysCallReturnValue::from(unsafe { debug_trigger_interrupt(irq) }).into()
+    }
+
+    #[inline(always)]
+    fn debug_clock_now() -> u64 {
+        SysCallReturnValue::from(unsafe { debug_clock_now() }).into()
     }
 }

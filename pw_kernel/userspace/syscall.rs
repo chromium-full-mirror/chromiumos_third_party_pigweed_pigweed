@@ -143,6 +143,10 @@ pub fn debug_trigger_interrupt(irq: u32) -> Result<()> {
     SysCall::debug_trigger_interrupt(irq)
 }
 
+pub fn debug_clock_now() -> Instant {
+    Instant::from_ticks(SysCall::debug_clock_now())
+}
+
 #[inline(always)]
 pub fn thread_start(object_handle: u32, initial_pc: usize, initial_sp: usize) -> Result<()> {
     SysCall::thread_start(object_handle, initial_pc, initial_sp)

@@ -236,6 +236,25 @@ impl From<i64> for SysCallReturnValue {
     }
 }
 
+impl From<u64> for SysCallReturnValue {
+    fn from(value: u64) -> Self {
+        Self {
+            #[expect(clippy::cast_possible_truncation)]
+            value: [value as u32 as usize, (value >> 32) as u32 as usize],
+        }
+    }
+}
+
+impl From<SysCallReturnValue> for u64 {
+    fn from(ret_value: SysCallReturnValue) -> u64 {
+        #[allow(clippy::cast_possible_truncation)]
+        let low = ret_value.value[0] as u32;
+        #[allow(clippy::cast_possible_truncation)]
+        let high = ret_value.value[1] as u32;
+        (u64::from(high) << 32) | u64::from(low)
+    }
+}
+
 impl From<Result<u64>> for SysCallReturnValue {
     fn from(value: Result<u64>) -> Self {
         match value {
@@ -314,6 +333,7 @@ pub enum SysCallId {
     DebugLog = 0xf002,
     DebugNop = 0xf003,
     DebugTriggerInterrupt = 0xf004,
+    DebugClockNow = 0xf005,
 }
 
 impl From<u16> for SysCallId {
@@ -653,4 +673,6 @@ pub trait SysCallInterface {
     fn debug_nop() -> Result<()>;
 
     fn debug_trigger_interrupt(irq: u32) -> Result<()>;
+
+    fn debug_clock_now() -> u64;
 }
