@@ -649,13 +649,40 @@
     {
       "name": "default",
       "description": "Common builds/configurations",
+      "groups": [
+        "rpc",
+        "gtest",
+        "device",
+        "asan_fuzz"
+      ]
+    },
+    {
+      "name": "asan_fuzz",
+      "description": "ASAN Fuzztest",
+      "builds": [
+        "asan_fuzztest"
+      ]
+    },
+    {
+      "name": "rpc",
+      "description": "RPC-specific tests",
+      "builds": [
+        "rpc_callback",
+        "grpc"
+      ]
+    },
+    {
+      "name": "gtest",
+      "description": "GoogleTest-based tests",
+      "builds": [
+        "googletest"
+      ]
+    },
+    {
+      "name": "device",
+      "description": "Device-specific tests",
       "builds": [
         "lm3s6965evb",
-        "jni",
-        "googletest",
-        "asan_fuzztest",
-        "rpc_callback",
-        "grpc",
         "build_rp2040_tests",
         "build_rp2350_tests"
       ]
@@ -671,7 +698,8 @@
         "all_host",
         "all_host_cpp17",
         "all_host_cpp23",
-        "docs"
+        "docs",
+        "jni"
       ]
     },
     {
