@@ -29,15 +29,15 @@
     {
       name: "main",
       flash_size_bytes: 261120,
-      ram_size_bytes: 65536,
       processes: [
         {
           name: "clock_test_process",
+          ram_size_bytes: 65536,
           objects: [],
           threads: [
             {
-              name: "main thread",
-              stack_size_bytes: 2048,
+              name: "main_thread",
+              kernel_stack_size_bytes: 2048,
             },
           ],
         },
