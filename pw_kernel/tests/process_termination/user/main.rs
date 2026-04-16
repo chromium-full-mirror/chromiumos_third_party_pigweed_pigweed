@@ -18,6 +18,7 @@
 use main_codegen::handle;
 use pw_log::info;
 use pw_status::{Result, StatusCode};
+use userspace::time::Duration;
 use userspace::{entry, syscall};
 
 #[unsafe(no_mangle)]
@@ -52,22 +53,43 @@ fn do_test() -> Result<()> {
         return Err(pw_status::Error::Internal.into());
     }
 
-    info!("🔄 ├─ Testing process_terminate on an actual process handle");
-    let result = syscall::process_terminate(handle::EXTRA_PROCESS);
-    if result.is_err() {
-        pw_log::error!("Failed to terminate extra process");
-        return Err(pw_status::Error::Internal.into());
+    for pass in 0..2 {
+        info!("🔄 ├─ Iteration {}", pass as u32);
+
+        info!("🔄 ├─ Testing process_terminate on a valid process handle");
+        let result = syscall::process_terminate(handle::EXTRA_PROCESS);
+        if result.is_err() {
+            pw_log::error!("Failed to terminate extra process");
+            return Err(pw_status::Error::Internal.into());
+        }
+
+        info!("🔄 ├─ Waiting for extra process to become joinable");
+        syscall::object_wait(
+            handle::EXTRA_PROCESS,
+            syscall::Signals::JOINABLE,
+            syscall::debug_clock_now() + Duration::from_secs(5),
+        )?;
+
+        info!("🔄 ├─ Joining extra process");
+        syscall::process_join(handle::EXTRA_PROCESS)?;
+
+        info!("🔄 ├─ Restarting extra process");
+        syscall::process_start(handle::EXTRA_PROCESS)?;
+
+        info!("🔄 ├─ Verifying process does not terminate unexpectedly");
+        let result = syscall::object_wait(
+            handle::EXTRA_PROCESS,
+            syscall::Signals::JOINABLE,
+            syscall::debug_clock_now() + Duration::from_millis(100),
+        );
+        if result.is_ok() {
+            pw_log::error!("❌ Process terminated unexpectedly or was immediately joinable!");
+            return Err(pw_status::Error::Internal.into());
+        } else if result.err() != Some(pw_status::Error::DeadlineExceeded) {
+            pw_log::error!("❌ Unexpected error waiting for process");
+            return Err(pw_status::Error::Internal.into());
+        }
     }
-
-    info!("🔄 ├─ Waiting for extra process to become joinable");
-    syscall::object_wait(
-        handle::EXTRA_PROCESS,
-        syscall::Signals::JOINABLE,
-        userspace::time::Instant::from_ticks(u64::MAX),
-    )?;
-
-    info!("🔄 ├─ Joining extra process");
-    syscall::process_join(handle::EXTRA_PROCESS)?;
 
     info!("✅ └─ PASSED");
 
