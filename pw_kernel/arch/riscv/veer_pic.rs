@@ -211,7 +211,7 @@ unsafe extern "Rust" {
     static PW_KERNEL_INTERRUPT_TABLE: &'static [InterruptTableEntry];
 }
 
-pub fn interrupt() {
+pub fn interrupt(from_userspace: bool) {
     // Claim the interrupt.  The VeeR document leads me to believe that I
     // need to write to MEICPCT to capture the interrupt value into meihap.
     MeiCPCT::write(MeiCPCTVal::default());
@@ -239,7 +239,7 @@ pub fn interrupt() {
         pw_assert::panic!("Unhandled interrupt: irq={}", irq as u32);
     };
 
-    unsafe { handler() };
+    unsafe { handler(from_userspace) };
 
     // It is up to the interrupt handler to call userspace_interrupt_ack()
     // or kernel_interrupt_handler_exit() (kernel drivers) to release the claim.
@@ -254,6 +254,8 @@ impl VeerPic {
 }
 
 impl InterruptController for VeerPic {
+    type InterruptHandler = unsafe extern "C" fn(bool);
+
     fn early_init(&self) {
         info!(
             "Initializing PIC {:#x}",
@@ -320,6 +322,7 @@ impl InterruptController for VeerPic {
         kernel: K,
         irq: u32,
         preempt_guard: PreemptDisableGuard<K>,
+        _from_userspace: bool,
     ) {
         debug_if!(
             LOG_INTERRUPTS,
@@ -342,6 +345,7 @@ impl InterruptController for VeerPic {
         kernel: K,
         irq: u32,
         preempt_guard: PreemptDisableGuard<K>,
+        _from_userspace: bool,
     ) {
         debug_if!(
             LOG_INTERRUPTS,

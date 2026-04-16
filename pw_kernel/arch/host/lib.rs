@@ -153,6 +153,8 @@ impl HostInterruptController {
 }
 
 impl InterruptController for HostInterruptController {
+    type InterruptHandler = unsafe extern "C" fn();
+
     fn early_init(&self) {
         pw_assert::panic!("Unimplemented: early_init");
     }
@@ -180,6 +182,7 @@ impl InterruptController for HostInterruptController {
         _kernel: K,
         _irq: u32,
         _preempt_guard: PreemptDisableGuard<K>,
+        _from_userspace: bool,
     ) {
         pw_assert::panic!("Unimplemented: userspace_interrupt_handler_exit");
     }
@@ -192,6 +195,7 @@ impl InterruptController for HostInterruptController {
         _kernel: K,
         _irq: u32,
         _preempt_guard: PreemptDisableGuard<K>,
+        _from_userspace: bool,
     ) {
         pw_assert::panic!("Unimplemented: kernel_interrupt_handler_exit");
     }

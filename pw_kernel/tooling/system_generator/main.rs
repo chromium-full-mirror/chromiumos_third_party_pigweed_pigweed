@@ -65,6 +65,14 @@ impl ArchConfigInterface for ArchConfig {
         }
     }
 
+    fn bare_interrupt_table_entries(&self) -> bool {
+        match self {
+            ArchConfig::Armv8M(config) => config.bare_interrupt_table_entries(),
+            ArchConfig::Armv7M(config) => config.bare_interrupt_table_entries(),
+            ArchConfig::RiscV(config) => config.bare_interrupt_table_entries(),
+        }
+    }
+
     fn validate_mpu(&self, config: &system_config::BaseConfig) -> Result<()> {
         match self {
             ArchConfig::Armv8M(arch_config) => arch_config.validate_mpu(config),

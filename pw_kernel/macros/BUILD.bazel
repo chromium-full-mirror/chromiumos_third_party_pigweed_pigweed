@@ -12,7 +12,20 @@
 # License for the specific language governing permissions and limitations under
 # the License.
 
-load("@rules_rust//rust:defs.bzl", "rust_proc_macro")
+load("@rules_rust//rust:defs.bzl", "rust_library", "rust_proc_macro")
+
+rust_library(
+    name = "arch_macro_helpers",
+    srcs = [
+        "arch_macro_helpers.rs",
+    ],
+    edition = "2024",
+    tags = ["kernel"],
+    deps = [
+        "@rust_crates//:quote",
+        "@rust_crates//:syn",
+    ],
+)
 
 rust_proc_macro(
     name = "arm_cortex_m_macro",
@@ -23,6 +36,7 @@ rust_proc_macro(
     tags = ["kernel"],
     visibility = ["//visibility:public"],
     deps = [
+        ":arch_macro_helpers",
         "@rust_crates//:proc-macro2",
         "@rust_crates//:quote",
         "@rust_crates//:syn",
@@ -38,6 +52,7 @@ rust_proc_macro(
     tags = ["kernel"],
     visibility = ["//visibility:public"],
     deps = [
+        ":arch_macro_helpers",
         "@rust_crates//:proc-macro2",
         "@rust_crates//:quote",
         "@rust_crates//:syn",

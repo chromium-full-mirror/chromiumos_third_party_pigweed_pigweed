@@ -143,6 +143,9 @@ mod tests {
         fn get_interrupt_table_link_section(&self) -> Option<String> {
             None
         }
+        fn bare_interrupt_table_entries(&self) -> bool {
+            false
+        }
     }
 
     fn make_mock_config() -> SystemConfig<MockArch> {
@@ -160,6 +163,7 @@ mod tests {
                 apps: vec![],
                 arch_crate_name: "mock",
                 userspace: true,
+                bare_interrupt_table_entries: false,
             },
         }
     }

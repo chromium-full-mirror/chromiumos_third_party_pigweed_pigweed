@@ -12,8 +12,6 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 
-#[cfg(feature = "exceptions_reload_pmp")]
-use kernel::Kernel;
 use kernel_config::{ExceptionMode, KernelConfig, RiscVKernelConfigInterface};
 use log_if::debug_if;
 #[cfg(feature = "exceptions_reload_pmp")]
@@ -141,12 +139,14 @@ unsafe fn interrupt_handler(interrupt: Interrupt, mepc: usize, frame: &TrapFrame
         frame.status as usize,
     );
 
+    let from_userspace = !is_exception_from_kernel(frame);
+
     match interrupt {
         Interrupt::MachineTimer => {
             timer::mtimer_tick();
         }
         Interrupt::MachineExternal => {
-            pic::interrupt();
+            pic::interrupt(from_userspace);
         }
         _ => {
             pw_assert::panic!(
@@ -173,6 +173,7 @@ unsafe extern "C" fn trap_handler(mcause: MCauseVal, mepc: usize, frame: &mut Tr
 
     #[cfg(feature = "exceptions_reload_pmp")]
     {
+        use kernel::Kernel;
         // When we exit the trap, get the current thread and load its memory
         // config into ePMP.
         let mut scheduler = crate::Arch.get_scheduler().lock(crate::Arch);

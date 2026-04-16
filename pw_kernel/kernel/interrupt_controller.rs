@@ -20,6 +20,8 @@ use crate::{Kernel, scheduler};
 /// This trait provides a generic interface to an architecture's interrupt
 /// controller, such as a RISC-V PLIC or an Arm NVIC.
 pub trait InterruptController {
+    type InterruptHandler: Copy + Sync + Send + 'static;
+
     /// Called early in the kernel::main() function.
     fn early_init(&self) {}
 
@@ -41,9 +43,12 @@ pub trait InterruptController {
     /// Userspace interrupt handler is complete.
     fn userspace_interrupt_handler_exit<K: Kernel>(
         kernel: K,
-        irq: u32,
+        _irq: u32,
         preempt_guard: PreemptDisableGuard<K>,
-    );
+        _from_userspace: bool,
+    ) {
+        handler_done(kernel, preempt_guard);
+    }
 
     /// Kernel interrupt handler has started.
     fn kernel_interrupt_handler_enter<K: Kernel>(kernel: K, irq: u32) -> PreemptDisableGuard<K>;
@@ -51,9 +56,12 @@ pub trait InterruptController {
     /// Kernel interrupt handler is complete.
     fn kernel_interrupt_handler_exit<K: Kernel>(
         kernel: K,
-        irq: u32,
+        _irq: u32,
         preempt_guard: PreemptDisableGuard<K>,
-    );
+        _from_userspace: bool,
+    ) {
+        handler_done(kernel, preempt_guard);
+    }
 
     /// Globally enable interrupts.
     fn enable_interrupts();
@@ -108,5 +116,4 @@ impl<T: Clone> StaticContext<T> {
 unsafe impl<T> Sync for StaticContext<T> {}
 unsafe impl<T> Send for StaticContext<T> {}
 
-pub type InterruptHandler = unsafe extern "C" fn();
-pub type InterruptTableEntry = Option<InterruptHandler>;
+pub type InterruptTableEntry<I> = Option<<I as InterruptController>::InterruptHandler>;

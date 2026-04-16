@@ -38,6 +38,7 @@ pub type InterruptController = veer_pic::VeerPic;
 
 // Re-exports to conform to simplify public API.
 pub use protection::MemoryConfig;
+pub use riscv_macro::interrupt;
 pub use spinlock::BareSpinLock;
 pub use threads::ArchThreadState;
 

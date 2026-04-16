@@ -29,6 +29,7 @@ mod threads;
 mod timer;
 
 pub mod protection;
+pub use arm_cortex_m_macro::interrupt;
 pub use protection::MemoryConfig;
 pub use spinlock::BareSpinLock;
 pub use threads::ArchThreadState;

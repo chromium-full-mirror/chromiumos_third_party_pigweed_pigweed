@@ -116,10 +116,10 @@ impl IcrValue {
 }
 
 unsafe extern "Rust" {
-    static PW_KERNEL_INTERRUPT_TABLE: &'static [InterruptTableEntry];
+    static PW_KERNEL_INTERRUPT_TABLE: &'static [InterruptTableEntry<Plic>];
 }
 
-pub fn interrupt() {
+pub fn interrupt(from_userspace: bool) {
     // Claim the interrupt
     let icr = Icr;
     let irq = icr.read(&CONTEXT_0).irq();
@@ -140,7 +140,7 @@ pub fn interrupt() {
         pw_assert::panic!("Unhandled interrupt: irq={}", irq as u32);
     };
 
-    unsafe { handler() };
+    unsafe { handler(from_userspace) };
 
     // It is up to the interrupt handler to call userspace_interrupt_ack()
     // or kernel_interrupt_handler_exit() (kernel drivers) to release the claim.
@@ -155,6 +155,8 @@ impl Plic {
 }
 
 impl InterruptController for Plic {
+    type InterruptHandler = unsafe extern "C" fn(bool);
+
     fn early_init(&self) {
         info!(
             "Initializing PLIC {:#x}",
@@ -221,6 +223,7 @@ impl InterruptController for Plic {
         kernel: K,
         irq: u32,
         preempt_guard: PreemptDisableGuard<K>,
+        _from_userspace: bool,
     ) {
         debug_if!(
             LOG_INTERRUPTS,
@@ -243,6 +246,7 @@ impl InterruptController for Plic {
         kernel: K,
         irq: u32,
         preempt_guard: PreemptDisableGuard<K>,
+        _from_userspace: bool,
     ) {
         debug_if!(
             LOG_INTERRUPTS,

@@ -44,6 +44,7 @@
 //! extern "C" fn pendsv(frame: *mut FullExceptionFrame) -> *mut FullExceptionFrame {
 //! ```
 
+use arch_macro_helpers::{validate_handler_abi, validate_interrupt_handler_args};
 use proc_macro::TokenStream;
 use quote::{format_ident, quote};
 use syn::parse::{Parse, ParseStream, Result};
@@ -116,31 +117,6 @@ impl Parse for Attributes {
             disable_interrupts,
         })
     }
-}
-
-fn validate_handler_abi(handler: &ItemFn) -> Result<()> {
-    let abi = handler.sig.abi.as_ref().ok_or_else(|| {
-        Error::new(
-            handler.sig.span(),
-            "Handler missing an ABI.  Annotate with `extern \"C\"`",
-        )
-    })?;
-
-    let abi_name = abi.name.as_ref().ok_or_else(|| {
-        Error::new(
-            handler.sig.span(),
-            "Handler missing ABI name. Annotate with `extern \"C\"`",
-        )
-    })?;
-
-    if abi_name.value() != "C" {
-        return Err(Error::new(
-            handler.sig.span(),
-            "Handler ABI must be C. Annotate with `extern \"C\"`",
-        ));
-    }
-
-    Ok(())
 }
 
 fn handler_function_argument_error(handler: &ItemFn) -> Error {
@@ -286,4 +262,45 @@ pub fn kernel_only_exception(attr: TokenStream, item: TokenStream) -> TokenStrea
 #[proc_macro_attribute]
 pub fn user_space_exception(attr: TokenStream, item: TokenStream) -> TokenStream {
     exception(attr, item, KernelMode::UserSpace)
+}
+
+/// Generate an interrupt wrapper that passes `from_userspace: bool` to the handler.
+#[proc_macro_attribute]
+pub fn interrupt(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    let mut handler = syn::parse_macro_input!(item as syn::ItemFn);
+
+    if let Err(err) = validate_handler_abi(&handler) {
+        return err.to_compile_error().into();
+    }
+    if let Err(err) = validate_interrupt_handler_args(&handler) {
+        return err.to_compile_error().into();
+    }
+
+    let handler_ident = handler.sig.ident.clone();
+    let handler_impl_ident = quote::format_ident!("{}_impl", handler_ident);
+
+    // Update handler's ident to the impl name.
+    handler.sig.ident = handler_impl_ident.clone();
+
+    quote::quote! {
+        // This wrapper must be a naked function to ensure we can read the Link Register (`lr`)
+        // at the very beginning of the exception before any compiler-generated prologue
+        // modifies registers or the stack. It also allows us to perform a tail call
+        // directly to the handler without creating a stack frame.
+        #[unsafe(no_mangle)]
+        #[unsafe(naked)]
+        pub unsafe extern "C" fn #handler_ident() {
+            unsafe {
+                core::arch::naked_asm!(
+                    "mov r0, lr",
+                    "and r0, #4",
+                    "lsr r0, #2",
+                    "b {handler}",
+                    handler = sym #handler_impl_ident,
+                )
+            }
+        }
+        #handler
+    }
+    .into()
 }

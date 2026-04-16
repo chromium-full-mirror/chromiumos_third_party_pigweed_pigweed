@@ -33,6 +33,8 @@ impl Nvic {
 }
 
 impl InterruptController for Nvic {
+    type InterruptHandler = unsafe extern "C" fn();
+
     fn early_init(&self) {
         info!("Initializing NVIC");
         let nvic_regs = regs::Nvic {};
@@ -78,6 +80,7 @@ impl InterruptController for Nvic {
         kernel: K,
         irq: u32,
         preempt_guard: PreemptDisableGuard<K>,
+        _from_userspace: bool,
     ) {
         debug_if!(
             LOG_INTERRUPTS,
@@ -102,6 +105,7 @@ impl InterruptController for Nvic {
         kernel: K,
         irq: u32,
         preempt_guard: PreemptDisableGuard<K>,
+        _from_userspace: bool,
     ) {
         debug_if!(
             LOG_INTERRUPTS,

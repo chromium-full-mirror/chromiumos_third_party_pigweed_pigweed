@@ -37,6 +37,7 @@
 //! }
 //! ```
 
+use arch_macro_helpers::{validate_handler_abi, validate_interrupt_handler_args};
 use proc_macro::TokenStream;
 use quote::{format_ident, quote};
 use syn::parse::{Parse, ParseStream, Result};
@@ -344,4 +345,19 @@ pub fn kernel_only_exception(attr: TokenStream, item: TokenStream) -> TokenStrea
 #[proc_macro_attribute]
 pub fn user_space_exception(attr: TokenStream, item: TokenStream) -> TokenStream {
     exception(attr, item, KernelMode::UserSpace)
+}
+
+/// Passthrough interrupt macro for RISC-V that passes through the function after validation.
+#[proc_macro_attribute]
+pub fn interrupt(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    let handler = syn::parse_macro_input!(item as syn::ItemFn);
+
+    if let Err(err) = validate_handler_abi(&handler) {
+        return err.to_compile_error().into();
+    }
+    if let Err(err) = validate_interrupt_handler_args(&handler) {
+        return err.to_compile_error().into();
+    }
+
+    quote::quote! { #handler }.into()
 }

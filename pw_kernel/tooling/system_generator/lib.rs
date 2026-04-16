@@ -120,6 +120,16 @@ pub trait ArchConfigInterface {
         config: &mut system_config::BaseConfig,
     ) -> Result<()>;
     fn get_interrupt_table_link_section(&self) -> Option<String>;
+
+    /// Returns true if the interrupt table entries should have no arguments.
+    ///
+    /// Vectored interrupt controllers (like NVIC on ARM) require the entries to
+    /// have no arguments because the hardware jumps directly to the handler.
+    /// Non-vectored controllers (or architectures where all interrupts go to a
+    /// single handler like RISC-V) need to capture the `from_userspace` flag
+    /// earlier in the call chain and pass it to the specific interrupt handler.
+    fn bare_interrupt_table_entries(&self) -> bool;
+
     /// Validate memory layout for MPU compatibility.
     fn validate_mpu(&self, _config: &system_config::BaseConfig) -> Result<()> {
         Ok(()) // Default: no MPU validation
@@ -217,6 +227,10 @@ impl ArchConfigInterface for system_config::Armv8MConfig {
     fn get_interrupt_table_link_section(&self) -> Option<String> {
         Some(".vector_table.interrupts".to_string())
     }
+
+    fn bare_interrupt_table_entries(&self) -> bool {
+        true
+    }
 }
 
 impl ArchConfigInterface for system_config::Armv7MConfig {
@@ -264,6 +278,10 @@ impl ArchConfigInterface for system_config::Armv7MConfig {
 
     fn get_interrupt_table_link_section(&self) -> Option<String> {
         Some(".vector_table.interrupts".to_string())
+    }
+
+    fn bare_interrupt_table_entries(&self) -> bool {
+        true
     }
 
     fn validate_mpu(&self, config: &system_config::BaseConfig) -> Result<()> {
@@ -346,6 +364,10 @@ impl ArchConfigInterface for system_config::RiscVConfig {
 
     fn get_interrupt_table_link_section(&self) -> Option<String> {
         None
+    }
+
+    fn bare_interrupt_table_entries(&self) -> bool {
+        false
     }
 }
 
@@ -469,6 +491,8 @@ impl<'a, A: ArchConfigInterface + Serialize> SystemGenerator<'a, A> {
         );
 
         self.config.base.arch_crate_name = self.config.arch.get_arch_crate_name();
+        self.config.base.bare_interrupt_table_entries =
+            self.config.arch.bare_interrupt_table_entries();
 
         for app in self.config.base.apps.iter_mut() {
             app.flash_start_address = next_flash_start_address;

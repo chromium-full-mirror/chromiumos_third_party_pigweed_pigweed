@@ -37,6 +37,8 @@ pub struct BaseConfig {
     pub arch_crate_name: &'static str,
     #[serde(skip_deserializing)]
     pub userspace: bool,
+    #[serde(skip_deserializing)]
+    pub bare_interrupt_table_entries: bool,
 }
 
 impl BaseConfig {
