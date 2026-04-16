@@ -12,6 +12,7 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 
+use kernel::interrupt_controller::InterruptGuard;
 use kernel::scheduler;
 use kernel_config::{KernelConfig, RiscVKernelConfigInterface};
 use time::Clock as _;
@@ -53,8 +54,12 @@ pub fn init() {
     Timer::init();
 }
 
-pub fn mtimer_tick() {
+pub fn mtimer_tick(from_userspace: bool) {
+    // Manually acquire an interrupt guard as mtimer is not routed through the
+    // platform interrupt controller.
+    let guard = InterruptGuard::new(crate::Arch, from_userspace);
+
     Timer::set_next_monotonic_tick();
 
-    scheduler::tick(crate::Arch, Clock::now());
+    let _guard = scheduler::tick(crate::Arch, Clock::now(), guard);
 }

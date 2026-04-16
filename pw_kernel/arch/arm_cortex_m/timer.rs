@@ -12,6 +12,7 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 
+use kernel::interrupt_controller::InterruptGuard;
 use kernel::scheduler;
 use kernel::sync::spinlock::SpinLock;
 use kernel_config::{CortexMKernelConfigInterface, KernelConfig, KernelConfigInterface};
@@ -102,14 +103,18 @@ pub fn systick_init() {
     csr.write(csr_val);
 }
 
+#[arm_cortex_m_macro::interrupt]
 #[unsafe(no_mangle)]
 #[allow(non_snake_case)]
-pub unsafe extern "C" fn SysTick() {
+pub extern "C" fn SysTick(from_userspace: bool) {
+    // Manually acquire an interrupt guard as SysTick is not routed through the NVIC.
+    let guard = InterruptGuard::new(super::Arch, from_userspace);
+
     {
         let mut ticks = TICKS.lock(crate::Arch);
         *ticks += u64::from(SYSTICK_RELOAD_VALUE);
         log_if::info_if!(LOG_SYSTICK, "SysTick {}", *ticks as u64);
     }
 
-    scheduler::tick(super::Arch, Clock::now());
+    let _guard = scheduler::tick(super::Arch, Clock::now(), guard);
 }

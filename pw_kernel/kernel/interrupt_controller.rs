@@ -14,7 +14,7 @@
 
 use core::cell::UnsafeCell;
 
-use crate::scheduler::PreemptDisableGuard;
+use crate::scheduler::{PreemptDisableGuard, RescheduleReason};
 use crate::{Kernel, scheduler};
 
 /// This trait provides a generic interface to an architecture's interrupt
@@ -38,30 +38,24 @@ pub trait InterruptController {
     /// Userspace interrupt handlers call [`userspace_interrupt_handler_enter(kernel: K, irq: u32)`]
     /// to mask the interrupt prior to the interrupt object being signalled.  The interrupt
     /// is unmasked from userspace by [`userspace_interrupt_ack(irq: u32)`].
-    fn userspace_interrupt_handler_enter<K: Kernel>(kernel: K, irq: u32) -> PreemptDisableGuard<K>;
+    fn userspace_interrupt_handler_enter<K: Kernel>(kernel: K, irq: u32);
 
     /// Userspace interrupt handler is complete.
-    fn userspace_interrupt_handler_exit<K: Kernel>(
-        kernel: K,
-        _irq: u32,
-        preempt_guard: PreemptDisableGuard<K>,
-        _from_userspace: bool,
-    ) {
-        handler_done(kernel, preempt_guard);
-    }
+    ///
+    /// This consumes the `InterruptGuard` by value. When it goes out of scope,
+    /// its `Drop` implementation will handle thread termination checks and
+    /// deferred rescheduling.
+    fn userspace_interrupt_handler_exit<K: Kernel>(kernel: K, irq: u32, guard: InterruptGuard<K>);
 
     /// Kernel interrupt handler has started.
-    fn kernel_interrupt_handler_enter<K: Kernel>(kernel: K, irq: u32) -> PreemptDisableGuard<K>;
+    fn kernel_interrupt_handler_enter<K: Kernel>(kernel: K, irq: u32);
 
     /// Kernel interrupt handler is complete.
-    fn kernel_interrupt_handler_exit<K: Kernel>(
-        kernel: K,
-        _irq: u32,
-        preempt_guard: PreemptDisableGuard<K>,
-        _from_userspace: bool,
-    ) {
-        handler_done(kernel, preempt_guard);
-    }
+    ///
+    /// This consumes the `InterruptGuard` by value. When it goes out of scope,
+    /// its `Drop` implementation will handle thread termination checks and
+    /// deferred rescheduling.
+    fn kernel_interrupt_handler_exit<K: Kernel>(kernel: K, irq: u32, guard: InterruptGuard<K>);
 
     /// Globally enable interrupts.
     fn enable_interrupts();
@@ -77,12 +71,55 @@ pub trait InterruptController {
     fn trigger_interrupt(irq: u32);
 }
 
-pub fn handler_done<K: Kernel>(kernel: K, preempt_guard: PreemptDisableGuard<K>) {
-    drop(preempt_guard);
+pub struct InterruptGuard<K: Kernel> {
+    kernel: K,
+    preempt_guard: Option<PreemptDisableGuard<K>>,
+    from_userspace: bool,
+    reason: RescheduleReason,
+}
 
-    // If a reschedule was requested while preemption was disabled, try to process
-    // it now the preempt guard is dropped.
-    scheduler::try_deferred_reschedule(kernel);
+impl<K: Kernel> InterruptGuard<K> {
+    pub fn new(kernel: K, from_userspace: bool) -> Self {
+        Self {
+            kernel,
+            preempt_guard: Some(crate::scheduler::PreemptDisableGuard::new(kernel)),
+            from_userspace,
+            reason: RescheduleReason::Preempted,
+        }
+    }
+
+    pub fn set_reschedule_reason(&mut self, reason: RescheduleReason) {
+        self.reason = reason;
+    }
+}
+
+impl<K: Kernel> Drop for InterruptGuard<K> {
+    fn drop(&mut self) {
+        if let Some(guard) = self.preempt_guard.take() {
+            drop(guard);
+        }
+        handle_thread_termination(self.kernel, self.from_userspace);
+        scheduler::try_deferred_reschedule(self.kernel, self.reason);
+    }
+}
+
+/// Handle conditional termination of interrupted thread
+///
+/// Checks if the current thread is terminating and was interrupted from userspace.
+/// If so, exit the thread.
+///
+/// This should be called when returning to interrupt or exception.
+pub fn handle_thread_termination<K: Kernel>(kernel: K, from_userspace: bool) {
+    if from_userspace
+        && kernel
+            .get_scheduler()
+            .lock(kernel)
+            .current_thread()
+            .is_terminating()
+    {
+        let sched = kernel.get_scheduler().lock(kernel);
+        sched.thread_exit(kernel);
+    }
 }
 
 /// StaticContext provides a context with Send & Sync for

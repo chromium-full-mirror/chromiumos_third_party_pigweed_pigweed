@@ -40,9 +40,10 @@ static {{object.object_ref_name}}: StaticContext<ForeignRc<<arch::Arch as kernel
 #[arch::interrupt]
 extern "C" fn {{handler_name}}(from_userspace: bool) {
     if let Some(object) = unsafe { {{object.object_ref_name}}.get() } {
-        let preempt_guard = <arch::Arch as kernel::Arch>::InterruptController::userspace_interrupt_handler_enter(arch::Arch, {{irq.number}});
+        let guard = kernel::interrupt_controller::InterruptGuard::new(arch::Arch, from_userspace);
+        <arch::Arch as kernel::Arch>::InterruptController::userspace_interrupt_handler_enter(arch::Arch, {{irq.number}});
         object.interrupt(arch::Arch, {{mapped_signal}});
-        <arch::Arch as kernel::Arch>::InterruptController::userspace_interrupt_handler_exit(arch::Arch, {{irq.number}}, preempt_guard, from_userspace);
+        <arch::Arch as kernel::Arch>::InterruptController::userspace_interrupt_handler_exit(arch::Arch, {{irq.number}}, guard);
     }
 }
                 {% endfor %}
@@ -100,9 +101,10 @@ macro_rules! declare_kernel_interrupt_handlers {
         #[unsafe(no_mangle)]
         #[arch::interrupt]
         unsafe extern "C" fn interrupt_handler_{{irq}}(from_userspace: bool) {
-            let preempt_guard = <arch::Arch as kernel::Arch>::InterruptController::kernel_interrupt_handler_enter(arch::Arch, {{irq}});
+            let guard = kernel::interrupt_controller::InterruptGuard::new(arch::Arch, from_userspace);
+            <arch::Arch as kernel::Arch>::InterruptController::kernel_interrupt_handler_enter(arch::Arch, {{irq}});
             {{handler_name}}(arch::Arch);
-            <arch::Arch as kernel::Arch>::InterruptController::kernel_interrupt_handler_exit(arch::Arch, {{irq}}, preempt_guard, from_userspace);
+            <arch::Arch as kernel::Arch>::InterruptController::kernel_interrupt_handler_exit(arch::Arch, {{irq}}, guard);
         }
         {%- endfor %}
     };

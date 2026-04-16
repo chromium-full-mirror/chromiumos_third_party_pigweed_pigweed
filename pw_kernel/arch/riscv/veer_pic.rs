@@ -14,9 +14,8 @@
 
 use core::ptr;
 
-use kernel::interrupt_controller::{InterruptController, InterruptTableEntry};
-use kernel::scheduler::PreemptDisableGuard;
-use kernel::{Kernel, interrupt_controller};
+use kernel::Kernel;
+use kernel::interrupt_controller::{InterruptController, InterruptGuard, InterruptTableEntry};
 use kernel_config::{VeerPicConfig, VeerPicConfigInterface};
 use log_if::debug_if;
 use pw_log::info;
@@ -307,46 +306,35 @@ impl InterruptController for VeerPic {
         set_interrupt_enable(irq, true);
     }
 
-    fn userspace_interrupt_handler_enter<K: Kernel>(kernel: K, irq: u32) -> PreemptDisableGuard<K> {
+    fn userspace_interrupt_handler_enter<K: Kernel>(_kernel: K, irq: u32) {
         debug_if!(
             LOG_INTERRUPTS,
             "Userspace interrupt {} handler enter",
             irq as u32
         );
-        // For the PIC, the interrupt has already been claimed in the handler, so there
-        // is no need to mask the interrupt here.
-        PreemptDisableGuard::new(kernel)
     }
 
     fn userspace_interrupt_handler_exit<K: Kernel>(
-        kernel: K,
+        _kernel: K,
         irq: u32,
-        preempt_guard: PreemptDisableGuard<K>,
-        _from_userspace: bool,
+        _guard: InterruptGuard<K>,
     ) {
         debug_if!(
             LOG_INTERRUPTS,
             "Userspace interrupt {} handler exit",
             irq as u32
         );
-        interrupt_controller::handler_done(kernel, preempt_guard);
     }
 
-    fn kernel_interrupt_handler_enter<K: Kernel>(kernel: K, irq: u32) -> PreemptDisableGuard<K> {
+    fn kernel_interrupt_handler_enter<K: Kernel>(_kernel: K, irq: u32) {
         debug_if!(
             LOG_INTERRUPTS,
             "Kernel interrupt {} handler enter",
             irq as u32
         );
-        PreemptDisableGuard::new(kernel)
     }
 
-    fn kernel_interrupt_handler_exit<K: Kernel>(
-        kernel: K,
-        irq: u32,
-        preempt_guard: PreemptDisableGuard<K>,
-        _from_userspace: bool,
-    ) {
+    fn kernel_interrupt_handler_exit<K: Kernel>(_kernel: K, irq: u32, _guard: InterruptGuard<K>) {
         debug_if!(
             LOG_INTERRUPTS,
             "Kernel interrupt {} handler exit",
@@ -355,7 +343,6 @@ impl InterruptController for VeerPic {
         // Release the claim on the interrupt
         // TODO: do we need to release the claim via MeiGwClr?
         set_interrupt_enable(irq, true);
-        interrupt_controller::handler_done(kernel, preempt_guard);
     }
 
     fn enable_interrupts() {

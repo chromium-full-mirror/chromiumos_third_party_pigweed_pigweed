@@ -28,6 +28,7 @@ type RunQueue<K> = ForeignList<Thread<K>, ThreadListAdapter<K>>;
 /// The reason a thread is being rescheduled. This can be used as a hint to the
 /// scheduling algorithm to determine where the thread should end up in the
 /// queue of pending threads.
+#[derive(Clone, Copy, Debug)]
 pub enum RescheduleReason {
     /// The currently running thread has been preempted causing it to be re-added to the scheduler.
     Preempted,

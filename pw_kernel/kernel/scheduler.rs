@@ -60,7 +60,8 @@ pub mod priority_bitmask;
 pub mod thread;
 pub mod timer;
 
-use algorithm::{RescheduleReason, SchedulerAlgorithm};
+pub use algorithm::RescheduleReason;
+use algorithm::SchedulerAlgorithm;
 pub use locks::{SchedLockGuard, WaitQueueLock, WaitQueueLockGuard};
 pub use priority::Priority;
 use thread::*;
@@ -686,7 +687,7 @@ impl<K: Kernel> SpinLockGuard<'_, K, SchedulerState<K>> {
         thread.join_event = None;
     }
 
-    fn thread_exit(mut self, kernel: K) {
+    pub(crate) fn thread_exit(mut self, kernel: K) {
         let mut current_thread = self.take_current_thread();
         let current_thread_id = current_thread.id();
 
@@ -728,7 +729,6 @@ impl<K: Kernel> SpinLockGuard<'_, K, SchedulerState<K>> {
                     (self, _) = thread_object.join_locked(kernel, self);
                 }
             }
-
             self = process_ref.drop_locked(kernel, self);
         }
         #[cfg(not(feature = "user_space"))]
@@ -738,7 +738,8 @@ impl<K: Kernel> SpinLockGuard<'_, K, SchedulerState<K>> {
 
         let _ = context_switch(kernel, self, current_thread_id, State::Terminated);
 
-        pw_assert::panic!("thread_exit returned unexpectedly");
+        // On some systems like M-profile ARM context switch is deferred if called
+        // from an interrupt so this function may return.
     }
 
     fn thread_is_terminating(&self, thread: &ThreadRef<K>) -> bool {
@@ -993,7 +994,7 @@ fn context_switch<K: Kernel>(
 
 /// If try_reschedule() was called while preemption was disabled, try to
 /// reschedule again after the preempt guard is dropped.
-pub fn try_deferred_reschedule<K: Kernel>(kernel: K) {
+pub fn try_deferred_reschedule<K: Kernel>(kernel: K, reason: RescheduleReason) {
     if Ok(true)
         == kernel
             .thread_local_state()
@@ -1003,7 +1004,7 @@ pub fn try_deferred_reschedule<K: Kernel>(kernel: K) {
         let _ = kernel
             .get_scheduler()
             .lock(kernel)
-            .try_reschedule(kernel, RescheduleReason::Preempted);
+            .try_reschedule(kernel, reason);
     }
 }
 
@@ -1022,7 +1023,11 @@ pub fn yield_timeslice<K: Kernel>(kernel: K) {
 // Tick that is called from a timer handler. The scheduler will evaluate if the current thread
 // should be preempted or not
 #[allow(dead_code)]
-pub fn tick<K: Kernel>(kernel: K, now: Instant<K::Clock>) {
+pub fn tick<K: Kernel>(
+    kernel: K,
+    now: Instant<K::Clock>,
+    mut guard: crate::interrupt_controller::InterruptGuard<K>,
+) -> crate::interrupt_controller::InterruptGuard<K> {
     log_if::info_if!(
         LOG_SCHEDULER_EVENTS,
         "Scheduler tick at {}",
@@ -1033,25 +1038,25 @@ pub fn tick<K: Kernel>(kernel: K, now: Instant<K::Clock>) {
             .thread_local_state()
             .preempt_disable_count
             .load(Ordering::SeqCst)
-            == 0,
-        "scheduler::tick() called with preemption disabled"
+            >= 1,
+        "scheduler::tick() called with preemption enabled"
     );
-
-    let guard = PreemptDisableGuard::new(kernel);
 
     // In lieu of a proper timer interface, the scheduler needs to be robust
     // to timer ticks arriving before it is initialized.
     if kernel.get_scheduler().lock(kernel).current_thread.is_none() {
-        return;
+        return guard;
     }
 
     timer::process_queue(kernel, now);
-    drop(guard);
 
+    guard.set_reschedule_reason(RescheduleReason::Ticked);
     let _ = kernel
         .get_scheduler()
         .lock(kernel)
         .try_reschedule(kernel, RescheduleReason::Ticked);
+
+    guard
 }
 
 /// Exit the currently running thread.

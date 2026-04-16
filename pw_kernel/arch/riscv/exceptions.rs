@@ -143,7 +143,7 @@ unsafe fn interrupt_handler(interrupt: Interrupt, mepc: usize, frame: &TrapFrame
 
     match interrupt {
         Interrupt::MachineTimer => {
-            timer::mtimer_tick();
+            timer::mtimer_tick(from_userspace);
         }
         Interrupt::MachineExternal => {
             pic::interrupt(from_userspace);
