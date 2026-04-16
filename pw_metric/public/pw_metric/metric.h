@@ -282,27 +282,27 @@ class Group : public GroupList::Item {
   PW_TOKENIZE_STRING_MASK("metrics", _PW_METRIC_TOKEN_MASK, metric_name)
 
 // Case: PW_METRIC(name, initial_value)
-#define _PW_METRIC_4(static_def, variable_name, metric_name, init)       \
-  static constexpr uint32_t variable_name##_token =                      \
-      PW_METRIC_TOKEN(metric_name);                                      \
-  static_def ::pw::metric::TypedMetric<_PW_METRIC_FLOAT_OR_UINT32(init)> \
+#define _PW_METRIC_4(static_def, variable_name, metric_name, init)      \
+  static constexpr uint32_t variable_name##_token =                     \
+      PW_METRIC_TOKEN(metric_name);                                     \
+  static_def::pw::metric::TypedMetric<_PW_METRIC_FLOAT_OR_UINT32(init)> \
       variable_name = {variable_name##_token, init}
 
 // Case: PW_METRIC(group, name, initial_value)
 #define _PW_METRIC_5(static_def, group, variable_name, metric_name, init) \
   static constexpr uint32_t variable_name##_token =                       \
       PW_METRIC_TOKEN(metric_name);                                       \
-  static_def ::pw::metric::TypedMetric<_PW_METRIC_FLOAT_OR_UINT32(init)>  \
+  static_def::pw::metric::TypedMetric<_PW_METRIC_FLOAT_OR_UINT32(init)>   \
       variable_name = {variable_name##_token, init, group.metrics()}
 
 // Case: PW_METRIC_STATIC(name, initial_value)
 #define _PW_METRIC_STATIC_4(static_def, variable_name, metric_name, init) \
   static constexpr uint32_t variable_name##_token =                       \
       PW_METRIC_TOKEN(metric_name);                                       \
-  static_def ::pw::NoDestructor<                                          \
+  static_def::pw::NoDestructor<                                           \
       ::pw::metric::TypedMetric<_PW_METRIC_FLOAT_OR_UINT32(init)>>        \
       variable_name##_storage(variable_name##_token, init);               \
-  static_def ::pw::metric::TypedMetric<_PW_METRIC_FLOAT_OR_UINT32(init)>& \
+  static_def::pw::metric::TypedMetric<_PW_METRIC_FLOAT_OR_UINT32(init)>&  \
       variable_name [[maybe_unused]] = *variable_name##_storage
 
 // Case: PW_METRIC_STATIC(group, name, initial_value)
@@ -310,10 +310,10 @@ class Group : public GroupList::Item {
     static_def, group, variable_name, metric_name, init)                     \
   static constexpr uint32_t variable_name##_token =                          \
       PW_METRIC_TOKEN(metric_name);                                          \
-  static_def ::pw::NoDestructor<                                             \
+  static_def::pw::NoDestructor<                                              \
       ::pw::metric::TypedMetric<_PW_METRIC_FLOAT_OR_UINT32(init)>>           \
       variable_name##_storage(variable_name##_token, init, group.metrics()); \
-  static_def ::pw::metric::TypedMetric<_PW_METRIC_FLOAT_OR_UINT32(init)>&    \
+  static_def::pw::metric::TypedMetric<_PW_METRIC_FLOAT_OR_UINT32(init)>&     \
       variable_name [[maybe_unused]] = *variable_name##_storage
 
 // Define a metric group. Works like PW_METRIC, and works in the same contexts.
@@ -345,29 +345,29 @@ class Group : public GroupList::Item {
 #define _PW_METRIC_GROUP_3(static_def, variable_name, group_name) \
   static constexpr uint32_t variable_name##_token =               \
       PW_TOKENIZE_STRING_DOMAIN("metrics", group_name);           \
-  static_def ::pw::metric::Group variable_name = {variable_name##_token}
+  static_def::pw::metric::Group variable_name = {variable_name##_token}
 
 #define _PW_METRIC_GROUP_4(static_def, parent, variable_name, group_name) \
   static constexpr uint32_t variable_name##_token =                       \
       PW_TOKENIZE_STRING_DOMAIN("metrics", group_name);                   \
-  static_def ::pw::metric::Group variable_name = {variable_name##_token,  \
-                                                  parent.children()}
+  static_def::pw::metric::Group variable_name = {variable_name##_token,   \
+                                                 parent.children()}
 
-#define _PW_METRIC_GROUP_STATIC_3(static_def, variable_name, group_name)      \
-  static constexpr uint32_t variable_name##_token =                           \
-      PW_TOKENIZE_STRING_DOMAIN("metrics", group_name);                       \
-  static_def ::pw::NoDestructor<::pw::metric::Group> variable_name##_storage( \
-      variable_name##_token);                                                 \
-  static_def ::pw::metric::Group& variable_name [[maybe_unused]] =            \
+#define _PW_METRIC_GROUP_STATIC_3(static_def, variable_name, group_name)     \
+  static constexpr uint32_t variable_name##_token =                          \
+      PW_TOKENIZE_STRING_DOMAIN("metrics", group_name);                      \
+  static_def::pw::NoDestructor<::pw::metric::Group> variable_name##_storage( \
+      variable_name##_token);                                                \
+  static_def::pw::metric::Group& variable_name [[maybe_unused]] =            \
       *variable_name##_storage
 
-#define _PW_METRIC_GROUP_STATIC_4(                                            \
-    static_def, parent, variable_name, group_name)                            \
-  static constexpr uint32_t variable_name##_token =                           \
-      PW_TOKENIZE_STRING_DOMAIN("metrics", group_name);                       \
-  static_def ::pw::NoDestructor<::pw::metric::Group> variable_name##_storage( \
-      variable_name##_token, parent.children());                              \
-  static_def ::pw::metric::Group& variable_name [[maybe_unused]] =            \
+#define _PW_METRIC_GROUP_STATIC_4(                                           \
+    static_def, parent, variable_name, group_name)                           \
+  static constexpr uint32_t variable_name##_token =                          \
+      PW_TOKENIZE_STRING_DOMAIN("metrics", group_name);                      \
+  static_def::pw::NoDestructor<::pw::metric::Group> variable_name##_storage( \
+      variable_name##_token, parent.children());                             \
+  static_def::pw::metric::Group& variable_name [[maybe_unused]] =            \
       *variable_name##_storage
 
 // Similar to PW_TOKENIZE_STRING_EXPR, converts a string literal to a

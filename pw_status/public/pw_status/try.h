@@ -28,11 +28,11 @@
 
 /// @}
 
-#define _PW_TRY(result, expr, return_stmt)                 \
-  do {                                                     \
-    if (auto result = (expr); !result.ok()) {              \
-      return_stmt ::pw::internal::ConvertToStatus(result); \
-    }                                                      \
+#define _PW_TRY(result, expr, return_stmt)                \
+  do {                                                    \
+    if (auto result = (expr); !result.ok()) {             \
+      return_stmt::pw::internal::ConvertToStatus(result); \
+    }                                                     \
   } while (0)
 
 /// @module{pw_status}
@@ -44,11 +44,11 @@
 
 /// @}
 
-#define _PW_TRY_ASSIGN(result, lhs, expr, return_stmt)   \
-  auto result = (expr);                                  \
-  if (!result.ok()) {                                    \
-    return_stmt ::pw::internal::ConvertToStatus(result); \
-  }                                                      \
+#define _PW_TRY_ASSIGN(result, lhs, expr, return_stmt)  \
+  auto result = (expr);                                 \
+  if (!result.ok()) {                                   \
+    return_stmt::pw::internal::ConvertToStatus(result); \
+  }                                                     \
   lhs = ::pw::internal::ConvertToValue(result)
 
 /// @module{pw_status}
