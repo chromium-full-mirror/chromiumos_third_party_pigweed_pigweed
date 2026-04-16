@@ -150,9 +150,6 @@ cipd_repository = use_repo_rule("//pw_env_setup/bazel/cipd_setup:cipd_rules.bzl"
 pw_cxx_toolchain = use_extension("//pw_toolchain/cc:pw_cxx_toolchain.bzl", "pw_cxx_toolchain")
 
 # Fetch llvm toolchain.
-# ROLL: Warning: this variable is automatically updated.
-# ROLL: Last updated 2026-04-08.
-# ROLL: By https://cr-buildbucket.appspot.com/build/8685069087479629185.
 LLVM_VERSION = "git_revision:26697f4d07eb921aebabdaa7d064c5165c70717e"
 
 pw_cxx_toolchain.llvm(cipd_tag = LLVM_VERSION)
@@ -194,9 +191,9 @@ use_repo(cc_compatibility_proxy, "cc_compatibility_proxy")
 pw_rust = use_extension("//pw_toolchain/rust:extensions.bzl", "pw_rust")
 
 # ROLL: Warning: this variable is automatically updated.
-# ROLL: Last updated 2026-04-08.
-# ROLL: By https://cr-buildbucket.appspot.com/build/8685069087479629185.
-RUST_VERSION = "git_revisions:8a703520e80d87d4423c01f9d4fbc9e5f6533a02,26697f4d07eb921aebabdaa7d064c5165c70717e"
+# ROLL: Last updated 2026-04-16.
+# ROLL: By https://cr-buildbucket.appspot.com/build/8684340144123280929.
+RUST_VERSION = "git_revisions:d32e620a107b5b3dccd9ddb53fa124956a92b589,26697f4d07eb921aebabdaa7d064c5165c70717e"
 
 # TODO(b/488384121): Setup a roller
 # ROLL: Warning: this variable is automatically updated.

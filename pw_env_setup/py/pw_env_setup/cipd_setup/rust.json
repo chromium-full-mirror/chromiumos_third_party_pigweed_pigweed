@@ -10,7 +10,7 @@
         "windows-amd64"
       ],
       "tags": [
-        "git_revisions:8a703520e80d87d4423c01f9d4fbc9e5f6533a02,26697f4d07eb921aebabdaa7d064c5165c70717e"
+        "git_revisions:d32e620a107b5b3dccd9ddb53fa124956a92b589,26697f4d07eb921aebabdaa7d064c5165c70717e"
       ]
     },
     {
@@ -19,7 +19,7 @@
         "linux-arm64"
       ],
       "tags": [
-        "git_revisions:8a703520e80d87d4423c01f9d4fbc9e5f6533a02,26697f4d07eb921aebabdaa7d064c5165c70717e"
+        "git_revisions:d32e620a107b5b3dccd9ddb53fa124956a92b589,26697f4d07eb921aebabdaa7d064c5165c70717e"
       ]
     },
     {
@@ -28,7 +28,7 @@
         "linux-amd64"
       ],
       "tags": [
-        "git_revisions:8a703520e80d87d4423c01f9d4fbc9e5f6533a02,26697f4d07eb921aebabdaa7d064c5165c70717e"
+        "git_revisions:d32e620a107b5b3dccd9ddb53fa124956a92b589,26697f4d07eb921aebabdaa7d064c5165c70717e"
       ]
     },
     {
@@ -37,7 +37,7 @@
         "mac-arm64"
       ],
       "tags": [
-        "git_revisions:8a703520e80d87d4423c01f9d4fbc9e5f6533a02,26697f4d07eb921aebabdaa7d064c5165c70717e"
+        "git_revisions:d32e620a107b5b3dccd9ddb53fa124956a92b589,26697f4d07eb921aebabdaa7d064c5165c70717e"
       ]
     },
     {
@@ -46,7 +46,7 @@
         "windows-amd64"
       ],
       "tags": [
-        "git_revisions:8a703520e80d87d4423c01f9d4fbc9e5f6533a02,26697f4d07eb921aebabdaa7d064c5165c70717e"
+        "git_revisions:d32e620a107b5b3dccd9ddb53fa124956a92b589,26697f4d07eb921aebabdaa7d064c5165c70717e"
       ]
     },
     {
@@ -55,7 +55,7 @@
         "mac-amd64"
       ],
       "tags": [
-        "git_revisions:8a703520e80d87d4423c01f9d4fbc9e5f6533a02,26697f4d07eb921aebabdaa7d064c5165c70717e"
+        "git_revisions:d32e620a107b5b3dccd9ddb53fa124956a92b589,26697f4d07eb921aebabdaa7d064c5165c70717e"
       ]
     },
     {
@@ -67,7 +67,7 @@
         "mac-arm64"
       ],
       "tags": [
-        "git_revisions:8a703520e80d87d4423c01f9d4fbc9e5f6533a02,26697f4d07eb921aebabdaa7d064c5165c70717e"
+        "git_revisions:d32e620a107b5b3dccd9ddb53fa124956a92b589,26697f4d07eb921aebabdaa7d064c5165c70717e"
       ]
     },
     {
