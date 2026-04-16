@@ -33,7 +33,7 @@ class SelectFuture {
   static_assert(sizeof...(Futures) > 0,
                 "Cannot select over an empty set of futures");
 
-  using value_type = OptionalTuple<typename Futures::value_type...>;
+  using value_type = OptionalTuple<FutureValue<Futures>...>;
 
   constexpr SelectFuture() = default;
 

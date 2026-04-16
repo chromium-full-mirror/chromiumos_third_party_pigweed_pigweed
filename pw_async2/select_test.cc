@@ -192,4 +192,44 @@ TEST(SelectFuture, DestroysFuturesOnCompletion) {
   EXPECT_FALSE(provider2.has_active_futures());
 }
 
+TEST(SelectFuture, Pend_VoidFuture) {
+  DispatcherForTest dispatcher;
+
+  BroadcastValueProvider<int> int_provider;
+  BroadcastValueProvider<void> void_provider;
+
+  auto future = Select(int_provider.Get(), void_provider.Get());
+
+  EXPECT_EQ(dispatcher.RunInTaskUntilStalled(future), Pending());
+
+  void_provider.Resolve();
+  auto result = dispatcher.RunInTaskUntilStalled(future);
+  ASSERT_TRUE(result.IsReady());
+
+  EXPECT_FALSE(result->has_value<0>());
+  EXPECT_TRUE(result->has_value<1>());
+
+  EXPECT_TRUE(future.is_complete());
+}
+
+TEST(SelectFuture, Pend_OnlyVoidFutures) {
+  DispatcherForTest dispatcher;
+
+  BroadcastValueProvider<void> void_provider1;
+  BroadcastValueProvider<void> void_provider2;
+
+  auto future = Select(void_provider1.Get(), void_provider2.Get());
+
+  EXPECT_EQ(dispatcher.RunInTaskUntilStalled(future), Pending());
+
+  void_provider2.Resolve();
+  auto result = dispatcher.RunInTaskUntilStalled(future);
+  ASSERT_TRUE(result.IsReady());
+
+  EXPECT_FALSE(result->has_value<0>());
+  EXPECT_TRUE(result->has_value<1>());
+
+  EXPECT_TRUE(future.is_complete());
+}
+
 }  // namespace
