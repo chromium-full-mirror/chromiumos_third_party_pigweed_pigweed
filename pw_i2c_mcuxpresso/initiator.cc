@@ -16,6 +16,8 @@
 
 #include "pw_i2c_mcuxpresso/initiator.h"
 
+#include <algorithm>
+#include <chrono>
 #include <mutex>
 
 #include "fsl_i2c.h"
@@ -38,6 +40,8 @@ Status HalStatusToPwStatus(status_t status) {
       return Status::Unavailable();
     case kStatus_I2C_InvalidParameter:
       return Status::InvalidArgument();
+    case kStatus_I2C_EventTimeout:
+    case kStatus_I2C_SclLowTimeout:
     case kStatus_I2C_Timeout:
       return Status::DeadlineExceeded();
     case kStatus_I2C_ArbitrationLost:
@@ -65,6 +69,7 @@ void McuxpressoInitiator::EnableLocked() {
   i2c_master_config_t master_config;
   I2C_MasterGetDefaultConfig(&master_config);
   master_config.baudRate_Bps = config_.baud_rate_bps;
+  master_config.enableTimeout = config_.use_hardware_timeouts;
   I2C_MasterInit(base_, &master_config, CLOCK_GetFreq(config_.clock_name));
 
   // Create the handle for the non-blocking transfer and register callback.
@@ -116,10 +121,33 @@ void McuxpressoInitiator::TransferCompleteCallback(I2C_Type*,
 
 Status McuxpressoInitiator::InitiateNonBlockingTransferUntil(
     chrono::SystemClock::time_point deadline, i2c_master_transfer_t* transfer) {
+  // Bail out if our deadline has already passed
+  if ((deadline - chrono::SystemClock::now()).count() < 0) {
+    return Status::DeadlineExceeded();
+  }
+
   // Acquire the clock_tree_element. Use a scoped guard so it's released from
   // any function return.
   PW_CHECK_OK(clock_tree_element_.Acquire());
   pw::ScopeGuard guard([this] { clock_tree_element_.Release().IgnoreError(); });
+
+  chrono::SystemClock::time_point soft_deadline = deadline;
+  if (config_.use_hardware_timeouts) {
+    const auto time_left_ms =
+        std::chrono::duration_cast<std::chrono::milliseconds>(
+            deadline - chrono::SystemClock::now())
+            .count();
+    const uint8_t deadline_ms = std::clamp(time_left_ms, 0LL, 255LL);
+    const uint32_t clockfreq = CLOCK_GetFreq(config_.clock_name);
+    I2C_MasterSetTimeoutValue(base_, deadline_ms, clockfreq);
+
+    // Ensure the try_acquire_until below doesn't race with the hardware IRQs
+    // in the face of a timeout by bumping the deadline at least 10ms past the
+    // hardware timeout.
+    constexpr auto kDeadlineFudgeFactor =
+        chrono::SystemClock::for_at_least(std::chrono::milliseconds(10));
+    soft_deadline += kDeadlineFudgeFactor;
+  }
 
   const status_t status =
       I2C_MasterTransferNonBlocking(base_, &handle_, transfer);
@@ -127,7 +155,7 @@ Status McuxpressoInitiator::InitiateNonBlockingTransferUntil(
     return HalStatusToPwStatus(status);
   }
 
-  if (!callback_complete_notification_.try_acquire_until(deadline)) {
+  if (!callback_complete_notification_.try_acquire_until(soft_deadline)) {
     // If we're going to restart the interface for this bus, ignore trying to
     // abort the transfer. Otherwise, we need to keep things synced, so wait
     // for the transfer to abort.
@@ -144,6 +172,12 @@ Status McuxpressoInitiator::InitiateNonBlockingTransferUntil(
   callback_isl_.lock();
   const status_t transfer_status = transfer_status_;
   callback_isl_.unlock();
+
+  if (transfer_status == kStatus_I2C_EventTimeout) {
+    PW_LOG_WARN("I2C event timeout! Possible stuck Flexcomm!");
+  } else if (transfer_status == kStatus_I2C_SclLowTimeout) {
+    PW_LOG_WARN("SCL stuck low timeout! Is a peripheral misbehaving?");
+  }
 
   return HalStatusToPwStatus(transfer_status);
 }

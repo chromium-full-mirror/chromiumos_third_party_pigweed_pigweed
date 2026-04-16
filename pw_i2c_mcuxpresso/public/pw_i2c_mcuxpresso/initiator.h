@@ -37,6 +37,11 @@ class McuxpressoInitiator final : public Initiator {
     // out. This usually indicates the host interface has become stuck and
     // will require a restart.
     bool auto_restart_interface = false;
+
+    // Use hardware timeout registers for deadlines. This will cause I2C
+    // transactions to fail sooner, rather than spinning needlessly in
+    // busy-wait loops deep in the MCUxpresso code.
+    bool use_hardware_timeouts = false;
   };
 
   McuxpressoInitiator(const Config& config,
