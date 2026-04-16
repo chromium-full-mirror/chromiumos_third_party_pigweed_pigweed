@@ -54,7 +54,6 @@ import re
 import signal
 import subprocess
 import sys
-import tempfile
 import time
 import types
 from typing import (
@@ -212,89 +211,6 @@ class Programs(collections.abc.Mapping):
 
     def __len__(self) -> int:
         return len(self._programs)
-
-
-def download_cas_artifact(
-    ctx: PresubmitContext, digest: str, output_dir: str
-) -> None:
-    """Downloads the given digest to the given outputdirectory
-
-    Args:
-        ctx: the presubmit context
-        digest:
-        a string digest in the form "<digest hash>/<size bytes>"
-        i.e 693a04e41374150d9d4b645fccb49d6f96e10b527c7a24b1e17b331f508aa73b/86
-        output_dir: the directory we want to download the artifacts to
-    """
-    if ctx.luci is None:
-        raise PresubmitFailure('Lucicontext is None')
-    cmd = [
-        'cas',
-        'download',
-        '-cas-instance',
-        ctx.luci.cas_instance,
-        '-digest',
-        digest,
-        '-dir',
-        output_dir,
-    ]
-    try:
-        subprocess.check_call(cmd)
-    except subprocess.CalledProcessError as failure:
-        raise PresubmitFailure('cas download failed') from failure
-
-
-def archive_cas_artifact(
-    ctx: PresubmitContext, root: str, upload_paths: list[str]
-) -> str:
-    """Uploads the given artifacts into cas
-
-    Args:
-        ctx: the presubmit context
-        root: root directory of archived tree, should be absolutepath.
-        paths: path to archived files/dirs, should be absolute path.
-            If empty, [root] will be used.
-
-    Returns:
-        A string digest in the form "<digest hash>/<size bytes>"
-        i.e 693a04e41374150d9d4b645fccb49d6f96e10b527c7a24b1e17b331f508aa73b/86
-    """
-    if ctx.luci is None:
-        raise PresubmitFailure('Lucicontext is None')
-    assert os.path.abspath(root)
-    if not upload_paths:
-        upload_paths = [root]
-    for path in upload_paths:
-        assert os.path.abspath(path)
-
-    with tempfile.NamedTemporaryFile(mode='w+t') as tmp_digest_file:
-        with tempfile.NamedTemporaryFile(mode='w+t') as tmp_paths_file:
-            json_paths = json.dumps(
-                [
-                    [str(root), str(os.path.relpath(path, root))]
-                    for path in upload_paths
-                ]
-            )
-            tmp_paths_file.write(json_paths)
-            tmp_paths_file.seek(0)
-            cmd = [
-                'cas',
-                'archive',
-                '-cas-instance',
-                ctx.luci.cas_instance,
-                '-paths-json',
-                tmp_paths_file.name,
-                '-dump-digest',
-                tmp_digest_file.name,
-            ]
-            try:
-                subprocess.check_call(cmd)
-            except subprocess.CalledProcessError as failure:
-                raise PresubmitFailure('cas archive failed') from failure
-
-            tmp_digest_file.seek(0)
-            uploaded_digest = tmp_digest_file.read()
-            return uploaded_digest
 
 
 def _print_ui(*args) -> None:
