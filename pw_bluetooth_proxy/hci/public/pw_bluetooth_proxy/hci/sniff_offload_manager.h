@@ -237,8 +237,8 @@ class SniffOffloadManager final {
   };
 
   // Internal actions and helpers.
-  void SendCommandComplete(uint16_t opcode) PW_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
-  void SendCommandStatus(uint16_t opcode, CommandStatus status)
+  void SendCommandComplete(uint16_t opcode,
+                           CommandStatus status = CommandStatus::kSuccess)
       PW_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
   void DoDisable() PW_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
   void DoEnable(Enabled&& enabled) PW_EXCLUSIVE_LOCKS_REQUIRED(mutex_);

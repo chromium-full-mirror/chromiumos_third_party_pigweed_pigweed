@@ -381,8 +381,8 @@ SniffOffloadManager::ProcessWriteSniffOffloadEnable(
                         emboss::OpCode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE) {
     PW_LOG_ERROR("Invalid WriteSniffOffloadEnable packet.");
     OnError(ErrorReason::kInvalidPacket);
-    SendCommandStatus(kWriteSniffOffloadEnableOpcode,
-                      CommandStatus::kBadArguments);
+    SendCommandComplete(kWriteSniffOffloadEnableOpcode,
+                        CommandStatus::kBadArguments);
     return kBlockPacket;
   }
 
@@ -419,8 +419,8 @@ SniffOffloadManager::ProcessWriteSniffOffloadParameters(
           emboss::OpCode::ANDROID_WRITE_SNIFF_OFFLOAD_PARAMETERS) {
     PW_LOG_ERROR("Invalid WriteSniffOffloadParameters packet.");
     OnError(ErrorReason::kInvalidPacket);
-    SendCommandStatus(kWriteSniffOffloadParametersOpcode,
-                      CommandStatus::kBadArguments);
+    SendCommandComplete(kWriteSniffOffloadParametersOpcode,
+                        CommandStatus::kBadArguments);
     return kBlockPacket;
   }
 
@@ -431,8 +431,8 @@ SniffOffloadManager::ProcessWriteSniffOffloadParameters(
         "Cannot set sniff offload parameters for unknown connection 0x%04x.",
         cpp23::to_underlying(handle));
     OnError(ErrorReason::kConnectionNotFound, handle);
-    SendCommandStatus(kWriteSniffOffloadParametersOpcode,
-                      CommandStatus::kUnknownConnection);
+    SendCommandComplete(kWriteSniffOffloadParametersOpcode,
+                        CommandStatus::kUnknownConnection);
     return kBlockPacket;
   }
 
@@ -741,7 +741,8 @@ SniffOffloadManager::ProcessLeGetVendorCapabilitiesCommandComplete(
   return {};
 }
 
-void SniffOffloadManager::SendCommandComplete(uint16_t opcode) {
+void SniffOffloadManager::SendCommandComplete(uint16_t opcode,
+                                              CommandStatus status) {
   Scratch<SimpleCommandCompleteEvent::IntrinsicSizeInBytes()> scratch;
   auto writer = MakeEmbossWriter<SimpleCommandCompleteEventWriter>(scratch);
   PW_CHECK_OK(writer.status());
@@ -755,29 +756,8 @@ void SniffOffloadManager::SendCommandComplete(uint16_t opcode) {
       EventHeader::IntrinsicSizeInBytes());
   cmd_complete.num_hci_command_packets().Write(1);
   cmd_complete.command_opcode_uint().Write(opcode);
-  writer->status().Write(emboss::StatusCode::SUCCESS);
-
-  PW_CHECK(writer->Ok());
-
-  auto buf = AllocateBuffer(scratch);
-
-  if (!buf.ok()) {
-    PW_LOG_WARN("Failed to allocate buffer for CommandComplete event.");
-    OnError(ErrorReason::kCannotAllocateBuffer);
-    return;
-  }
-
-  SendEvent(std::move(*buf));
-}
-
-void SniffOffloadManager::SendCommandStatus(uint16_t opcode,
-                                            CommandStatus status) {
-  Scratch<CommandStatusEvent::IntrinsicSizeInBytes()> scratch;
-  auto writer = MakeEmbossWriter<CommandStatusEventWriter>(scratch);
-  PW_CHECK_OK(writer.status());
 
   emboss::StatusCode status_code;
-
   switch (status) {
     case CommandStatus::kSuccess:
       status_code = emboss::StatusCode::SUCCESS;
@@ -789,20 +769,14 @@ void SniffOffloadManager::SendCommandStatus(uint16_t opcode,
       status_code = emboss::StatusCode::UNKNOWN_CONNECTION_ID;
       break;
   }
-
-  writer->header().event_code().Write(emboss::EventCode::COMMAND_STATUS);
-  writer->header().parameter_total_size().Write(
-      CommandStatusEvent::IntrinsicSizeInBytes() -
-      EventHeader::IntrinsicSizeInBytes());
   writer->status().Write(status_code);
-  writer->num_hci_command_packets().Write(1);
-  writer->command_opcode_uint().Write(opcode);
 
   PW_CHECK(writer->Ok());
 
   auto buf = AllocateBuffer(scratch);
+
   if (!buf.ok()) {
-    PW_LOG_WARN("Failed to allocate buffer for CommandStatus event.");
+    PW_LOG_WARN("Failed to allocate buffer for CommandComplete event.");
     OnError(ErrorReason::kCannotAllocateBuffer);
     return;
   }

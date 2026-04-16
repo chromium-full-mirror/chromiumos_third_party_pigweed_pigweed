@@ -988,7 +988,7 @@ TEST_F(SniffOffloadManagerTest, ErrorConnectionNotFound) {
   EXPECT_EQ(Simulate(WriteSniffOffloadParameters(0x456)), kInterceptResume);
   EXPECT_EQ(PopLastError(),
             Error({ErrorReason::kConnectionNotFound, ConnectionHandle{0x456}}));
-  EXPECT_TRUE(CheckCommandStatusEventSent(
+  EXPECT_TRUE(CheckCommandCompleteEventSent(
       CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_PARAMETERS,
       emboss::StatusCode::UNKNOWN_CONNECTION_ID));
 
@@ -1019,14 +1019,14 @@ TEST_F(SniffOffloadManagerTest, ErrorInvalidPacket) {
                             CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE),
             kInterceptResume);
   EXPECT_EQ(PopLastError(), Error({ErrorReason::kInvalidPacket, std::nullopt}));
-  EXPECT_TRUE(CheckCommandStatusEventSent(
+  EXPECT_TRUE(CheckCommandCompleteEventSent(
       CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE,
       emboss::StatusCode::INVALID_HCI_COMMAND_PARAMETERS));
   EXPECT_EQ(SimulateCommand(MakeZeroBuffer(kWriteSniffOffloadEnableSize),
                             CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE),
             kInterceptResume);
   EXPECT_EQ(PopLastError(), Error({ErrorReason::kInvalidPacket, std::nullopt}));
-  EXPECT_TRUE(CheckCommandStatusEventSent(
+  EXPECT_TRUE(CheckCommandCompleteEventSent(
       CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE,
       emboss::StatusCode::INVALID_HCI_COMMAND_PARAMETERS));
 
@@ -1035,7 +1035,7 @@ TEST_F(SniffOffloadManagerTest, ErrorInvalidPacket) {
                       CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_PARAMETERS),
       kInterceptResume);
   EXPECT_EQ(PopLastError(), Error({ErrorReason::kInvalidPacket, std::nullopt}));
-  EXPECT_TRUE(CheckCommandStatusEventSent(
+  EXPECT_TRUE(CheckCommandCompleteEventSent(
       CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_PARAMETERS,
       emboss::StatusCode::INVALID_HCI_COMMAND_PARAMETERS));
   EXPECT_EQ(
@@ -1043,7 +1043,7 @@ TEST_F(SniffOffloadManagerTest, ErrorInvalidPacket) {
                       CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_PARAMETERS),
       kInterceptResume);
   EXPECT_EQ(PopLastError(), Error({ErrorReason::kInvalidPacket, std::nullopt}));
-  EXPECT_TRUE(CheckCommandStatusEventSent(
+  EXPECT_TRUE(CheckCommandCompleteEventSent(
       CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_PARAMETERS,
       emboss::StatusCode::INVALID_HCI_COMMAND_PARAMETERS));
 
