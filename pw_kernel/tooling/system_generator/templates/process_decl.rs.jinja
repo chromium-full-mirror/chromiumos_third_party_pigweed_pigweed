@@ -31,15 +31,7 @@
 
     let entry_{{process.name | to_lower_ident}}_index = {{process_index}}_usize;
 
-    // Subdivide App RAM for multi-process apps to prevent stack overlap
-    // TODO: b/498642671 - add configuration of stacks.
-    {% if app.processes | length > 1 -%}
-    {%- set ram_per_process = app.ram_size_bytes / app.processes | length %}
-    let initial_sp = {{ app.ram_start_address | hex }}_u64 + (({{ process_index }} as u64 + 1_u64) * {{ ram_per_process | hex }}_u64);
-
-    {%- else -%}
-    let initial_sp = {{ app.initial_sp | hex }}_u64;
-    {%- endif %}
+    let initial_sp = {{ process.ram_start_address | hex }}_u64 + {{ process.ram_size_bytes | hex }}_u64;
 
     // TODO: https://pwbug.dev/496970887 - Don't assume thread 0 is main.
     let main_thread_object =

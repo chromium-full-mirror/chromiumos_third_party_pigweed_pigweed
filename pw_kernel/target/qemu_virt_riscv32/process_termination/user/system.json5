@@ -28,10 +28,10 @@
     {
       name: "main",
       flash_size_bytes: 261120,
-      ram_size_bytes: 65536,
       processes: [
         {
           name: "main",
+          ram_size_bytes: 65536,
           objects: [
             {
               name: "extra_process",
@@ -43,12 +43,12 @@
             {
               name: "main_thread",
               // Generous stacks size pending kernel stack size optimization.
-              stack_size_bytes: 2048,
+              kernel_stack_size_bytes: 2048,
             },
             {
               name: "test_thread",
               // Generous stacks size pending kernel stack size optimization.
-              stack_size_bytes: 2048,
+              kernel_stack_size_bytes: 2048,
             },
           ],
         },
@@ -57,16 +57,16 @@
     {
       name: "extra",
       flash_size_bytes: 261120,
-      ram_size_bytes: 65536,
       processes: [
         {
           name: "extra",
+          ram_size_bytes: 65536,
           objects: [],
           threads: [
             {
               name: "extra_thread",
               // Generous stacks size pending kernel stack size optimization.
-              stack_size_bytes: 2048,
+              kernel_stack_size_bytes: 2048,
             },
           ],
         },

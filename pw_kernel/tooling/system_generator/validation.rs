@@ -173,6 +173,8 @@ mod tests {
             ram_size_bytes: 0,
             processes: vec![ProcessConfig {
                 name: "valid_process".to_string(),
+                ram_size_bytes: 0,
+                ram_start_address: 0,
                 memory_mappings: vec![crate::system_config::MemoryMapping {
                     name: "valid_mapping".to_string(),
                     ty: crate::system_config::MemoryMappingType::ReadOnlyExecutable,
@@ -186,7 +188,7 @@ mod tests {
                 )],
                 threads: vec![crate::system_config::ThreadConfig {
                     name: "valid_thread".to_string(),
-                    stack_size_bytes: None,
+                    kernel_stack_size_bytes: None,
                     priority: None,
                     stack_size_expression: "".to_string(),
                 }],
@@ -240,6 +242,8 @@ mod tests {
             ram_size_bytes: 0,
             processes: vec![ProcessConfig {
                 name: "proc1".to_string(),
+                ram_size_bytes: 0,
+                ram_start_address: 0,
                 memory_mappings: vec![crate::system_config::MemoryMapping {
                     name: "mapping1".to_string(),
                     ty: crate::system_config::MemoryMappingType::ReadOnlyExecutable,
@@ -253,7 +257,7 @@ mod tests {
                 )],
                 threads: vec![crate::system_config::ThreadConfig {
                     name: "thread1".to_string(),
-                    stack_size_bytes: None,
+                    kernel_stack_size_bytes: None,
                     priority: None,
                     stack_size_expression: "".to_string(),
                 }],

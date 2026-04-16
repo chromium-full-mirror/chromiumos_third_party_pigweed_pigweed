@@ -28,10 +28,10 @@
     {
       name: "initiator",
       flash_size_bytes: 261120,
-      ram_size_bytes: 65536,
       processes: [
         {
           name: "initiator",
+          ram_size_bytes: 65536,
           objects: [
             {
               name: "ipc_1",
@@ -60,7 +60,7 @@
             {
               name: "initiator_thread",
               // Generous stacks size pending kernel stack size optimization.
-              stack_size_bytes: 2048,
+              kernel_stack_size_bytes: 2048,
             },
           ],
         },
@@ -69,10 +69,10 @@
     {
       name: "handlers",
       flash_size_bytes: 783360, // Sum of 3 * 261120
-      ram_size_bytes: 196608, // Sum of 3 * 65536
       processes: [
         {
           name: "handler1",
+          ram_size_bytes: 65536,
           objects: [
             {
               name: "ipc_1",
@@ -83,12 +83,13 @@
             {
               name: "handler1_thread",
               // Generous stacks size pending kernel stack size optimization.
-              stack_size_bytes: 2048,
+              kernel_stack_size_bytes: 2048,
             },
           ],
         },
         {
           name: "handler2",
+          ram_size_bytes: 65536,
           objects: [
             {
               name: "ipc_2",
@@ -99,12 +100,13 @@
             {
               name: "handler2_thread",
               // Generous stacks size pending kernel stack size optimization.
-              stack_size_bytes: 2048,
+              kernel_stack_size_bytes: 2048,
             },
           ],
         },
         {
           name: "handler3",
+          ram_size_bytes: 65536,
           objects: [
             {
               name: "ipc_3",
@@ -115,7 +117,7 @@
             {
               name: "handler3_thread",
               // Generous stacks size pending kernel stack size optimization.
-              stack_size_bytes: 2048,
+              kernel_stack_size_bytes: 2048,
             },
           ],
         },

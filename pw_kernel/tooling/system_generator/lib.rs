@@ -124,6 +124,14 @@ pub trait ArchConfigInterface {
     fn validate_mpu(&self, _config: &system_config::BaseConfig) -> Result<()> {
         Ok(()) // Default: no MPU validation
     }
+    /// Get required alignment for a process RAM region.
+    fn get_ram_alignment(&self, _size: u64) -> u64 {
+        32
+    }
+    /// Get minimum RAM alignment.
+    fn get_minimum_ram_alignment(&self) -> u64 {
+        32
+    }
 }
 
 pub fn parse_config<A: ArchConfigInterface + DeserializeOwned>(
@@ -137,7 +145,6 @@ pub fn parse_config<A: ArchConfigInterface + DeserializeOwned>(
 }
 
 const FLASH_ALIGNMENT: u64 = 4;
-const RAM_ALIGNMENT: u64 = 8;
 
 /// Map the kernel's flash region as `ReadOnlyExecutable` into every app's
 /// address space. This is required so that `svc_return` remains executable
@@ -227,7 +234,32 @@ impl ArchConfigInterface for system_config::Armv7MConfig {
         config: &mut system_config::BaseConfig,
     ) -> Result<()> {
         cortex_m_add_kernel_code_mapping(config);
+
+        // Validate power-of-2 size for Armv7-M
+        for app in &config.apps {
+            for process in &app.processes {
+                if !process.ram_size_bytes.is_power_of_two() {
+                    return Err(anyhow!(
+                        "Process {} RAM size ({}) must be a power of 2 for Armv7-M",
+                        process.name,
+                        process.ram_size_bytes
+                    ));
+                }
+                if process.ram_size_bytes < 32 {
+                    return Err(anyhow!(
+                        "Process {} RAM size ({}) must be at least 32 bytes for Armv7-M",
+                        process.name,
+                        process.ram_size_bytes
+                    ));
+                }
+            }
+        }
+
         Ok(())
+    }
+
+    fn get_ram_alignment(&self, size: u64) -> u64 {
+        size
     }
 
     fn get_interrupt_table_link_section(&self) -> Option<String> {
@@ -431,7 +463,10 @@ impl<'a, A: ArchConfigInterface + Serialize> SystemGenerator<'a, A> {
         next_flash_start_address = Self::align(next_flash_start_address, FLASH_ALIGNMENT);
         let mut next_ram_start_address =
             self.config.base.kernel.ram_start_address + self.config.base.kernel.ram_size_bytes;
-        next_ram_start_address = Self::align(next_ram_start_address, RAM_ALIGNMENT);
+        next_ram_start_address = Self::align(
+            next_ram_start_address,
+            self.config.arch.get_minimum_ram_alignment(),
+        );
 
         self.config.base.arch_crate_name = self.config.arch.get_arch_crate_name();
 
@@ -443,8 +478,21 @@ impl<'a, A: ArchConfigInterface + Serialize> SystemGenerator<'a, A> {
             );
 
             app.ram_start_address = next_ram_start_address;
-            next_ram_start_address =
-                Self::align(app.ram_start_address + app.ram_size_bytes, RAM_ALIGNMENT);
+
+            // Calculate app RAM size as sum of process RAM sizes.
+            app.ram_size_bytes = app.processes.iter().map(|p| p.ram_size_bytes).sum();
+
+            let mut current_process_ram_start = app.ram_start_address;
+            for process in &mut app.processes {
+                let alignment = self.config.arch.get_ram_alignment(process.ram_size_bytes);
+                process.ram_start_address = Self::align(current_process_ram_start, alignment);
+                current_process_ram_start = process.ram_start_address + process.ram_size_bytes;
+            }
+
+            next_ram_start_address = Self::align(
+                app.ram_start_address + app.ram_size_bytes,
+                self.config.arch.get_minimum_ram_alignment(),
+            );
 
             app.start_fn_address = self
                 .config
@@ -555,8 +603,8 @@ impl<'a, A: ArchConfigInterface + Serialize> SystemGenerator<'a, A> {
                     MemoryMapping {
                         name: "ram".to_string(),
                         ty: MemoryMappingType::ReadWriteData,
-                        start_address: app.ram_start_address,
-                        size_bytes: app.ram_size_bytes,
+                        start_address: process.ram_start_address,
+                        size_bytes: process.ram_size_bytes,
                     },
                 );
             }

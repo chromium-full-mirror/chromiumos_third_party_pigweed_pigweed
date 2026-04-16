@@ -136,6 +136,7 @@ pub enum ConstConfig {
 pub struct AppConfig {
     pub name: String,
     pub flash_size_bytes: u64,
+    #[serde(skip_deserializing)]
     pub ram_size_bytes: u64,
     pub processes: Vec<ProcessConfig>,
     #[serde(default)]
@@ -157,6 +158,9 @@ pub struct AppConfig {
 #[serde(deny_unknown_fields)]
 pub struct ProcessConfig {
     pub name: String,
+    pub ram_size_bytes: u64,
+    #[serde(skip_deserializing)]
+    pub ram_start_address: u64,
 
     #[serde(default)]
     pub memory_mappings: Vec<MemoryMapping>,
@@ -268,7 +272,7 @@ pub struct WaitGroupConfig {
 #[serde(deny_unknown_fields)]
 pub struct ThreadConfig {
     pub name: String,
-    pub stack_size_bytes: Option<u64>,
+    pub kernel_stack_size_bytes: Option<u64>,
     pub priority: Option<String>,
     #[serde(skip_deserializing)]
     pub stack_size_expression: String,
@@ -309,12 +313,22 @@ impl<A: ArchConfigInterface> SystemConfig<A> {
 
         for app_config in &mut self.base.apps {
             for process in &mut app_config.processes {
+                let alignment = self.arch.get_ram_alignment(process.ram_size_bytes);
+                if process.ram_size_bytes % alignment != 0 {
+                    return Err(anyhow!(
+                        "RAM size ({}) for process {} must be aligned to {} bytes",
+                        process.ram_size_bytes,
+                        process.name,
+                        alignment
+                    ));
+                }
+
                 for thread in &mut process.threads {
                     if thread.priority.is_none() {
                         thread.priority = Some("DEFAULT_PRIORITY".to_string());
                     }
 
-                    thread.stack_size_expression = match thread.stack_size_bytes {
+                    thread.stack_size_expression = match thread.kernel_stack_size_bytes {
                         None => {
                             "kernel::__private::kernel_config::KernelConfig::KERNEL_STACK_SIZE_BYTES"
                                 .to_string()
