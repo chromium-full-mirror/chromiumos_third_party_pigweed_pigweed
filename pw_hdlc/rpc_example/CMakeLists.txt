@@ -13,17 +13,19 @@
 # the License.
 
 
-add_executable(pw_hdlc.rpc_example EXCLUDE_FROM_ALL
-    hdlc_rpc_server.cc
-    main.cc
-)
+if(NOT "${dir_pw_third_party_nanopb}" STREQUAL "")
+  add_executable(pw_hdlc.rpc_example EXCLUDE_FROM_ALL
+      hdlc_rpc_server.cc
+      main.cc
+  )
 
-target_link_libraries(pw_hdlc.rpc_example
-  PRIVATE
-    pw_hdlc
-    pw_hdlc.default_addresses
-    pw_log
-    pw_rpc.nanopb.echo_service
-    pw_rpc.server
-    pw_rpc.system_server
-)
+  target_link_libraries(pw_hdlc.rpc_example
+    PRIVATE
+      pw_hdlc
+      pw_hdlc.default_addresses
+      pw_log
+      pw_rpc.nanopb.echo_service
+      pw_rpc.server
+      pw_rpc.system_server
+  )
+endif()

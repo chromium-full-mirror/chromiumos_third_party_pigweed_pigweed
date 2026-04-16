@@ -484,37 +484,47 @@ function(_pw_nanopb_rpc_library NAME)
   # Determine the names of the output files.
   list(TRANSFORM arg_DEPS APPEND .nanopb_rpc)
 
-  _pw_generate_protos("${NAME}" nanopb_rpc
-    PLUGIN
-      "$ENV{PW_ROOT}/pw_rpc/py/pw_rpc/plugin_nanopb.py"
-    OUTPUT_EXTS
-      ".rpc.pb.h"
-    INCLUDE_FILE
-      "${arg_INCLUDE_FILE}"
-    OUT_DIR
-      "${arg_OUT_DIR}"
-    SOURCES
-      ${arg_SOURCES}
-    INPUTS
-      ${arg_INPUTS}
-    DEPENDS
-      ${arg_DEPS}
-      "$ENV{PW_ROOT}/pw_rpc/py/pw_rpc/plugin.py"
-  )
+  if("${dir_pw_third_party_nanopb}" STREQUAL "")
+    add_custom_target("${NAME}._generate.nanopb_rpc")  # Nothing to do
+    pw_add_error_target("${NAME}.nanopb_rpc"
+      MESSAGE
+        "Attempting to use pw_proto_library, but dir_pw_third_party_nanopb is "
+        "not set. Set dir_pw_third_party_nanopb to the path to the Nanopb "
+        "repository."
+    )
+  else()
+    _pw_generate_protos("${NAME}" nanopb_rpc
+      PLUGIN
+        "$ENV{PW_ROOT}/pw_rpc/py/pw_rpc/plugin_nanopb.py"
+      OUTPUT_EXTS
+        ".rpc.pb.h"
+      INCLUDE_FILE
+        "${arg_INCLUDE_FILE}"
+      OUT_DIR
+        "${arg_OUT_DIR}"
+      SOURCES
+        ${arg_SOURCES}
+      INPUTS
+        ${arg_INPUTS}
+      DEPENDS
+        ${arg_DEPS}
+        "$ENV{PW_ROOT}/pw_rpc/py/pw_rpc/plugin.py"
+    )
 
-  # Create the library with the generated source files.
-  pw_add_library_generic("${NAME}.nanopb_rpc" INTERFACE
-    GENERATED_HEADERS
-      ${generated_outputs}
-    PUBLIC_INCLUDES
-      "${arg_OUT_DIR}/nanopb_rpc"
-    PUBLIC_DEPS
-      "${NAME}.nanopb"
-      pw_build
-      pw_rpc.nanopb.client_api
-      pw_rpc.nanopb.server_api
-      pw_rpc.server
-      ${arg_DEPS}
-  )
-  add_dependencies("${NAME}.nanopb_rpc" "${NAME}._generate.nanopb_rpc")
+    # Create the library with the generated source files.
+    pw_add_library_generic("${NAME}.nanopb_rpc" INTERFACE
+      GENERATED_HEADERS
+        ${generated_outputs}
+      PUBLIC_INCLUDES
+        "${arg_OUT_DIR}/nanopb_rpc"
+      PUBLIC_DEPS
+        "${NAME}.nanopb"
+        pw_build
+        pw_rpc.nanopb.client_api
+        pw_rpc.nanopb.server_api
+        pw_rpc.server
+        ${arg_DEPS}
+    )
+    add_dependencies("${NAME}.nanopb_rpc" "${NAME}._generate.nanopb_rpc")
+  endif()
 endfunction(_pw_nanopb_rpc_library)

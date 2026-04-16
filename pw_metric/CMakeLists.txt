@@ -70,20 +70,6 @@ pw_add_library(pw_metric.metric_walker STATIC
     pw_tokenizer
 )
 
-pw_add_library(pw_metric.nanopb_metric_writer INTERFACE
-  HEADERS
-    public/pw_metric/nanopb_metric_writer.h
-  PUBLIC_INCLUDES
-    public
-  PUBLIC_DEPS
-    pw_metric
-    pw_metric.metric_service_proto.nanopb
-    pw_metric.metric_walker
-    pw_containers
-    pw_span
-    pw_status
-)
-
 pw_add_library(pw_metric.pwpb_metric_writer INTERFACE
   HEADERS
     public/pw_metric/pwpb_metric_writer.h
@@ -95,27 +81,6 @@ pw_add_library(pw_metric.pwpb_metric_writer INTERFACE
     pw_metric.metric_walker
     pw_protobuf
     pw_status
-)
-
-pw_add_library(pw_metric.metric_service_nanopb STATIC
-  HEADERS
-    public/pw_metric/metric_service_nanopb.h
-  PUBLIC_INCLUDES
-    public
-  PUBLIC_DEPS
-    pw_containers
-    pw_metric
-    pw_metric.metric_service_proto.nanopb_rpc
-    pw_metric.nanopb_metric_writer
-    pw_span
-    pw_status
-  SOURCES
-    metric_service_nanopb.cc
-  PRIVATE_DEPS
-    pw_assert
-    pw_containers
-    pw_metric.metric_walker
-    pw_preprocessor
 )
 
 pw_add_library(pw_metric.metric_service_pwpb STATIC
@@ -160,19 +125,56 @@ pw_add_test(pw_metric.global_test
     pw_metric
 )
 
-pw_add_test(pw_metric.metric_service_nanopb_test
-  SOURCES
-    metric_service_nanopb_test.cc
-  PRIVATE_DEPS
-    pw_metric.global
-    pw_metric.metric_service_nanopb
-    pw_metric.nanopb_metric_writer
-    pw_rpc.nanopb.test_method_context
-    pw_rpc.test_helpers
-  GROUPS
-    modules
-    pw_metric
-)
+if(NOT "${dir_pw_third_party_nanopb}" STREQUAL "")
+  pw_add_library(pw_metric.nanopb_metric_writer INTERFACE
+    HEADERS
+      public/pw_metric/nanopb_metric_writer.h
+    PUBLIC_INCLUDES
+      public
+    PUBLIC_DEPS
+      pw_metric
+      pw_metric.metric_service_proto.nanopb
+      pw_metric.metric_walker
+      pw_containers
+      pw_span
+      pw_status
+  )
+
+  pw_add_library(pw_metric.metric_service_nanopb STATIC
+    HEADERS
+      public/pw_metric/metric_service_nanopb.h
+    PUBLIC_INCLUDES
+      public
+    PUBLIC_DEPS
+      pw_containers
+      pw_metric
+      pw_metric.metric_service_proto.nanopb_rpc
+      pw_metric.nanopb_metric_writer
+      pw_span
+      pw_status
+    SOURCES
+      metric_service_nanopb.cc
+    PRIVATE_DEPS
+      pw_assert
+      pw_containers
+      pw_metric.metric_walker
+      pw_preprocessor
+  )
+
+  pw_add_test(pw_metric.metric_service_nanopb_test
+    SOURCES
+      metric_service_nanopb_test.cc
+    PRIVATE_DEPS
+      pw_metric.global
+      pw_metric.metric_service_nanopb
+      pw_metric.nanopb_metric_writer
+      pw_rpc.nanopb.test_method_context
+      pw_rpc.test_helpers
+    GROUPS
+      modules
+      pw_metric
+  )
+endif()
 
 pw_add_test(pw_metric.metric_service_pwpb_test
   SOURCES

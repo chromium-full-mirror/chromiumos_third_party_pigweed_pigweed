@@ -215,5 +215,7 @@ if(CONFIG_ZEPHYR_PIGWEED_MODULE)
 else()
   add_subdirectory(targets/host EXCLUDE_FROM_ALL)
 
-  add_dependencies(pw_apps pw_hdlc.rpc_example)
+  if(NOT "${dir_pw_third_party_nanopb}" STREQUAL "")
+    add_dependencies(pw_apps pw_hdlc.rpc_example)
+  endif()
 endif()
