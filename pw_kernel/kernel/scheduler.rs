@@ -345,12 +345,12 @@ impl<K: Kernel> SchedulerState<K> {
     }
 
     #[allow(dead_code)]
-    pub fn dump_all_threads(&self) {
+    pub fn dump(&self, kernel: K) {
         info!("List of all threads:");
         let _ = self
             .process_list
             .for_each(|process| -> core::result::Result<(), ()> {
-                process.dump();
+                process.dump(kernel);
                 Ok(())
             });
     }

@@ -409,13 +409,22 @@ impl<K: Kernel> Process<K> {
         addr
     }
 
-    pub fn dump(&self) {
+    pub fn dump(&self, kernel: K) {
         info!(
             "Process '{}' ({:#010x}) state: {}",
             self.name as &str,
             self.id() as usize,
             process_state_to_string(self.state) as &str
         );
+        #[cfg(feature = "user_space")]
+        {
+            self.object_table.dump(kernel);
+        }
+        #[cfg(not(feature = "user_space"))]
+        {
+            // Suppress unused warning when user_space not enabled.
+            let _ = kernel;
+        }
         unsafe {
             let _ = self
                 .thread_list

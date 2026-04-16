@@ -350,8 +350,6 @@ fn bootstrap_thread_entry<K: Kernel>(
 
     kernel.init();
 
-    kernel.get_scheduler().lock(kernel).dump_all_threads();
-
     let idle_thread = thread::init_thread_in(
         kernel,
         &mut idle_thread_storage.thread,
@@ -361,8 +359,6 @@ fn bootstrap_thread_entry<K: Kernel>(
         idle_thread_entry,
         0,
     );
-
-    kernel.get_scheduler().lock(kernel).dump_all_threads();
 
     scheduler::start_thread(kernel, idle_thread);
 

@@ -52,6 +52,10 @@ impl<K: Kernel> ObjectTable<K> for NullObjectTable {
     ) -> Option<foreign_box::ForeignRc<K::AtomicUsize, dyn KernelObject<K>>> {
         None
     }
+
+    fn dump(&self, _kernel: K) {
+        // Nothing to dump for NullObjectTable
+    }
 }
 
 #[cfg(feature = "user_space")]

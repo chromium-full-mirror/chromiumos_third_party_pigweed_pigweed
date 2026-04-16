@@ -368,9 +368,22 @@ fn handle_debug_putc<'a, K: Kernel>(kernel: K, mut args: K::SyscallArgs<'a>) -> 
 }
 
 // TODO: Consider adding an feature flagged PowerManager object and move this shutdown call to it.
-fn handle_debug_shutdown<'a, K: Kernel>(_kernel: K, mut args: K::SyscallArgs<'a>) -> Result<u64> {
+fn handle_debug_shutdown<'a, K: Kernel>(kernel: K, mut args: K::SyscallArgs<'a>) -> Result<u64> {
     log_if::debug_if!(SYSCALL_DEBUG, "syscall: handling debug_shutdown");
     let exit_code = args.next_u32()?;
+    if exit_code != 0 {
+        // Allow `kernel` to be unused if `system_dump_on_failure` is not enabled.
+        let _ = kernel;
+        #[cfg(feature = "system_dump_on_failure")]
+        {
+            pw_log::info!(
+                "Kernel exiting with failure code {}. Dumping system state:",
+                exit_code as i32
+            );
+
+            kernel.get_scheduler().lock(kernel).dump(kernel);
+        }
+    }
     crate::target::shutdown(exit_code);
 }
 

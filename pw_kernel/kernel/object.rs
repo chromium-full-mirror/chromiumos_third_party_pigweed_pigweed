@@ -50,6 +50,12 @@ pub trait KernelObject<K: Kernel>: Any + Send + Sync {
         None
     }
 
+    /// Dump the object's state for debugging.
+    fn dump(&self, kernel: K) {
+        if let Some(base) = self.base() {
+            base.dump(kernel);
+        }
+    }
     /// Wait on a set of signals to be active.
     ///
     /// Blocks until any of the signals in `signal_mask` are active on the object
@@ -306,8 +312,10 @@ pub trait ObjectTable<K: Kernel>: Send + Sync {
         kernel: K,
         handle: u32,
     ) -> Option<ForeignRc<K::AtomicUsize, dyn KernelObject<K>>>;
-}
 
+    /// Dump the object table's state for debugging.
+    fn dump(&self, kernel: K);
+}
 /// An object table with no entries.
 ///
 /// This may be replaced with a static object tables with no entries.
@@ -328,6 +336,10 @@ impl<K: Kernel> ObjectTable<K> for NullObjectTable {
     ) -> Option<ForeignRc<K::AtomicUsize, dyn KernelObject<K>>> {
         None
     }
+
+    fn dump(&self, _kernel: K) {
+        pw_log::info!("      No objects in table.");
+    }
 }
 
 impl<const N: usize, K: Kernel> ObjectTable<K>
@@ -340,8 +352,14 @@ impl<const N: usize, K: Kernel> ObjectTable<K>
     ) -> Option<ForeignRc<<K>::AtomicUsize, dyn KernelObject<K>>> {
         self.get(handle as usize).cloned()
     }
-}
 
+    fn dump(&self, kernel: K) {
+        for (i, obj) in self.iter().enumerate() {
+            pw_log::info!("      Object {}:", i as i32);
+            obj.dump(kernel);
+        }
+    }
+}
 /// Common functionality used by many kernel objects
 pub struct ObjectBase<K: Kernel> {
     wait_group_link: Link,
@@ -359,6 +377,11 @@ impl<K: Kernel> ObjectBase<K> {
 }
 
 impl<K: Kernel> ObjectBase<K> {
+    pub fn dump(&self, kernel: K) {
+        let state = self.state.lock(kernel);
+        pw_log::info!("        Signals: {}", state.active_signals.bits() as i32);
+    }
+
     pub fn wait_until(
         &self,
         kernel: K,

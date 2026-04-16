@@ -66,6 +66,9 @@ rust_library(
     }) + select({
         ":tracing_enabled": ["tracing"],
         "//conditions:default": [],
+    }) + select({
+        ":system_dump_enabled": ["system_dump_on_failure"],
+        "//conditions:default": [],
     }) + selects.with_or({
         SUPPORTED_CORTEX_M_CPUS: ["arch_arm_cortex_m"],
         "@platforms//cpu:riscv32": ["arch_riscv"],
@@ -138,5 +141,17 @@ config_setting(
     name = "tracing_enabled",
     flag_values = {
         ":tracing": "true",
+    },
+)
+
+bool_flag(
+    name = "system_dump",
+    build_setting_default = False,
+)
+
+config_setting(
+    name = "system_dump_enabled",
+    flag_values = {
+        ":system_dump": "true",
     },
 )
