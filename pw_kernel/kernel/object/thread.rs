@@ -84,6 +84,13 @@ impl<K: Kernel> ThreadObject<K> {
             return Err(Error::AlreadyExists);
         };
 
+        // SAFETY: `ThreadObject` is a kernel object that is always managed
+        // within a `ForeignRcState` (e.g., when wrapped in `ForeignRc` or
+        // `ForeignBox` for the object table). Thus, the `&self` reference
+        // points to storage contained inside a `ForeignRcState`.
+        let self_rc = unsafe { foreign_box::ForeignRcState::create_ref_from_inner(self) };
+        thread.object = Some(self_rc.clone());
+
         unsafe {
             thread.initialize_non_priv_thread(kernel, process_ref, initial_pc, initial_sp, args)?;
         }

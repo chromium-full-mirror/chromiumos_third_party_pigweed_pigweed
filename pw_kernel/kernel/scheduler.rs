@@ -134,6 +134,8 @@ pub fn add_process<K: Kernel>(kernel: K, mut process: ForeignBox<Process<K>>) ->
     let mut sched_state = kernel.get_scheduler().lock(kernel);
     let process_ref = ProcessRef::new(NonNull::from(&mut *process), kernel);
 
+    process.state = ProcessState::New;
+
     // SAFETY: We are taking ownership of the ForeignBox and interacting with the
     // scheduler state which we have locked.
     sched_state.add_process_to_list(process);

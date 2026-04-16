@@ -100,9 +100,16 @@ impl<K: Kernel> ProcessObject<K> {
     pub fn start(&self, kernel: K) -> Result<()> {
         let mut state = self.state.lock(kernel);
 
-        let Some(process) = state.process_state.take_process() else {
+        let Some(mut process) = state.process_state.take_process() else {
             return Err(Error::AlreadyExists);
         };
+
+        // SAFETY: `ProcessObject` is a kernel object that is always managed
+        // within a `ForeignRcState` (e.g., when wrapped in `ForeignRc` or
+        // `ForeignBox` for the object table). Thus, the `&self` reference
+        // points to storage contained inside a `ForeignRcState`.
+        let self_rc = unsafe { foreign_box::ForeignRcState::create_ref_from_inner(self) };
+        process.object = Some(self_rc.clone());
 
         let process_ref = crate::scheduler::add_process(kernel, process);
         state.process_state = ProcessState::Running(process_ref.clone());
