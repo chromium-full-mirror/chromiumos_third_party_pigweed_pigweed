@@ -20,7 +20,7 @@ package(default_visibility = ["//visibility:public"])
 
 bool_flag(
     name = "userspace_build",
-    build_setting_default = True,
+    build_setting_default = False,
     tags = ["kernel"],
 )
 
