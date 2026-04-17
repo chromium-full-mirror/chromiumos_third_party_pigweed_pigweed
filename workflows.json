@@ -690,16 +690,37 @@
     {
       "name": "host",
       "description": "Most common host builds/configurations",
+      "builds": [
+        "all_host",
+        "docs",
+        "jni"
+      ],
+      "groups": [
+        "host_analyzers",
+        "host_cpp17",
+        "host_cpp23"
+      ]
+    },
+    {
+      "name": "host_cpp17",
+      "description": "Most common host builds/configurations",
+      "builds": [
+        "all_host_cpp17"
+      ]
+    },
+    {
+      "name": "host_cpp23",
+      "description": "Most common host builds/configurations",
+      "builds": [
+        "all_host_cpp23"
+      ]
+    },
+    {
+      "name": "host_analyzers",
+      "description": "Most common host builds/configurations",
       "analyzers": [
         "compile_commands_integration_test",
         "compile_commands_performance_test"
-      ],
-      "builds": [
-        "all_host",
-        "all_host_cpp17",
-        "all_host_cpp23",
-        "docs",
-        "jni"
       ]
     },
     {
