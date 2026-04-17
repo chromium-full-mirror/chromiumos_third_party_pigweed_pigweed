@@ -22,7 +22,8 @@ import unittest
 from unittest import mock
 
 from pw_presubmit import presubmit
-from pw_presubmit.events import PresubmitEvents, HumanUI, PresubmitResult
+from pw_presubmit.events import PresubmitEvents, HumanUI
+from pw_presubmit.check import PresubmitResult, Program, ProgramResult
 
 
 def _fake_function_1(_):
@@ -102,9 +103,8 @@ class ProgramsTest(unittest.TestCase):
 class PresubmitEventsTest(unittest.TestCase):
     """Tests for PresubmitEvents."""
 
-    def test_run_calls_events(self):
-        """Test that Presubmit.run calls events."""
-        # pylint: disable=no-self-use
+    def test_run_calls_events(self):  # pylint: disable=no-self-use
+        """Test that Presubmit.run calls event methods."""
         mock_events = mock.Mock(spec=PresubmitEvents)
         with tempfile.TemporaryDirectory() as tmp_dir_name:
             tmp_dir = Path(tmp_dir_name)
@@ -122,27 +122,27 @@ class PresubmitEventsTest(unittest.TestCase):
                 events=mock_events,
             )
 
-            program = presubmit.Program('test_program', [_fake_function_1])
+            program = Program('test_program', [_fake_function_1])
             pre.run(program)
 
             # Verify calls
-            expected_title = (
-                f'{Path(".").resolve().name}: test_program presubmit checks'
+            mock_events.program_start.assert_called_once()
+            args, _ = mock_events.program_start.call_args
+            self.assertEqual(args[0].name, program.name)
+            self.assertEqual(tuple(args[0]), tuple(program))
+            self.assertEqual(tuple(c.check for c in args[1]), tuple(program))
+            self.assertEqual(args[2], (Path('file.cc'),))
+
+            mock_events.step_start.assert_called_once_with(
+                program[0], 1, (Path('file.cc'),)
             )
-            mock_events.title.assert_called_once_with(expected_title)
 
-            mock_events.file_summary.assert_called_once_with((Path('file.cc'),))
-
-            mock_events.step_header.assert_called_once_with(
-                1, 1, '_fake_function_1', 1
-            )
-
-            mock_events.step_footer.assert_called_once_with(
-                PresubmitResult.PASS, '_fake_function_1', mock.ANY
+            mock_events.step_end.assert_called_once_with(
+                program[0], 1, PresubmitResult.PASS, mock.ANY
             )
 
             mock_events.summary.assert_called_once_with(
-                PresubmitResult.PASS, 1, 1, '1 passed', mock.ANY
+                ProgramResult(passed=1, failed=0, skipped=0), mock.ANY
             )
 
 
@@ -153,10 +153,11 @@ class HumanUITest(unittest.TestCase):
         """Test title rendering."""
         ui = HumanUI(width=40)
         output = io.StringIO()
+        program = Program('test_program', [])
         with contextlib.redirect_stdout(output):
-            ui.title('Hello')
+            ui.program_start(program, [], [])
 
-        self.assertIn('Hello', output.getvalue())
+        self.assertIn('test_program', output.getvalue())
         self.assertIn('═', output.getvalue())
 
 

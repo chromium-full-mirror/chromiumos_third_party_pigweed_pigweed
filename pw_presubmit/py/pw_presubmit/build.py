@@ -46,9 +46,11 @@ from pw_cli.plural import plural
 from pw_cli.file_filter import FileFilter
 from pw_presubmit.presubmit import (
     call,
-    Check,
     filter_paths,
     install_package,
+)
+from pw_presubmit.check import (
+    Check,
     PresubmitResult,
     SubStep,
 )

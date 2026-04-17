@@ -41,9 +41,6 @@ from __future__ import annotations
 
 import collections
 import contextlib
-import copy
-import dataclasses
-from inspect import Parameter, signature
 import itertools
 import json
 import logging
@@ -66,11 +63,19 @@ from typing import (
     Set,
 )
 
+
 import pw_cli.env
 from pw_cli.plural import plural
 from pw_cli.file_filter import FileFilter, exclude_paths
 from pw_package import package_manager
-from pw_presubmit.events import PresubmitEvents, HumanUI, PresubmitResult
+from pw_presubmit.events import PresubmitEvents, HumanUI
+from pw_presubmit.check import (
+    PresubmitResult,
+    Program,
+    Check,
+    ProgramResult,
+    FilteredCheck,
+)
 from pw_presubmit import git_repo, tools
 from pw_presubmit.presubmit_context import (
     FormatOptions,
@@ -78,46 +83,9 @@ from pw_presubmit.presubmit_context import (
     PRESUBMIT_CONTEXT,
     PresubmitContext,
     PresubmitFailure,
-    log_check_traces,
 )
 
 _LOG: logging.Logger = logging.getLogger(__name__)
-
-
-def format_time(time_s: float) -> str:
-    minutes, seconds = divmod(time_s, 60)
-    if minutes < 60:
-        return f' {int(minutes)}:{seconds:04.1f}'
-    hours, minutes = divmod(minutes, 60)
-    return f'{int(hours):d}:{int(minutes):02}:{int(seconds):02}'
-
-
-class Program(collections.abc.Sequence):
-    """A sequence of presubmit checks; basically a tuple with a name."""
-
-    def __init__(self, name: str, steps: Iterable[Callable]):
-        self.name = name
-
-        def ensure_check(step):
-            if isinstance(step, Check):
-                return step
-            return Check(step)
-
-        self._steps: tuple[Check, ...] = tuple(
-            {ensure_check(s): None for s in tools.flatten(steps)}
-        )
-
-    def __getitem__(self, i):
-        return self._steps[i]
-
-    def __len__(self):
-        return len(self._steps)
-
-    def __str__(self):
-        return self.name
-
-    def title(self):
-        return f'{self.name if self.name else ""} presubmit checks'.strip()
 
 
 class Programs(collections.abc.Mapping):
@@ -154,26 +122,6 @@ def _print_ui(*args) -> None:
     print(*args, flush=True)
 
 
-@dataclasses.dataclass
-class FilteredCheck:
-    check: Check
-    paths: Sequence[Path]
-    substep: str | None = None
-
-    @property
-    def name(self) -> str:
-        return self.check.name
-
-    def run(
-        self,
-        ctx: PresubmitContext,
-        events: PresubmitEvents,
-        count: int,
-        total: int,
-    ):
-        return self.check.run(ctx, events, count, total, self.substep)
-
-
 # pylint: disable=too-many-instance-attributes
 class Presubmit:
     """Runs a series of presubmit checks on a list of files."""
@@ -197,9 +145,7 @@ class Presubmit:
         self._output_directory = output_directory.resolve()
         self._paths = tuple(paths)
         self._all_paths = tuple(all_paths)
-        self._relative_paths = tuple(
-            tools.relative_paths(self._paths, self._root)
-        )
+
         self._package_root = package_root.resolve()
         self._override_gn_args = override_gn_args
         self._continue_after_build_error = continue_after_build_error
@@ -215,107 +161,57 @@ class Presubmit:
         dry_run: bool = False,
     ) -> bool:
         """Executes a series of presubmit checks on the paths."""
-        checks = self.apply_filters(program)
+        filtered_checks = program.filter(self._root, self._paths)
         if substep:
             assert (
-                len(checks) == 1
+                len(filtered_checks) == 1
             ), 'substeps not supported with multiple steps'
-            checks[0].substep = substep
+            filtered_checks[0].substep = substep
 
         _LOG.debug('Running %s for %s', program.title(), self._root.name)
-        self.events.title(f'{self._root.name}: {program.title()}')
+        self.events.program_start(program, filtered_checks, self._paths)
 
         _LOG.info(
             '%d of %d checks apply to %s in %s',
-            len(checks),
+            len(filtered_checks),
             len(program),
             plural(self._paths, 'file'),
             self._root,
         )
 
-        self.events.file_summary(self._relative_paths)
-
         if not self._paths:
             self.events.warning('No files are being checked!')
 
-        _LOG.debug('Checks:\n%s', '\n'.join(c.name for c in checks))
+        _LOG.debug('Checks:\n%s', '\n'.join(c.name for c in filtered_checks))
 
         start_time: float = time.time()
         passed, failed, skipped = self._execute_checks(
-            checks, keep_going, dry_run
+            filtered_checks, keep_going, dry_run
         )
         self._log_summary(time.time() - start_time, passed, failed, skipped)
 
         return not failed and not skipped
 
-    def apply_filters(self, program: Sequence[Callable]) -> list[FilteredCheck]:
-        """Returns list of FilteredCheck for checks that should run."""
-        checks = [c if isinstance(c, Check) else Check(c) for c in program]
-        filter_to_checks: dict[FileFilter, list[Check]] = (
-            collections.defaultdict(list)
-        )
-
-        for chk in checks:
-            filter_to_checks[chk.filter].append(chk)
-
-        check_to_paths = self._map_checks_to_paths(filter_to_checks)
-        return [
-            FilteredCheck(c, check_to_paths[c])
-            for c in checks
-            if c in check_to_paths
-        ]
-
-    def _map_checks_to_paths(
-        self, filter_to_checks: dict[FileFilter, list[Check]]
-    ) -> dict[Check, Sequence[Path]]:
-        checks_to_paths: dict[Check, Sequence[Path]] = {}
-
-        posix_paths = tuple(p.as_posix() for p in self._relative_paths)
-
-        for filt, checks in filter_to_checks.items():
-            filtered_paths = tuple(
-                path
-                for path, filter_path in zip(self._paths, posix_paths)
-                if filt.matches(filter_path)
-            )
-
-            for chk in checks:
-                if filtered_paths or chk.always_run:
-                    checks_to_paths[chk] = filtered_paths
-                else:
-                    _LOG.debug('Skipping "%s": no relevant files', chk.name)
-
-        return checks_to_paths
-
     def _log_summary(
         self, time_s: float, passed: int, failed: int, skipped: int
     ) -> None:
-        summary_items = []
-        if passed:
-            summary_items.append(f'{passed} passed')
-        if failed:
-            summary_items.append(f'{failed} failed')
-        if skipped:
-            summary_items.append(f'{skipped} not run')
-        summary = ', '.join(summary_items) or 'nothing was done'
-
-        if failed or skipped:
-            result = PresubmitResult.FAIL
-        else:
-            result = PresubmitResult.PASS
-        total = passed + failed + skipped
+        program_result = ProgramResult(
+            passed=passed, failed=failed, skipped=skipped
+        )
 
         _LOG.debug(
             'Finished running %d checks on %s in %.1f s',
-            total,
+            program_result.total,
             plural(self._paths, 'file'),
             time_s,
         )
-        _LOG.debug('Presubmit checks %s: %s', result.value, summary)
-
-        self.events.summary(
-            result, total, len(self._paths), summary, format_time(time_s)
+        _LOG.debug(
+            'Presubmit checks %s: %s',
+            program_result.result.value,
+            program_result.message(),
         )
+
+        self.events.summary(program_result, time_s)
 
     def _create_presubmit_context(  # pylint: disable=no-self-use
         self, **kwargs
@@ -365,16 +261,20 @@ class Presubmit:
 
     def _execute_checks(
         self,
-        program: list[FilteredCheck],
+        checks: Sequence[FilteredCheck],
         keep_going: bool,
         dry_run: bool = False,
     ) -> tuple[int, int, int]:
         """Runs presubmit checks; returns (passed, failed, skipped) lists."""
         passed = failed = 0
 
-        for i, filtered_check in enumerate(program, 1):
+        for i, filtered_check in enumerate(checks, 1):
             with self._context(filtered_check, dry_run) as ctx:
-                result = filtered_check.run(ctx, self.events, i, len(program))
+                self.events.step_start(filtered_check.check, i, ctx.paths)
+                start_time = time.time()
+                result = filtered_check.run(ctx)
+                duration = time.time() - start_time
+                self.events.step_end(filtered_check.check, i, result, duration)
 
             if result is PresubmitResult.PASS:
                 passed += 1
@@ -385,7 +285,7 @@ class Presubmit:
                 if not keep_going:
                     break
 
-        return passed, failed, len(program) - passed - failed
+        return passed, failed, len(checks) - passed - failed
 
 
 def _process_pathspecs(
@@ -576,9 +476,12 @@ def run(  # pylint: disable=too-many-arguments,too-many-locals
         full=bool(base is None),
     )
 
+    if not isinstance(program, Program):
+        program = Program('', program)
+
     if only_list_steps:
         steps: list[dict] = []
-        for filtered_check in presubmit.apply_filters(program):
+        for filtered_check in program.filter(root, modified_files):
             step = {
                 'name': filtered_check.name,
                 'paths': [str(x) for x in filtered_check.paths],
@@ -595,9 +498,6 @@ def run(  # pylint: disable=too-many-arguments,too-many-locals
         json.dump(list_steps_data, sys.stdout, indent=2)
         sys.stdout.write('\n')
         return True
-
-    if not isinstance(program, Program):
-        program = Program('', program)
 
     return presubmit.run(program, keep_going, substep=substep, dry_run=dry_run)
 
@@ -641,247 +541,6 @@ def check(*args, **kwargs):
         return Check(check_function, *args, **kwargs)
 
     return decorator
-
-
-@dataclasses.dataclass
-class SubStep:
-    name: str | None
-    _func: Callable[..., PresubmitResult]
-    args: Sequence[Any] = ()
-    kwargs: dict[str, Any] = dataclasses.field(default_factory=lambda: {})
-
-    def __call__(self, ctx: PresubmitContext) -> PresubmitResult:
-        if self.name:
-            _LOG.info('%s', self.name)
-        return self._func(ctx, *self.args, **self.kwargs)
-
-
-class Check:
-    """Wraps a presubmit check function.
-
-    This class consolidates the logic for running and logging a presubmit check.
-    It also supports filtering the paths passed to the presubmit check.
-    """
-
-    def __init__(
-        self,
-        check: (  # pylint: disable=redefined-outer-name
-            Callable | Iterable[SubStep]
-        ),
-        path_filter: FileFilter = FileFilter(),
-        always_run: bool = True,
-        name: str | None = None,
-        doc: str | None = None,
-    ) -> None:
-        # Since Check wraps a presubmit function, adopt that function's name.
-        self.name: str = ''
-        self.doc: str = ''
-        if isinstance(check, Check):
-            self.name = check.name
-            self.doc = check.doc
-        elif callable(check):
-            self.name = check.__name__
-            self.doc = check.__doc__ or ''
-
-        if name:
-            self.name = name
-        if doc:
-            self.doc = doc
-
-        if not self.name:
-            raise ValueError(f'no name for step: {check}')
-
-        self._substeps_raw: Iterable[SubStep]
-        if isinstance(check, collections.abc.Iterator):
-            self._substeps_raw = check
-        else:
-            assert callable(check)
-            _ensure_is_valid_presubmit_check_function(check)
-            self._substeps_raw = iter((SubStep(None, check),))
-        self._substeps_saved: Sequence[SubStep] = ()
-
-        self.filter = path_filter
-        self.always_run: bool = always_run
-
-        self._is_presubmit_check_object = True
-
-    def substeps(self) -> Sequence[SubStep]:
-        """Return the SubSteps of the current step.
-
-        This is where the list of SubSteps is actually evaluated. It can't be
-        evaluated in the constructor because the Iterable passed into the
-        constructor might not be ready yet.
-        """
-        if not self._substeps_saved:
-            self._substeps_saved = tuple(self._substeps_raw)
-        return self._substeps_saved
-
-    def __repr__(self):
-        # This returns just the name so it's easy to show the entire list of
-        # steps with '--help'.
-        return self.name
-
-    def unfiltered(self) -> Check:
-        """Create a new check identical to this one, but without the filter."""
-        clone = copy.copy(self)
-        clone.filter = FileFilter()
-        return clone
-
-    def with_filter(
-        self,
-        *,
-        endswith: Iterable[str] = (),
-        exclude: Iterable[Pattern[str] | str] = (),
-    ) -> Check:
-        """Create a new check identical to this one, but with extra filters.
-
-        Add to the existing filter, perhaps to exclude an additional directory.
-
-        Args:
-            endswith: Passed through to FileFilter.
-            exclude: Passed through to FileFilter.
-
-        Returns a new check.
-        """
-        return self.with_file_filter(
-            FileFilter(endswith=_make_str_tuple(endswith), exclude=exclude)
-        )
-
-    def with_file_filter(self, file_filter: FileFilter) -> Check:
-        """Create a new check identical to this one, but with extra filters.
-
-        Add to the existing filter, perhaps to exclude an additional directory.
-
-        Args:
-            file_filter: Additional filter rules.
-
-        Returns a new check.
-        """
-        clone = copy.copy(self)
-        clone.filter = self.filter.concat(file_filter)
-        return clone
-
-    def run(
-        self,
-        ctx: PresubmitContext,
-        events: PresubmitEvents,
-        count: int,
-        total: int,
-        substep: str | None = None,
-    ) -> PresubmitResult:
-        """Runs the presubmit check on the provided paths."""
-
-        events.step_header(count, total, self.name, len(ctx.paths))
-
-        substep_part = f'.{substep}' if substep else ''
-        _LOG.debug(
-            '[%d/%d] Running %s%s on %s',
-            count,
-            total,
-            self.name,
-            substep_part,
-            plural(ctx.paths, "file"),
-        )
-
-        start_time_s = time.time()
-        result: PresubmitResult
-        if substep:
-            result = self.run_substep(ctx, substep)
-        else:
-            result = self(ctx)
-        time_str = format_time(time.time() - start_time_s)
-        _LOG.debug('%s %s', self.name, result.value)
-
-        if ctx.dry_run:
-            log_check_traces(ctx)
-
-        events.step_footer(result, self.name, time_str)
-        _LOG.debug('%s duration:%s', self.name, time_str)
-
-        return result
-
-    def _try_call(
-        self,
-        func: Callable,
-        ctx,
-        *args,
-        **kwargs,
-    ) -> PresubmitResult:
-        try:
-            result = func(ctx, *args, **kwargs)
-            if ctx.failed:
-                return PresubmitResult.FAIL
-            if isinstance(result, PresubmitResult):
-                return result
-            return PresubmitResult.PASS
-
-        except PresubmitFailure as failure:
-            if str(failure):
-                _LOG.warning('%s', failure)
-            return PresubmitResult.FAIL
-
-        except Exception as _failure:  # pylint: disable=broad-except
-            _LOG.exception('Presubmit check %s failed!', self.name)
-            return PresubmitResult.FAIL
-
-        except KeyboardInterrupt:
-            print()
-            return PresubmitResult.CANCEL
-
-    def run_substep(
-        self, ctx: PresubmitContext, name: str | None
-    ) -> PresubmitResult:
-        for substep in self.substeps():
-            if substep.name == name:
-                return substep(ctx)
-
-        expected = ', '.join(repr(s.name) for s in self.substeps())
-        raise LookupError(f'bad substep name: {name!r} (expected: {expected})')
-
-    def __call__(self, ctx: PresubmitContext) -> PresubmitResult:
-        """Calling a Check calls its underlying substeps directly.
-
-        This makes it possible to call functions wrapped by @filter_paths. The
-        prior filters are ignored, so new filters may be applied.
-        """
-        result: PresubmitResult
-        for substep in self.substeps():
-            result = self._try_call(substep, ctx)
-            if result and result != PresubmitResult.PASS:
-                return result
-        return PresubmitResult.PASS
-
-
-def _required_args(function: Callable) -> Iterable[Parameter]:
-    """Returns the required arguments for a function."""
-    optional_types = Parameter.VAR_POSITIONAL, Parameter.VAR_KEYWORD
-
-    for param in signature(function).parameters.values():
-        if param.default is param.empty and param.kind not in optional_types:
-            yield param
-
-
-def _ensure_is_valid_presubmit_check_function(chk: Callable) -> None:
-    """Checks if a Callable can be used as a presubmit check."""
-    try:
-        required_args = tuple(_required_args(chk))
-    except (TypeError, ValueError):
-        raise TypeError(
-            'Presubmit checks must be callable, but '
-            f'{chk!r} is a {type(chk).__name__}'
-        )
-
-    if len(required_args) != 1:
-        raise TypeError(
-            f'Presubmit check functions must have exactly one required '
-            f'positional argument (the PresubmitContext), but '
-            f'{chk.__name__} has {len(required_args)} required arguments'
-            + (
-                f' ({", ".join(a.name for a in required_args)})'
-                if required_args
-                else ''
-            )
-        )
 
 
 def filter_paths(

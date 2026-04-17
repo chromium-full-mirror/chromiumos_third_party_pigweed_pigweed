@@ -27,6 +27,7 @@ pw_python_package("py") {
     "pw_presubmit/bazel_parser.py",
     "pw_presubmit/block_submission.py",
     "pw_presubmit/build.py",
+    "pw_presubmit/check.py",
     "pw_presubmit/cli.py",
     "pw_presubmit/cpp_checks.py",
     "pw_presubmit/events.py",

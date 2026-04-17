@@ -30,7 +30,6 @@ from pw_cli.arguments import (
 from pw_presubmit.presubmit import (
     Program,
     Programs,
-    Presubmit,
     PresubmitContext,
     PresubmitResult,
     Check,
@@ -258,21 +257,8 @@ def presubmit_build_recipe(  # pylint: disable=too-many-locals
         dry_run=True,
     )
 
-    presubmit_instance = Presubmit(
-        root=repo_root,
-        repos=(repo_root,),
-        output_directory=out_dir,
-        paths=modified_files,
-        all_paths=all_files,
-        package_root=package_root,
-        override_gn_args={},
-        continue_after_build_error=True,
-        rng_seed=1,
-        full=False,
-    )
-
     program = Program('', [presubmit_step])
-    checks = list(presubmit_instance.apply_filters(program))
+    checks = list(program.filter(repo_root, modified_files))
     if not checks:
         _LOG.warning('')
         _LOG.warning(

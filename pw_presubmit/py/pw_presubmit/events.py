@@ -14,79 +14,65 @@
 """Event interfaces for pw_presubmit."""
 
 from __future__ import annotations
-
 import abc
 from collections.abc import Sequence
-import enum
 import logging
 from pathlib import Path
 
 import pw_cli.color
-from pw_cli.collect_files import file_summary
 from pw_cli.plural import plural
 from pw_presubmit import tools
+from pw_presubmit.check import (
+    PresubmitResult,
+    Check,
+    Program,
+    format_time,
+    ProgramResult,
+    FilteredCheck,
+)
 
 _LOG = logging.getLogger(__name__)
 
 _COLOR = pw_cli.color.colors()
 
 
-class PresubmitResult(enum.Enum):
-    PASS = 'PASSED'  # Check completed successfully.
-    FAIL = 'FAILED'  # Check failed.
-    CANCEL = 'CANCEL'  # Check didn't complete.
-
-    def colorized(self, width: int, invert: bool = False) -> str:
-        if self is PresubmitResult.PASS:
-            color = _COLOR.black_on_green if invert else _COLOR.green
-        elif self is PresubmitResult.FAIL:
-            color = _COLOR.black_on_red if invert else _COLOR.red
-        elif self is PresubmitResult.CANCEL:
-            color = _COLOR.yellow
-        else:
-
-            def color(value):
-                return value
-
-        padding = (width - len(self.value)) // 2 * ' '
-        return padding + color(self.value) + padding
-
-
 class PresubmitEvents(abc.ABC):
     """Abstract base class for presubmit event handlers."""
 
     @abc.abstractmethod
-    def title(self, title: str) -> None:
-        """Called with the title of the presubmit run."""
+    def program_start(
+        self,
+        program: Program,
+        checks: Sequence[FilteredCheck],
+        paths: Sequence[Path],
+    ) -> None:
+        """Called with the program and affected files."""
 
     @abc.abstractmethod
     def warning(self, message: str) -> None:
         """Called with a warning message."""
 
     @abc.abstractmethod
-    def file_summary(self, paths: Sequence[Path]) -> None:
-        """Called with a summary of files being checked."""
-
-    @abc.abstractmethod
-    def step_header(
-        self, count: int, total: int, name: str, num_paths: int
+    def step_start(
+        self, check: Check, step_count: int, paths: Sequence[Path]
     ) -> None:
         """Called at the start of a presubmit step."""
 
     @abc.abstractmethod
-    def step_footer(
-        self, result: PresubmitResult, name: str, time_str: str
+    def step_end(
+        self,
+        check: Check,
+        step_count: int,
+        result: PresubmitResult,
+        duration_s: float,
     ) -> None:
         """Called at the end of a presubmit step."""
 
     @abc.abstractmethod
     def summary(
         self,
-        result: PresubmitResult,
-        total: int,
-        num_files: int,
-        summary: str,
-        time_str: str,
+        result: ProgramResult,
+        duration_s: float,
     ) -> None:
         """Called with the final summary of the presubmit run."""
 
@@ -103,6 +89,9 @@ class HumanUI(PresubmitEvents):
     def __init__(self, width: int = 80):
         self.width = width
         self._center = self.width - self._LEFT - self._RIGHT - 4
+        self.program: Program | None = None
+        self.checks: Sequence[FilteredCheck] = []
+        self.paths: Sequence[Path] = []
 
     @staticmethod
     def _print(*args) -> None:
@@ -120,7 +109,17 @@ class HumanUI(PresubmitEvents):
             width3=self._RIGHT,
         )
 
-    def title(self, title: str) -> None:
+    def program_start(
+        self,
+        program: Program,
+        checks: Sequence[FilteredCheck],
+        paths: Sequence[Path],
+    ) -> None:
+        self.program = program
+        self.checks = checks
+        self.paths = paths
+
+        title = f'{program.name}: {program.title()}'
         msg = f' {title} '.center(self.width - 2)
         formatted_title = tools.make_box('^').format(
             *self._SUMMARY_BOX, section1=msg, width1=len(msg)
@@ -130,47 +129,49 @@ class HumanUI(PresubmitEvents):
     def warning(self, message: str) -> None:
         self._print(_COLOR.yellow(message))
 
-    def file_summary(self, paths: Sequence[Path]) -> None:
-        self._print()
-        for line in file_summary(paths):
-            self._print(line)
-        self._print()
-
-    def step_header(
-        self, count: int, total: int, name: str, num_paths: int
+    def step_start(
+        self, check: Check, step_count: int, paths: Sequence[Path]
     ) -> None:
-        middle_text = f'{count}/{total}'
+        total = len(self.checks) if self.checks else 0
+        num_paths = len(paths)
+        middle_text = f'{step_count}/{total}'
         self._print(
             self._box(
                 self._CHECK_UPPER,
                 middle_text,
-                name,
+                check.name,
                 plural(num_paths, 'file'),
             )
         )
 
-    def step_footer(
-        self, result: PresubmitResult, name: str, time_str: str
+    def step_end(
+        self,
+        check: Check,
+        step_count: int,
+        result: PresubmitResult,
+        duration_s: float,
     ) -> None:
+        time_str = format_time(duration_s)
         self._print(
             self._box(
-                self._CHECK_LOWER, result.colorized(self._LEFT), name, time_str
+                self._CHECK_LOWER,
+                result.colorized(self._LEFT),
+                check.name,
+                time_str,
             )
         )
 
     def summary(
         self,
-        result: PresubmitResult,
-        total: int,
-        num_files: int,
-        summary: str,
-        time_str: str,
+        result: ProgramResult,
+        duration_s: float,
     ) -> None:
         self._print(
             self._box(
                 self._SUMMARY_BOX,
-                result.colorized(self._LEFT, invert=True),
-                f'{total} checks on {plural(num_files, "file")}: {summary}',
-                time_str,
+                result.result.colorized(self._LEFT, invert=True),
+                f'{result.total} checks on '
+                f'{plural(len(self.paths), "file")}: {result.message()}',
+                format_time(duration_s),
             )
         )
