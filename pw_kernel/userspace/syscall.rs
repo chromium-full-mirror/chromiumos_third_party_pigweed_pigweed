@@ -143,6 +143,8 @@ pub fn debug_trigger_interrupt(irq: u32) -> Result<()> {
     SysCall::debug_trigger_interrupt(irq)
 }
 
+#[must_use]
+#[inline(always)]
 pub fn debug_clock_now() -> Instant {
     Instant::from_ticks(SysCall::debug_clock_now())
 }

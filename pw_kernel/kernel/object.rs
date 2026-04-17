@@ -355,7 +355,7 @@ impl<const N: usize, K: Kernel> ObjectTable<K>
 
     fn dump(&self, kernel: K) {
         for (i, obj) in self.iter().enumerate() {
-            pw_log::info!("      Object {}:", i as i32);
+            pw_log::info!("      Object {}:", i as usize);
             obj.dump(kernel);
         }
     }
@@ -379,7 +379,7 @@ impl<K: Kernel> ObjectBase<K> {
 impl<K: Kernel> ObjectBase<K> {
     pub fn dump(&self, kernel: K) {
         let state = self.state.lock(kernel);
-        pw_log::info!("        Signals: {}", state.active_signals.bits() as i32);
+        pw_log::info!("        Signals: {}", state.active_signals.bits() as u32);
     }
 
     pub fn wait_until(
