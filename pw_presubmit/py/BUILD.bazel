@@ -33,6 +33,7 @@ pw_py_library(
         "pw_presubmit/build.py",
         "pw_presubmit/cli.py",
         "pw_presubmit/cpp_checks.py",
+        "pw_presubmit/events.py",
         "pw_presubmit/format_code.py",
         "pw_presubmit/git_repo.py",
         "pw_presubmit/gitmodules.py",

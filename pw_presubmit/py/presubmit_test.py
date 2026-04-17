@@ -14,9 +14,15 @@
 # the License.
 """Tests for presubmit tools."""
 
+import contextlib
+import io
+import tempfile
+from pathlib import Path
 import unittest
+from unittest import mock
 
 from pw_presubmit import presubmit
+from pw_presubmit.events import PresubmitEvents, HumanUI, PresubmitResult
 
 
 def _fake_function_1(_):
@@ -91,6 +97,67 @@ class ProgramsTest(unittest.TestCase):
         self.assertEqual(all_substeps['_fake_function_1'], _fake_function_1)
         self.assertEqual(all_substeps['_fake_function_2'], _fake_function_2)
         # pylint: enable=protected-access
+
+
+class PresubmitEventsTest(unittest.TestCase):
+    """Tests for PresubmitEvents."""
+
+    def test_run_calls_events(self):
+        """Test that Presubmit.run calls events."""
+        # pylint: disable=no-self-use
+        mock_events = mock.Mock(spec=PresubmitEvents)
+        with tempfile.TemporaryDirectory() as tmp_dir_name:
+            tmp_dir = Path(tmp_dir_name)
+            pre = presubmit.Presubmit(
+                root=Path('.'),
+                repos=[Path('.')],
+                output_directory=tmp_dir / 'out',
+                paths=[Path('file.cc')],
+                all_paths=[Path('file.cc')],
+                package_root=tmp_dir / 'packages',
+                override_gn_args={},
+                continue_after_build_error=False,
+                rng_seed=1,
+                full=False,
+                events=mock_events,
+            )
+
+            program = presubmit.Program('test_program', [_fake_function_1])
+            pre.run(program)
+
+            # Verify calls
+            expected_title = (
+                f'{Path(".").resolve().name}: test_program presubmit checks'
+            )
+            mock_events.title.assert_called_once_with(expected_title)
+
+            mock_events.file_summary.assert_called_once_with((Path('file.cc'),))
+
+            mock_events.step_header.assert_called_once_with(
+                1, 1, '_fake_function_1', 1
+            )
+
+            mock_events.step_footer.assert_called_once_with(
+                PresubmitResult.PASS, '_fake_function_1', mock.ANY
+            )
+
+            mock_events.summary.assert_called_once_with(
+                PresubmitResult.PASS, 1, 1, '1 passed', mock.ANY
+            )
+
+
+class HumanUITest(unittest.TestCase):
+    """Tests for HumanUI."""
+
+    def test_title(self):
+        """Test title rendering."""
+        ui = HumanUI(width=40)
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            ui.title('Hello')
+
+        self.assertIn('Hello', output.getvalue())
+        self.assertIn('═', output.getvalue())
 
 
 if __name__ == '__main__':

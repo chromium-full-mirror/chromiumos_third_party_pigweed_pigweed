@@ -43,7 +43,6 @@ import collections
 import contextlib
 import copy
 import dataclasses
-import enum
 from inspect import Parameter, signature
 import itertools
 import json
@@ -67,12 +66,11 @@ from typing import (
     Set,
 )
 
-from pw_cli.collect_files import file_summary
-import pw_cli.color
 import pw_cli.env
 from pw_cli.plural import plural
 from pw_cli.file_filter import FileFilter, exclude_paths
 from pw_package import package_manager
+from pw_presubmit.events import PresubmitEvents, HumanUI, PresubmitResult
 from pw_presubmit import git_repo, tools
 from pw_presubmit.presubmit_context import (
     FormatOptions,
@@ -85,23 +83,6 @@ from pw_presubmit.presubmit_context import (
 
 _LOG: logging.Logger = logging.getLogger(__name__)
 
-_COLOR = pw_cli.color.colors()
-
-_SUMMARY_BOX = '══╦╗ ║║══╩╝'
-_CHECK_UPPER = '━━━┓       '
-_CHECK_LOWER = '       ━━━┛'
-
-WIDTH = 80
-
-_LEFT = 7
-_RIGHT = 11
-_CENTER = WIDTH - _LEFT - _RIGHT - 4
-
-
-def _title(msg, style=_SUMMARY_BOX) -> str:
-    msg = f' {msg} '.center(WIDTH - 2)
-    return tools.make_box('^').format(*style, section1=msg, width1=len(msg))
-
 
 def format_time(time_s: float) -> str:
     minutes, seconds = divmod(time_s, 60)
@@ -109,51 +90,6 @@ def format_time(time_s: float) -> str:
         return f' {int(minutes)}:{seconds:04.1f}'
     hours, minutes = divmod(minutes, 60)
     return f'{int(hours):d}:{int(minutes):02}:{int(seconds):02}'
-
-
-def _box(
-    style: str, left: str, middle: str, right: str, box=tools.make_box('><>')
-) -> str:
-    return box.format(
-        *style,
-        section1=left + ('' if left.endswith(' ') else ' '),
-        width1=_LEFT,
-        section2=' ' + middle,
-        width2=_CENTER,
-        section3=right + ' ',
-        width3=_RIGHT,
-    )
-
-
-class PresubmitResult(enum.Enum):
-    PASS = 'PASSED'  # Check completed successfully.
-    FAIL = 'FAILED'  # Check failed.
-    CANCEL = 'CANCEL'  # Check didn't complete.
-
-    def colorized(self, width: int, invert: bool = False) -> str:
-        if self is PresubmitResult.PASS:
-            color = _COLOR.black_on_green if invert else _COLOR.green
-        elif self is PresubmitResult.FAIL:
-            color = _COLOR.black_on_red if invert else _COLOR.red
-        elif self is PresubmitResult.CANCEL:
-            color = _COLOR.yellow
-        else:
-
-            def color(value):
-                return value
-
-        padding = (width - len(self.value)) // 2 * ' '
-        return padding + color(self.value) + padding
-
-
-def _step_header(count: int, total: int, name: str, num_paths: int) -> str:
-    return _box(
-        _CHECK_UPPER, f'{count}/{total}', name, plural(num_paths, "file")
-    )
-
-
-def _step_footer(result: PresubmitResult, name: str, timestamp: str) -> str:
-    return _box(_CHECK_LOWER, result.colorized(_LEFT), name, timestamp)
 
 
 class Program(collections.abc.Sequence):
@@ -228,10 +164,17 @@ class FilteredCheck:
     def name(self) -> str:
         return self.check.name
 
-    def run(self, ctx: PresubmitContext, count: int, total: int):
-        return self.check.run(ctx, count, total, self.substep)
+    def run(
+        self,
+        ctx: PresubmitContext,
+        events: PresubmitEvents,
+        count: int,
+        total: int,
+    ):
+        return self.check.run(ctx, events, count, total, self.substep)
 
 
+# pylint: disable=too-many-instance-attributes
 class Presubmit:
     """Runs a series of presubmit checks on a list of files."""
 
@@ -247,6 +190,7 @@ class Presubmit:
         continue_after_build_error: bool,
         rng_seed: int,
         full: bool,
+        events: PresubmitEvents | None = None,
     ):
         self._root = root.resolve()
         self._repos = tuple(repos)
@@ -261,6 +205,7 @@ class Presubmit:
         self._continue_after_build_error = continue_after_build_error
         self._rng_seed = rng_seed
         self._full = full
+        self.events = events or HumanUI()
 
     def run(
         self,
@@ -278,7 +223,7 @@ class Presubmit:
             checks[0].substep = substep
 
         _LOG.debug('Running %s for %s', program.title(), self._root.name)
-        _print_ui(_title(f'{self._root.name}: {program.title()}'))
+        self.events.title(f'{self._root.name}: {program.title()}')
 
         _LOG.info(
             '%d of %d checks apply to %s in %s',
@@ -288,13 +233,10 @@ class Presubmit:
             self._root,
         )
 
-        _print_ui()
-        for line in file_summary(self._relative_paths):
-            _print_ui(line)
-        _print_ui()
+        self.events.file_summary(self._relative_paths)
 
         if not self._paths:
-            _print_ui(_COLOR.yellow('No files are being checked!'))
+            self.events.warning('No files are being checked!')
 
         _LOG.debug('Checks:\n%s', '\n'.join(c.name for c in checks))
 
@@ -371,13 +313,8 @@ class Presubmit:
         )
         _LOG.debug('Presubmit checks %s: %s', result.value, summary)
 
-        _print_ui(
-            _box(
-                _SUMMARY_BOX,
-                result.colorized(_LEFT, invert=True),
-                f'{total} checks on {plural(self._paths, "file")}: {summary}',
-                format_time(time_s),
-            )
+        self.events.summary(
+            result, total, len(self._paths), summary, format_time(time_s)
         )
 
     def _create_presubmit_context(  # pylint: disable=no-self-use
@@ -437,7 +374,7 @@ class Presubmit:
 
         for i, filtered_check in enumerate(program, 1):
             with self._context(filtered_check, dry_run) as ctx:
-                result = filtered_check.run(ctx, i, len(program))
+                result = filtered_check.run(ctx, self.events, i, len(program))
 
             if result is PresubmitResult.PASS:
                 passed += 1
@@ -827,13 +764,14 @@ class Check:
     def run(
         self,
         ctx: PresubmitContext,
+        events: PresubmitEvents,
         count: int,
         total: int,
         substep: str | None = None,
     ) -> PresubmitResult:
         """Runs the presubmit check on the provided paths."""
 
-        _print_ui(_step_header(count, total, self.name, len(ctx.paths)))
+        events.step_header(count, total, self.name, len(ctx.paths))
 
         substep_part = f'.{substep}' if substep else ''
         _LOG.debug(
@@ -857,7 +795,7 @@ class Check:
         if ctx.dry_run:
             log_check_traces(ctx)
 
-        _print_ui(_step_footer(result, self.name, time_str))
+        events.step_footer(result, self.name, time_str)
         _LOG.debug('%s duration:%s', self.name, time_str)
 
         return result
@@ -887,7 +825,7 @@ class Check:
             return PresubmitResult.FAIL
 
         except KeyboardInterrupt:
-            _print_ui()
+            print()
             return PresubmitResult.CANCEL
 
     def run_substep(

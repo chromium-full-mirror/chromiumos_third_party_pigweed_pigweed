@@ -29,6 +29,7 @@ pw_python_package("py") {
     "pw_presubmit/build.py",
     "pw_presubmit/cli.py",
     "pw_presubmit/cpp_checks.py",
+    "pw_presubmit/events.py",
     "pw_presubmit/format/__init__.py",
     "pw_presubmit/format/bazel.py",
     "pw_presubmit/format/cmake.py",
