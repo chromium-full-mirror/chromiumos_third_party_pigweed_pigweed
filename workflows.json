@@ -694,11 +694,6 @@
         "all_host",
         "docs",
         "jni"
-      ],
-      "groups": [
-        "host_analyzers",
-        "host_cpp17",
-        "host_cpp23"
       ]
     },
     {
