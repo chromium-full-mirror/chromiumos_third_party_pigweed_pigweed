@@ -58,6 +58,9 @@ def _project_root() -> Path:
     if 'BUILD_WORKSPACE_DIRECTORY' in os.environ:
         return Path(os.environ['BUILD_WORKSPACE_DIRECTORY']).resolve()
 
+    if 'TEST_SRCDIR' in os.environ:
+        return Path(os.environ['TEST_SRCDIR']).resolve()
+
     # Fall back to bootstrapped environment
     return Path(pw_cli.env.pigweed_environment().PW_PROJECT_ROOT)
 
@@ -70,7 +73,10 @@ class FormatOptions:
 
     @staticmethod
     def load(env: dict[str, str] | None = None) -> FormatOptions:
-        if 'BUILD_WORKING_DIRECTORY' in os.environ:
+        if (
+            'BUILD_WORKING_DIRECTORY' in os.environ
+            or 'TEST_SRCDIR' in os.environ
+        ):
             _LOG.debug('Running from Bazel; using default FormatOptions')
             return FormatOptions()
 
