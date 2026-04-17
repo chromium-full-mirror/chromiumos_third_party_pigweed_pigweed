@@ -25,9 +25,11 @@ cc_library_headers {
         "public",
     ],
     static_libs: [
+        "pw_numeric",
         "pw_preprocessor",
     ],
     export_static_lib_headers: [
+        "pw_numeric",
         "pw_preprocessor",
     ],
 }
