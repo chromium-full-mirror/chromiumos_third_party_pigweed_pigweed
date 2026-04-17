@@ -753,24 +753,66 @@
     {
       "name": "asan",
       "description": "ASAN-related builds",
+      "groups": [
+        "asan_bld",
+        "asan_gtest"
+      ]
+    },
+    {
+      "name": "asan_bld",
+      "description": "ASAN build",
       "builds": [
-        "asan_build",
+        "asan_build"
+      ]
+    },
+    {
+      "name": "asan_gtest",
+      "description": "ASAN googletest build",
+      "builds": [
         "asan_googletest"
       ]
     },
     {
       "name": "tsan",
       "description": "TSAN-related builds",
+      "groups": [
+        "tsan_bld",
+        "tsan_gtest"
+      ]
+    },
+    {
+      "name": "tsan_bld",
+      "description": "TSAN build",
       "builds": [
-        "tsan_build",
+        "tsan_build"
+      ]
+    },
+    {
+      "name": "tsan_gtest",
+      "description": "TSAN googletest build",
+      "builds": [
         "tsan_googletest"
       ]
     },
     {
       "name": "ubsan",
       "description": "UBSAN-related builds",
+      "groups": [
+        "ubsan_bld",
+        "ubsan_gtest"
+      ]
+    },
+    {
+      "name": "ubsan_bld",
+      "description": "UBSAN build",
       "builds": [
-        "ubsan_build",
+        "ubsan_build"
+      ]
+    },
+    {
+      "name": "ubsan_gtest",
+      "description": "UBSAN googletest build",
+      "builds": [
         "ubsan_googletest"
       ]
     }
