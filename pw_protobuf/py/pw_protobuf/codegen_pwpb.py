@@ -2550,9 +2550,8 @@ class PackedEnumWriteMethod(PackedWriteMethod):
     def body(self) -> list[str]:
         value_param = self.params()[0][1]
         line = (
-            f'return {self._base_class}::WritePackedUint32('
-            f'{self.field_cast()}, pw::span(reinterpret_cast<const uint32_t*>('
-            f'{value_param}.data()), {value_param}.size()));'
+            f'return {self._base_class}::WritePackedEnum('
+            f'{self.field_cast()}, pw::span({value_param}));'
         )
         return [line]
 
@@ -2602,11 +2601,7 @@ class PackedEnumReadMethod(PackedReadMethod):
 
     def _decoder_body(self) -> list[str]:
         value_param = self.params()[0][1]
-        return [
-            f'return ReadPackedUint32('
-            f'pw::span(reinterpret_cast<uint32_t*>({value_param}.data()), '
-            f'{value_param}.size()));'
-        ]
+        return [f'return ReadPackedEnum({value_param});']
 
 
 class PackedEnumReadVectorMethod(PackedReadVectorMethod):
@@ -2617,10 +2612,7 @@ class PackedEnumReadVectorMethod(PackedReadVectorMethod):
 
     def _decoder_body(self) -> list[str]:
         value_param = self.params()[0][1]
-        return [
-            f'return ReadRepeatedUint32('
-            f'*reinterpret_cast<pw::Vector<uint32_t>*>(&{value_param}));'
-        ]
+        return [f'return ReadRepeatedEnum({value_param});']
 
 
 class EnumFindMethod(FindMethod):

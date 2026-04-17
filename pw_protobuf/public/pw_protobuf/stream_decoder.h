@@ -13,7 +13,6 @@
 // the License.
 #pragma once
 
-#include <array>
 #include <cstring>
 #include <limits>
 #include <type_traits>
@@ -201,6 +200,38 @@ class StreamDecoder {
   Status ReadRepeatedUint32(pw::Vector<uint32_t>& out) {
     return ReadRepeatedVarintField<uint32_t>(out,
                                              internal::VarintType::kUnsigned);
+  }
+
+  // Reads repeated enum values from the current position using packed
+  // encoding.
+  template <typename T, typename = std::enable_if_t<std::is_enum_v<T>>>
+  StatusWithSize ReadPackedEnum(span<T> out) {
+    static_assert(sizeof(T) == sizeof(int32_t),
+                  "Protobuf enums are always 4-byte integers");
+    return ReadPackedVarintField(
+        as_writable_bytes(out), sizeof(T), internal::VarintType::kUnsigned);
+  }
+
+  // Reads repeated enum values from the current position into the vector,
+  // supporting either repeated single field elements or packed encoding.
+  template <typename T, typename = std::enable_if_t<std::is_enum_v<T>>>
+  Status ReadRepeatedEnum(pw::Vector<T>& out) {
+    static_assert(sizeof(T) == sizeof(int32_t),
+                  "Protobuf enums are always 4-byte integers");
+    if (out.full()) {
+      return Status::ResourceExhausted();
+    }
+    const size_t old_size = out.size();
+    out.resize(out.capacity());
+    size_t size = old_size;
+    Status status =
+        ReadRepeatedVarintFieldGeneric(reinterpret_cast<std::byte*>(out.data()),
+                                       out.capacity(),
+                                       size,
+                                       sizeof(T),
+                                       internal::VarintType::kUnsigned);
+    out.resize(size);
+    return status;
   }
 
   // Reads a proto int64 value from the current position.
@@ -655,54 +686,60 @@ class StreamDecoder {
 
   template <typename T>
   Status ReadRepeatedFixedField(pw::Vector<T>& out) {
+    static_assert(
+        sizeof(T) == 1 || sizeof(T) == 2 || sizeof(T) == 4 || sizeof(T) == 8,
+        "Unsupported element size");
     if (out.full()) {
       return Status::ResourceExhausted();
     }
     const size_t old_size = out.size();
-    if (current_field_.wire_type() == WireType::kDelimited) {
-      out.resize(out.capacity());
-      const auto sws = ReadPackedFixedField(
-          as_writable_bytes(span(out.data() + old_size, out.size() - old_size)),
-          sizeof(T));
-      out.resize(old_size + sws.size());
-      return sws.status();
-    } else {
-      out.resize(old_size + 1);
-      const auto status = ReadFixedField(as_writable_bytes(
-          span(out.data() + old_size, out.size() - old_size)));
-      if (!status.ok()) {
-        out.resize(old_size);
-      }
-      return status;
-    }
+    out.resize(out.capacity());
+    size_t size = old_size;
+    Status status =
+        ReadRepeatedFixedFieldGeneric(reinterpret_cast<std::byte*>(out.data()),
+                                      out.capacity(),
+                                      size,
+                                      sizeof(T));
+    out.resize(size);
+    return status;
   }
 
   template <typename T>
   Status ReadRepeatedVarintField(pw::Vector<T>& out,
                                  internal::VarintType decode_type) {
+    static_assert(
+        sizeof(T) == 1 || sizeof(T) == 2 || sizeof(T) == 4 || sizeof(T) == 8,
+        "Unsupported element size");
     if (out.full()) {
       return Status::ResourceExhausted();
     }
     const size_t old_size = out.size();
-    if (current_field_.wire_type() == WireType::kDelimited) {
-      out.resize(out.capacity());
-      const auto sws = ReadPackedVarintField(
-          as_writable_bytes(span(out.data() + old_size, out.size() - old_size)),
-          sizeof(T),
-          decode_type);
-      out.resize(old_size + sws.size());
-      return sws.status();
-    } else {
-      out.resize(old_size + 1);
-      const auto status = ReadVarintField(
-          as_writable_bytes(span(out.data() + old_size, out.size() - old_size)),
-          decode_type);
-      if (!status.ok()) {
-        out.resize(old_size);
-      }
-      return status;
-    }
+    out.resize(out.capacity());
+    size_t size = old_size;
+    Status status =
+        ReadRepeatedVarintFieldGeneric(reinterpret_cast<std::byte*>(out.data()),
+                                       out.capacity(),
+                                       size,
+                                       sizeof(T),
+                                       decode_type);
+    out.resize(size);
+    return status;
   }
+
+  // Reads one varint field for each element in the repeated field, with a
+  // runtime size to avoid instantiating the function multiple times. The size
+  // is passed as its base 2 log to avoid repeated multiplications in the impl
+  // (bit shift instead of multiply).
+  Status ReadRepeatedVarintFieldGeneric(std::byte* data,
+                                        size_t capacity,
+                                        size_t& size,
+                                        size_t elem_size,
+                                        internal::VarintType decode_type);
+
+  Status ReadRepeatedFixedFieldGeneric(std::byte* data,
+                                       size_t capacity,
+                                       size_t& size,
+                                       size_t elem_size);
 
   template <typename Container>
   Status ReadStringOrBytesField(std::byte* raw_container) {

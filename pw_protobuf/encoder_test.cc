@@ -794,6 +794,55 @@ TEST(StreamEncoder, PackedZigzagVector) {
             0);
 }
 
+TEST(StreamEncoder, PackedEnumEmpty) {
+  std::byte encode_buffer[32];
+  MemoryEncoder encoder(encode_buffer);
+
+  enum class TestEnum : int32_t { RED = 0, GREEN = 1 };
+  span<const TestEnum> values;
+  ASSERT_EQ(OkStatus(), encoder.WritePackedEnum(1, values));
+
+  ASSERT_EQ(encoder.status(), OkStatus());
+  ConstByteSpan result(encoder);
+  EXPECT_EQ(result.size(), 0u);
+}
+
+TEST(StreamEncoder, PackedInt32Negative) {
+  std::byte encode_buffer[32];
+  MemoryEncoder encoder(encode_buffer);
+
+  constexpr int32_t values[] = {-1, -2};
+  ASSERT_EQ(OkStatus(), encoder.WritePackedInt32(1, values));
+
+  constexpr uint8_t encoded_proto[] = {
+      0x0a, 0x14, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+      0x01, 0xfe, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x01};
+
+  ASSERT_EQ(encoder.status(), OkStatus());
+  ConstByteSpan result(encoder);
+  EXPECT_EQ(result.size(), sizeof(encoded_proto));
+  EXPECT_EQ(std::memcmp(result.data(), encoded_proto, sizeof(encoded_proto)),
+            0);
+}
+
+TEST(StreamEncoder, PackedInt64Negative) {
+  std::byte encode_buffer[32];
+  MemoryEncoder encoder(encode_buffer);
+
+  constexpr int64_t values[] = {-1, -2};
+  ASSERT_EQ(OkStatus(), encoder.WritePackedInt64(1, values));
+
+  constexpr uint8_t encoded_proto[] = {
+      0x0a, 0x14, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+      0x01, 0xfe, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x01};
+
+  ASSERT_EQ(encoder.status(), OkStatus());
+  ConstByteSpan result(encoder);
+  EXPECT_EQ(result.size(), sizeof(encoded_proto));
+  EXPECT_EQ(std::memcmp(result.data(), encoded_proto, sizeof(encoded_proto)),
+            0);
+}
+
 TEST(StreamEncoder, ParentUnavailable) {
   std::byte encode_buffer[32];
   MemoryEncoder parent(encode_buffer);

@@ -249,14 +249,28 @@ class StreamEncoder {
         field_number, values, internal::VarintType::kNormal);
   }
 
+  // Writes a repeated enum using packed encoding.
+  //
+  // Precondition: Encoder has no active child encoder.
+  template <typename T, typename = std::enable_if_t<std::is_enum_v<T>>>
+  Status WritePackedEnum(uint32_t field_number, span<const T> values) {
+    static_assert(sizeof(T) == sizeof(int32_t),
+                  "Protobuf enums are always 4-byte integers");
+    return WriteGenericPackedVarints<
+        std::remove_cv_t<std::underlying_type_t<T>>>(
+        field_number,
+        reinterpret_cast<const std::byte*>(values.data()),
+        values.size(),
+        internal::VarintType::kNormal);
+  }
+
   // Writes a repeated uint32 using packed encoding.
   //
   // Precondition: Encoder has no active child encoder.
   Status WriteRepeatedUint32(uint32_t field_number,
                              const pw::Vector<uint32_t>& values) {
-    return WritePackedVarints(field_number,
-                              span(values.data(), values.size()),
-                              internal::VarintType::kNormal);
+    return WritePackedVarints(
+        field_number, values, internal::VarintType::kNormal);
   }
 
   // Writes a proto uint64 key-value pair.
@@ -279,9 +293,8 @@ class StreamEncoder {
   // Precondition: Encoder has no active child encoder.
   Status WriteRepeatedUint64(uint32_t field_number,
                              const pw::Vector<uint64_t>& values) {
-    return WritePackedVarints(field_number,
-                              span(values.data(), values.size()),
-                              internal::VarintType::kNormal);
+    return WritePackedVarints(
+        field_number, values, internal::VarintType::kNormal);
   }
 
   // Writes a proto int32 key-value pair.
@@ -297,9 +310,7 @@ class StreamEncoder {
   // Precondition: Encoder has no active child encoder.
   Status WritePackedInt32(uint32_t field_number, span<const int32_t> values) {
     return WritePackedVarints(
-        field_number,
-        span(reinterpret_cast<const uint32_t*>(values.data()), values.size()),
-        internal::VarintType::kNormal);
+        field_number, values, internal::VarintType::kNormal);
   }
 
   // Writes a repeated int32 using packed encoding.
@@ -308,9 +319,7 @@ class StreamEncoder {
   Status WriteRepeatedInt32(uint32_t field_number,
                             const pw::Vector<int32_t>& values) {
     return WritePackedVarints(
-        field_number,
-        span(reinterpret_cast<const uint32_t*>(values.data()), values.size()),
-        internal::VarintType::kNormal);
+        field_number, values, internal::VarintType::kNormal);
   }
 
   // Writes a proto int64 key-value pair.
@@ -326,9 +335,7 @@ class StreamEncoder {
   // Precondition: Encoder has no active child encoder.
   Status WritePackedInt64(uint32_t field_number, span<const int64_t> values) {
     return WritePackedVarints(
-        field_number,
-        span(reinterpret_cast<const uint64_t*>(values.data()), values.size()),
-        internal::VarintType::kNormal);
+        field_number, values, internal::VarintType::kNormal);
   }
 
   // Writes a repeated int64 using packed encoding.
@@ -337,9 +344,7 @@ class StreamEncoder {
   Status WriteRepeatedInt64(uint32_t field_number,
                             const pw::Vector<int64_t>& values) {
     return WritePackedVarints(
-        field_number,
-        span(reinterpret_cast<const uint64_t*>(values.data()), values.size()),
-        internal::VarintType::kNormal);
+        field_number, values, internal::VarintType::kNormal);
   }
 
   // Writes a proto sint32 key-value pair.
@@ -354,9 +359,7 @@ class StreamEncoder {
   // Precondition: Encoder has no active child encoder.
   Status WritePackedSint32(uint32_t field_number, span<const int32_t> values) {
     return WritePackedVarints(
-        field_number,
-        span(reinterpret_cast<const uint32_t*>(values.data()), values.size()),
-        internal::VarintType::kZigZag);
+        field_number, values, internal::VarintType::kZigZag);
   }
 
   // Writes a repeated sint32 using packed encoding.
@@ -365,9 +368,7 @@ class StreamEncoder {
   Status WriteRepeatedSint32(uint32_t field_number,
                              const pw::Vector<int32_t>& values) {
     return WritePackedVarints(
-        field_number,
-        span(reinterpret_cast<const uint32_t*>(values.data()), values.size()),
-        internal::VarintType::kZigZag);
+        field_number, values, internal::VarintType::kZigZag);
   }
 
   // Writes a proto sint64 key-value pair.
@@ -382,9 +383,7 @@ class StreamEncoder {
   // Precondition: Encoder has no active child encoder.
   Status WritePackedSint64(uint32_t field_number, span<const int64_t> values) {
     return WritePackedVarints(
-        field_number,
-        span(reinterpret_cast<const uint64_t*>(values.data()), values.size()),
-        internal::VarintType::kZigZag);
+        field_number, values, internal::VarintType::kZigZag);
   }
 
   // Writes a repeated sint64 using packed encoding.
@@ -393,9 +392,7 @@ class StreamEncoder {
   Status WriteRepeatedSint64(uint32_t field_number,
                              const pw::Vector<int64_t>& values) {
     return WritePackedVarints(
-        field_number,
-        span(reinterpret_cast<const uint64_t*>(values.data()), values.size()),
-        internal::VarintType::kZigZag);
+        field_number, values, internal::VarintType::kZigZag);
   }
 
   // Writes a proto bool key-value pair.
@@ -775,48 +772,75 @@ class StreamEncoder {
     return WriteVarint(varint::ZigZagEncode(value));
   }
 
+  template <typename U, bool IsEnum = std::is_enum_v<U>>
+  struct UnderlyingType {
+    using type = std::underlying_type_t<U>;
+  };
+
+  template <typename U>
+  struct UnderlyingType<U, false> {
+    using type = U;
+  };
+
   // Writes a list of varints to the buffer in length-delimited packed encoding.
-  template <typename T, typename = std::enable_if_t<std::is_integral<T>::value>>
+  template <typename Span>
   Status WritePackedVarints(uint32_t field_number,
-                            span<T> values,
+                            const Span& values,
                             internal::VarintType encode_type) {
-    static_assert(std::is_same<T, const uint8_t>::value ||
-                      std::is_same<T, const uint32_t>::value ||
-                      std::is_same<T, const int32_t>::value ||
-                      std::is_same<T, const uint64_t>::value ||
-                      std::is_same<T, const int64_t>::value,
+    using T = std::remove_cv_t<
+        typename UnderlyingType<typename Span::value_type>::type>;
+    static_assert(std::is_same_v<T, uint8_t> || std::is_same_v<T, uint32_t> ||
+                      std::is_same_v<T, int32_t> ||
+                      std::is_same_v<T, uint64_t> || std::is_same_v<T, int64_t>,
                   "Packed varints must be of type bool, uint32_t, int32_t, "
-                  "uint64_t, or int64_t");
+                  "uint64_t, int64_t, or an enum");
+    return WriteGenericPackedVarints<T>(
+        field_number,
+        reinterpret_cast<const std::byte*>(values.data()),
+        values.size(),
+        encode_type);
+  }
 
-    size_t payload_size = 0;
-    for (T val : values) {
-      if (encode_type == internal::VarintType::kZigZag) {
-        int64_t integer =
-            static_cast<int64_t>(static_cast<std::make_signed_t<T>>(val));
-        payload_size += varint::EncodedSize(varint::ZigZagEncode(integer));
-      } else {
-        uint64_t integer = static_cast<uint64_t>(val);
-        payload_size += varint::EncodedSize(integer);
-      }
-    }
-
-    if (!UpdateStatusForWrite(field_number, WireType::kDelimited, payload_size)
-             .ok()) {
+  // Writes a list of varints to the buffer in length-delimited packed encoding
+  // using a raw byte pointer to reduce code bloat for enums.
+  template <typename T>
+  Status WriteGenericPackedVarints(uint32_t field_number,
+                                   const std::byte* data,
+                                   size_t count,
+                                   internal::VarintType encode_type) {
+    static_assert(std::is_integral_v<T>, "T must be an integral type");
+    if (count == 0) {
       return status_;
     }
 
-    WriteVarint(FieldKey(field_number, WireType::kDelimited))
-        .IgnoreError();  // TODO: b/242598609 - Handle Status properly
-    WriteVarint(payload_size)
-        .IgnoreError();  // TODO: b/242598609 - Handle Status properly
-    for (T value : values) {
+    auto get_value = [encode_type](T v) -> uint64_t {
       if (encode_type == internal::VarintType::kZigZag) {
-        WriteZigzagVarint(static_cast<std::make_signed_t<T>>(value))
-            .IgnoreError();  // TODO: b/242598609 - Handle Status properly
-      } else {
-        WriteVarint(value)
-            .IgnoreError();  // TODO: b/242598609 - Handle Status properly
+        if constexpr (std::is_signed_v<T>) {
+          return varint::ZigZagEncode(v);
+        }
       }
+      return static_cast<uint64_t>(v);
+    };
+
+    // Determine the encoded size of the packed varints.
+    size_t payload_size = 0;
+    for (size_t i = 0; i < count; ++i) {
+      T raw_value;
+      std::memcpy(&raw_value, data + i * sizeof(T), sizeof(T));
+      payload_size += varint::EncodedSize(get_value(raw_value));
+    }
+
+    PW_TRY(
+        UpdateStatusForWrite(field_number, WireType::kDelimited, payload_size));
+
+    WriteVarint(FieldKey(field_number, WireType::kDelimited)).IgnoreError();
+    WriteVarint(payload_size).IgnoreError();
+
+    // Encode the varints.
+    for (size_t i = 0; i < count; ++i) {
+      T raw_value;
+      std::memcpy(&raw_value, data + i * sizeof(T), sizeof(T));
+      WriteVarint(get_value(raw_value)).IgnoreError();
     }
 
     return status_;

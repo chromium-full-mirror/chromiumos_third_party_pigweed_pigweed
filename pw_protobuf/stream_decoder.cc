@@ -505,6 +505,52 @@ StatusWithSize StreamDecoder::ReadPackedVarintField(span<std::byte> out,
   return StatusWithSize(OkStatus(), number_out);
 }
 
+Status StreamDecoder::ReadRepeatedVarintFieldGeneric(
+    std::byte* data,
+    size_t capacity,
+    size_t& size,
+    size_t elem_size,
+    internal::VarintType decode_type) {
+  if (current_field_.wire_type() == WireType::kDelimited) {
+    size_t bytes_to_read = (capacity - size) * elem_size;
+    auto sws = ReadPackedVarintField(
+        span(data + (size * elem_size), bytes_to_read), elem_size, decode_type);
+    size += sws.size();
+    return sws.status();
+  }
+  if (size >= capacity) {
+    return Status::ResourceExhausted();
+  }
+  const Status status =
+      ReadVarintField(span(data + (size * elem_size), elem_size), decode_type);
+  if (status.ok()) {
+    size += 1;
+  }
+  return status;
+}
+
+Status StreamDecoder::ReadRepeatedFixedFieldGeneric(std::byte* data,
+                                                    size_t capacity,
+                                                    size_t& size,
+                                                    size_t elem_size) {
+  if (current_field_.wire_type() == WireType::kDelimited) {
+    size_t bytes_to_read = (capacity - size) * elem_size;
+    auto sws = ReadPackedFixedField(
+        span(data + (size * elem_size), bytes_to_read), elem_size);
+    size += sws.size();
+    return sws.status();
+  }
+  if (size >= capacity) {
+    return Status::ResourceExhausted();
+  }
+  const Status status =
+      ReadFixedField(span(data + (size * elem_size), elem_size));
+  if (status.ok()) {
+    size += 1;
+  }
+  return status;
+}
+
 Status StreamDecoder::CheckOkToRead(WireType type) {
   PW_CHECK(!nested_reader_open_,
            "Cannot read from a decoder while a nested decoder is open");

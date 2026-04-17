@@ -1358,6 +1358,103 @@ TEST(StreamDecoder, PackedVarintVectorFull) {
   EXPECT_EQ(uint32[1], 50u);
 }
 
+TEST(StreamDecoder, RepeatedEnumNonPacked) {
+  // clang-format off
+  constexpr uint8_t encoded_proto[] = {
+    // type=uint32, k=1, v=0
+    0x08, 0x00,
+    // type=uint32, k=1, v=1
+    0x08, 0x01,
+    // type=uint32, k=1, v=2
+    0x08, 0x02,
+  };
+  // clang-format on
+
+  stream::MemoryReader reader(as_bytes(span(encoded_proto)));
+  StreamDecoder decoder(reader);
+
+  enum class TestEnum : int32_t { RED = 0, GREEN = 1, AMBER = 2 };
+  pw::Vector<TestEnum, 4> enums{};
+
+  EXPECT_EQ(decoder.Next(), OkStatus());
+  ASSERT_EQ(decoder.FieldNumber().value(), 1u);
+  Status status = decoder.ReadRepeatedEnum(enums);
+  ASSERT_EQ(status, OkStatus());
+  EXPECT_EQ(enums.size(), 1u);
+  EXPECT_EQ(enums[0], TestEnum::RED);
+
+  EXPECT_EQ(decoder.Next(), OkStatus());
+  ASSERT_EQ(decoder.FieldNumber().value(), 1u);
+  status = decoder.ReadRepeatedEnum(enums);
+  ASSERT_EQ(status, OkStatus());
+  EXPECT_EQ(enums.size(), 2u);
+  EXPECT_EQ(enums[1], TestEnum::GREEN);
+
+  EXPECT_EQ(decoder.Next(), OkStatus());
+  ASSERT_EQ(decoder.FieldNumber().value(), 1u);
+  status = decoder.ReadRepeatedEnum(enums);
+  ASSERT_EQ(status, OkStatus());
+  EXPECT_EQ(enums.size(), 3u);
+  EXPECT_EQ(enums[2], TestEnum::AMBER);
+
+  EXPECT_EQ(decoder.Next(), Status::OutOfRange());
+}
+
+TEST(StreamDecoder, RepeatedEnumVectorFull) {
+  // clang-format off
+  constexpr uint8_t encoded_proto[] = {
+    // type=uint32, k=1, v=0
+    0x08, 0x00,
+    // type=uint32, k=1, v=1
+    0x08, 0x01,
+    // type=uint32, k=1, v=2
+    0x08, 0x02,
+  };
+  // clang-format on
+
+  stream::MemoryReader reader(as_bytes(span(encoded_proto)));
+  StreamDecoder decoder(reader);
+
+  enum class TestEnum : int32_t { RED = 0, GREEN = 1, AMBER = 2 };
+  pw::Vector<TestEnum, 1> enums{};
+
+  EXPECT_EQ(decoder.Next(), OkStatus());
+  ASSERT_EQ(decoder.FieldNumber().value(), 1u);
+  Status status = decoder.ReadRepeatedEnum(enums);
+  ASSERT_EQ(status, OkStatus());
+  EXPECT_EQ(enums.size(), 1u);
+  EXPECT_EQ(enums[0], TestEnum::RED);
+
+  EXPECT_EQ(decoder.Next(), OkStatus());
+  ASSERT_EQ(decoder.FieldNumber().value(), 1u);
+  status = decoder.ReadRepeatedEnum(enums);
+  ASSERT_EQ(status, Status::ResourceExhausted());
+  EXPECT_EQ(enums.size(), 1u);
+}
+
+TEST(StreamDecoder, RepeatedEnumPackedVectorFull) {
+  // clang-format off
+  constexpr uint8_t encoded_proto[] = {
+    // type=uint32[], k=1, v={0, 1, 2}
+    0x0a, 0x03, 0x00, 0x01, 0x02
+  };
+  // clang-format on
+
+  stream::MemoryReader reader(as_bytes(span(encoded_proto)));
+  StreamDecoder decoder(reader);
+
+  enum class TestEnum : int32_t { RED = 0, GREEN = 1, AMBER = 2 };
+  pw::Vector<TestEnum, 2> enums{};
+
+  EXPECT_EQ(decoder.Next(), OkStatus());
+  ASSERT_EQ(decoder.FieldNumber().value(), 1u);
+  Status status = decoder.ReadRepeatedEnum(enums);
+  ASSERT_EQ(status, Status::ResourceExhausted());
+  EXPECT_EQ(enums.size(), 2u);
+  EXPECT_EQ(enums[0], TestEnum::RED);
+  EXPECT_EQ(enums[1], TestEnum::GREEN);
+}
+
 TEST(StreamDecoder, PackedZigZag) {
   // clang-format off
   constexpr uint8_t encoded_proto[] = {
