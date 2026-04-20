@@ -71,6 +71,22 @@ platform(
     parents = [":rp2_common"],
 )
 
+# This platform is used for Sapphire size reports. It enables dynamic
+# allocation for pw_function (required by Sapphire's use of pw_async)
+# which is otherwise disabled on the default rp2040 platform.
+platform(
+    name = "rp2040_size_report",
+    constraint_values = [
+        "//pw_function:dynamic_allocation_enabled",
+    ],
+    flags = flags_from_dict({
+        "//pw_crypto:aes_backend": "//pw_crypto:aes_mbedtls",
+        "//pw_crypto:ecdh_backend": "//pw_crypto:ecdh_mbedtls",
+        "//pw_function:config_override": "//pw_function:config_for_host",
+    }),
+    parents = [":rp2040"],
+)
+
 platform(
     name = "rp2350",
     constraint_values = [

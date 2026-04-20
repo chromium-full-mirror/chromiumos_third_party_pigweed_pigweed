@@ -118,7 +118,10 @@ cc_library(
     defines = [
         "PW_FUNCTION_ENABLE_DYNAMIC_ALLOCATION=1",
     ],
-    visibility = ["//visibility:private"],
+    visibility = [
+        "//pw_function:__pkg__",
+        "//targets/rp2040:__pkg__",
+    ],
 )
 
 filegroup(
