@@ -20,6 +20,7 @@ import collections.abc
 import copy
 import dataclasses
 import enum
+import itertools
 from inspect import Parameter, signature
 import logging
 import time
@@ -28,6 +29,7 @@ from typing import (
     Any,
     Callable,
     Iterable,
+    Iterator,
     Pattern,
     Sequence,
 )
@@ -198,7 +200,7 @@ class Check:
         Returns a new check.
         """
         return self.with_file_filter(
-            FileFilter(endswith=_make_str_tuple(endswith), exclude=exclude)
+            FileFilter(endswith=tools.make_str_tuple(endswith), exclude=exclude)
         )
 
     def with_file_filter(self, file_filter: FileFilter) -> Check:
@@ -236,7 +238,7 @@ class Check:
             result = self.run_substep(ctx, substep)
         else:
             result = self(ctx)
-        time_str = format_time(time.time() - start_time_s)
+        time_str = tools.format_time(time.time() - start_time_s)
         _LOG.debug('%s %s', self.name, result.value)
 
         if ctx.dry_run:
@@ -347,10 +349,6 @@ def _ensure_is_valid_presubmit_check_function(chk: Callable) -> None:
         )
 
 
-def _make_str_tuple(value: Iterable[str] | str) -> tuple[str, ...]:
-    return tuple([value] if isinstance(value, str) else value)
-
-
 class Program(collections.abc.Sequence):
     """A sequence of presubmit checks; basically a tuple with a name."""
 
@@ -413,9 +411,30 @@ class Program(collections.abc.Sequence):
         )
 
 
-def format_time(time_s: float) -> str:
-    minutes, seconds = divmod(time_s, 60)
-    if minutes < 60:
-        return f' {int(minutes)}:{seconds:04.1f}'
-    hours, minutes = divmod(minutes, 60)
-    return f'{int(hours):d}:{int(minutes):02}:{int(seconds):02}'
+class Programs(collections.abc.Mapping):
+    """A mapping of presubmit check programs.
+
+    Use is optional. Helpful when managing multiple presubmit check programs.
+    """
+
+    def __init__(self, **programs: Sequence):
+        """Initializes a name: program mapping from the provided keyword args.
+
+        A program is a sequence of presubmit check functions. The sequence may
+        contain nested sequences, which are flattened.
+        """
+        self._programs: dict[str, Program] = {
+            name: Program(name, checks) for name, checks in programs.items()
+        }
+
+    def all_steps(self) -> dict[str, Check]:
+        return {c.name: c for c in itertools.chain(*self.values())}
+
+    def __getitem__(self, item: str) -> Program:
+        return self._programs[item]
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self._programs)
+
+    def __len__(self) -> int:
+        return len(self._programs)

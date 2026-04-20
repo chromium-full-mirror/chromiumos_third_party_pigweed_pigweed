@@ -39,9 +39,7 @@ See pigweed_presbumit.py for an example of how to define presubmit checks.
 
 from __future__ import annotations
 
-import collections
 import contextlib
-import itertools
 import json
 import logging
 import os
@@ -57,26 +55,26 @@ from typing import (
     Callable,
     Collection,
     Iterable,
-    Iterator,
     Pattern,
     Sequence,
     Set,
 )
 
-
 import pw_cli.env
 from pw_cli.plural import plural
 from pw_cli.file_filter import FileFilter, exclude_paths
 from pw_package import package_manager
-from pw_presubmit.events import PresubmitEvents, HumanUI
-from pw_presubmit.check import (
+from pw_presubmit import git_repo, tools
+from pw_presubmit.check import (  # pylint: disable=unused-import
     PresubmitResult,
     Program,
     Check,
     ProgramResult,
     FilteredCheck,
+    # Import for backwards compatibility only
+    Programs,
 )
-from pw_presubmit import git_repo, tools
+from pw_presubmit.events import PresubmitEvents, HumanUI
 from pw_presubmit.presubmit_context import (
     FormatOptions,
     LuciContext,
@@ -88,42 +86,7 @@ from pw_presubmit.presubmit_context import (
 _LOG: logging.Logger = logging.getLogger(__name__)
 
 
-class Programs(collections.abc.Mapping):
-    """A mapping of presubmit check programs.
-
-    Use is optional. Helpful when managing multiple presubmit check programs.
-    """
-
-    def __init__(self, **programs: Sequence):
-        """Initializes a name: program mapping from the provided keyword args.
-
-        A program is a sequence of presubmit check functions. The sequence may
-        contain nested sequences, which are flattened.
-        """
-        self._programs: dict[str, Program] = {
-            name: Program(name, checks) for name, checks in programs.items()
-        }
-
-    def all_steps(self) -> dict[str, Check]:
-        return {c.name: c for c in itertools.chain(*self.values())}
-
-    def __getitem__(self, item: str) -> Program:
-        return self._programs[item]
-
-    def __iter__(self) -> Iterator[str]:
-        return iter(self._programs)
-
-    def __len__(self) -> int:
-        return len(self._programs)
-
-
-def _print_ui(*args) -> None:
-    """Prints to stdout and flushes to stay in sync with logs on stderr."""
-    print(*args, flush=True)
-
-
-# pylint: disable=too-many-instance-attributes
-class Presubmit:
+class Presubmit:  # pylint: disable=too-many-instance-attributes
     """Runs a series of presubmit checks on a list of files."""
 
     def __init__(  # pylint: disable=too-many-arguments
@@ -502,10 +465,6 @@ def run(  # pylint: disable=too-many-arguments,too-many-locals
     return presubmit.run(program, keep_going, substep=substep, dry_run=dry_run)
 
 
-def _make_str_tuple(value: Iterable[str] | str) -> tuple[str, ...]:
-    return tuple([value] if isinstance(value, str) else value)
-
-
 def check(*args, **kwargs):
     """Turn a function into a presubmit check.
 
@@ -576,7 +535,7 @@ def filter_paths(
     else:
         # TODO: b/238426363 - Remove these arguments and use FileFilter only.
         real_file_filter = FileFilter(
-            endswith=_make_str_tuple(endswith), exclude=exclude
+            endswith=tools.make_str_tuple(endswith), exclude=exclude
         )
 
     def filter_paths_for_function(function: Callable) -> Check:

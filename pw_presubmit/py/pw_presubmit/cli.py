@@ -23,6 +23,7 @@ import textwrap
 from typing import Callable, Collection, Sequence
 
 from pw_presubmit import git_repo, presubmit
+from pw_presubmit.check import Programs
 from pw_cli import argument_types
 from pw_cli.collect_files import add_file_collection_arguments
 
@@ -37,7 +38,7 @@ builds. It may be deleted safely.
 
 
 def _add_programs_arguments(
-    parser: argparse.ArgumentParser, programs: presubmit.Programs, default: str
+    parser: argparse.ArgumentParser, programs: Programs, default: str
 ):
     def presubmit_program(arg: str) -> presubmit.Program:
         if arg not in programs:
@@ -148,7 +149,7 @@ def _add_programs_arguments(
 
 def add_arguments(
     parser: argparse.ArgumentParser,
-    programs: presubmit.Programs | None = None,
+    programs: Programs | None = None,
     default: str = '',
 ) -> None:
     """Adds common presubmit check options to an argument parser."""

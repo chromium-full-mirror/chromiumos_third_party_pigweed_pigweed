@@ -26,7 +26,6 @@ from pw_presubmit.check import (
     PresubmitResult,
     Check,
     Program,
-    format_time,
     ProgramResult,
     FilteredCheck,
 )
@@ -151,7 +150,7 @@ class HumanUI(PresubmitEvents):
         result: PresubmitResult,
         duration_s: float,
     ) -> None:
-        time_str = format_time(duration_s)
+        time_str = tools.format_time(duration_s)
         self._print(
             self._box(
                 self._CHECK_LOWER,
@@ -172,6 +171,6 @@ class HumanUI(PresubmitEvents):
                 result.result.colorized(self._LEFT, invert=True),
                 f'{result.total} checks on '
                 f'{plural(len(self.paths), "file")}: {result.message()}',
-                format_time(duration_s),
+                tools.format_time(duration_s),
             )
         )

@@ -48,7 +48,8 @@ from pw_presubmit import (
     upstream_checks,
 )
 from pw_presubmit.install_hook import install_git_hook
-from pw_presubmit.presubmit import Programs, call, filter_paths
+from pw_presubmit.presubmit import call, filter_paths
+from pw_presubmit.check import Programs
 from pw_presubmit.presubmit_context import PresubmitContext, PresubmitFailure
 from pw_presubmit.tools import log_run
 
@@ -70,7 +71,7 @@ def _at_all_optimization_levels(target):
         yield f'{target}_{level}'
 
 
-class PigweedGnGenNinja(build.GnGenNinja):
+class PigweedGnGenNinja(build.GnGenNinja):  # pylint: disable=abstract-method
     """Add Pigweed-specific defaults to GnGenNinja."""
 
     def add_default_gn_args(self, args):

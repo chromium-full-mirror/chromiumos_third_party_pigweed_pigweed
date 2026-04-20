@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from contextvars import ContextVar
 import dataclasses
-import enum
+
 import inspect
 import logging
 import json
@@ -631,13 +631,6 @@ PRESUBMIT_CONTEXT: ContextVar[PresubmitContext | None] = ContextVar(
 
 def get_presubmit_context():
     return PRESUBMIT_CONTEXT.get()
-
-
-class PresubmitCheckTraceType(enum.Enum):
-    BAZEL = 'BAZEL'
-    CMAKE = 'CMAKE'
-    GN_NINJA = 'GN_NINJA'
-    PW_PACKAGE = 'PW_PACKAGE'
 
 
 class PresubmitCheckTrace(NamedTuple):

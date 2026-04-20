@@ -29,12 +29,12 @@ from pw_cli.arguments import (
 )
 from pw_presubmit.presubmit import (
     Program,
-    Programs,
     PresubmitContext,
     PresubmitResult,
     Check,
     fetch_file_lists,
 )
+from pw_presubmit.check import Programs
 import pw_presubmit.pigweed_presubmit
 from pw_presubmit.build import GnGenNinja, gn_args
 from pw_presubmit.presubmit_context import (

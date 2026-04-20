@@ -14,29 +14,22 @@
 # the License.
 """Tests for cpp_checks."""
 
-import os
 from pathlib import Path
 import unittest
 from unittest.mock import MagicMock, mock_open, patch
 
 from pw_presubmit import cpp_checks
 
-# pylint: disable=attribute-defined-outside-init
-
-
-def _temproot():
-    root = Path(os.environ['_PW_ACTUAL_ENVIRONMENT_ROOT']) / 'temp'
-    root.mkdir(exist_ok=True)
-    return root
-
 
 class TestPragmaOnce(unittest.TestCase):
     """Test pragma_once check."""
 
-    def _run(self, contents: str) -> None:
+    def setUp(self) -> None:
         self.ctx = MagicMock()
         self.ctx.fail = MagicMock()
         self.ctx.format_options.filter_paths = lambda x: x
+
+    def _run(self, contents: str) -> None:
         path = MagicMock(spec=Path('include/foo.h'))
 
         def mocked_open_read(*args, **kwargs):
@@ -70,10 +63,12 @@ def guard(path: Path) -> str:
 class TestIncludeGuard(unittest.TestCase):
     """Test pragma_once check."""
 
-    def _run(self, contents: str, **kwargs) -> None:
+    def setUp(self) -> None:
         self.ctx = MagicMock()
-        self.ctx.format_options.filter_paths = lambda x: x
         self.ctx.fail = MagicMock()
+        self.ctx.format_options.filter_paths = lambda x: x
+
+    def _run(self, contents: str, **kwargs) -> None:
         path = MagicMock(spec=Path('abc/def/foo.h'))
         path.name = 'foo.h'
 

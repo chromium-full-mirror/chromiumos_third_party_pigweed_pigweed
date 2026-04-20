@@ -23,7 +23,7 @@ from unittest import mock
 
 from pw_presubmit import presubmit
 from pw_presubmit.events import PresubmitEvents, HumanUI
-from pw_presubmit.check import PresubmitResult, Program, ProgramResult
+from pw_presubmit.check import PresubmitResult, Program, ProgramResult, Programs
 
 
 def _fake_function_1(_):
@@ -48,15 +48,15 @@ class ProgramsTest(unittest.TestCase):
     """Tests the presubmit Programs abstraction."""
 
     def setUp(self):
-        self._programs = presubmit.Programs(
+        self._programs = Programs(
             first=[_fake_function_1, (), [(_fake_function_2,)]],
             second=[_fake_function_2],
         )
 
-    def test_empty(self):
-        self.assertEqual({}, presubmit.Programs())
+    def test_empty(self) -> None:
+        self.assertEqual({}, Programs())
 
-    def test_access_present_members_first(self):
+    def test_access_present_members_first(self) -> None:
         self.assertEqual('first', self._programs['first'].name)
         self.assertEqual(
             ('_fake_function_1', '_fake_function_2'),
@@ -70,7 +70,7 @@ class ProgramsTest(unittest.TestCase):
         self.assertEqual(2, len(substeps))
         self.assertEqual((_fake_function_1, _fake_function_2), tuple(substeps))
 
-    def test_access_present_members_second(self):
+    def test_access_present_members_second(self) -> None:
         self.assertEqual('second', self._programs['second'].name)
         self.assertEqual(
             ('_fake_function_2',),
@@ -84,11 +84,11 @@ class ProgramsTest(unittest.TestCase):
         self.assertEqual(1, len(substeps))
         self.assertEqual((_fake_function_2,), tuple(substeps))
 
-    def test_access_missing_member(self):
+    def test_access_missing_member(self) -> None:
         with self.assertRaises(KeyError):
             _ = self._programs['not_there']
 
-    def test_all_steps(self):
+    def test_all_steps(self) -> None:
         all_steps = self._programs.all_steps()
         self.assertEqual(len(all_steps), 2)
         all_substeps = _all_substeps(all_steps.values())
@@ -103,7 +103,7 @@ class ProgramsTest(unittest.TestCase):
 class PresubmitEventsTest(unittest.TestCase):
     """Tests for PresubmitEvents."""
 
-    def test_run_calls_events(self):  # pylint: disable=no-self-use
+    def test_run_calls_events(self) -> None:  # pylint: disable=no-self-use
         """Test that Presubmit.run calls event methods."""
         mock_events = mock.Mock(spec=PresubmitEvents)
         with tempfile.TemporaryDirectory() as tmp_dir_name:
@@ -149,7 +149,7 @@ class PresubmitEventsTest(unittest.TestCase):
 class HumanUITest(unittest.TestCase):
     """Tests for HumanUI."""
 
-    def test_title(self):
+    def test_title(self) -> None:
         """Test title rendering."""
         ui = HumanUI(width=40)
         output = io.StringIO()

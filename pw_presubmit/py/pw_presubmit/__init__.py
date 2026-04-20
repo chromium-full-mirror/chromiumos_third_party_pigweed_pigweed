@@ -22,4 +22,21 @@
 __path__ = __import__('pkgutil').extend_path(__path__, __name__)
 
 from pw_presubmit.tools import log_run
-from pw_presubmit.presubmit import *
+from pw_presubmit.presubmit import (
+    Presubmit,
+    call,
+    check,
+    filter_paths,
+    run,
+)
+
+from pw_presubmit.check import (
+    Check,
+    PresubmitResult,
+    Program,
+    Programs,
+)
+from pw_presubmit.presubmit_context import (
+    PresubmitContext,
+    PresubmitFailure,
+)
