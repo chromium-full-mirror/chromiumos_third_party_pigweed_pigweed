@@ -47,7 +47,14 @@ write a few fields in a snapshot, you can do so with minimal memory overhead.
        metadata_encoder.WriteProjectName(pw::as_bytes(pw::span("smart-shoe")));
        metadata_encoder.WriteDeviceName(pw::as_bytes(pw::span("smart-shoe-p1")));
      }
-     return proto_encoder.status();
+     {
+       pw::snapshot::MemoryRegion::StreamEncoder memory_encoder =
+           snapshot_encoder.GetMemoryRegionsEncoder();
+       memory_encoder.WriteName("main_ram");
+       memory_encoder.WriteAddress(0x20000000);
+       memory_encoder.WriteData(crash_info.ram_dump);
+     }
+     return snapshot_encoder.status();
    }
 
 -------------------
@@ -180,6 +187,26 @@ Here's an example implementation that uses the device name:
            lambda snapshot: _snapshot_symbolizer_matcher(
                fw_bundle_dir, snapshot))
        return processor.process_snapshots(snapshot, DETOKENIZER, matcher)
+
+-------------------------
+Processing Memory Regions
+-------------------------
+The snapshot processor includes a summary of any embedded memory regions (address,
+name, and size). For more advanced analysis of these regions (e.g. dumping to a
+file or further decoding), a project-provided ``memory_region_processor``
+callback can be used.
+
+.. code-block:: py
+
+   def my_memory_processor(region: snapshot_pb2.MemoryRegion) -> str:
+       # Custom logic to handle the memory region data.
+       with open(f"{region.name}_{region.address:08x}.bin", "wb") as f:
+           f.write(region.data)
+       return f"Dumped {len(region.data)} bytes to file"
+
+   # Pass the processor to the snapshot processing tools.
+   print(processor.process_snapshots(snapshot_bytes,
+                                     memory_region_processor=my_memory_processor))
 
 -------------
 C++ Utilities

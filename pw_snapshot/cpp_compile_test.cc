@@ -40,6 +40,14 @@ TEST(Status, CompileTest) {
         OkStatus(),
         metadata_encoder.WriteDeviceName(as_bytes(span("smart-shoe-p1"))));
   }
+  {
+    pwpb::MemoryRegion::StreamEncoder memory_region_encoder =
+        snapshot_encoder.GetMemoryRegionsEncoder();
+    ASSERT_EQ(OkStatus(), memory_region_encoder.WriteName("main_ram"));
+    ASSERT_EQ(OkStatus(), memory_region_encoder.WriteAddress(0x20000000));
+    ASSERT_EQ(OkStatus(),
+              memory_region_encoder.WriteData(as_bytes(span("\x01\x02\x03"))));
+  }
   ASSERT_TRUE(snapshot_encoder.status().ok());
 }
 

@@ -18,6 +18,7 @@ import functools
 import json
 import logging
 import sys
+import textwrap
 from pathlib import Path
 from typing import BinaryIO, TextIO, Callable, Sequence
 
@@ -95,6 +96,9 @@ def process_snapshot(
     llvm_symbolizer_binary: Path | None = None,
     thread_processing_callback: Callable[[bytes], str] | None = None,
     process_logs: LogProcessor | None = _default_log_processor,
+    memory_region_processor: (
+        Callable[[snapshot_pb2.MemoryRegion], str] | None
+    ) = None,
 ) -> str:
     """Processes a single snapshot."""
 
@@ -172,6 +176,20 @@ def process_snapshot(
         output.append(json.dumps(metrics_dict, indent="  ", sort_keys=True))
         output.append("")
 
+    # Memory Regions
+    if snapshot.memory_regions:
+        output.append("Memory Regions:")
+        for region in snapshot.memory_regions:
+            name = f" ({region.name})" if region.name else ""
+            output.append(
+                f"  {region.address:08x}{name} ({len(region.data)} bytes)"
+            )
+            if memory_region_processor is not None:
+                region_output = memory_region_processor(region)
+                if region_output:
+                    output.append(textwrap.indent(region_output, "    "))
+        output.append("")
+
     # Check and emit the number of related snapshots embedded in this snapshot.
     if snapshot.related_snapshots:
         snapshot_count = len(snapshot.related_snapshots)
@@ -194,6 +212,9 @@ def process_snapshots(
         Callable[[snapshot_pb2.Snapshot, bytes], str] | None
     ) = None,
     process_logs: LogProcessor | None = _default_log_processor,
+    memory_region_processor: (
+        Callable[[snapshot_pb2.MemoryRegion], str] | None
+    ) = None,
 ) -> str:
     """Processes a snapshot that may have multiple embedded snapshots."""
     output = []
@@ -212,6 +233,7 @@ def process_snapshots(
             symbolizer_matcher=symbolizer_matcher,
             thread_processing_callback=callback,
             process_logs=process_logs,
+            memory_region_processor=memory_region_processor,
         )
     )
 
@@ -233,6 +255,7 @@ def process_snapshots(
                     symbolizer_matcher=symbolizer_matcher,
                     thread_processing_callback=thread_processing_callback,
                     process_logs=process_logs,
+                    memory_region_processor=memory_region_processor,
                 )
             )
         )

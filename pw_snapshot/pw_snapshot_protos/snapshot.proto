@@ -25,6 +25,12 @@ import "pw_metric_proto/metric_service.proto";
 import "pw_thread_protos/thread.proto";
 import "pw_snapshot_metadata_proto/snapshot_metadata.proto";
 
+message MemoryRegion {
+  string name = 1;
+  uint64 address = 2;
+  bytes data = 3;
+}
+
 // The Snapshot proto is a list that dictates field numbers that should
 // be used when serializing proto messages into a "Snapshot" that can be
 // ingested by Pigweed's upstream tooling.
@@ -90,9 +96,12 @@ message Snapshot {
   // clock value.
   repeated pw.chrono.TimePoint timestamps = 22;
 
+  // Arbitrary regions of memory.
+  repeated MemoryRegion memory_regions = 23;
+
   // RESERVED FOR PIGWEED. Downstream projects may NOT write to these fields.
   // Encodes to two bytes of tag overhead.
-  reserved 23 to 1031;
+  reserved 24 to 1031;
 
   // RESERVED FOR USERS. Encodes to two or more bytes of tag overhead.
   reserved 1032 to max;

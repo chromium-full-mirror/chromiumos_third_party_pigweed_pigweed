@@ -221,6 +221,58 @@ class ProcessorTest(unittest.TestCase):
         )
         self.assertEqual(output, expected_output)
 
+    def test_process_snapshot_with_memory_regions(self):
+        snapshot = snapshot_pb2.Snapshot(
+            memory_regions=[
+                snapshot_pb2.MemoryRegion(
+                    name="main_ram",
+                    address=0x20000000,
+                    data=b"\x01\x02\x03\x04\x05\x06\x07\x08",
+                ),
+                snapshot_pb2.MemoryRegion(
+                    address=0x08000000,
+                    data=b"\xde\xad\xbe\xef",
+                ),
+            ]
+        )
+        expected_output = _SNAPSHOT_HEADER + textwrap.dedent(
+            """
+            Memory Regions:
+              20000000 (main_ram) (8 bytes)
+              08000000 (4 bytes)
+            """
+        )
+
+        output = process_snapshot(snapshot.SerializeToString())
+        self.assertEqual(output, expected_output)
+
+    def test_process_snapshot_with_memory_region_processor(self):
+        snapshot = snapshot_pb2.Snapshot(
+            memory_regions=[
+                snapshot_pb2.MemoryRegion(
+                    name="main_ram",
+                    address=0x20000000,
+                    data=b"\x01\x02\x03\x04\x05\x06\x07\x08",
+                ),
+            ]
+        )
+
+        def mock_processor(region: snapshot_pb2.MemoryRegion) -> str:
+            return f"Processed {len(region.data)} bytes at {region.address:08x}"
+
+        expected_output = _SNAPSHOT_HEADER + textwrap.dedent(
+            """
+            Memory Regions:
+              20000000 (main_ram) (8 bytes)
+                Processed 8 bytes at 20000000
+            """
+        )
+
+        output = process_snapshot(
+            snapshot.SerializeToString(), memory_region_processor=mock_processor
+        )
+        self.assertEqual(output, expected_output)
+
 
 if __name__ == '__main__':
     unittest.main()
