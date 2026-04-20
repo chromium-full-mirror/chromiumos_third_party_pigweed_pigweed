@@ -98,41 +98,36 @@ assumes `bootstrap.sh` is at the top level of your repository.
 
 Bazel Usage
 -----------
-Bazel projects should pull in CIPD dependencies using repository rules
-rather than relying on `bootstrap.sh`. e.g.
+Bazel projects should pull in CIPD dependencies using the CIPD module extension
+rather than relying on ``bootstrap.sh``.
 
-.. code-block:: python
+.. attention::
+   The ``cipd_repository`` rule is deprecated. Use the new module extension
+   instead. See :ref:`module-pw_env_setup-bazel-cipd` for full documentation,
+   including how to migrate from the old rule.
 
-   # MODULE.bazel
+Example usage in ``MODULE.bazel``:
 
-   cipd_repository = use_repo_rule("//pw_env_setup/bazel/cipd_setup:cipd_rules.bzl", "cipd_repository")
+.. code-block:: starlark
 
-   cipd_repository(
-      name = "qemu",
-      build_file = "//third_party/qemu:qemu.BUILD",
-      path = "fuchsia/third_party/qemu/${platform}",
-      tag = "git_revision:aa90f1161bb17a4863e16ec2f75104cff0752d4e",
+   cipd = use_extension("//pw_env_setup/bazel/cipd:defs.bzl", "cipd")
+
+   cipd.require(
+       name = "qemu",
+       build_file = "//third_party/qemu:qemu.BUILD",
+       packages = {
+           "fuchsia/third_party/qemu/${platform}": "git_revision:aa90f1161bb17a4863e16ec2f75104cff0752d4e",
+       },
    )
 
-This will make the entire set of Pigweeds remote repositories available to your
-project. Though these repositories will only be downloaded if you use them. To
-get a full list of the remote repositories that this configures, run:
+   use_repo(cipd, "qemu")
 
-.. code-block:: console
+This will make the repository available to your project and all projects that
+want to use it based on the name. Only the repositories that are actually used
+will have CIPD packages downloaded.
 
-   $ bazel query //external:all | grep cipd_
-
-All files and executables in each CIPD remote repository is exported and visible
-either directely (`@cipd_<dep>//:<file>`) or from 'all' filegroup
-(`@cipd_<dep>//:all`).
-
-From here it is possible to get access to the Bloaty binaries using the
-following command. For example;
-
-.. code-block:: console
-
-   $ bazel run @cipd_pigweed_third_party_bloaty_embedded_linux_amd64//:bloaty \
-   > -- --help
+For more details and advanced usage, see the full documentation in
+:ref:`module-pw_env_setup-bazel-cipd`.
 
 User-Friendliness
 -----------------
@@ -811,3 +806,9 @@ high-level commands to system-specific initialization files is shown below.
 
 .. _Requirements Files documentation: https://pip.pypa.io/en/stable/user_guide/#requirements-files
 .. _Constraints Files documentation: https://pip.pypa.io/en/stable/user_guide/#constraints-files
+
+.. toctree::
+   :hidden:
+   :maxdepth: 1
+
+   bazel/cipd/docs
