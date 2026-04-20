@@ -39,6 +39,8 @@ def main() -> int:
     args = {**vars(parsed_args)}
     func = args['func']
     del args['func']
+    if 'command' in args:
+        del args['command']
     func(**args)
 
     return 0
