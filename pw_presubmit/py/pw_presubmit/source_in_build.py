@@ -65,10 +65,9 @@ def bazel(
         )
 
         if missing:
-            with ctx.failure_summary_log.open('w') as outs:
-                print('Missing files:', file=outs)
-                for miss in missing:
-                    print(miss, file=outs)
+            ctx.fail(
+                'Missing files:\n' + '\n'.join(str(miss) for miss in missing)
+            )
 
             _LOG.warning('All source files must appear in BUILD.bazel files')
             raise PresubmitFailure
@@ -111,10 +110,9 @@ def gn(  # pylint: disable=invalid-name
         )
 
         if missing:
-            with ctx.failure_summary_log.open('w') as outs:
-                print('Missing files:', file=outs)
-                for miss in missing:
-                    print(miss, file=outs)
+            ctx.fail(
+                'Missing files:\n' + '\n'.join(str(miss) for miss in missing)
+            )
 
             _LOG.warning('All source files must appear in BUILD.gn files')
             raise PresubmitFailure
@@ -153,10 +151,9 @@ def cmake(
         )
 
         if missing:
-            with ctx.failure_summary_log.open('w') as outs:
-                print('Missing files:', file=outs)
-                for miss in missing:
-                    print(miss, file=outs)
+            ctx.fail(
+                'Missing files:\n' + '\n'.join(str(miss) for miss in missing)
+            )
 
             _LOG.warning(
                 'Files missing from CMake:\n%s',
@@ -207,10 +204,9 @@ def soong(  # pylint: disable=invalid-name
         )
 
         if missing:
-            with ctx.failure_summary_log.open('w') as outs:
-                print('Missing files:', file=outs)
-                for miss in missing:
-                    print(miss, file=outs)
+            ctx.fail(
+                'Missing files:\n' + '\n'.join(str(miss) for miss in missing)
+            )
 
             _LOG.warning('All source files must appear in Android.bp files')
             raise PresubmitFailure

@@ -119,7 +119,7 @@ def _process_file(ctx: PresubmitContext, todo_pattern: re.Pattern, path: Path):
         prev = ''
 
         try:
-            summary: list[str] = []
+
             for i, line in enumerate(ins, 1):
                 if _DISABLE in line:
                     enabled = False
@@ -140,16 +140,12 @@ def _process_file(ctx: PresubmitContext, todo_pattern: re.Pattern, path: Path):
                         ctx.fail(
                             '    TODO: https://pwbug.dev/12345 - More context.'
                         )
-                        summary.append(f'{i}:{line.strip()}')
 
                 prev = line
-
-            return summary
 
         except UnicodeDecodeError:
             # File is not text, like a gif.
             _LOG.debug('File %s is not a text file', path)
-            return []
 
 
 def create(
@@ -162,16 +158,7 @@ def create(
     def todo_check(ctx: PresubmitContext):
         """Check that TODO lines are valid."""  # todo-check: ignore
         ctx.paths = presubmit_context.apply_exclusions(ctx)
-        summary: dict[Path, list[str]] = {}
         for path in ctx.paths:
-            if file_summary := _process_file(ctx, todo_pattern, path):
-                summary[path] = file_summary
-
-        if summary:
-            with ctx.failure_summary_log.open('w') as outs:
-                for path, lines in summary.items():
-                    print('====', path.relative_to(ctx.root), file=outs)
-                    for line in lines:
-                        print(line, file=outs)
+            _process_file(ctx, todo_pattern, path)
 
     return todo_check

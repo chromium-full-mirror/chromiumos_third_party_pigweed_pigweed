@@ -206,15 +206,16 @@ def generic_presubmit_check(
         )
 
     if found_words:
-        with open(ctx.failure_summary_log, 'w') as outs:
-            for i, (path, matches) in enumerate(found_words.items()):
-                if i:
-                    print('=' * 40, file=outs)
-                print(path, file=outs)
-                for match in matches:
-                    print(match, file=outs)
+        output_lines = []
+        for i, (path, matches) in enumerate(found_words.items()):
+            if i:
+                output_lines.append('=' * 40)
+            output_lines.append(str(path))
+            for match in matches:
+                output_lines.append(str(match))
 
-        print(ctx.failure_summary_log.read_text(), end=None)
+        output_text = '\n'.join(output_lines)
+        ctx.fail(output_text)
 
         print()
         print(

@@ -22,6 +22,7 @@ code. These tools must be available on the path when this script is invoked!
 import argparse
 import collections
 import difflib
+import io
 import logging
 import os
 from pathlib import Path
@@ -651,13 +652,14 @@ def presubmit_check(
         if not errors:
             return
 
-        with ctx.failure_summary_log.open('w') as outs:
-            summarize_findings(
-                errors,
-                log_fix_command=False,
-                log_oneliner_summary=False,
-                file=outs,
-            )
+        sio = io.StringIO()
+        summarize_findings(
+            errors,
+            log_fix_command=False,
+            log_oneliner_summary=False,
+            file=sio,
+        )
+        ctx.fail(sio.getvalue())
 
         raise PresubmitFailure
 

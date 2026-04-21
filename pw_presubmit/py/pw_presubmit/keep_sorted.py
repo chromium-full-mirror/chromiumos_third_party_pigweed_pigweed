@@ -36,6 +36,7 @@ from pw_cli.collect_files import (
 from pw_cli.diff import colorize_diff
 from pw_cli.plural import plural
 from . import git_repo, presubmit, presubmit_context, tools
+from .presubmit_context import Failure
 
 DEFAULT_PATH = Path('out', 'presubmit', 'keep_sorted')
 
@@ -62,11 +63,16 @@ keep-sorted: end
 
 @dataclasses.dataclass
 class KeepSortedContext:
+    """Context for keep-sorted check."""
+
     paths: Sequence[Path]
     fix: bool
     output_dir: Path
-    failure_summary_log: Path
-    failed: bool = False
+    _failures: list[Failure] = dataclasses.field(default_factory=list)
+
+    @property
+    def failed(self) -> bool:
+        return bool(self._failures)
 
     def fail(
         self,
@@ -74,9 +80,6 @@ class KeepSortedContext:
         path: Path | None = None,
         line: int | None = None,
     ) -> None:
-        if not self.fix:
-            self.failed = True
-
         line_part: str = ''
         if line is not None:
             line_part = f'{line}:'
@@ -89,6 +92,9 @@ class KeepSortedContext:
             log('%s:%s %s', path, line_part, description)
         else:
             log('%s', description)
+
+        if not self.fix:
+            self._failures.append(Failure(description, path, line))
 
 
 class KeepSortedParsingError(presubmit.PresubmitFailure):
@@ -380,18 +386,20 @@ def _process_files(
 
     ctx.fail(f'Found {plural(errors, "file")} with keep-sorted errors:')
 
-    with ctx.failure_summary_log.open('w') as outs:
-        for path, diffs in errors.items():
-            diff = ''.join(
-                [
-                    f'--- {path} (original)\n',
-                    f'+++ {path} (sorted)\n',
-                    *diffs,
-                ]
-            )
+    all_diffs = []
+    for path, diffs in errors.items():
+        diff = ''.join(
+            [
+                f'--- {path} (original)\n',
+                f'+++ {path} (sorted)\n',
+                *diffs,
+            ]
+        )
+        all_diffs.append(diff)
+        print(colorize_diff(diff))
 
-            outs.write(diff)
-            print(colorize_diff(diff))
+    for diff in all_diffs:
+        ctx.fail(diff)
 
     return errors
 
@@ -457,9 +465,15 @@ def keep_sorted_in_repo(
         paths=files,
         fix=fix,
         output_dir=outdir,
-        failure_summary_log=outdir / 'failure-summary.log',
     )
     errors = _process_files(ctx)
+
+    # pylint: disable=protected-access
+    if ctx._failures:
+        with open(outdir / 'failure-summary.log', 'w') as outs:
+            for failure in ctx._failures:
+                outs.write(f'{failure.message()}\n')
+    # pylint: enable=protected-access
 
     if not fix and errors:
         _print_howto_fix(list(errors.keys()))

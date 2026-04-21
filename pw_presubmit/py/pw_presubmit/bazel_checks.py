@@ -60,18 +60,17 @@ def includes_presubmit_check(
             # The check has passed: the query returned no targets.
             return
 
-        with open(ctx.failure_summary_log, 'w') as outs:
-            print(
-                'The following cc_library targets contain the `includes` '
-                'attribute. This attribute is forbidden. Use '
-                '`strip_include_prefix` instead.',
-                file=outs,
-            )
-            print('', file=outs)
-            for target in contents:
-                print(target.strip(), file=outs)
+        output_lines = [
+            'The following cc_library targets contain the `includes` '
+            'attribute. This attribute is forbidden. Use '
+            '`strip_include_prefix` instead.',
+            '',
+        ]
+        for target in contents:
+            output_lines.append(target.strip())
 
-        print(ctx.failure_summary_log.read_text(), end=None)
+        output_text = '\n'.join(output_lines)
+        ctx.fail(output_text)
         raise presubmit_context.PresubmitFailure(
             'cc_library targets contain includes'
         )

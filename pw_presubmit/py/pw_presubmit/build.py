@@ -169,8 +169,7 @@ def bazel(
         if stdout:
             failure = bazel_parser.parse_bazel_stdout(Path(stdout.name))
             if failure:
-                with ctx.failure_summary_log.open('w') as outs:
-                    outs.write(failure)
+                ctx.fail(failure)
 
         raise exc
 
@@ -299,8 +298,7 @@ def ninja(
     except PresubmitFailure as exc:
         failure = ninja_parser.parse_ninja_stdout(ninja_stdout)
         if failure:
-            with ctx.failure_summary_log.open('w') as outs:
-                outs.write(failure)
+            ctx.fail(failure)
 
         raise exc
 

@@ -436,6 +436,23 @@ class FormatContext:
         """Empty append_check_command."""
 
 
+@dataclasses.dataclass(frozen=True)
+class Failure:
+    description: str = ''
+    path: Path | None = None
+    line: int | None = None
+
+    def message(self) -> str:
+        line_part: str = ''
+        if self.line is not None:
+            line_part = f'{self.line}:'
+        return (
+            f'{self.path}:{line_part} {self.description}'
+            if self.path
+            else self.description
+        )
+
+
 class PresubmitFailure(Exception):
     """Optional exception to use for presubmit failures."""
 
@@ -464,8 +481,7 @@ class PresubmitContext:  # pylint: disable=too-many-instance-attributes
         repos: Repositories (top-level and submodules) processed by
             `pw presubmit`.
         output_dir: Output directory for this specific presubmit step.
-        failure_summary_log: Path where steps should write a brief summary of
-            any failures encountered for use by other tooling.
+
         paths: Modified files for the presubmit step to check (often used in
             formatting steps but ignored in compile steps).
         all_paths: All files in the tree.
@@ -479,8 +495,7 @@ class PresubmitContext:  # pylint: disable=too-many-instance-attributes
         rng_seed: Seed for a random number generator, for the few steps that
             need one.
         full: Whether this is a full or incremental presubmit run.
-        _failed: Whether the presubmit step in question has failed. Set to True
-            by calling ctx.fail().
+        _failures: List presubmit failures; recorded by calling ctx.fail().
         dry_run: Whether to actually execute commands or just log them.
         use_remote_cache: Whether to tell the build system to use RBE.
     """
@@ -488,7 +503,6 @@ class PresubmitContext:  # pylint: disable=too-many-instance-attributes
     root: Path
     repos: tuple[Path, ...]
     output_dir: Path
-    failure_summary_log: Path
     paths: tuple[Path, ...]
     all_paths: tuple[Path, ...]
     package_root: Path
@@ -499,13 +513,13 @@ class PresubmitContext:  # pylint: disable=too-many-instance-attributes
     continue_after_build_error: bool = False
     rng_seed: int = 1
     full: bool = False
-    _failed: bool = False
+    _failures: list[Failure] = dataclasses.field(default_factory=list)
     dry_run: bool = False
     use_remote_cache: bool = False
 
     @property
     def failed(self) -> bool:
-        return self._failed
+        return bool(self._failures)
 
     @property
     def incremental(self) -> bool:
@@ -522,8 +536,9 @@ class PresubmitContext:  # pylint: disable=too-many-instance-attributes
         If this is called at least once the step fails, but not immediately—the
         check is free to continue and possibly call this method again.
         """
-        _LOG.warning('%s', PresubmitFailure(description, path, line))
-        self._failed = True
+        failure = Failure(description, path, line)
+        _LOG.warning('%s', failure.message())
+        self._failures.append(failure)
 
     @staticmethod
     def create_for_testing(**kwargs):
@@ -533,7 +548,6 @@ class PresubmitContext:  # pylint: disable=too-many-instance-attributes
             'root': root,
             'repos': (root,),
             'output_dir': presubmit_root / 'test',
-            'failure_summary_log': presubmit_root / 'failure-summary.log',
             'paths': (root / 'foo.cc', root / 'foo.py'),
             'all_paths': (root / 'BUILD.gn', root / 'foo.cc', root / 'foo.py'),
             'package_root': root / 'environment' / 'packages',

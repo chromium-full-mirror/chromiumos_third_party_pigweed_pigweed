@@ -696,7 +696,6 @@ def docs_build(ctx: PresubmitContext) -> None:
         root=examples_repo_root,
         repos=(examples_repo_root,),
         output_dir=examples_repo_out,
-        failure_summary_log=ctx.failure_summary_log,
         paths=tuple(),
         all_paths=tuple(),
         package_root=ctx.package_root,
@@ -704,7 +703,6 @@ def docs_build(ctx: PresubmitContext) -> None:
         override_gn_args={},
         num_jobs=ctx.num_jobs,
         continue_after_build_error=True,
-        _failed=False,
         format_options=ctx.format_options,
     )
 
@@ -847,8 +845,7 @@ def bthost_package(ctx: PresubmitContext) -> None:
             "ERROR: Non-Fuchsia targets must be able to build without the "
             "Fuchsia SDK.\nRepro command: " + shlex.join(non_fuchsia_build_cmd)
         )
-        with ctx.failure_summary_log.open('w') as outs:
-            outs.write(failure_message)
+        ctx.fail(failure_message)
         raise PresubmitFailure(failure_message) from exc
 
     target = '//pw_bluetooth_sapphire/fuchsia:infra'

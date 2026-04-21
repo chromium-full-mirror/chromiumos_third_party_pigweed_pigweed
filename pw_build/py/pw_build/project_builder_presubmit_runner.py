@@ -244,7 +244,6 @@ def presubmit_build_recipe(  # pylint: disable=too-many-locals
         root=repo_root,
         repos=(repo_root,),
         output_dir=out_dir,
-        failure_summary_log=out_dir / 'failure-summary.log',
         paths=tuple(modified_files),
         all_paths=tuple(all_files),
         package_root=package_root,
@@ -252,7 +251,6 @@ def presubmit_build_recipe(  # pylint: disable=too-many-locals
         override_gn_args={},
         num_jobs=None,
         continue_after_build_error=True,
-        _failed=False,
         format_options=pw_presubmit.presubmit.FormatOptions.load(),
         dry_run=True,
     )

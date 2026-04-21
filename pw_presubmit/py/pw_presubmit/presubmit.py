@@ -191,9 +191,6 @@ class Presubmit:  # pylint: disable=too-many-instance-attributes
         output_directory = self._output_directory.joinpath(sanitized_name)
         os.makedirs(output_directory, exist_ok=True)
 
-        failure_summary_log = output_directory / 'failure-summary.log'
-        failure_summary_log.unlink(missing_ok=True)
-
         handler = logging.FileHandler(
             output_directory.joinpath('step.log'), mode='w'
         )
@@ -202,11 +199,10 @@ class Presubmit:  # pylint: disable=too-many-instance-attributes
         try:
             _LOG.addHandler(handler)
 
-            yield self._create_presubmit_context(
+            ctx = self._create_presubmit_context(
                 root=self._root,
                 repos=self._repos,
                 output_dir=output_directory,
-                failure_summary_log=failure_summary_log,
                 paths=filtered_check.paths,
                 all_paths=self._all_paths,
                 package_root=self._package_root,
@@ -218,6 +214,17 @@ class Presubmit:  # pylint: disable=too-many-instance-attributes
                 format_options=FormatOptions.load(),
                 dry_run=dry_run,
             )
+            try:
+                yield ctx
+            finally:
+                if ctx._failures:  # pylint: disable=protected-access
+                    with open(
+                        output_directory / 'failure-summary.log', 'w'
+                    ) as outs:
+                        for (
+                            failure
+                        ) in ctx._failures:  # pylint: disable=protected-access
+                            outs.write(f'{failure.message()}\n')
 
         finally:
             _LOG.removeHandler(handler)

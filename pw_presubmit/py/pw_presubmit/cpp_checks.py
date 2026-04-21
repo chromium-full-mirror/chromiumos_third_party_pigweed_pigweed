@@ -34,8 +34,6 @@ _LOG: logging.Logger = logging.getLogger(__name__)
 
 def _fail(ctx, error, path):
     ctx.fail(error, path=path)
-    with open(ctx.failure_summary_log, 'a') as outs:
-        print(f'{path}\n{error}\n', file=outs)
 
 
 @filter_paths(endswith=format_code.CPP_HEADER_EXTS, exclude=(r'\.pb\.h$',))

@@ -31,8 +31,6 @@ def presubmit_check(ctx: presubmit_context.PresubmitContext):
                 json.load(ins)
             except json.decoder.JSONDecodeError as exc:
                 intro_line = f'failed to parse {path.relative_to(ctx.root)}'
-                with ctx.failure_summary_log.open('w') as outs:
-                    print(intro_line, file=outs)
-                    print(exc, file=outs)
+
                 ctx.fail(intro_line)
                 ctx.fail(str(exc))

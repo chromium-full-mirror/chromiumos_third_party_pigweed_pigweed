@@ -13,7 +13,7 @@
 # the License.
 """Unit tests for bazel_checks.py."""
 
-import os
+
 import pathlib
 import shutil
 import tempfile
@@ -21,6 +21,7 @@ import unittest
 from unittest import mock
 
 from pw_presubmit import presubmit, build, bazel_checks
+from pw_presubmit.presubmit_context import Failure
 
 
 def _write_two_targets_to_stdout(*args, stdout=None, **kwargs):
@@ -38,21 +39,25 @@ def _write_nothing_to_stdout(*args, stdout=None, **kwargs):
     stdout.close()
 
 
+# pylint: disable=protected-access
 class IncludePresubmitCheckTest(unittest.TestCase):
     """Tests of the include_presubmit_check."""
 
     def setUp(self):
-        fd, self.failure_summary_log = tempfile.mkstemp()
-        os.close(fd)
         self.output_dir = tempfile.mkdtemp()
 
         self.ctx = mock.MagicMock()
         self.ctx.failed = False
-        self.ctx.failure_summary_log = pathlib.Path(self.failure_summary_log)
+        self.ctx._failures = []
         self.ctx.output_dir = pathlib.Path(self.output_dir)
 
+        def mock_fail(description):
+            self.ctx._failures.append(Failure(description=description))
+            self.ctx.failed = True
+
+        self.ctx.fail.side_effect = mock_fail
+
     def tearDown(self):
-        os.remove(self.failure_summary_log)
         shutil.rmtree(self.output_dir)
 
     @mock.patch.object(
@@ -61,9 +66,11 @@ class IncludePresubmitCheckTest(unittest.TestCase):
     def test_query_returns_two_targets(self, _):
         check = bazel_checks.includes_presubmit_check('//...')
         self.assertEqual(check(self.ctx), presubmit.PresubmitResult.FAIL)
-        self.assertIn('//one:target', self.ctx.failure_summary_log.read_text())
-        self.assertIn(
-            '//other:target', self.ctx.failure_summary_log.read_text()
+        self.assertTrue(
+            any('//one:target' in f.message() for f in self.ctx._failures)
+        )
+        self.assertTrue(
+            any('//other:target' in f.message() for f in self.ctx._failures)
         )
 
     @mock.patch.object(
@@ -72,11 +79,11 @@ class IncludePresubmitCheckTest(unittest.TestCase):
     def test_query_returns_nothing(self, _):
         check = bazel_checks.includes_presubmit_check('//...')
         self.assertEqual(check(self.ctx), presubmit.PresubmitResult.PASS)
-        self.assertNotIn(
-            '//one:target', self.ctx.failure_summary_log.read_text()
+        self.assertFalse(
+            any('//one:target' in f.message() for f in self.ctx._failures)
         )
-        self.assertNotIn(
-            '//other:target', self.ctx.failure_summary_log.read_text()
+        self.assertFalse(
+            any('//other:target' in f.message() for f in self.ctx._failures)
         )
 
 
