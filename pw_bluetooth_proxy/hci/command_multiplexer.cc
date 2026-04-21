@@ -246,6 +246,9 @@ void CommandMultiplexer::HandleH4FromController(
   std::lock_guard event_interceptors_lock(event_interceptors_mutex_);
 
   auto event_code = EventCodeValue(view.event_code().Read());
+
+  UpdateCreditsAndProcessQueue(event_code, bytes);
+
   auto iter = FindEventInterceptor(event_code, bytes);
 
   if (iter == event_interceptors_.end()) {
@@ -608,7 +611,7 @@ void CommandMultiplexer::SendToHost(MultiBuf::Instance&& buf) {
       }
 
       auto num_hci_cmd_pkt = cmd_complete_view.num_hci_command_packets().Read();
-      auto new_num_hci_cmd_pkt = UpdateNumHciCommandPackets(num_hci_cmd_pkt);
+      auto new_num_hci_cmd_pkt = TryReserveQueueSpace(num_hci_cmd_pkt);
 
       if (new_num_hci_cmd_pkt > num_hci_cmd_pkt) {
         cmd_complete_view.num_hci_command_packets().Write(new_num_hci_cmd_pkt);
@@ -627,7 +630,7 @@ void CommandMultiplexer::SendToHost(MultiBuf::Instance&& buf) {
       }
 
       auto num_hci_cmd_pkt = cmd_status_view.num_hci_command_packets().Read();
-      auto new_num_hci_cmd_pkt = UpdateNumHciCommandPackets(num_hci_cmd_pkt);
+      auto new_num_hci_cmd_pkt = TryReserveQueueSpace(num_hci_cmd_pkt);
 
       if (new_num_hci_cmd_pkt > num_hci_cmd_pkt) {
         cmd_status_view.num_hci_command_packets().Write(new_num_hci_cmd_pkt);
@@ -639,14 +642,6 @@ void CommandMultiplexer::SendToHost(MultiBuf::Instance&& buf) {
   }
 
   send_to_host_fn_(std::move(buf));
-}
-
-uint8_t CommandMultiplexer::UpdateNumHciCommandPackets(
-    uint8_t num_hci_command_packets) {
-  command_credits_ = num_hci_command_packets;
-  ProcessQueue();
-
-  return TryReserveQueueSpace(num_hci_command_packets);
 }
 
 uint8_t CommandMultiplexer::TryReserveQueueSpace(uint8_t requested) {
@@ -666,6 +661,29 @@ void CommandMultiplexer::SendToControllerOrQueue(
   });
 
   ProcessQueue();
+}
+
+void CommandMultiplexer::UpdateCreditsAndProcessQueue(EventCodeValue event_code,
+                                                      ConstByteSpan bytes) {
+  std::lock_guard lock(mutex_);
+  if (event_code == cpp23::to_underlying(emboss::EventCode::COMMAND_COMPLETE)) {
+    emboss::CommandCompleteEventView cmd_complete_view(
+        static_cast<const uint8_t*>(static_cast<const void*>(bytes.data())),
+        bytes.size());
+    if (cmd_complete_view.Ok()) {
+      command_credits_ = cmd_complete_view.num_hci_command_packets().Read();
+      ProcessQueue();
+    }
+  } else if (event_code ==
+             cpp23::to_underlying(emboss::EventCode::COMMAND_STATUS)) {
+    emboss::CommandStatusEventView cmd_status_view(
+        static_cast<const uint8_t*>(static_cast<const void*>(bytes.data())),
+        bytes.size());
+    if (cmd_status_view.Ok()) {
+      command_credits_ = cmd_status_view.num_hci_command_packets().Read();
+      ProcessQueue();
+    }
+  }
 }
 
 void CommandMultiplexer::ProcessQueue() {

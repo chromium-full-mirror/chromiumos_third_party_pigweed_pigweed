@@ -467,10 +467,11 @@ class CommandMultiplexer final {
       MultiBuf::Instance&& buf,
       UniquePtr<QueuedSentCommandData> sent_command_data = nullptr)
       PW_EXCLUSIVE_LOCKS_REQUIRED(event_interceptors_mutex_, mutex_);
-  uint8_t UpdateNumHciCommandPackets(uint8_t num_hci_command_packets)
-      PW_EXCLUSIVE_LOCKS_REQUIRED(event_interceptors_mutex_, mutex_);
   uint8_t TryReserveQueueSpace(uint8_t requested)
       PW_EXCLUSIVE_LOCKS_REQUIRED(event_interceptors_mutex_, mutex_);
+  void UpdateCreditsAndProcessQueue(EventCodeValue event_code,
+                                    ConstByteSpan bytes)
+      PW_EXCLUSIVE_LOCKS_REQUIRED(event_interceptors_mutex_);
   void ProcessQueue()
       PW_EXCLUSIVE_LOCKS_REQUIRED(event_interceptors_mutex_, mutex_);
   bool SendQueuedCommand(QueuedCommandState& command)

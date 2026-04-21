@@ -1973,5 +1973,58 @@ TEST_F(CommandMultiplexerTest, SendCommandExclusionsTimer) {
   TestSendCommandExclusions(accessor_timer());
 }
 
+void TestCreditRecoveredWhenIntercepted(Accessor test) {
+  static constexpr std::array<std::byte, 4> inquiry_packet_bytes{
+      // Packet type (command)
+      std::byte(0x01),
+      // OpCode (Inquiry)
+      std::byte(0x01),
+      std::byte(0x04),
+      // Parameter size
+      std::byte(0x00),
+  };
+
+  // Consume initial credit.
+  test.GiveCommandCredit({.count = 0});
+
+  // Host sends command 1. It gets queued since credits = 0.
+  MultiBuf::Instance buf1(test.allocator());
+  buf1->Insert(buf1->end(), inquiry_packet_bytes);
+  test.SendFromHost(std::move(buf1));
+  EXPECT_TRUE(test.packets_to_controller().empty());
+
+  // Register an interceptor that swallows Command Complete events.
+  auto interceptor = test.hci_cmd_mux().RegisterEventInterceptor(
+      CommandCompleteOpcode{emboss::OpCode::INQUIRY},
+      [&](EventPacket&&) -> CommandMultiplexer::EventInterceptorReturn {
+        return {};  // Do not return the event, so it is swallowed.
+      });
+  ASSERT_TRUE(interceptor.ok());
+
+  // Controller sends Command Complete with 1 credit.
+  auto command_complete_result =
+      test.AllocBuf(MakeCommandCompletePacket(0x0401, 1));
+  ASSERT_TRUE(command_complete_result.ok());
+  test.hci_cmd_mux().HandleH4FromController(
+      std::move(*command_complete_result));
+
+  // The event should have been swallowed.
+  EXPECT_TRUE(test.packets_to_host().empty());
+
+  // However, the queued command should have been sent to the controller.
+  ASSERT_EQ(test.packets_to_controller().size(), 1u);
+  std::array<std::byte, 4> out;
+  test.packets_to_controller().front()->CopyTo(out);
+  EXPECT_EQ(inquiry_packet_bytes, out);
+  test.packets_to_controller().pop_front();
+}
+
+TEST_F(CommandMultiplexerTest, CreditRecoveredWhenInterceptedAsync) {
+  TestCreditRecoveredWhenIntercepted(accessor_async2());
+}
+TEST_F(CommandMultiplexerTest, CreditRecoveredWhenInterceptedTimer) {
+  TestCreditRecoveredWhenIntercepted(accessor_timer());
+}
+
 }  // namespace
 }  // namespace pw::bluetooth::proxy::hci
