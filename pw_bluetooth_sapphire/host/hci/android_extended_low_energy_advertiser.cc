@@ -85,6 +85,7 @@ std::optional<LowEnergyAdvertiser::SetAdvertisingParams>
 AndroidExtendedLowEnergyAdvertiser::BuildSetAdvertisingParams(
     const DeviceAddress& address,
     const AdvertisingEventProperties& properties,
+    const AdvertisingOptions&,
     pwemb::LEOwnAddressType own_address_type,
     const AdvertisingIntervalRange& interval) {
   std::optional<AdvertisementId> advertisement_id =

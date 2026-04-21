@@ -1630,6 +1630,9 @@ void AdapterImpl::InitializeStep4() {
   // Initialize the LE manager objects
   le_discovery_manager_ = std::make_unique<LowEnergyDiscoveryManager>(
       hci_le_scanner_.get(), &peer_cache_, packet_filter_config, dispatcher_);
+  le_discovery_manager_->set_active_scan_interval(
+      config_.le_active_scan_interval);
+  le_discovery_manager_->set_active_scan_window(config_.le_active_scan_window);
   le_discovery_manager_->AttachInspect(
       adapter_node_, kInspectLowEnergyDiscoveryManagerNodeName);
   le_discovery_manager_->set_peer_connectable_callback(
@@ -1671,6 +1674,19 @@ void AdapterImpl::InitializeStep4() {
 
   le_advertising_manager_ = std::make_unique<LowEnergyAdvertisingManager>(
       hci_le_advertiser_.get(), le_address_manager_.get());
+  le_advertising_manager_->set_slow_advertising_interval(
+      config_.le_slow_adv_interval_min, config_.le_slow_adv_interval_max);
+  le_advertising_manager_->set_fast_advertising_interval(
+      config_.le_fast_adv_interval_min, config_.le_fast_adv_interval_max);
+  le_advertising_manager_->set_very_fast_advertising_interval(
+      config_.le_very_fast_adv_interval_min,
+      config_.le_very_fast_adv_interval_max);
+  le_advertising_manager_->set_slow_adv_max_tx_power(
+      config_.le_slow_adv_max_tx_power);
+  le_advertising_manager_->set_fast_adv_max_tx_power(
+      config_.le_fast_adv_max_tx_power);
+  le_advertising_manager_->set_very_fast_adv_max_tx_power(
+      config_.le_very_fast_adv_max_tx_power);
 
   if (state().low_energy_state.IsFeatureSupported(
           hci_spec::LESupportedFeature::kSynchronizedReceiver)) {
