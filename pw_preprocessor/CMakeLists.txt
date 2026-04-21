@@ -16,11 +16,13 @@ include($ENV{PW_ROOT}/pw_build/pigweed.cmake)
 
 pw_add_library(pw_preprocessor INTERFACE
   HEADERS
+    public/pw_preprocessor/apply.h
     public/pw_preprocessor/arguments.h
     public/pw_preprocessor/boolean.h
     public/pw_preprocessor/compiler.h
     public/pw_preprocessor/concat.h
     public/pw_preprocessor/util.h
+    public/pw_preprocessor/internal/apply_macros.h
     public/pw_preprocessor/internal/arg_count_impl.h
   PUBLIC_INCLUDES
     public

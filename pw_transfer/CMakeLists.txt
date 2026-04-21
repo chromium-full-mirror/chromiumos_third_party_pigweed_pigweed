@@ -125,6 +125,8 @@ pw_proto_library(pw_transfer.proto
 pw_add_library(pw_transfer.test_helpers INTERFACE
   HEADERS
     pw_transfer_private/chunk_testing.h
+  PUBLIC_INCLUDES
+    .
   PUBLIC_DEPS
     pw_transfer.core
     pw_containers
@@ -148,6 +150,8 @@ pw_add_library(pw_transfer.atomic_file_transfer_handler STATIC
 pw_add_library(pw_transfer.atomic_file_transfer_handler_internal INTERFACE
   HEADERS
     pw_transfer_private/filename_generator.h
+  PUBLIC_INCLUDES
+    .
 )
 
 if("${pw_thread.thread_BACKEND}" STREQUAL "pw_thread_stl.thread")

@@ -53,6 +53,7 @@ pw_add_library(pw_bluetooth INTERFACE
   PUBLIC_INCLUDES
     public
   PUBLIC_DEPS
+    pw_bluetooth.config
     pw_containers
     pw_function
     pw_multibuf
@@ -82,6 +83,7 @@ pw_add_library(pw_bluetooth.pw_bluetooth2 INTERFACE
     public/pw_bluetooth/low_energy/channel.h
     public/pw_bluetooth/low_energy/connection2.h
     public/pw_bluetooth/low_energy/peripheral2.h
+    public/pw_bluetooth/low_energy/phy.h
     public/pw_bluetooth/low_energy/security_mode.h
     public/pw_bluetooth/pairing_delegate2.h
     public/pw_bluetooth/peer.h

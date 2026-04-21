@@ -61,6 +61,8 @@ pw_add_library(pw_unit_test.light STATIC
     light_public_overrides
     public
     public_overrides
+  PRIVATE_INCLUDES
+    .
 )
 
 pw_add_library(pw_unit_test.googletest INTERFACE

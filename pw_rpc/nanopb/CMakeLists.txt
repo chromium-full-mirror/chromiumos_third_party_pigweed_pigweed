@@ -69,6 +69,7 @@ pw_add_library(pw_rpc.nanopb.common STATIC
     pw_log
     pw_rpc.client
     pw_rpc.log_config
+    pw_rpc.nanopb.server_api
 )
 
 pw_add_library(pw_rpc.nanopb.test_method_context INTERFACE
@@ -118,6 +119,8 @@ pw_add_library(pw_rpc.nanopb.client_server_testing_threaded INTERFACE
 pw_add_library(pw_rpc.nanopb.internal_test_utils INTERFACE
   HEADERS
     pw_rpc_nanopb_private/internal_test_utils.h
+  PUBLIC_INCLUDES
+    .
   PUBLIC_DEPS
     pw_span
     pw_third_party.nanopb

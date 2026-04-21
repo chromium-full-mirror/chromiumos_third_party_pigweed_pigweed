@@ -146,6 +146,8 @@ pw_add_library(pw_thread.thread_snapshot_service STATIC
     public/pw_thread/thread_snapshot_service.h
   PUBLIC_INCLUDES
     public
+  PRIVATE_INCLUDES
+    .
   PUBLIC_DEPS
     pw_log
     pw_protobuf

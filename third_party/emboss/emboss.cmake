@@ -102,12 +102,15 @@ function(emboss_cc_library NAME)
 
   # Export a library that exposes the generated outputs
   pw_add_library_generic("${NAME}" INTERFACE
+    GENERATED_HEADERS
+      ${outputs}
     PUBLIC_INCLUDES
       "${out_dir}/public"
       "${output_include_path}"
     PUBLIC_DEPS
       pw_third_party.emboss.cpp_utils
-      ${arg_DEPS})
+      ${arg_DEPS}
+  )
   # Tie in the generated outputs as a dep of the library
   add_dependencies("${NAME}" "${NAME}._generate")
 endfunction(emboss_cc_library)

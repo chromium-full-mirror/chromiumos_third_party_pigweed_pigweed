@@ -69,6 +69,9 @@ pw_add_library(pw_rpc.raw.client_testing STATIC
     pw_rpc.fake_channel_output
   SOURCES
     client_testing.cc
+  PUBLIC_DEPS
+    pw_rpc.client
+    pw_rpc.raw.fake_channel_output
   PRIVATE_DEPS
     pw_log
     pw_rpc.log_config

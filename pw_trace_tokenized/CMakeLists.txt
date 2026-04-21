@@ -210,8 +210,12 @@ pw_add_library(pw_trace_tokenized.base_trace_service STATIC
 )
 
 pw_add_library(pw_trace_tokenized.trace_service_pwpb STATIC
+  HEADERS
+    public/pw_trace_tokenized/trace_service_pwpb.h
   SOURCES
     trace_service_pwpb.cc
+  PUBLIC_INCLUDES
+    public
   PUBLIC_DEPS
     pw_trace_tokenized.base_trace_service
     pw_trace_tokenized.protos.pwpb_rpc
@@ -220,6 +224,8 @@ pw_add_library(pw_trace_tokenized.trace_service_pwpb STATIC
 pw_add_library(pw_trace_tokenized.transfer_handler STATIC
   HEADERS
     public/pw_trace_tokenized/transfer_handler.h
+  PUBLIC_INCLUDES
+    public
   SOURCES
     transfer_handler.cc
   PRIVATE_DEPS

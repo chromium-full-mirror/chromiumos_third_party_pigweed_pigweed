@@ -169,6 +169,7 @@ pw_add_library(pw_containers.dynamic_queue INTERFACE
     public
   PUBLIC_DEPS
     pw_allocator
+    pw_containers.dynamic_deque
     pw_containers._queue_common
 )
 

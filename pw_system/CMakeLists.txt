@@ -177,7 +177,7 @@ pw_add_library(pw_system.file_service STATIC
     public/pw_system/file_service.h
   PUBLIC_INCLUDES
     public
-  PRIVATE_DEPS
+  PUBLIC_DEPS
     pw_system.file_manager
   SOURCES
     file_service.cc
@@ -386,6 +386,8 @@ pw_add_library(pw_system.async STATIC
     public/pw_system/system.h
   PUBLIC_INCLUDES
     public
+  PRIVATE_INCLUDES
+    .
   SOURCES
     pw_system_private/threads.h
     system.cc
@@ -436,8 +438,8 @@ pw_add_library(pw_system.async_packet_io STATIC
     pw_allocator
     pw_channel
     pw_multibuf
-  PRIVATE_DEPS
     pw_system.config
+  PRIVATE_DEPS
     pw_assert
     pw_log
 )

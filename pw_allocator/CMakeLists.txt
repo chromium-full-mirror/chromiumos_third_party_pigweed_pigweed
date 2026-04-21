@@ -32,6 +32,7 @@ pw_add_library(pw_allocator STATIC
     public
   PUBLIC_DEPS
     pw_allocator.config
+    pw_allocator.fragmentation
     pw_allocator.hardening
     pw_numeric.checked_arithmetic
     pw_bytes
@@ -269,6 +270,7 @@ pw_add_library(pw_allocator.guarded_allocator STATIC
     public
   PUBLIC_DEPS
     pw_allocator
+    pw_allocator.synchronized_allocator
     pw_result
     pw_sync.borrow
   PRIVATE_DEPS
@@ -585,6 +587,7 @@ pw_add_test(pw_allocator.bucket_allocator_test
     bucket_allocator_test.cc
   PRIVATE_DEPS
     pw_allocator
+    pw_allocator.bucket_allocator
     pw_allocator.block_allocator_testing
     pw_allocator.bucket_allocator
   GROUPS

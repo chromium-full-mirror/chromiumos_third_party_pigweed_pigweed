@@ -200,6 +200,8 @@ pw_add_test(pw_rpc_transport.simple_framing_test
 pw_add_library(pw_rpc_transport.egress_ingress INTERFACE
   HEADERS
     public/pw_rpc_transport/egress_ingress.h
+  PUBLIC_INCLUDES
+    public
   PUBLIC_DEPS
     pw_rpc_transport.hdlc_framing
     pw_rpc_transport.simple_framing
@@ -212,6 +214,8 @@ pw_add_library(pw_rpc_transport.egress_ingress INTERFACE
 pw_add_library(pw_rpc_transport.egress_ingress_logging_metric_tracker STATIC
   HEADERS
     public/pw_rpc_transport/egress_ingress_logging_metric_tracker.h
+  PUBLIC_INCLUDES
+    public
   SOURCES
     egress_ingress_logging_metric_tracker.cc
   PUBLIC_DEPS

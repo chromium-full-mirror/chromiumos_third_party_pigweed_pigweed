@@ -193,6 +193,7 @@ pw_add_library(pw_allocator.block.tiny_block INTERFACE
 pw_add_library(pw_allocator.block.testing INTERFACE
   HEADERS
     public/pw_allocator/block/testing.h
+    public/pw_allocator/block/unit_tests.h
   PUBLIC_INCLUDES
     public
   PUBLIC_DEPS

@@ -78,6 +78,7 @@ pw_add_test(pw_allocator.bucket.fast_sorted_test
   SOURCES
     fast_sorted_test.cc
   PRIVATE_DEPS
+    pw_allocator.block.detailed_block
     pw_allocator.bucket.fast_sorted
     pw_allocator.bucket.testing
   GROUPS
@@ -89,6 +90,7 @@ pw_add_test(pw_allocator.bucket.sequenced_test
   SOURCES
     sequenced_test.cc
   PRIVATE_DEPS
+    pw_allocator.block.detailed_block
     pw_allocator.bucket.sequenced
     pw_allocator.bucket.testing
   GROUPS
@@ -100,6 +102,7 @@ pw_add_test(pw_allocator.bucket.sorted_test
   SOURCES
     sorted_test.cc
   PRIVATE_DEPS
+    pw_allocator.block.detailed_block
     pw_allocator.bucket.sorted
     pw_allocator.bucket.testing
   GROUPS
@@ -111,6 +114,7 @@ pw_add_test(pw_allocator.bucket.unordered_test
   SOURCES
     unordered_test.cc
   PRIVATE_DEPS
+    pw_allocator.block.detailed_block
     pw_allocator.bucket.unordered
     pw_allocator.bucket.testing
   GROUPS

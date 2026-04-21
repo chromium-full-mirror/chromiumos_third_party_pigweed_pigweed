@@ -17,6 +17,7 @@ include($ENV{PW_ROOT}/pw_build/pigweed.cmake)
 pw_add_library(pw_metric STATIC
   HEADERS
     public/pw_metric/metric.h
+    public/pw_metric/list.h
   PUBLIC_INCLUDES
     public
   PUBLIC_DEPS

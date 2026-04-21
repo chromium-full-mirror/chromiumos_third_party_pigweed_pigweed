@@ -60,6 +60,7 @@ pw_add_test(pw_varint.stream_test
     stream_test.cc
   PRIVATE_DEPS
     pw_stream
+    pw_varint
     pw_varint.stream
   GROUPS
     modules

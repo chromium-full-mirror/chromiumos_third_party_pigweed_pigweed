@@ -290,6 +290,7 @@ pw_add_test(pw_i2c.i2c_service_test
     pw_containers.vector
     pw_i2c.i2c_service
     pw_i2c.mock
+    pw_rpc.pwpb.test_method_context
     pw_rpc.test_utils
     pw_status
   GROUPS
@@ -307,6 +308,7 @@ pw_add_test(pw_i2c.i2c_message_service_test
     pw_i2c.i2c_service
     pw_i2c.initiator
     pw_i2c.message_mock
+    pw_rpc.pwpb.test_method_context
     pw_rpc.test_utils
     pw_status
   GROUPS

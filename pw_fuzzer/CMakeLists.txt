@@ -26,6 +26,7 @@ if(pw_unit_test_BACKEND STREQUAL "pw_unit_test.fuzztest")
   pw_add_library(pw_fuzzer.fuzztest INTERFACE
     HEADERS
       public/pw_fuzzer/fuzztest.h
+      public/pw_fuzzer/fuzztest.h
       private/pw_fuzzer/internal/fuzztest.h
     PUBLIC_DEPS
       pw_containers
@@ -46,6 +47,7 @@ if(pw_unit_test_BACKEND STREQUAL "pw_unit_test.fuzztest")
 else()
   pw_add_library(pw_fuzzer.fuzztest INTERFACE
     HEADERS
+      public/pw_fuzzer/fuzztest.h
       public_overrides/fuzztest/fuzztest.h
       private_overrides/pw_fuzzer/internal/fuzztest.h
     PUBLIC_DEPS

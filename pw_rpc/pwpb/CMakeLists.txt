@@ -112,6 +112,8 @@ pw_add_library(pw_rpc.pwpb.client_server_testing_threaded INTERFACE
 pw_add_library(pw_rpc.pwpb.internal_test_utils INTERFACE
   HEADERS
     pw_rpc_pwpb_private/internal_test_utils.h
+  PUBLIC_INCLUDES
+    .
   PUBLIC_DEPS
     pw_status
     pw_stream

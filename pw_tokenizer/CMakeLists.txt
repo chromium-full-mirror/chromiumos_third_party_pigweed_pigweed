@@ -30,6 +30,7 @@ pw_add_library(pw_tokenizer.config INTERFACE
 pw_add_library(pw_tokenizer STATIC
   HEADERS
     public/pw_tokenizer/encode_args.h
+    public/pw_tokenizer/enum.h
     public/pw_tokenizer/hash.h
     public/pw_tokenizer/nested_tokenization.h
     public/pw_tokenizer/tokenize.h
@@ -49,6 +50,7 @@ pw_add_library(pw_tokenizer STATIC
     public/pw_tokenizer/internal/argument_types.h
     public/pw_tokenizer/internal/argument_types_macro_4_byte.h
     public/pw_tokenizer/internal/argument_types_macro_8_byte.h
+    public/pw_tokenizer/internal/enum.h
     public/pw_tokenizer/internal/pw_tokenizer_65599_fixed_length_128_hash_macro.h
     public/pw_tokenizer/internal/pw_tokenizer_65599_fixed_length_256_hash_macro.h
     public/pw_tokenizer/internal/pw_tokenizer_65599_fixed_length_80_hash_macro.h
@@ -109,6 +111,7 @@ pw_add_library(pw_tokenizer.decoder STATIC
     pw_bytes
     pw_bytes.bit
     pw_elf.reader
+    pw_tokenizer._csv
     pw_varint
 )
 
@@ -127,6 +130,8 @@ pw_add_library(pw_tokenizer.detokenize_from_this_program STATIC
 pw_add_library(pw_tokenizer._csv STATIC
   HEADERS
     pw_tokenizer_private/csv.h
+  PUBLIC_INCLUDES
+    .
   SOURCES
     csv.cc
   PRIVATE_DEPS
@@ -172,6 +177,8 @@ pw_add_test(pw_tokenizer.argument_types_test
     argument_types_test_c.c
     argument_types_test.cc
     pw_tokenizer_private/argument_types_test.h
+  PRIVATE_INCLUDES
+    .
   PRIVATE_DEPS
     pw_tokenizer
   GROUPS
@@ -194,6 +201,8 @@ pw_add_test(pw_tokenizer.decode_test
     decode_test.cc
     pw_tokenizer_private/tokenized_string_decoding_test_data.h
     pw_tokenizer_private/varint_decoding_test_data.h
+  PRIVATE_INCLUDES
+    .
   PRIVATE_DEPS
     pw_varint
     pw_tokenizer.decoder
@@ -206,6 +215,8 @@ pw_add_test(pw_tokenizer.detokenize_test
   SOURCES
     detokenize_test.cc
     pw_tokenizer_private/tokenize_test.h
+  PRIVATE_INCLUDES
+    .
   PRIVATE_DEPS
     pw_base64
     pw_tokenizer.decoder
@@ -230,6 +241,8 @@ pw_add_test(pw_tokenizer.hash_test
   SOURCES
     hash_test.cc
     pw_tokenizer_private/generated_hash_test_cases.h
+  PRIVATE_INCLUDES
+    .
   PRIVATE_DEPS
     pw_tokenizer
   GROUPS
@@ -252,6 +265,8 @@ pw_add_test(pw_tokenizer.tokenize_test
     tokenize_test_c.c
     tokenize_test.cc
     pw_tokenizer_private/tokenize_test.h
+  PRIVATE_INCLUDES
+    .
   PRIVATE_DEPS
     pw_compilation_testing._pigweed_only_negative_compilation
     pw_string.string

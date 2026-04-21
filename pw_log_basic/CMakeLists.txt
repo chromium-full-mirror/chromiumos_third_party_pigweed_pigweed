@@ -24,6 +24,8 @@ pw_add_library(pw_log_basic STATIC
   PUBLIC_INCLUDES
     public
     public_overrides
+  PRIVATE_INCLUDES
+    .
   PUBLIC_DEPS
     pw_preprocessor
   SOURCES

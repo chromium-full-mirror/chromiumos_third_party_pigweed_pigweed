@@ -109,7 +109,7 @@ pw_add_test(pw_multibuf.v1.single_chunk_region_tracker_test
     PW_MULTIBUF_VERSION=1
   PRIVATE_DEPS
     pw_multibuf.v1.chunk
-    pw_multibuf.v1.single_chunk_region_tracker
+    pw_multibuf.single_chunk_region_tracker
   GROUPS
     modules
     pw_multibuf
@@ -203,6 +203,7 @@ pw_add_library(pw_multibuf.v1.simple_allocator STATIC
     public
   PUBLIC_DEPS
     pw_allocator
+    pw_bytes.alignment
     pw_containers.intrusive_list
     pw_multibuf.config
     pw_multibuf.v1.allocator
@@ -221,7 +222,7 @@ pw_add_test(pw_multibuf.v1.simple_allocator_test
   PRIVATE_DEPS
     pw_allocator.testing
     pw_allocator.null_allocator
-    pw_multibuf.v1.simple_allocator
+    pw_multibuf.simple_allocator
   GROUPS
     modules
     pw_multibuf

@@ -135,6 +135,8 @@ pw_add_library(pw_log_rpc.rpc_log_drain_thread INTERFACE
 pw_add_library(pw_log_rpc.test_utils STATIC
   HEADERS
     pw_log_rpc_private/test_utils.h
+  PUBLIC_INCLUDES
+    .
   PUBLIC_DEPS
     pw_bytes
     pw_containers.vector

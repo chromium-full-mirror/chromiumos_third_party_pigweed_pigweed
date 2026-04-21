@@ -482,6 +482,8 @@ endif()
 pw_add_library(pw_async2.simulated_time_provider INTERFACE
   HEADERS
     public/pw_async2/simulated_time_provider.h
+  PUBLIC_INCLUDES
+    public
   PUBLIC_DEPS
     pw_async2.time_provider
     pw_sync.interrupt_spin_lock
@@ -507,6 +509,8 @@ pw_add_library(pw_async2.join INTERFACE
     public/pw_async2/join.h
   PUBLIC_DEPS
     pw_async2
+  PUBLIC_INCLUDES
+    public
 )
 
 pw_add_test(pw_async2.join_test
@@ -526,6 +530,8 @@ pw_add_test(pw_async2.join_test
 pw_add_library(pw_async2.select INTERFACE
   HEADERS
     public/pw_async2/select.h
+  PUBLIC_INCLUDES
+    public
   PUBLIC_DEPS
     pw_async2
     pw_containers.optional_tuple

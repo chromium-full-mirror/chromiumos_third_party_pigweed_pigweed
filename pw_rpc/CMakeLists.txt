@@ -58,6 +58,7 @@ pw_add_library(pw_rpc.benchmark STATIC
 pw_add_library(pw_rpc.server STATIC
   HEADERS
     public/pw_rpc/server.h
+    public/pw_rpc/internal/call_allocator.h
     public/pw_rpc/internal/grpc.h
     public/pw_rpc/internal/server_call.h
   PUBLIC_INCLUDES
@@ -259,8 +260,6 @@ pw_add_library(pw_rpc.test_utils INTERFACE
     public/pw_rpc/internal/method_info_tester.h
     public/pw_rpc/internal/test_method_context.h
     public/pw_rpc/internal/test_utils.h
-    pw_rpc_private/fake_server_reader_writer.h
-    pw_rpc_private/test_method.h
   PUBLIC_INCLUDES
     public
   PUBLIC_DEPS
@@ -271,6 +270,18 @@ pw_add_library(pw_rpc.test_utils INTERFACE
     pw_containers.vector
     pw_rpc.raw.fake_channel_output
     pw_rpc.raw.server_api
+)
+
+pw_add_library(pw_rpc._internal_test_utils INTERFACE
+  HEADERS
+    pw_rpc_private/fake_server_reader_writer.h
+    pw_rpc_private/test_method.h
+  PUBLIC_INCLUDES
+    .
+  PUBLIC_DEPS
+    pw_bytes
+    pw_rpc.client
+    pw_rpc.server
 )
 
 pw_add_library(pw_rpc.integration_testing STATIC
@@ -341,6 +352,7 @@ pw_add_test(pw_rpc.call_test
   SOURCES
     call_test.cc
   PRIVATE_DEPS
+    pw_rpc._internal_test_utils
     pw_rpc.server
     pw_rpc.test_utils
   GROUPS
@@ -423,6 +435,7 @@ pw_add_test(pw_rpc.method_test
   SOURCES
     method_test.cc
   PRIVATE_DEPS
+    pw_rpc._internal_test_utils
     pw_rpc.server
     pw_rpc.test_utils
   GROUPS
@@ -435,6 +448,7 @@ pw_add_test(pw_rpc.server_test
     server_test.cc
   PRIVATE_DEPS
     pw_assert
+    pw_rpc._internal_test_utils
     pw_rpc.protos.pwpb
     pw_rpc.server
     pw_rpc.test_utils

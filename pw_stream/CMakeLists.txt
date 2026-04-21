@@ -119,6 +119,7 @@ pw_add_test(pw_stream.limited_stream_test
     limited_stream_test.cc
   PRIVATE_DEPS
     pw_stream
+    pw_stream.limited_stream
   GROUPS
     modules
     pw_stream
@@ -159,6 +160,7 @@ pw_add_test(pw_stream.stream_test
     stream_test.cc
   PRIVATE_DEPS
     pw_stream
+    pw_containers.to_array
   GROUPS
     modules
     pw_stream

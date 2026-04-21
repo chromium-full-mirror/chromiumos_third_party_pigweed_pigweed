@@ -160,6 +160,8 @@ pw_add_test(pw_log_tokenized.log_tokenized_test
     log_tokenized_test.cc
     log_tokenized_test_c.c
     pw_log_tokenized_private/test_utils.h
+  PRIVATE_INCLUDES
+    .
   PRIVATE_DEPS
     pw_log_tokenized.base64
     pw_log_tokenized._headers
