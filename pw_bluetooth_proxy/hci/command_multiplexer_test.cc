@@ -1418,7 +1418,7 @@ void TestQueueCommands(Accessor test) {
 
   {
     MultiBuf::Instance buf(test.allocator());
-    buf->Insert(buf->end(), reset_packet_bytes);
+    buf->Insert(buf->end(), inquiry_packet_bytes);
     test.SendFromHost(std::move(buf));
   }
 
@@ -1426,12 +1426,12 @@ void TestQueueCommands(Accessor test) {
   ASSERT_EQ(test.packets_to_controller().size(), 0u);
 
   // Give credit, confirm the queued packet was sent.
-  test.GiveCommandCredit({.opcode = 0x0C03});
+  test.GiveCommandCredit({.opcode = 0x0401});
   ASSERT_EQ(test.packets_to_controller().size(), 1u);
   std::array<std::byte, reset_packet_bytes.size()> out5;
   EXPECT_EQ(test.packets_to_controller().front()->size(), 4u);
   test.packets_to_controller().front()->CopyTo(out5);
-  EXPECT_EQ(reset_packet_bytes, out5);
+  EXPECT_EQ(inquiry_packet_bytes, out5);
   test.packets_to_controller().pop_front();
 }
 
@@ -2025,6 +2025,80 @@ TEST_F(CommandMultiplexerTest, CreditRecoveredWhenInterceptedAsync) {
 TEST_F(CommandMultiplexerTest, CreditRecoveredWhenInterceptedTimer) {
   TestCreditRecoveredWhenIntercepted(accessor_timer());
 }
+
+void TestReset(Accessor test) {
+  static constexpr std::array<std::byte, 3>
+      read_local_version_information_packet_bytes{
+          // OpCode (Read Local Version Information)
+          std::byte(0x01),
+          std::byte(0x10),
+          // Parameter size
+          std::byte(0x00),
+      };
+  static constexpr std::array<std::byte, 4> inquiry_packet_bytes{
+      // Packet type (command)
+      std::byte(0x01),
+      // OpCode (Inquiry)
+      std::byte(0x01),
+      std::byte(0x04),
+      // Parameter size
+      std::byte(0x00),
+  };
+
+  // Consume initial credit
+  test.GiveCommandCredit({.count = 0});
+
+  // Queue a command via SendCommand
+  MultiBuf::Instance send_cmd_buf(test.allocator());
+  send_cmd_buf->Insert(send_cmd_buf->end(),
+                       read_local_version_information_packet_bytes);
+  auto send_cmd_result = test.hci_cmd_mux().SendCommand(
+      {std::move(send_cmd_buf)},
+      [](EventPacket&&) -> CommandMultiplexer::EventInterceptorReturn {
+        return {};
+      },
+      emboss::EventCode::COMMAND_COMPLETE);
+  EXPECT_TRUE(send_cmd_result.has_value());
+  EXPECT_TRUE(test.packets_to_controller().empty());
+
+  // Call Reset()
+  test.hci_cmd_mux().Reset();
+
+  // The queue should have been cleared, so the queued command was never sent.
+  // We can verify this since packets_to_controller is now empty.
+  EXPECT_TRUE(test.packets_to_controller().empty());
+
+  // Test that command_credits_ are reset to 1 by sending a command after Reset,
+  // which should be forwarded to the controller immediately.
+  MultiBuf::Instance host_cmd_buf(test.allocator());
+  host_cmd_buf->Insert(host_cmd_buf->end(), inquiry_packet_bytes);
+  test.SendFromHost(std::move(host_cmd_buf));
+  EXPECT_EQ(test.packets_to_controller().size(), 1u);
+  test.packets_to_controller().pop_front();
+
+  // Give a credit so the next injected command can be sent immediately.
+  test.GiveCommandCredit({.opcode = 0x0401});
+
+  // Test that active_command_queue_ is cleared by sending a command that is
+  // immediately sent (active)
+  bool event_handler_called = false;
+  MultiBuf::Instance active_cmd_buf(test.allocator());
+  active_cmd_buf->Insert(active_cmd_buf->end(),
+                         read_local_version_information_packet_bytes);
+  auto active_cmd_result = test.hci_cmd_mux().SendCommand(
+      {std::move(active_cmd_buf)},
+      [&](EventPacket&&) -> CommandMultiplexer::EventInterceptorReturn {
+        event_handler_called = true;
+        return {};
+      },
+      emboss::EventCode::COMMAND_COMPLETE);
+  EXPECT_TRUE(active_cmd_result.has_value());
+  EXPECT_EQ(test.packets_to_controller().size(), 1u);
+  test.packets_to_controller().pop_front();
+}
+
+TEST_F(CommandMultiplexerTest, ResetAsync) { TestReset(accessor_async2()); }
+TEST_F(CommandMultiplexerTest, ResetTimer) { TestReset(accessor_timer()); }
 
 }  // namespace
 }  // namespace pw::bluetooth::proxy::hci

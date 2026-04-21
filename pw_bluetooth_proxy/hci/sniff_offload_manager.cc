@@ -266,13 +266,24 @@ SniffOffloadManager::SniffOffloadManager(
       send_event_(std::move(send_event)),
       on_error_(std::move(on_error)) {}
 
-SniffOffloadManager::~SniffOffloadManager() {
+SniffOffloadManager::~SniffOffloadManager() { Reset(); }
+
+void SniffOffloadManager::Reset() {
+  std::lock_guard lock(mutex_);
+  DoReset();
+}
+
+void SniffOffloadManager::DoReset() {
+  PW_LOG_INFO("Resetting sniff offload manager.");
   for (auto iter = connections_.begin(); iter != connections_.end();) {
     iter->Stop();
     auto* fsm = &*iter;
     iter = connections_.erase(iter);
     allocator_.Delete(fsm);
   }
+  state_ = Disabled();
+  suppress_mode_change_event_ = false;
+  suppress_sniff_subrating_event_ = false;
 }
 
 void SniffOffloadManager::ProcessAclPacket(const MultiBuf& acl_packet,

@@ -138,6 +138,21 @@ CommandMultiplexer::CommandMultiplexer(
 
 CommandMultiplexer::~CommandMultiplexer() = default;
 
+void CommandMultiplexer::Reset() {
+  std::lock_guard event_interceptors_lock(event_interceptors_mutex_);
+  std::lock_guard lock(mutex_);
+  DoReset();
+}
+
+void CommandMultiplexer::DoReset() {
+  PW_LOG_INFO(
+      "Resetting command multiplexer, clearing command queue and resetting "
+      "command credits.");
+  command_queue_.clear();
+  active_command_queue_.clear();
+  command_credits_ = 1u;
+}
+
 Result<async2::Poll<>> CommandMultiplexer::PendCommandTimeout(
     [[maybe_unused]] async2::Context& cx) {
   // Not implemented.

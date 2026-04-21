@@ -261,6 +261,9 @@ class CommandMultiplexer final {
 
   ~CommandMultiplexer();
 
+  /// Reset the multiplexer. Clears the command queue and reset credit.
+  void Reset();
+
   /// Asynchronously poll/pend for a command timeout. Only 1 client/waker is
   /// supported at a time.
   ///
@@ -479,6 +482,7 @@ class CommandMultiplexer final {
   Result<EventInterceptor> RegisterEventInterceptorLocked(
       EventCodeVariant event_code, EventHandler&& handler)
       PW_EXCLUSIVE_LOCKS_REQUIRED(event_interceptors_mutex_, mutex_);
+  void DoReset() PW_EXCLUSIVE_LOCKS_REQUIRED(event_interceptors_mutex_, mutex_);
 
   using CommandQueue = pw::DynamicDeque<QueuedCommandState>;
   using ActiveCommandQueue = pw::DynamicDeque<UniquePtr<ActiveSentCommandData>>;

@@ -138,6 +138,10 @@ class SniffOffloadManager final {
 
   ~SniffOffloadManager();
 
+  /// Reset the manager. Clears all internal state. Will treat all connections
+  /// as immediately disconnected and cease sniff offload on them.
+  void Reset() PW_LOCKS_EXCLUDED(mutex_);
+
   /// Process ACL packets for managing sniff state. Does not modify the packet
   /// in any way. Must provide all ACL traffic or sniff state can desync with
   /// connections.
@@ -240,6 +244,7 @@ class SniffOffloadManager final {
   void SendCommandComplete(uint16_t opcode,
                            CommandStatus status = CommandStatus::kSuccess)
       PW_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
+  void DoReset() PW_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
   void DoDisable() PW_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
   void DoEnable(Enabled&& enabled) PW_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
   Result<MultiBuf::Instance> AllocateBuffer(ConstByteSpan span)

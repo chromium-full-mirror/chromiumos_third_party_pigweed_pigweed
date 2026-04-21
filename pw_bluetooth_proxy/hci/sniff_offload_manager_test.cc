@@ -44,7 +44,7 @@ namespace {
 using HandlerAction = SniffOffloadManager::HandlerAction;
 
 constexpr size_t kAllocatorSize = 1024;
-constexpr size_t kInternalAllocatorSize = 256;
+constexpr size_t kInternalAllocatorSize = 512;
 constexpr auto kDefaultErrorAction = SniffOffloadManager::ErrorAction::kIgnore;
 constexpr auto kDefaultLinkInactivityTimeout = std::chrono::milliseconds(1000);
 constexpr auto kTick = chrono::SystemClock::duration(1);
@@ -1343,6 +1343,46 @@ TEST_F(SniffOffloadManagerTest, ProcessLeGetVendorCapabilities) {
     EXPECT_TRUE(NoErrors());
     EXPECT_TRUE(packets_to_host().empty());
   }
+}
+
+TEST_F(SniffOffloadManagerTest, Reset) {
+  EXPECT_EQ(Simulate(ConnectionComplete(0x123)), kPassthroughResume);
+  EXPECT_EQ(Simulate(WriteSniffOffloadEnable(true)), kInterceptResume);
+  EXPECT_TRUE(CheckCommandCompleteEventSent(
+      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE));
+  EXPECT_EQ(Simulate(WriteSniffOffloadParameters(0x123)), kInterceptResume);
+  EXPECT_TRUE(CheckCommandCompleteEventSent(
+      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_PARAMETERS));
+  EXPECT_TRUE(CheckSniffSubratingSent(0x123));
+  EXPECT_TRUE(NoErrors());
+
+  AdvanceTime(kDefaultLinkInactivityTimeout / 2);
+
+  sniff_offload_manager().Reset();
+
+  EXPECT_EQ(Simulate(ModeChangeEvent(0x123)), kPassthroughResume);
+  EXPECT_EQ(PopLastError(),
+            Error({ErrorReason::kConnectionNotFound, ConnectionHandle{0x123}}));
+
+  // The previous connection's timer should have been canceled, so no SniffMode
+  // command should be sent.
+  AdvanceTime(kDefaultLinkInactivityTimeout + kTick);
+  EXPECT_FALSE(CheckSniffModeSent());
+
+  // Confirm that a new connection works after the reset.
+  EXPECT_EQ(Simulate(ConnectionComplete(0x456)), kPassthroughResume);
+  EXPECT_EQ(Simulate(WriteSniffOffloadEnable(true)), kInterceptResume);
+  EXPECT_TRUE(CheckCommandCompleteEventSent(
+      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_ENABLE));
+  EXPECT_EQ(Simulate(WriteSniffOffloadParameters(0x456)), kInterceptResume);
+  EXPECT_TRUE(CheckCommandCompleteEventSent(
+      CommandOpcode::ANDROID_WRITE_SNIFF_OFFLOAD_PARAMETERS));
+  EXPECT_TRUE(CheckSniffSubratingSent(0x456));
+  EXPECT_TRUE(NoErrors());
+
+  AdvanceTime(kDefaultLinkInactivityTimeout + kTick);
+  EXPECT_TRUE(CheckSniffModeSent(0x456));
+  EXPECT_TRUE(NoErrors());
 }
 
 std::optional<SniffOffloadManager::CommandOpcode>
