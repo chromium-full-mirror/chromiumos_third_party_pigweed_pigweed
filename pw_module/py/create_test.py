@@ -13,10 +13,19 @@
 # the License.
 """Tests for pw_module create."""
 
+from pathlib import Path
+import tempfile
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
-from pw_module.create import _ConfigErrors, _ModuleConfig, _BUILD_FILES
+from pw_module.create import (
+    _ConfigErrors,
+    _ModuleConfig,
+    _BUILD_FILES,
+    _GnBuildFile,
+    _BuildFile,
+)
 
 
 class TestModuleConfig(unittest.TestCase):
@@ -96,6 +105,55 @@ class TestModuleConfig(unittest.TestCase):
         self.assertTrue(
             any('Invalid languages' in e and 'cobol' in e for e in result)
         )
+
+
+class TestGnModuleCreation(unittest.TestCase):
+    """Tests GN module creation."""
+
+    def test_gn_build_file_creation(self):
+        """Tests that _GnBuildFile correctly generates a BUILD.gn file."""
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+
+            # Create a minimal context
+            mock_ctx = SimpleNamespace(is_upstream=True)
+
+            gn_file = _GnBuildFile(tmp_path, mock_ctx)
+
+            gn_file.add_cc_target(
+                _BuildFile.CcTarget(
+                    name='pw_async3',
+                    headers=[tmp_path / 'public/pw_async3/headers.h'],
+                    sources=[tmp_path / 'source.cc'],
+                    deps=['//pw_assert'],
+                )
+            )
+
+            gn_file.add_cc_test(
+                _BuildFile.CcTarget(
+                    name='pw_async3_test',
+                    sources=[tmp_path / 'test.cc'],
+                    deps=[':pw_async3'],
+                )
+            )
+
+            gn_file.add_docs_source('docs.rst')
+
+            with patch('pw_module.create._PW_ROOT', tmp_path):
+                gn_file.write()
+
+            generated_file = tmp_path / 'BUILD.gn'
+            self.assertTrue(generated_file.exists())
+
+            content = generated_file.read_text()
+
+            self.assertIn('pw_source_set("pw_async3")', content)
+            self.assertIn('pw_test("pw_async3_test")', content)
+            self.assertIn('pw_doc_group("docs")', content)
+            self.assertIn('import("$dir_pw_build/target_types.gni")', content)
+            self.assertIn('import("$dir_pw_unit_test/test.gni")', content)
+            self.assertIn('import("$dir_pw_docgen/docs.gni")', content)
 
 
 if __name__ == '__main__':

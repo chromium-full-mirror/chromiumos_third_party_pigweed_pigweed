@@ -1,0 +1,82 @@
+{#
+Copyright 2026 The Pigweed Authors
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not
+use this file except in compliance with the License. You may obtain a copy of
+the License at
+
+    https://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+License for the specific language governing permissions and limitations under
+the License.
+#}
+{% import 'helpers/gn.jinja' as gn %}
+{{ build.get_license }}
+
+import("//build_overrides/pigweed.gni")
+
+{% if build.cc_targets %}
+import("$dir_pw_build/target_types.gni")
+{% endif %}
+{% if build.cc_tests or module.is_upstream %}
+import("$dir_pw_unit_test/test.gni")
+{% endif %}
+{% if build.docs_sources %}
+import("$dir_pw_docgen/docs.gni")
+{% endif %}
+
+{% if build.cc_targets %}
+config("public_include_path") {
+  include_dirs = [ "public" ]
+  visibility = [ ":*" ]
+}
+{% endif %}
+
+{% if build.cc_tests or module.is_upstream %}
+pw_test_group("tests") {
+  tests = {% if build.cc_tests -%}
+    [
+      {%- for test in build.cc_tests|sort(attribute='name') %}
+      ":{{ test.name }}",
+      {%- endfor %}
+    ]
+  {%- else -%}
+    []
+  {%- endif %}
+}
+{% endif %}
+
+{% for target in build.cc_targets %}
+pw_source_set("{{ target.name }}") {
+  {% if target.headers %}
+  public_configs = [ ":public_include_path" ]
+  public = {{ gn.file_list(build, target.headers) }}
+  {% endif %}
+  {% if target.sources %}
+  sources = {{ gn.file_list(build, target.sources) }}
+  {% endif %}
+  {% if target.deps %}
+  deps = {{ gn.deps_list(target.deps) }}
+  {% endif %}
+}
+{% endfor %}
+
+{% for test in build.cc_tests %}
+pw_test("{{ test.name }}") {
+  sources = {{ gn.file_list(build, test.sources) }}
+  deps = {{ gn.deps_list(test.deps) }}
+}
+{% endfor %}
+
+{% if build.docs_sources %}
+pw_doc_group("docs") {
+  sources = [
+    {% for doc in build.docs_sources|sort %}
+    "{{ doc }}",
+    {% endfor %}
+  ]
+}
+{% endif %}

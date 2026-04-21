@@ -420,61 +420,9 @@ class _BuildFile:
             return file_path
         return str(file_path.relative_to(self._path.parent))
 
+    @abc.abstractmethod
     def write(self) -> None:
         """Writes the contents of the build file to disk."""
-        file = _OutputFile(self._path, self._indent_width())
-
-        if self._ctx.is_upstream:
-            file.line(_PIGWEED_LICENSE)
-            file.line()
-
-        self._write_preamble(file)
-
-        for target in self._cc_targets:
-            file.line()
-            self._write_cc_target(file, target)
-
-        for target in self._cc_tests:
-            file.line()
-            self._write_cc_test(file, target)
-
-        if self._docs_sources:
-            file.line()
-            self._write_docs_target(file, self._docs_sources)
-
-        file.write()
-
-    @abc.abstractmethod
-    def _indent_width(self) -> int:
-        """Returns the default indent width for the build file's code style."""
-
-    @abc.abstractmethod
-    def _write_preamble(self, file: _OutputFile) -> None:
-        """Formats"""
-
-    @abc.abstractmethod
-    def _write_cc_target(
-        self,
-        file: _OutputFile,
-        target: _BuildFile.CcTarget,
-    ) -> None:
-        """Defines a C++ library target within the build file."""
-
-    @abc.abstractmethod
-    def _write_cc_test(
-        self,
-        file: _OutputFile,
-        target: _BuildFile.CcTarget,
-    ) -> None:
-        """Defines a C++ unit test target within the build file."""
-
-    @abc.abstractmethod
-    def _write_docs_target(
-        self,
-        file: _OutputFile,
-        docs_sources: list[str],
-    ) -> None:
-        """Defines a documentation target within the build file."""
 
 
 # TODO(frolv): The dict here should be dict[str, '_GnVal'] (i.e. _GnScope),
@@ -486,7 +434,6 @@ _GnScope = dict[str, _GnVal]
 
 class _GnBuildFile(_BuildFile):
     _DEFAULT_FILENAME = 'BUILD.gn'
-    _INCLUDE_CONFIG_TARGET = 'public_include_path'
 
     def __init__(
         self,
@@ -496,197 +443,10 @@ class _GnBuildFile(_BuildFile):
     ):
         super().__init__(directory / filename, ctx)
 
-    def _indent_width(self) -> int:
-        return 2
-
-    def _write_preamble(self, file: _OutputFile) -> None:
-        # Upstream modules always require a tests target, even if it's empty.
-        has_tests = len(self._cc_tests) > 0 or self._ctx.is_upstream
-
-        imports = []
-
-        if self._cc_targets:
-            imports.append('$dir_pw_build/target_types.gni')
-
-        if has_tests:
-            imports.append('$dir_pw_unit_test/test.gni')
-
-        if self._docs_sources:
-            imports.append('$dir_pw_docgen/docs.gni')
-
-        file.line('import("//build_overrides/pigweed.gni")\n')
-        for imp in sorted(imports):
-            file.line(f'import("{imp}")')
-
-        if self._cc_targets:
-            file.line()
-            _GnBuildFile._target(
-                file,
-                'config',
-                _GnBuildFile._INCLUDE_CONFIG_TARGET,
-                {
-                    'include_dirs': ['public'],
-                    'visibility': [':*'],
-                },
-            )
-
-        if has_tests:
-            file.line()
-            _GnBuildFile._target(
-                file,
-                'pw_test_group',
-                'tests',
-                {
-                    'tests': list(f':{test.name}' for test in self._cc_tests),
-                },
-            )
-
-    def _write_cc_target(
-        self,
-        file: _OutputFile,
-        target: _BuildFile.CcTarget,
-    ) -> None:
-        """Defines a GN source_set for a C++ target."""
-
-        target_vars: _GnScope = {}
-
-        if target.headers:
-            target_vars['public_configs'] = [
-                f':{_GnBuildFile._INCLUDE_CONFIG_TARGET}'
-            ]
-            target_vars['public'] = list(target.rebased_headers(self.dir))
-
-        if target.sources:
-            target_vars['sources'] = list(target.rebased_sources(self.dir))
-
-        if target.deps:
-            target_vars['deps'] = target.deps
-
-        _GnBuildFile._target(file, 'pw_source_set', target.name, target_vars)
-
-    def _write_cc_test(
-        self,
-        file: _OutputFile,
-        target: _BuildFile.CcTarget,
-    ) -> None:
-        _GnBuildFile._target(
-            file,
-            'pw_test',
-            target.name,
-            {
-                'sources': list(target.rebased_sources(self.dir)),
-                'deps': target.deps,
-            },
-        )
-
-    def _write_docs_target(
-        self,
-        file: _OutputFile,
-        docs_sources: list[str],
-    ) -> None:
-        """Defines a pw_doc_group for module documentation."""
-        _GnBuildFile._target(
-            file,
-            'pw_doc_group',
-            'docs',
-            {
-                'sources': docs_sources,
-            },
-        )
-
-    @staticmethod
-    def _target(
-        file: _OutputFile,
-        target_type: str,
-        name: str,
-        args: _GnScope,
-    ) -> None:
-        """Formats a GN target."""
-
-        file.line(f'{target_type}("{name}") {{')
-
-        with file.indent():
-            _GnBuildFile._format_gn_scope(file, args)
-
-        file.line('}')
-
-    @staticmethod
-    def _format_gn_scope(file: _OutputFile, scope: _GnScope) -> None:
-        """Formats all of the variables within a GN scope to a file.
-
-        This function does not write the enclosing braces of the outer scope to
-        support use from multiple formatting contexts.
-        """
-        for key, val in scope.items():
-            if isinstance(val, int):
-                file.line(f'{key} = {val}')
-                continue
-
-            if isinstance(val, str):
-                file.line(f'{key} = {_GnBuildFile._gn_string(val)}')
-                continue
-
-            if isinstance(val, bool):
-                file.line(f'{key} = {str(val).lower()}')
-                continue
-
-            if isinstance(val, dict):
-                file.line(f'{key} = {{')
-                with file.indent():
-                    _GnBuildFile._format_gn_scope(file, val)
-                file.line('}')
-                continue
-
-            # Format a list of strings.
-            # TODO(frolv): Lists of other types?
-            assert isinstance(val, list)
-
-            if not val:
-                file.line(f'{key} = []')
-                continue
-
-            if len(val) == 1:
-                file.line(f'{key} = [ {_GnBuildFile._gn_string(val[0])} ]')
-                continue
-
-            file.line(f'{key} = [')
-            with file.indent():
-                for string in sorted(val):
-                    file.line(f'{_GnBuildFile._gn_string(string)},')
-            file.line(']')
-
-    @staticmethod
-    def _gn_string(string: str) -> str:
-        """Converts a Python string into a string literal within a GN file.
-
-        Accounts for the possibility of variable interpolation within GN,
-        removing quotes if unnecessary:
-
-            "string"           ->  "string"
-            "string"           ->  "string"
-            "$var"             ->  var
-            "$var2"            ->  var2
-            "$3var"            ->  "$3var"
-            "$dir_pw_foo"      ->  dir_pw_foo
-            "$dir_pw_foo:bar"  ->  "$dir_pw_foo:bar"
-            "$dir_pw_foo/baz"  ->  "$dir_pw_foo/baz"
-            "${dir_pw_foo}"    ->  dir_pw_foo
-
-        """
-
-        # Check if the entire string refers to a interpolated variable.
-        #
-        # Simple case: '$' followed a single word, e.g. "$my_variable".
-        # Note that identifiers can't start with a number.
-        if re.fullmatch(r'^\$[a-zA-Z_]\w*$', string):
-            return string[1:]
-
-        # GN permits wrapping an interpolated variable in braces.
-        # Check for strings of the format "${my_variable}".
-        if re.fullmatch(r'^\$\{[a-zA-Z_]\w*\}$', string):
-            return string[2:-1]
-
-        return f'"{string}"'
+    def write(self) -> None:
+        """Writes the contents of the build file to disk."""
+        file = _OutputFile(self._path)
+        file.write_template('BUILD.gn.jinja', build=self, module=self._ctx)
 
 
 class _BazelBuildFile(_BuildFile):
@@ -704,35 +464,6 @@ class _BazelBuildFile(_BuildFile):
         """Writes the contents of the build file to disk."""
         file = _OutputFile(self._path)
         file.write_template('BUILD.bazel.jinja', build=self, module=self._ctx)
-
-    def _indent_width(self) -> int:
-        return 4
-
-    # TODO(tonymd): Remove these functions once all file types are created with
-    # templates.
-    def _write_preamble(self, file: _OutputFile) -> None:
-        pass
-
-    def _write_cc_target(
-        self,
-        file: _OutputFile,
-        target: _BuildFile.CcTarget,
-    ) -> None:
-        pass
-
-    def _write_cc_test(
-        self,
-        file: _OutputFile,
-        target: _BuildFile.CcTarget,
-    ) -> None:
-        pass
-
-    def _write_docs_target(
-        self,
-        file: _OutputFile,
-        docs_sources: list[str],
-    ) -> None:
-        pass
 
 
 class _CmakeBuildFile(_BuildFile):
@@ -752,35 +483,6 @@ class _CmakeBuildFile(_BuildFile):
         file.write_template(
             'CMakeLists.txt.jinja', build=self, module=self._ctx
         )
-
-    def _indent_width(self) -> int:
-        return 2
-
-    # TODO(tonymd): Remove these functions once all file types are created with
-    # templates.
-    def _write_preamble(self, file: _OutputFile) -> None:
-        pass
-
-    def _write_cc_target(
-        self,
-        file: _OutputFile,
-        target: _BuildFile.CcTarget,
-    ) -> None:
-        pass
-
-    def _write_cc_test(
-        self,
-        file: _OutputFile,
-        target: _BuildFile.CcTarget,
-    ) -> None:
-        pass
-
-    def _write_docs_target(
-        self,
-        file: _OutputFile,
-        docs_sources: list[str],
-    ) -> None:
-        pass
 
 
 class _LanguageGenerator:
@@ -813,31 +515,26 @@ class _CcLanguageGenerator(_LanguageGenerator):
         # TODO(frolv): This could be configurable.
         namespace = self._ctx.name.default_namespace
 
-        main_source.line(
-            f'#include "{main_header.path.relative_to(self._public_dir)}"\n'
+        main_header.write_template(
+            'header.h.jinja',
+            license=_PIGWEED_LICENSE_CC if self._ctx.is_upstream else '',
+            namespace=namespace,
         )
-        main_source.line(f'namespace {namespace} {{\n')
-        main_source.line('int magic = 42;\n')
-        main_source.line(f'}}  // namespace {namespace}')
 
-        main_header.line(f'namespace {namespace} {{\n')
-        main_header.line('extern int magic;\n')
-        main_header.line(f'}}  // namespace {namespace}')
+        main_source.write_template(
+            'source.cc.jinja',
+            license=_PIGWEED_LICENSE_CC if self._ctx.is_upstream else '',
+            namespace=namespace,
+            header_path=main_header.path.relative_to(self._public_dir),
+        )
 
-        test_source.line(
-            f'#include "{main_header.path.relative_to(self._public_dir)}"\n'
+        test_source.write_template(
+            'test.cc.jinja',
+            license=_PIGWEED_LICENSE_CC if self._ctx.is_upstream else '',
+            namespace=namespace,
+            header_path=main_header.path.relative_to(self._public_dir),
+            camel_case_name=self._ctx.name.upper_camel_case(),
         )
-        test_source.line('#include "pw_unit_test/framework.h"\n')
-        test_source.line(f'namespace {namespace} {{')
-        test_source.line('namespace {\n')
-        test_source.line(
-            f'TEST({self._ctx.name.upper_camel_case()}, GeneratesCorrectly) {{'
-        )
-        with test_source.indent():
-            test_source.line('EXPECT_EQ(magic, 42);')
-        test_source.line('}\n')
-        test_source.line('}  // namespace')
-        test_source.line(f'}}  // namespace {namespace}')
 
         self._ctx.add_cc_target(
             _BuildFile.CcTarget(
@@ -855,27 +552,11 @@ class _CcLanguageGenerator(_LanguageGenerator):
             )
         )
 
-        main_header.write()
-        main_source.write()
-        test_source.write()
-
     def _new_source(self, name: str) -> _OutputFile:
-        file = _OutputFile(self._ctx.dir / f'{name}.cc')
-
-        if self._ctx.is_upstream:
-            file.line(_PIGWEED_LICENSE_CC)
-            file.line()
-
-        return file
+        return _OutputFile(self._ctx.dir / f'{name}.cc')
 
     def _new_header(self, name: str) -> _OutputFile:
-        file = _OutputFile(self._headers_dir / f'{name}.h')
-
-        if self._ctx.is_upstream:
-            file.line(_PIGWEED_LICENSE_CC)
-
-        file.line('#pragma once\n')
-        return file
+        return _OutputFile(self._headers_dir / f'{name}.h')
 
 
 _BUILD_FILES: dict[str, Type[_BuildFile]] = {

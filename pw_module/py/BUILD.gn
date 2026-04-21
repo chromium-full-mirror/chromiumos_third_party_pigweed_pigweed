@@ -38,9 +38,14 @@ pw_python_package("py") {
   inputs = [
     "pw_module/templates/BUILD.bazel.jinja",
     "pw_module/templates/helpers/bazel.jinja",
+    "pw_module/templates/BUILD.gn.jinja",
+    "pw_module/templates/helpers/gn.jinja",
     "pw_module/templates/docs.rst.jinja",
     "pw_module/templates/CMakeLists.txt.jinja",
     "pw_module/templates/helpers/cmake.jinja",
+    "pw_module/templates/header.h.jinja",
+    "pw_module/templates/source.cc.jinja",
+    "pw_module/templates/test.cc.jinja",
   ]
   tests = [
     "check_test.py",

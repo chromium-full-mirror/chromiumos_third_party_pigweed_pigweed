@@ -29,6 +29,9 @@ pw_py_library(
         "pw_module/templates/__init__.py",
         "pw_module/templates/helpers/__init__.py",
     ],
+    data = glob([
+        "pw_module/templates/**/*.jinja",
+    ]),
     imports = ["."],
     deps = [
         "//pw_build/py:pw_build",
