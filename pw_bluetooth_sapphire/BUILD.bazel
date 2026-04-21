@@ -251,6 +251,7 @@ sphinx_docs_library(
         "//pw_bluetooth_sapphire/host/att:docs",
         "//pw_bluetooth_sapphire/host/gap:docs",
         "//pw_bluetooth_sapphire/host/l2cap:docs",
+        "//pw_bluetooth_sapphire/size_report:host_size_report",
     ],
     prefix = "pw_bluetooth_sapphire/",
     target_compatible_with = incompatible_with_mcu(),

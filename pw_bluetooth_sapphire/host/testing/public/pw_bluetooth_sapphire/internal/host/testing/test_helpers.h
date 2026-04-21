@@ -17,6 +17,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cstdio>
 #include <iostream>
 #include <type_traits>
 
@@ -40,7 +41,7 @@ std::string ByteContainerToString(const Container& c) {
 
 template <class InputIt>
 void PrintByteContainer(InputIt begin, InputIt end) {
-  std::cout << ByteContainerToString(begin, end);
+  std::printf("%s", ByteContainerToString(begin, end).c_str());
 }
 
 // Prints the contents of a container as a string.
@@ -59,11 +60,11 @@ bool ContainersEqual(InputIt1 expected_begin,
                      InputIt2 actual_end) {
   if (std::equal(expected_begin, expected_end, actual_begin, actual_end))
     return true;
-  std::cout << "Expected: (" << (expected_end - expected_begin) << " bytes) { ";
+  std::printf("Expected: (%td bytes) { ", expected_end - expected_begin);
   PrintByteContainer(expected_begin, expected_end);
-  std::cout << "}\n   Found: (" << (actual_end - actual_begin) << " bytes) { ";
+  std::printf("}\n   Found: (%td bytes) { ", actual_end - actual_begin);
   PrintByteContainer(actual_begin, actual_end);
-  std::cout << "}" << std::endl;
+  std::printf("}\n");
   return false;
 }
 

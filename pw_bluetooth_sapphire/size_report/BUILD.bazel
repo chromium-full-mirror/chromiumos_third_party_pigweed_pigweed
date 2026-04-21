@@ -12,11 +12,36 @@
 # License for the specific language governing permissions and limitations under
 # the License.
 
-filegroup(
-    name = "satisfy_presubmit",
-    srcs = [
-        "boringssl_base.cc",
-        "host.cc",
-        "wrap_getentropy.cc",
+load("//pw_bloat:pw_cc_size_binary.bzl", "pw_cc_size_binary")
+load("//pw_bloat:pw_size_diff.bzl", "pw_size_diff")
+load("//pw_bloat:pw_size_table.bzl", "pw_size_table")
+
+package(default_visibility = ["//visibility:public"])
+
+pw_cc_size_binary(
+    name = "host",
+    srcs = ["host.cc"],
+    platform = "//targets/rp2040:rp2040_size_report",
+    deps = [
+        "//pw_bloat:bloat_this_binary",
+        "//pw_bluetooth_sapphire:null_lease_provider",
+        "//pw_bluetooth_sapphire/host:stack",
+        "//pw_bluetooth_sapphire/host/common",
+        "//pw_bluetooth_sapphire/host/gap",
+        "@pigweed//pw_random",
+    ],
+)
+
+pw_size_diff(
+    name = "host_size_diff",
+    base = "//pw_bloat:bloat_base",
+    label = "Create and initialize host",
+    target = ":host",
+)
+
+pw_size_table(
+    name = "host_size_report",
+    reports = [
+        ":host_size_diff",
     ],
 )
