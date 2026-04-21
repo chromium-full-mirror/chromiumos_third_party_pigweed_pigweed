@@ -43,3 +43,14 @@ genrule {
         "pw_cpu_exception_cortex_m_protos/cpu_state.rpc.pwpb.h",
     ],
 }
+
+rust_protobuf {
+    name: "libpw_cpu_exception_cortex_m_proto_rs",
+    crate_name: "pw_cpu_exception_cortex_m_proto",
+    protos: [":pw_cpu_exception_cortex_m_protos"],
+    source_stem: "pw_cpu_exception_cortex_m_source",
+    exported_include_dirs: ["."],
+    proto_flags: ["-I external/protobuf/src"],
+    rustlibs: ["libpw_tokenizer_proto_rs"],
+    vendor_available: true,
+}

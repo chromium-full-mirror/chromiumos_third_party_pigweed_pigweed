@@ -205,3 +205,17 @@ android_library {
     visibility: ["//visibility:public"],
     sdk_version: "current",
 }
+
+rust_protobuf {
+    name: "libpw_log_proto_rs",
+    crate_name: "pw_log_proto",
+    protos: [":pw_log_log_proto_with_prefix"],
+    source_stem: "pw_log_source",
+    exported_include_dirs: ["."],
+    proto_flags: ["-I external/protobuf/src"],
+    rustlibs: [
+        "libpw_protobuf_proto_rs",
+        "libpw_tokenizer_proto_rs",
+    ],
+    vendor_available: true,
+}

@@ -182,3 +182,13 @@ genrule {
         "pw_protobuf_plugin_py",
     ],
 }
+
+rust_protobuf {
+    name: "libpw_tokenizer_proto_rs",
+    crate_name: "pw_tokenizer_proto",
+    protos: [":pw_tokenizer_proto_options_proto"],
+    source_stem: "pw_tokenizer_source",
+    exported_include_dirs: ["."],
+    proto_flags: ["-I external/protobuf/src"],
+    vendor_available: true,
+}

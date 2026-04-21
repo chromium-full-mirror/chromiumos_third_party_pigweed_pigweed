@@ -85,16 +85,16 @@ genrule_defaults {
 filegroup {
     name: "pw_snapshot_proto_src",
     srcs: [
-        "pw_snapshot_protos/snapshot.proto",
-        ":pw_snapshot_metadata_proto_with_prefix",
-        ":pw_chrono_protos",
-        ":pw_metric_protos",
-        ":pw_tokenizer_proto_options_proto",
-        ":pw_protobuf_common_proto",
-        ":pw_log_log_proto_with_prefix",
-        ":pw_thread_protos",
-        ":pw_cpu_exception_cortex_m_protos",
         ":libprotobuf-internal-protos",
+        ":pw_chrono_protos",
+        ":pw_cpu_exception_cortex_m_protos",
+        ":pw_log_log_proto_with_prefix",
+        ":pw_metric_protos",
+        ":pw_protobuf_common_proto",
+        ":pw_snapshot_metadata_proto_with_prefix",
+        ":pw_thread_protos",
+        ":pw_tokenizer_proto_options_proto",
+        "pw_snapshot_protos/snapshot.proto",
     ],
 }
 
@@ -125,10 +125,10 @@ genrule {
     name: "pw_snapshot_metadata_proto_with_prefix",
     defaults: ["pw_rpc_add_prefix_to_proto"],
     srcs: [
-        "pw_snapshot_protos/snapshot_metadata.proto"
+        "pw_snapshot_protos/snapshot_metadata.proto",
     ],
     out: [
-        "pw_snapshot_metadata_proto/snapshot_metadata.proto"
+        "pw_snapshot_metadata_proto/snapshot_metadata.proto",
     ],
 }
 
@@ -136,9 +136,9 @@ genrule {
     name: "pw_snapshot_metadata_pwpb_rpc_header",
     defaults: ["pw_rpc_generate_rpc_pwpb_header_with_prefix_and_protobuf"],
     srcs: [
+        ":libprotobuf-internal-protos",
         ":pw_snapshot_metadata_proto_with_prefix",
         ":pw_tokenizer_proto_options_proto",
-        ":libprotobuf-internal-protos",
     ],
     out: [
         "pw_snapshot_metadata_proto/snapshot_metadata.rpc.pwpb.h",
@@ -149,9 +149,9 @@ genrule {
     name: "pw_snapshot_metadata_pwpb_proto_header",
     defaults: ["pw_rpc_generate_pwpb_header_with_prefix_and_protobuf"],
     srcs: [
+        ":libprotobuf-internal-protos",
         ":pw_snapshot_metadata_proto_with_prefix",
         ":pw_tokenizer_proto_options_proto",
-        ":libprotobuf-internal-protos",
     ],
     out: ["pw_snapshot_metadata_proto/snapshot_metadata.pwpb.h"],
 }
@@ -197,4 +197,45 @@ cc_library {
         "pw_thread_pwpb_rpc_header",
         "pw_tokenizer_proto_options_pwpb_h",
     ],
+}
+
+rust_protobuf {
+    name: "libpw_snapshot_proto_rs",
+    crate_name: "pw_snapshot_proto",
+    protos: [
+        "pw_snapshot_protos/snapshot.proto",
+    ],
+    source_stem: "pw_snapshot_source",
+    exported_include_dirs: ["."],
+    proto_flags: [
+        "-I external/protobuf/src",
+        // Ugly hacks since rust_protobuf doesn't have an equivalent of Bazel's
+        // proto_library import_prefix.
+        "-I $OUT_DIR/soong/.intermediates/external/pigweed/pw_chrono/pw_chrono_protos/gen",
+        "-I $OUT_DIR/soong/.intermediates/external/pigweed/pw_log/pw_log_log_proto_with_prefix/gen/",
+        "-I $OUT_DIR/soong/.intermediates/external/pigweed/pw_snapshot/pw_snapshot_metadata_proto_with_prefix/gen/",
+        "-I external/pigweed/pw_protobuf",
+    ],
+    rustlibs: [
+        "libprotobuf",
+        "libpw_chrono_proto_rs",
+        "libpw_cpu_exception_cortex_m_proto_rs",
+        "libpw_log_proto_rs",
+        "libpw_metric_proto_rs",
+        "libpw_snapshot_metadata_proto_rs",
+        "libpw_thread_proto_rs",
+        "libpw_tokenizer_proto_rs",
+    ],
+    vendor_available: true,
+}
+
+rust_protobuf {
+    name: "libpw_snapshot_metadata_proto_rs",
+    crate_name: "pw_snapshot_metadata_proto",
+    protos: [":pw_snapshot_metadata_proto_with_prefix"],
+    source_stem: "pw_snapshot_metadata_source",
+    exported_include_dirs: ["."],
+    proto_flags: ["-I external/protobuf/src"],
+    rustlibs: ["libpw_tokenizer_proto_rs"],
+    vendor_available: true,
 }

@@ -117,3 +117,13 @@ cc_library_headers {
         "pw_metric_raw_rpc_header",
     ],
 }
+
+rust_protobuf {
+    name: "libpw_metric_proto_rs",
+    crate_name: "pw_metric_proto",
+    protos: ["pw_metric_proto/metric_service.proto"],
+    source_stem: "pw_metric_source",
+    exported_include_dirs: ["."],
+    proto_flags: ["-I external/protobuf/src"],
+    vendor_available: true,
+}

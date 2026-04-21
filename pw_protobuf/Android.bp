@@ -286,3 +286,13 @@ python_library_host {
     ],
     pkg_path: "pw_protobuf_protos",
 }
+
+rust_protobuf {
+    name: "libpw_protobuf_proto_rs",
+    crate_name: "pw_protobuf_proto",
+    protos: [":pw_protobuf_common_proto_with_prefix"],
+    source_stem: "pw_protobuf_source",
+    exported_include_dirs: ["."],
+    proto_flags: ["-I external/protobuf/src"],
+    vendor_available: true,
+}

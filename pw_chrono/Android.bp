@@ -50,7 +50,7 @@ genrule {
         "chrono.proto",
     ],
     out: [
-        "pw_chrono_protos/chrono.proto"
+        "pw_chrono_protos/chrono.proto",
     ],
 }
 
@@ -58,9 +58,20 @@ genrule {
     name: "pw_chrono_pwpb_header",
     defaults: ["pw_rpc_generate_pwpb_header_with_prefix_and_protobuf"],
     srcs: [
+        ":libprotobuf-internal-protos",
         ":pw_chrono_protos",
         ":pw_tokenizer_proto_options_proto",
-        ":libprotobuf-internal-protos",
     ],
     out: ["pw_chrono_protos/chrono.pwpb.h"],
+}
+
+rust_protobuf {
+    name: "libpw_chrono_proto_rs",
+    crate_name: "pw_chrono_proto",
+    protos: [":pw_chrono_protos"],
+    source_stem: "pw_chrono_source",
+    exported_include_dirs: ["."],
+    proto_flags: ["-I external/protobuf/src"],
+    rustlibs: ["libpw_tokenizer_proto_rs"],
+    vendor_available: true,
 }
