@@ -21,10 +21,8 @@ import urllib.parse
 
 from pw_cli.plural import plural
 from pw_presubmit.presubmit import filter_paths
-from pw_presubmit.presubmit_context import (
-    PresubmitContext,
-    PresubmitFailure,
-)
+from pw_presubmit.presubmit_context import PresubmitContext
+from pw_presubmit.private.result import PresubmitFailure
 from pw_presubmit import git_repo, presubmit_context
 
 

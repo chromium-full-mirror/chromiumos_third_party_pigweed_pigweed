@@ -31,9 +31,7 @@ import tempfile
 from typing import (
     Any,
     Iterable,
-    NamedTuple,
     Sequence,
-    TYPE_CHECKING,
 )
 import urllib.parse
 
@@ -41,8 +39,8 @@ import pw_cli.color
 import pw_cli.env
 import pw_env_setup.config_file
 
-if TYPE_CHECKING:
-    from pw_presubmit.presubmit import Check
+from pw_presubmit.private.check import PresubmitCheckTrace
+from pw_presubmit.private.result import Failure
 
 _COLOR = pw_cli.color.colors()
 _LOG: logging.Logger = logging.getLogger(__name__)
@@ -436,40 +434,6 @@ class FormatContext:
         """Empty append_check_command."""
 
 
-@dataclasses.dataclass(frozen=True)
-class Failure:
-    description: str = ''
-    path: Path | None = None
-    line: int | None = None
-
-    def message(self) -> str:
-        line_part: str = ''
-        if self.line is not None:
-            line_part = f'{self.line}:'
-        return (
-            f'{self.path}:{line_part} {self.description}'
-            if self.path
-            else self.description
-        )
-
-
-class PresubmitFailure(Exception):
-    """Optional exception to use for presubmit failures."""
-
-    def __init__(
-        self,
-        description: str = '',
-        path: Path | None = None,
-        line: int | None = None,
-    ):
-        line_part: str = ''
-        if line is not None:
-            line_part = f'{line}:'
-        super().__init__(
-            f'{path}:{line_part} {description}' if path else description
-        )
-
-
 @dataclasses.dataclass
 class PresubmitContext:  # pylint: disable=too-many-instance-attributes
     """Context passed into presubmit checks.
@@ -645,25 +609,6 @@ PRESUBMIT_CONTEXT: ContextVar[PresubmitContext | None] = ContextVar(
 
 def get_presubmit_context():
     return PRESUBMIT_CONTEXT.get()
-
-
-class PresubmitCheckTrace(NamedTuple):
-    ctx: PresubmitContext
-    check: Check | None
-    func: str | None
-    args: Iterable[Any]
-    kwargs: dict[Any, Any]
-    call_annotation: dict[Any, Any]
-
-    def __repr__(self) -> str:
-        return f'''CheckTrace(
-  ctx={self.ctx.output_dir}
-  id(ctx)={id(self.ctx)}
-  check={self.check}
-  args={self.args}
-  kwargs={self.kwargs.keys()}
-  call_annotation={self.call_annotation}
-)'''
 
 
 def save_check_trace(output_dir: Path, trace: PresubmitCheckTrace) -> None:

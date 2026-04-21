@@ -21,13 +21,15 @@ from pathlib import Path
 
 import pw_cli.color
 from pw_cli.plural import plural
-from pw_presubmit import tools
-from pw_presubmit.check import (
-    PresubmitResult,
+from pw_presubmit.private import tools
+from pw_presubmit.private.check import (
     Check,
     Program,
-    ProgramResult,
     FilteredCheck,
+)
+from pw_presubmit.private.result import (
+    PresubmitResult,
+    ProgramResult,
 )
 
 _LOG = logging.getLogger(__name__)

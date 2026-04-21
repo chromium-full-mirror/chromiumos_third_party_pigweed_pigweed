@@ -33,14 +33,12 @@ from pw_env_setup import python_packages
 
 from pw_presubmit.presubmit import (
     call,
-    Check,
     filter_paths,
 )
+from pw_presubmit.private.check import Check
+from pw_presubmit.private.result import PresubmitFailure
 from pw_presubmit.git_repo import LoggingGitRepo
-from pw_presubmit.presubmit_context import (
-    PresubmitContext,
-    PresubmitFailure,
-)
+from pw_presubmit.presubmit_context import PresubmitContext
 from pw_presubmit import build, git_repo
 from pw_presubmit.tools import log_run
 

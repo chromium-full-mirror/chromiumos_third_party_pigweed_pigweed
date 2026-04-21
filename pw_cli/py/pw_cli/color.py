@@ -18,8 +18,6 @@ import os
 import sys
 from typing import TextIO
 
-import pw_cli.env
-
 
 def _make_color(*codes):
     # Apply all the requested ANSI color codes. Note that this is unbalanced
@@ -63,11 +61,10 @@ class _NoColor:
 
 
 def is_enabled(on_output: TextIO | None = None):
-    env = pw_cli.env.pigweed_environment()
-    # Checking if PW_USE_COLOR is in os.environ and not env since it's always
-    # in env. If it's in os.environ then use the value retrieved in env.
+    # Checking if PW_USE_COLOR is in os.environ.
     if 'PW_USE_COLOR' in os.environ:
-        return env.PW_USE_COLOR
+        val = os.environ['PW_USE_COLOR']
+        return val == '1' or val.lower() == 'true'
 
     # These are semi-standard ways to turn colors off or on for many projects.
     # See https://bixense.com/clicolors/ and https://no-color.org/ for more.

@@ -21,7 +21,7 @@ import unittest
 from unittest import mock
 
 from pw_presubmit import presubmit, build, bazel_checks
-from pw_presubmit.presubmit_context import Failure
+from pw_presubmit.private.result import Failure
 
 
 def _write_two_targets_to_stdout(*args, stdout=None, **kwargs):

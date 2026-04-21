@@ -22,8 +22,9 @@ import unittest
 from unittest import mock
 
 from pw_presubmit import presubmit
-from pw_presubmit.events import PresubmitEvents, HumanUI
-from pw_presubmit.check import PresubmitResult, Program, ProgramResult, Programs
+from pw_presubmit.private.events import PresubmitEvents, HumanUI
+from pw_presubmit import Program, Programs, PresubmitResult
+from pw_presubmit.private.result import ProgramResult
 
 
 def _fake_function_1(_):

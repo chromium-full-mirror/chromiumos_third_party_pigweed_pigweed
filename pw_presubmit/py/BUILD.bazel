@@ -24,6 +24,24 @@ package(default_visibility = ["//visibility:public"])
 licenses(["notice"])
 
 pw_py_library(
+    name = "core",
+    srcs = [
+        "pw_presubmit/private/__init__.py",
+        "pw_presubmit/private/check.py",
+        "pw_presubmit/private/events.py",
+        "pw_presubmit/private/result.py",
+        "pw_presubmit/private/tools.py",
+    ],
+    imports = ["."],
+    visibility = ["//visibility:private"],
+    deps = [
+        "//pw_cli/py:color",
+        "//pw_cli/py:file_filter",
+        "//pw_cli/py:plural",
+    ],
+)
+
+pw_py_library(
     name = "pw_presubmit",
     srcs = [
         "pw_presubmit/__init__.py",
@@ -31,10 +49,8 @@ pw_py_library(
         "pw_presubmit/bazel_parser.py",
         "pw_presubmit/block_submission.py",
         "pw_presubmit/build.py",
-        "pw_presubmit/check.py",
         "pw_presubmit/cli.py",
         "pw_presubmit/cpp_checks.py",
-        "pw_presubmit/events.py",
         "pw_presubmit/format_code.py",
         "pw_presubmit/git_repo.py",
         "pw_presubmit/gitmodules.py",
@@ -67,6 +83,7 @@ pw_py_library(
         "nopylint",
     ],
     deps = [
+        ":core",
         ":format_core",
         "//pw_build/py:pw_build",
         "//pw_cli/py:pw_cli",

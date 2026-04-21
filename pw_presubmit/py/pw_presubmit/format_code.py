@@ -51,6 +51,8 @@ from pw_presubmit.presubmit import filter_paths
 from pw_presubmit.presubmit_context import (
     FormatContext,
     FormatOptions,
+)
+from pw_presubmit import (
     PresubmitContext,
     PresubmitFailure,
 )

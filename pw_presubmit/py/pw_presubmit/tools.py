@@ -13,52 +13,28 @@
 # the License.
 """General purpose tools for running presubmit checks."""
 
-import collections.abc
 import logging
-import os
-from pathlib import Path
 import shlex
 import subprocess
 from typing import (
     Iterable,
-    Iterator,
     Sequence,
 )
 
 from pw_cli.tool_runner import ToolRunner
 from pw_presubmit.presubmit_context import PRESUBMIT_CONTEXT
 
+# pylint: disable=unused-import
+from pw_presubmit.private.check import (  # Import for backwards compatibility
+    flatten,
+    format_time,
+    make_str_tuple,
+    relative_paths,
+)
+
+# pylint: enable=unused-import
+
 _LOG: logging.Logger = logging.getLogger(__name__)
-
-
-def make_box(section_alignments: Sequence[str]) -> str:
-    indices = [i + 1 for i in range(len(section_alignments))]
-    top_sections = '{2}'.join('{1:{1}^{width%d}}' % i for i in indices)
-    mid_sections = '{5}'.join(
-        '{section%d:%s{width%d}}' % (i, section_alignments[i - 1], i)
-        for i in indices
-    )
-    bot_sections = '{9}'.join('{8:{8}^{width%d}}' % i for i in indices)
-
-    return ''.join(
-        [
-            '{0}',
-            *top_sections,
-            '{3}\n',
-            '{4}',
-            *mid_sections,
-            '{6}\n',
-            '{7}',
-            *bot_sections,
-            '{10}',
-        ]
-    )
-
-
-def relative_paths(paths: Iterable[Path], start: Path) -> Iterable[Path]:
-    """Returns relative Paths calculated with os.path.relpath."""
-    for path in paths:
-        yield Path(os.path.relpath(path, start))
 
 
 def _truncate(value, length: int = 60) -> str:
@@ -113,33 +89,3 @@ class PresubmitToolRunner(ToolRunner):
             **kwargs,
             ignore_dry_run=pw_presubmit_ignore_dry_run,
         )
-
-
-def flatten(*items) -> Iterator:
-    """Yields items from a series of items and nested iterables.
-
-    This function is used to flatten arbitrarily nested lists. str and bytes
-    are kept intact.
-    """
-
-    for item in items:
-        if isinstance(item, collections.abc.Iterable) and not isinstance(
-            item, (str, bytes, bytearray)
-        ):
-            yield from flatten(*item)
-        else:
-            yield item
-
-
-def make_str_tuple(value: Iterable[str] | str) -> tuple[str, ...]:
-    """Returns a tuple of strings from a string or iterable of strings."""
-    return tuple([value] if isinstance(value, str) else value)
-
-
-def format_time(time_s: float) -> str:
-    """Format a time duration as a string."""
-    minutes, seconds = divmod(time_s, 60)
-    if minutes < 60:
-        return f' {int(minutes)}:{seconds:04.1f}'
-    hours, minutes = divmod(minutes, 60)
-    return f'{int(hours):d}:{int(minutes):02}:{int(seconds):02}'

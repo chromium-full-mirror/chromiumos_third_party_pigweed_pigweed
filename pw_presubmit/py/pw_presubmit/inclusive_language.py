@@ -19,6 +19,7 @@ import re
 
 from pw_cli import file_filter
 
+from pw_presubmit.private.result import PresubmitFailure
 from . import presubmit, presubmit_context
 
 # List borrowed from Android:
@@ -225,7 +226,7 @@ ignored with "{disable_tag}" and reenabled with
 "{enable_tag}".
 """.strip()
         )
-        raise presubmit_context.PresubmitFailure
+        raise PresubmitFailure
 
 
 @presubmit.check(

@@ -23,7 +23,7 @@ import textwrap
 from typing import Callable, Collection, Sequence
 
 from pw_presubmit import git_repo, presubmit
-from pw_presubmit.check import Programs
+from pw_presubmit import Programs
 from pw_cli import argument_types
 from pw_cli.collect_files import add_file_collection_arguments
 

@@ -31,7 +31,7 @@ from pw_presubmit import (
     upstream_checks,
 )
 from pw_presubmit.install_hook import install_git_hook
-from pw_presubmit.check import Programs
+from pw_presubmit import Programs
 
 _LOG = logging.getLogger('pw_presubmit')
 

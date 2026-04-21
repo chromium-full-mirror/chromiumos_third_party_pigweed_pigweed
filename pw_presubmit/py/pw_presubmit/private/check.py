@@ -19,7 +19,6 @@ import collections
 import collections.abc
 import copy
 import dataclasses
-import enum
 import itertools
 from inspect import Parameter, signature
 import logging
@@ -30,73 +29,41 @@ from typing import (
     Callable,
     Iterable,
     Iterator,
+    NamedTuple,
     Pattern,
+    Protocol,
     Sequence,
 )
 
-import pw_cli.color
 from pw_cli.plural import plural
 from pw_cli.file_filter import FileFilter
-from pw_presubmit import tools
-from pw_presubmit.presubmit_context import (
-    PresubmitContext,
+
+from pw_presubmit.private.result import (
     PresubmitFailure,
-    log_check_traces,
+    PresubmitResult,
+)
+from pw_presubmit.private.tools import (
+    flatten,
+    format_time,
+    make_str_tuple,
+    relative_paths,
 )
 
-
 _LOG = logging.getLogger(__name__)
-_COLOR = pw_cli.color.colors()
 
 
-class PresubmitResult(enum.Enum):
-    PASS = 'PASSED'  # Check completed successfully.
-    FAIL = 'FAILED'  # Check failed.
-    CANCEL = 'CANCEL'  # Check didn't complete.
+class GenericContext(Protocol):
+    """Minimal context needed for a presubmit step.
 
-    def colorized(self, width: int, invert: bool = False) -> str:
-        if self is PresubmitResult.PASS:
-            color = _COLOR.black_on_green if invert else _COLOR.green
-        elif self is PresubmitResult.FAIL:
-            color = _COLOR.black_on_red if invert else _COLOR.red
-        elif self is PresubmitResult.CANCEL:
-            color = _COLOR.yellow
-        else:
+    Use a protocol to avoid circular imports and to prepare for supporting a new
+    minimal presubmit context.
+    """
 
-            def color(value):
-                return value
-
-        padding = (width - len(self.value)) // 2 * ' '
-        return padding + color(self.value) + padding
-
-
-@dataclasses.dataclass(frozen=True)
-class ProgramResult:
-    """Result of running a presubmit program."""
-
-    passed: int
-    failed: int
-    skipped: int
+    paths: tuple[Path, ...]
+    output_dir: Path
 
     @property
-    def total(self) -> int:
-        return self.passed + self.failed + self.skipped
-
-    @property
-    def result(self) -> PresubmitResult:
-        if self.failed or self.skipped:
-            return PresubmitResult.FAIL
-        return PresubmitResult.PASS
-
-    def message(self) -> str:
-        summary_items = []
-        if self.passed:
-            summary_items.append(f'{self.passed} passed')
-        if self.failed:
-            summary_items.append(f'{self.failed} failed')
-        if self.skipped:
-            summary_items.append(f'{self.skipped} not run')
-        return ', '.join(summary_items) or 'nothing was done'
+    def failed(self) -> bool: ...
 
 
 @dataclasses.dataclass
@@ -106,7 +73,7 @@ class SubStep:
     args: Sequence[Any] = ()
     kwargs: dict[str, Any] = dataclasses.field(default_factory=lambda: {})
 
-    def __call__(self, ctx: PresubmitContext) -> PresubmitResult:
+    def __call__(self, ctx: GenericContext) -> PresubmitResult:
         if self.name:
             _LOG.info('%s', self.name)
         return self._func(ctx, *self.args, **self.kwargs)
@@ -200,7 +167,7 @@ class Check:
         Returns a new check.
         """
         return self.with_file_filter(
-            FileFilter(endswith=tools.make_str_tuple(endswith), exclude=exclude)
+            FileFilter(endswith=make_str_tuple(endswith), exclude=exclude)
         )
 
     def with_file_filter(self, file_filter: FileFilter) -> Check:
@@ -219,7 +186,7 @@ class Check:
 
     def run(
         self,
-        ctx: PresubmitContext,
+        ctx: GenericContext,
         substep: str | None = None,
     ) -> PresubmitResult:
         """Runs the presubmit check on the provided paths."""
@@ -238,11 +205,8 @@ class Check:
             result = self.run_substep(ctx, substep)
         else:
             result = self(ctx)
-        time_str = tools.format_time(time.time() - start_time_s)
+        time_str = format_time(time.time() - start_time_s)
         _LOG.debug('%s %s', self.name, result.value)
-
-        if ctx.dry_run:
-            log_check_traces(ctx)
 
         _LOG.debug('%s duration:%s', self.name, time_str)
 
@@ -277,7 +241,7 @@ class Check:
             return PresubmitResult.CANCEL
 
     def run_substep(
-        self, ctx: PresubmitContext, name: str | None
+        self, ctx: GenericContext, name: str | None
     ) -> PresubmitResult:
         for substep in self.substeps():
             if substep.name == name:
@@ -286,7 +250,7 @@ class Check:
         expected = ', '.join(repr(s.name) for s in self.substeps())
         raise LookupError(f'bad substep name: {name!r} (expected: {expected})')
 
-    def __call__(self, ctx: PresubmitContext) -> PresubmitResult:
+    def __call__(self, ctx: GenericContext) -> PresubmitResult:
         """Calling a Check calls its underlying substeps directly.
 
         This makes it possible to call functions wrapped by @filter_paths. The
@@ -312,9 +276,28 @@ class FilteredCheck:
 
     def run(
         self,
-        ctx: PresubmitContext,
+        ctx: GenericContext,
     ):
         return self.check.run(ctx, self.substep)
+
+
+class PresubmitCheckTrace(NamedTuple):
+    ctx: GenericContext
+    check: Check | None
+    func: str | None
+    args: Iterable[Any]
+    kwargs: dict[Any, Any]
+    call_annotation: dict[Any, Any]
+
+    def __repr__(self) -> str:
+        return f'''CheckTrace(
+  ctx={self.ctx.output_dir}
+  id(ctx)={id(self.ctx)}
+  check={self.check}
+  args={self.args}
+  kwargs={self.kwargs.keys()}
+  call_annotation={self.call_annotation}
+)'''
 
 
 def _required_args(function: Callable) -> Iterable[Parameter]:
@@ -361,7 +344,7 @@ class Program(collections.abc.Sequence):
             return Check(step)
 
         self._steps: tuple[Check, ...] = tuple(
-            {ensure_check(s): None for s in tools.flatten(steps)}
+            {ensure_check(s): None for s in flatten(steps)}
         )
 
     def __getitem__(self, i):
@@ -380,8 +363,8 @@ class Program(collections.abc.Sequence):
         self, root: Path, paths: Sequence[Path]
     ) -> tuple[FilteredCheck, ...]:
         """Returns a tuple of FilteredChecks for the given paths."""
-        relative_paths = tuple(tools.relative_paths(paths, root))
-        posix_paths = tuple(p.as_posix() for p in relative_paths)
+        rel_paths = tuple(relative_paths(paths, root))
+        posix_paths = tuple(p.as_posix() for p in rel_paths)
 
         filter_to_checks = collections.defaultdict(list)
         for chk in self._steps:

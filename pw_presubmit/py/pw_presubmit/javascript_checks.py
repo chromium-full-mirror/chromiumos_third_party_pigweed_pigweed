@@ -18,10 +18,8 @@ from pw_presubmit.presubmit import (
     Check,
     filter_paths,
 )
-from pw_presubmit.presubmit_context import (
-    PresubmitContext,
-    PresubmitFailure,
-)
+from pw_presubmit.presubmit_context import PresubmitContext
+from pw_presubmit.private.result import PresubmitFailure
 from pw_presubmit.tools import log_run
 
 

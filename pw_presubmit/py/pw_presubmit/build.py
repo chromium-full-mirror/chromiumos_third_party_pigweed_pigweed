@@ -49,16 +49,18 @@ from pw_presubmit.presubmit import (
     filter_paths,
     install_package,
 )
-from pw_presubmit.check import (
+from pw_presubmit.private.check import (
     Check,
-    PresubmitResult,
     SubStep,
+)
+from pw_presubmit.private.result import (
+    PresubmitResult,
+    PresubmitFailure,
 )
 from pw_presubmit.presubmit_context import (
     LuciContext,
     LuciTrigger,
     PresubmitContext,
-    PresubmitFailure,
 )
 from pw_presubmit import (
     bazel_parser,

@@ -35,6 +35,7 @@ from pw_cli.collect_files import (
 )
 from pw_cli.diff import colorize_diff
 from pw_cli.plural import plural
+from pw_presubmit.private.result import Failure, PresubmitFailure
 from . import git_repo, presubmit, presubmit_context, tools
 from .presubmit_context import Failure
 
@@ -97,7 +98,7 @@ class KeepSortedContext:
             self._failures.append(Failure(description, path, line))
 
 
-class KeepSortedParsingError(presubmit.PresubmitFailure):
+class KeepSortedParsingError(PresubmitFailure):
     pass
 
 

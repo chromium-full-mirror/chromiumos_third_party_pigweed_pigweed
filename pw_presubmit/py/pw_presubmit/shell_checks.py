@@ -20,7 +20,7 @@ from pw_presubmit.presubmit import (
     Check,
     filter_paths,
 )
-from pw_presubmit.presubmit_context import (
+from pw_presubmit import (
     PresubmitContext,
     PresubmitFailure,
 )

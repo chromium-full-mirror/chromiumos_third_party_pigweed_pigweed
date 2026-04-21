@@ -25,8 +25,7 @@ from typing import (
     Set,
 )
 
-from pw_presubmit import git_repo
-from pw_presubmit.presubmit_context import PresubmitFailure
+from pw_presubmit import git_repo, PresubmitFailure
 from pw_presubmit.format.owners import OwnersError, OwnersFile
 
 _LOG = logging.getLogger(__name__)

@@ -22,7 +22,7 @@ from typing import Iterable, Sequence, TextIO
 from pw_cli.file_filter import FileFilter
 from pw_cli.plural import plural
 
-from pw_presubmit.presubmit_context import PresubmitContext, PresubmitFailure
+from pw_presubmit import PresubmitContext, PresubmitFailure
 from pw_presubmit import (
     bazel_checks,
     format_code,

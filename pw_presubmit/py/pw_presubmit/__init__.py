@@ -30,13 +30,15 @@ from pw_presubmit.presubmit import (
     run,
 )
 
-from pw_presubmit.check import (
+from pw_presubmit.private.check import (
     Check,
-    PresubmitResult,
     Program,
     Programs,
 )
+from pw_presubmit.private.result import (
+    PresubmitResult,
+    PresubmitFailure,
+)
 from pw_presubmit.presubmit_context import (
     PresubmitContext,
-    PresubmitFailure,
 )

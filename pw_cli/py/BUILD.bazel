@@ -19,6 +19,24 @@ package(default_visibility = ["//visibility:public"])
 licenses(["notice"])
 
 pw_py_library(
+    name = "plural",
+    srcs = ["pw_cli/plural.py"],
+    imports = ["."],
+)
+
+pw_py_library(
+    name = "file_filter",
+    srcs = ["pw_cli/file_filter.py"],
+    imports = ["."],
+)
+
+pw_py_library(
+    name = "color",
+    srcs = ["pw_cli/color.py"],
+    imports = ["."],
+)
+
+pw_py_library(
     name = "pw_cli",
     srcs = [
         "pw_cli/__init__.py",
@@ -29,19 +47,16 @@ pw_py_library(
         "pw_cli/arguments.py",
         "pw_cli/branding.py",
         "pw_cli/collect_files.py",
-        "pw_cli/color.py",
         "pw_cli/decorators.py",
         "pw_cli/diff.py",
         "pw_cli/env.py",
         "pw_cli/envparse.py",
-        "pw_cli/file_filter.py",
         "pw_cli/git_repo.py",
         "pw_cli/interactive_prompts.py",
         "pw_cli/log.py",
         "pw_cli/multitool.py",
         "pw_cli/pigweed_aliases.py",
         "pw_cli/plugins.py",
-        "pw_cli/plural.py",
         "pw_cli/process.py",
         "pw_cli/pw_command_plugins.py",
         "pw_cli/requires.py",
@@ -55,6 +70,9 @@ pw_py_library(
     ],
     imports = ["."],
     deps = [
+        ":color",
+        ":file_filter",
+        ":plural",
         "//pw_cli_analytics/py:pw_cli_analytics",
         "@pigweed_python_packages//prompt_toolkit",
         "@pigweed_python_packages//psutil",

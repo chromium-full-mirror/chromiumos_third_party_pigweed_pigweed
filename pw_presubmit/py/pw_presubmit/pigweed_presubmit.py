@@ -49,8 +49,8 @@ from pw_presubmit import (
 )
 from pw_presubmit.install_hook import install_git_hook
 from pw_presubmit.presubmit import call, filter_paths
-from pw_presubmit.check import Programs
-from pw_presubmit.presubmit_context import PresubmitContext, PresubmitFailure
+from pw_presubmit import Programs, PresubmitFailure
+from pw_presubmit.presubmit_context import PresubmitContext
 from pw_presubmit.tools import log_run
 
 # Keep this import separate for now to avoid breaking downstream users.

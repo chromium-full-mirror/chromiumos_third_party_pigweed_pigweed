@@ -13,6 +13,7 @@
 # the License.
 """Bazel related checks."""
 
+from pw_presubmit.private.result import PresubmitFailure
 from . import build, git_repo, presubmit, presubmit_context
 
 
@@ -71,9 +72,7 @@ def includes_presubmit_check(
 
         output_text = '\n'.join(output_lines)
         ctx.fail(output_text)
-        raise presubmit_context.PresubmitFailure(
-            'cc_library targets contain includes'
-        )
+        raise PresubmitFailure('cc_library targets contain includes')
 
     return includes_check
 
@@ -100,6 +99,4 @@ def lockfile_check(ctx: presubmit_context.PresubmitContext) -> None:
     with open(diff_path, 'w') as stdout:
         stdout.write(diff)
 
-    raise presubmit_context.PresubmitFailure(
-        f'git diff output is not empty; see {diff_path}'
-    )
+    raise PresubmitFailure(f'git diff output is not empty; see {diff_path}')

@@ -34,14 +34,14 @@ from pw_presubmit.presubmit import (
     Check,
     fetch_file_lists,
 )
-from pw_presubmit.check import Programs
+from pw_presubmit import Programs
 import pw_presubmit.pigweed_presubmit
 from pw_presubmit.build import GnGenNinja, gn_args
+from pw_presubmit import PresubmitFailure
 from pw_presubmit.presubmit_context import (
-    PresubmitCheckTrace,
-    PresubmitFailure,
     get_check_traces,
 )
+from pw_presubmit.private.check import PresubmitCheckTrace
 
 # pw_watch is not required by pw_build, this is an optional feature.
 try:

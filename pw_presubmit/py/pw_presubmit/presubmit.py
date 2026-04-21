@@ -65,22 +65,25 @@ from pw_cli.plural import plural
 from pw_cli.file_filter import FileFilter, exclude_paths
 from pw_package import package_manager
 from pw_presubmit import git_repo, tools
-from pw_presubmit.check import (  # pylint: disable=unused-import
-    PresubmitResult,
+from pw_presubmit.private.check import (  # pylint: disable=unused-import
     Program,
     Check,
-    ProgramResult,
     FilteredCheck,
     # Import for backwards compatibility only
     Programs,
 )
-from pw_presubmit.events import PresubmitEvents, HumanUI
+from pw_presubmit.private.result import (
+    PresubmitResult,
+    ProgramResult,
+    PresubmitFailure,
+)
+from pw_presubmit.private.events import PresubmitEvents, HumanUI
 from pw_presubmit.presubmit_context import (
     FormatOptions,
     LuciContext,
     PRESUBMIT_CONTEXT,
     PresubmitContext,
-    PresubmitFailure,
+    log_check_traces,
 )
 
 _LOG: logging.Logger = logging.getLogger(__name__)
@@ -243,6 +246,8 @@ class Presubmit:  # pylint: disable=too-many-instance-attributes
                 self.events.step_start(filtered_check.check, i, ctx.paths)
                 start_time = time.time()
                 result = filtered_check.run(ctx)
+                if ctx.dry_run:
+                    log_check_traces(ctx)
                 duration = time.time() - start_time
                 self.events.step_end(filtered_check.check, i, result, duration)
 

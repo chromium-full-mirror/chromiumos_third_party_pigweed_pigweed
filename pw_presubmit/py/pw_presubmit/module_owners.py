@@ -17,10 +17,8 @@ import logging
 from pathlib import Path
 from typing import Callable
 
-from pw_presubmit.presubmit_context import (
-    PresubmitContext,
-    PresubmitFailure,
-)
+from pw_presubmit.presubmit_context import PresubmitContext
+from pw_presubmit.private.result import PresubmitFailure
 from pw_presubmit import presubmit
 
 _LOG: logging.Logger = logging.getLogger(__name__)

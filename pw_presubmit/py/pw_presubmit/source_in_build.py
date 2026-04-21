@@ -20,10 +20,8 @@ from typing import Callable, Sequence
 from pw_cli.file_filter import FileFilter
 from pw_presubmit import build, format_code, git_repo
 from pw_presubmit.presubmit import Check, filter_paths
-from pw_presubmit.presubmit_context import (
-    PresubmitContext,
-    PresubmitFailure,
-)
+from pw_presubmit.presubmit_context import PresubmitContext
+from pw_presubmit.private.result import PresubmitFailure
 
 _LOG: logging.Logger = logging.getLogger(__name__)
 
