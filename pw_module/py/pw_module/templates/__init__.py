@@ -29,14 +29,14 @@ import logging
 from jinja2 import Environment, DictLoader, make_logging_undefined
 from jinja2.environment import Template
 
-TEMPLATE_PATH = files('pw_module.templates')
+TEMPLATE_PATH = files(__package__)
 
 # Dict containing file names and their contents.
 JINJA_TEMPLATES = {
     t.relative_to(TEMPLATE_PATH).as_posix(): t.read_text()  # type: ignore
     for t in chain(
-        files('pw_module.templates').iterdir(),
-        files('pw_module.templates.helpers').iterdir(),
+        files(__package__).iterdir(),
+        files(__package__ + '.helpers').iterdir(),
     )
     if t.suffix == '.jinja'  # type: ignore
 }

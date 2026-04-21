@@ -39,6 +39,7 @@ from pw_cli.diff import colorize_diff
 from pw_cli.status_reporter import StatusReporter
 from pw_cli import git_repo
 from pw_cli.tool_runner import BasicSubprocessRunner
+import pw_env_setup.config_file
 
 from pw_module.templates import get_template
 
@@ -1167,22 +1168,33 @@ def _read_root_owners(project_root: Path) -> Iterable[str]:
 
 def _create_module(
     module: str,
-    languages: Iterable[str],
-    build_systems: Iterable[str],
+    languages: Iterable[str] | None,
+    build_systems: Iterable[str] | None,
     owners: Collection[str] | None = None,
 ) -> None:
     project_root = _project_root()
     is_upstream = _is_upstream()
-
-    module_name = _check_module_name(module, is_upstream)
-    if not module_name:
-        sys.exit(1)
 
     if not is_upstream:
         _LOG.error(
             '`pw module create` is experimental and does '
             'not yet support downstream projects.'
         )
+
+    config_or_errors = _ModuleConfig.load()
+    if isinstance(config_or_errors, _ConfigErrors):
+        for error in config_or_errors:
+            _LOG.error(error)
+        sys.exit(1)
+    config = config_or_errors
+
+    if not build_systems:
+        build_systems = config.default_build_systems
+    if not languages:
+        languages = config.default_languages
+
+    module_name = _check_module_name(module, is_upstream)
+    if not module_name:
         sys.exit(1)
 
     module_dir = project_root / module
@@ -1260,6 +1272,66 @@ def _create_module(
     _REPORT.new(f'{module_name} created at: {module_dir.relative_to(_PW_ROOT)}')
 
 
+class _ConfigErrors(list):
+    """Container for configuration errors."""
+
+
+@dataclass
+class _ModuleConfig:
+    default_build_systems: list[str]
+    default_languages: list[str]
+
+    @classmethod
+    def load(cls) -> _ModuleConfig | _ConfigErrors:
+        """Loads and validates configuration defaults from pigweed.json."""
+        config = pw_env_setup.config_file.load()
+        raw_config = config.get('pw', {}).get('pw_module', {})
+
+        errors = []
+
+        raw_build_systems = raw_config.get(
+            'default_build_systems', list(_BUILD_FILES.keys())
+        )
+        valid_build_systems = []
+        invalid_build_systems = []
+        for build in raw_build_systems:
+            if build in _BUILD_FILES:
+                valid_build_systems.append(build)
+            else:
+                invalid_build_systems.append(build)
+
+        if invalid_build_systems:
+            errors.append(
+                f'Invalid build systems in pigweed.json: '
+                f'{", ".join(invalid_build_systems)}. '
+                f'Options: {", ".join(_BUILD_FILES.keys())}'
+            )
+
+        raw_languages = raw_config.get('default_languages', [])
+        valid_languages = []
+        invalid_languages = []
+        for lang in raw_languages:
+            if lang in _LANGUAGE_GENERATORS:
+                valid_languages.append(lang)
+            else:
+                invalid_languages.append(lang)
+
+        if invalid_languages:
+            errors.append(
+                f'Invalid languages in pigweed.json: '
+                f'{", ".join(invalid_languages)}. '
+                f'Options: {", ".join(_LANGUAGE_GENERATORS.keys())}'
+            )
+
+        if errors:
+            return _ConfigErrors(errors)
+
+        return cls(
+            default_build_systems=valid_build_systems,
+            default_languages=valid_languages,
+        )
+
+
 def register_subcommand(parser: argparse.ArgumentParser) -> None:
     """Registers the module `create` subcommand with `parser`."""
 
@@ -1284,7 +1356,6 @@ def register_subcommand(parser: argparse.ArgumentParser) -> None:
             'Comma-separated list of build systems the module supports. '
             f'Options: {", ".join(_BUILD_FILES.keys())}'
         ),
-        default=_BUILD_FILES.keys(),
         type=functools.partial(csv_with_choices, list(_BUILD_FILES.keys())),
     )
     parser.add_argument(
@@ -1293,7 +1364,6 @@ def register_subcommand(parser: argparse.ArgumentParser) -> None:
             'Comma-separated list of languages the module will use. '
             f'Options: {", ".join(_LANGUAGE_GENERATORS.keys())}'
         ),
-        default=[],
         type=functools.partial(
             csv_with_choices, list(_LANGUAGE_GENERATORS.keys())
         ),

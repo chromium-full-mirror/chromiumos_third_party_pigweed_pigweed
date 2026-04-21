@@ -53,3 +53,21 @@ boilerplate for a new Pigweed module.
 
    Once the command is more stable, it will be properly documented. For now,
    running ``./pw module create --help`` will display the current set of options.
+
+Configuration
+-------------
+You can configure the default build systems and languages for ``pw module``
+commands in your ``pigweed.json`` file:
+
+If omitted, these default to all supported build systems and languages.
+
+.. code-block:: json
+
+   {
+     "pw": {
+       "pw_module": {
+         "default_build_systems": ["gn", "bazel"],
+         "default_languages": ["cc"]
+       }
+     }
+   }

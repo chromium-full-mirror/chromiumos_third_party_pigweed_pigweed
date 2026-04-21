@@ -61,3 +61,9 @@ pw_py_test(
     srcs = ["check_test.py"],
     deps = [":pw_module"],
 )
+
+pw_py_test(
+    name = "create_test",
+    srcs = ["create_test.py"],
+    deps = [":pw_module"],
+)

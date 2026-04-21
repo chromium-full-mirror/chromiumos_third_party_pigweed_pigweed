@@ -44,6 +44,7 @@ pw_python_package("py") {
   ]
   tests = [
     "check_test.py",
+    "create_test.py",
     "seed_test.py",
   ]
   pylintrc = "$dir_pigweed/.pylintrc"
