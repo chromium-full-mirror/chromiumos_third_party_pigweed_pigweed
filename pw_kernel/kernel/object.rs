@@ -170,6 +170,12 @@ pub trait KernelObject<K: Kernel>: Any + Send + Sync {
     fn process_join(&self, kernel: K) -> Result<()> {
         Err(Error::Unimplemented)
     }
+
+    /// Set (`set=true`) or clear (`set=false`) `Signals::USER` on the paired peer.
+    #[allow(unused_variables)]
+    fn object_set_peer_user_signal(&self, kernel: K, set: bool) -> Result<()> {
+        Err(Error::Unimplemented)
+    }
 }
 
 trait WaiterState<K: Kernel> {
@@ -390,7 +396,7 @@ impl<K: Kernel> ObjectBase<K> {
     ) -> Result<WaitReturn> {
         let state = self.state.lock(kernel);
 
-        // Skip waiting if signals are already pending.
+        // Skip waiting if any of the requested signals are already pending.
         if state.active_signals.intersects(signal_mask) {
             return Ok(WaitReturn {
                 user_data: 0,

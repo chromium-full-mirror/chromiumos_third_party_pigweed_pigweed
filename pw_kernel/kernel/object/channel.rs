@@ -16,9 +16,13 @@ use foreign_box::{ForeignRc, ForeignRcState};
 use pw_status::{Error, Result};
 use time::Instant;
 
-use crate::Kernel;
 use crate::object::{KernelObject, ObjectBase, Signals, SyscallBuffer, WaitReturn};
 use crate::sync::mutex::Mutex;
+use crate::sync::spinlock::SpinLock;
+use crate::{Arch, Kernel};
+
+type InitiatorRef<K> =
+    SpinLock<K, Option<ForeignRc<<K as Arch>::AtomicUsize, ChannelInitiatorObject<K>>>>;
 
 struct Transaction<K: Kernel> {
     send_buffer: SyscallBuffer,
@@ -28,6 +32,13 @@ struct Transaction<K: Kernel> {
 
 pub struct ChannelHandlerObject<K: Kernel> {
     base: ObjectBase<K>,
+    // SpinLock is used rather than UnsafeCell because the type system cannot
+    // guarantee set_initiator() is only called before threads start. The lock
+    // is always uncontended at runtime; cost is a few atomic instructions.
+    //
+    // TODO: https://pwbug.dev/493955030 - Eliminate this SpinLock by wiring the
+    // back-reference at construction time so set_initiator() is not needed.
+    initiator: InitiatorRef<K>,
     active_transaction: Mutex<K, Option<Transaction<K>>>,
 }
 
@@ -35,8 +46,21 @@ impl<K: Kernel> ChannelHandlerObject<K> {
     pub fn new(kernel: K) -> Self {
         Self {
             base: ObjectBase::new(),
+            initiator: SpinLock::new(None),
             active_transaction: Mutex::new(kernel, None),
         }
+    }
+
+    /// Binds the paired initiator back-reference.
+    ///
+    /// Must be called before either the initiator or handler are added to any
+    /// object tables.
+    pub fn set_initiator(
+        &self,
+        kernel: K,
+        initiator: Option<ForeignRc<K::AtomicUsize, ChannelInitiatorObject<K>>>,
+    ) {
+        *self.initiator.lock(kernel) = initiator;
     }
 }
 
@@ -86,6 +110,20 @@ impl<K: Kernel> KernelObject<K> for ChannelHandlerObject<K> {
             .initiator
             .base
             .signal(kernel, |_| Signals::READABLE);
+        Ok(())
+    }
+
+    fn object_set_peer_user_signal(&self, kernel: K, set: bool) -> Result<()> {
+        let Some(initiator) = self.initiator.lock(kernel).clone() else {
+            return Err(Error::FailedPrecondition);
+        };
+        initiator.base.signal(kernel, |signals| {
+            if set {
+                signals | Signals::USER
+            } else {
+                signals - Signals::USER
+            }
+        });
         Ok(())
     }
 }
@@ -162,6 +200,17 @@ impl<K: Kernel> KernelObject<K> for ChannelInitiatorObject<K> {
     fn channel_async_cancel(&self, kernel: K) -> Result<()> {
         self.finish_transaction(kernel).map(|_| ())
     }
+
+    fn object_set_peer_user_signal(&self, kernel: K, set: bool) -> Result<()> {
+        self.handler.base.signal(kernel, |signals| {
+            if set {
+                signals | Signals::USER
+            } else {
+                signals - Signals::USER
+            }
+        });
+        Ok(())
+    }
 }
 
 impl<K: Kernel> ChannelInitiatorObject<K> {
@@ -199,7 +248,9 @@ impl<K: Kernel> ChannelInitiatorObject<K> {
             signals - (Signals::READABLE | Signals::WRITEABLE)
         });
 
-        self.handler.base.signal(kernel, |_| Signals::READABLE);
+        self.handler.base.signal(kernel, |signals| {
+            (signals | Signals::READABLE) - Signals::WRITEABLE
+        });
 
         Ok(())
     }

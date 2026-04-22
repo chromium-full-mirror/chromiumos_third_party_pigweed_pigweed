@@ -23,9 +23,19 @@ use userspace::time::Instant;
 fn handle_uppercase_ipcs() -> Result<()> {
     pw_log::info!("IPC service starting");
     loop {
-        // Wait for an IPC to come in.
-        let wait_return = syscall::object_wait(handle::IPC, Signals::READABLE, Instant::MAX)
-            .map_err(|_| Error::Internal)?;
+        // Wait for an IPC or a USER signal from the initiator.
+        let wait_return =
+            syscall::object_wait(handle::IPC, Signals::READABLE | Signals::USER, Instant::MAX)
+                .map_err(|_| Error::Internal)?;
+
+        // USER signal means the initiator is pinging us; echo it back and lower it
+        // (level-triggered: the sender owns both raise and lower).
+        if wait_return.pending_signals.contains(Signals::USER) {
+            syscall::object_set_peer_user_signal(handle::IPC, true).map_err(|_| Error::Internal)?;
+            syscall::object_set_peer_user_signal(handle::IPC, false)
+                .map_err(|_| Error::Internal)?;
+            return Ok(());
+        }
 
         if !wait_return.pending_signals.contains(Signals::READABLE) || wait_return.user_data != 0 {
             return Err(Error::Internal);

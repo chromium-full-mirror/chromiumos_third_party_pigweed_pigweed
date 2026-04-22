@@ -121,6 +121,11 @@ impl SysCallInterface for SysCall {
     }
 
     #[inline(always)]
+    fn object_set_peer_user_signal(_handle: u32, _set: bool) -> Result<()> {
+        Err(pw_status::Error::Unimplemented)
+    }
+
+    #[inline(always)]
     fn debug_putc(_a: u32) -> Result<u32> {
         Err(pw_status::Error::Unimplemented)
     }

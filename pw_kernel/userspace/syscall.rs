@@ -118,6 +118,12 @@ pub fn interrupt_ack(object_handle: u32, signal_mask: Signals) -> Result<()> {
     SysCall::interrupt_ack(object_handle, signal_mask)
 }
 
+/// Set (`set=true`) or clear (`set=false`) `Signals::USER` on the paired peer.
+#[inline(always)]
+pub fn object_set_peer_user_signal(object_handle: u32, set: bool) -> Result<()> {
+    SysCall::object_set_peer_user_signal(object_handle, set)
+}
+
 #[inline(always)]
 pub fn debug_putc(c: char) -> Result<u32> {
     SysCall::debug_putc(c.into())

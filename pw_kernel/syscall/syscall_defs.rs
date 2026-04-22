@@ -86,7 +86,7 @@
 //! The handler's only ways of communicating with the initiator are by
 //! - responding to an initiated transaction
 //! - raising `Signals::USER` on the initiator by calling
-//!   [`object_raise_peer_user_signal()`]
+//!   [`object_set_peer_user_signal()`]
 //!
 //! #### Initiator Signals
 //! - `Signals::WRITABLE` indicates there is no pending transaction and one
@@ -95,8 +95,8 @@
 //!   pending transaction.  Cleared on transaction initiation.
 //! - `Signals::ERROR` indicates pending transaction has an error.  Cleared
 //!   when the initiator is waited on.
-//! - `Signals::USER` indicates the handler calls [`object_raise_peer_user_signal()`].
-//!   Cleared when the initiator is waited on.
+//! - `Signals::USER` indicates the handler calls [`object_set_peer_user_signal()`].
+//!   Cleared when the handler calls [`object_set_peer_user_signal()`] with `set=false`.
 //!
 //! #### Handler Signals
 //! - `Signals::READABLE` indicates there is a pending transaction.  Cleared when
@@ -106,8 +106,8 @@
 //! - `Signals::ERROR` indicates a pending transaction error.  No error states
 //!   are defined at the moment.  In the future an error may be raised when
 //!   the remote peer closes.
-//! - `Signals::USER` indicates the initiator calls [`object_raise_peer_user_signal()`].
-//!   Cleared when the initiator is waited on.
+//! - `Signals::USER` indicates the initiator calls [`object_set_peer_user_signal()`].
+//!   Cleared when the initiator calls [`object_set_peer_user_signal()`] with `set=false`.
 //!
 //! ### Wait Group
 //! Wait groups provide a mechanism for waiting on multiple handles at once.
@@ -165,7 +165,7 @@
 //!
 //! ### Generic Syscalls
 //! - [`object_wait()`]
-//! - [`object_raise_peer_user_signal()`]
+//! - [`object_set_peer_user_signal()`]
 //!
 //! ### Channel Initiator Syscalls
 //! - [`channel_transact()`]
@@ -326,6 +326,7 @@ pub enum SysCallId {
     ProcessStart = 0x000d,
     ProcessTerminate = 0x000e,
     ProcessJoin = 0x000f,
+    RaisePeerUserSignal = 0x0010,
 
     // System calls prefixed with 0xF000 are reserved development/debugging use.
     DebugPutc = 0xf000,
@@ -535,11 +536,18 @@ unsafe extern "C" {
     ///   region in this processes' address space.
     pub fn channel_respond(object_handle: u32, buffer: *mut u8, buffer_len: usize) -> isize;
 
-    /// Raise `Signals::USER` on a paired object's peer
+    /// Set or clear `Signals::USER` on the paired peer.
     ///
-    /// Since channels are unidirectional, this serves as a way for the handler
-    /// to signal the initiator.
-    pub fn object_raise_peer_user_signal(object_handle: u32) -> isize;
+    /// Modeled after a level-triggered hardware interrupt: the signaler owns
+    /// the signal and controls it in both directions. `set != 0` raises USER
+    /// on the peer; `set == 0` lowers USER on the peer. The receiver does
+    /// not clear the signal — only the sender does.
+    ///
+    /// # Returns
+    /// - `0`: On success.
+    /// - [`Error::Unimplemented`]: `object_handle` does not support peer signaling.
+    /// - [`Error::FailedPrecondition`]: No active peer (e.g., handler not yet wired).
+    pub fn object_set_peer_user_signal(object_handle: u32, set: u32) -> isize;
 
     /// Acknowledges the signaled interrupts allowing them to be signaled again.
     ///
@@ -661,6 +669,9 @@ pub trait SysCallInterface {
     fn process_start(object_handle: u32) -> Result<()>;
     fn process_terminate(object_handle: u32) -> Result<()>;
     fn process_join(object_handle: u32) -> Result<()>;
+
+    /// Set or clear `Signals::USER` on the paired peer (level-triggered model).
+    fn object_set_peer_user_signal(object_handle: u32, set: bool) -> Result<()>;
 
     fn debug_putc(a: u32) -> Result<u32>;
     // TODO: Consider adding an feature flagged PowerManager object and move

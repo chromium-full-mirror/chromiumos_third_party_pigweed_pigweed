@@ -356,6 +356,26 @@ fn handle_process_join<'a, K: Kernel>(kernel: K, mut args: K::SyscallArgs<'a>) -
     object.process_join(kernel).map(|_| 0)
 }
 
+fn handle_set_peer_user_signal<'a, K: Kernel>(
+    kernel: K,
+    mut args: K::SyscallArgs<'a>,
+) -> Result<u64> {
+    log_if::debug_if!(
+        SYSCALL_DEBUG,
+        "syscall: handling object_set_peer_user_signal"
+    );
+    let handle = args.next_u32()?;
+    let set = args.next_u32()? != 0;
+
+    let object = lookup_handle(kernel, handle)?;
+    let ret = object.object_set_peer_user_signal(kernel, set);
+    log_if::debug_if!(
+        SYSCALL_DEBUG,
+        "syscall: object_set_peer_user_signal complete"
+    );
+    ret.map(|_| 0)
+}
+
 // TODO: Remove this syscall when logging is added.
 fn handle_debug_putc<'a, K: Kernel>(kernel: K, mut args: K::SyscallArgs<'a>) -> Result<u64> {
     log_if::debug_if!(SYSCALL_DEBUG, "syscall: handling debug_putc");
@@ -450,6 +470,7 @@ pub fn handle_syscall<'a, K: Kernel>(
             SysCallId::ProcessStart => handle_process_start(kernel, args).into(),
             SysCallId::ProcessTerminate => handle_process_terminate(kernel, args).into(),
             SysCallId::ProcessJoin => handle_process_join(kernel, args).into(),
+            SysCallId::RaisePeerUserSignal => handle_set_peer_user_signal(kernel, args).into(),
             SysCallId::DebugPutc => handle_debug_putc(kernel, args).into(),
             SysCallId::DebugShutdown => handle_debug_shutdown(kernel, args).into(),
             SysCallId::DebugLog => handle_debug_log(kernel, args).into(),

@@ -16,6 +16,7 @@
 
 use initiator_codegen::handle;
 use pw_status::{Error, Result, StatusCode};
+use userspace::syscall::Signals;
 use userspace::time::Instant;
 use userspace::{process_entry, syscall};
 
@@ -75,6 +76,19 @@ fn test_uppercase_ipcs() -> Result<()> {
             return Err(Error::Unknown);
         }
     }
+
+    // Test object_set_peer_user_signal: signal the handler and wait for the echo back.
+    // Level-triggered model: the initiator raises USER on the handler, the handler
+    // echoes USER back on the initiator and then lowers it.  The initiator only
+    // observes; it does not clear the signal the handler raised.
+    pw_log::info!("Testing object_set_peer_user_signal");
+    syscall::object_set_peer_user_signal(handle::IPC, true).map_err(|_| Error::Internal)?;
+    let wait_return = syscall::object_wait(handle::IPC, Signals::USER, Instant::MAX)
+        .map_err(|_| Error::Internal)?;
+    if !wait_return.pending_signals.contains(Signals::USER) {
+        return Err(Error::Internal);
+    }
+    pw_log::info!("object_set_peer_user_signal round-trip OK");
 
     Ok(())
 }
