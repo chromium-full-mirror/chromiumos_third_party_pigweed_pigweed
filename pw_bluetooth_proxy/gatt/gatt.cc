@@ -170,7 +170,8 @@ Gatt::Gatt(L2capChannelManagerInterface& l2cap,
            multibuf::MultiBufAllocator& multibuf_allocator)
     : l2cap_(l2cap),
       allocator_(allocator),
-      multibuf_allocator_(multibuf_allocator) {}
+      multibuf_allocator_(multibuf_allocator),
+      connections_(allocator) {}
 
 Gatt::~Gatt() { ResetConnections(); }
 
@@ -183,19 +184,18 @@ Result<Client> Gatt::CreateClient(ConnectionHandle connection_handle,
   }
 
   internal::ClientId client_id{next_id_++};
-  UniquePtr<ClientState> client =
-      allocator_.MakeUnique<ClientState>(client_id, delegate);
-  if (client == nullptr) {
-    return Status::Unavailable();
-  }
 
   auto conn_iter = FindOrInterceptAttChannel(connection_handle);
   if (conn_iter == connections_.end()) {
     return Status::Unavailable();
   }
 
-  auto [_, inserted] = conn_iter->clients.insert(*client.Release());
-  PW_CHECK(inserted);
+  auto result = conn_iter->second.clients.try_emplace(
+      cpp23::to_underlying(client_id), &delegate);
+  if (!result.has_value()) {
+    return Status::Unavailable();
+  }
+  PW_CHECK(result->second);
 
   return Client(client_id, connection_handle, *this);
 }
@@ -211,9 +211,9 @@ Result<Server> Gatt::CreateServer(
   // Ensure that no characteristics are already registered.
   if (conn_iter != connections_.end()) {
     for (auto characteristic : characteristics) {
-      if (conn_iter->characteristics.find(
+      if (conn_iter->second.characteristics.find(
               cpp23::to_underlying(characteristic.value_handle)) !=
-          conn_iter->characteristics.end()) {
+          conn_iter->second.characteristics.end()) {
         return Status::AlreadyExists();
       }
     }
@@ -222,42 +222,35 @@ Result<Server> Gatt::CreateServer(
   if (next_id_ == std::numeric_limits<uint16_t>::max()) {
     return Status::ResourceExhausted();
   }
-  internal::ServerId server_id{next_id_++};
-  UniquePtr<ServerState> server =
-      allocator_.MakeUnique<ServerState>(server_id, delegate);
-  if (server == nullptr) {
-    return Status::ResourceExhausted();
-  }
-
-  IntrusiveMap<std::underlying_type_t<AttributeHandle>, CharacteristicState>
-      characteristics_temp;
-  for (CharacteristicInfo characteristic : characteristics) {
-    UniquePtr<CharacteristicState> characteristic_ptr =
-        allocator_.MakeUnique<CharacteristicState>(characteristic.value_handle,
-                                                   server_id);
-    if (characteristic_ptr == nullptr) {
-      DrainCharacteristics(characteristics_temp);
-      return Status::ResourceExhausted();
-    }
-    auto [_, inserted] =
-        characteristics_temp.insert(*characteristic_ptr.Release());
-    PW_CHECK(inserted);
-  }
 
   conn_iter = FindOrInterceptAttChannel(connection_handle);
   if (conn_iter == connections_.end()) {
-    while (!characteristics_temp.empty()) {
-      CharacteristicState& state = *characteristics_temp.begin();
-      characteristics_temp.erase(state);
-      allocator_.Delete(&state);
-    }
     return Status::Unavailable();
   }
 
-  auto [_, inserted] = conn_iter->servers.insert(*server.Release());
-  PW_CHECK(inserted);
+  internal::ServerId server_id{next_id_++};
+  auto server_result = conn_iter->second.servers.try_emplace(
+      cpp23::to_underlying(server_id), &delegate);
+  if (!server_result.has_value()) {
+    return Status::ResourceExhausted();
+  }
+  PW_CHECK(server_result->second);
 
-  conn_iter->characteristics.merge(characteristics_temp);
+  size_t added = 0;
+  for (auto characteristic : characteristics) {
+    auto result = conn_iter->second.characteristics.try_emplace(
+        cpp23::to_underlying(characteristic.value_handle), server_id);
+    if (!result.has_value()) {
+      for (size_t i = 0; i < added; ++i) {
+        conn_iter->second.characteristics.erase(
+            cpp23::to_underlying(characteristics[i].value_handle));
+      }
+      conn_iter->second.servers.erase(cpp23::to_underlying(server_id));
+      return Status::ResourceExhausted();
+    }
+    PW_CHECK(result->second);
+    added++;
+  }
 
   return Server(server_id, connection_handle, *this);
 }
@@ -271,22 +264,21 @@ void Gatt::UnregisterClient(internal::ClientId client_id,
     if (conn_iter == connections_.end()) {
       return;
     }
-    auto client_iter = conn_iter->clients.find(cpp23::to_underlying(client_id));
-    if (client_iter == conn_iter->clients.end()) {
+    auto client_iter =
+        conn_iter->second.clients.find(cpp23::to_underlying(client_id));
+    if (client_iter == conn_iter->second.clients.end()) {
       return;
     }
-    for (auto iter = conn_iter->intercepted_notifications_.begin();
-         iter != conn_iter->intercepted_notifications_.end();) {
+    for (auto iter = conn_iter->second.intercepted_notifications_.begin();
+         iter != conn_iter->second.intercepted_notifications_.end();) {
       if (iter->second == client_id) {
-        iter = conn_iter->intercepted_notifications_.erase(iter);
+        iter = conn_iter->second.intercepted_notifications_.erase(iter);
         continue;
       }
       ++iter;
     }
-    ClientState& client = *client_iter;
-    delegate = &client.delegate;
-    conn_iter->clients.erase(client_iter);
-    allocator_.Delete(&client);
+    delegate = client_iter->second;
+    conn_iter->second.clients.erase(client_iter);
   }
 
   // Call outside of lock to avoid deadlock.
@@ -307,27 +299,24 @@ void Gatt::UnregisterServer(internal::ServerId server_id,
       return;
     }
 
-    auto server_iter = conn_iter->servers.find(cpp23::to_underlying(server_id));
-    if (server_iter == conn_iter->servers.end()) {
+    auto server_iter =
+        conn_iter->second.servers.find(cpp23::to_underlying(server_id));
+    if (server_iter == conn_iter->second.servers.end()) {
       return;
     }
-    ServerState& server = *server_iter;
 
     // Erase all characteristics owned by the server.
-    for (auto iter = conn_iter->characteristics.begin();
-         iter != conn_iter->characteristics.end();) {
-      auto& characteristic = *iter;
-      if (characteristic.server_id != server_id) {
+    for (auto iter = conn_iter->second.characteristics.begin();
+         iter != conn_iter->second.characteristics.end();) {
+      if (iter->second != server_id) {
         ++iter;
         continue;
       }
-      iter = conn_iter->characteristics.erase(characteristic);
-      allocator_.Delete(&characteristic);
+      iter = conn_iter->second.characteristics.erase(iter);
     }
 
-    delegate = &server.delegate;
-    conn_iter->servers.erase(server_iter);
-    allocator_.Delete(&server);
+    delegate = server_iter->second;
+    conn_iter->second.servers.erase(server_iter);
 
     // Clean up write_available_queue_.
     for (auto iter = write_available_queue_.begin();
@@ -357,13 +346,13 @@ Status Gatt::InterceptNotification(internal::ClientId client,
   }
 
   auto notification_iter =
-      pw::containers::Find(conn_iter->intercepted_notifications_,
+      pw::containers::Find(conn_iter->second.intercepted_notifications_,
                            std::make_pair(value_handle, client));
-  if (notification_iter != conn_iter->intercepted_notifications_.end()) {
+  if (notification_iter != conn_iter->second.intercepted_notifications_.end()) {
     return Status::AlreadyExists();
   }
 
-  bool success = conn_iter->intercepted_notifications_.try_emplace_back(
+  bool success = conn_iter->second.intercepted_notifications_.try_emplace_back(
       value_handle, client);
 
   if (!success) {
@@ -383,13 +372,13 @@ Status Gatt::CancelInterceptNotification(internal::ClientId client,
   }
 
   auto notification_iter =
-      pw::containers::Find(conn_iter->intercepted_notifications_,
+      pw::containers::Find(conn_iter->second.intercepted_notifications_,
                            std::make_pair(value_handle, client));
-  if (notification_iter == conn_iter->intercepted_notifications_.end()) {
+  if (notification_iter == conn_iter->second.intercepted_notifications_.end()) {
     return Status::NotFound();
   }
 
-  conn_iter->intercepted_notifications_.erase(notification_iter);
+  conn_iter->second.intercepted_notifications_.erase(notification_iter);
   return OkStatus();
 }
 
@@ -456,10 +445,8 @@ void Gatt::OnL2capEvent(L2capChannelEvent event,
 }
 
 void Gatt::OnChannelClosedEvent(ConnectionHandle connection_handle) {
-  IntrusiveMap<std::underlying_type_t<internal::ClientId>, ClientState>
-      closing_clients;
-  IntrusiveMap<std::underlying_type_t<internal::ServerId>, ServerState>
-      closing_servers;
+  ClientMap closing_clients(allocator_);
+  ServerMap closing_servers(allocator_);
 
   {
     std::lock_guard queue_lock(write_available_mutex_);
@@ -470,13 +457,11 @@ void Gatt::OnChannelClosedEvent(ConnectionHandle connection_handle) {
       return;
     }
 
-    Connection& conn = *conn_iter;
+    Connection& conn = conn_iter->second;
     closing_clients.swap(conn.clients);
     closing_servers.swap(conn.servers);
-    DrainCharacteristics(conn.characteristics);
 
     connections_.erase(conn_iter);
-    allocator_.Delete(&conn);
 
     // Clean up write_available_queue_
     for (auto iter = write_available_queue_.begin();
@@ -489,21 +474,13 @@ void Gatt::OnChannelClosedEvent(ConnectionHandle connection_handle) {
   }
 
   // Notify delegates outside of mutex to avoid deadlock.
-  while (!closing_clients.empty()) {
-    auto client_iter = closing_clients.begin();
-    ClientState& client = *client_iter;
-    client.delegate.HandleError(Error::kDisconnection, connection_handle);
-    closing_clients.erase(client_iter);
-    allocator_.Delete(&client);
+  for (auto& [client_id, delegate] : closing_clients) {
+    delegate->HandleError(Error::kDisconnection, connection_handle);
   }
 
   // Notify delegates outside of mutex to avoid deadlock.
-  while (!closing_servers.empty()) {
-    auto server_iter = closing_servers.begin();
-    ServerState& server = *server_iter;
-    server.delegate.HandleError(Error::kDisconnection, connection_handle);
-    closing_servers.erase(server_iter);
-    allocator_.Delete(&server);
+  for (auto& [server_id, delegate] : closing_servers) {
+    delegate->HandleError(Error::kDisconnection, connection_handle);
   }
 }
 
@@ -517,11 +494,10 @@ void Gatt::OnWriteAvailable(ConnectionHandle connection_handle) {
       return;
     }
 
-    for (ServerState& server : conn_iter->servers) {
-      bool inserted = write_available_queue_.try_emplace_back(
-          QueuedWriteAvailable{internal::ServerId{server.key()},
-                               connection_handle,
-                               &server.delegate});
+    for (auto& [server_id, delegate] : conn_iter->second.servers) {
+      bool inserted =
+          write_available_queue_.try_emplace_back(QueuedWriteAvailable{
+              internal::ServerId{server_id}, connection_handle, delegate});
       if (!inserted) {
         PW_LOG_WARN(
             "Cannot allocate write_available_queue_ item, unable to notify "
@@ -546,8 +522,7 @@ void Gatt::OnWriteAvailable(ConnectionHandle connection_handle) {
 }
 
 void Gatt::ResetConnections() {
-  IntrusiveMap<std::underlying_type_t<ConnectionHandle>, Connection>
-      closed_connections;
+  ConnectionMap closed_connections(allocator_);
 
   {
     std::lock_guard queue_lock(write_available_mutex_);
@@ -557,30 +532,13 @@ void Gatt::ResetConnections() {
   }
 
   // Notify delegates outside of mutex to avoid deadlock.
-  while (!closed_connections.empty()) {
-    auto conn_iter = closed_connections.begin();
-    Connection& conn = *conn_iter;
-
-    while (!conn.clients.empty()) {
-      auto client_iter = conn.clients.begin();
-      ClientState& client = *client_iter;
-      client.delegate.HandleError(Error::kReset, ConnectionHandle{conn.key()});
-      conn.clients.erase(client_iter);
-      allocator_.Delete(&client);
+  for (auto& [handle, conn] : closed_connections) {
+    for (auto& [client_id, delegate] : conn.clients) {
+      delegate->HandleError(Error::kReset, ConnectionHandle{handle});
     }
-
-    while (!conn.servers.empty()) {
-      auto server_iter = conn.servers.begin();
-      ServerState& server = *server_iter;
-      server.delegate.HandleError(Error::kReset, ConnectionHandle{conn.key()});
-      conn.servers.erase(server_iter);
-      allocator_.Delete(&server);
+    for (auto& [server_id, delegate] : conn.servers) {
+      delegate->HandleError(Error::kReset, ConnectionHandle{handle});
     }
-
-    DrainCharacteristics(conn.characteristics);
-
-    closed_connections.erase(conn_iter);
-    allocator_.Delete(&conn);
   }
 }
 
@@ -597,15 +555,15 @@ StatusWithMultiBuf Gatt::SendNotification(internal::ServerId server_id,
     return {Status::FailedPrecondition(), std::move(value)};
   }
 
-  auto char_iter =
-      conn_iter->characteristics.find(cpp23::to_underlying(value_handle));
-  if (char_iter == conn_iter->characteristics.end()) {
+  auto char_iter = conn_iter->second.characteristics.find(
+      cpp23::to_underlying(value_handle));
+  if (char_iter == conn_iter->second.characteristics.end()) {
     PW_LOG_WARN(
         "Attempt to send GATT notification for non-offloaded attribute");
     return {Status::FailedPrecondition(), std::move(value)};
   }
 
-  if (char_iter->server_id != server_id) {
+  if (char_iter->second != server_id) {
     PW_LOG_WARN(
         "Attempt to send GATT notification for attribute owned by different "
         "server");
@@ -637,7 +595,7 @@ StatusWithMultiBuf Gatt::SendNotification(internal::ServerId server_id,
   PW_CHECK_OK(value.CopyTo(as_writable_bytes(attribute_bytes)));
 
   StatusWithMultiBuf write_result =
-      conn_iter->att_channel->Write(std::move(multibuf));
+      conn_iter->second.att_channel->Write(std::move(multibuf));
   if (!write_result.status.ok()) {
     return {write_result.status, std::move(value)};
   }
@@ -646,35 +604,25 @@ StatusWithMultiBuf Gatt::SendNotification(internal::ServerId server_id,
 
 Gatt::ConnectionMap::iterator Gatt::FindOrInterceptAttChannel(
     ConnectionHandle connection_handle) {
-  auto conn_iter = connections_.find(cpp23::to_underlying(connection_handle));
-  if (conn_iter != connections_.end()) {
-    return conn_iter;
-  }
-  UniquePtr<Connection> connection =
-      allocator_.MakeUnique<Connection>(connection_handle, allocator_);
-  if (connection == nullptr) {
+  auto result = connections_.try_emplace(
+      cpp23::to_underlying(connection_handle), allocator_);
+  if (!result.has_value()) {
     return connections_.end();
+  }
+  auto [conn_iter, inserted] = result.value();
+  if (!inserted) {
+    return conn_iter;
   }
 
   Result<UniquePtr<ChannelProxy>> channel_result =
       InterceptAttChannel(connection_handle);
   if (!channel_result.ok()) {
+    connections_.erase(conn_iter);
     return connections_.end();
   }
+  conn_iter->second.att_channel = std::move(channel_result.value());
 
-  connection->att_channel = std::move(channel_result.value());
-  auto [iter, inserted] = connections_.insert(*connection.Release());
-  PW_CHECK(inserted);
-  return iter;
-}
-
-void Gatt::DrainCharacteristics(CharacteristicMap& characteristics) {
-  while (!characteristics.empty()) {
-    auto char_iter = characteristics.begin();
-    CharacteristicState& char_state = *char_iter;
-    characteristics.erase(char_iter);
-    allocator_.Delete(&char_state);
-  }
+  return conn_iter;
 }
 
 bool Gatt::OnAttHandleValueNtfFromController(
@@ -699,14 +647,15 @@ bool Gatt::OnAttHandleValueNtfFromController(
 
   bool intercepted = false;
   for (auto& [intercepted_handle, client_id] :
-       conn_iter->intercepted_notifications_) {
+       conn_iter->second.intercepted_notifications_) {
     if (att_handle != intercepted_handle) {
       continue;
     }
     intercepted = true;
 
-    auto client_iter = conn_iter->clients.find(cpp23::to_underlying(client_id));
-    PW_CHECK(client_iter != conn_iter->clients.end());
+    auto client_iter =
+        conn_iter->second.clients.find(cpp23::to_underlying(client_id));
+    PW_CHECK(client_iter != conn_iter->second.clients.end());
 
     std::optional<multibuf::MultiBuf> buffer =
         multibuf_allocator_.AllocateContiguous(attribute_size);
@@ -722,8 +671,8 @@ bool Gatt::OnAttHandleValueNtfFromController(
     PW_CHECK(bytes_copied.ok());
     PW_CHECK_UINT_EQ(bytes_copied.size(), attribute_size);
 
-    client_iter->delegate.HandleNotification(
-        ConnectionHandle{conn_iter->key()}, att_handle, std::move(*buffer));
+    client_iter->second->HandleNotification(
+        ConnectionHandle{conn_iter->first}, att_handle, std::move(*buffer));
   }
 
   return intercepted;
@@ -753,14 +702,14 @@ bool Gatt::OnAttWriteCmdFromController(ConstByteSpan payload,
   AttributeHandle att_handle{view->attribute_handle().Read()};
 
   auto char_iter =
-      conn_iter->characteristics.find(cpp23::to_underlying(att_handle));
-  if (char_iter == conn_iter->characteristics.end()) {
+      conn_iter->second.characteristics.find(cpp23::to_underlying(att_handle));
+  if (char_iter == conn_iter->second.characteristics.end()) {
     return false;
   }
 
   auto server_iter =
-      conn_iter->servers.find(cpp23::to_underlying(char_iter->server_id));
-  PW_CHECK(server_iter != conn_iter->servers.end());
+      conn_iter->second.servers.find(cpp23::to_underlying(char_iter->second));
+  PW_CHECK(server_iter != conn_iter->second.servers.end());
 
   std::optional<multibuf::MultiBuf> buffer =
       multibuf_allocator_.AllocateContiguous(attribute_size);
@@ -776,8 +725,8 @@ bool Gatt::OnAttWriteCmdFromController(ConstByteSpan payload,
   PW_CHECK(bytes_copied.ok());
   PW_CHECK_UINT_EQ(bytes_copied.size(), attribute_size);
 
-  server_iter->delegate.HandleWriteWithoutResponse(
-      ConnectionHandle{conn_iter->key()}, att_handle, std::move(*buffer));
+  server_iter->second->HandleWriteWithoutResponse(
+      ConnectionHandle{conn_iter->first}, att_handle, std::move(*buffer));
 
   // The command was intercepted.
   return true;
@@ -792,26 +741,21 @@ Status Gatt::AddCharacteristic(internal::ServerId server_id,
     return Status::FailedPrecondition();
   }
 
-  auto server_iter = conn_iter->servers.find(cpp23::to_underlying(server_id));
-  if (server_iter == conn_iter->servers.end()) {
+  auto server_iter =
+      conn_iter->second.servers.find(cpp23::to_underlying(server_id));
+  if (server_iter == conn_iter->second.servers.end()) {
     return Status::FailedPrecondition();
   }
 
-  auto char_iter = conn_iter->characteristics.find(
-      cpp23::to_underlying(characteristic.value_handle));
-  if (char_iter != conn_iter->characteristics.end()) {
+  auto result = conn_iter->second.characteristics.try_emplace(
+      cpp23::to_underlying(characteristic.value_handle), server_id);
+  if (!result.has_value()) {
+    return Status::ResourceExhausted();
+  }
+  if (!result->second) {
     return Status::AlreadyExists();
   }
 
-  UniquePtr<CharacteristicState> characteristic_ptr =
-      allocator_.MakeUnique<CharacteristicState>(characteristic.value_handle,
-                                                 server_id);
-  if (characteristic_ptr == nullptr) {
-    return Status::ResourceExhausted();
-  }
-  auto [_, inserted] =
-      conn_iter->characteristics.insert(*characteristic_ptr.Release());
-  PW_CHECK(inserted);
   return OkStatus();
 }
 
@@ -824,14 +768,14 @@ Status Gatt::RemoveCharacteristic(internal::ServerId server_id,
     return Status::FailedPrecondition();
   }
 
-  auto char_iter = conn_iter->characteristics.find(
+  auto char_iter = conn_iter->second.characteristics.find(
       cpp23::to_underlying(characteristic.value_handle));
-  if (char_iter == conn_iter->characteristics.end() ||
-      char_iter->server_id != server_id) {
+  if (char_iter == conn_iter->second.characteristics.end() ||
+      char_iter->second != server_id) {
     return Status::NotFound();
   }
 
-  conn_iter->characteristics.erase(char_iter);
+  conn_iter->second.characteristics.erase(char_iter);
   return OkStatus();
 }
 

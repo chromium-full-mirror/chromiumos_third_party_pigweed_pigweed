@@ -27,8 +27,8 @@ endif()
 set(PW_BLUETOOTH_PROXY_GATT_PUBLIC_DEPS
     pw_allocator
     pw_assert.check
+    pw_containers.dynamic_map
     pw_containers.dynamic_vector
-    pw_containers.intrusive_map
     pw_log
 )
 

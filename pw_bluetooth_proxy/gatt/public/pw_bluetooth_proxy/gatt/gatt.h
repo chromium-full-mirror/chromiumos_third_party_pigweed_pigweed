@@ -18,8 +18,8 @@
 #include "pw_bluetooth_proxy/channel_proxy.h"
 #include "pw_bluetooth_proxy/connection_handle.h"
 #include "pw_bluetooth_proxy/l2cap_channel_manager_interface.h"
+#include "pw_containers/dynamic_map.h"
 #include "pw_containers/dynamic_vector.h"
-#include "pw_containers/intrusive_map.h"
 #include "pw_multibuf/allocator.h"
 #include "pw_multibuf/multibuf.h"
 #include "pw_span/span.h"
@@ -284,61 +284,26 @@ class Gatt {
   friend class Client;
   friend class Server;
 
-  struct ClientState final
-      : IntrusiveMap<std::underlying_type_t<internal::ClientId>,
-                     ClientState>::Pair {
-    ClientState(internal::ClientId client_id, Client::Delegate& client_delegate)
-        : IntrusiveMap<std::underlying_type_t<internal::ClientId>,
-                       ClientState>::Pair(cpp23::to_underlying(client_id)),
-          delegate(client_delegate) {}
-
-    Client::Delegate& delegate;
-  };
-
-  struct ServerState final
-      : IntrusiveMap<std::underlying_type_t<internal::ServerId>,
-                     ServerState>::Pair {
-    ServerState(internal::ServerId server_id, Server::Delegate& server_delegate)
-        : IntrusiveMap<std::underlying_type_t<internal::ServerId>,
-                       ServerState>::Pair(cpp23::to_underlying(server_id)),
-          delegate(server_delegate) {}
-
-    Server::Delegate& delegate;
-  };
-
+  using ClientMap =
+      DynamicMap<std::underlying_type_t<internal::ClientId>, Client::Delegate*>;
   using ServerMap =
-      IntrusiveMap<std::underlying_type_t<internal::ServerId>, ServerState>;
-
-  struct CharacteristicState final
-      : IntrusiveMap<std::underlying_type_t<AttributeHandle>,
-                     CharacteristicState>::Pair {
-    CharacteristicState(AttributeHandle handle, internal::ServerId server_id_in)
-        : IntrusiveMap<std::underlying_type_t<AttributeHandle>,
-                       CharacteristicState>::Pair(cpp23::to_underlying(handle)),
-          server_id(server_id_in) {}
-    internal::ServerId server_id;
-  };
-
+      DynamicMap<std::underlying_type_t<internal::ServerId>, Server::Delegate*>;
   using CharacteristicMap =
-      IntrusiveMap<std::underlying_type_t<AttributeHandle>,
-                   CharacteristicState>;
+      DynamicMap<std::underlying_type_t<AttributeHandle>, internal::ServerId>;
 
-  struct Connection final
-      : IntrusiveMap<std::underlying_type_t<ConnectionHandle>,
-                     Connection>::Pair {
-    Connection(ConnectionHandle handle, Allocator& allocator)
-        : IntrusiveMap<std::underlying_type_t<ConnectionHandle>,
-                       Connection>::Pair(cpp23::to_underlying(handle)),
-          intercepted_notifications_(allocator) {}
+  struct Connection final {
+    explicit Connection(Allocator& allocator)
+        : intercepted_notifications_(allocator),
+          clients(allocator),
+          servers(allocator),
+          characteristics(allocator) {}
 
     UniquePtr<ChannelProxy> att_channel;
     DynamicVector<std::pair<AttributeHandle, internal::ClientId>>
         intercepted_notifications_;
-    // Entries are allocated with allocator_.
-    IntrusiveMap<std::underlying_type_t<internal::ClientId>, ClientState>
-        clients;
-    CharacteristicMap characteristics;
+    ClientMap clients;
     ServerMap servers;
+    CharacteristicMap characteristics;
   };
 
   struct QueuedWriteAvailable {
@@ -348,7 +313,7 @@ class Gatt {
   };
 
   using ConnectionMap =
-      IntrusiveMap<std::underlying_type_t<ConnectionHandle>, Connection>;
+      DynamicMap<std::underlying_type_t<ConnectionHandle>, Connection>;
 
   void UnregisterClient(internal::ClientId client_id,
                         ConnectionHandle connection_handle);
@@ -395,8 +360,6 @@ class Gatt {
 
   ConnectionMap::iterator FindOrInterceptAttChannel(
       ConnectionHandle connection_handle) PW_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
-
-  void DrainCharacteristics(CharacteristicMap& characteristics);
 
   bool OnAttHandleValueNtfFromController(ConstByteSpan payload,
                                          ConnectionMap::iterator conn_iter)

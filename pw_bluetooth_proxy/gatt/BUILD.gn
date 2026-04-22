@@ -28,8 +28,8 @@ config("public_include_path") {
 
 _pw_bluetooth_proxy_gatt_public_deps = [
   "$dir_pw_assert:check",
+  "$dir_pw_containers:dynamic_map",
   "$dir_pw_containers:dynamic_vector",
-  "$dir_pw_containers:intrusive_map",
   dir_pw_allocator,
   dir_pw_log,
 ]
