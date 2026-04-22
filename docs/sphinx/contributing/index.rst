@@ -313,3 +313,4 @@ process you are welcome to send us feedback using the
    ../style_guide
    ../code_of_conduct
    docs/index
+   ../testing/index

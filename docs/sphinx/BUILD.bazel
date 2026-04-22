@@ -168,6 +168,8 @@ sphinx_docs_library(
         "style/rest.rst",
         "style/writing.rst",
         "style_guide.rst",
+        "testing/cpp_type_equivalence_classes.rst",
+        "testing/index.rst",
         "//:extra_docs_inputs",
         "//docker:docs",
         "//docs/doxygen:docs",
