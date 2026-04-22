@@ -107,6 +107,18 @@ cc_args(
     ],
 )
 
+cc_args(
+    name = "cortex-m85",
+    actions = [
+        "@rules_cc//cc/toolchains/actions:assembly_actions",
+        "@rules_cc//cc/toolchains/actions:compile_actions",
+        "@rules_cc//cc/toolchains/actions:link_actions",
+    ],
+    args = [
+        "-mcpu=cortex-m85",
+    ],
+)
+
 cc_toolchain(
     name = "arm_cortex-m",
     args = [
@@ -123,6 +135,7 @@ cc_toolchain(
         # TODO: https://pwbug.dev/380001331 - Add support for other cortex MCUs
         "//pw_build/constraints/arm:cortex-m4": [":cortex-m4"],
         "//pw_build/constraints/arm:cortex-m7": [":cortex-m7"],
+        "//pw_build/constraints/arm:cortex-m85": [":cortex-m85"],
         "//pw_build/constraints/arm:none": [],
     }) + [
         ":thumb_abi",
@@ -154,6 +167,7 @@ cc_toolchain(
         # TODO: https://pwbug.dev/380001331 - Add support for other cortex MCUs
         "//pw_build/constraints/arm:cortex-m4": [],
         "//pw_build/constraints/arm:cortex-m7": [],
+        "//pw_build/constraints/arm:cortex-m85": [],
         "//pw_build/constraints/arm:none": ["@platforms//:incompatible"],
         "//conditions:default": ["@platforms//:incompatible"],
     }),
@@ -174,6 +188,15 @@ toolchain(
     name = "toolchain_cortex-m7",
     target_compatible_with = [
         "//pw_build/constraints/arm:cortex-m7",
+    ],
+    toolchain = ":arm_cortex-m",
+    toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
+)
+
+toolchain(
+    name = "toolchain_cortex-m85",
+    target_compatible_with = [
+        "//pw_build/constraints/arm:cortex-m85",
     ],
     toolchain = ":arm_cortex-m",
     toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
