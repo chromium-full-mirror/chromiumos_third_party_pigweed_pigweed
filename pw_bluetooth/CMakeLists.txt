@@ -279,6 +279,7 @@ pw_add_library(pw_bluetooth.snoop STATIC
     pw_bluetooth_proxy
     pw_bluetooth.emboss_hci_group
     pw_bluetooth.emboss_snoop
+    pw_bluetooth.emboss_util
     pw_chrono.system_clock
     pw_containers.inline_var_len_entry_queue
     pw_hex_dump
@@ -354,6 +355,7 @@ pw_add_test(pw_bluetooth.snoop_test
     snoop_test.cc
   PRIVATE_DEPS
     pw_bluetooth.snoop
+    pw_chrono.simulated_system_clock
   GROUPS
     modules
 )

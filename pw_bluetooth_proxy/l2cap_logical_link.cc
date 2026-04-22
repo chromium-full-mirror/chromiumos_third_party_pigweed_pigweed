@@ -16,9 +16,9 @@
 
 #include <pw_bluetooth/emboss_util.h>
 
-#include "public/pw_bluetooth_proxy/internal/l2cap_channel_sync.h"
 #include "pw_assert/check.h"
 #include "pw_bluetooth_proxy/internal/l2cap_channel_manager.h"
+#include "pw_bluetooth_proxy/internal/l2cap_channel_sync.h"
 #include "pw_log/log.h"
 #include "pw_span/cast.h"
 
