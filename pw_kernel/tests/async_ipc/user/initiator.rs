@@ -16,12 +16,13 @@
 
 use initiator_codegen::handle;
 use pw_status::{Error, Result, StatusCode};
+use time::Clock as _;
 use userspace::entry;
 use userspace::syscall::{
     Signals, channel_async_cancel, channel_async_transact, channel_async_transact_complete,
     object_wait, wait_group_add,
 };
-use userspace::time::{Duration, Instant};
+use userspace::time::{Clock, Duration, Instant};
 
 const NUM_HANDLERS: u32 = 3;
 const ITERATIONS: usize = 100;
@@ -72,7 +73,7 @@ fn test_async_cancel() -> Result<()> {
     let Err(err) = object_wait(
         handle::IPC_1,
         Signals::READABLE,
-        Instant::from_ticks(0) + Duration::from_millis(10),
+        Clock::now() + Duration::from_millis(10),
     ) else {
         pw_log::error!("object_wait succeeded on cancelled transaction");
         return Err(Error::Internal);

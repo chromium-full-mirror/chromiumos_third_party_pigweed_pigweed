@@ -18,14 +18,14 @@
 use main_codegen::handle;
 use pw_log::info;
 use pw_status::{Result, StatusCode};
-use time::Clock;
+use time::Clock as _;
+use userspace::time::{Clock, Duration};
 use userspace::{entry, syscall};
 
 fn do_test() -> Result<()> {
     info!("🔄 [User Process Termination Stress] RUNNING");
 
     let mut pass = 0;
-    let timeout_ticks = 5 * userspace::time::Clock::TICKS_PER_SEC;
 
     loop {
         info!("🔄 ├─ Pass {}", pass as u32);
@@ -37,8 +37,7 @@ fn do_test() -> Result<()> {
         }
 
         info!("🔄 ├─ Waiting", pass as u32);
-        let now = syscall::debug_clock_now();
-        let deadline = userspace::time::Instant::from_ticks(now.ticks() + timeout_ticks);
+        let deadline = Clock::now() + Duration::from_secs(5);
         syscall::object_wait(handle::EXTRA_PROCESS, syscall::Signals::JOINABLE, deadline)?;
 
         info!("🔄 ├─ Joining", pass as u32);

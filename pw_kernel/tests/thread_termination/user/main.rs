@@ -53,7 +53,7 @@ fn do_test() -> Result<()> {
     syscall::object_wait(
         thread_handle,
         syscall::Signals::JOINABLE,
-        userspace::time::Instant::from_ticks(u64::MAX),
+        userspace::time::Instant::MAX,
     )?;
     syscall::thread_join(thread_handle)?;
 
