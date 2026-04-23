@@ -30,7 +30,7 @@ def _target_codegen_impl(ctx):
         "--output",
         output.path,
         "--userspace",
-        str(ctx.attr.user_space).lower(),
+        str(ctx.attr.userspace).lower(),
         "render-target-template",
     ]
 
@@ -59,8 +59,8 @@ _target_codegen_rule = rule(
         "templates": attr.string_keyed_label_dict(
             allow_files = True,
         ),
-        "user_space": attr.bool(
-            doc = "Whether to include user space support in the kernel.",
+        "userspace": attr.bool(
+            doc = "Whether to include userspace support in the kernel.",
             default = True,
         ),
     },
@@ -113,7 +113,7 @@ def target_codegen(
         system_config = system_config,
         system_generator = system_generator,
         templates = templates,
-        user_space = select({
+        userspace = select({
             "@pigweed//pw_kernel/userspace:userspace_build_enabled": True,
             "//conditions:default": False,
         }),

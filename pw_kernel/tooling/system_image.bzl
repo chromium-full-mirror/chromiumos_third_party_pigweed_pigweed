@@ -23,7 +23,7 @@ def _target_transition_impl(_, attr):
     flags = {
         "//command_line_option:platforms": str(attr.platform),
         str(Label("//pw_kernel/target:system_config_file")): str(attr.system_config),
-        str(Label("//pw_kernel/userspace:userspace_build")): attr.user_space,
+        str(Label("//pw_kernel/userspace:userspace_build")): attr.userspace,
         # Only unittests should ever enable tests
         str(Label("//pw_kernel:enable_tests")): False,
     }
@@ -116,7 +116,7 @@ def _system_image_impl(ctx):
         SystemImageInfo(bin = output_bin, elf = output_elf),
     ]
 
-system_image = rule(
+_system_image = rule(
     implementation = _system_image_impl,
     executable = True,
     attrs = {
@@ -138,8 +138,8 @@ system_image = rule(
             doc = "Optional System config file which defines the system.",
             allow_single_file = True,
         ),
-        "user_space": attr.bool(
-            doc = "Whether to include user space support in the kernel.",
+        "userspace": attr.bool(
+            doc = "Whether to include userspace support in the kernel.",
             default = True,
         ),
         "_system_assembler": attr.label(
@@ -152,6 +152,22 @@ system_image = rule(
     fragments = ["cpp"],
     doc = "Assemble a system image combining apps and kernel.",
 )
+
+def system_image(name, userspace = True, **kwargs):
+    target_compatible_with = kwargs.pop("target_compatible_with", [])
+
+    if userspace:
+        target_compatible_with = target_compatible_with + select({
+            "@pigweed//pw_kernel/userspace:no_userspace_support": ["@platforms//:incompatible"],
+            "//conditions:default": [],
+        })
+
+    _system_image(
+        name = name,
+        userspace = userspace,
+        target_compatible_with = target_compatible_with,
+        **kwargs
+    )
 
 def _system_image_test_impl(ctx):
     executable_symlink = ctx.actions.declare_file(ctx.label.name)

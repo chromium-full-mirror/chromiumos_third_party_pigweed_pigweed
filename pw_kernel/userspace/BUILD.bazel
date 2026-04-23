@@ -18,6 +18,26 @@ load("//pw_kernel/arch/arm_cortex_m:defs.bzl", "SUPPORTED_CORTEX_M_CPUS")
 
 package(default_visibility = ["//visibility:public"])
 
+# The `userspace_support_setting` constraint allows disabling userspace at the
+# platform level for platforms which don't support userspace, such as in case
+# of not having an MPU. If `no_userspace_support` is set in the platform, a
+# `system_image` can never set the userspace attribute to true.
+# The `userspace_build` flag is used internally by transitions to feature gate
+# userspace support in the kernel and applications build.
+constraint_setting(
+    name = "userspace_support_setting",
+)
+
+constraint_value(
+    name = "userspace_support",
+    constraint_setting = ":userspace_support_setting",
+)
+
+constraint_value(
+    name = "no_userspace_support",
+    constraint_setting = ":userspace_support_setting",
+)
+
 bool_flag(
     name = "userspace_build",
     build_setting_default = True,
