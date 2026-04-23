@@ -120,6 +120,7 @@ fuchsia_structured_config_values(
     values = {
         "device_path": "/dev/class/bt-hci/000",
         "enable_suspend": False,
+        "hci_command_timeout_seconds": 10,
         "le_active_scan_interval": 0,
         "le_active_scan_window": 0,
         "le_fast_adv_interval_max": 0,

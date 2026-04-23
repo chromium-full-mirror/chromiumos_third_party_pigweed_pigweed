@@ -84,6 +84,13 @@
             default: 0,
         },
         {
+            config: "fuchsia.bluetooth.HciCommandTimeout",
+            key: "hci_command_timeout_seconds",
+            type: "uint16",
+            availability: "optional",
+            default: 10,
+        },
+        {
             config: "fuchsia.bluetooth.LeSlowAdvIntervalMin",
             from: "parent/bluetooth-le-config",
             key: "le_slow_adv_interval_min",

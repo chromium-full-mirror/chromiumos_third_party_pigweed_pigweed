@@ -357,12 +357,6 @@ enum class EncryptionStatus : uint8_t {
   kBredrSecureConnections = 0x02,
 };
 
-// HCI command timeout interval (milliseconds)
-// TODO(fxbug.dev/42070690, fxbug.dev/42070801) This was
-// increased to handle flaking integration tests. We may want to reduce this
-// to something lower again once we have a bette resolution to this issue.
-inline constexpr pw::chrono::SystemClock::duration kCommandTimeout = std::chrono::duration_cast<pw::chrono::SystemClock::duration>(std::chrono::seconds(10));
-
 // The minimum and maximum range values for the LE advertising interval
 // parameters.
 // (see Core Spec v5.0, Vol 2, Part E, Section 7.8.5)

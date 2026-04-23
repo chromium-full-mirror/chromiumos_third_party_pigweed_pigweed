@@ -84,7 +84,8 @@ class CommandChannel final {
   explicit CommandChannel(
       pw::bluetooth::Controller* hci,
       pw::async::Dispatcher& dispatcher,
-      pw::bluetooth_sapphire::LeaseProvider& wake_lease_provider);
+      pw::bluetooth_sapphire::LeaseProvider& wake_lease_provider,
+      pw::chrono::SystemClock::duration command_timeout);
 
   ~CommandChannel();
 
@@ -450,6 +451,10 @@ class CommandChannel final {
   // Called when a command times out. Notifies upper layers of the error.
   void OnCommandTimeout(TransactionId transaction_id);
 
+  const pw::chrono::SystemClock::duration command_timeout() const {
+    return command_timeout_;
+  }
+
   // True if CommandChannel is still processing packets. Set to false upon fatal
   // errors.
   bool active_ = true;
@@ -510,6 +515,8 @@ class CommandChannel final {
   pw::async::Dispatcher& dispatcher_;
 
   pw::bluetooth_sapphire::LeaseProvider& wake_lease_provider_;
+
+  pw::chrono::SystemClock::duration command_timeout_;
 
   // As events can arrive in the event thread at any time, we should invalidate
   // our weak pointers early.

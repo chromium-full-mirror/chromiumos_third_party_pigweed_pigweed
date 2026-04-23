@@ -25,11 +25,13 @@ using FeaturesBits = pw::bluetooth::Controller::FeaturesBits;
 
 Transport::Transport(std::unique_ptr<pw::bluetooth::Controller> controller,
                      pw::async::Dispatcher& dispatcher,
-                     pw::bluetooth_sapphire::LeaseProvider& wake_lease_provider)
+                     pw::bluetooth_sapphire::LeaseProvider& wake_lease_provider,
+                     pw::chrono::SystemClock::duration command_timeout)
     : WeakSelf(this),
       dispatcher_(dispatcher),
       controller_(std::move(controller)),
-      wake_lease_provider_(wake_lease_provider) {
+      wake_lease_provider_(wake_lease_provider),
+      command_timeout_(command_timeout) {
   PW_CHECK(controller_);
 }
 
@@ -52,8 +54,11 @@ void Transport::Initialize(
       return;
     }
 
-    self->command_channel_ = std::make_unique<CommandChannel>(
-        self->controller_.get(), self->dispatcher_, self->wake_lease_provider_);
+    self->command_channel_ =
+        std::make_unique<CommandChannel>(self->controller_.get(),
+                                         self->dispatcher_,
+                                         self->wake_lease_provider_,
+                                         self->command_timeout_);
     self->command_channel_->set_channel_timeout_cb([self] {
       if (self.is_alive()) {
         self->OnChannelError();

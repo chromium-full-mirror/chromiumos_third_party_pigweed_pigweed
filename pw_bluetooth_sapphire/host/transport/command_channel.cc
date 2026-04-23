@@ -108,7 +108,7 @@ void CommandChannel::TransactionData::StartTimer() {
           chan->OnCommandTimeout(tid);
         }
       });
-  timeout_task_.PostAfter(hci_spec::kCommandTimeout);
+  timeout_task_.PostAfter(channel_->command_timeout());
 }
 
 void CommandChannel::TransactionData::Complete(
@@ -171,13 +171,15 @@ const char* CommandChannel::TransactionData::StateToString(State state) {
 CommandChannel::CommandChannel(
     pw::bluetooth::Controller* hci,
     pw::async::Dispatcher& dispatcher,
-    pw::bluetooth_sapphire::LeaseProvider& wake_lease_provider)
+    pw::bluetooth_sapphire::LeaseProvider& wake_lease_provider,
+    pw::chrono::SystemClock::duration command_timeout)
     : next_transaction_id_(1u),
       next_event_handler_id_(1u),
       hci_(hci),
       allowed_command_packets_(1u),
       dispatcher_(dispatcher),
       wake_lease_provider_(wake_lease_provider),
+      command_timeout_(command_timeout),
       weak_ptr_factory_(this) {
   hci_->SetEventFunction(
       [this](pw::span<const std::byte> buffer) { OnEvent(buffer); });

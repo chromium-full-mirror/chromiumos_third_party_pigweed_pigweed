@@ -65,7 +65,10 @@ class ControllerTest {
         ControllerTest<ControllerTestDoubleType>::SetUpTestController();
     test_device_->set_features(features);
     transport_ = std::make_unique<hci::Transport>(
-        std::move(controller), dispatcher_, lease_provider_);
+        std::move(controller),
+        dispatcher_,
+        lease_provider_,
+        pw::chrono::SystemClock::for_at_least(std::chrono::seconds(17)));
 
     if (initialize_transport) {
       std::optional<bool> init_result;

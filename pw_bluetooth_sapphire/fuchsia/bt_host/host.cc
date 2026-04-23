@@ -91,7 +91,11 @@ bool BtHostComponent::Initialize(
 
   bt_log(INFO, "bt-host", "Create HCI transport layer");
   hci_ = std::make_unique<hci::Transport>(
-      std::move(controller), pw_dispatcher_, lease_provider());
+      std::move(controller),
+      pw_dispatcher_,
+      lease_provider(),
+      pw::chrono::SystemClock::for_at_least(
+          std::chrono::seconds(config.hci_command_timeout_seconds)));
 
   bt_log(INFO, "bt-host", "Create GATT layer");
   gatt_ = gatt::GATT::Create();

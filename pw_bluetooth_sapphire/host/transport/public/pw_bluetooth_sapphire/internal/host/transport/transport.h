@@ -13,6 +13,8 @@
 // the License.
 
 #pragma once
+#include <pw_chrono/system_clock.h>
+
 #include <atomic>
 #include <memory>
 #include <thread>
@@ -37,7 +39,9 @@ class Transport final : public WeakSelf<Transport> {
   explicit Transport(
       std::unique_ptr<pw::bluetooth::Controller> controller,
       pw::async::Dispatcher& dispatcher,
-      pw::bluetooth_sapphire::LeaseProvider& wake_lease_provider);
+      pw::bluetooth_sapphire::LeaseProvider& wake_lease_provider,
+      pw::chrono::SystemClock::duration command_timeout =
+          pw::chrono::SystemClock::for_at_least(std::chrono::seconds(10)));
 
   // Initializes the command channel and features. The result will be reported
   // via |complete_callback|.
@@ -120,6 +124,8 @@ class Transport final : public WeakSelf<Transport> {
   std::optional<pw::bluetooth::Controller::FeaturesBits> features_;
 
   pw::bluetooth_sapphire::LeaseProvider& wake_lease_provider_;
+
+  pw::chrono::SystemClock::duration command_timeout_;
 
   // The HCI command and event flow control handler.
   // CommandChannel must be constructed first & shut down last because

@@ -38,7 +38,7 @@ using bt::UpperBits;
 using EventCallbackResult = CommandChannel::EventCallbackResult;
 
 constexpr pw::chrono::SystemClock::duration kCommandTimeout =
-    std::chrono::seconds(12);
+    std::chrono::seconds(20);
 
 using TestingBase =
     bt::testing::FakeDispatcherControllerTest<bt::testing::MockController>;

@@ -39,7 +39,7 @@ TEST_F(TransportTest,
   transport()->SetTransportErrorCallback([&] { closed_cb_count++; });
 
   constexpr pw::chrono::SystemClock::duration kCommandTimeout =
-      std::chrono::seconds(12);
+      std::chrono::seconds(20);
 
   StaticByteBuffer req_reset(LowerBits(hci_spec::kReset),
                              UpperBits(hci_spec::kReset),  // HCI_Reset opcode
