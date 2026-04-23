@@ -49,7 +49,7 @@ fn do_test() -> Result<()> {
     info!("🔄 ├─ Testing process_terminate on an invalid handle");
     let result = syscall::process_terminate(0xdeadbeef);
     if result != Err(pw_status::Error::OutOfRange.into()) {
-        pw_log::error!("Expected OutOfRange on a bogus handle");
+        pw_log::error!("Expected OutOfRange on an invalid handle");
         return Err(pw_status::Error::Internal.into());
     }
 
@@ -57,24 +57,32 @@ fn do_test() -> Result<()> {
         info!("🔄 ├─ Iteration {}", pass as u32);
 
         info!("🔄 ├─ Testing process_terminate on a valid process handle");
-        let result = syscall::process_terminate(handle::EXTRA_PROCESS);
-        if result.is_err() {
+        if let Err(err) = syscall::process_terminate(handle::EXTRA_PROCESS) {
             pw_log::error!("Failed to terminate extra process");
-            return Err(pw_status::Error::Internal.into());
+            return Err(err);
         }
 
         info!("🔄 ├─ Waiting for extra process to become joinable");
-        syscall::object_wait(
+        if let Err(err) = syscall::object_wait(
             handle::EXTRA_PROCESS,
             syscall::Signals::JOINABLE,
             SystemClock::now() + Duration::from_secs(5),
-        )?;
+        ) {
+            pw_log::error!("Failed to wait for extra process to become joinable");
+            return Err(err);
+        }
 
         info!("🔄 ├─ Joining extra process");
-        syscall::process_join(handle::EXTRA_PROCESS)?;
+        if let Err(err) = syscall::process_join(handle::EXTRA_PROCESS) {
+            pw_log::error!("Failed to join extra process");
+            return Err(err);
+        }
 
         info!("🔄 ├─ Restarting extra process");
-        syscall::process_start(handle::EXTRA_PROCESS)?;
+        if let Err(err) = syscall::process_start(handle::EXTRA_PROCESS) {
+            pw_log::error!("Failed to restart extra process");
+            return Err(err);
+        }
 
         info!("🔄 ├─ Verifying process does not terminate unexpectedly");
         let result = syscall::object_wait(

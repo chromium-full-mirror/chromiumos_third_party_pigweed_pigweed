@@ -29,21 +29,31 @@ fn do_test() -> Result<()> {
     loop {
         info!("🔄 ├─ Pass {}", pass as u32);
 
-        let result = syscall::process_terminate(handle::EXTRA_PROCESS);
-        if result.is_err() {
+        if let Err(err) = syscall::process_terminate(handle::EXTRA_PROCESS) {
             pw_log::error!("Failed to terminate extra process");
-            return Err(pw_status::Error::Internal.into());
+            return Err(err);
         }
 
         info!("🔄 ├─ Waiting", pass as u32);
         let deadline = SystemClock::now() + Duration::from_secs(5);
-        syscall::object_wait(handle::EXTRA_PROCESS, syscall::Signals::JOINABLE, deadline)?;
+        if let Err(err) =
+            syscall::object_wait(handle::EXTRA_PROCESS, syscall::Signals::JOINABLE, deadline)
+        {
+            pw_log::error!("Failed to wait for extra process to become joinable");
+            return Err(err);
+        }
 
         info!("🔄 ├─ Joining", pass as u32);
-        syscall::process_join(handle::EXTRA_PROCESS)?;
+        if let Err(err) = syscall::process_join(handle::EXTRA_PROCESS) {
+            pw_log::error!("Failed to join extra process");
+            return Err(err);
+        }
 
         info!("🔄 ├─ Starting", pass as u32);
-        syscall::process_start(handle::EXTRA_PROCESS)?;
+        if let Err(err) = syscall::process_start(handle::EXTRA_PROCESS) {
+            pw_log::error!("Failed to restart extra process");
+            return Err(err);
+        }
 
         pass += 1;
     }
