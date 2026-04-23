@@ -345,7 +345,7 @@ impl From<u16> for SysCallId {
 }
 
 /// A set of object signals
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq)]
 #[repr(C)]
 pub struct Signals(u32);
 
@@ -399,7 +399,7 @@ impl Signals {
 }
 
 /// Return value from the [`object_wait()`] syscall.
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq)]
 #[repr(C)]
 pub struct WaitReturn {
     /// `user_data` of the wait group member.

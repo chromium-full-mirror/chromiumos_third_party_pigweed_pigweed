@@ -13,8 +13,11 @@
 // the License.
 
 use kernel_config::{KernelConfig, KernelConfigInterface};
+use pw_status::{Error, Result};
 use syscall_user::{SysCall, SysCallInterface};
 pub use time::Clock;
+
+use crate::syscall;
 
 pub struct SystemClock;
 
@@ -30,3 +33,19 @@ impl time::Clock for SystemClock {
 
 pub type Instant = time::Instant<SystemClock>;
 pub type Duration = time::Duration<SystemClock>;
+
+/// Sleep until deadline has passed.
+pub fn sleep_until(deadline: Instant) -> Result<()> {
+    // Object handle 0 is always the local process and can be waited on with
+    // a blank signal mask to wait until the deadline has passed.
+    match syscall::object_wait(0, syscall::Signals::new(), deadline) {
+        // object_wait returned early.
+        Ok(_) => Err(Error::Cancelled),
+
+        // Deadline exceeded is the expected return.
+        Err(Error::DeadlineExceeded) => Ok(()),
+
+        // Other errors are passed through.
+        Err(err) => Err(err),
+    }
+}

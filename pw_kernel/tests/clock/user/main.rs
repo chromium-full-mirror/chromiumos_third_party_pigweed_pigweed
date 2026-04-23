@@ -18,10 +18,10 @@
 use pw_log::info;
 use pw_status::Result;
 use time::Clock;
+use userspace::time::{Duration, sleep_until};
 use userspace::{entry, syscall};
 
 fn clock_test() -> Result<()> {
-    info!("🔄 [User Clock Test] RUNNING");
     info!("🔄 ├─ Testing SystemClock::now() advances");
     let start = userspace::time::SystemClock::now();
     let mut end = start;
@@ -32,7 +32,6 @@ fn clock_test() -> Result<()> {
     }
     if end > start {
         info!("✅ ├─ Clock advanced");
-        info!("✅ └─ PASSED");
         Ok(())
     } else {
         pw_log::error!("Clock did not advance");
@@ -40,9 +39,38 @@ fn clock_test() -> Result<()> {
     }
 }
 
+fn sleep_test() -> Result<()> {
+    info!("🔄 ├─ Testing sleep_until");
+    let start = userspace::time::SystemClock::now();
+    let delay = Duration::from_millis(100);
+    let deadline = start + delay;
+
+    if let Err(err) = sleep_until(deadline) {
+        pw_log::error!("sleep_until failed");
+        return Err(err);
+    }
+
+    let end = userspace::time::SystemClock::now();
+    if end >= deadline {
+        info!("✅ ├─ sleep_until slept for at least the requested time");
+        Ok(())
+    } else {
+        pw_log::error!("sleep_until returned before deadline");
+        Err(pw_status::Error::Internal.into())
+    }
+}
+
+fn do_test() -> Result<()> {
+    info!("🔄 [User Clock Test] RUNNING");
+    clock_test()?;
+    sleep_test()?;
+    info!("✅ └─ PASSED");
+    Ok(())
+}
+
 #[entry]
 fn main_entry() -> ! {
-    let ret = clock_test();
+    let ret = do_test();
 
     if ret.is_err() {
         pw_log::error!("❌ ├─ FAILED");
