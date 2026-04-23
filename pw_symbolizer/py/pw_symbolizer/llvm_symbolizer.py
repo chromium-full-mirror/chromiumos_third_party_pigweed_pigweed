@@ -157,8 +157,10 @@ class LlvmSymbolizer(symbolizer.Symbolizer):
 
         # Might have gotten multiple symbol matches, drop all of the other ones.
         # The results of a symbol are denoted by an empty newline.
-        while stdout.readline().decode() != '\n':
-            pass
+        while True:
+            line = stdout.readline().decode()
+            if not line.strip():
+                break
 
         if symbol.startswith('?'):
             return symbolizer.Symbol(address)
