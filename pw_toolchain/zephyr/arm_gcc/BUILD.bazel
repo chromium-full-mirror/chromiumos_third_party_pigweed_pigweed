@@ -60,6 +60,16 @@ cc_args(
 )
 
 cc_args(
+    name = "fp16",
+    actions = [
+        "@rules_cc//cc/toolchains/actions:compile_actions",
+    ],
+    args = [
+        "-mfp16-format=ieee",  # CONFIG_FP16_IEEE
+    ],
+)
+
+cc_args(
     name = "cortex_common",
     actions = [
         "@rules_cc//cc/toolchains/actions:compile_actions",
@@ -142,6 +152,7 @@ cc_toolchain(
         # TODO: https://pwbug.dev/353576440 - Enable unified assembly syntax.
         # ":unified_asm_syntax",
         ":cortex_common",
+        ":fp16",
         ":no_canonical_system_headers",
         ":warnings",
         "//pw_toolchain/zephyr:common_cc",

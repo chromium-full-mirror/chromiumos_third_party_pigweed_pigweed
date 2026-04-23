@@ -19,7 +19,15 @@ package(default_visibility = ["//visibility:public"])
 
 licenses(["notice"])
 
-exports_files(glob(["**/bin/**"]))
+_GNU_PREFIX_EXISTS = len(glob(["gnu/arm-zephyr-eabi/bin/*"], allow_empty = True)) > 0
+
+_ARM_PREFIX = "gnu/arm-zephyr-eabi" if _GNU_PREFIX_EXISTS else "arm-zephyr-eabi"
+_X86_64_PREFIX = "gnu/x86_64-zephyr-elf" if _GNU_PREFIX_EXISTS else "x86_64-zephyr-elf"
+
+exports_files(glob([
+    "{}/bin/**".format(_ARM_PREFIX),
+    "{}/bin/**".format(_X86_64_PREFIX),
+]))
 
 cc_tool_map(
     name = "arm_tools",
@@ -62,28 +70,27 @@ cc_tool_map(
 cc_tool(
     name = "arm-zephyr-eabi-ar",
     src = select({
-        "@platforms//os:windows": "//:arm-zephyr-eabi/bin/arm-zephyr-eabi-ar.exe",
-        "//conditions:default": "//:arm-zephyr-eabi/bin/arm-zephyr-eabi-ar",
+        "@platforms//os:windows": "//:{}/bin/arm-zephyr-eabi-ar.exe".format(_ARM_PREFIX),
+        "//conditions:default": "//:{}/bin/arm-zephyr-eabi-ar".format(_ARM_PREFIX),
     }),
 )
 
 cc_tool(
     name = "arm-zephyr-eabi-g++",
     src = select({
-        "@platforms//os:windows": "//:arm-zephyr-eabi/bin/arm-zephyr-eabi-g++.exe",
-        "//conditions:default": "//:arm-zephyr-eabi/bin/arm-zephyr-eabi-g++",
+        "@platforms//os:windows": "//:{}/bin/arm-zephyr-eabi-g++.exe".format(_ARM_PREFIX),
+        "//conditions:default": "//:{}/bin/arm-zephyr-eabi-g++".format(_ARM_PREFIX),
     }),
     data = glob([
-        "arm-zephyr-eabi/**",
+        "{}/**".format(_ARM_PREFIX),
         # TODO: https://pwbug.dev/380001331 - Figure out which exact files are needed
-        # "arm-zephyr-eabi/**/*.specs",
-        # "arm-zephyr-eabi/picolibc/**",
-        # "arm-zephyr-eabi/arm-zephyr-eabi/sys-include/**",
-        # "arm-zephyr-eabi/arm-zephyr-eabi/include/**",
-        # "arm-zephyr-eabi/lib/*",
-        # "arm-zephyr-eabi/lib/gcc/arm-zephyr-eabi/*/include/**",
-        # "arm-zephyr-eabi/lib/gcc/arm-zephyr-eabi/*/include-fixed/**",
-        # "arm-zephyr-eabi/libexec/**",
+        # "{}/**/*.specs".format(_ARM_PREFIX),
+        # "{}/{}/sys-include/**".format(_ARM_PREFIX, _ARM_PREFIX),
+        # "{}/{}/include/**".format(_ARM_PREFIX, _ARM_PREFIX),
+        # "{}/lib/*".format(_ARM_PREFIX),
+        # "{}/lib/gcc/{}/*/include/**".format(_ARM_PREFIX, _ARM_PREFIX),
+        # "{}/lib/gcc/{}/*/include-fixed/**".format(_ARM_PREFIX, _ARM_PREFIX),
+        # "{}/libexec/**".format(_ARM_PREFIX),
     ]),
 )
 
@@ -97,11 +104,11 @@ alias(
 cc_tool(
     name = "arm-zephyr-eabi-gcc",
     src = select({
-        "@platforms//os:windows": "//:arm-zephyr-eabi/bin/arm-zephyr-eabi-gcc.exe",
-        "//conditions:default": "//:arm-zephyr-eabi/bin/arm-zephyr-eabi-gcc",
+        "@platforms//os:windows": "//:{}/bin/arm-zephyr-eabi-gcc.exe".format(_ARM_PREFIX),
+        "//conditions:default": "//:{}/bin/arm-zephyr-eabi-gcc".format(_ARM_PREFIX),
     }),
     data = glob([
-        "arm-zephyr-eabi/**",
+        "{}/**".format(_ARM_PREFIX),
         # TODO: https://pwbug.dev/380001331 - Figure out which exact files are needed
         # "arm-zephyr-eabi/**/*.specs",
         # "arm-zephyr-eabi/picolibc/**",
@@ -126,74 +133,74 @@ cc_tool(
 cc_tool(
     name = "arm-zephyr-eabi-ld",
     src = select({
-        "@platforms//os:windows": "//:arm-zephyr-eabi/bin/arm-zephyr-eabi-g++.exe",
-        "//conditions:default": "//:arm-zephyr-eabi/bin/arm-zephyr-eabi-g++",
+        "@platforms//os:windows": "//:{}/bin/arm-zephyr-eabi-g++.exe".format(_ARM_PREFIX),
+        "//conditions:default": "//:{}/bin/arm-zephyr-eabi-g++".format(_ARM_PREFIX),
     }),
     data = glob([
-        "arm-zephyr-eabi/**/*.a",
-        "arm-zephyr-eabi/**/*.ld",
-        "arm-zephyr-eabi/**/*.o",
-        "arm-zephyr-eabi/**/*.specs",
-        "arm-zephyr-eabi/**/*.so",
-        "arm-zephyr-eabi/libexec/**",
+        "{}/**/*.a".format(_ARM_PREFIX),
+        "{}/**/*.ld".format(_ARM_PREFIX),
+        "{}/**/*.o".format(_ARM_PREFIX),
+        "{}/**/*.specs".format(_ARM_PREFIX),
+        "{}/**/*.so".format(_ARM_PREFIX),
+        "{}/libexec/**".format(_ARM_PREFIX),
     ]) + [
-        "//:arm-zephyr-eabi/bin/arm-zephyr-eabi-ld",
+        "//:{}/bin/arm-zephyr-eabi-ld".format(_ARM_PREFIX),
     ],
 )
 
 cc_tool(
     name = "arm-zephyr-eabi-gcov",
     src = select({
-        "@platforms//os:windows": "//:arm-zephyr-eabi/bin/arm-zephyr-eabi-gcov.exe",
-        "//conditions:default": "//:arm-zephyr-eabi/bin/arm-zephyr-eabi-gcov",
+        "@platforms//os:windows": "//:{}/bin/arm-zephyr-eabi-gcov.exe".format(_ARM_PREFIX),
+        "//conditions:default": "//:{}/bin/arm-zephyr-eabi-gcov".format(_ARM_PREFIX),
     }),
 )
 
 cc_tool(
     name = "arm-zephyr-eabi-objcopy",
     src = select({
-        "@platforms//os:windows": "//:arm-zephyr-eabi/bin/arm-zephyr-eabi-objcopy.exe",
-        "//conditions:default": "//:arm-zephyr-eabi/bin/arm-zephyr-eabi-objcopy",
+        "@platforms//os:windows": "//:{}/bin/arm-zephyr-eabi-objcopy.exe".format(_ARM_PREFIX),
+        "//conditions:default": "//:{}/bin/arm-zephyr-eabi-objcopy".format(_ARM_PREFIX),
     }),
 )
 
 cc_tool(
     name = "arm-zephyr-eabi-objdump",
     src = select({
-        "@platforms//os:windows": "//:arm-zephyr-eabi/bin/arm-zephyr-eabi-objdump.exe",
-        "//conditions:default": "//:arm-zephyr-eabi/bin/arm-zephyr-eabi-objdump",
+        "@platforms//os:windows": "//:{}/bin/arm-zephyr-eabi-objdump.exe".format(_ARM_PREFIX),
+        "//conditions:default": "//:{}/bin/arm-zephyr-eabi-objdump".format(_ARM_PREFIX),
     }),
 )
 
 cc_tool(
     name = "arm-zephyr-eabi-strip",
     src = select({
-        "@platforms//os:windows": "//:arm-zephyr-eabi/bin/arm-zephyr-eabi-strip.exe",
-        "//conditions:default": "//:arm-zephyr-eabi/bin/arm-zephyr-eabi-strip",
+        "@platforms//os:windows": "//:{}/bin/arm-zephyr-eabi-strip.exe".format(_ARM_PREFIX),
+        "//conditions:default": "//:{}/bin/arm-zephyr-eabi-strip".format(_ARM_PREFIX),
     }),
 )
 
 cc_tool(
     name = "arm-zephyr-eabi-nm",
     src = select({
-        "@platforms//os:windows": "//:arm-zephyr-eabi/bin/arm-zephyr-eabi-nm.exe",
-        "//conditions:default": "//:arm-zephyr-eabi/bin/arm-zephyr-eabi-nm",
+        "@platforms//os:windows": "//:{}/bin/arm-zephyr-eabi-nm.exe".format(_ARM_PREFIX),
+        "//conditions:default": "//:{}/bin/arm-zephyr-eabi-nm".format(_ARM_PREFIX),
     }),
 )
 
 cc_tool(
     name = "arm-zephyr-eabi-readelf",
     src = select({
-        "@platforms//os:windows": "//:arm-zephyr-eabi/bin/arm-zephyr-eabi-readelf.exe",
-        "//conditions:default": "//:arm-zephyr-eabi/bin/arm-zephyr-eabi-readelf",
+        "@platforms//os:windows": "//:{}/bin/arm-zephyr-eabi-readelf.exe".format(_ARM_PREFIX),
+        "//conditions:default": "//:{}/bin/arm-zephyr-eabi-readelf".format(_ARM_PREFIX),
     }),
 )
 
 cc_tool(
     name = "arm-zephyr-eabi-size",
     src = select({
-        "@platforms//os:windows": "//:arm-zephyr-eabi/bin/arm-zephyr-eabi-size.exe",
-        "//conditions:default": "//:arm-zephyr-eabi/bin/arm-zephyr-eabi-size",
+        "@platforms//os:windows": "//:{}/bin/arm-zephyr-eabi-size.exe".format(_ARM_PREFIX),
+        "//conditions:default": "//:{}/bin/arm-zephyr-eabi-size".format(_ARM_PREFIX),
     }),
 )
 
@@ -204,23 +211,22 @@ cc_tool(
 cc_tool(
     name = "x86_64-zephyr-elf-ar",
     src = select({
-        "@platforms//os:windows": "//:x86_64-zephyr-elf/bin/x86_64-zephyr-elf-ar.exe",
-        "//conditions:default": "//:x86_64-zephyr-elf/bin/x86_64-zephyr-elf-ar",
+        "@platforms//os:windows": "//:{}/bin/x86_64-zephyr-elf-ar.exe".format(_X86_64_PREFIX),
+        "//conditions:default": "//:{}/bin/x86_64-zephyr-elf-ar".format(_X86_64_PREFIX),
     }),
 )
 
 cc_tool(
     name = "x86_64-zephyr-elf-g++",
     src = select({
-        "@platforms//os:windows": "//:x86_64-zephyr-elf/bin/x86_64-zephyr-elf-g++.exe",
-        "//conditions:default": "//:x86_64-zephyr-elf/bin/x86_64-zephyr-elf-g++",
+        "@platforms//os:windows": "//:{}/bin/x86_64-zephyr-elf-g++.exe".format(_X86_64_PREFIX),
+        "//conditions:default": "//:{}/bin/x86_64-zephyr-elf-g++".format(_X86_64_PREFIX),
     }),
     data = glob([
-        "x86_64-zephyr-elf/**/*.specs",
-        "x86_64-zephyr-elf/picolibc/**",
-        "x86_64-zephyr-elf/lib/gcc/x86_64-zephyr-elf/*/include/**",
-        "x86_64-zephyr-elf/lib/gcc/x86_64-zephyr-elf/*/include-fixed/**",
-        "x86_64-zephyr-elf/libexec/**",
+        "{}/**/*.specs".format(_X86_64_PREFIX),
+        "{}/lib/gcc/x86_64-zephyr-elf/*/include/**".format(_X86_64_PREFIX),
+        "{}/lib/gcc/x86_64-zephyr-elf/*/include-fixed/**".format(_X86_64_PREFIX),
+        "{}/libexec/**".format(_X86_64_PREFIX),
     ]),
 )
 
@@ -234,22 +240,21 @@ alias(
 cc_tool(
     name = "x86_64-zephyr-elf-gcc",
     src = select({
-        "@platforms//os:windows": "//:x86_64-zephyr-elf/bin/x86_64-zephyr-elf-gcc.exe",
-        "//conditions:default": "//:x86_64-zephyr-elf/bin/x86_64-zephyr-elf-gcc",
+        "@platforms//os:windows": "//:{}/bin/x86_64-zephyr-elf-gcc.exe".format(_X86_64_PREFIX),
+        "//conditions:default": "//:{}/bin/x86_64-zephyr-elf-gcc".format(_X86_64_PREFIX),
     }),
     data = glob([
-        "x86_64-zephyr-elf/**/*.specs",
-        "x86_64-zephyr-elf/picolibc/**",
-        "x86_64-zephyr-elf/lib/gcc/x86_64-zephyr-elf/*/include/**",
-        "x86_64-zephyr-elf/lib/gcc/x86_64-zephyr-elf/*/include-fixed/**",
-        "x86_64-zephyr-elf/libexec/**",
+        "{}/**/*.specs".format(_X86_64_PREFIX),
+        "{}/lib/gcc/x86_64-zephyr-elf/*/include/**".format(_X86_64_PREFIX),
+        "{}/lib/gcc/x86_64-zephyr-elf/*/include-fixed/**".format(_X86_64_PREFIX),
+        "{}/libexec/**".format(_X86_64_PREFIX),
     ]) +
     # The assembler needs to be explicilty added. Note that the path is
     # intentionally different here as `as` is called from x86_64-zephyr-elf-gcc.
     # `x86_64-zephyr-elf-as` will not suffice for this context.
     select({
-        "@platforms//os:windows": ["//:x86_64-zephyr-elf/bin/as.exe"],
-        "//conditions:default": ["//:x86_64-zephyr-elf/bin/as"],
+        "@platforms//os:windows": ["//:{}/bin/as.exe".format(_X86_64_PREFIX)],
+        "//conditions:default": ["//:{}/bin/as".format(_X86_64_PREFIX)],
     }),
 )
 
@@ -258,73 +263,73 @@ cc_tool(
 cc_tool(
     name = "x86_64-zephyr-elf-ld",
     src = select({
-        "@platforms//os:windows": "//:x86_64-zephyr-elf/bin/x86_64-zephyr-elf-g++.exe",
-        "//conditions:default": "//:x86_64-zephyr-elf/bin/x86_64-zephyr-elf-g++",
+        "@platforms//os:windows": "//:{}/bin/x86_64-zephyr-elf-g++.exe".format(_X86_64_PREFIX),
+        "//conditions:default": "//:{}/bin/x86_64-zephyr-elf-g++".format(_X86_64_PREFIX),
     }),
     data = glob([
-        "x86_64-zephyr-elf/**/*.a",
-        "x86_64-zephyr-elf/**/*.ld",
-        "x86_64-zephyr-elf/**/*.o",
-        "x86_64-zephyr-elf/**/*.specs",
-        "x86_64-zephyr-elf/**/*.so",
-        "x86_64-zephyr-elf/libexec/**",
+        "{}/**/*.a".format(_X86_64_PREFIX),
+        "{}/**/*.ld".format(_X86_64_PREFIX),
+        "{}/**/*.o".format(_X86_64_PREFIX),
+        "{}/**/*.specs".format(_X86_64_PREFIX),
+        "{}/**/*.so".format(_X86_64_PREFIX),
+        "{}/libexec/**".format(_X86_64_PREFIX),
     ]) + [
-        "//:x86_64-zephyr-elf/bin/ld",
+        "//:{}/bin/ld".format(_X86_64_PREFIX),
     ],
 )
 
 cc_tool(
     name = "x86_64-zephyr-elf-gcov",
     src = select({
-        "@platforms//os:windows": "//:x86_64-zephyr-elf/bin/x86_64-zephyr-elf-gcov.exe",
-        "//conditions:default": "//:x86_64-zephyr-elf/bin/x86_64-zephyr-elf-gcov",
+        "@platforms//os:windows": "//:{}/bin/x86_64-zephyr-elf-gcov.exe".format(_X86_64_PREFIX),
+        "//conditions:default": "//:{}/bin/x86_64-zephyr-elf-gcov".format(_X86_64_PREFIX),
     }),
 )
 
 cc_tool(
     name = "x86_64-zephyr-elf-objcopy",
     src = select({
-        "@platforms//os:windows": "//:x86_64-zephyr-elf/bin/x86_64-zephyr-elf-objcopy.exe",
-        "//conditions:default": "//:x86_64-zephyr-elf/bin/x86_64-zephyr-elf-objcopy",
+        "@platforms//os:windows": "//:{}/bin/x86_64-zephyr-elf-objcopy.exe".format(_X86_64_PREFIX),
+        "//conditions:default": "//:{}/bin/x86_64-zephyr-elf-objcopy".format(_X86_64_PREFIX),
     }),
 )
 
 cc_tool(
     name = "x86_64-zephyr-elf-objdump",
     src = select({
-        "@platforms//os:windows": "//:x86_64-zephyr-elf/bin/x86_64-zephyr-elf-objdump.exe",
-        "//conditions:default": "//:x86_64-zephyr-elf/bin/x86_64-zephyr-elf-objdump",
+        "@platforms//os:windows": "//:{}/bin/x86_64-zephyr-elf-objdump.exe".format(_X86_64_PREFIX),
+        "//conditions:default": "//:{}/bin/x86_64-zephyr-elf-objdump".format(_X86_64_PREFIX),
     }),
 )
 
 cc_tool(
     name = "x86_64-zephyr-elf-strip",
     src = select({
-        "@platforms//os:windows": "//:x86_64-zephyr-elf/bin/x86_64-zephyr-elf-strip.exe",
-        "//conditions:default": "//:x86_64-zephyr-elf/bin/x86_64-zephyr-elf-strip",
+        "@platforms//os:windows": "//:{}/bin/x86_64-zephyr-elf-strip.exe".format(_X86_64_PREFIX),
+        "//conditions:default": "//:{}/bin/x86_64-zephyr-elf-strip".format(_X86_64_PREFIX),
     }),
 )
 
 cc_tool(
     name = "x86_64-zephyr-elf-nm",
     src = select({
-        "@platforms//os:windows": "//:x86_64-zephyr-elf/bin/x86_64-zephyr-elf-nm.exe",
-        "//conditions:default": "//:x86_64-zephyr-elf/bin/x86_64-zephyr-elf-nm",
+        "@platforms//os:windows": "//:{}/bin/x86_64-zephyr-elf-nm.exe".format(_X86_64_PREFIX),
+        "//conditions:default": "//:{}/bin/x86_64-zephyr-elf-nm".format(_X86_64_PREFIX),
     }),
 )
 
 cc_tool(
     name = "x86_64-zephyr-elf-readelf",
     src = select({
-        "@platforms//os:windows": "//:x86_64-zephyr-elf/bin/x86_64-zephyr-elf-readelf.exe",
-        "//conditions:default": "//:x86_64-zephyr-elf/bin/x86_64-zephyr-elf-readelf",
+        "@platforms//os:windows": "//:{}/bin/x86_64-zephyr-elf-readelf.exe".format(_X86_64_PREFIX),
+        "//conditions:default": "//:{}/bin/x86_64-zephyr-elf-readelf".format(_X86_64_PREFIX),
     }),
 )
 
 cc_tool(
     name = "x86_64-zephyr-elf-size",
     src = select({
-        "@platforms//os:windows": "//:x86_64-zephyr-elf/bin/x86_64-zephyr-elf-size.exe",
-        "//conditions:default": "//:x86_64-zephyr-elf/bin/x86_64-zephyr-elf-size",
+        "@platforms//os:windows": "//:{}/bin/x86_64-zephyr-elf-size.exe".format(_X86_64_PREFIX),
+        "//conditions:default": "//:{}/bin/x86_64-zephyr-elf-size".format(_X86_64_PREFIX),
     }),
 )

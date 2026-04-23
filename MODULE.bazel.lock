@@ -508,7 +508,7 @@
     "//pw_toolchain/cc:pw_cxx_toolchain.bzl%pw_cxx_toolchain": {
       "general": {
         "bzlTransitiveDigest": "kuGc+Oih+lS2fnF8pgZz9zKa7gaiCinraGqBkelVIsY=",
-        "usagesDigest": "JIXK5pYivbTWfWIcdw/njSqXlSr9WLEhMhY3CgwrkXY=",
+        "usagesDigest": "im3ROoUaBtQgbWe6AFWHjpsyaiQbPiq7/Sy4NwER5Uc=",
         "recordedFileInputs": {},
         "recordedDirentsInputs": {},
         "envVariables": {},
@@ -534,7 +534,7 @@
             "attributes": {
               "build_file": "@@//pw_toolchain/build_external:zephyr_gnu.BUILD",
               "path": "infra/3pp/tools/zephyr_sdk/${os}-${arch}",
-              "tag": "version:3@0.17.0"
+              "tag": "version:3@1.0.0"
             }
           }
         },

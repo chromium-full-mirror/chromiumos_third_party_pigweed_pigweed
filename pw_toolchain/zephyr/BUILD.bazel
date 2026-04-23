@@ -25,7 +25,6 @@ cc_args(
         # TODO(b/380001331) Select these flags based on Kconfigs
         "-ftls-model=local-exec",  # CONFIG_THREAD_LOCAL_STORAGE
         "-mtp=soft",  # CONFIG_THREAD_LOCAL_STORAGE
-        "-mfp16-format=ieee",  # CONFIG_FP16_IEEE
         "-mfloat-abi=soft",  # !CONFIG_ARM64 && !CONFIG_FPU
         "-gdwarf-4",  # GCC 11 by default emits DWARF v5 which cannot be parsed by pyelftools.
     ],
