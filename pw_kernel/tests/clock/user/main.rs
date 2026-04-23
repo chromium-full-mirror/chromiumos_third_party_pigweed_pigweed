@@ -22,12 +22,12 @@ use userspace::{entry, syscall};
 
 fn clock_test() -> Result<()> {
     info!("🔄 [User Clock Test] RUNNING");
-    info!("🔄 ├─ Testing Clock::now() advances");
-    let start = userspace::time::Clock::now();
+    info!("🔄 ├─ Testing SystemClock::now() advances");
+    let start = userspace::time::SystemClock::now();
     let mut end = start;
     let mut count = 0;
     while end == start && count < 1000000 {
-        end = userspace::time::Clock::now();
+        end = userspace::time::SystemClock::now();
         count += 1;
     }
     if end > start {

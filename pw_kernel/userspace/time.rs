@@ -14,10 +14,11 @@
 
 use kernel_config::{KernelConfig, KernelConfigInterface};
 use syscall_user::{SysCall, SysCallInterface};
+pub use time::Clock;
 
-pub struct Clock;
+pub struct SystemClock;
 
-impl time::Clock for Clock {
+impl time::Clock for SystemClock {
     const TICKS_PER_SEC: u64 = KernelConfig::SYSTEM_CLOCK_HZ;
     fn now() -> time::Instant<Self> {
         // Use the debug_clock_now() system call until userspace time is designed
@@ -27,5 +28,5 @@ impl time::Clock for Clock {
     }
 }
 
-pub type Instant = time::Instant<Clock>;
-pub type Duration = time::Duration<Clock>;
+pub type Instant = time::Instant<SystemClock>;
+pub type Duration = time::Duration<SystemClock>;

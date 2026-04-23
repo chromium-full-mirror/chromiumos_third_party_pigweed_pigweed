@@ -18,8 +18,7 @@
 use main_codegen::handle;
 use pw_log::info;
 use pw_status::{Result, StatusCode};
-use time::Clock as _;
-use userspace::time::{Clock, Duration};
+use userspace::time::{Clock, Duration, SystemClock};
 use userspace::{entry, syscall};
 
 #[unsafe(no_mangle)]
@@ -68,7 +67,7 @@ fn do_test() -> Result<()> {
         syscall::object_wait(
             handle::EXTRA_PROCESS,
             syscall::Signals::JOINABLE,
-            Clock::now() + Duration::from_secs(5),
+            SystemClock::now() + Duration::from_secs(5),
         )?;
 
         info!("🔄 ├─ Joining extra process");
@@ -81,7 +80,7 @@ fn do_test() -> Result<()> {
         let result = syscall::object_wait(
             handle::EXTRA_PROCESS,
             syscall::Signals::JOINABLE,
-            Clock::now() + Duration::from_millis(100),
+            SystemClock::now() + Duration::from_millis(100),
         );
         if result.is_ok() {
             pw_log::error!("❌ Process terminated unexpectedly or was immediately joinable!");

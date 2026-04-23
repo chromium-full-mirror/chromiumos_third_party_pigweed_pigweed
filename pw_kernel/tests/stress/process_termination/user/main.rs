@@ -18,8 +18,7 @@
 use main_codegen::handle;
 use pw_log::info;
 use pw_status::{Result, StatusCode};
-use time::Clock as _;
-use userspace::time::{Clock, Duration};
+use userspace::time::{Clock, Duration, SystemClock};
 use userspace::{entry, syscall};
 
 fn do_test() -> Result<()> {
@@ -37,7 +36,7 @@ fn do_test() -> Result<()> {
         }
 
         info!("🔄 ├─ Waiting", pass as u32);
-        let deadline = Clock::now() + Duration::from_secs(5);
+        let deadline = SystemClock::now() + Duration::from_secs(5);
         syscall::object_wait(handle::EXTRA_PROCESS, syscall::Signals::JOINABLE, deadline)?;
 
         info!("🔄 ├─ Joining", pass as u32);
