@@ -41,10 +41,10 @@ _TOOLCHAIN_VARIANTS = {
         cipd_path = "fuchsia/third_party/clang/${os}-${arch}",
         build_file = "//pw_toolchain/build_external:llvm_clang.BUILD",
     ),
-    "zephyr": _CipdResourceInfo(
+    "zephyr_gcc": _CipdResourceInfo(
         repo_name = "zephyr_toolchain",
         cipd_path = "infra/3pp/tools/zephyr_sdk/${os}-${arch}",
-        build_file = "//pw_toolchain/build_external:zephyr.BUILD",
+        build_file = "//pw_toolchain/build_external:zephyr_gnu.BUILD",
     ),
 }
 

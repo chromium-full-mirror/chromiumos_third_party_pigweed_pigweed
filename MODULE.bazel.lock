@@ -507,8 +507,8 @@
     },
     "//pw_toolchain/cc:pw_cxx_toolchain.bzl%pw_cxx_toolchain": {
       "general": {
-        "bzlTransitiveDigest": "Gg8xYwrHwTCzkkmqKWc6iXs84d6+RM0d8z9UJMggZS0=",
-        "usagesDigest": "QtlxPBOXED3EZiwag2RHyFZ9q1bZCFcACKWXhPEOy/E=",
+        "bzlTransitiveDigest": "kuGc+Oih+lS2fnF8pgZz9zKa7gaiCinraGqBkelVIsY=",
+        "usagesDigest": "JIXK5pYivbTWfWIcdw/njSqXlSr9WLEhMhY3CgwrkXY=",
         "recordedFileInputs": {},
         "recordedDirentsInputs": {},
         "envVariables": {},
@@ -532,7 +532,7 @@
           "zephyr_toolchain": {
             "repoRuleId": "@@//pw_env_setup/bazel/cipd_setup:cipd_rules.bzl%cipd_repository",
             "attributes": {
-              "build_file": "@@//pw_toolchain/build_external:zephyr.BUILD",
+              "build_file": "@@//pw_toolchain/build_external:zephyr_gnu.BUILD",
               "path": "infra/3pp/tools/zephyr_sdk/${os}-${arch}",
               "tag": "version:3@0.17.0"
             }
