@@ -24,7 +24,11 @@ sh_binary(
     rctx.file("resolution.md", rctx.attr.content)
     rctx.file("resolution.bzl", "CIPD_RESOLUTION = " + rctx.attr.data_content)
     rctx.file("show.sh", "#!/bin/bash\ncat " + str(rctx.path("resolution.md")), executable = True)
-    return rctx.repo_metadata(reproducible = True)
+
+    # rctx.repo_metadata is only available in Bazel>=8.3.0
+    if hasattr(rctx, "repo_metadata"):
+        return rctx.repo_metadata(reproducible = True)
+    return None
 
 resolution_repo = repository_rule(
     implementation = _resolution_repo_impl,

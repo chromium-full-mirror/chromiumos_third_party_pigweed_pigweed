@@ -104,11 +104,18 @@ def _cipd_repo_impl(rctx):
     for version in rctx.attr.packages.values():
         reproducible = is_immutable_version(version) and reproducible
 
-    return rctx.repo_metadata(reproducible = reproducible)
+    # rctx.repo_metadata is only available in Bazel>=8.3.0
+    if hasattr(rctx, "repo_metadata"):
+        return rctx.repo_metadata(reproducible = reproducible)
+    return None
 
 def _cipd_stub_repo_impl(rctx):
     rctx.file("BUILD", _BUILD_FILE_TEMPLATE)
-    return rctx.repo_metadata(reproducible = True)
+
+    # rctx.repo_metadata is only available in Bazel>=8.3.0
+    if hasattr(rctx, "repo_metadata"):
+        return rctx.repo_metadata(reproducible = True)
+    return None
 
 package_repo = repository_rule(
     implementation = _cipd_repo_impl,
