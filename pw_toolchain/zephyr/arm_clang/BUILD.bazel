@@ -1,0 +1,279 @@
+# Copyright 2026 The Pigweed Authors
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not
+# use this file except in compliance with the License. You may obtain a copy of
+# the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations under
+# the License.
+
+load("@rules_cc//cc/toolchains:args.bzl", "cc_args")
+load("@rules_cc//cc/toolchains:feature.bzl", "cc_feature")
+load("@rules_cc//cc/toolchains:toolchain.bzl", "cc_toolchain")
+
+licenses(["notice"])
+
+# Additional arm_clang specific warning flags
+cc_args(
+    name = "warnings",
+    actions = [
+        "@rules_cc//cc/toolchains/actions:compile_actions",
+    ],
+    args = [
+        # This can't be in common, because proto headers in host builds trigger
+        "-Wundef",
+        # Silence the really verbose ARM warnings.
+        "-Wno-psabi",
+    ],
+)
+
+cc_args(
+    name = "thumb_abi",
+    actions = [
+        "@rules_cc//cc/toolchains/actions:assembly_actions",
+        "@rules_cc//cc/toolchains/actions:compile_actions",
+        "@rules_cc//cc/toolchains/actions:link_actions",
+    ],
+    args = [
+        "-mabi=aapcs",
+        "-mthumb",
+    ],
+)
+
+cc_args(
+    name = "cortex_common",
+    actions = [
+        "@rules_cc//cc/toolchains/actions:compile_actions",
+    ],
+)
+
+cc_args(
+    name = "nostdinc",
+    actions = [
+        "@rules_cc//cc/toolchains/actions:compile_actions",
+    ],
+    args = [
+        "-nostdinc",
+    ],
+)
+
+cc_feature(
+    name = "cortex_libc",
+    args = [":cortex_common_link"],
+    feature_name = "cortex_libc_linking",
+)
+
+cc_args(
+    name = "cortex_common_link",
+    actions = ["@rules_cc//cc/toolchains/actions:link_actions"],
+    args = [
+        "-Wl,--gc-sections",
+        "-lstdc++",
+        "-lc",
+        "-lm",
+    ],
+)
+
+cc_args(
+    name = "cortex-m4",
+    actions = [
+        "@rules_cc//cc/toolchains/actions:assembly_actions",
+        "@rules_cc//cc/toolchains/actions:compile_actions",
+        "@rules_cc//cc/toolchains/actions:link_actions",
+    ],
+    args = [
+        "--target=armv7m-none-eabi",
+        "-mcpu=cortex-m4",
+    ],
+)
+
+cc_args(
+    name = "cortex-m7",
+    actions = [
+        "@rules_cc//cc/toolchains/actions:assembly_actions",
+        "@rules_cc//cc/toolchains/actions:compile_actions",
+        "@rules_cc//cc/toolchains/actions:link_actions",
+    ],
+    args = [
+        "--target=armv7em-none-eabi",
+        "-mcpu=cortex-m7",
+    ],
+)
+
+cc_args(
+    name = "armv8m.main-none-eabi",
+    actions = [
+        "@rules_cc//cc/toolchains/actions:assembly_actions",
+        "@rules_cc//cc/toolchains/actions:c_compile_actions",
+        "@rules_cc//cc/toolchains/actions:cpp_compile_actions",
+        "@rules_cc//cc/toolchains/actions:link_actions",
+    ],
+    args = [
+        "--target=armv8m.main-none-eabi",
+    ],
+)
+
+cc_args(
+    name = "armv8.1m.main-none-eabi",
+    actions = [
+        "@rules_cc//cc/toolchains/actions:assembly_actions",
+        "@rules_cc//cc/toolchains/actions:c_compile_actions",
+        "@rules_cc//cc/toolchains/actions:cpp_compile_actions",
+        "@rules_cc//cc/toolchains/actions:link_actions",
+    ],
+    args = [
+        "--target=armv8.1m.main-none-eabi",
+    ],
+)
+
+cc_args(
+    name = "cortex-m33",
+    actions = [
+        "@rules_cc//cc/toolchains/actions:assembly_actions",
+        "@rules_cc//cc/toolchains/actions:compile_actions",
+        "@rules_cc//cc/toolchains/actions:link_actions",
+    ],
+    args = [
+        "-mcpu=cortex-m33",
+    ],
+)
+
+cc_args(
+    name = "cortex-m55",
+    actions = [
+        "@rules_cc//cc/toolchains/actions:assembly_actions",
+        "@rules_cc//cc/toolchains/actions:compile_actions",
+        "@rules_cc//cc/toolchains/actions:link_actions",
+    ],
+    args = [
+        "-mcpu=cortex-m55",
+    ],
+)
+
+cc_args(
+    name = "cortex-m85",
+    actions = [
+        "@rules_cc//cc/toolchains/actions:assembly_actions",
+        "@rules_cc//cc/toolchains/actions:compile_actions",
+        "@rules_cc//cc/toolchains/actions:link_actions",
+    ],
+    args = [
+        "-mcpu=cortex-m85",
+    ],
+)
+
+cc_toolchain(
+    name = "arm_cortex-m",
+    args = [
+        "//pw_toolchain/cc/args:oz",
+        "//pw_toolchain/cc/args:debugging",
+        "//pw_toolchain/cc/args:reduced_size",
+        "//pw_toolchain/cc/args:no_canonical_prefixes",
+        "//pw_toolchain/cc/args:no_rtti",
+        "//pw_toolchain/cc/args:wno_register",
+        "//pw_toolchain/cc/args:wnon_virtual_dtor",
+        "//pw_toolchain/cc/args:common_warnings",
+        "//pw_toolchain/cc/args:color_diagnostics",
+    ] + select({
+        "//pw_build/constraints/arm:cortex-m33": [
+            ":cortex-m33",
+            ":armv8m.main-none-eabi",
+        ],
+        # TODO: https://pwbug.dev/380001331 - Add support for other cortex MCUs
+        "//pw_build/constraints/arm:cortex-m4": [":cortex-m4"],
+        "//pw_build/constraints/arm:cortex-m55": [
+            ":cortex-m55",
+            ":armv8.1m.main-none-eabi",
+        ],
+        "//pw_build/constraints/arm:cortex-m7": [":cortex-m7"],
+        "//pw_build/constraints/arm:cortex-m85": [
+            ":cortex-m85",
+            ":armv8.1m.main-none-eabi",
+        ],
+        "//pw_build/constraints/arm:none": [],
+    }) + [
+        ":thumb_abi",
+        ":cortex_common",
+        ":warnings",
+        "//pw_toolchain/zephyr:common_cc",
+    ],
+    enabled_features = [
+        "@rules_cc//cc/toolchains/args:experimental_replace_legacy_action_config_features",
+        "//pw_toolchain/cc/capability:compiler_is_clang",
+        "//pw_toolchain/cc/capability:linker_is_clang",
+    ] + select({
+        "//pw_toolchain/cc:c++17_enabled": ["//pw_toolchain/cc/args:c++17_feature"],
+        "//conditions:default": [],
+    }) + select({
+        "//pw_toolchain/cc:c++20_enabled": ["//pw_toolchain/cc/args:c++20_feature"],
+        "//conditions:default": [],
+    }) + [
+        # This MUST be the last feature!!!!
+        ":cortex_libc",
+    ],
+    known_features = [
+        "//pw_toolchain/cc/capability:known_toolchain_types",
+    ],
+    target_compatible_with = select({
+        "//pw_build/constraints/arm:cortex-m33": [],
+        # TODO: https://pwbug.dev/380001331 - Add support for other cortex MCUs
+        "//pw_build/constraints/arm:cortex-m4": [],
+        "//pw_build/constraints/arm:cortex-m55": [],
+        "//pw_build/constraints/arm:cortex-m7": [],
+        "//pw_build/constraints/arm:cortex-m85": [],
+        "//pw_build/constraints/arm:none": ["@platforms//:incompatible"],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
+    tool_map = "@zephyr_llvm_toolchain//:arm_tools",
+    visibility = ["//pw_toolchain:__pkg__"],
+)
+
+toolchain(
+    name = "toolchain_cortex-m4",
+    target_compatible_with = [
+        "//pw_build/constraints/arm:cortex-m4",
+    ],
+    toolchain = ":arm_cortex-m",
+    toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
+)
+
+toolchain(
+    name = "toolchain_cortex-m7",
+    target_compatible_with = [
+        "//pw_build/constraints/arm:cortex-m7",
+    ],
+    toolchain = ":arm_cortex-m",
+    toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
+)
+
+toolchain(
+    name = "toolchain_cortex-m33",
+    target_compatible_with = [
+        "//pw_build/constraints/arm:cortex-m33",
+    ],
+    toolchain = ":arm_cortex-m",
+    toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
+)
+
+toolchain(
+    name = "toolchain_cortex-m55",
+    target_compatible_with = [
+        "//pw_build/constraints/arm:cortex-m55",
+    ],
+    toolchain = ":arm_cortex-m",
+    toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
+)
+
+toolchain(
+    name = "toolchain_cortex-m85",
+    target_compatible_with = [
+        "//pw_build/constraints/arm:cortex-m85",
+    ],
+    toolchain = ":arm_cortex-m",
+    toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
+)

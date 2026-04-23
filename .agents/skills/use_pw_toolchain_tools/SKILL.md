@@ -34,7 +34,7 @@ Run the tools via `bazelisk run` with the appropriate `--config` (e.g., `rp2350`
 > **Interactive use only**: These targets must only be used with `bazelisk run`. **Do NOT** use them as dependencies (`srcs`, `deps`) in other rules, as Bazel's configuration transitions will likely select the wrong tool for the context.
 
 > [!NOTE]
-> Tool availability depends on the suite (LLVM, GCC, or Zephyr). These targets
+> Tool availability depends on the suite (LLVM, GCC, or Zephyr variants). These targets
 > work seamlessly across all supported toolchains—for example, when targeting
 > an ARM MCU, `:nm` will correctly resolve to `arm-none-eabi-nm` or the
 > Zephyr equivalent based on your configuration.

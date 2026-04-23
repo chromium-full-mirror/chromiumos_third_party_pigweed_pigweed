@@ -46,6 +46,11 @@ _TOOLCHAIN_VARIANTS = {
         cipd_path = "infra/3pp/tools/zephyr_sdk/${os}-${arch}",
         build_file = "//pw_toolchain/build_external:zephyr_gnu.BUILD",
     ),
+    "zephyr_llvm": _CipdResourceInfo(
+        repo_name = "zephyr_llvm_toolchain",
+        cipd_path = "infra/3pp/tools/zephyr_sdk/${os}-${arch}",
+        build_file = "//pw_toolchain/build_external:zephyr_llvm.BUILD",
+    ),
 }
 
 def _pw_cxx_toolchain_impl(ctx):

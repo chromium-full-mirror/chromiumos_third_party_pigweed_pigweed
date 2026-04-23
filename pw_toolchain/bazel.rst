@@ -255,12 +255,13 @@ for that specific target platform.
 
 .. note::
 
-   Tool availability varies by suite (e.g., LLVM vs. GCC vs. Zephyr) and
-   configuration. While common tools like ``objdump`` and ``nm`` are present
-   across all supported suites (including ARM GCC and Zephyr), others like
-   ``cov`` or ``gcov`` may be missing. Attempting to run a missing tool
-   will result in a "tool not found" error or fail with a clear error
-   message during analysis or execution.
+   Tool availability varies by suite (e.g., LLVM vs. GCC vs.
+   Zephyr-Arm vs. Zephyr-LLVM) and  configuration. While common tools
+   like ``objdump`` and ``nm`` are present  across all supported suites
+   (including ARM GCC and Zephyr), others like ``cov`` or ``gcov``
+   may be missing. Attempting to run a missing tool will result in a
+   "tool not found" error or fail with a clear error message
+   during analysis or execution.
 
    Additionally, compiler drivers that are symlinks to a multicall binary
    (like ``llvm``) may behave as a generic driver if invoked without
