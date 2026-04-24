@@ -18,7 +18,7 @@
 use main_codegen::handle;
 use pw_log::info;
 use pw_status::{Result, StatusCode};
-use userspace::time::{Clock, Duration, SystemClock};
+use userspace::time::{Clock, Duration, SystemClock, sleep_until};
 use userspace::{entry, syscall};
 
 #[unsafe(no_mangle)]
@@ -55,6 +55,14 @@ fn do_test() -> Result<()> {
 
     for pass in 0..2 {
         info!("🔄 ├─ Iteration {}", pass as u32);
+
+        // Give `EXTRA_PROCESS` a chance to start.
+        //
+        // TODO: https://pwbug.dev/505490714 - Query process state to ensure it's running
+        if let Err(err) = sleep_until(SystemClock::now() + Duration::from_millis(200)) {
+            pw_log::error!("Failed to sleep for 200ms");
+            return Err(err);
+        }
 
         info!("🔄 ├─ Testing process_terminate on a valid process handle");
         if let Err(err) = syscall::process_terminate(handle::EXTRA_PROCESS) {
