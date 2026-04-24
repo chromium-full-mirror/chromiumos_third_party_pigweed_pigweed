@@ -15,6 +15,7 @@
 #include "pw_containers/functional.h"
 
 #include <string>
+#include <variant>
 
 #include "pw_unit_test/framework.h"
 
@@ -237,6 +238,33 @@ TEST(Hash, Enum) {
 
   EXPECT_EQ(hasher(MyEnum::kValue1), hasher(MyEnum::kValue1));
   EXPECT_NE(hasher(MyEnum::kValue1), hasher(MyEnum::kValue2));
+}
+
+TEST(Hash, Variant) {
+  pw::Hash hasher;
+  std::variant<int, std::string> v1 = 42;
+  std::variant<int, std::string> v2 = 42;
+  std::variant<int, std::string> v3 = "42";
+  std::variant<int, std::string> v4 = "hello";
+
+  EXPECT_EQ(hasher(v1), hasher(v2));
+  EXPECT_NE(hasher(v1), hasher(v3));
+  EXPECT_NE(hasher(v3), hasher(v4));
+
+  std::variant<int, CustomTypeA> v5 = CustomTypeA{1, 2.0};
+  std::variant<int, CustomTypeA> v6 = CustomTypeA{1, 2.0};
+  std::variant<int, CustomTypeA> v7 = CustomTypeA{2, 1.0};
+  std::variant<int, CustomTypeA> v8 = 1;
+
+  EXPECT_EQ(hasher(v5), hasher(v6));
+  EXPECT_NE(hasher(v5), hasher(v7));
+  EXPECT_NE(hasher(v5), hasher(v8));
+
+  std::variant<int, int> v9(std::in_place_index<0>, 42);
+  std::variant<int, int> v10(std::in_place_index<1>, 42);
+
+  EXPECT_NE(hasher(v9), hasher(v10));
+  EXPECT_EQ(std::get<0>(v9), std::get<1>(v10));
 }
 
 TEST(EqualTo, BasicTypes) {

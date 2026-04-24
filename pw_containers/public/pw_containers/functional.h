@@ -18,6 +18,7 @@
 #include <functional>
 #include <type_traits>
 #include <utility>
+#include <variant>
 
 namespace pw {
 
@@ -65,12 +66,22 @@ struct HasStdHash<T,
 template <typename T>
 inline constexpr bool kHasStdHash = HasStdHash<T>::value;
 
+template <typename T>
+struct IsStdVariant : std::false_type {};
+
+template <typename... Ts>
+struct IsStdVariant<std::variant<Ts...>> : std::true_type {};
+
+template <typename T>
+inline constexpr bool kIsStdVariant = IsStdVariant<std::decay_t<T>>::value;
+
 // Dispatches the hashing logic based on the type traits detected above.
 // Priority:
 // 1. Custom `PwHashValue` (User-defined extension)
 // 2. Pointers (Hashed by address)
 // 3. Enums (Hashed by underlying integer value)
-// 4. Standard `std::hash` (Fallback for int, float, etc.)
+// 4. Variants (Hashed by index and alternative)
+// 5. Standard `std::hash` (Fallback for int, float, etc.)
 template <typename H, typename T>
 H hash_value_dispatcher(H h, const T& val) {
   if constexpr (kHasPwHashValue<H, T>) {
@@ -81,10 +92,17 @@ H hash_value_dispatcher(H h, const T& val) {
     return H::mix(
         std::move(h),
         static_cast<size_t>(static_cast<std::underlying_type_t<T>>(val)));
+  } else if constexpr (kIsStdVariant<T>) {
+    h = H::mix(std::move(h), val.index());
+    return std::visit(
+        [&](const auto& alternative) {
+          return hash_value_dispatcher(std::move(h), alternative);
+        },
+        val);
   } else {
     static_assert(kHasStdHash<T>,
                   "The type must be hashable by either PwHashValue, std::hash, "
-                  "or a pointer/enum.");
+                  "or a pointer/enum/variant.");
     return H::mix(std::move(h), std::hash<T>()(val));
   }
 }
