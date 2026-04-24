@@ -791,9 +791,6 @@
       "Rust"
     ]
   },
-  "pw_stream_shmem_mcuxpresso": {
-    "status": "stable"
-  },
   "pw_stream_uart_linux": {
     "status": "stable"
   },

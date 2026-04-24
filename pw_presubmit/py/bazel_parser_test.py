@@ -433,7 +433,6 @@ INFO: Build completed, 1 test FAILED, 1206 total actions
 //pw_i2c_mcuxpresso:initiator_test                                      SKIPPED
 //pw_spi_mcuxpresso:flexspi_test                                        SKIPPED
 //pw_spi_mcuxpresso:spi_test                                            SKIPPED
-//pw_stream_shmem_mcuxpresso:stream_test                                SKIPPED
 //pw_stream_uart_mcuxpresso:stream_test                                 SKIPPED
 //pw_console/py:command_runner_test                                      PASSED in 5.3s
 //pw_console/py:console_app_test                                         PASSED in 5.0s

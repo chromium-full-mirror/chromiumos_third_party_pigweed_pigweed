@@ -185,7 +185,6 @@
     show: true,
     modules: [
       "pw_stream",
-      "pw_stream_shmem_mcuxpresso",
       "pw_stream_uart_linux",
       "pw_stream_uart_mcuxpresso",
       "pw_sys_io",
@@ -343,7 +342,6 @@
       "pw_dma_mcuxpresso",
       "pw_i2c_mcuxpresso",
       "pw_spi_mcuxpresso",
-      "pw_stream_shmem_mcuxpresso",
       "pw_stream_uart_mcuxpresso",
       "pw_sys_io_mcuxpresso",
       "pw_uart_mcuxpresso",

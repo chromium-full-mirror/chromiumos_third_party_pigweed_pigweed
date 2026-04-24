@@ -315,7 +315,6 @@ sphinx_docs_library(
         "//pw_status:docs",
         "//pw_stm32cube_build:docs",
         "//pw_stream:docs",
-        "//pw_stream_shmem_mcuxpresso:docs",
         "//pw_stream_uart_linux:docs",
         "//pw_stream_uart_mcuxpresso:docs",
         "//pw_string:docs",
