@@ -41,15 +41,25 @@ AdvertisingPacketFilter::AdvertisingPacketFilter(
 }
 
 void AdvertisingPacketFilter::SetPacketFilters(
-    ScanId scan_id, const std::vector<DiscoveryFilter>& filters) {
+    ScanId scan_id, const std::vector<DiscoveryFilter>& filters_in) {
   UnsetPacketFiltersInternal(scan_id, false);
 
   bt_log(INFO,
          "hci",
          "setting packet filters for scan id: %d, filters: %zu",
          scan_id,
-         filters.size());
+         filters_in.size());
 
+  std::vector<DiscoveryFilter> filters = filters_in;
+  if (filters.empty()) {
+    // If no filters are provided, we insert a default constructed, allow all,
+    // filter. This ensures that whenever we enable offloaded packet filtering,
+    // we have at least one filter to offload.
+    //
+    // Warning: if offloaded packet filtering is enabled without any filters
+    // loaded into the Controller, the Controller will return no result peers.
+    filters.emplace_back();
+  }
   scan_id_to_filters_[scan_id] = filters;
 
   if (!config_.offloading_supported()) {

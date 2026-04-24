@@ -16,6 +16,7 @@
 
 #include "gtest/gtest.h"
 #include "pw_bluetooth_sapphire/internal/host/common/advertising_data.h"
+#include "pw_bluetooth_sapphire/internal/host/hci-spec/vendor_protocol.h"
 #include "pw_bluetooth_sapphire/internal/host/hci/discovery_filter.h"
 #include "pw_bluetooth_sapphire/internal/host/testing/controller_test.h"
 #include "pw_bluetooth_sapphire/internal/host/testing/fake_controller.h"
@@ -275,12 +276,30 @@ TEST_F(AdvertisingPacketFilterTest, UnsetFiltersDoesntInadvertentlyEnable) {
   // were added
   ASSERT_FALSE(packet_filter.IsUsingOffloadedFiltering());
 
+  filter_b.set_name_substring("another");
+  packet_filter.SetPacketFilters(1, {filter_b});
+  RunUntilIdle();
+
+  // Offloading should remain off even after calling SetPacketFilters
+  ASSERT_FALSE(packet_filter.IsUsingOffloadedFiltering());
+}
+
+TEST_F(AdvertisingPacketFilterTest, FilterWithEmptyFiltersOffloadingSupported) {
+  AdvertisingPacketFilter packet_filter(
+      {/*offloading_supported=*/true,
+       /*max_filters=*/1,
+       /*peer_delivery_mode=*/
+       AdvertisingPacketFilter::Config::DeliveryMode::kImmediate},
+      transport()->GetWeakPtr());
+
+  // Ensure we treat an empty set of filters as the allow all filter and send it
+  // to the Controller
   packet_filter.SetPacketFilters(0, {});
   RunUntilIdle();
 
-  // Offloading should now be enabled because scan id 0's filters aren't using
-  // any Controller memory
   ASSERT_TRUE(packet_filter.IsUsingOffloadedFiltering());
+  ASSERT_TRUE(test_device()->packet_filter_state().enabled);
+  ASSERT_EQ(1u, test_device()->packet_filter_state().filters.size());
 }
 
 TEST_F(AdvertisingPacketFilterTest, HostFilteringUsesOnlyAllowAllFilter) {
@@ -548,6 +567,70 @@ TEST_F(AdvertisingPacketFilterTest, BatchedDeliveryModeIsUsedWhenConfigured) {
       test_device()->packet_filter_state().filters.find(0)->second;
   EXPECT_EQ(AdvertisingPacketFilter::Config::DeliveryMode::kBatched,
             f.delivery_mode);
+}
+
+// Ensure that we fallback to host filtering if an HCI command fails
+TEST_F(AdvertisingPacketFilterTest, OffloadingFailsOnHciError) {
+  AdvertisingPacketFilter packet_filter(
+      {/*offloading_supported=*/true,
+       /*max_filters=*/2,
+       /*peer_delivery_mode=*/
+       AdvertisingPacketFilter::Config::DeliveryMode::kImmediate},
+      transport()->GetWeakPtr());
+
+  DiscoveryFilter filter_a;
+  filter_a.set_name_substring("bluetooth");
+  packet_filter.SetPacketFilters(0, {filter_a});
+  RunUntilIdle();
+  ASSERT_TRUE(packet_filter.IsUsingOffloadedFiltering());
+
+  // Instruct the fake controller to fail APCF commands
+  test_device()->SetDefaultResponseStatus(
+      hci_spec::vendor::android::kLEApcf,
+      pw::bluetooth::emboss::StatusCode::HARDWARE_FAILURE);
+
+  DiscoveryFilter filter_b;
+  filter_b.set_name_substring("bluetooth");
+  packet_filter.SetPacketFilters(0, {filter_b});
+  RunUntilIdle();
+
+  EXPECT_FALSE(packet_filter.IsUsingOffloadedFiltering());
+}
+
+// Ensure that we still offload filters even if they only contain nonoffloadable
+// fields (e.g. rssi). The resulting filter should be the allow all filter in
+// terms of APCF features.
+TEST_F(AdvertisingPacketFilterTest, OffloadingFilterWithNoOffloadableFields) {
+  AdvertisingPacketFilter packet_filter(
+      {/*offloading_supported=*/true,
+       /*max_filters=*/1,
+       /*peer_delivery_mode=*/
+       AdvertisingPacketFilter::Config::DeliveryMode::kImmediate},
+      transport()->GetWeakPtr());
+
+  DiscoveryFilter filter;
+  filter.set_rssi(-50);
+  packet_filter.SetPacketFilters(0, {filter});
+  RunUntilIdle();
+
+  ASSERT_TRUE(packet_filter.IsUsingOffloadedFiltering());
+  ASSERT_TRUE(test_device()->packet_filter_state().enabled);
+  ASSERT_EQ(1u, test_device()->packet_filter_state().filters.size());
+
+  uint8_t filter_index = packet_filter.last_filter_index();
+  const FakeController::PacketFilter& controller_filter =
+      test_device()->packet_filter_state().filters.at(filter_index);
+
+  // RSSI threshold should be set to the requested value.
+  EXPECT_EQ(static_cast<int8_t>(controller_filter.rssi_high_threshold.value()),
+            -50);
+
+  // All other content-based fields should be empty.
+  EXPECT_FALSE(controller_filter.service_uuid.has_value());
+  EXPECT_FALSE(controller_filter.solicitation_uuid.has_value());
+  EXPECT_FALSE(controller_filter.local_name.has_value());
+  EXPECT_FALSE(controller_filter.manufacturer_data.has_value());
+  EXPECT_FALSE(controller_filter.service_data.has_value());
 }
 
 }  // namespace bt::hci
