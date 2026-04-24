@@ -54,19 +54,29 @@ size_t FallbackAllocator::DoGetAllocated() const {
 Result<Layout> FallbackAllocator::DoGetInfo(InfoType info_type,
                                             const void* ptr) const {
   Result<Layout> primary = GetInfo(primary_, info_type, ptr);
-  if (primary.ok() == (info_type != InfoType::kCapacity)) {
+  if (info_type != InfoType::kCapacity && primary.ok()) {
     return primary;
   }
+
   Result<Layout> secondary = GetInfo(secondary_, info_type, ptr);
-  if (secondary.ok() == (info_type != InfoType::kCapacity)) {
+  if (info_type != InfoType::kCapacity && secondary.ok()) {
     return secondary;
   }
+
   if (info_type != InfoType::kCapacity) {
-    return Layout(primary->size() + secondary->size(),
-                  std::max(primary->alignment(), secondary->alignment()));
-  } else {
     return primary.status().IsUnimplemented() ? secondary : primary;
   }
+
+  if (!primary.ok()) {
+    return secondary;
+  }
+
+  if (!secondary.ok()) {
+    return primary;
+  }
+
+  return Layout(primary->size() + secondary->size(),
+                std::max(primary->alignment(), secondary->alignment()));
 }
 
 }  // namespace pw::allocator
