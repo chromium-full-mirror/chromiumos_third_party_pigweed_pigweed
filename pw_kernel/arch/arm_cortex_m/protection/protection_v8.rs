@@ -83,7 +83,7 @@ impl MpuRegion {
                 (
                     /* xn */ true,
                     RbarSh::OuterShareable,
-                    RbarAp::RoAny,
+                    RbarAp::RwAny,
                     AttrIndex::DeviceMemory,
                 )
             }
