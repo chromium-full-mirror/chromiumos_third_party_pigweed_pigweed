@@ -24,11 +24,12 @@ class Chre(pw_package.git_repo.GitRepo):
     """Install and check status of CHRE."""
 
     def __init__(self, *args, **kwargs):
+        # android16-qpr2-release
         super().__init__(
             *args,
             name='chre',
             url='https://android.googlesource.com/platform/system/chre',
-            commit='0cef15730b06ea2f67b87014c9e8da048fef1d80',
+            commit='8845bc1271be36fc5e5ebb7d48b88441bbf96dcc',
             **kwargs,
         )
 

@@ -25,6 +25,8 @@ class AtomicBase {
 };
 
 using AtomicBoolBase = AtomicBase<bool>;
+using AtomicUint8Base = AtomicBase<uint8_t>;
+using AtomicUint16Base = AtomicBase<uint16_t>;
 using AtomicUint32Base = AtomicBase<uint32_t>;
 
 }  // namespace chre

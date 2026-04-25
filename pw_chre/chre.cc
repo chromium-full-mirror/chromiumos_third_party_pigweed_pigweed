@@ -17,18 +17,18 @@
 #include "chre/core/event_loop.h"
 #include "chre/core/event_loop_manager.h"
 #include "chre/core/host_comms_manager.h"
-#include "chre/core/init.h"
 #include "chre/core/static_nanoapps.h"
+#include "chre/platform/shared/init.h"
 
 namespace pw::chre {
 
 void Init() {
-  ::chre::init();
+  ::chre::initCommon();
   ::chre::EventLoopManagerSingleton::get()->lateInit();
   ::chre::loadStaticNanoapps();
 }
 
-void Deinit() { ::chre::deinit(); }
+void Deinit() { ::chre::deinitCommon(); }
 
 void RunEventLoop() {
   ::chre::EventLoopManagerSingleton::get()->getEventLoop().run();
@@ -45,7 +45,9 @@ void SendMessageToNanoapp(pw::chre::NanoappMessage message) {
                                        message.message_type,
                                        message.host_endpoint,
                                        message.data,
-                                       message.length);
+                                       message.length,
+                                       /* isReliable= */ false,
+                                       /* messageSequenceNumber= */ 0);
 }
 
 void FreeMessageToAp(MessageToApContext context) {

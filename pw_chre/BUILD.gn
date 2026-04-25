@@ -50,6 +50,7 @@ pw_source_set("chre_backend_headers") {
     "include/chre/target_platform/memory_impl.h",
     "include/chre/target_platform/mutex_base.h",
     "include/chre/target_platform/mutex_base_impl.h",
+    "include/chre/target_platform/platform_debug_dump_manager_base.h",
     "include/chre/target_platform/platform_nanoapp_base.h",
     "include/chre/target_platform/platform_sensor_base.h",
     "include/chre/target_platform/platform_sensor_manager_base.h",
@@ -57,6 +58,7 @@ pw_source_set("chre_backend_headers") {
     "include/chre/target_platform/power_control_manager_base.h",
     "include/chre/target_platform/static_nanoapp_init.h",
     "include/chre/target_platform/system_timer_base.h",
+    "include/chre/target_variant/config.h",
   ]
   public_configs = [ ":public_overrides" ]
   public_deps = [
@@ -64,6 +66,7 @@ pw_source_set("chre_backend_headers") {
     "$dir_pw_log",
     "$dir_pw_sync:mutex",
     "$dir_pw_sync:timed_thread_notification",
+    "$pw_external_chre:chre_headers",
   ]
 }
 
@@ -84,7 +87,6 @@ pw_source_set("pw_chre_backend") {
   deps = [
     ":chre_headers",
     "$dir_pw_string:format",
-    "$pw_external_chre:chre_headers",
   ]
   public_deps = [
     ":chre_backend_headers",
@@ -92,6 +94,7 @@ pw_source_set("pw_chre_backend") {
     "$dir_pw_log",
     "$dir_pw_sync:mutex",
     "$dir_pw_sync:timed_thread_notification",
+    "$pw_external_chre:chre_headers",
   ]
 
   public_configs = [

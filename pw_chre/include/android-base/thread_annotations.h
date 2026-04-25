@@ -1,4 +1,4 @@
-// Copyright 2023 The Pigweed Authors
+// Copyright 2026 The Pigweed Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License"); you may not
 // use this file except in compliance with the License. You may obtain a copy of
@@ -12,12 +12,17 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 
-#include "chre/platform/power_control_manager.h"
+#pragma once
 
-namespace chre {
+// TODO: b/505754109 - This is a stub to satisfy upstream CHRE test
+// dependencies. It should be removed once CHRE removes the dependency on
+// android-base or when Pigweed provides a proper thread safety annotation
+// abstraction.
 
-void PowerControlManager::preEventLoopProcess(size_t) {}
-void PowerControlManager::postEventLoopProcess(size_t) {}
-bool PowerControlManager::hostIsAwake() { return true; }
+#include <set>
 
-}  // namespace chre
+#define GUARDED_BY(x)
+#define REQUIRES(x)
+#define ACQUIRE(x)
+#define RELEASE(x)
+#define EXCLUDES(x)

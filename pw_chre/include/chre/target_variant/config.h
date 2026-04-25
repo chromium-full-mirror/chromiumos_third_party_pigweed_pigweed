@@ -1,4 +1,4 @@
-// Copyright 2023 The Pigweed Authors
+// Copyright 2026 The Pigweed Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License"); you may not
 // use this file except in compliance with the License. You may obtain a copy of
@@ -12,12 +12,6 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 
-#include "chre/platform/power_control_manager.h"
+#pragma once
 
-namespace chre {
-
-void PowerControlManager::preEventLoopProcess(size_t) {}
-void PowerControlManager::postEventLoopProcess(size_t) {}
-bool PowerControlManager::hostIsAwake() { return true; }
-
-}  // namespace chre
+// CHRE target variant configuration for pw_chre

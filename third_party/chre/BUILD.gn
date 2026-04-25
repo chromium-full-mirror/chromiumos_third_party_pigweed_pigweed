@@ -13,6 +13,7 @@
 # the License.
 
 import("//build_overrides/pigweed.gni")
+import("$dir_pigweed/third_party/emboss/emboss.gni")
 import("$dir_pw_build/error.gni")
 import("$dir_pw_build/target_types.gni")
 import("$dir_pw_chrono/backend.gni")
@@ -32,7 +33,6 @@ if (dir_pw_third_party_chre == "") {
       "-Wno-thread-safety-analysis",
       "-Wno-vla",
     ]
-    visibility = [ ":*" ]
   }
 
   config("default_chre_config_defines") {
@@ -67,13 +67,22 @@ if (dir_pw_third_party_chre == "") {
       "$dir_pw_third_party_chre/platform/shared/include",
       "$dir_pw_third_party_chre/util/include",
       "$dir_pw_third_party_chre/apps/include",
+      "$dir_pw_third_party_chre/variant/include",
+      "$dir_pw_third_party_chre/host/common/include",
+      "$dir_pw_third_party_chre/platform/shared/platform_event_loop_unspecialized/include",
     ]
-    visibility = [ ":*" ]
   }
 
   pw_source_set("chre_headers") {
     public_configs = [ ":public_includes" ]
-    public_deps = [ ":config" ]
+    public_deps = [
+      ":config",
+      "$dir_pw_allocator",
+      "$dir_pw_intrusive_ptr:pw_intrusive_ptr",
+      "$dir_pw_preprocessor",
+      "$dir_pw_span",
+      "$dir_pw_toolchain:constexpr_tag",
+    ]
   }
 
   pw_source_set("shared_platform") {
@@ -105,22 +114,24 @@ if (dir_pw_third_party_chre == "") {
   pw_source_set("chre") {
     public_configs = [ ":disable_warnings" ]
     sources = [
+      "$dir_pw_third_party_chre/core/chre_message_hub_manager.cc",
       "$dir_pw_third_party_chre/core/debug_dump_manager.cc",
       "$dir_pw_third_party_chre/core/event.cc",
       "$dir_pw_third_party_chre/core/event_loop.cc",
       "$dir_pw_third_party_chre/core/event_loop_manager.cc",
       "$dir_pw_third_party_chre/core/event_ref_queue.cc",
       "$dir_pw_third_party_chre/core/host_comms_manager.cc",
-      "$dir_pw_third_party_chre/core/init.cc",
-      "$dir_pw_third_party_chre/core/log.cc",
+      "$dir_pw_third_party_chre/core/host_message_hub_manager.cc",
       "$dir_pw_third_party_chre/core/nanoapp.cc",
       "$dir_pw_third_party_chre/core/settings.cc",
       "$dir_pw_third_party_chre/core/static_nanoapps.cc",
       "$dir_pw_third_party_chre/core/timer_pool.cc",
+      "$dir_pw_third_party_chre/platform/shared/init.cc",
       "$dir_pw_third_party_chre/util/buffer_base.cc",
       "$dir_pw_third_party_chre/util/dynamic_vector_base.cc",
       "$dir_pw_third_party_chre/util/system/debug_dump.cc",
       "$dir_pw_third_party_chre/util/system/event_callbacks.cc",
+      "$dir_pw_third_party_chre/util/system/message_router.cc",
     ]
 
     public_deps = [
@@ -157,7 +168,8 @@ if (dir_pw_third_party_chre == "") {
 
   pw_test("unit_tests") {
     enable_if =
-        dir_pw_third_party_chre != "" && pw_chrono_SYSTEM_CLOCK_BACKEND != ""
+        dir_pw_third_party_chre != "" && pw_chrono_SYSTEM_CLOCK_BACKEND != "" &&
+        dir_pw_third_party_emboss != ""
     sources = [
       "$dir_pw_third_party_chre/util/tests/blocking_queue_test.cc",
       "$dir_pw_third_party_chre/util/tests/buffer_test.cc",
@@ -171,14 +183,24 @@ if (dir_pw_third_party_chre == "") {
       "$dir_pw_third_party_chre/util/tests/time_test.cc",
       "$dir_pw_third_party_chre/util/tests/unique_ptr_test.cc",
     ]
-    public_deps = [ ":chre" ]
+    public_deps = [
+      ":chre",
+      "$dir_pw_bluetooth:emboss_hci_common",
+      "$dir_pw_bluetooth:emboss_hci_data",
+      "$dir_pw_bluetooth:emboss_hci_events",
+      "$dir_pw_bluetooth:emboss_hci_h4",
+      "$dir_pw_bluetooth:emboss_l2cap_frames",
+      "$dir_pw_bluetooth_proxy",
+      "$dir_pw_chre:chre_headers",
+    ]
     public_configs = [ ":tests_disable_warnings" ]
     remove_configs = [ "$dir_pw_build:internal_strict_warnings" ]
   }
 
   pw_test("integration_tests") {
     enable_if =
-        dir_pw_third_party_chre != "" && pw_chrono_SYSTEM_CLOCK_BACKEND != ""
+        dir_pw_third_party_chre != "" && pw_chrono_SYSTEM_CLOCK_BACKEND != "" &&
+        dir_pw_third_party_emboss != ""
     sources = [
       "$dir_pw_third_party_chre/test/simulation/memory_test.cc",
       "$dir_pw_third_party_chre/test/simulation/test_util.cc",
@@ -186,7 +208,16 @@ if (dir_pw_third_party_chre == "") {
       "integration_test.cc",
     ]
 
-    public_deps = [ ":chre" ]
+    public_deps = [
+      ":chre",
+      "$dir_pw_bluetooth:emboss_hci_common",
+      "$dir_pw_bluetooth:emboss_hci_data",
+      "$dir_pw_bluetooth:emboss_hci_events",
+      "$dir_pw_bluetooth:emboss_hci_h4",
+      "$dir_pw_bluetooth:emboss_l2cap_frames",
+      "$dir_pw_bluetooth_proxy",
+      "$dir_pw_chre:chre_headers",
+    ]
     public_configs = [
       ":test_includes",
       ":tests_disable_warnings",

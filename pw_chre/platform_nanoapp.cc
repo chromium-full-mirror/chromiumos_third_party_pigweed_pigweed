@@ -69,6 +69,24 @@ void PlatformNanoapp::logStateToBuffer(DebugDumpWrapper& debugDump) const {
   debugDump.print("%s: %s", app_info_->name, app_info_->vendor);
 }
 
+void PlatformNanoapp::invokeEventFreeCallback(
+    chreEventCompleteFunction* function,
+    uint16_t eventType,
+    void* eventData) const {
+  if (function != nullptr) {
+    function(eventType, eventData);
+  }
+}
+
+void PlatformNanoapp::invokeMessageFreeCallback(
+    chreMessageFreeFunction* function,
+    void* message,
+    size_t messageSize) const {
+  if (function != nullptr) {
+    function(message, messageSize);
+  }
+}
+
 void PlatformNanoappBase::loadStatic(
     const struct chreNslNanoappInfo* app_info) {
   app_info_ = app_info;

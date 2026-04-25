@@ -17,24 +17,29 @@
 #include <thread>
 
 #include "chre/core/event_loop_manager.h"
-#include "chre/core/init.h"
 #include "chre/platform/memory.h"
+#include "chre/platform/shared/init.h"
 #include "chre/platform/system_timer.h"
-#include "chre/util/fixed_size_blocking_queue.h"
 #include "chre/util/memory.h"
 #include "chre/util/non_copyable.h"
 #include "chre/util/singleton.h"
+#include "chre/util/system/fixed_size_blocking_queue.h"
 #include "chre/util/time.h"
 #include "chre_api/chre/version.h"
 #include "gtest/gtest.h"
+#include "pw_chre/host_link.h"
 #include "test_base.h"
 #include "test_util.h"
+
+namespace pw::chre {
+bool SendMessageToAp(MessageToAp /*message*/) { return true; }
+}  // namespace pw::chre
 
 namespace chre {
 
 void TestBase::SetUp() {
   TestEventQueueSingleton::init();
-  chre::init();
+  chre::initCommon();
   EventLoopManagerSingleton::get()->lateInit();
 
   mChreThread = std::thread(
@@ -56,7 +61,7 @@ void TestBase::TearDown() {
   TestEventQueueSingleton::get()->flush();
   EventLoopManagerSingleton::get()->getEventLoop().stop();
   mChreThread.join();
-  chre::deinit();
+  chre::deinitCommon();
   TestEventQueueSingleton::deinit();
   deleteNanoappInfos();
   unregisterAllTestNanoapps();

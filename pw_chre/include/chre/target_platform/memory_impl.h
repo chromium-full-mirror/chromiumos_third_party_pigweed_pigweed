@@ -23,4 +23,9 @@ inline T* memoryAlignedAlloc() {
   return static_cast<T*>(aligned_alloc(alignof(T), sizeof(T)));
 }
 
+template <typename T>
+inline T* memoryAlignedAllocArray(size_t count) {
+  return static_cast<T*>(aligned_alloc(alignof(T), sizeof(T) * count));
+}
+
 }  // namespace chre
