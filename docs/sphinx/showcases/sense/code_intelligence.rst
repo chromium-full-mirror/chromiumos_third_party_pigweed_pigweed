@@ -46,14 +46,14 @@ used in your project.
 
             .. figure:: https://www.gstatic.com/pigweed/sense/20240802/select_target_status_bar.png
 
-      #. Select the ``rp2040-fastbuild`` option.
+      #. Select the ``rp2040`` option.
 
          The code intelligence is now set up to help you with physical Pico 1
          programming. The RP2040 is the microprocessor that powers the Pico 1.
-         If you had selected the ``k8-fastbuild`` option,
+         If you had selected the ``host_simulator`` option,
          the code intelligence would be set up to help with programming the
          simulated app that you will run on your development host later.
-         ``rp2040-fastbuild`` represents one platform, ``k8-fastbuild`` another.
+         ``rp2040`` represents one platform, ``host_simulator`` another.
 
          We will verify the platform-specific code intelligence now by making
          sure that :ref:`module-pw_log` invocations resolve to different
@@ -111,7 +111,7 @@ used in your project.
 
             #define PW_HANDLE_LOG PW_LOG_TOKENIZED_TO_GLOBAL_HANDLER_WITH_METADATA
 
-      #. Open the Command Palette, switch your target to ``k8-fastbuild``,
+      #. Open the Command Palette, switch your target to ``host_simulator``,
          and then repeat this workflow again, starting from the ``PW_LOG_INFO``
          invocation in ``//apps/blinky/main.cc``. You should see the definitions
          finally resolve to a :ref:`module-pw_log_string` backend header.
@@ -126,16 +126,16 @@ used in your project.
 -----------
 Explanation
 -----------
-When you set your platform to ``rp2040-fastbuild`` and followed the call to
+When you set your platform to ``rp2040`` and followed the call to
 ``PW_LOG_INFO()`` in ``//apps/blinky/main.cc`` back to its source,
 you ended on a header within ``pw_log_tokenized``. When you repeated
-the process a second time with the ``k8-fastbuild`` platform you
+the process a second time with the ``host_simulator`` platform you
 ended on a header in a different module, ``pw_log_string``. This proves
 that intelligent code navigation is working. The ``pw_log`` API is a
 :ref:`facade <docs-facades>`. It's implementation is swapped out during
 compilation depending on what platform you're building for. The
-``rp2040-fastbuild`` platform has been set up to use the ``pw_log_tokenized``
-implementation, whereas the ``k8-fastbuild`` platform uses the ``pw_log_string``
+``rp2040`` platform has been set up to use the ``pw_log_tokenized``
+implementation, whereas the ``host_simulator`` platform uses the ``pw_log_string``
 implementation.
 
 Here's a diagram summary of how the intelligent code navigation resolved to
@@ -146,8 +146,8 @@ different files depending on the code analysis target you selected:
    flowchart LR
 
      a["main.cc"] --> b["log.h"]
-     b["log.h"] -. rp2040-fastbuild .-> c["pw_log_tokenized/.../log_backend.h"]
-     b["log.h"] -. k8-fastbuild .-> d["pw_log_string/.../log_backend.h"]
+     b["log.h"] -. rp2040 .-> c["pw_log_tokenized/.../log_backend.h"]
+     b["log.h"] -. host_simulator .-> d["pw_log_string/.../log_backend.h"]
 
 .. _showcase-sense-tutorial-intel-summary:
 
