@@ -13,6 +13,8 @@
 # the License.
 
 config ZEPHYR_PIGWEED_MODULE
+    bool "Enable Pigweed modules for Zephyr"
+    default y
     depends on REQUIRES_FULL_LIBCPP && (STD_CPP17 || STD_CPP2A || STD_CPP20 || STD_CPP2B)
 
 if ZEPHYR_PIGWEED_MODULE
