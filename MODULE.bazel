@@ -208,16 +208,13 @@ use_repo(cc_compatibility_proxy, "cc_compatibility_proxy")
 # Rust toolchains
 pw_rust = use_extension("//pw_toolchain/rust:extensions.bzl", "pw_rust")
 
-# ROLL: Warning: this variable is automatically updated.
-# ROLL: Last updated 2026-04-16.
-# ROLL: By https://cr-buildbucket.appspot.com/build/8684340144123280929.
 RUST_VERSION = "git_revisions:d32e620a107b5b3dccd9ddb53fa124956a92b589,26697f4d07eb921aebabdaa7d064c5165c70717e"
 
 # TODO(b/488384121): Setup a roller
 # ROLL: Warning: this variable is automatically updated.
-# ROLL: Last updated 2026-04-04.
-# ROLL: By https://cr-buildbucket.appspot.com/build/8685420012346224209.
-RUST_ANALYZER_VERSION = "git_revision:f4b77dc99d9925667246e2887783b79bdc46a50d"
+# ROLL: Last updated 2026-04-25.
+# ROLL: By https://cr-buildbucket.appspot.com/build/8683517476154647009.
+RUST_ANALYZER_VERSION = "git_revision:33f097b09ba82406dec061c78fe542c009fc1e7b"
 
 pw_rust.toolchain(
     cipd_tag = RUST_VERSION,
