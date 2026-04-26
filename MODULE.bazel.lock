@@ -1493,7 +1493,7 @@
     },
     "@@fuchsia_infra+//cipd:defs.bzl%cipd_ext": {
       "general": {
-        "bzlTransitiveDigest": "A4JUsVhjcvCGlBEaBLNVGyPXW6QgQQworV9ouOYekyM=",
+        "bzlTransitiveDigest": "yr7qlea4jJFQhd2ASAovEqx6oHLkkwkUD8N3Lzr9fVw=",
         "usagesDigest": "nEBgKJCtX/yQ08kSVeTiBh0rn1Mpuad2IizL/0kkAHQ=",
         "recordedFileInputs": {},
         "recordedDirentsInputs": {},
