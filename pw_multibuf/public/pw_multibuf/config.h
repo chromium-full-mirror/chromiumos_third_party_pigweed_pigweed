@@ -15,32 +15,6 @@
 
 /// @module{pw_multibuf}
 
-#ifndef PW_MULTIBUF_VERSION
-/// Sets the version of MultiBuf provided by this module.
-///
-/// This module is undergoing refactoring to improve usability and
-/// performance. Some portions of the version 1 API are in use by downstream
-/// consumers. These legacy interfaces are preserved for now, but deprecated.
-///
-/// Both versions are intended to minimize copying when working with sequences
-/// of memory buffers. These buffers are typically used to hold datagrams for
-/// use with I/O, and may be discontiguous.
-///
-/// Notable differences between the two versions include:
-/// * V1 required the use of a MultiBufAllocator, whereas V2 defers memory
-///   allocation strategies to the consumer.
-/// * V1 could provide views of higher level protocols be releasing and claiming
-///   prefixes and suffixes. V2 instead describes "layers" of span-like views of
-///   the underlying data.
-///
-/// Versions higher than 2 are currently unsupported.
-///
-/// Initially, this setting defaults to 1. Eventually, this will default to 2.
-/// Downstream projects may still use version 1 by overriding this
-/// configuration, but must be aware that version 1 will eventually be removed.
-#define PW_MULTIBUF_VERSION 1
-#endif  // PW_MULTIBUF_VERSION
-
 #ifndef PW_MULTIBUF_WARN_DEPRECATED
 /// Enables warnings about using legacy MultiBuf.
 ///

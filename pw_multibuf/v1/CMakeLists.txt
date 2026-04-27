@@ -14,6 +14,39 @@
 
 include($ENV{PW_ROOT}/pw_build/pigweed.cmake)
 
+# LINT.IfChange
+pw_add_library(pw_multibuf.v1 INTERFACE
+  HEADERS
+    public_overrides/pw_multibuf_backend/allocator.h
+    public_overrides/pw_multibuf_backend/chunk.h
+    public_overrides/pw_multibuf_backend/from_span.h
+    public_overrides/pw_multibuf_backend/header_chunk_region_tracker.h
+    public_overrides/pw_multibuf_backend/multibuf.h
+    public_overrides/pw_multibuf_backend/observer.h
+    public_overrides/pw_multibuf_backend/simple_allocator.h
+    public_overrides/pw_multibuf_backend/single_chunk_region_tracker.h
+  PUBLIC_INCLUDES
+    public_overrides
+  PUBLIC_DEPS
+    pw_multibuf.v1.allocator
+    pw_multibuf.v1.chunk
+    pw_multibuf.v1.from_span
+    pw_multibuf.v1.header_chunk_region_tracker
+    pw_multibuf.v1.multibuf
+    pw_multibuf.v1.simple_allocator
+    pw_multibuf.v1.single_chunk_region_tracker
+)
+
+pw_add_library(pw_multibuf.v1.allocator_async_backend INTERFACE
+  HEADERS
+    public_overrides/pw_multibuf_backend/allocator_async.h
+  PUBLIC_INCLUDES
+    public_overrides
+  PUBLIC_DEPS
+    pw_multibuf.v1.allocator_async
+)
+# LINT.ThenChange(BUILD.bazel, BUILD.gn)
+
 ### Libraries and tests
 
 # LINT.IfChange
@@ -42,20 +75,16 @@ pw_add_library(pw_multibuf.v1._chunk_testing INTERFACE
     private/pw_multibuf_private/chunk_testing.h
   PUBLIC_INCLUDES
     private
-  PUBLIC_DEFINES
-    PW_MULTIBUF_VERSION=1
   PUBLIC_DEPS
     pw_allocator.testing
-    pw_multibuf
-    pw_multibuf.v1.header_chunk_region_tracker
+    pw_multibuf.facade
+    pw_multibuf.v1
     pw_multibuf._chunk_testing
 )
 
 pw_add_test(pw_multibuf.v1.chunk_test
   SOURCES
     chunk_test.cc
-  PRIVATE_DEFINES
-    PW_MULTIBUF_VERSION=1
   PRIVATE_DEPS
     pw_multibuf.v1._chunk_testing
   GROUPS
@@ -78,12 +107,10 @@ pw_add_library(pw_multibuf.v1.header_chunk_region_tracker INTERFACE
 pw_add_test(pw_multibuf.v1.header_chunk_region_tracker_test
   SOURCES
     header_chunk_region_tracker_test.cc
-  PRIVATE_DEFINES
-    PW_MULTIBUF_VERSION=1
   PRIVATE_DEPS
     pw_allocator.testing
-    pw_multibuf.v1.chunk
-    pw_multibuf.v1.header_chunk_region_tracker
+    pw_multibuf.facade
+    pw_multibuf.v1
     pw_status
   GROUPS
     modules
@@ -105,11 +132,9 @@ pw_add_library(pw_multibuf.v1.single_chunk_region_tracker INTERFACE
 pw_add_test(pw_multibuf.v1.single_chunk_region_tracker_test
   SOURCES
     single_chunk_region_tracker_test.cc
-  PRIVATE_DEFINES
-    PW_MULTIBUF_VERSION=1
   PRIVATE_DEPS
-    pw_multibuf.v1.chunk
-    pw_multibuf.single_chunk_region_tracker
+    pw_multibuf.facade
+    pw_multibuf.v1
   GROUPS
     modules
     pw_multibuf
@@ -135,10 +160,10 @@ pw_add_library(pw_multibuf.v1.multibuf STATIC
 pw_add_test(pw_multibuf.v1.multibuf_test
   SOURCES
     multibuf_test.cc
-  PRIVATE_DEFINES
-    PW_MULTIBUF_VERSION=1
   PRIVATE_DEPS
     pw_bytes
+    pw_multibuf.facade
+    pw_multibuf.v1
     pw_multibuf.v1._chunk_testing
     pw_multibuf._test_utils
   GROUPS
@@ -182,12 +207,11 @@ pw_add_library(pw_multibuf.v1.allocator_async STATIC
 pw_add_test(pw_multibuf.v1.allocator_async_test
   SOURCES
     allocator_async_test.cc
-  PRIVATE_DEFINES
-    PW_MULTIBUF_VERSION=1
   PRIVATE_DEPS
     pw_async2
     pw_async2.testing
-    pw_multibuf.v1.allocator
+    pw_multibuf.facade
+    pw_multibuf.v1
     pw_multibuf.v1.allocator_async
   GROUPS
     modules
@@ -217,12 +241,11 @@ pw_add_library(pw_multibuf.v1.simple_allocator STATIC
 pw_add_test(pw_multibuf.v1.simple_allocator_test
   SOURCES
     simple_allocator_test.cc
-  PRIVATE_DEFINES
-    PW_MULTIBUF_VERSION=1
   PRIVATE_DEPS
     pw_allocator.testing
     pw_allocator.null_allocator
-    pw_multibuf.simple_allocator
+    pw_multibuf.facade
+    pw_multibuf.v1
   GROUPS
     modules
     pw_multibuf
@@ -244,12 +267,11 @@ pw_add_library(pw_multibuf.v1.stream STATIC
 pw_add_test(pw_multibuf.v1.stream_test
   SOURCES
     stream_test.cc
-  PRIVATE_DEFINES
-    PW_MULTIBUF_VERSION=1
   PRIVATE_DEPS
     pw_allocator.testing
     pw_bytes
-    pw_multibuf
+    pw_multibuf.facade
+    pw_multibuf.v1
     pw_multibuf.v1.stream
     pw_multibuf.v1._chunk_testing
     pw_multibuf._test_utils
@@ -278,11 +300,10 @@ pw_add_library(pw_multibuf.v1.from_span STATIC
 pw_add_test(pw_multibuf.v1.from_span_test
   SOURCES
     from_span_test.cc
-  PRIVATE_DEFINES
-    PW_MULTIBUF_VERSION=1
   PRIVATE_DEPS
     pw_allocator.testing
-    pw_multibuf.from_span
+    pw_multibuf.facade
+    pw_multibuf.v1
   GROUPS
     modules
     pw_multibuf

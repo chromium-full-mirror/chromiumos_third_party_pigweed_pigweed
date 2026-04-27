@@ -30,9 +30,9 @@ namespace pw::multibuf::v1 {
 /// metadata region to track the provided buffer. In this case, ``deleter``
 /// will not be invoked and the caller will retain ownership of the provided
 /// region.
-std::optional<MultiBuf> FromSpan(pw::Allocator& metadata_allocator,
-                                 ByteSpan region,
-                                 pw::Function<void(ByteSpan)>&& deleter);
+std::optional<v1::MultiBuf> FromSpan(pw::Allocator& metadata_allocator,
+                                     ByteSpan region,
+                                     pw::Function<void(ByteSpan)>&& deleter);
 
 /// @}
 

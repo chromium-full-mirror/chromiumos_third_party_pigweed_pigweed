@@ -13,5 +13,12 @@
 // the License.
 #pragma once
 
-#include "pw_multibuf/allocator.h"
-#include "pw_multibuf_backend/allocator_async.h"  // nogncheck
+#include "pw_multibuf/v1/chunk.h"
+
+namespace pw::multibuf {
+
+using v1::Chunk;
+using v1::ChunkRegionTracker;
+using v1::OwnedChunk;
+
+}  // namespace pw::multibuf

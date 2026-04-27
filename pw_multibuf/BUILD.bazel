@@ -15,28 +15,54 @@
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_python//sphinxdocs:sphinx_docs_library.bzl", "sphinx_docs_library")
 load("//pw_build:compatibility.bzl", "incompatible_with_mcu")
+load("//pw_build:pw_facade.bzl", "pw_facade")
 
 package(default_visibility = ["//visibility:public"])
 
 licenses(["notice"])
 
 # LINT.IfChange
-cc_library(
+pw_facade(
     name = "pw_multibuf",
     hdrs = [
+        "public/pw_multibuf/allocator.h",
+        "public/pw_multibuf/chunk.h",
+        "public/pw_multibuf/from_span.h",
+        "public/pw_multibuf/header_chunk_region_tracker.h",
         "public/pw_multibuf/multibuf.h",
         "public/pw_multibuf/observer.h",
+        "public/pw_multibuf/simple_allocator.h",
+        "public/pw_multibuf/single_chunk_region_tracker.h",
     ],
+    backend = ":backend",
+    strip_include_prefix = "public",
+    deps = [":config"],
+)
+
+# allocator_async is kept as a separate facade to keep its dep on pw_thread via
+# pw_async2 from propagating to incompatible target platforms, e.g. fuchsia,
+# stm32xx, etc.
+pw_facade(
+    name = "allocator_async",
+    hdrs = ["public/pw_multibuf/allocator_async.h"],
+    backend = ":allocator_async_backend",
     strip_include_prefix = "public",
     deps = [
-        ":chunk",
+        ":allocator",
         ":config",
-        "//pw_multibuf/v1:multibuf",
-        "//pw_multibuf/v1_adapter:multibuf",
-        "//pw_multibuf/v2:multibuf",
     ],
 )
 # LINT.ThenChange(BUILD.gn, CMakeLists.txt)
+
+label_flag(
+    name = "backend",
+    build_setting_default = "//pw_multibuf/v1",
+)
+
+label_flag(
+    name = "allocator_async_backend",
+    build_setting_default = "//pw_multibuf/v1:allocator_async_backend",
+)
 
 ### Module configuration
 
@@ -53,91 +79,41 @@ cc_library(
     visibility = ["//pw_multibuf:__subpackages__"],
     deps = [":config_override"],
 )
+# LINT.ThenChange(BUILD.gn, CMakeLists.txt)
 
 ### V1 Libraries
 
-cc_library(
-    name = "chunk",
-    hdrs = ["public/pw_multibuf/chunk.h"],
-    strip_include_prefix = "public",
-    deps = [
-        ":config",
-        "//pw_multibuf/v1:chunk",
-        "//pw_multibuf/v1_adapter:chunk",
-    ],
-)
-
-cc_library(
-    name = "header_chunk_region_tracker",
-    hdrs = ["public/pw_multibuf/header_chunk_region_tracker.h"],
-    strip_include_prefix = "public",
-    deps = [
-        ":chunk",
-        ":config",
-        "//pw_multibuf/v1:header_chunk_region_tracker",
-    ],
-)
-
-cc_library(
-    name = "single_chunk_region_tracker",
-    hdrs = ["public/pw_multibuf/single_chunk_region_tracker.h"],
-    strip_include_prefix = "public",
-    deps = [
-        ":chunk",
-        ":config",
-        "//pw_multibuf/v1:single_chunk_region_tracker",
-        "//pw_multibuf/v1_adapter:single_chunk_region_tracker",
-    ],
-)
-
-cc_library(
+alias(
     name = "allocator",
-    hdrs = ["public/pw_multibuf/allocator.h"],
-    strip_include_prefix = "public",
-    deps = [
-        ":config",
-        ":pw_multibuf",
-        "//pw_multibuf/v1:allocator",
-        "//pw_multibuf/v1_adapter:allocator",
-    ],
+    actual = ":pw_multibuf",
 )
 
-cc_library(
-    name = "allocator_async",
-    hdrs = ["public/pw_multibuf/allocator_async.h"],
-    strip_include_prefix = "public",
-    deps = [
-        ":config",
-        "//pw_multibuf:allocator",
-        "//pw_multibuf/v1:allocator_async",
-    ],
+alias(
+    name = "chunk",
+    actual = ":pw_multibuf",
 )
 
-cc_library(
+alias(
     name = "from_span",
-    hdrs = ["public/pw_multibuf/from_span.h"],
-    strip_include_prefix = "public",
-    deps = [
-        ":config",
-        ":pw_multibuf",
-        "//pw_multibuf/v1:from_span",
-        "//pw_multibuf/v1_adapter:from_span",
-    ],
+    actual = ":pw_multibuf",
 )
 
-cc_library(
+alias(
+    name = "header_chunk_region_tracker",
+    actual = ":pw_multibuf",
+)
+
+alias(
     name = "simple_allocator",
-    hdrs = ["public/pw_multibuf/simple_allocator.h"],
-    strip_include_prefix = "public",
-    deps = [
-        ":allocator",
-        ":config",
-        ":pw_multibuf",
-        "//pw_multibuf/v1:simple_allocator",
-        "//pw_multibuf/v1_adapter:simple_allocator",
-    ],
+    actual = ":pw_multibuf",
 )
 
+alias(
+    name = "single_chunk_region_tracker",
+    actual = ":pw_multibuf",
+)
+
+# LINT.IfChange
 cc_library(
     name = "testing",
     testonly = True,
@@ -145,10 +121,10 @@ cc_library(
     strip_include_prefix = "public",
     deps = [
         ":config",
+        ":simple_allocator",
         "//pw_allocator:synchronized_allocator",
         "//pw_allocator:testing",
         "//pw_assert:assert",
-        "//pw_multibuf:simple_allocator",
         "//pw_sync:mutex",
     ],
 )
@@ -169,7 +145,6 @@ cc_library(
     strip_include_prefix = "private",
     visibility = ["//pw_multibuf:__subpackages__"],
 )
-
 # LINT.ThenChange(BUILD.gn, CMakeLists.txt)
 
 ## Docs

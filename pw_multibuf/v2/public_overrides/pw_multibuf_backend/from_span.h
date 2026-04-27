@@ -13,5 +13,23 @@
 // the License.
 #pragma once
 
-#include "pw_multibuf/allocator.h"
-#include "pw_multibuf_backend/allocator_async.h"  // nogncheck
+#include "pw_multibuf/config.h"
+#include "pw_multibuf/v1_adapter/multibuf.h"
+
+// This adapter will be removed when the migration to v2 is complete.
+#if PW_MULTIBUF_INCLUDE_V1_ADAPTERS
+
+#include "pw_multibuf/v1_adapter/from_span.h"
+
+namespace pw::multibuf {
+
+inline std::optional<v1_adapter::MultiBuf> FromSpan(
+    Allocator& metadata_allocator,
+    ByteSpan region,
+    Function<void(ByteSpan)>&& deleter) {
+  return v1_adapter::FromSpan(metadata_allocator, region, std::move(deleter));
+}
+
+}  // namespace pw::multibuf
+
+#endif  // PW_MULTIBUF_INCLUDE_V1_ADAPTERS

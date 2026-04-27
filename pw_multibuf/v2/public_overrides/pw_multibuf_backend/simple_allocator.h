@@ -13,5 +13,17 @@
 // the License.
 #pragma once
 
-#include "pw_multibuf/allocator.h"
-#include "pw_multibuf_backend/allocator_async.h"  // nogncheck
+#include "pw_multibuf/config.h"
+
+// This adapter will be removed when the migration to v2 is complete.
+#if PW_MULTIBUF_INCLUDE_V1_ADAPTERS
+
+#include "pw_multibuf/v1_adapter/simple_allocator.h"
+
+namespace pw::multibuf {
+
+using v1_adapter::SimpleAllocator;
+
+}  // namespace pw::multibuf
+
+#endif  // PW_MULTIBUF_INCLUDE_V1_ADAPTERS

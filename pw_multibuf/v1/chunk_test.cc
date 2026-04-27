@@ -27,14 +27,6 @@ namespace {
 using pw::multibuf::OwnedChunk;
 using pw::multibuf::test::ChunkTest;
 
-// Some operations that fail in v1 succeed with the v1_adapter.
-// See also v1_adapter::Chunk::ClaimPrefix and v1_adapter::Chunk::ClaimSuffix.
-#if PW_MULTIBUF_VERSION == 1
-#define EXPECT_FALSE_V1(expr) EXPECT_FALSE(expr)
-#else
-#define EXPECT_FALSE_V1(expr) std::ignore = (expr)
-#endif
-
 // Unit tests.
 
 #if __cplusplus >= 202002L
@@ -181,9 +173,7 @@ TEST_F(ChunkTest, ClaimPrefixReclaimsPrecedingChunksDiscardedSuffix) {
   const size_t kDiscard = 3;
   split->Truncate(split.size() - kDiscard);
   EXPECT_TRUE(chunk->ClaimPrefix(kDiscard));
-#if PW_MULTIBUF_VERSION == 1
-  EXPECT_FALSE(chunk->ClaimPrefix(1));
-#endif
+  EXPECT_FALSE_V1(chunk->ClaimPrefix(1));
 }
 
 TEST_F(ChunkTest, ClaimSuffixReclaimsTruncatedEnd) {

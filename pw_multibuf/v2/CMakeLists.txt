@@ -14,6 +14,28 @@
 
 include($ENV{PW_ROOT}/pw_build/pigweed.cmake)
 
+pw_add_library(pw_multibuf.v2 INTERFACE
+  HEADERS
+    public_overrides/pw_multibuf_backend/allocator.h
+    public_overrides/pw_multibuf_backend/allocator_async.h
+    public_overrides/pw_multibuf_backend/chunk.h
+    public_overrides/pw_multibuf_backend/from_span.h
+    public_overrides/pw_multibuf_backend/header_chunk_region_tracker.h
+    public_overrides/pw_multibuf_backend/multibuf.h
+    public_overrides/pw_multibuf_backend/observer.h
+    public_overrides/pw_multibuf_backend/simple_allocator.h
+    public_overrides/pw_multibuf_backend/single_chunk_region_tracker.h
+  PUBLIC_INCLUDES
+    public_overrides
+  PUBLIC_DEPS
+    pw_multibuf.v1_adapter.allocator
+    pw_multibuf.v1_adapter.chunk
+    pw_multibuf.v1_adapter.from_span
+    pw_multibuf.v1_adapter.multibuf
+    pw_multibuf.v1_adapter.simple_allocator
+    pw_multibuf.v1_adapter.single_chunk_region_tracker
+)
+
 ### Libraries and tests
 
 # LINT.IfChange
@@ -43,8 +65,6 @@ pw_add_library(pw_multibuf.v2.iterators INTERFACE
 pw_add_test(pw_multibuf.v2.chunk_iterator_test
   SOURCES
     chunk_iterator_test.cc
-  PRIVATE_DEFINES
-    PW_MULTIBUF_VERSION=2
   PRIVATE_DEPS
     pw_multibuf.v2.iterators
     pw_multibuf.v2._iterator_testing
@@ -56,8 +76,6 @@ pw_add_test(pw_multibuf.v2.chunk_iterator_test
 pw_add_test(pw_multibuf.v2.byte_iterator_test
   SOURCES
     byte_iterator_test.cc
-  PRIVATE_DEFINES
-    PW_MULTIBUF_VERSION=2
   PRIVATE_DEPS
     pw_multibuf.v2.iterators
     pw_multibuf.v2._iterator_testing
@@ -71,8 +89,6 @@ pw_add_library(pw_multibuf.v2._iterator_testing INTERFACE
     private/pw_multibuf_private/iterator_testing.h
   PUBLIC_INCLUDES
     private
-  PUBLIC_DEFINES
-    PW_MULTIBUF_VERSION=2
   PUBLIC_DEPS
     pw_allocator.bump_allocator
     pw_containers.storage
@@ -110,7 +126,10 @@ pw_add_library(pw_multibuf.v2._multibuf_testing INTERFACE
   PUBLIC_INCLUDES
     private
   PUBLIC_DEPS
-    pw_multibuf
+    pw_multibuf.facade
+    pw_multibuf.v2
+  PRIVATE_DEFINES
+    PW_MULTIBUF_INCLUDE_V1_ADAPTERS=0
 )
 
 pw_add_test(pw_multibuf.v2.multibuf_test
@@ -118,7 +137,6 @@ pw_add_test(pw_multibuf.v2.multibuf_test
     multibuf_test.cc
     multibuf_nc_test.cc
   PRIVATE_DEFINES
-    PW_MULTIBUF_VERSION=2
     PW_MULTIBUF_INCLUDE_V1_ADAPTERS=0
   PRIVATE_DEPS
     pw_allocator.chunk_pool
@@ -126,7 +144,8 @@ pw_add_test(pw_multibuf.v2.multibuf_test
     pw_assert.check
     pw_bytes
     pw_compilation_testing._pigweed_only_negative_compilation
-    pw_multibuf
+    pw_multibuf.facade
+    pw_multibuf.v2
     pw_multibuf.v2.iterators
     pw_multibuf.v2._multibuf_testing
     pw_result

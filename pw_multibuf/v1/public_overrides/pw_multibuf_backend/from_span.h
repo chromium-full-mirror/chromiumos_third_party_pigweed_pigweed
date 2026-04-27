@@ -13,5 +13,16 @@
 // the License.
 #pragma once
 
-#include "pw_multibuf/allocator.h"
-#include "pw_multibuf_backend/allocator_async.h"  // nogncheck
+#include "pw_multibuf/v1/from_span.h"
+#include "pw_multibuf/v1/multibuf.h"
+
+namespace pw::multibuf {
+
+inline std::optional<v1::MultiBuf> FromSpan(
+    Allocator& metadata_allocator,
+    ByteSpan region,
+    Function<void(ByteSpan)>&& deleter) {
+  return v1::FromSpan(metadata_allocator, region, std::move(deleter));
+}
+
+}  // namespace pw::multibuf

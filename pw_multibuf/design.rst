@@ -10,33 +10,40 @@ The MultiBuf type is designed to allow data to be read or written across
 multiple buffers with minimal to zero copying. This allows device I/O such as
 RPC, transfer, and sockets, to move data with reduced memory, CPU and latency.
 
----------------------------
-Why are there two versions?
----------------------------
-A legacy version of the MultiBuf type encapsulated memory allocation for all
-buffers, did not provide support for layered views, and generally had higher
-overhead. We are in the process of migrating users to the newer version.
+-----------------------------
+Why are there three versions?
+-----------------------------
+A legacy, "v1" version of the :cc:`MultiBuf <pw::multibuf::v1::MultiBuf>` type
+had a number of shortcoming identified, including:
 
-During the migration period, consumers can use
-:ref:`module configuration <module-structure-compile-time-configuration>`
-options to select which version is in use:
+- It implemented a custom memory allocation scheme for all buffers and did not
+  allow for unowned buffers, shared buffers, etc.
+- It required sveral mutexes to perform synchronization, even when used in a
+  single-threaded context.
+- It did not support layering views, requiring users to cooperatively claim and
+  discard prefixes and suffixes of memory regions.
+- It generally had higher overhead, mostly as a result of the above.
 
-.. `cc``:: PW_MULTIBUF_VERSION
+We are in the process of migrating users to the newer "v2"
+:cc:`version <pw::multibuf::v2::BasicMultiBuf>` that intends to represent a
+less-opinionated sequence of memory regions. To facilitate migrating to this new
+version, an intermediate "v1_adapter"
+:cc:`version <pw::multibuf::v1_adapter::MultiBuf>` is also provided that
+implements most of the "v1" interface as well as the "v2" interface using the
+"v2" implementation.
 
-   Controls which MultiBuf version is used. This module configuration option
-   should be set in a Pigweed configuration header. Defaults to ``1``.
+During the migration period, the "v1" and "v2" version are provided as backends
+to a ``pw_multibuf`` facade. Additionally, :cc:`PW_MULTIBUF_INCLUDE_V1_ADAPTERS`
+is a :ref:`module configuration <module-structure-compile-time-configuration>`
+option that controls the availability of the "v1_adapter" version.
 
-.. `cc`:: PW_MULTIBUF_WARN_DEPRECATED
-
-  Controls whether code using the v1 API emits deprecation warnings. This module
-  configuration option should be set in a Pigweed configuration header. Disabled
-  by default.
-
-.. `cc`:: PW_MULTIBUF_INCLUDE_V1_ADAPTERS
-
-  Controls whether the v2 module includes v1 adapter types. These allow setting
-  ``PW_MULTIBUF_VERSION`` to ``2`` while still having code that uses the v1 API.
-  Enabled by default.
+Initially, the ``pw_multibuf`` facade will default to the "v1" backend, with
+:cc:`PW_MULTIBUF_INCLUDE_V1_ADAPTERS` enabled by default. Consumers can switch
+to the "v2" backend without any code changes, and then migrate individual usages
+to use"v2". Eventually the default for the facade will be removed, ensuring all
+consumers have specified the backend. Subsequently, the "v1" version will be
+removed, followed by :cc:`PW_MULTIBUF_INCLUDE_V1_ADAPTERS` being disabled by
+default, and the "v1_adapter" being removed.
 
 The remainder of this document refers to the newer, "v2" version.
 

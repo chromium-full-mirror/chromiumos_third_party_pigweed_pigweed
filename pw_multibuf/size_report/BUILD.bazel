@@ -62,23 +62,22 @@ pw_cc_size_binary(
 pw_cc_size_binary(
     name = "transfer_v1",
     srcs = ["transfer_v1.cc"],
-    defines = ["PW_MULTIBUF_VERSION=1"],
     deps = [
         ":transfer",
         "//pw_allocator:bump_allocator",
         "//pw_assert:assert",
         "//pw_async2:channel",
-        "//pw_multibuf",
         "//pw_multibuf:allocator",
+        "//pw_multibuf:pw_multibuf.facade",
         "//pw_multibuf:simple_allocator",
         "//pw_multibuf/examples:protocol",
+        "//pw_multibuf/v1",
     ],
 )
 
 pw_cc_size_binary(
     name = "transfer_v2",
     srcs = ["transfer_v2.cc"],
-    defines = ["PW_MULTIBUF_VERSION=2"],
     deps = [
         ":transfer",
         "//pw_allocator:async_pool",
@@ -86,8 +85,9 @@ pw_cc_size_binary(
         "//pw_allocator:chunk_pool",
         "//pw_assert:assert",
         "//pw_async2:channel",
-        "//pw_multibuf",
+        "//pw_multibuf:pw_multibuf.facade",
         "//pw_multibuf/examples:protocol",
+        "//pw_multibuf/v2",
     ],
 )
 

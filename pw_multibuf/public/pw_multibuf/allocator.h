@@ -13,36 +13,5 @@
 // the License.
 #pragma once
 
-#include "pw_multibuf/config.h"
 #include "pw_multibuf/multibuf.h"
-
-#if PW_MULTIBUF_VERSION == 1
-
-#include "pw_multibuf/v1/allocator.h"
-
-namespace pw::multibuf {
-
-using v1::MultiBufAllocator;
-
-}  // namespace pw::multibuf
-
-#elif PW_MULTIBUF_VERSION == 2
-
-// This adapter will be removed when the migration to v2 is complete.
-#if PW_MULTIBUF_INCLUDE_V1_ADAPTERS
-
-#include "pw_multibuf/v1_adapter/allocator.h"
-
-namespace pw::multibuf {
-
-using v1_adapter::MultiBufAllocator;
-
-}  // namespace pw::multibuf
-
-#endif  // PW_MULTIBUF_INCLUDE_V1_ADAPTERS
-
-#else
-
-#error "Unsupported PW_MULTIBUF_VERSION"
-
-#endif  // PW_MULTIBUF_VERSION
+#include "pw_multibuf_backend/allocator.h"

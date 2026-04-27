@@ -14,36 +14,5 @@
 #pragma once
 
 #include "pw_multibuf/allocator.h"
-#include "pw_multibuf/config.h"
 #include "pw_multibuf/multibuf.h"
-
-#if PW_MULTIBUF_VERSION == 1
-
-#include "pw_multibuf/v1/simple_allocator.h"
-
-namespace pw::multibuf {
-
-using v1::SimpleAllocator;
-
-}  // namespace pw::multibuf
-
-#elif PW_MULTIBUF_VERSION == 2
-
-// This adapter will be removed when the migration to v2 is complete.
-#if PW_MULTIBUF_INCLUDE_V1_ADAPTERS
-
-#include "pw_multibuf/v1_adapter/simple_allocator.h"
-
-namespace pw::multibuf {
-
-using v1_adapter::SimpleAllocator;
-
-}  // namespace pw::multibuf
-
-#endif  // PW_MULTIBUF_INCLUDE_V1_ADAPTERS
-
-#else
-
-#error "Unsupported PW_MULTIBUF_VERSION"
-
-#endif  // PW_MULTIBUF_VERSION
+#include "pw_multibuf_backend/simple_allocator.h"

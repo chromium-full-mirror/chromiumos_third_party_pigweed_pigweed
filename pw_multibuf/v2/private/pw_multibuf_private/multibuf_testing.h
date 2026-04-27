@@ -17,8 +17,8 @@
 
 namespace pw::multibuf::test {
 
-// Test fixture that aliases v2 names This allows the v1_adapter to provide
-// different aliases and reuse the unit tests.
+// Alias v2 names so the v1_adapter can provide different aliases and reuse the
+// unit tests.
 using ConstMultiBufInstance = v2::ConstMultiBuf::Instance;
 using FlatConstMultiBufInstance = v2::FlatConstMultiBuf::Instance;
 using FlatMultiBufInstance = v2::FlatMultiBuf::Instance;

@@ -111,8 +111,8 @@ class PW_MULTIBUF_DEPRECATED SimpleAllocator : public MultiBufAllocator {
   /// An unused block of memory in the allocator's data area.
   ///
   /// This describes a single contiguous chunk of memory in the allocator's data
-  /// area that is not yet tracked by a ``LinkedRegionTracker`` and therefore
-  /// not referenced by any ``Chunk``s.
+  /// area that is not yet tracked by entirea ``LinkedRegionTracker`` and
+  /// therefore not referenced by any ``Chunk``s.
   struct FreeBlock final {
     /// An ``iterator`` pointing just before this block.
     /// This is meant for use with ``insert_after`` to add new elements

@@ -18,14 +18,53 @@ import("$dir_pw_async2/backend.gni")
 import("$dir_pw_build/target_types.gni")
 import("$dir_pw_unit_test/test.gni")
 
+### Backend for pw_multibuf
+
+# LINT.IfChange
+
+pw_source_set("v1") {
+  public_configs = [ ":public_overrides_include_path" ]
+  public = [
+    "public_overrides/pw_multibuf_backend/allocator.h",
+    "public_overrides/pw_multibuf_backend/chunk.h",
+    "public_overrides/pw_multibuf_backend/from_span.h",
+    "public_overrides/pw_multibuf_backend/header_chunk_region_tracker.h",
+    "public_overrides/pw_multibuf_backend/multibuf.h",
+    "public_overrides/pw_multibuf_backend/observer.h",
+    "public_overrides/pw_multibuf_backend/simple_allocator.h",
+    "public_overrides/pw_multibuf_backend/single_chunk_region_tracker.h",
+  ]
+  public_deps = [
+    ":allocator",
+    ":chunk",
+    ":from_span",
+    ":header_chunk_region_tracker",
+    ":multibuf",
+    ":simple_allocator",
+    ":single_chunk_region_tracker",
+  ]
+}
+
+pw_source_set("allocator_async_backend") {
+  public_configs = [ ":public_overrides_include_path" ]
+  public = [ "public_overrides/pw_multibuf_backend/allocator_async.h" ]
+  public_deps = [ ":allocator_async" ]
+}
+
+# LINT.ThenChange(BUILD.gn, CMakeLists.txt)
+
 config("public_include_path") {
   include_dirs = [ "public" ]
   visibility = [ ":*" ]
 }
 
+config("public_overrides_include_path") {
+  include_dirs = [ "public_overrides" ]
+  visibility = [ ":*" ]
+}
+
 config("test_config") {
   include_dirs = [ "private" ]
-  defines = [ "PW_MULTIBUF_VERSION=1" ]
   visibility = [ ":*" ]
 }
 
@@ -37,8 +76,8 @@ pw_source_set("chunk") {
   public = [ "public/pw_multibuf/v1/chunk.h" ]
   sources = [ "chunk.cc" ]
   public_deps = [
+    "$dir_pw_multibuf:config",
     "$dir_pw_sync:mutex",
-    "..:config",
     dir_pw_assert,
     dir_pw_bytes,
     dir_pw_preprocessor,
@@ -55,10 +94,10 @@ pw_source_set("chunk_testing") {
   public = [ "private/pw_multibuf_private/chunk_testing.h" ]
   public_configs = [ ":test_config" ]
   public_deps = [
-    ":header_chunk_region_tracker",
+    ":v1",
     "$dir_pw_allocator:testing",
     "$dir_pw_multibuf:chunk_testing",
-    dir_pw_multibuf,
+    "$dir_pw_multibuf:pw_multibuf.facade",
   ]
   visibility = [ ":*" ]
 }
@@ -74,7 +113,7 @@ pw_source_set("header_chunk_region_tracker") {
   public = [ "public/pw_multibuf/v1/header_chunk_region_tracker.h" ]
   public_deps = [
     ":chunk",
-    "..:config",
+    "$dir_pw_multibuf:config",
     dir_pw_allocator,
     dir_pw_bytes,
   ]
@@ -84,9 +123,9 @@ pw_test("header_chunk_region_tracker_test") {
   sources = [ "header_chunk_region_tracker_test.cc" ]
   configs = [ ":test_config" ]
   deps = [
-    ":chunk",
-    ":header_chunk_region_tracker",
+    ":v1",
     "$dir_pw_allocator:testing",
+    "$dir_pw_multibuf:pw_multibuf.facade",
     dir_pw_status,
   ]
 }
@@ -96,7 +135,7 @@ pw_source_set("single_chunk_region_tracker") {
   public = [ "public/pw_multibuf/v1/single_chunk_region_tracker.h" ]
   public_deps = [
     ":chunk",
-    "..:config",
+    "$dir_pw_multibuf:config",
     dir_pw_assert,
     dir_pw_bytes,
   ]
@@ -106,8 +145,8 @@ pw_test("single_chunk_region_tracker_test") {
   sources = [ "single_chunk_region_tracker_test.cc" ]
   configs = [ ":test_config" ]
   deps = [
-    ":chunk",
-    "$dir_pw_multibuf:single_chunk_region_tracker",
+    ":v1",
+    "$dir_pw_multibuf:pw_multibuf.facade",
   ]
 
   # TODO: b/260624583 - Fix this for //targets/rp2040
@@ -123,7 +162,7 @@ pw_source_set("multibuf") {
   sources = [ "multibuf.cc" ]
   public_deps = [
     ":chunk",
-    "..:config",
+    "$dir_pw_multibuf:config",
     dir_pw_preprocessor,
     dir_pw_status,
   ]
@@ -137,6 +176,8 @@ pw_test("multibuf_test") {
   configs = [ ":test_config" ]
   deps = [
     ":chunk_testing",
+    ":v1",
+    "$dir_pw_multibuf:pw_multibuf.facade",
     "$dir_pw_multibuf:test_utils",
     dir_pw_bytes,
   ]
@@ -152,9 +193,9 @@ pw_source_set("allocator") {
   public_deps = [
     ":multibuf",
     "$dir_pw_containers:intrusive_forward_list",
+    "$dir_pw_multibuf:config",
     "$dir_pw_result",
     "$dir_pw_sync:interrupt_spin_lock",
-    "..:config",
   ]
 }
 
@@ -169,7 +210,7 @@ pw_source_set("allocator_async") {
     ":allocator",
     "$dir_pw_async2",
     "$dir_pw_async2:pw_async2",
-    "..:config",
+    "$dir_pw_multibuf:config",
   ]
 }
 
@@ -178,10 +219,11 @@ pw_test("allocator_async_test") {
   sources = [ "allocator_async_test.cc" ]
   configs = [ ":test_config" ]
   deps = [
-    ":allocator",
     ":allocator_async",
+    ":v1",
     "$dir_pw_async2",
     "$dir_pw_async2:testing",
+    "$dir_pw_multibuf:pw_multibuf.facade",
   ]
   enable_if = pw_async2_DISPATCHER_FOR_TEST_BACKEND != ""
 }
@@ -197,7 +239,7 @@ pw_source_set("simple_allocator") {
     ":allocator",
     ":multibuf",
     "$dir_pw_containers:intrusive_list",
-    "..:config",
+    "$dir_pw_multibuf:config",
     dir_pw_allocator,
   ]
   deps = [ "$dir_pw_bytes:alignment" ]
@@ -210,9 +252,10 @@ pw_test("simple_allocator_test") {
   sources = [ "simple_allocator_test.cc" ]
   configs = [ ":test_config" ]
   deps = [
+    ":v1",
     "$dir_pw_allocator:null_allocator",
     "$dir_pw_allocator:testing",
-    "$dir_pw_multibuf:simple_allocator",
+    "$dir_pw_multibuf:pw_multibuf.facade",
   ]
 }
 
@@ -221,7 +264,7 @@ pw_source_set("stream") {
   public = [ "public/pw_multibuf/v1/stream.h" ]
   public_deps = [
     ":multibuf",
-    "..:config",
+    "$dir_pw_multibuf:config",
     dir_pw_status,
     dir_pw_stream,
   ]
@@ -234,9 +277,10 @@ pw_test("stream_test") {
   deps = [
     ":chunk_testing",
     ":stream",
+    ":v1",
+    "$dir_pw_multibuf:pw_multibuf.facade",
     "$dir_pw_multibuf:test_utils",
     dir_pw_bytes,
-    dir_pw_multibuf,
     dir_pw_status,
   ]
 }
@@ -262,8 +306,9 @@ pw_test("from_span_test") {
   sources = [ "from_span_test.cc" ]
   configs = [ ":test_config" ]
   deps = [
+    ":v1",
     "$dir_pw_allocator:testing",
-    "$dir_pw_multibuf:from_span",
+    "$dir_pw_multibuf:pw_multibuf.facade",
   ]
 }
 

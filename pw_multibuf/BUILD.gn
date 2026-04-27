@@ -14,9 +14,45 @@
 
 import("//build_overrides/pigweed.gni")
 
+import("$dir_pw_build/facade.gni")
 import("$dir_pw_build/module_config.gni")
 import("$dir_pw_build/target_types.gni")
+import("$dir_pw_multibuf/backend.gni")
 import("$dir_pw_unit_test/test.gni")
+
+# LINT.IfChange
+pw_facade("pw_multibuf") {
+  backend = pw_multibuf_BACKEND
+  public_configs = [ ":public_include_path" ]
+  public = [
+    "public/pw_multibuf/allocator.h",
+    "public/pw_multibuf/chunk.h",
+    "public/pw_multibuf/from_span.h",
+    "public/pw_multibuf/header_chunk_region_tracker.h",
+    "public/pw_multibuf/multibuf.h",
+    "public/pw_multibuf/observer.h",
+    "public/pw_multibuf/simple_allocator.h",
+    "public/pw_multibuf/single_chunk_region_tracker.h",
+  ]
+  public_deps = [ ":config" ]
+}
+
+# allocator_async is kept as a separate facade to keep its dep on pw_thread via
+# pw_async2 from propagating to incompatible target platforms, e.g. fuchsia,
+# stm32xx, etc.
+pw_facade("allocator_async") {
+  backend = pw_multibuf_allocator_async_BACKEND
+  public_configs = [ ":public_include_path" ]
+  public = [ "public/pw_multibuf/allocator_async.h" ]
+  public_deps = [
+    ":allocator",
+    ":config",
+  ]
+}
+
+# LINT.ThenChange(BUILD.bazel, CMakeLists.txt)
+
+### Module configuration
 
 config("public_include_path") {
   include_dirs = [ "public" ]
@@ -27,26 +63,6 @@ config("private_include_path") {
   include_dirs = [ "private" ]
   visibility = [ ":*" ]
 }
-
-# LINT.IfChange
-pw_source_set("pw_multibuf") {
-  public_configs = [ ":public_include_path" ]
-  public = [
-    "public/pw_multibuf/multibuf.h",
-    "public/pw_multibuf/observer.h",
-  ]
-  public_deps = [
-    ":chunk",
-    ":config",
-    "v1:multibuf",
-    "v1_adapter:multibuf",
-    "v2:multibuf",
-  ]
-}
-
-# LINT.ThenChange(BUILD.bazel, CMakeLists.txt)
-
-### Module configuration
 
 declare_args() {
   # The build target that overrides the default configuration options for this
@@ -63,82 +79,35 @@ pw_source_set("config") {
   visibility = [ "./*" ]
 }
 
+# LINT.ThenChange(BUILD.bazel, CMakeLists.txt)
+
 ### V1 Libraries
 
-pw_source_set("chunk") {
-  public = [ "public/pw_multibuf/chunk.h" ]
-  public_configs = [ ":public_include_path" ]
-  public_deps = [
-    ":config",
-    "v1:chunk",
-    "v1_adapter:chunk",
-  ]
+group("allocator") {
+  public_deps = [ ":pw_multibuf" ]
 }
 
-pw_source_set("header_chunk_region_tracker") {
-  public = [ "public/pw_multibuf/header_chunk_region_tracker.h" ]
-  public_configs = [ ":public_include_path" ]
-  public_deps = [
-    ":chunk",
-    ":config",
-    "$dir_pw_multibuf/v1:header_chunk_region_tracker",
-  ]
+group("chunk") {
+  public_deps = [ ":pw_multibuf" ]
 }
 
-pw_source_set("single_chunk_region_tracker") {
-  public = [ "public/pw_multibuf/single_chunk_region_tracker.h" ]
-  public_configs = [ ":public_include_path" ]
-  public_deps = [
-    ":chunk",
-    ":config",
-    "v1:single_chunk_region_tracker",
-    "v1_adapter:single_chunk_region_tracker",
-  ]
+group("from_span") {
+  public_deps = [ ":pw_multibuf" ]
 }
 
-pw_source_set("allocator") {
-  public = [ "public/pw_multibuf/allocator.h" ]
-  public_configs = [ ":public_include_path" ]
-  public_deps = [
-    ":config",
-    ":pw_multibuf",
-    "v1:allocator",
-    "v1_adapter:allocator",
-  ]
+group("header_chunk_region_tracker") {
+  public_deps = [ ":pw_multibuf" ]
 }
 
-pw_source_set("allocator_async") {
-  public = [ "public/pw_multibuf/allocator_async.h" ]
-  public_configs = [ ":public_include_path" ]
-  public_deps = [
-    ":allocator",
-    ":config",
-    "v1:allocator_async",
-  ]
+group("simple_allocator") {
+  public_deps = [ ":pw_multibuf" ]
 }
 
-pw_source_set("from_span") {
-  public = [ "public/pw_multibuf/from_span.h" ]
-  public_configs = [ ":public_include_path" ]
-  public_deps = [
-    ":config",
-    ":pw_multibuf",
-    "v1:from_span",
-    "v1_adapter:from_span",
-  ]
+group("single_chunk_region_tracker") {
+  public_deps = [ ":pw_multibuf" ]
 }
 
-pw_source_set("simple_allocator") {
-  public = [ "public/pw_multibuf/simple_allocator.h" ]
-  public_configs = [ ":public_include_path" ]
-  public_deps = [
-    ":allocator",
-    ":config",
-    ":pw_multibuf",
-    "v1:simple_allocator",
-    "v1_adapter:simple_allocator",
-  ]
-}
+# LINT.IfChange
 
 pw_source_set("testing") {
   testonly = pw_unit_test_TESTONLY

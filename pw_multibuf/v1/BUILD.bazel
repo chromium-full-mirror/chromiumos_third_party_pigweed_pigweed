@@ -24,6 +24,46 @@ package(
 
 licenses(["notice"])
 
+### Backend for pw_multibuf
+
+# LINT.IfChange
+
+cc_library(
+    name = "v1",
+    hdrs = [
+        "public_overrides/pw_multibuf_backend/allocator.h",
+        "public_overrides/pw_multibuf_backend/chunk.h",
+        "public_overrides/pw_multibuf_backend/from_span.h",
+        "public_overrides/pw_multibuf_backend/header_chunk_region_tracker.h",
+        "public_overrides/pw_multibuf_backend/multibuf.h",
+        "public_overrides/pw_multibuf_backend/observer.h",
+        "public_overrides/pw_multibuf_backend/simple_allocator.h",
+        "public_overrides/pw_multibuf_backend/single_chunk_region_tracker.h",
+    ],
+    strip_include_prefix = "public_overrides",
+    deps = [
+        ":allocator",
+        ":chunk",
+        ":from_span",
+        ":header_chunk_region_tracker",
+        ":multibuf",
+        ":simple_allocator",
+        ":single_chunk_region_tracker",
+    ],
+)
+
+cc_library(
+    name = "allocator_async_backend",
+    hdrs = ["public_overrides/pw_multibuf_backend/allocator_async.h"],
+    strip_include_prefix = "public_overrides",
+    deps = [
+        ":allocator_async",
+        ":v1",
+    ],
+)
+
+# LINT.ThenChange(BUILD.gn, CMakeLists.txt)
+
 ### Libraries and tests
 
 # LINT.IfChange
@@ -49,14 +89,13 @@ cc_library(
     name = "chunk_testing",
     testonly = True,
     hdrs = ["private/pw_multibuf_private/chunk_testing.h"],
-    defines = ["PW_MULTIBUF_VERSION=1"],
     strip_include_prefix = "private",
     visibility = ["//visibility:private"],
     deps = [
-        ":header_chunk_region_tracker",
+        ":v1",
         "//pw_allocator:testing",
-        "//pw_multibuf",
         "//pw_multibuf:chunk_testing",
+        "//pw_multibuf:pw_multibuf.facade",
     ],
 )
 
@@ -71,7 +110,6 @@ filegroup(
 pw_cc_test(
     name = "chunk_test",
     srcs = [":chunk_test_srcs"],
-    defines = ["PW_MULTIBUF_VERSION=1"],
     deps = [":chunk_testing"],
 )
 
@@ -90,12 +128,11 @@ cc_library(
 pw_cc_test(
     name = "header_chunk_region_tracker_test",
     srcs = ["header_chunk_region_tracker_test.cc"],
-    defines = ["PW_MULTIBUF_VERSION=1"],
     features = ["-conversion_warnings"],
     deps = [
-        ":chunk",
-        ":header_chunk_region_tracker",
+        ":v1",
         "//pw_allocator:testing",
+        "//pw_multibuf:pw_multibuf.facade",
         "//pw_status",
     ],
 )
@@ -123,15 +160,14 @@ filegroup(
 pw_cc_test(
     name = "single_chunk_region_tracker_test",
     srcs = [":single_chunk_region_tracker_test_srcs"],
-    defines = ["PW_MULTIBUF_VERSION=1"],
     # TODO: b/260624583 - Fix this for rp2040
     target_compatible_with = select({
         "//pw_build/constraints/chipset:rp2040": ["@platforms//:incompatible"],
         "//conditions:default": [],
     }),
     deps = [
-        "//pw_multibuf:chunk",
-        "//pw_multibuf:single_chunk_region_tracker",
+        ":v1",
+        "//pw_multibuf:pw_multibuf.facade",
     ],
 )
 # LINT.ThenChange(BUILD.gn, CMakeLists.txt)
@@ -166,10 +202,11 @@ pw_cc_test(
     srcs = [
         ":multibuf_test_srcs",
     ],
-    defines = ["PW_MULTIBUF_VERSION=1"],
     deps = [
         ":chunk_testing",
+        ":v1",
         "//pw_bytes",
+        "//pw_multibuf:pw_multibuf.facade",
         "//pw_multibuf:test_utils",
     ],
 )
@@ -209,13 +246,13 @@ cc_library(
 pw_cc_test(
     name = "allocator_async_test",
     srcs = ["allocator_async_test.cc"],
-    defines = ["PW_MULTIBUF_VERSION=1"],
     features = ["-conversion_warnings"],
     deps = [
-        ":allocator",
         ":allocator_async",
+        ":v1",
         "//pw_async2",
         "//pw_async2:testing",
+        "//pw_multibuf:pw_multibuf.facade",
     ],
 )
 # LINT.ThenChange(BUILD.gn, CMakeLists.txt)
@@ -251,12 +288,12 @@ filegroup(
 pw_cc_test(
     name = "simple_allocator_test",
     srcs = [":simple_allocator_test_srcs"],
-    defines = ["PW_MULTIBUF_VERSION=1"],
     features = ["-conversion_warnings"],
     deps = [
+        ":v1",
         "//pw_allocator:null_allocator",
         "//pw_allocator:testing",
-        "//pw_multibuf:simple_allocator",
+        "//pw_multibuf:pw_multibuf.facade",
     ],
 )
 
@@ -276,13 +313,13 @@ cc_library(
 pw_cc_test(
     name = "stream_test",
     srcs = ["stream_test.cc"],
-    defines = ["PW_MULTIBUF_VERSION=1"],
     features = ["-conversion_warnings"],
     deps = [
         ":chunk_testing",
         ":stream",
+        ":v1",
         "//pw_bytes",
-        "//pw_multibuf",
+        "//pw_multibuf:pw_multibuf.facade",
         "//pw_multibuf:test_utils",
         "//pw_status",
     ],
@@ -316,11 +353,11 @@ filegroup(
 pw_cc_test(
     name = "from_span_test",
     srcs = [":from_span_test_srcs"],
-    defines = ["PW_MULTIBUF_VERSION=1"],
     features = ["-conversion_warnings"],
     deps = [
+        ":v1",
         "//pw_allocator:testing",
-        "//pw_multibuf:from_span",
+        "//pw_multibuf:pw_multibuf.facade",
     ],
 )
 

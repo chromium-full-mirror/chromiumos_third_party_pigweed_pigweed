@@ -14,56 +14,5 @@
 #pragma once
 
 #include "pw_multibuf/chunk.h"
-#include "pw_multibuf/config.h"
 #include "pw_multibuf/observer.h"
-
-#if PW_MULTIBUF_VERSION == 1
-
-#include "pw_multibuf/v1/multibuf.h"
-
-namespace pw::multibuf {
-
-using v1::MultiBuf;
-using v1::MultiBufChunks;
-
-}  // namespace pw::multibuf
-
-#elif PW_MULTIBUF_VERSION == 2
-
-#include "pw_multibuf/v2/multibuf.h"
-
-namespace pw {
-
-template <multibuf::v2::Property... kProperties>
-using BasicMultiBuf = multibuf::v2::BasicMultiBuf<kProperties...>;
-
-using multibuf::v2::ConstMultiBuf;
-using multibuf::v2::FlatConstMultiBuf;
-using multibuf::v2::FlatMultiBuf;
-using multibuf::v2::MultiBuf;
-using multibuf::v2::TrackedConstMultiBuf;
-using multibuf::v2::TrackedFlatConstMultiBuf;
-using multibuf::v2::TrackedFlatMultiBuf;
-using multibuf::v2::TrackedMultiBuf;
-
-}  // namespace pw
-
-// This adapter will be removed when the migration to v2 is complete.
-#if PW_MULTIBUF_INCLUDE_V1_ADAPTERS
-
-#include "pw_multibuf/v1_adapter/multibuf.h"
-
-namespace pw::multibuf {
-
-using v1_adapter::MultiBuf;
-using v1_adapter::MultiBufChunks;
-
-}  // namespace pw::multibuf
-
-#endif  // PW_MULTIBUF_INCLUDE_V1_ADAPTERS
-
-#else
-
-#error "Unsupported PW_MULTIBUF_VERSION"
-
-#endif  // PW_MULTIBUF_VERSION
+#include "pw_multibuf_backend/multibuf.h"

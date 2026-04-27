@@ -55,27 +55,22 @@ cc_library(
     name = "chunk_testing",
     testonly = True,
     hdrs = ["private/pw_multibuf_private/chunk_testing.h"],
-    defines = [
-        "PW_MULTIBUF_VERSION=2",
-        "PW_MULTIBUF_INCLUDE_V1_ADAPTERS=1",
-    ],
+    defines = ["PW_MULTIBUF_INCLUDE_V1_ADAPTERS=1"],
     strip_include_prefix = "private",
     visibility = ["//visibility:private"],
     deps = [
         "//pw_allocator",
         "//pw_allocator:testing",
-        "//pw_multibuf",
         "//pw_multibuf:chunk_testing",
+        "//pw_multibuf:pw_multibuf.facade",
+        "//pw_multibuf/v2",
     ],
 )
 
 pw_cc_test(
     name = "chunk_test",
     srcs = ["//pw_multibuf/v1:chunk_test_srcs"],
-    defines = [
-        "PW_MULTIBUF_VERSION=2",
-        "PW_MULTIBUF_INCLUDE_V1_ADAPTERS=1",
-    ],
+    defines = ["PW_MULTIBUF_INCLUDE_V1_ADAPTERS=1"],
     deps = [":chunk_testing"],
 )
 
@@ -97,18 +92,15 @@ cc_library(
 pw_cc_test(
     name = "single_chunk_region_tracker_test",
     srcs = ["//pw_multibuf/v1:single_chunk_region_tracker_test_srcs"],
-    defines = [
-        "PW_MULTIBUF_VERSION=2",
-        "PW_MULTIBUF_INCLUDE_V1_ADAPTERS=1",
-    ],
+    defines = ["PW_MULTIBUF_INCLUDE_V1_ADAPTERS=1"],
     # TODO: b/260624583 - Fix this for rp2040
     target_compatible_with = select({
         "//pw_build/constraints/chipset:rp2040": ["@platforms//:incompatible"],
         "//conditions:default": [],
     }),
     deps = [
-        "//pw_multibuf:chunk",
-        "//pw_multibuf:single_chunk_region_tracker",
+        "//pw_multibuf:pw_multibuf.facade",
+        "//pw_multibuf/v2",
     ],
 )
 # LINT.ThenChange(BUILD.gn, CMakeLists.txt)
@@ -140,14 +132,13 @@ cc_library(
 pw_cc_test(
     name = "multibuf_v1_test",
     srcs = ["//pw_multibuf/v1:multibuf_test_srcs"],
-    defines = [
-        "PW_MULTIBUF_VERSION=2",
-        "PW_MULTIBUF_INCLUDE_V1_ADAPTERS=1",
-    ],
+    defines = ["PW_MULTIBUF_INCLUDE_V1_ADAPTERS=1"],
     deps = [
         ":chunk_testing",
         "//pw_bytes",
+        "//pw_multibuf:pw_multibuf.facade",
         "//pw_multibuf:test_utils",
+        "//pw_multibuf/v2",
     ],
 )
 
@@ -155,22 +146,20 @@ cc_library(
     name = "multibuf_testing",
     testonly = True,
     hdrs = ["private/pw_multibuf_private/multibuf_testing.h"],
-    defines = [
-        "PW_MULTIBUF_VERSION=2",
-        "PW_MULTIBUF_INCLUDE_V1_ADAPTERS=1",
-    ],
+    defines = ["PW_MULTIBUF_INCLUDE_V1_ADAPTERS=1"],
     strip_include_prefix = "private",
     visibility = ["//visibility:private"],
-    deps = ["//pw_multibuf"],
+    deps = [
+        ":chunk_testing",
+        "//pw_multibuf:pw_multibuf.facade",
+        "//pw_multibuf/v2",
+    ],
 )
 
 pw_cc_test(
     name = "multibuf_v2_test",
     srcs = ["//pw_multibuf/v2:multibuf_test_srcs"],
-    defines = [
-        "PW_MULTIBUF_VERSION=2",
-        "PW_MULTIBUF_INCLUDE_V1_ADAPTERS=1",
-    ],
+    defines = ["PW_MULTIBUF_INCLUDE_V1_ADAPTERS=1"],
     has_nc_test = True,
     deps = [
         ":multibuf_testing",
@@ -178,7 +167,8 @@ pw_cc_test(
         "//pw_allocator:testing",
         "//pw_assert:check",
         "//pw_bytes",
-        "//pw_multibuf",
+        "//pw_multibuf:pw_multibuf.facade",
+        "//pw_multibuf/v2",
         "//pw_result",
         "//pw_status",
     ],
@@ -189,7 +179,7 @@ cc_library(
     hdrs = ["public/pw_multibuf/v1_adapter/allocator.h"],
     strip_include_prefix = "public",
     deps = [
-        "//pw_multibuf",
+        ":multibuf",
         "//pw_multibuf:config",
     ],
 )
@@ -222,14 +212,12 @@ cc_library(
 pw_cc_test(
     name = "simple_allocator_test",
     srcs = ["//pw_multibuf/v1:simple_allocator_test_srcs"],
-    defines = [
-        "PW_MULTIBUF_VERSION=2",
-        "PW_MULTIBUF_INCLUDE_V1_ADAPTERS=1",
-    ],
+    defines = ["PW_MULTIBUF_INCLUDE_V1_ADAPTERS=1"],
     deps = [
         "//pw_allocator:null_allocator",
         "//pw_allocator:testing",
-        "//pw_multibuf:simple_allocator",
+        "//pw_multibuf:pw_multibuf.facade",
+        "//pw_multibuf/v2",
     ],
 )
 
@@ -256,13 +244,11 @@ cc_library(
 pw_cc_test(
     name = "from_span_test",
     srcs = ["//pw_multibuf/v1:from_span_test_srcs"],
-    defines = [
-        "PW_MULTIBUF_VERSION=2",
-        "PW_MULTIBUF_INCLUDE_V1_ADAPTERS=1",
-    ],
+    defines = ["PW_MULTIBUF_INCLUDE_V1_ADAPTERS=1"],
     deps = [
         "//pw_allocator:testing",
-        "//pw_multibuf:from_span",
+        "//pw_multibuf:pw_multibuf.facade",
+        "//pw_multibuf/v2",
     ],
 )
 # LINT.ThenChange(BUILD.gn, CMakeLists.txt)

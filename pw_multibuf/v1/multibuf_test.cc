@@ -12,9 +12,12 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 
+#include "pw_multibuf/multibuf.h"
+
 #include "pw_bytes/array.h"
 #include "pw_bytes/span.h"
 #include "pw_bytes/suffix.h"
+#include "pw_multibuf/chunk.h"
 #include "pw_multibuf_private/chunk_testing.h"
 #include "pw_multibuf_private/test_utils.h"
 #include "pw_unit_test/framework.h"
@@ -35,7 +38,6 @@ using MultiBufV1Test = pw::multibuf::test::ChunkTest;
 
 #if __cplusplus >= 202002L
 using pw::multibuf::MultiBufChunks;
-
 static_assert(std::forward_iterator<MultiBuf::iterator>);
 static_assert(std::forward_iterator<MultiBuf::const_iterator>);
 static_assert(std::forward_iterator<MultiBufChunks::iterator>);

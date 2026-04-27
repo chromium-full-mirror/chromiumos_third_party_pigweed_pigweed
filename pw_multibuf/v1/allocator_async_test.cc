@@ -16,7 +16,7 @@
 
 #include "pw_async2/dispatcher_for_test.h"
 #include "pw_async2/poll.h"
-#include "pw_multibuf/v1/allocator.h"
+#include "pw_multibuf/allocator.h"
 #include "pw_unit_test/framework.h"
 
 namespace pw::multibuf::v1 {

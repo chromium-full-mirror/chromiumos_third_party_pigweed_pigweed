@@ -19,6 +19,37 @@ package(default_visibility = ["//visibility:public"])
 
 licenses(["notice"])
 
+### Backend for pw_multibuf
+
+# LINT.IfChange
+
+cc_library(
+    name = "v2",
+    hdrs = [
+        "public_overrides/pw_multibuf_backend/allocator.h",
+        "public_overrides/pw_multibuf_backend/allocator_async.h",
+        "public_overrides/pw_multibuf_backend/chunk.h",
+        "public_overrides/pw_multibuf_backend/from_span.h",
+        "public_overrides/pw_multibuf_backend/header_chunk_region_tracker.h",
+        "public_overrides/pw_multibuf_backend/multibuf.h",
+        "public_overrides/pw_multibuf_backend/observer.h",
+        "public_overrides/pw_multibuf_backend/simple_allocator.h",
+        "public_overrides/pw_multibuf_backend/single_chunk_region_tracker.h",
+    ],
+    strip_include_prefix = "public_overrides",
+    deps = [
+        ":multibuf",
+        "//pw_multibuf/v1_adapter:allocator",
+        "//pw_multibuf/v1_adapter:chunk",
+        "//pw_multibuf/v1_adapter:from_span",
+        "//pw_multibuf/v1_adapter:multibuf",
+        "//pw_multibuf/v1_adapter:simple_allocator",
+        "//pw_multibuf/v1_adapter:single_chunk_region_tracker",
+    ],
+)
+
+# LINT.ThenChange(BUILD.gn, CMakeLists.txt)
+
 ### Libraries and tests
 
 # LINT.IfChange
@@ -64,7 +95,6 @@ cc_library(
 pw_cc_test(
     name = "chunk_iterator_test",
     srcs = ["chunk_iterator_test.cc"],
-    defines = ["PW_MULTIBUF_VERSION=2"],
     deps = [
         ":iterator_testing",
         ":iterators",
@@ -76,7 +106,6 @@ pw_cc_test(
 pw_cc_test(
     name = "byte_iterator_test",
     srcs = ["byte_iterator_test.cc"],
-    defines = ["PW_MULTIBUF_VERSION=2"],
     deps = [
         ":iterator_testing",
         ":iterators",
@@ -126,30 +155,28 @@ cc_library(
     name = "multibuf_testing",
     testonly = True,
     hdrs = ["private/pw_multibuf_private/multibuf_testing.h"],
-    defines = [
-        "PW_MULTIBUF_VERSION=2",
-        "PW_MULTIBUF_INCLUDE_V1_ADAPTERS=0",
-    ],
+    defines = ["PW_MULTIBUF_INCLUDE_V1_ADAPTERS=0"],
     strip_include_prefix = "private",
     visibility = ["//visibility:private"],
-    deps = ["//pw_multibuf"],
+    deps = [
+        ":v2",
+        "//pw_multibuf:pw_multibuf.facade",
+    ],
 )
 
 pw_cc_test(
     name = "multibuf_test",
     srcs = [":multibuf_test_srcs"],
-    defines = [
-        "PW_MULTIBUF_VERSION=2",
-        "PW_MULTIBUF_INCLUDE_V1_ADAPTERS=0",
-    ],
+    defines = ["PW_MULTIBUF_INCLUDE_V1_ADAPTERS=0"],
     has_nc_test = True,
     deps = [
         ":multibuf_testing",
+        ":v2",
         "//pw_allocator:chunk_pool",
         "//pw_allocator:testing",
         "//pw_assert:check",
         "//pw_bytes",
-        "//pw_multibuf",
+        "//pw_multibuf:pw_multibuf.facade",
         "//pw_result",
         "//pw_status",
     ],

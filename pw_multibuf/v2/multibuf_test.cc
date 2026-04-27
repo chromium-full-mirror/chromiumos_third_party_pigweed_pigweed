@@ -31,6 +31,7 @@ namespace {
 // Test fixtures. //////////////////////////////////////////////////////////////
 
 using ::pw::allocator::test::AllocatorForTest;
+
 using ::pw::multibuf::v2::ConstMultiBuf;
 using ::pw::multibuf::v2::FlatConstMultiBuf;
 using ::pw::multibuf::v2::FlatMultiBuf;
@@ -39,19 +40,17 @@ using ::pw::multibuf::v2::TrackedConstMultiBuf;
 using ::pw::multibuf::v2::TrackedFlatConstMultiBuf;
 using ::pw::multibuf::v2::TrackedFlatMultiBuf;
 using ::pw::multibuf::v2::TrackedMultiBuf;
-using Event = ::pw::multibuf::v2::Observer::Event;
 
-using ConstMultiBufInstance = pw::multibuf::test::ConstMultiBufInstance;
-using FlatConstMultiBufInstance = pw::multibuf::test::FlatConstMultiBufInstance;
-using FlatMultiBufInstance = pw::multibuf::test::FlatMultiBufInstance;
-using MultiBufInstance = pw::multibuf::test::MultiBufInstance;
-using TrackedConstMultiBufInstance =
-    pw::multibuf::test::TrackedConstMultiBufInstance;
-using TrackedFlatConstMultiBufInstance =
-    pw::multibuf::test::TrackedFlatConstMultiBufInstance;
-using TrackedFlatMultiBufInstance =
-    pw::multibuf::test::TrackedFlatMultiBufInstance;
-using TrackedMultiBufInstance = pw::multibuf::test::TrackedMultiBufInstance;
+using ::pw::multibuf::test::ConstMultiBufInstance;
+using ::pw::multibuf::test::FlatConstMultiBufInstance;
+using ::pw::multibuf::test::FlatMultiBufInstance;
+using ::pw::multibuf::test::MultiBufInstance;
+using ::pw::multibuf::test::TrackedConstMultiBufInstance;
+using ::pw::multibuf::test::TrackedFlatConstMultiBufInstance;
+using ::pw::multibuf::test::TrackedFlatMultiBufInstance;
+using ::pw::multibuf::test::TrackedMultiBufInstance;
+
+using Event = ::pw::multibuf::v2::Observer::Event;
 
 constexpr size_t kN = 32;
 

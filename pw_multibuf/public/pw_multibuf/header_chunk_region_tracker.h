@@ -14,24 +14,4 @@
 #pragma once
 
 #include "pw_multibuf/chunk.h"
-#include "pw_multibuf/config.h"
-
-#if PW_MULTIBUF_VERSION == 1
-
-#include "pw_multibuf/v1/header_chunk_region_tracker.h"
-
-namespace pw::multibuf {
-
-using v1::HeaderChunkRegionTracker;
-
-}  // namespace pw::multibuf
-
-#elif PW_MULTIBUF_VERSION == 2
-
-// Not supported in v2.
-
-#else
-
-#error "Unsupported PW_MULTIBUF_VERSION"
-
-#endif  // PW_MULTIBUF_VERSION
+#include "pw_multibuf_backend/header_chunk_region_tracker.h"

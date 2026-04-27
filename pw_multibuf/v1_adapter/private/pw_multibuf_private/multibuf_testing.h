@@ -17,8 +17,8 @@
 
 namespace pw::multibuf::test {
 
-// Test fixture that aliases v2 names to the v1 adapter type so that the v2
-// unit tests can be applied to the v1 adapter.
+// Alias v2 names to the v1 adapter type so that the v2 unit tests can be
+// applied to the v1 adapter.
 using ConstMultiBufInstance = v1_adapter::MultiBuf;
 using FlatConstMultiBufInstance = v1_adapter::MultiBuf;
 using FlatMultiBufInstance = v1_adapter::MultiBuf;

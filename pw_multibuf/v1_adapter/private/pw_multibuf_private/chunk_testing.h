@@ -17,8 +17,13 @@
 
 #include "pw_allocator/shared_ptr.h"
 #include "pw_allocator/testing.h"
+#include "pw_multibuf/chunk.h"
 #include "pw_multibuf/multibuf.h"
 #include "pw_multibuf_private/chunk_test_base.h"
+
+// Some operations that fail in v1 succeed with the v1_adapter.
+// See also v1_adapter::Chunk::ClaimPrefix and v1_adapter::Chunk::ClaimSuffix.
+#define EXPECT_FALSE_V1(expr) std::ignore = (expr)
 
 namespace pw::multibuf::test {
 

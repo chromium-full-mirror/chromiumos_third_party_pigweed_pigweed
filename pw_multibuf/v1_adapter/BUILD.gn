@@ -23,10 +23,7 @@ config("public_include_path") {
 }
 
 config("test_config") {
-  defines = [
-    "PW_MULTIBUF_VERSION=2",
-    "PW_MULTIBUF_INCLUDE_V1_ADAPTERS=1",
-  ]
+  defines = [ "PW_MULTIBUF_INCLUDE_V1_ADAPTERS=1" ]
   include_dirs = [ "private" ]
   visibility = [ ":*" ]
 }
@@ -68,8 +65,9 @@ pw_source_set("chunk_testing") {
   public_deps = [
     "$dir_pw_allocator:testing",
     "$dir_pw_multibuf:chunk_testing",
+    "$dir_pw_multibuf:pw_multibuf.facade",
+    "$dir_pw_multibuf/v2",
     dir_pw_allocator,
-    dir_pw_multibuf,
   ]
   visibility = [ ":*" ]
 }
@@ -116,8 +114,8 @@ pw_test("single_chunk_region_tracker_test") {
   configs = [ ":test_config" ]
   deps = [
     ":single_chunk_region_tracker_test_cc",
-    "$dir_pw_multibuf:chunk",
-    "$dir_pw_multibuf:single_chunk_region_tracker",
+    "$dir_pw_multibuf:pw_multibuf.facade",
+    "$dir_pw_multibuf/v2",
   ]
 }
 
@@ -174,7 +172,11 @@ pw_source_set("multibuf_testing") {
   testonly = pw_unit_test_TESTONLY
   public = [ "private/pw_multibuf_private/multibuf_testing.h" ]
   public_configs = [ ":test_config" ]
-  public_deps = [ dir_pw_multibuf ]
+  public_deps = [
+    ":chunk_testing",
+    "$dir_pw_multibuf:pw_multibuf.facade",
+    "$dir_pw_multibuf/v2",
+  ]
   visibility = [ ":*" ]
 }
 
@@ -187,8 +189,9 @@ pw_test("multibuf_v2_test") {
     "$dir_pw_allocator:chunk_pool",
     "$dir_pw_allocator:testing",
     "$dir_pw_assert:check",
+    "$dir_pw_multibuf:pw_multibuf.facade",
+    "$dir_pw_multibuf/v2",
     dir_pw_bytes,
-    dir_pw_multibuf,
     dir_pw_result,
     dir_pw_status,
   ]
@@ -201,8 +204,8 @@ pw_source_set("allocator") {
   public = [ "public/pw_multibuf/v1_adapter/allocator.h" ]
   public_configs = [ ":public_include_path" ]
   public_deps = [
+    ":multibuf",
     "$dir_pw_multibuf:config",
-    dir_pw_multibuf,
   ]
 }
 
@@ -246,7 +249,8 @@ pw_test("simple_allocator_test") {
     ":simple_allocator_test_cc",
     "$dir_pw_allocator:null_allocator",
     "$dir_pw_allocator:testing",
-    "$dir_pw_multibuf:simple_allocator",
+    "$dir_pw_multibuf:pw_multibuf.facade",
+    "$dir_pw_multibuf/v2",
   ]
 }
 
@@ -283,7 +287,8 @@ pw_test("from_span_test") {
   deps = [
     ":from_span_test_cc",
     "$dir_pw_allocator:testing",
-    "$dir_pw_multibuf:from_span",
+    "$dir_pw_multibuf:pw_multibuf.facade",
+    "$dir_pw_multibuf/v2",
   ]
 }
 

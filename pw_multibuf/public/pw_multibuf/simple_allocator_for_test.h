@@ -21,7 +21,6 @@
 #include "pw_allocator/synchronized_allocator.h"
 #include "pw_allocator/testing.h"
 #include "pw_assert/assert.h"
-#include "pw_multibuf/config.h"
 #include "pw_multibuf/simple_allocator.h"
 
 namespace pw::multibuf::test {

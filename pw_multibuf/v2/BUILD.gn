@@ -17,16 +17,41 @@ import("//build_overrides/pigweed.gni")
 import("$dir_pw_build/target_types.gni")
 import("$dir_pw_unit_test/test.gni")
 
+pw_source_set("v2") {
+  public_configs = [ ":public_overrides_include_path" ]
+  public = [
+    "public_overrides/pw_multibuf_backend/allocator.h",
+    "public_overrides/pw_multibuf_backend/allocator_async.h",
+    "public_overrides/pw_multibuf_backend/chunk.h",
+    "public_overrides/pw_multibuf_backend/from_span.h",
+    "public_overrides/pw_multibuf_backend/header_chunk_region_tracker.h",
+    "public_overrides/pw_multibuf_backend/multibuf.h",
+    "public_overrides/pw_multibuf_backend/observer.h",
+    "public_overrides/pw_multibuf_backend/simple_allocator.h",
+    "public_overrides/pw_multibuf_backend/single_chunk_region_tracker.h",
+  ]
+  public_deps = [
+    "$dir_pw_multibuf/v1_adapter:allocator",
+    "$dir_pw_multibuf/v1_adapter:chunk",
+    "$dir_pw_multibuf/v1_adapter:from_span",
+    "$dir_pw_multibuf/v1_adapter:multibuf",
+    "$dir_pw_multibuf/v1_adapter:simple_allocator",
+    "$dir_pw_multibuf/v1_adapter:single_chunk_region_tracker",
+  ]
+}
+
 config("public_include_path") {
   include_dirs = [ "public" ]
   visibility = [ ":*" ]
 }
 
+config("public_overrides_include_path") {
+  include_dirs = [ "public_overrides" ]
+  visibility = [ ":*" ]
+}
+
 config("test_config") {
-  defines = [
-    "PW_MULTIBUF_VERSION=2",
-    "PW_MULTIBUF_INCLUDE_V1_ADAPTERS=0",
-  ]
+  defines = [ "PW_MULTIBUF_INCLUDE_V1_ADAPTERS=0" ]
   include_dirs = [ "private" ]
   visibility = [ ":*" ]
 }
@@ -117,7 +142,10 @@ pw_source_set("multibuf_testing") {
   testonly = pw_unit_test_TESTONLY
   public = [ "private/pw_multibuf_private/multibuf_testing.h" ]
   public_configs = [ ":test_config" ]
-  public_deps = [ dir_pw_multibuf ]
+  public_deps = [
+    ":v2",
+    "$dir_pw_multibuf:pw_multibuf.facade",
+  ]
   visibility = [ ":*" ]
 }
 
@@ -130,11 +158,12 @@ pw_test("multibuf_test") {
   deps = [
     ":iterators",
     ":multibuf_testing",
+    ":v2",
     "$dir_pw_allocator:chunk_pool",
     "$dir_pw_allocator:testing",
     "$dir_pw_assert:check",
+    "$dir_pw_multibuf:pw_multibuf.facade",
     dir_pw_bytes,
-    dir_pw_multibuf,
     dir_pw_result,
     dir_pw_status,
   ]

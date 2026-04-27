@@ -13,5 +13,5 @@
 // the License.
 #pragma once
 
-#include "pw_multibuf/allocator.h"
-#include "pw_multibuf_backend/allocator_async.h"  // nogncheck
+// Intentionally empty file, as `HeaderChunkRegionTracker` is not supported by
+// the v1_adapter.

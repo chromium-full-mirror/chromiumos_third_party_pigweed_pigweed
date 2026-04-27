@@ -26,9 +26,10 @@ namespace pw::multibuf::v1_adapter {
 ///
 /// This function can be used as a drop-in replacement for `v1::FromSpan` while
 /// migrating to using pw_multibuf/v2.
-std::optional<MultiBuf> FromSpan(Allocator& metadata_allocator,
-                                 ByteSpan region,
-                                 Function<void(ByteSpan)>&& deleter);
+std::optional<v1_adapter::MultiBuf> FromSpan(
+    Allocator& metadata_allocator,
+    ByteSpan region,
+    Function<void(ByteSpan)>&& deleter);
 
 /// @}
 

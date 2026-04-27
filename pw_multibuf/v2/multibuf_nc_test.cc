@@ -39,17 +39,11 @@ using ::pw::multibuf::v2::TrackedFlatConstMultiBuf;
 using ::pw::multibuf::v2::TrackedFlatMultiBuf;
 using ::pw::multibuf::v2::TrackedMultiBuf;
 
-using ConstMultiBufInstance = pw::multibuf::test::ConstMultiBufInstance;
-using FlatConstMultiBufInstance = pw::multibuf::test::FlatConstMultiBufInstance;
-using FlatMultiBufInstance = pw::multibuf::test::FlatMultiBufInstance;
-using MultiBufInstance = pw::multibuf::test::MultiBufInstance;
-using TrackedConstMultiBufInstance =
-    pw::multibuf::test::TrackedConstMultiBufInstance;
-using TrackedFlatConstMultiBufInstance =
-    pw::multibuf::test::TrackedFlatConstMultiBufInstance;
-using TrackedFlatMultiBufInstance =
-    pw::multibuf::test::TrackedFlatMultiBufInstance;
-using TrackedMultiBufInstance = pw::multibuf::test::TrackedMultiBufInstance;
+using ::pw::multibuf::test::ConstMultiBufInstance;
+using ::pw::multibuf::test::FlatConstMultiBufInstance;
+using ::pw::multibuf::test::FlatMultiBufInstance;
+using ::pw::multibuf::test::MultiBufInstance;
+using ::pw::multibuf::test::TrackedMultiBufInstance;
 
 #if PW_NC_TEST(CannotConvertConstMultiBufToNonMultiBuf)
 PW_NC_EXPECT("Only conversion to other MultiBuf types are supported.");

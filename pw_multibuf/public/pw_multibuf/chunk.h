@@ -13,38 +13,4 @@
 // the License.
 #pragma once
 
-#include "pw_multibuf/config.h"
-
-#if PW_MULTIBUF_VERSION == 1
-
-#include "pw_multibuf/v1/chunk.h"
-
-namespace pw::multibuf {
-
-using v1::Chunk;
-using v1::ChunkRegionTracker;
-using v1::OwnedChunk;
-
-}  // namespace pw::multibuf
-
-#elif PW_MULTIBUF_VERSION == 2
-
-// Theses adapters will be removed when the migration to v2 is complete.
-#if PW_MULTIBUF_INCLUDE_V1_ADAPTERS
-
-#include "pw_multibuf/v1_adapter/chunk.h"
-
-namespace pw::multibuf {
-
-using v1_adapter::Chunk;
-using v1_adapter::OwnedChunk;
-
-}  // namespace pw::multibuf
-
-#endif  // PW_MULTIBUF_INCLUDE_V1_ADAPTERS
-
-#else
-
-#error "Unsupported PW_MULTIBUF_VERSION"
-
-#endif  // PW_MULTIBUF_VERSION
+#include "pw_multibuf_backend/chunk.h"

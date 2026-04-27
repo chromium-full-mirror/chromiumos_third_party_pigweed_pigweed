@@ -13,5 +13,4 @@
 // the License.
 #pragma once
 
-#include "pw_multibuf/allocator.h"
-#include "pw_multibuf_backend/allocator_async.h"  // nogncheck
+// Intentionally empty file, as there is no `Observer` type in v1.

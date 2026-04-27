@@ -48,12 +48,12 @@ pw_add_library(pw_multibuf.v1_adapter._chunk_testing INTERFACE
   PUBLIC_INCLUDES
     private
   PUBLIC_DEFINES
-    PW_MULTIBUF_VERSION=2
     PW_MULTIBUF_INCLUDE_V1_ADAPTERS=1
   PUBLIC_DEPS
     pw_allocator
     pw_allocator.testing
-    pw_multibuf
+    pw_multibuf.facade
+    pw_multibuf.v2
     pw_multibuf._chunk_testing
 )
 
@@ -61,7 +61,6 @@ pw_add_test(pw_multibuf.v1_adapter.chunk_test
   SOURCES
     ../v1/multibuf_test.cc
   PRIVATE_DEFINES
-    PW_MULTIBUF_VERSION=2
     PW_MULTIBUF_INCLUDE_V1_ADAPTERS=1
   PRIVATE_DEPS
     pw_multibuf.v1_adapter._chunk_testing
@@ -86,11 +85,10 @@ pw_add_test(pw_multibuf.v1_adapter.single_chunk_region_tracker_test
   SOURCES
     ../v1/single_chunk_region_tracker_test.cc
   PRIVATE_DEFINES
-    PW_MULTIBUF_VERSION=2
     PW_MULTIBUF_INCLUDE_V1_ADAPTERS=1
   PRIVATE_DEPS
-    pw_multibuf.chunk
-    pw_multibuf.single_chunk_region_tracker
+    pw_multibuf.facade
+    pw_multibuf.v2
   GROUPS
     modules
     pw_multibuf
@@ -123,7 +121,6 @@ pw_add_test(pw_multibuf.v1_adapter.multibuf_v1_test
   SOURCES
     ../v1/multibuf_test.cc
   PRIVATE_DEFINES
-    PW_MULTIBUF_VERSION=2
     PW_MULTIBUF_INCLUDE_V1_ADAPTERS=1
   PRIVATE_DEPS
     pw_multibuf.v1_adapter._chunk_testing
@@ -140,14 +137,17 @@ pw_add_library(pw_multibuf.v1_adapter._multibuf_testing INTERFACE
   PUBLIC_INCLUDES
     private
   PUBLIC_DEPS
-    pw_multibuf
+    pw_multibuf.facade
+    pw_multibuf.v1_adapter._chunk_testing
+    pw_multibuf.v2
+  PRIVATE_DEFINES
+    PW_MULTIBUF_INCLUDE_V1_ADAPTERS=1
 )
 
 pw_add_test(pw_multibuf.v1_adapter.multibuf_v2_test
   SOURCES
     ../v2/multibuf_test.cc
   PRIVATE_DEFINES
-    PW_MULTIBUF_VERSION=2
     PW_MULTIBUF_INCLUDE_V1_ADAPTERS=1
   PRIVATE_DEPS
     pw_allocator.chunk_pool
@@ -155,7 +155,8 @@ pw_add_test(pw_multibuf.v1_adapter.multibuf_v2_test
     pw_assert.check
     pw_bytes
     pw_compilation_testing._pigweed_only_negative_compilation
-    pw_multibuf
+    pw_multibuf.facade
+    pw_multibuf.v2
     pw_multibuf.v2.iterators
     pw_multibuf.v1_adapter._multibuf_testing
     pw_result
@@ -171,8 +172,8 @@ pw_add_library(pw_multibuf.v1_adapter.allocator INTERFACE
   PUBLIC_INCLUDES
     public
   PUBLIC_DEPS
-    pw_multibuf
     pw_multibuf.config
+    pw_multibuf.v1_adapter.multibuf
 )
 # LINT.ThenChange(BUILD.bazel, BUILD.gn)
 
@@ -206,12 +207,12 @@ pw_add_test(pw_multibuf.v1_adapter.simple_allocator_test
   SOURCES
     ../v1/simple_allocator_test.cc
   PRIVATE_DEFINES
-    PW_MULTIBUF_VERSION=2
     PW_MULTIBUF_INCLUDE_V1_ADAPTERS=1
   PRIVATE_DEPS
     pw_allocator.null_allocator
     pw_allocator.testing
-    pw_multibuf.simple_allocator
+    pw_multibuf.facade
+    pw_multibuf.v2
   GROUPS
     modules
     pw_multibuf
@@ -242,11 +243,11 @@ pw_add_test(pw_multibuf.v1_adapter.from_span_test
   SOURCES
     ../v1/from_span_test.cc
   PRIVATE_DEFINES
-    PW_MULTIBUF_VERSION=2
     PW_MULTIBUF_INCLUDE_V1_ADAPTERS=1
   PRIVATE_DEPS
     pw_allocator.testing
-    pw_multibuf.from_span
+    pw_multibuf.facade
+    pw_multibuf.v2
   GROUPS
     modules
     pw_multibuf

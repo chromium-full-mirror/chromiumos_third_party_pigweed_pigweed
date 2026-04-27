@@ -13,5 +13,12 @@
 // the License.
 #pragma once
 
-#include "pw_multibuf/allocator.h"
-#include "pw_multibuf_backend/allocator_async.h"  // nogncheck
+#include "pw_multibuf/v1/allocator.h"
+#include "pw_multibuf/v1/allocator_async.h"
+
+namespace pw::multibuf {
+
+using v1::MultiBufAllocationFuture;
+using v1::MultiBufAllocatorAsync;
+
+}  // namespace pw::multibuf
