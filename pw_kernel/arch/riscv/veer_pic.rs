@@ -207,7 +207,7 @@ impl MeiGwClr {
 struct MeiGwClrValue(pub u32);
 
 unsafe extern "Rust" {
-    static PW_KERNEL_INTERRUPT_TABLE: &'static [InterruptTableEntry];
+    static PW_KERNEL_INTERRUPT_TABLE: &'static [InterruptTableEntry<VeerPic>];
 }
 
 pub fn interrupt(from_userspace: bool) {
