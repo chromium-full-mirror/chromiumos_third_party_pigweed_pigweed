@@ -40,10 +40,10 @@ namespace pw::protobuf {
 
 using internal::VarintType;
 
-Status StreamEncoder::DoWriteNestedMessage(
+Status StreamEncoder::WriteNestedMessage(
     uint32_t field_number,
-    AnyMessageWriter const& write_message,
-    bool write_when_empty) {
+    FunctionRef<Status(StreamEncoder&)> write_message,
+    EmptyEncoderBehavior empty_encoder_behavior) {
   PW_CHECK(!nested_encoder_open());
   PW_TRY(status_);
 
@@ -69,7 +69,8 @@ Status StreamEncoder::DoWriteNestedMessage(
   // Now we know the exact size of the submessage.
   const size_t num_bytes = count_stream.bytes_written();
 
-  if (num_bytes > 0 || write_when_empty) {
+  if (num_bytes > 0 ||
+      empty_encoder_behavior == EmptyEncoderBehavior::kWriteFieldNumber) {
     // With the field size known, we can write the header.
     status_ = WriteLengthDelimitedKeyAndLengthPrefix(
         field_number, num_bytes, writer_);
@@ -210,7 +211,7 @@ Status StreamEncoder::WriteLengthDelimitedField(uint32_t field_number,
 Status StreamEncoder::WriteLengthDelimitedFieldFromCallback(
     uint32_t field_number,
     size_t num_bytes,
-    const Function<Status(stream::Writer&)>& write_func) {
+    FunctionRef<Status(stream::Writer&)> write_func) {
   if (num_bytes == 0) {
     return OkStatus();
   }
