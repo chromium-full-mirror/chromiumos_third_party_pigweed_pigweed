@@ -96,7 +96,8 @@ class Pool : public Deallocator {
   constexpr Pool(const Capabilities& capabilities, const Layout& layout)
       : Deallocator(capabilities), layout_(layout) {}
 
-  /// @copydoc Pool::Allocate
+ private:
+  /// Virtual `Allocate` function that can be overridden by derived classes.
   virtual void* DoAllocate() = 0;
 
  private:

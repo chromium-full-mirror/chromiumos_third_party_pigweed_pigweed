@@ -55,6 +55,11 @@ class FallbackAllocator : public pw::Allocator {
   /// @copydoc Deallocator::GetInfo
   Result<Layout> DoGetInfo(InfoType info_type, const void* ptr) const override;
 
+ protected:
+  /// @copydoc Allocator::DoMeasureFragmentation
+  std::optional<allocator::Fragmentation> DoMeasureFragmentation()
+      const override;
+
  private:
   pw::Allocator& primary_;
   pw::Allocator& secondary_;
