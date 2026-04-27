@@ -15,10 +15,12 @@
 #include "pw_async2/box.h"
 
 #include "pw_allocator/testing.h"
+#include "pw_async2/channel.h"
 #include "pw_async2/dispatcher_for_test.h"
 #include "pw_async2/func_task.h"
 #include "pw_async2/future.h"
 #include "pw_async2/select.h"
+#include "pw_async2/transform.h"
 #include "pw_async2/try.h"
 #include "pw_async2/value_future.h"
 #include "pw_unit_test/framework.h"
@@ -26,11 +28,16 @@
 namespace {
 
 using pw::async2::BoxedFuture;
+using pw::async2::ChannelStorage;
 using pw::async2::Context;
+using pw::async2::CreateSpscChannel;
+using pw::async2::DispatcherForTest;
 using pw::async2::Pending;
 using pw::async2::Poll;
 using pw::async2::Ready;
 using pw::async2::ValueProvider;
+using pw::async2::experimental::Map;
+using pw::async2::experimental::Then;
 
 TEST(BoxedFuture, TypeErasesIntFuture) {
   pw::allocator::test::AllocatorForTest<256> alloc;
@@ -132,6 +139,36 @@ TEST(BoxedFuture, TypeErasesCombinator) {
   EXPECT_TRUE(result.has_value<0>());
   EXPECT_EQ(result.value<0>(), 42);
   EXPECT_GT(alloc.deallocate_size(), 0u);
+}
+
+TEST(BoxedFuture, TypeErasesFutureChain) {
+  pw::allocator::test::AllocatorForTest<256> alloc;
+  DispatcherForTest dispatcher;
+  ValueProvider<int> provider;
+  ChannelStorage<int, 1> storage;
+  auto [handle, sender, receiver] = CreateSpscChannel(storage);
+
+  // clang-format off
+  BoxedFuture<bool> future = BoxFuture(
+      alloc,
+      provider.Get()
+      | Map([](int x) { return x * 4; })
+      | Then([s = std::move(sender)](int x) mutable { return s.Send(x); }));
+  // clang-format on
+
+  EXPECT_TRUE(future.is_pendable());
+  EXPECT_FALSE(future.is_complete());
+
+  provider.Resolve(5);
+  auto result = dispatcher.RunInTaskUntilStalled(future);
+  EXPECT_EQ(result, Ready(true));
+
+  pw::Result<int> received = receiver.TryReceive();
+  EXPECT_TRUE(received.ok());
+  EXPECT_EQ(*received, 20);
+
+  EXPECT_FALSE(future.is_pendable());
+  EXPECT_TRUE(future.is_complete());
 }
 
 TEST(BoxedFuture, AllocationFailure) {

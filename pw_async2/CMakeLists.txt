@@ -286,10 +286,34 @@ pw_add_test(pw_async2.box_test
   PRIVATE_DEPS
     pw_async2
     pw_async2.box
+    pw_async2.channel
     pw_async2.select
     pw_async2.testing
+    pw_async2.transform
     pw_async2.value_future
     pw_allocator.testing
+)
+
+pw_add_library(pw_async2.transform INTERFACE
+  HEADERS
+    public/pw_async2/transform.h
+  PUBLIC_DEPS
+    pw_async2
+    pw_async2.value_future
+  PUBLIC_INCLUDES
+    public
+)
+
+pw_add_test(pw_async2.transform_test
+  SOURCES
+    transform_test.cc
+  PRIVATE_DEPS
+    pw_async2.channel
+    pw_async2
+    pw_async2.select
+    pw_async2.testing
+    pw_async2.transform
+    pw_async2.value_future
 )
 
 # TODO: b/481069684 - Remove deprecated alias.

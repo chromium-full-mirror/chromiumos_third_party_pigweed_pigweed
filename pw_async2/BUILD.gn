@@ -290,13 +290,37 @@ pw_test("box_test") {
   enable_if = pw_async2_DISPATCHER_FOR_TEST_BACKEND != ""
   deps = [
     ":box",
+    ":channel",
     ":pw_async2",
     ":select",
     ":testing",
+    ":transform",
     ":value_future",
     "$dir_pw_allocator:testing",
   ]
   sources = [ "box_test.cc" ]
+}
+
+pw_source_set("transform") {
+  public_configs = [ ":public_include_path" ]
+  public = [ "public/pw_async2/transform.h" ]
+  public_deps = [
+    ":pw_async2",
+    ":value_future",
+  ]
+}
+
+pw_test("transform_test") {
+  enable_if = pw_async2_DISPATCHER_FOR_TEST_BACKEND != ""
+  deps = [
+    ":channel",
+    ":pw_async2",
+    ":select",
+    ":testing",
+    ":transform",
+    ":value_future",
+  ]
+  sources = [ "transform_test.cc" ]
 }
 
 pw_source_set("value_future") {
@@ -740,6 +764,7 @@ pw_test_group("tests") {
     ":simulated_time_provider_test",
     ":system_time_provider_test",
     ":task_test",
+    ":transform_test",
     ":value_future_test",
     ":await_test",
   ]
