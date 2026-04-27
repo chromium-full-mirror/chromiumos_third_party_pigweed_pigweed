@@ -153,7 +153,7 @@ your local SDK instead of the prebuilt one from CIPD.
 
    .. code-block:: console
 
-      bazel mod dump_repo_mapping pigweed | grep fuchsia_sdk | python -m json.tool | jq .fuchsia_sdk
+      bazelisk mod dump_repo_mapping "" | grep fuchsia_sdk | python -m json.tool | jq .fuchsia_sdk
 
    This will return a mapping like ``fuchsia_sdk -> @@+_repo_rules5+fuchsia_sdk``.
    The canonical name is everything after the ``@@`` (e.g.,
