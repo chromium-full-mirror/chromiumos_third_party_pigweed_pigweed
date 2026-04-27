@@ -21,6 +21,24 @@ namespace pw {
 
 using ::pw::allocator::Layout;
 
+void* Allocator::Allocate(Layout layout) {
+  return layout.size() != 0 ? DoAllocate(layout) : nullptr;
+}
+
+bool Allocator::Resize(void* ptr, size_t new_size) {
+  return ptr != nullptr && new_size != 0 && DoResize(ptr, new_size);
+}
+
+void* Allocator::Reallocate(void* ptr, Layout new_layout) {
+  if (new_layout.size() == 0) {
+    return nullptr;
+  }
+  if (ptr == nullptr) {
+    return Allocate(new_layout);
+  }
+  return DoReallocate(ptr, new_layout);
+}
+
 void* Allocator::DoReallocate(void* ptr, Layout new_layout) {
   if (Resize(ptr, new_layout.size())) {
     return ptr;

@@ -51,8 +51,6 @@ template <typename Derived>
 class AllocatableBlock : public internal::AllocatableBase {
  protected:
   constexpr explicit AllocatableBlock() {
-    // Assert within a function, since `Derived` is not complete when this type
-    // is defined.
     static_assert(is_contiguous_v<Derived>,
                   "Types derived from AllocatableBlock must also derive from "
                   "ContiguousBlock");

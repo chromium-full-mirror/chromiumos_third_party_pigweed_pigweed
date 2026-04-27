@@ -53,16 +53,7 @@ class GenericBlockAllocator : public pw::Allocator {
 
  protected:
   template <typename BlockType>
-  static constexpr Capabilities GetCapabilities() {
-    Capabilities common = kImplementsGetUsableLayout |
-                          kImplementsGetAllocatedLayout |
-                          kImplementsGetCapacity | kImplementsRecognizes;
-    if constexpr (has_layout_v<BlockType>) {
-      return common | kImplementsGetRequestedLayout;
-    } else {
-      return common;
-    }
-  }
+  static constexpr Capabilities GetCapabilities();
 
   constexpr explicit GenericBlockAllocator(Capabilities capabilities)
       : pw::Allocator(capabilities) {}
@@ -119,7 +110,7 @@ class BlockAllocator : public internal::GenericBlockAllocator {
   ~BlockAllocator() override;
 
   /// Returns a ``Range`` of blocks tracking the memory of this allocator.
-  Range blocks() const;
+  Range blocks() const { return Range(first_); }
 
   /// Sets the memory region to be used by this allocator.
   ///
@@ -286,6 +277,22 @@ class BlockAllocator : public internal::GenericBlockAllocator {
 
 // Template method implementations
 
+namespace internal {
+
+template <typename BlockType>
+constexpr Capabilities GenericBlockAllocator::GetCapabilities() {
+  Capabilities common = kImplementsGetUsableLayout |
+                        kImplementsGetAllocatedLayout | kImplementsGetCapacity |
+                        kImplementsRecognizes;
+  if constexpr (has_layout_v<BlockType>) {
+    return common | kImplementsGetRequestedLayout;
+  } else {
+    return common;
+  }
+}
+
+}  // namespace internal
+
 template <typename BlockType>
 BlockAllocator<BlockType>::~BlockAllocator() {
   if constexpr (Hardening::kIncludesRobustChecks) {
@@ -295,12 +302,6 @@ BlockAllocator<BlockType>::~BlockAllocator() {
       }
     }
   }
-}
-
-template <typename BlockType>
-typename BlockAllocator<BlockType>::Range BlockAllocator<BlockType>::blocks()
-    const {
-  return Range(first_);
 }
 
 template <typename BlockType>

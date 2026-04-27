@@ -14,29 +14,35 @@
 #pragma once
 
 #include <cstddef>
+#include <type_traits>
 
 #include "pw_allocator/hardening.h"
 #include "pw_result/result.h"
 
-namespace pw::allocator {
-namespace internal {
+namespace pw {
 
 // Helper variables to determine when a template parameter is an array type.
 // Based on the sample implementation found at
 // https://en.cppreference.com/w/cpp/memory/unique_ptr/make_unique.
 template <typename>
-constexpr bool is_unbounded_array_v = false;
+struct is_unbounded_array : std::false_type {};
 
 template <typename T>
-constexpr bool is_unbounded_array_v<T[]> = true;
+struct is_unbounded_array<T[]> : std::true_type {};
+
+template <typename T>
+constexpr bool is_unbounded_array_v = is_unbounded_array<T>::value;
 
 template <typename>
-constexpr bool is_bounded_array_v = false;
+struct is_bounded_array : std::false_type {};
 
 template <typename T, size_t kN>
-constexpr bool is_bounded_array_v<T[kN]> = true;
+struct is_bounded_array<T[kN]> : std::true_type {};
 
-}  // namespace internal
+template <typename T>
+constexpr bool is_bounded_array_v = is_bounded_array<T>::value;
+
+namespace allocator {
 
 /// @submodule{pw_allocator,core}
 
@@ -63,28 +69,24 @@ class Layout {
   constexpr Layout(size_t size, size_t alignment)
       : size_(size), alignment_(alignment) {}
 
+  constexpr size_t size() const { return size_; }
+  constexpr size_t alignment() const { return alignment_; }
+
   /// Creates a Layout for the given type.
-  template <typename T>
-  static constexpr std::enable_if_t<!std::is_array_v<T>, Layout> Of() {
+  template <typename T, std::enable_if_t<!std::is_array_v<T>, int> = 0>
+  static constexpr Layout Of() {
     return Layout(sizeof(T), alignof(T));
   }
 
   /// Creates a Layout for the given bounded array type, e.g. Foo[kN].
-  template <typename T>
-  static constexpr std::enable_if_t<internal::is_bounded_array_v<T>, Layout>
-  Of() {
+  template <typename T, std::enable_if_t<is_bounded_array_v<T>, int> = 0>
+  static constexpr Layout Of() {
     return Layout(sizeof(T), alignof(std::remove_extent_t<T>));
   }
 
   /// Creates a Layout for the given array type, e.g. Foo[].
-  template <typename T>
-  static constexpr std::enable_if_t<internal::is_unbounded_array_v<T>, Layout>
-  Of(size_t count) {
-    using U = std::remove_extent_t<T>;
-    size_t size = sizeof(U);
-    Hardening::Multiply(size, count);
-    return Layout(size, alignof(U));
-  }
+  template <typename T, std::enable_if_t<is_unbounded_array_v<T>, int> = 0>
+  static constexpr Layout Of(size_t count);
 
   /// If the result is okay, returns its contained layout; otherwise, returns a
   /// default layout.
@@ -92,17 +94,20 @@ class Layout {
     return result.ok() ? (*result) : Layout();
   }
 
-  constexpr Layout Extend(size_t size) const {
-    Hardening::Increment(size, size_);
-    return Layout(size, alignment_);
-  }
+  /// Returns a new layout from this object increased by the given size.
+  constexpr Layout Extend(size_t size) const;
 
+  /// Returns a new layout from this object with at least the given alignment.
   constexpr Layout Align(size_t alignment) const {
     return Layout(size_, std::max(alignment, alignment_));
   }
 
-  constexpr size_t size() const { return size_; }
-  constexpr size_t alignment() const { return alignment_; }
+  /// Returns a new layout from this object that is at least aligned to the
+  /// given type.
+  template <typename T>
+  constexpr Layout AlignTo() const {
+    return Align(alignof(T));
+  }
 
  private:
   size_t size_;
@@ -119,4 +124,20 @@ inline bool operator!=(const Layout& lhs, const Layout& rhs) {
 
 /// @}
 
-}  // namespace pw::allocator
+// Template and inline method implementations.
+
+template <typename T, std::enable_if_t<is_unbounded_array_v<T>, int>>
+constexpr Layout Layout::Of(size_t count) {
+  using U = std::remove_extent_t<T>;
+  size_t size = sizeof(U);
+  Hardening::Multiply(size, count);
+  return Layout(size, alignof(U));
+}
+
+constexpr Layout Layout::Extend(size_t size) const {
+  Hardening::Increment(size, size_);
+  return Layout(size, alignment_);
+}
+
+}  // namespace allocator
+}  // namespace pw

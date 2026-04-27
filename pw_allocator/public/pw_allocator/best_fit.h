@@ -60,50 +60,64 @@ class BestFitAllocator : public BlockAllocator<BlockType> {
 
  private:
   /// @copydoc BlockAllocator::GetMaxAllocatable
-  size_t DoGetMaxAllocatable() override {
-    const BlockType* largest = large_bucket_.empty()
-                                   ? small_bucket_.FindLargest()
-                                   : large_bucket_.FindLargest();
-    return largest == nullptr ? 0 : largest->InnerSize();
-  }
+  size_t DoGetMaxAllocatable() override;
 
   /// @copydoc BlockAllocator::ChooseBlock
-  BlockResult<BlockType> ChooseBlock(Layout layout) override {
-    // The small bucket is slower; skip it if we can.
-    BlockType* block = nullptr;
-    if (layout.size() < sizeof(typename LargeBucket::ItemType)) {
-      block = small_bucket_.RemoveCompatible(layout);
-      if (block != nullptr) {
-        return BlockType::AllocFirst(std::move(block), layout);
-      }
-    }
-    block = large_bucket_.RemoveCompatible(layout);
-    if (block != nullptr) {
-      return BlockType::AllocFirst(std::move(block), layout);
-    }
-    return BlockResult<BlockType>(nullptr, Status::NotFound());
-  }
+  BlockResult<BlockType> ChooseBlock(Layout layout) override;
 
   /// @copydoc BlockAllocator::ReserveBlock
-  void ReserveBlock(BlockType& block) override {
-    // The small bucket is slower; skip it if we can.
-    if (!large_bucket_.Remove(block)) {
-      std::ignore = small_bucket_.Remove(block);
-    }
-  }
+  void ReserveBlock(BlockType& block) override;
 
   /// @copydoc BlockAllocator::RecycleBlock
-  void RecycleBlock(BlockType& block) override {
-    if (block.InnerSize() < sizeof(typename LargeBucket::ItemType)) {
-      std::ignore = small_bucket_.Add(block);
-    } else {
-      std::ignore = large_bucket_.Add(block);
-    }
-  }
+  void RecycleBlock(BlockType& block) override;
 
   SmallBucket small_bucket_;
   LargeBucket large_bucket_;
 };
+
+// Template method implementations.
+
+template <typename BlockType>
+size_t BestFitAllocator<BlockType>::DoGetMaxAllocatable() {
+  const BlockType* largest = large_bucket_.empty()
+                                 ? small_bucket_.FindLargest()
+                                 : large_bucket_.FindLargest();
+  return largest == nullptr ? 0 : largest->InnerSize();
+}
+
+template <typename BlockType>
+BlockResult<BlockType> BestFitAllocator<BlockType>::ChooseBlock(Layout layout) {
+  // The small bucket is slower; skip it if we can.
+  BlockType* block = nullptr;
+  if (layout.size() < sizeof(typename LargeBucket::ItemType)) {
+    block = small_bucket_.RemoveCompatible(layout);
+    if (block != nullptr) {
+      return BlockType::AllocFirst(std::move(block), layout);
+    }
+  }
+  block = large_bucket_.RemoveCompatible(layout);
+  if (block != nullptr) {
+    return BlockType::AllocFirst(std::move(block), layout);
+  }
+  return BlockResult<BlockType>(nullptr, Status::NotFound());
+}
+
+template <typename BlockType>
+void BestFitAllocator<BlockType>::ReserveBlock(BlockType& block) {
+  // The small bucket is slower; skip it if we can.
+  if (!large_bucket_.Remove(block)) {
+    std::ignore = small_bucket_.Remove(block);
+  }
+}
+
+template <typename BlockType>
+void BestFitAllocator<BlockType>::RecycleBlock(BlockType& block) {
+  if (block.InnerSize() < sizeof(typename LargeBucket::ItemType)) {
+    std::ignore = small_bucket_.Add(block);
+  } else {
+    std::ignore = large_bucket_.Add(block);
+  }
+}
 
 /// @}
 

@@ -47,9 +47,7 @@ class Allocator : public Deallocator {
   /// size of 0.
   ///
   /// @param[in]  layout      Describes the memory to be allocated.
-  void* Allocate(Layout layout) {
-    return layout.size() != 0 ? DoAllocate(layout) : nullptr;
-  }
+  [[nodiscard]] void* Allocate(Layout layout);
 
   /// Constructs an object of type `T` from the given `args`.
   ///
@@ -59,8 +57,11 @@ class Allocator : public Deallocator {
   ///
   /// @tparam     T           A non-array object type, like `int`.
   /// @param[in]  args        Arguments passed to the object constructor.
-  template <typename T, int&... kExplicitGuard, typename... Args>
-  [[nodiscard]] std::enable_if_t<!std::is_array_v<T>, T*> New(Args&&... args) {
+  template <typename T,
+            int&... kExplicitGuard,
+            std::enable_if_t<!std::is_array_v<T>, int> = 0,
+            typename... Args>
+  [[nodiscard]] T* New(Args&&... args) {
     void* ptr = Allocate(Layout::Of<T>());
     return ptr != nullptr ? new (ptr) T(std::forward<Args>(args)...) : nullptr;
   }
@@ -137,9 +138,7 @@ class Allocator : public Deallocator {
   ///
   /// @tparam     T            An unbounded array type, like `int[]`.
   /// @param[in]  size         Number of objects to allocate.
-  template <typename T,
-            int&... kExplicitGuard,
-            std::enable_if_t<is_unbounded_array_v<T>, int> = 0>
+  template <typename T, std::enable_if_t<is_unbounded_array_v<T>, int> = 0>
   [[nodiscard]] UniquePtr<T> MakeUnique(size_t size) {
     return MakeUnique<T>(size, alignof(std::remove_extent_t<T>));
   }
@@ -153,9 +152,7 @@ class Allocator : public Deallocator {
   /// @tparam     T            An unbounded array type, like `int[]`.
   /// @param[in]  size         Number of objects to allocate.
   /// @param[in]  alignment    Object alignment.
-  template <typename T,
-            int&... kExplicitGuard,
-            std::enable_if_t<is_unbounded_array_v<T>, int> = 0>
+  template <typename T, std::enable_if_t<is_unbounded_array_v<T>, int> = 0>
   [[nodiscard]] UniquePtr<T> MakeUnique(size_t size, size_t alignment) {
     return UniquePtr<T>(New<T>(size, alignment), size, *this);
   }
@@ -166,9 +163,7 @@ class Allocator : public Deallocator {
   /// fails. Callers must check for null before using the `UniquePtr`.
   ///
   /// @tparam     T            A bounded array type, like `int[3]`.
-  template <typename T,
-            int&... kExplicitGuard,
-            std::enable_if_t<is_bounded_array_v<T>, int> = 0>
+  template <typename T, std::enable_if_t<is_bounded_array_v<T>, int> = 0>
   [[nodiscard]] UniquePtr<T> MakeUnique() {
     return UniquePtr<T>(New<T>(), std::extent_v<T>, this);
   }
@@ -199,9 +194,7 @@ class Allocator : public Deallocator {
   ///
   /// @tparam     T            An array type.
   /// @param[in]  size         Number of objects to allocate.
-  template <typename T,
-            int&... kExplicitGuard,
-            std::enable_if_t<is_unbounded_array_v<T>, int> = 0>
+  template <typename T, std::enable_if_t<is_unbounded_array_v<T>, int> = 0>
   [[nodiscard]] SharedPtr<T> MakeShared(size_t size) {
     return MakeShared<T>(size, alignof(std::remove_extent_t<T>));
   }
@@ -215,9 +208,7 @@ class Allocator : public Deallocator {
   /// @tparam     T            An array type.
   /// @param[in]  size         Number of objects to allocate.
   /// @param[in]  alignment    Object alignment.
-  template <typename T,
-            int&... kExplicitGuard,
-            std::enable_if_t<is_unbounded_array_v<T>, int> = 0>
+  template <typename T, std::enable_if_t<is_unbounded_array_v<T>, int> = 0>
   [[nodiscard]] SharedPtr<T> MakeShared(size_t size, size_t alignment) {
     return SharedPtr<T>::Create(this, size, alignment);
   }
@@ -231,9 +222,7 @@ class Allocator : public Deallocator {
   /// @tparam     T            An array type.
   /// @param[in]  size         Number of objects to allocate.
   /// @param[in]  alignment    Object alignment.
-  template <typename T,
-            int&... kExplicitGuard,
-            std::enable_if_t<is_bounded_array_v<T>, int> = 0>
+  template <typename T, std::enable_if_t<is_bounded_array_v<T>, int> = 0>
   [[nodiscard]] SharedPtr<T> MakeShared() {
     return SharedPtr<T>::Create(
         this, std::extent_v<T>, alignof(std::remove_extent_t<T>));
@@ -254,9 +243,7 @@ class Allocator : public Deallocator {
   ///
   /// @param[in]  ptr           Pointer to previously-allocated memory.
   /// @param[in]  new_size      Requested new size for the memory allocation.
-  bool Resize(void* ptr, size_t new_size) {
-    return ptr != nullptr && new_size != 0 && DoResize(ptr, new_size);
-  }
+  [[nodiscard]] bool Resize(void* ptr, size_t new_size);
 
   /// Modifies the size of a previously-allocated block of memory.
   ///
@@ -281,15 +268,7 @@ class Allocator : public Deallocator {
   ///
   /// @param[in]  ptr         Pointer to previously-allocated memory.
   /// @param[in]  new_layout  Describes the memory to be allocated.
-  void* Reallocate(void* ptr, Layout new_layout) {
-    if (new_layout.size() == 0) {
-      return nullptr;
-    }
-    if (ptr == nullptr) {
-      return Allocate(new_layout);
-    }
-    return DoReallocate(ptr, new_layout);
-  }
+  [[nodiscard]] void* Reallocate(void* ptr, Layout new_layout);
 
   /// Returns the total bytes that have been allocated by this allocator, or
   /// `size_t(-1)` if this allocator does not track its total allocated bytes.

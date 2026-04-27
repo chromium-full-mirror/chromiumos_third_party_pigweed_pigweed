@@ -35,8 +35,6 @@ template <typename Derived>
 class IterableBlock : public internal::IterableBase {
  protected:
   constexpr explicit IterableBlock() {
-    // Assert within a function, since `Derived` is not complete when this type
-    // is defined.
     static_assert(is_contiguous_v<Derived>,
                   "Types derived from IterableBlock must also derive "
                   "from ContiguousBlock");
@@ -52,13 +50,8 @@ class IterableBlock : public internal::IterableBase {
   class Iterator final {
    public:
     constexpr explicit Iterator(Derived* block) : block_(block) {}
-    constexpr Iterator& operator++() {
-      block_ = block_ != nullptr ? block_->Next() : nullptr;
-      return *this;
-    }
-    constexpr bool operator!=(const Iterator& other) {
-      return block_ != other.block_;
-    }
+    constexpr Iterator& operator++();
+    constexpr bool operator!=(const Iterator& other);
     constexpr Derived* operator*() { return block_; }
 
    private:
@@ -101,5 +94,19 @@ template <typename BlockType>
 constexpr bool is_iterable_v = is_iterable<BlockType>::value;
 
 /// @}
+
+// Template method implementations.
+
+template <typename Derived>
+constexpr auto IterableBlock<Derived>::Iterator::operator++() -> Iterator& {
+  block_ = block_ != nullptr ? block_->Next() : nullptr;
+  return *this;
+}
+
+template <typename Derived>
+constexpr bool IterableBlock<Derived>::Iterator::operator!=(
+    const Iterator& other) {
+  return block_ != other.block_;
+}
 
 }  // namespace pw::allocator

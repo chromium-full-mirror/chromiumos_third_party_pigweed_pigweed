@@ -61,17 +61,23 @@ struct SmallBlockBase : public BasicBlock<Derived>,
   static constexpr size_t DefaultAlignment() {
     return std::max(alignof(GenericFastSortedItem), size_t(2u) << kShift);
   }
+
   static constexpr size_t BlockOverhead() { return sizeof(Derived); }
+
   static constexpr size_t MaxAddressableSize() {
     return size_t(std::numeric_limits<T>::max()) << kShift;
   }
+
   static inline Derived* AsBlock(ByteSpan bytes) {
     return ::new (bytes.data()) Derived(bytes.size());
   }
+
   static constexpr size_t MinInnerSize() { return std::max(2U, 1U << kShift); }
+
   static constexpr size_t ReservedWhenFree() {
     return sizeof(GenericFastSortedItem);
   }
+
   size_t OuterSizeUnchecked() const { return (next_and_last_ & ~1U) << kShift; }
 
   // `Basic` overrides.
@@ -85,15 +91,7 @@ struct SmallBlockBase : public BasicBlock<Derived>,
 
   constexpr bool IsLastUnchecked() const { return (next_and_last_ & 1U) != 0; }
 
-  constexpr void SetNext(size_t outer_size, Derived* next) {
-    auto packed_size = static_cast<T>(outer_size >> kShift);
-    if (next == nullptr) {
-      next_and_last_ = packed_size | 1U;
-    } else {
-      next_and_last_ = packed_size;
-      next->prev_and_free_ = packed_size | (next->prev_and_free_ & 1U);
-    }
-  }
+  constexpr void SetNext(size_t outer_size, Derived* next);
 
   constexpr size_t PrevOuterSizeUnchecked() const {
     return (prev_and_free_ & ~1U) << kShift;
@@ -113,5 +111,19 @@ struct SmallBlockBase : public BasicBlock<Derived>,
 };
 
 /// @}
+
+// Template and inline method implementations.
+
+template <typename Derived, typename T, size_t kShift>
+constexpr void SmallBlockBase<Derived, T, kShift>::SetNext(size_t outer_size,
+                                                           Derived* next) {
+  auto packed_size = static_cast<T>(outer_size >> kShift);
+  if (next == nullptr) {
+    next_and_last_ = packed_size | 1U;
+  } else {
+    next_and_last_ = packed_size;
+    next->prev_and_free_ = packed_size | (next->prev_and_free_ & 1U);
+  }
+}
 
 }  // namespace pw::allocator

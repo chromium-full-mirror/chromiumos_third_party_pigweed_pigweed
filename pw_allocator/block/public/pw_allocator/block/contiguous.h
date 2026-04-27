@@ -47,8 +47,6 @@ template <typename Derived>
 class ContiguousBlock : public internal::ContiguousBase {
  protected:
   constexpr explicit ContiguousBlock() {
-    // Assert within a function, since `Derived` is not complete when this type
-    // is defined.
     static_assert(
         is_block_v<Derived>,
         "Types derived from ContiguousBlock must also derive from BasicBlock");

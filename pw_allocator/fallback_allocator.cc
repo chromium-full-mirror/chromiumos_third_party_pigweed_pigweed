@@ -51,6 +51,11 @@ size_t FallbackAllocator::DoGetAllocated() const {
   return primary_.GetAllocated() + secondary_.GetAllocated();
 }
 
+std::optional<allocator::Fragmentation>
+FallbackAllocator::DoMeasureFragmentation() const {
+  return primary_.MeasureFragmentation();
+}
+
 Result<Layout> FallbackAllocator::DoGetInfo(InfoType info_type,
                                             const void* ptr) const {
   Result<Layout> primary = GetInfo(primary_, info_type, ptr);

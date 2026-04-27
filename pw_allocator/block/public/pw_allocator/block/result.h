@@ -30,17 +30,9 @@ namespace internal {
 /// by compactly combining a typical `Status` with enumerated values describing
 /// how a block's previous and next neighboring blocks may have been changed.
 class GenericBlockResult {
- private:
-  static constexpr size_t kPrevBits = 5;
-  static constexpr size_t kPrevShift = 0;
-
-  static constexpr size_t kNextBits = 5;
-  static constexpr size_t kNextShift = kPrevBits;
-
-  static constexpr size_t kSizeBits = 10;
-  static constexpr size_t kSizeShift = kPrevBits + kNextBits;
-
  public:
+  /// Indicates the side effect of an allocator request on the block preceding
+  /// the one returned.
   enum class Prev : uint8_t {
     kUnchanged,
     kSplitNew,
@@ -48,6 +40,8 @@ class GenericBlockResult {
     kResizedLarger,
   };
 
+  /// Indicates the side effect of an allocator request on the block following
+  /// the one returned.
   enum class Next : uint8_t {
     kUnchanged,
     kSplitNew,
@@ -73,30 +67,26 @@ class GenericBlockResult {
 
   /// Asserts the result is not an error if strict validation is enabled, and
   /// does nothing otherwise.
-  constexpr void IgnoreUnlessStrict() const {
-    if constexpr (Hardening::kIncludesDebugChecks) {
-      PW_ASSERT(ok());
-    }
-  }
+  constexpr void IgnoreUnlessStrict() const;
 
  protected:
-  constexpr GenericBlockResult(Status status, Prev prev, Next next, size_t size)
-      : encoded_(status,
-                 Encode(size_t(prev), kPrevBits, kPrevShift) |
-                     Encode(size_t(next), kNextBits, kNextShift) |
-                     Encode(size, kSizeBits, kSizeShift)) {}
+  constexpr GenericBlockResult(Status status,
+                               Prev prev,
+                               Next next,
+                               size_t size);
 
  private:
-  static constexpr size_t Encode(size_t value, size_t bits, size_t shift) {
-    if constexpr (Hardening::kIncludesDebugChecks) {
-      PW_ASSERT(value < (1U << bits));
-    }
-    return value << shift;
-  }
+  static constexpr size_t kPrevBits = 5;
+  static constexpr size_t kPrevShift = 0;
 
-  constexpr size_t Decode(size_t bits, size_t shift) const {
-    return (encoded_.size() >> shift) & ~(~static_cast<size_t>(0) << bits);
-  }
+  static constexpr size_t kNextBits = 5;
+  static constexpr size_t kNextShift = kPrevBits;
+
+  static constexpr size_t kSizeBits = 10;
+  static constexpr size_t kSizeShift = kPrevBits + kNextBits;
+
+  static constexpr size_t Encode(size_t value, size_t bits, size_t shift);
+  constexpr size_t Decode(size_t bits, size_t shift) const;
 
   StatusWithSize encoded_;
 };
@@ -138,13 +128,7 @@ class [[nodiscard]] BlockResult : public internal::GenericBlockResult {
   constexpr BlockResult(BlockType* block,
                         Prev prev,
                         Next next,
-                        size_t shifted_to_prev)
-      : internal::GenericBlockResult(OkStatus(), prev, next, shifted_to_prev),
-        block_(block) {
-    if constexpr (Hardening::kIncludesDebugChecks) {
-      block->CheckInvariants();
-    }
-  }
+                        size_t shifted_to_prev);
 
   [[nodiscard]] constexpr BlockType* block() const { return block_; }
 
@@ -153,5 +137,51 @@ class [[nodiscard]] BlockResult : public internal::GenericBlockResult {
 };
 
 /// @}
+
+// Template and inline method implementations.
+
+namespace internal {
+
+constexpr void GenericBlockResult::IgnoreUnlessStrict() const {
+  if constexpr (Hardening::kIncludesDebugChecks) {
+    PW_ASSERT(ok());
+  }
+}
+
+constexpr GenericBlockResult::GenericBlockResult(Status status,
+                                                 Prev prev,
+                                                 Next next,
+                                                 size_t size)
+    : encoded_(status,
+               Encode(size_t(prev), kPrevBits, kPrevShift) |
+                   Encode(size_t(next), kNextBits, kNextShift) |
+                   Encode(size, kSizeBits, kSizeShift)) {}
+
+constexpr size_t GenericBlockResult::Encode(size_t value,
+                                            size_t bits,
+                                            size_t shift) {
+  if constexpr (Hardening::kIncludesDebugChecks) {
+    PW_ASSERT(value < (1U << bits));
+  }
+  return value << shift;
+}
+
+constexpr size_t GenericBlockResult::Decode(size_t bits, size_t shift) const {
+  return (encoded_.size() >> shift) & ~(~static_cast<size_t>(0) << bits);
+}
+
+}  // namespace internal
+
+template <typename BlockType>
+constexpr BlockResult<BlockType>::BlockResult(BlockType* block,
+                                              Prev prev,
+                                              Next next,
+                                              size_t shifted_to_prev)
+    : internal::GenericBlockResult(OkStatus(), prev, next, shifted_to_prev),
+      block_(block) {
+  if constexpr (Hardening::kIncludesDebugChecks) {
+    block->CheckInvariants();
+  }
+}
 
 }  // namespace pw::allocator

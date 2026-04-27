@@ -39,9 +39,9 @@ class UnorderedItem : public IntrusiveForwardList<UnorderedItem>::Item {};
 /// block is O(n) since the whole list may need to be walked to find the block.
 /// As such, this bucket type is useful for pools of blocks of a single size.
 template <typename BlockType>
-class UnorderedBucket : public internal::BucketBase<UnorderedBucket<BlockType>,
-                                                    BlockType,
-                                                    UnorderedItem> {
+class UnorderedBucket final
+    : public internal::
+          BucketBase<UnorderedBucket<BlockType>, BlockType, UnorderedItem> {
  private:
   using Base = internal::
       BucketBase<UnorderedBucket<BlockType>, BlockType, UnorderedItem>;
@@ -52,23 +52,13 @@ class UnorderedBucket : public internal::BucketBase<UnorderedBucket<BlockType>,
 
  private:
   /// @copydoc `BucketBase::Add`
-  void DoAdd(BlockType& block) {
-    auto* item = new (block.UsableSpace()) UnorderedItem();
-    items_.push_front(*item);
-  }
+  void DoAdd(BlockType& block);
 
   /// @copydoc `BucketBase::RemoveAny`
-  BlockType* DoRemoveAny() {
-    UnorderedItem& item = items_.front();
-    items_.pop_front();
-    return BlockType::FromUsableSpace(&item);
-  }
+  BlockType* DoRemoveAny();
 
   /// @copydoc `BucketBase::FindLargest`
-  const BlockType* DoFindLargest() const {
-    auto iter = std::max_element(items_.begin(), items_.end(), Base::Compare);
-    return BlockType::FromUsableSpace(&(*iter));
-  }
+  const BlockType* DoFindLargest() const;
 
   /// @copydoc `BucketBase::Remove`
   bool DoRemove(BlockType& block) {
@@ -76,20 +66,43 @@ class UnorderedBucket : public internal::BucketBase<UnorderedBucket<BlockType>,
   }
 
   /// @copydoc `BucketBase::Remove`
-  BlockType* DoRemoveCompatible(Layout layout) {
-    auto prev = Base::FindPrevIf(items_.before_begin(),
-                                 items_.end(),
-                                 Base::MakeCanAllocPredicate(layout));
-    auto* block = Base::GetBlockFromPrev(prev, items_.end());
-    if (block != nullptr) {
-      items_.erase_after(prev);
-    }
-    return block;
-  }
+  BlockType* DoRemoveCompatible(Layout layout);
 
   IntrusiveForwardList<UnorderedItem> items_;
 };
 
 /// @}
+
+// Template method implementations.
+
+template <typename BlockType>
+void UnorderedBucket<BlockType>::DoAdd(BlockType& block) {
+  auto* item = new (block.UsableSpace()) UnorderedItem();
+  items_.push_front(*item);
+}
+
+template <typename BlockType>
+BlockType* UnorderedBucket<BlockType>::DoRemoveAny() {
+  UnorderedItem& item = items_.front();
+  items_.pop_front();
+  return BlockType::FromUsableSpace(&item);
+}
+
+template <typename BlockType>
+const BlockType* UnorderedBucket<BlockType>::DoFindLargest() const {
+  auto iter = std::max_element(items_.begin(), items_.end(), Base::Compare);
+  return BlockType::FromUsableSpace(&(*iter));
+}
+
+template <typename BlockType>
+BlockType* UnorderedBucket<BlockType>::DoRemoveCompatible(Layout layout) {
+  auto prev = Base::FindPrevIf(
+      items_.before_begin(), items_.end(), Base::MakeCanAllocPredicate(layout));
+  auto* block = Base::GetBlockFromPrev(prev, items_.end());
+  if (block != nullptr) {
+    items_.erase_after(prev);
+  }
+  return block;
+}
 
 }  // namespace pw::allocator

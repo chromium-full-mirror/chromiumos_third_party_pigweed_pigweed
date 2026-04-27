@@ -59,7 +59,7 @@ struct GenericFastSortedItem
 /// than the "compact" items. As such, this bucket type is a good general
 /// purpose container for items above a minimum size.
 template <typename BlockType>
-class FastSortedBucket
+class FastSortedBucket final
     : public internal::BucketBase<FastSortedBucket<BlockType>,
                                   BlockType,
                                   FastSortedItem<BlockType>> {
@@ -76,7 +76,7 @@ class FastSortedBucket
 
  public:
   constexpr FastSortedBucket() = default;
-  ~FastSortedBucket() { Base::Clear(); }
+  ~FastSortedBucket();
 
  private:
   // Constructor used by `ReverseFastSortedBucket`.
@@ -84,59 +84,22 @@ class FastSortedBucket
       : items_(std::move(compare)) {}
 
   /// @copydoc `BucketBase::Add`
-  void DoAdd(BlockType& block) {
-    auto* item = new (block.UsableSpace()) FastSortedItem<BlockType>();
-    items_.insert(*item);
-  }
+  void DoAdd(BlockType& block);
 
   /// @copydoc `BucketBase::FindLargest`
-  const BlockType* DoFindLargest() const {
-    auto iter = items_.end();
-    --iter;
-    return BlockType::FromUsableSpace(&(*iter));
-  }
+  const BlockType* DoFindLargest() const;
 
   /// @copydoc `BucketBase::RemoveAny`
-  BlockType* DoRemoveAny() {
-    auto iter = items_.begin();
-    FastSortedItem<BlockType>& item = *iter;
-    items_.erase(iter);
-    return BlockType::FromUsableSpace(&item);
-  }
+  BlockType* DoRemoveAny();
 
   /// @copydoc `BucketBase::Remove`
-  bool DoRemove(BlockType& block) {
-    FastSortedItem<BlockType>& item_to_remove = Base::GetItemFrom(block);
-    auto iters = items_.equal_range(block.InnerSize());
-    auto iter =
-        std::find_if(iters.first,
-                     iters.second,
-                     [&item_to_remove](FastSortedItem<BlockType>& item) {
-                       return &item_to_remove == &item;
-                     });
-    if (iter == items_.end()) {
-      return false;
-    }
-    items_.erase(iter);
-    return true;
-  }
+  bool DoRemove(BlockType& block);
 
   /// @copydoc `BucketBase::Remove`
-  BlockType* DoRemoveCompatible(Layout layout) {
-    auto iter = items_.lower_bound(layout.size());
-    return RemoveImpl(iter, layout);
-  }
+  BlockType* DoRemoveCompatible(Layout layout);
 
   template <typename Iterator>
-  BlockType* RemoveImpl(Iterator iter, Layout layout) {
-    iter =
-        std::find_if(iter, items_.end(), Base::MakeCanAllocPredicate(layout));
-    auto* block = Base::GetBlockFromIterator(iter, items_.end());
-    if (block != nullptr) {
-      items_.erase(iter);
-    }
-    return block;
-  }
+  BlockType* RemoveImpl(Iterator iter, Layout layout);
 
   IntrusiveMultiMap<size_t, FastSortedItem<BlockType>> items_;
 };
@@ -145,7 +108,7 @@ class FastSortedBucket
 ///
 /// In particular, `Remove()` will return the largest free block.
 template <typename BlockType>
-class ReverseFastSortedBucket
+class ReverseFastSortedBucket final
     : public internal::BucketBase<ReverseFastSortedBucket<BlockType>,
                                   BlockType,
                                   FastSortedItem<BlockType>> {
@@ -161,21 +124,13 @@ class ReverseFastSortedBucket
 
  private:
   /// @copydoc `BucketBase::Add`
-  void DoAdd(BlockType& block) { impl_.DoAdd(block); }
+  void DoAdd(BlockType& block);
 
   /// @copydoc `BucketBase::FindLargest`
-  const BlockType* DoFindLargest() const {
-    auto iter = impl_.items_.begin();
-    return BlockType::FromUsableSpace(&(*iter));
-  }
+  const BlockType* DoFindLargest() const;
 
   /// @copydoc `BucketBase::RemoveAny`
-  BlockType* DoRemoveAny() {
-    auto iter = items_.begin();
-    FastSortedItem<BlockType>& item = *iter;
-    items_.erase(iter);
-    return BlockType::FromUsableSpace(&item);
-  }
+  BlockType* DoRemoveAny();
 
   /// @copydoc `BucketBase::Remove`
   bool DoRemove(BlockType& block) { return impl_.DoRemove(block); }
@@ -190,5 +145,86 @@ class ReverseFastSortedBucket
 };
 
 /// @}
+
+// Template method implementations.
+
+template <typename BlockType>
+FastSortedBucket<BlockType>::~FastSortedBucket() {
+  Base::Clear();
+}
+
+template <typename BlockType>
+void FastSortedBucket<BlockType>::DoAdd(BlockType& block) {
+  auto* item = new (block.UsableSpace()) FastSortedItem<BlockType>();
+  items_.insert(*item);
+}
+
+template <typename BlockType>
+const BlockType* FastSortedBucket<BlockType>::DoFindLargest() const {
+  auto iter = items_.end();
+  --iter;
+  return BlockType::FromUsableSpace(&(*iter));
+}
+
+template <typename BlockType>
+BlockType* FastSortedBucket<BlockType>::DoRemoveAny() {
+  auto iter = items_.begin();
+  FastSortedItem<BlockType>& item = *iter;
+  items_.erase(iter);
+  return BlockType::FromUsableSpace(&item);
+}
+
+template <typename BlockType>
+bool FastSortedBucket<BlockType>::DoRemove(BlockType& block) {
+  FastSortedItem<BlockType>& item_to_remove = Base::GetItemFrom(block);
+  auto iters = items_.equal_range(block.InnerSize());
+  auto iter = std::find_if(iters.first,
+                           iters.second,
+                           [&item_to_remove](FastSortedItem<BlockType>& item) {
+                             return &item_to_remove == &item;
+                           });
+  if (iter == items_.end()) {
+    return false;
+  }
+  items_.erase(iter);
+  return true;
+}
+
+template <typename BlockType>
+BlockType* FastSortedBucket<BlockType>::DoRemoveCompatible(Layout layout) {
+  auto iter = items_.lower_bound(layout.size());
+  return RemoveImpl(iter, layout);
+}
+
+template <typename BlockType>
+template <typename Iterator>
+BlockType* FastSortedBucket<BlockType>::RemoveImpl(Iterator iter,
+                                                   Layout layout) {
+  iter = std::find_if(iter, items_.end(), Base::MakeCanAllocPredicate(layout));
+  auto* block = Base::GetBlockFromIterator(iter, items_.end());
+  if (block != nullptr) {
+    items_.erase(iter);
+  }
+  return block;
+}
+
+template <typename BlockType>
+void ReverseFastSortedBucket<BlockType>::DoAdd(BlockType& block) {
+  impl_.DoAdd(block);
+}
+
+template <typename BlockType>
+const BlockType* ReverseFastSortedBucket<BlockType>::DoFindLargest() const {
+  auto iter = impl_.items_.begin();
+  return BlockType::FromUsableSpace(&(*iter));
+}
+
+template <typename BlockType>
+BlockType* ReverseFastSortedBucket<BlockType>::DoRemoveAny() {
+  auto iter = items_.begin();
+  FastSortedItem<BlockType>& item = *iter;
+  items_.erase(iter);
+  return BlockType::FromUsableSpace(&item);
+}
 
 }  // namespace pw::allocator

@@ -387,7 +387,7 @@ template <typename T>
 SharedPtr<T> SharedPtr<T>::Create(Allocator* allocator,
                                   size_t count,
                                   size_t alignment) {
-  static_assert(allocator::internal::is_unbounded_array_v<T>);
+  static_assert(is_unbounded_array_v<T>);
   Layout layout = Layout::Of<T>(count).Align(alignment);
 
   // Create the shared pointer's control block using the restricted method.

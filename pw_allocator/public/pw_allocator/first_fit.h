@@ -58,33 +58,17 @@ class FirstFitAllocator : public BlockAllocator<BlockType> {
   ///                         requests. The region MUST be valid as an argument
   ///                         to `BlockType::Init`.
   /// @param[in]  threshold   Value for which requests are considered "large".
-  FirstFitAllocator(ByteSpan region, size_t threshold) {
-    Base::Init(region);
-    bucket_.set_threshold(threshold);
-  }
+  FirstFitAllocator(ByteSpan region, size_t threshold);
 
   /// Sets the threshold value for which requests are considered "large".
   void set_threshold(size_t threshold) { bucket_.set_threshold(threshold); }
 
  private:
   /// @copydoc BlockAllocator::GetMaxAllocatable
-  size_t DoGetMaxAllocatable() override {
-    const BlockType* largest = bucket_.FindLargest();
-    return largest == nullptr ? 0 : largest->InnerSize();
-  }
+  size_t DoGetMaxAllocatable() override;
 
   /// @copydoc BlockAllocator::ChooseBlock
-  BlockResult<BlockType> ChooseBlock(Layout layout) override {
-    BlockType* block = bucket_.RemoveCompatible(layout);
-    if (block == nullptr) {
-      return BlockResult<BlockType>(nullptr, Status::NotFound());
-    }
-    if (layout.size() < bucket_.threshold()) {
-      return BlockType::AllocLast(std::move(block), layout);
-    } else {
-      return BlockType::AllocFirst(std::move(block), layout);
-    }
-  }
+  BlockResult<BlockType> ChooseBlock(Layout layout) override;
 
   /// @copydoc BlockAllocator::ReserveBlock
   void ReserveBlock(BlockType& block) override {
@@ -100,5 +84,34 @@ class FirstFitAllocator : public BlockAllocator<BlockType> {
 };
 
 /// @}
+
+// Template method implementations.
+
+template <typename BlockType>
+FirstFitAllocator<BlockType>::FirstFitAllocator(ByteSpan region,
+                                                size_t threshold) {
+  Base::Init(region);
+  bucket_.set_threshold(threshold);
+}
+
+template <typename BlockType>
+size_t FirstFitAllocator<BlockType>::DoGetMaxAllocatable() {
+  const BlockType* largest = bucket_.FindLargest();
+  return largest == nullptr ? 0 : largest->InnerSize();
+}
+
+template <typename BlockType>
+BlockResult<BlockType> FirstFitAllocator<BlockType>::ChooseBlock(
+    Layout layout) {
+  BlockType* block = bucket_.RemoveCompatible(layout);
+  if (block == nullptr) {
+    return BlockResult<BlockType>(nullptr, Status::NotFound());
+  }
+  if (layout.size() < bucket_.threshold()) {
+    return BlockType::AllocLast(std::move(block), layout);
+  } else {
+    return BlockType::AllocFirst(std::move(block), layout);
+  }
+}
 
 }  // namespace pw::allocator

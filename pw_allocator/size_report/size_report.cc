@@ -47,8 +47,8 @@ int MeasureAllocator(pw::Allocator& allocator, uint32_t mask) {
     return 1;
   }
 
-  // Measure `Reallocate`.
-  allocator.Resize(ptr, sizeof(Bar));
+  // Measure `Resize`.
+  std::ignore = allocator.Resize(ptr, sizeof(Bar));
 
   // Measure `Reallocate`.
   ptr = allocator.Reallocate(ptr, Layout::Of<Baz>());

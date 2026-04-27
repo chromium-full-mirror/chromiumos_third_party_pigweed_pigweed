@@ -43,12 +43,7 @@ class Owned : public GenericOwned {
   void set_object(T* object) { object_ = object; }
 
  private:
-  void DoDestroy() override {
-    if (object_ != nullptr) {
-      std::destroy_at(object_);
-      object_ = nullptr;
-    }
-  }
+  void DoDestroy() override;
 
   T* object_ = nullptr;
 };
@@ -101,16 +96,7 @@ class BumpAllocator : public pw::Allocator {
   ///
   /// @param[in]  args...     Arguments passed to the object constructor.
   template <typename T, int&... kExplicitGuard, typename... Args>
-  T* NewOwned(Args&&... args) {
-    internal::Owned<T>* owned = New<internal::Owned<T>>();
-    T* ptr = owned != nullptr ? New<T>(std::forward<Args>(args)...) : nullptr;
-    if (ptr != nullptr) {
-      owned->set_object(ptr);
-      owned->set_next(owned_);
-      owned_ = owned;
-    }
-    return ptr;
-  }
+  T* NewOwned(Args&&... args);
 
   /// Constructs and object of type `T` from the given `args`, and wraps it in a
   /// `UniquePtr`
@@ -123,9 +109,7 @@ class BumpAllocator : public pw::Allocator {
   ///
   /// @param[in]  args...     Arguments passed to the object constructor.
   template <typename T, int&... kExplicitGuard, typename... Args>
-  [[nodiscard]] UniquePtr<T> MakeUniqueOwned(Args&&... args) {
-    return UniquePtr<T>(NewOwned<T>(std::forward<Args>(args)...), *this);
-  }
+  [[nodiscard]] UniquePtr<T> MakeUniqueOwned(Args&&... args);
 
  private:
   /// @copydoc Allocator::Allocate
@@ -146,5 +130,36 @@ class BumpAllocator : public pw::Allocator {
 };
 
 /// @}
+
+// Template method implementations.
+
+namespace internal {
+
+template <typename T>
+void Owned<T>::DoDestroy() {
+  if (object_ != nullptr) {
+    std::destroy_at(object_);
+    object_ = nullptr;
+  }
+}
+
+}  // namespace internal
+
+template <typename T, int&... kExplicitGuard, typename... Args>
+T* BumpAllocator::NewOwned(Args&&... args) {
+  internal::Owned<T>* owned = New<internal::Owned<T>>();
+  T* ptr = owned != nullptr ? New<T>(std::forward<Args>(args)...) : nullptr;
+  if (ptr != nullptr) {
+    owned->set_object(ptr);
+    owned->set_next(owned_);
+    owned_ = owned;
+  }
+  return ptr;
+}
+
+template <typename T, int&... kExplicitGuard, typename... Args>
+UniquePtr<T> BumpAllocator::MakeUniqueOwned(Args&&... args) {
+  return UniquePtr<T>(NewOwned<T>(std::forward<Args>(args)...), *this);
+}
 
 }  // namespace pw::allocator

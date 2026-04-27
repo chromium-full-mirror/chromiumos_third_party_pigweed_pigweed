@@ -52,9 +52,7 @@ struct PoisonableBase {};
 template <typename Derived>
 class PoisonableBlock : public internal::PoisonableBase {
  protected:
-  constexpr explicit PoisonableBlock() {
-    // Assert within a function, since `Derived` is not complete when this type
-    // is defined.
+  constexpr PoisonableBlock() {
     static_assert(is_contiguous_v<Derived>,
                   "Types derived from PoisonableBlock must also derive from "
                   "ContiguousBlock");
@@ -108,20 +106,11 @@ class PoisonableBlock : public internal::PoisonableBase {
 
   /// Returns a pointer that can be used as an iterator to the poisonable
   /// region.
-  constexpr uintptr_t* PoisonableBegin() const {
-    auto addr = cpp20::bit_cast<uintptr_t>(derived()->UsableSpaceUnchecked());
-    addr = AlignUp(addr + kPoisonOffset, sizeof(uintptr_t*));
-    return cpp20::bit_cast<uintptr_t*>(addr);
-  }
+  constexpr uintptr_t* PoisonableBegin() const;
 
   /// Returns a pointer that can be used as a past-the-end iterator to the
   /// poisonable region.
-  constexpr uintptr_t* PoisonableEnd() const {
-    auto addr = cpp20::bit_cast<uintptr_t>(derived()->UsableSpaceUnchecked());
-    addr =
-        AlignDown(addr + derived()->InnerSizeUnchecked(), sizeof(uintptr_t*));
-    return cpp20::bit_cast<uintptr_t*>(addr);
-  }
+  constexpr uintptr_t* PoisonableEnd() const;
 };
 
 /// Trait type that allow interrogating a block as to whether it is poisonable.
@@ -234,6 +223,20 @@ constexpr void PoisonableBlock<Derived>::SetFree(bool is_free) {
   if (!is_free) {
     derived()->SetPoisoned(false);
   }
+}
+
+template <typename Derived>
+constexpr uintptr_t* PoisonableBlock<Derived>::PoisonableBegin() const {
+  auto addr = cpp20::bit_cast<uintptr_t>(derived()->UsableSpaceUnchecked());
+  addr = AlignUp(addr + kPoisonOffset, sizeof(uintptr_t*));
+  return cpp20::bit_cast<uintptr_t*>(addr);
+}
+
+template <typename Derived>
+constexpr uintptr_t* PoisonableBlock<Derived>::PoisonableEnd() const {
+  auto addr = cpp20::bit_cast<uintptr_t>(derived()->UsableSpaceUnchecked());
+  addr = AlignDown(addr + derived()->InnerSizeUnchecked(), sizeof(uintptr_t*));
+  return cpp20::bit_cast<uintptr_t*>(addr);
 }
 
 }  // namespace pw::allocator

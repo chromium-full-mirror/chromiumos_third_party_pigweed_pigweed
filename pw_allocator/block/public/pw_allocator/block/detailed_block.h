@@ -97,23 +97,14 @@ class DetailedBlockImpl
   using Iterator = typename IterableBlock<BlockType>::Iterator;
 
  private:
-  constexpr explicit DetailedBlockImpl(size_t outer_size) : info_{} {
-    next_ = static_cast<OffsetType>(outer_size / Basic::kAlignment);
-    info_.last = 1;
-    info_.alignment = Basic::kAlignment;
-  }
+  constexpr explicit DetailedBlockImpl(size_t outer_size);
 
   // `Basic` required methods.
   friend Basic;
-  static constexpr size_t DefaultAlignment() {
-    return std::max(alignof(OffsetType),
-                    Parameters::kLayoutWhenFree.alignment());
-  }
-  static constexpr size_t BlockOverhead() { return sizeof(BlockType); }
-  static constexpr size_t MinInnerSize() { return 1; }
-  static constexpr size_t ReservedWhenFree() {
-    return Parameters::kLayoutWhenFree.size();
-  }
+  static constexpr size_t DefaultAlignment();
+  static constexpr size_t BlockOverhead();
+  static constexpr size_t MinInnerSize();
+  static constexpr size_t ReservedWhenFree();
   constexpr size_t OuterSizeUnchecked() const;
 
   // `Basic` overrides.
@@ -123,14 +114,7 @@ class DetailedBlockImpl
   using Contiguous = ContiguousBlock<BlockType>;
   friend Contiguous;
 
-  static constexpr size_t MaxAddressableSize() {
-    auto kOffsetMax =
-        static_cast<size_t>(std::numeric_limits<OffsetType>::max());
-    auto kSizeMax = static_cast<size_t>(std::numeric_limits<size_t>::max());
-    return std::min(kSizeMax / Basic::kAlignment, kOffsetMax) *
-           Basic::kAlignment;
-  }
-
+  static constexpr size_t MaxAddressableSize();
   constexpr bool IsLastUnchecked() const { return info_.last != 0; }
   static constexpr BlockType* AsBlock(ByteSpan bytes);
   constexpr void SetNext(size_t outer_size, BlockType* next);
@@ -213,7 +197,35 @@ using DetailedBlock =
 
 // Template method implementations.
 
+template <typename Parameters>
+constexpr DetailedBlockImpl<Parameters>::DetailedBlockImpl(size_t outer_size)
+    : info_{} {
+  next_ = static_cast<OffsetType>(outer_size / Basic::kAlignment);
+  info_.last = 1;
+  info_.alignment = Basic::kAlignment;
+}
+
 // `Basic` methods.
+
+template <typename Parameters>
+constexpr size_t DetailedBlockImpl<Parameters>::DefaultAlignment() {
+  return std::max(alignof(OffsetType), Parameters::kLayoutWhenFree.alignment());
+}
+
+template <typename Parameters>
+constexpr size_t DetailedBlockImpl<Parameters>::BlockOverhead() {
+  return sizeof(BlockType);
+}
+
+template <typename Parameters>
+constexpr size_t DetailedBlockImpl<Parameters>::MinInnerSize() {
+  return 1;
+}
+
+template <typename Parameters>
+constexpr size_t DetailedBlockImpl<Parameters>::ReservedWhenFree() {
+  return Parameters::kLayoutWhenFree.size();
+}
 
 template <typename Parameters>
 constexpr size_t DetailedBlockImpl<Parameters>::OuterSizeUnchecked() const {
@@ -231,6 +243,13 @@ constexpr bool DetailedBlockImpl<Parameters>::DoCheckInvariants(
 }
 
 // `Contiguous` methods.
+
+template <typename Parameters>
+constexpr size_t DetailedBlockImpl<Parameters>::MaxAddressableSize() {
+  auto kOffsetMax = static_cast<size_t>(std::numeric_limits<OffsetType>::max());
+  auto kSizeMax = std::numeric_limits<size_t>::max();
+  return std::min(kSizeMax / Basic::kAlignment, kOffsetMax) * Basic::kAlignment;
+}
 
 template <typename Parameters>
 constexpr DetailedBlockImpl<Parameters>* DetailedBlockImpl<Parameters>::AsBlock(

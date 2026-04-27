@@ -36,11 +36,7 @@ template <typename T>
 class TypedPool : public ChunkPool {
  public:
   /// Returns the amount of memory needed to allocate ``num_objects``.
-  static constexpr size_t SizeNeeded(size_t num_objects) {
-    size_t needed = std::max(sizeof(T), ChunkPool::kMinSize);
-    Hardening::Multiply(needed, num_objects);
-    return needed;
-  }
+  static constexpr size_t SizeNeeded(size_t num_objects);
 
   /// Returns the optimal alignment for the backing memory region.
   static constexpr size_t AlignmentNeeded() {
@@ -91,10 +87,7 @@ class TypedPool : public ChunkPool {
   ///
   /// @param[in]  args...     Arguments passed to the object constructor.
   template <int&... kExplicitGuard, typename... Args>
-  T* New(Args&&... args) {
-    void* ptr = Allocate();
-    return ptr != nullptr ? new (ptr) T(std::forward<Args>(args)...) : nullptr;
-  }
+  T* New(Args&&... args);
 
   /// Constructs and object from the given `args`, and wraps it in a `UniquePtr`
   ///
@@ -109,5 +102,21 @@ class TypedPool : public ChunkPool {
 };
 
 /// @}
+
+// Template method implementations.
+
+template <typename T>
+constexpr size_t TypedPool<T>::SizeNeeded(size_t num_objects) {
+  size_t needed = std::max(sizeof(T), ChunkPool::kMinSize);
+  Hardening::Multiply(needed, num_objects);
+  return needed;
+}
+
+template <typename T>
+template <int&... kExplicitGuard, typename... Args>
+T* TypedPool<T>::New(Args&&... args) {
+  void* ptr = Allocate();
+  return ptr != nullptr ? new (ptr) T(std::forward<Args>(args)...) : nullptr;
+}
 
 }  // namespace pw::allocator

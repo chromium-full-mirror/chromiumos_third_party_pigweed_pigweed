@@ -65,20 +65,10 @@ class SortedBucketBase : public BucketBase<Derived, BlockType, SortedItem> {
   const IntrusiveForwardList<SortedItem>& items() const { return items_; }
 
   /// @copydoc `BucketBase::Add`
-  void DoAdd(BlockType& block) {
-    auto* item_to_add = new (block.UsableSpace()) SortedItem();
-    auto prev = Base::FindPrevIf(items_.before_begin(),
-                                 items_.end(),
-                                 Derived::MakeAddPredicate(block.InnerSize()));
-    items_.insert_after(prev, *item_to_add);
-  }
+  void DoAdd(BlockType& block);
 
   /// @copydoc `BucketBase::RemoveAny`
-  BlockType* DoRemoveAny() {
-    SortedItem& item = items_.front();
-    items_.pop_front();
-    return BlockType::FromUsableSpace(&item);
-  }
+  BlockType* DoRemoveAny();
 
   /// @copydoc `BucketBase::Remove`
   bool DoRemove(BlockType& block) {
@@ -86,16 +76,7 @@ class SortedBucketBase : public BucketBase<Derived, BlockType, SortedItem> {
   }
 
   /// @copydoc `Bucket::Remove`
-  BlockType* DoRemoveCompatible(Layout layout) {
-    auto prev = Base::FindPrevIf(items_.before_begin(),
-                                 items_.end(),
-                                 Base::MakeCanAllocPredicate(layout));
-    auto* block = Base::GetBlockFromPrev(prev, items_.end());
-    if (block != nullptr) {
-      items_.erase_after(prev);
-    }
-    return block;
-  }
+  BlockType* DoRemoveCompatible(Layout layout);
 
  private:
   IntrusiveForwardList<SortedItem> items_;
@@ -111,7 +92,7 @@ class SortedBucketBase : public BucketBase<Derived, BlockType, SortedItem> {
 ///
 /// Calling `RemoveAny()` on this bucket will return the smallest free block.
 template <typename BlockType>
-class ForwardSortedBucket
+class ForwardSortedBucket final
     : public internal::SortedBucketBase<ForwardSortedBucket<BlockType>,
                                         BlockType> {
  private:
@@ -125,26 +106,10 @@ class ForwardSortedBucket
   /// larger than the given `inner_size`.
   ///
   /// This lambda can be used with `std::find_if` and `FindPrevIf`.
-  static constexpr auto MakeAddPredicate(size_t inner_size) {
-    return [inner_size](SortedItem& item) {
-      auto* block = BlockType::FromUsableSpace(&item);
-      return inner_size < block->InnerSize();
-    };
-  }
+  static constexpr auto MakeAddPredicate(size_t inner_size);
 
   /// @copydoc `BucketBase::FindLargest`
-  const BlockType* DoFindLargest() const {
-    const auto& items = Base::items();
-    if (items.empty()) {
-      return nullptr;
-    }
-    auto iter = items.before_begin();
-    auto prev = iter;
-    do {
-      prev = iter++;
-    } while (iter != items.end());
-    return BlockType::FromUsableSpace(&(*prev));
-  }
+  const BlockType* DoFindLargest() const;
 };
 
 /// Container of free blocks sorted in order of decreasing size.
@@ -155,7 +120,7 @@ class ForwardSortedBucket
 ///
 /// Calling `RemoveAny()` on this bucket will return the largest free block.
 template <typename BlockType>
-class ReverseSortedBucket
+class ReverseSortedBucket final
     : public internal::SortedBucketBase<ReverseSortedBucket<BlockType>,
                                         BlockType> {
  private:
@@ -169,21 +134,85 @@ class ReverseSortedBucket
   /// smaller than the given `inner_size`.
   ///
   /// This lambda can be used with `std::find_if` and `FindPrevIf`.
-  static constexpr auto MakeAddPredicate(size_t inner_size) {
-    return [inner_size](SortedItem& item) {
-      auto* block = BlockType::FromUsableSpace(&item);
-      return block->InnerSize() < inner_size;
-    };
-  }
+  static constexpr auto MakeAddPredicate(size_t inner_size);
 
   /// @copydoc `BucketBase::FindLargest`
-  const BlockType* DoFindLargest() const {
-    const auto& items = Base::items();
-    auto iter = items.begin();
-    return BlockType::FromUsableSpace(&(*iter));
-  }
+  const BlockType* DoFindLargest() const;
 };
 
 /// @}
+
+// Template method implementations.
+
+namespace internal {
+
+template <typename Derived, typename BlockType>
+void SortedBucketBase<Derived, BlockType>::DoAdd(BlockType& block) {
+  auto* item_to_add = new (block.UsableSpace()) SortedItem();
+  auto prev = Base::FindPrevIf(items_.before_begin(),
+                               items_.end(),
+                               Derived::MakeAddPredicate(block.InnerSize()));
+  items_.insert_after(prev, *item_to_add);
+}
+
+template <typename Derived, typename BlockType>
+BlockType* SortedBucketBase<Derived, BlockType>::DoRemoveAny() {
+  SortedItem& item = items_.front();
+  items_.pop_front();
+  return BlockType::FromUsableSpace(&item);
+}
+
+template <typename Derived, typename BlockType>
+BlockType* SortedBucketBase<Derived, BlockType>::DoRemoveCompatible(
+    Layout layout) {
+  auto prev = Base::FindPrevIf(
+      items_.before_begin(), items_.end(), Base::MakeCanAllocPredicate(layout));
+  auto* block = Base::GetBlockFromPrev(prev, items_.end());
+  if (block != nullptr) {
+    items_.erase_after(prev);
+  }
+  return block;
+}
+
+}  // namespace internal
+
+template <typename BlockType>
+constexpr auto ForwardSortedBucket<BlockType>::MakeAddPredicate(
+    size_t inner_size) {
+  return [inner_size](SortedItem& item) {
+    auto* block = BlockType::FromUsableSpace(&item);
+    return inner_size < block->InnerSize();
+  };
+}
+
+template <typename BlockType>
+const BlockType* ForwardSortedBucket<BlockType>::DoFindLargest() const {
+  const auto& items = Base::items();
+  if (items.empty()) {
+    return nullptr;
+  }
+  auto iter = items.before_begin();
+  auto prev = iter;
+  do {
+    prev = iter++;
+  } while (iter != items.end());
+  return BlockType::FromUsableSpace(&(*prev));
+}
+
+template <typename BlockType>
+constexpr auto ReverseSortedBucket<BlockType>::MakeAddPredicate(
+    size_t inner_size) {
+  return [inner_size](SortedItem& item) {
+    auto* block = BlockType::FromUsableSpace(&item);
+    return block->InnerSize() < inner_size;
+  };
+}
+
+template <typename BlockType>
+const BlockType* ReverseSortedBucket<BlockType>::DoFindLargest() const {
+  const auto& items = Base::items();
+  auto iter = items.begin();
+  return BlockType::FromUsableSpace(&(*iter));
+}
 
 }  // namespace pw::allocator

@@ -59,48 +59,32 @@ class BucketBase {
   using BlockType = BlockType_;
   using ItemType = ItemType_;
 
-  constexpr BucketBase() {
-    if constexpr (is_poisonable_v<BlockType>) {
-      static_assert(BlockType::kPoisonOffset >= sizeof(ItemType),
-                    "Block type does not reserve sufficient space for an item");
-    }
-  }
+  constexpr BucketBase();
 
   /// Returns whether this buckets contains any free blocks.
-  constexpr bool empty() const { return derived()->items_.empty(); }
+  [[nodiscard]] constexpr bool empty() const {
+    return derived()->items_.empty();
+  }
 
   /// Returns the configured maximum inner size for blocks in this bucket.
-  constexpr size_t max_inner_size() const { return max_inner_size_; }
+  [[nodiscard]] constexpr size_t max_inner_size() const {
+    return max_inner_size_;
+  }
 
   /// Sets the maximum inner size for blocks in this bucket.
   ///
   /// This can only be called when the bucket is empty.
-  constexpr void set_max_inner_size(size_t max_inner_size) {
-    if constexpr (Hardening::kIncludesDebugChecks) {
-      PW_ASSERT(empty());
-    }
-    max_inner_size_ = max_inner_size;
-  }
+  constexpr void set_max_inner_size(size_t max_inner_size);
 
   /// Adds a block to this bucket if the block can hold an item of the bucket's
   /// `ItemType`, otherwise does nothing.
   ///
   /// @param  block   The block to be added.
-  [[nodiscard]] bool Add(BlockType& block) {
-    if (block.InnerSize() < sizeof(ItemType)) {
-      return false;
-    }
-    if constexpr (Hardening::kIncludesDebugChecks) {
-      PW_ASSERT(block.InnerSize() <= max_inner_size_);
-      PW_ASSERT(IsAlignedAs<ItemType>(block.UsableSpace()));
-    }
-    derived()->DoAdd(block);
-    return true;
-  }
+  [[nodiscard]] bool Add(BlockType& block);
 
   /// Returns the block of the largest inner size in the bucket, or null if the
   /// bucket is empty.
-  const BlockType* FindLargest() const {
+  [[nodiscard]] const BlockType* FindLargest() const {
     return empty() ? nullptr : derived()->DoFindLargest();
   }
 
@@ -149,37 +133,17 @@ class BucketBase {
   template <typename Iterator, typename Predicate>
   static Iterator FindPrevIf(Iterator before_first,
                              Iterator last,
-                             Predicate predicate) {
-    Iterator prev = before_first;
-    Iterator iter = prev;
-    ++iter;
-    for (; iter != last; ++iter) {
-      if (predicate(*iter)) {
-        break;
-      }
-      prev = iter;
-    }
-    return prev;
-  }
+                             Predicate predicate);
 
   /// Returns a lambda that tests if the blocks storing an item can be allocated
   /// with the given `layout`.
   ///
   /// This lambda can be used with `std::find_if` and `FindPrevIf`.
-  static auto MakeCanAllocPredicate(Layout layout) {
-    return [layout](ItemType& item) {
-      auto* block = BlockType::FromUsableSpace(&item);
-      return block->CanAlloc(layout).ok();
-    };
-  }
+  static auto MakeCanAllocPredicate(Layout layout);
 
   /// Returns whether the first item represents a block with a smaller inner
   /// size than the block represented by the second item.
-  static bool Compare(const ItemType& item1, const ItemType& item2) {
-    const BlockType* block1 = BlockType::FromUsableSpace(&item1);
-    const BlockType* block2 = BlockType::FromUsableSpace(&item2);
-    return block1->InnerSize() < block2->InnerSize();
-  }
+  static bool Compare(const ItemType& item1, const ItemType& item2);
 
   /// Returns the block storing the item pointed to by the provided `iter`, or
   /// null if the iterator is the `last` iterator.
@@ -235,5 +199,70 @@ constexpr U CountLZero(T t) {
 }
 
 /// @}
+
+// Template method implementations.
+
+template <typename Derived, typename BlockType, typename ItemType>
+constexpr BucketBase<Derived, BlockType, ItemType>::BucketBase() {
+  if constexpr (is_poisonable_v<BlockType>) {
+    static_assert(BlockType::kPoisonOffset >= sizeof(ItemType),
+                  "Block type does not reserve sufficient space for an item");
+  }
+}
+
+template <typename Derived, typename BlockType, typename ItemType>
+constexpr void BucketBase<Derived, BlockType, ItemType>::set_max_inner_size(
+    size_t max_inner_size) {
+  if constexpr (Hardening::kIncludesDebugChecks) {
+    PW_ASSERT(empty());
+  }
+  max_inner_size_ = max_inner_size;
+}
+
+template <typename Derived, typename BlockType, typename ItemType>
+bool BucketBase<Derived, BlockType, ItemType>::Add(BlockType& block) {
+  if (block.InnerSize() < sizeof(ItemType)) {
+    return false;
+  }
+  if constexpr (Hardening::kIncludesDebugChecks) {
+    PW_ASSERT(block.InnerSize() <= max_inner_size_);
+    PW_ASSERT(IsAlignedAs<ItemType>(block.UsableSpace()));
+  }
+  derived()->DoAdd(block);
+  return true;
+}
+
+template <typename Derived, typename BlockType, typename ItemType>
+template <typename Iterator, typename Predicate>
+Iterator BucketBase<Derived, BlockType, ItemType>::FindPrevIf(
+    Iterator before_first, Iterator last, Predicate predicate) {
+  Iterator prev = before_first;
+  Iterator iter = prev;
+  ++iter;
+  for (; iter != last; ++iter) {
+    if (predicate(*iter)) {
+      break;
+    }
+    prev = iter;
+  }
+  return prev;
+}
+
+template <typename Derived, typename BlockType, typename ItemType>
+auto BucketBase<Derived, BlockType, ItemType>::MakeCanAllocPredicate(
+    Layout layout) {
+  return [layout](ItemType& item) {
+    auto* block = BlockType::FromUsableSpace(&item);
+    return block->CanAlloc(layout).ok();
+  };
+}
+
+template <typename Derived, typename BlockType, typename ItemType>
+bool BucketBase<Derived, BlockType, ItemType>::Compare(const ItemType& item1,
+                                                       const ItemType& item2) {
+  const BlockType* block1 = BlockType::FromUsableSpace(&item1);
+  const BlockType* block2 = BlockType::FromUsableSpace(&item2);
+  return block1->InnerSize() < block2->InnerSize();
+}
 
 }  // namespace pw::allocator::internal

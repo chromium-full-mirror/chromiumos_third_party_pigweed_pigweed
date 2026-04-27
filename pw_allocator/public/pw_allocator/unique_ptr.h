@@ -54,11 +54,7 @@ class UniquePtr : public ::pw::allocator::internal::ManagedPtr<T> {
   ///
   /// NOTE: Instances of this type are most commonly constructed using
   /// `Allocator::MakeUnique`.
-  constexpr UniquePtr() noexcept {
-    if constexpr (std::is_array_v<T>) {
-      size_ = 0;
-    }
-  }
+  constexpr UniquePtr() noexcept;
 
   // Not copyable.
   UniquePtr(const UniquePtr&) = delete;
@@ -84,21 +80,8 @@ class UniquePtr : public ::pw::allocator::internal::ManagedPtr<T> {
   /// `MakeUnique`. Prefer that method when possible.
   ///
   /// @{
-  UniquePtr(element_type* value, Deallocator& deallocator)
-      : Base(value), deallocator_(&deallocator) {
-    static_assert(!allocator::internal::is_unbounded_array_v<T>,
-                  "UniquePtr for unbounded array type must provide size");
-    if constexpr (allocator::internal::is_bounded_array_v<T>) {
-      size_ = std::extent_v<T>;
-    }
-  }
-
-  UniquePtr(element_type* value, size_t size, Deallocator& deallocator)
-      : Base(value), size_(size), deallocator_(&deallocator) {
-    static_assert(
-        allocator::internal::is_unbounded_array_v<T>,
-        "UniquePtr must not provide size unless type is an unbounded array");
-  }
+  UniquePtr(element_type* value, Deallocator& deallocator);
+  UniquePtr(element_type* value, size_t size, Deallocator& deallocator);
   /// @}
 
   /// Move-constructs a `UniquePtr<T>` from a `UniquePtr<U>`.
@@ -143,11 +126,8 @@ class UniquePtr : public ::pw::allocator::internal::ManagedPtr<T> {
   /// pw::UniquePtr<A> a2 = static_cast<pw::UniquePtr<A>>(std::move(b));
   /// @endcode
   template <typename U,
-            typename = std::enable_if_t<std::is_assignable_v<T*&, U*>>>
-  constexpr explicit operator UniquePtr<U>() && {
-    Deallocator& deallocator = *deallocator_;
-    return UniquePtr<U>(static_cast<U*>(Release()), deallocator);
-  }
+            std::enable_if_t<std::is_assignable_v<T*&, U*>, int> = 0>
+  constexpr explicit operator UniquePtr<U>() &&;
 
   [[nodiscard]] friend constexpr bool operator==(const UniquePtr& lhs,
                                                  std::nullptr_t) {
@@ -178,11 +158,7 @@ class UniquePtr : public ::pw::allocator::internal::ManagedPtr<T> {
   /// Returns the number of elements allocated.
   ///
   /// This will fail to compile if it is called on a non-array type UniquePtr.
-  size_t size() const {
-    static_assert(std::is_array_v<T>,
-                  "size() cannot be called with a non-array type");
-    return size_;
-  }
+  size_t size() const;
 
   /// Returns a pointer to the object that can destroy the value.
   Deallocator* deallocator() const { return deallocator_; }
@@ -229,6 +205,47 @@ class UniquePtr : public ::pw::allocator::internal::ManagedPtr<T> {
 /// @}
 
 // Template method implementations.
+
+template <typename T>
+constexpr UniquePtr<T>::UniquePtr() noexcept {
+  if constexpr (std::is_array_v<T>) {
+    size_ = 0;
+  }
+}
+
+template <typename T>
+UniquePtr<T>::UniquePtr(element_type* value, Deallocator& deallocator)
+    : Base(value), deallocator_(&deallocator) {
+  static_assert(!is_unbounded_array_v<T>,
+                "UniquePtr for unbounded array type must provide size");
+  if constexpr (is_bounded_array_v<T>) {
+    size_ = std::extent_v<T>;
+  }
+}
+
+template <typename T>
+UniquePtr<T>::UniquePtr(element_type* value,
+                        size_t size,
+                        Deallocator& deallocator)
+    : Base(value), size_(size), deallocator_(&deallocator) {
+  static_assert(
+      is_unbounded_array_v<T>,
+      "UniquePtr must not provide size unless type is an unbounded array");
+}
+
+template <typename T>
+template <typename U, std::enable_if_t<std::is_assignable_v<T*&, U*>, int>>
+constexpr UniquePtr<T>::operator UniquePtr<U>() && {
+  Deallocator& deallocator = *deallocator_;
+  return UniquePtr<U>(static_cast<U*>(Release()), deallocator);
+}
+
+template <typename T>
+size_t UniquePtr<T>::size() const {
+  static_assert(std::is_array_v<T>,
+                "size() cannot be called with a non-array type");
+  return size_;
+}
 
 template <typename T>
 template <typename U, typename>

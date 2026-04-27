@@ -44,8 +44,6 @@ template <typename Derived>
 class AlignableBlock : public internal::AlignableBase {
  protected:
   constexpr explicit AlignableBlock() {
-    // Assert within a function, since `Derived` is not complete when this type
-    // is defined.
     static_assert(is_allocatable_v<Derived>,
                   "Types derived from AlignableBlock must also derive from "
                   "AllocatableBlock");

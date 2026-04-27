@@ -26,16 +26,6 @@ namespace pw {
 
 /// Abstract interface for releasing memory.
 class Deallocator {
- protected:
-  // Alias types and variables needed for SFINAE below.
-  template <typename T>
-  static constexpr bool is_bounded_array_v =
-      allocator::internal::is_bounded_array_v<T>;
-
-  template <typename T>
-  static constexpr bool is_unbounded_array_v =
-      allocator::internal::is_unbounded_array_v<T>;
-
  public:
   using Capabilities = allocator::Capabilities;
   using Capability = allocator::Capability;
@@ -56,11 +46,7 @@ class Deallocator {
   /// resource; otherwise the behavior is undefined.
   ///
   /// @param[in]  ptr           Pointer to previously-allocated memory.
-  void Deallocate(void* ptr) {
-    if (ptr != nullptr) {
-      DoDeallocate(ptr);
-    }
-  }
+  inline void Deallocate(void* ptr);
 
   /// Destroys the object and deallocates the associated memory.
   ///
@@ -86,38 +72,19 @@ class Deallocator {
   template <typename T,
             int&... kExplicitGuard,
             std::enable_if_t<!std::is_array_v<T>, int> = 0>
-  void Delete(T* ptr) {
-    if constexpr (allocator::Hardening::kIncludesDebugChecks) {
-      if (auto result = GetRequestedLayout(ptr); result.ok()) {
-        if constexpr (std::has_virtual_destructor_v<T>) {
-          PW_ASSERT(result->size() >= sizeof(T) &&
-                    result->alignment() >= alignof(T));
-        } else {
-          PW_ASSERT(*result == Layout::Of<T>());
-        }
-      }
-    }
-    DeleteArray<T>(ptr, 1);
-  }
+  void Delete(T* ptr);
 
   template <typename T,
             int&... kExplicitGuard,
             typename ElementType = std::remove_extent_t<T>,
             std::enable_if_t<is_bounded_array_v<T>, int> = 0>
-  void Delete(ElementType* ptr) {
-    size_t count = std::extent_v<T>;
-    if (count != 0) {
-      DeleteArray<ElementType>(&ptr[0], count);
-    }
-  }
+  void Delete(ElementType* ptr);
 
   template <typename T,
             int&... kExplicitGuard,
             typename ElementType = std::remove_extent_t<T>,
             std::enable_if_t<is_unbounded_array_v<T>, int> = 0>
-  void Delete(ElementType* ptr, size_t count) {
-    DeleteArray<ElementType>(ptr, count);
-  }
+  void Delete(ElementType* ptr, size_t count);
   /// @}
 
   /// Destroys the array and deallocates the associated memory.
@@ -133,12 +100,7 @@ class Deallocator {
   /// @param[in] ptr      Pointer to previously-allocated array.
   /// @param[in] count    Number of items in the array.
   template <typename ElementType>
-  void DeleteArray(ElementType* ptr, size_t count) {
-    if (!capabilities_.has(Capability::kSkipsDestroy)) {
-      std::destroy_n(ptr, count);
-    }
-    Deallocate(ptr);
-  }
+  void DeleteArray(ElementType* ptr, size_t count);
 
   /// Returns the total amount of memory provided by this object.
   ///
@@ -147,10 +109,7 @@ class Deallocator {
   /// capacity may be less than the memory originally given to an allocator,
   /// e.g. if the allocator must align the region of memory, its capacity may be
   /// reduced.
-  StatusWithSize GetCapacity() const {
-    auto result = DoGetInfo(InfoType::kCapacity, nullptr);
-    return StatusWithSize(result.status(), Layout::Unwrap(result).size());
-  }
+  inline StatusWithSize GetCapacity() const;
 
   /// Returns whether the given object is the same as this one.
   ///
@@ -165,6 +124,14 @@ class Deallocator {
   bool IsEqual(const Deallocator& other) const { return this == &other; }
 
  protected:
+  // There are downstream consumers that have implemented Allocators outside the
+  // `pw` namespace, and that use unqualified names for `is_[un]bounded_array`.
+  template <typename T>
+  static constexpr bool is_bounded_array_v = ::pw::is_bounded_array_v<T>;
+
+  template <typename T>
+  static constexpr bool is_unbounded_array_v = ::pw::is_unbounded_array_v<T>;
+
   /// TODO(b/326509341): Remove when downstream consumers migrate.
   constexpr Deallocator() = default;
 
@@ -339,5 +306,62 @@ class Deallocator {
 };
 
 /// @}
+
+// Template and inline method implementations.
+
+void Deallocator::Deallocate(void* ptr) {
+  if (ptr != nullptr) {
+    DoDeallocate(ptr);
+  }
+}
+
+template <typename T,
+          int&... kExplicitGuard,
+          std::enable_if_t<!std::is_array_v<T>, int>>
+void Deallocator::Delete(T* ptr) {
+  if constexpr (allocator::Hardening::kIncludesDebugChecks) {
+    if (auto result = GetRequestedLayout(ptr); result.ok()) {
+      if constexpr (std::has_virtual_destructor_v<T>) {
+        PW_ASSERT(result->size() >= sizeof(T) &&
+                  result->alignment() >= alignof(T));
+      } else {
+        PW_ASSERT(*result == Layout::Of<T>());
+      }
+    }
+  }
+  DeleteArray<T>(ptr, 1);
+}
+
+template <typename T,
+          int&... kExplicitGuard,
+          typename ElementType,
+          std::enable_if_t<is_bounded_array_v<T>, int>>
+void Deallocator::Delete(ElementType* ptr) {
+  size_t count = std::extent_v<T>;
+  if (count != 0) {
+    DeleteArray<ElementType>(&ptr[0], count);
+  }
+}
+
+template <typename T,
+          int&... kExplicitGuard,
+          typename ElementType,
+          std::enable_if_t<is_unbounded_array_v<T>, int>>
+void Deallocator::Delete(ElementType* ptr, size_t count) {
+  DeleteArray<ElementType>(ptr, count);
+}
+
+template <typename ElementType>
+void Deallocator::DeleteArray(ElementType* ptr, size_t count) {
+  if (!capabilities_.has(Capability::kSkipsDestroy)) {
+    std::destroy_n(ptr, count);
+  }
+  Deallocate(ptr);
+}
+
+StatusWithSize Deallocator::GetCapacity() const {
+  auto result = DoGetInfo(InfoType::kCapacity, nullptr);
+  return StatusWithSize(result.status(), Layout::Unwrap(result).size());
+}
 
 }  // namespace pw

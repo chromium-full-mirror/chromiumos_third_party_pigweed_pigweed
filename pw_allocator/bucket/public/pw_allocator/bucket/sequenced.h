@@ -41,16 +41,16 @@ class SequencedItem
 /// while removal is O(1). This bucket type is useful when the order of blocks
 /// must be preserved.
 template <typename BlockType>
-class SequencedBucket : public internal::BucketBase<SequencedBucket<BlockType>,
-                                                    BlockType,
-                                                    SequencedItem> {
+class SequencedBucket final
+    : public internal::
+          BucketBase<SequencedBucket<BlockType>, BlockType, SequencedItem> {
  private:
   using Base = internal::
       BucketBase<SequencedBucket<BlockType>, BlockType, SequencedItem>;
   friend Base;
 
  public:
-  ~SequencedBucket() { Base::Clear(); }
+  ~SequencedBucket();
 
   constexpr size_t threshold() const { return threshold_; }
 
@@ -64,88 +64,110 @@ class SequencedBucket : public internal::BucketBase<SequencedBucket<BlockType>,
 
  private:
   /// @copydoc `BucketBase::Add`
-  void DoAdd(BlockType& block) {
-    auto* item_to_add = new (block.UsableSpace()) SequencedItem();
-    containers::future::IntrusiveList<SequencedItem>::iterator iter;
-    if (block.InnerSize() < threshold_) {
-      // Search from back.
-      auto r_iter = std::find_if(
-          items_.rbegin(), items_.rend(), [item_to_add](SequencedItem& item) {
-            return &item < item_to_add;
-          });
-
-      // If r_iter dereferences to the last address that is before than the
-      // item to add, then the corresponding forward iterator points to the
-      // first address that is after the item to add.
-      iter = r_iter.base();
-
-    } else {
-      // Search from front.
-      iter = std::find_if(
-          items_.begin(), items_.end(), [item_to_add](SequencedItem& item) {
-            return item_to_add < &item;
-          });
-    }
-    items_.insert(iter, *item_to_add);
-  }
+  void DoAdd(BlockType& block);
 
   /// @copydoc `BucketBase::FindLargest`
-  const BlockType* DoFindLargest() const {
-    auto iter = std::max_element(items_.begin(), items_.end(), Base::Compare);
-    return BlockType::FromUsableSpace(&(*iter));
-  }
+  const BlockType* DoFindLargest() const;
 
   /// @copydoc `BucketBase::RemoveAny`
-  BlockType* DoRemoveAny() {
-    SequencedItem& item = items_.front();
-    items_.pop_front();
-    return BlockType::FromUsableSpace(&item);
-  }
+  BlockType* DoRemoveAny();
 
   /// @copydoc `BucketBase::Remove`
-  bool DoRemove(BlockType& block) {
-    SequencedItem& item_to_remove = Base::GetItemFrom(block);
-    if (block.InnerSize() >= threshold_) {
-      // Search from front and remove.
-      return items_.remove(item_to_remove);
-    }
-    // Search from back and remove.
-    auto iter = std::find_if(
-        items_.rbegin(), items_.rend(), [&item_to_remove](SequencedItem& item) {
-          return &item_to_remove == &item;
-        });
-    if (iter == items_.rend()) {
-      return false;
-    }
-    items_.erase(*iter);
-    return true;
-  }
+  bool DoRemove(BlockType& block);
 
   /// @copydoc `BucketBase::Remove`
-  BlockType* DoRemoveCompatible(Layout layout) {
-    auto predicate = Base::MakeCanAllocPredicate(layout);
-    SequencedItem* item = nullptr;
-    if (layout.size() < threshold_) {
-      // Search from back.
-      auto iter = std::find_if(items_.rbegin(), items_.rend(), predicate);
-      item = iter != items_.rend() ? &(*iter) : nullptr;
-    } else {
-      // Search from front.
-      auto iter = std::find_if(items_.begin(), items_.end(), predicate);
-      item = iter != items_.end() ? &(*iter) : nullptr;
-    }
-    if (item == nullptr) {
-      return nullptr;
-    }
-    auto* block = BlockType::FromUsableSpace(item);
-    items_.erase(*item);
-    return block;
-  }
+  BlockType* DoRemoveCompatible(Layout layout);
 
   containers::future::IntrusiveList<SequencedItem> items_;
   size_t threshold_ = 0;
 };
 
 /// @}
+
+// Template method implementations.
+
+template <typename BlockType>
+SequencedBucket<BlockType>::~SequencedBucket() {
+  Base::Clear();
+}
+
+template <typename BlockType>
+void SequencedBucket<BlockType>::DoAdd(BlockType& block) {
+  auto* item_to_add = new (block.UsableSpace()) SequencedItem();
+  containers::future::IntrusiveList<SequencedItem>::iterator iter;
+  if (block.InnerSize() < threshold_) {
+    // Search from back.
+    auto r_iter = std::find_if(
+        items_.rbegin(), items_.rend(), [item_to_add](SequencedItem& item) {
+          return &item < item_to_add;
+        });
+
+    // If r_iter dereferences to the last address that is before than the
+    // item to add, then the corresponding forward iterator points to the
+    // first address that is after the item to add.
+    iter = r_iter.base();
+
+  } else {
+    // Search from front.
+    iter = std::find_if(
+        items_.begin(), items_.end(), [item_to_add](SequencedItem& item) {
+          return item_to_add < &item;
+        });
+  }
+  items_.insert(iter, *item_to_add);
+}
+
+template <typename BlockType>
+const BlockType* SequencedBucket<BlockType>::DoFindLargest() const {
+  auto iter = std::max_element(items_.begin(), items_.end(), Base::Compare);
+  return BlockType::FromUsableSpace(&(*iter));
+}
+
+template <typename BlockType>
+BlockType* SequencedBucket<BlockType>::DoRemoveAny() {
+  SequencedItem& item = items_.front();
+  items_.pop_front();
+  return BlockType::FromUsableSpace(&item);
+}
+
+template <typename BlockType>
+bool SequencedBucket<BlockType>::DoRemove(BlockType& block) {
+  SequencedItem& item_to_remove = Base::GetItemFrom(block);
+  if (block.InnerSize() >= threshold_) {
+    // Search from front and remove.
+    return items_.remove(item_to_remove);
+  }
+  // Search from back and remove.
+  auto iter = std::find_if(
+      items_.rbegin(), items_.rend(), [&item_to_remove](SequencedItem& item) {
+        return &item_to_remove == &item;
+      });
+  if (iter == items_.rend()) {
+    return false;
+  }
+  items_.erase(*iter);
+  return true;
+}
+
+template <typename BlockType>
+BlockType* SequencedBucket<BlockType>::DoRemoveCompatible(Layout layout) {
+  auto predicate = Base::MakeCanAllocPredicate(layout);
+  SequencedItem* item = nullptr;
+  if (layout.size() < threshold_) {
+    // Search from back.
+    auto iter = std::find_if(items_.rbegin(), items_.rend(), predicate);
+    item = iter != items_.rend() ? &(*iter) : nullptr;
+  } else {
+    // Search from front.
+    auto iter = std::find_if(items_.begin(), items_.end(), predicate);
+    item = iter != items_.end() ? &(*iter) : nullptr;
+  }
+  if (item == nullptr) {
+    return nullptr;
+  }
+  auto* block = BlockType::FromUsableSpace(item);
+  items_.erase(*item);
+  return block;
+}
 
 }  // namespace pw::allocator

@@ -24,6 +24,24 @@ namespace {
 
 using ::pw::allocator::Layout;
 
+TEST(LayoutTest, TypeTraits) {
+  static_assert(!pw::is_unbounded_array<int>::value);
+  static_assert(pw::is_unbounded_array<int[]>::value);
+  static_assert(!pw::is_unbounded_array<int[5]>::value);
+
+  static_assert(!pw::is_bounded_array<int>::value);
+  static_assert(!pw::is_bounded_array<int[]>::value);
+  static_assert(pw::is_bounded_array<int[5]>::value);
+
+  static_assert(!pw::is_unbounded_array_v<int>);
+  static_assert(pw::is_unbounded_array_v<int[]>);
+  static_assert(!pw::is_unbounded_array_v<int[5]>);
+
+  static_assert(!pw::is_bounded_array_v<int>);
+  static_assert(!pw::is_bounded_array_v<int[]>);
+  static_assert(pw::is_bounded_array_v<int[5]>);
+}
+
 TEST(LayoutTest, DefaultConstructor) {
   Layout layout;
   EXPECT_EQ(layout.size(), 0U);

@@ -55,9 +55,7 @@ class FallbackAllocator : public pw::Allocator {
  protected:
   /// @copydoc Allocator::DoMeasureFragmentation
   std::optional<allocator::Fragmentation> DoMeasureFragmentation()
-      const override {
-    return primary_.MeasureFragmentation();
-  }
+      const override;
 
  private:
   pw::Allocator& primary_;
