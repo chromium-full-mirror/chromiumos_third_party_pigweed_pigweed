@@ -57,12 +57,12 @@ from typing import (
     Iterable,
     Pattern,
     Sequence,
-    Set,
 )
 
 import pw_cli.env
 from pw_cli.plural import plural
-from pw_cli.file_filter import FileFilter, exclude_paths
+from pw_cli.file_filter import FileFilter
+from pw_cli.git_repo import collect_files
 from pw_package import package_manager
 from pw_presubmit import git_repo, tools
 from pw_presubmit.private.check import (  # pylint: disable=unused-import
@@ -263,79 +263,6 @@ class Presubmit:  # pylint: disable=too-many-instance-attributes
         return passed, failed, len(checks) - passed - failed
 
 
-def _process_pathspecs(
-    repos: Iterable[Path], pathspecs: Iterable[str]
-) -> dict[Path, list[str]]:
-    pathspecs_by_repo: dict[Path, list[str]] = {repo: [] for repo in repos}
-    repos_with_paths: Set[Path] = set()
-
-    for pathspec in pathspecs:
-        # If the pathspec is a path to an existing file, only use it for the
-        # repo it is in.
-        if os.path.exists(pathspec):
-            # Raise an exception if the path exists but is not in a known repo.
-            repo = git_repo.within_repo(pathspec)
-            if repo not in pathspecs_by_repo:
-                raise ValueError(
-                    f'{pathspec} is not in a Git repository in this presubmit'
-                )
-
-            # Make the path relative to the repo's root.
-            pathspecs_by_repo[repo].append(os.path.relpath(pathspec, repo))
-            repos_with_paths.add(repo)
-        else:
-            # Pathspecs that are not paths (e.g. '*.h') are used for all repos.
-            for patterns in pathspecs_by_repo.values():
-                patterns.append(pathspec)
-
-    # If any paths were specified, only search for paths in those repos.
-    if repos_with_paths:
-        for repo in set(pathspecs_by_repo) - repos_with_paths:
-            del pathspecs_by_repo[repo]
-
-    return pathspecs_by_repo
-
-
-def fetch_file_lists(
-    root: Path,
-    repo: Path,
-    pathspecs: list[str],
-    exclude: Sequence[Pattern] = (),
-    base: str | None = None,
-) -> tuple[list[Path], list[Path]]:
-    """Returns lists of all files and modified files for the given repo.
-
-    Args:
-        root: root path of the project
-        repo: path to the roots of Git repository to check
-        base: optional base Git commit to list files against
-        pathspecs: optional list of Git pathspecs to run the checks against
-        exclude: regular expressions for Posix-style paths to exclude
-    """
-
-    all_files: list[Path] = []
-    modified_files: list[Path] = []
-
-    all_files_repo = tuple(
-        exclude_paths(exclude, git_repo.list_files(None, pathspecs, repo), root)
-    )
-    all_files += all_files_repo
-
-    if base is None:
-        modified_files += all_files_repo
-    else:
-        modified_files += exclude_paths(
-            exclude, git_repo.list_files(base, pathspecs, repo), root
-        )
-
-    _LOG.info(
-        'Checking %s',
-        git_repo.describe_files(repo, repo, base, pathspecs, exclude, root),
-    )
-
-    return all_files, modified_files
-
-
 def run(  # pylint: disable=too-many-arguments,too-many-locals
     program: Sequence[Check],
     root: Path,
@@ -405,8 +332,6 @@ def run(  # pylint: disable=too-many-arguments,too-many-locals
                 )
     repos = non_empty_repos
 
-    pathspecs_by_repo = _process_pathspecs(repos, paths)
-
     all_files: list[Path] = []
     modified_files: list[Path] = []
     list_steps_data: dict[str, Any] = {}
@@ -425,12 +350,17 @@ def run(  # pylint: disable=too-many-arguments,too-many-locals
         )
 
     else:
-        for repo, pathspecs in pathspecs_by_repo.items():
-            new_all_files_items, new_modified_file_items = fetch_file_lists(
-                root, repo, pathspecs, exclude, base
-            )
-            all_files.extend(new_all_files_items)
-            modified_files.extend(new_modified_file_items)
+        file_filter = FileFilter(exclude=exclude)
+        repo_files = collect_files(
+            repos=repos,
+            pathspecs=paths,
+            base=base,
+            file_filter=file_filter,
+            root=root,
+            tool_runner=tools.PresubmitToolRunner(),
+        )
+        all_files = list(repo_files.paths)
+        modified_files = list(repo_files.modified_paths)
 
     if output_directory is None:
         output_directory = root / '.presubmit'

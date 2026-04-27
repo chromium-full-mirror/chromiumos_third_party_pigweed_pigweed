@@ -20,24 +20,25 @@ import fnmatch
 import logging
 from pathlib import Path
 
-from pw_cli.collect_files import file_summary
-import pw_cli.env
-import pw_cli.log
 from pw_cli.arguments import (
     print_completions_for_option,
     add_tab_complete_arguments,
 )
-from pw_presubmit.presubmit import (
-    Program,
-    PresubmitContext,
-    PresubmitResult,
+from pw_cli.collect_files import file_summary
+import pw_cli.env
+from pw_cli.git_repo import fetch_file_lists
+import pw_cli.log
+
+from pw_presubmit import (
     Check,
-    fetch_file_lists,
+    PresubmitResult,
+    PresubmitFailure,
+    Program,
+    Programs,
+    PresubmitContext,
 )
-from pw_presubmit import Programs
-import pw_presubmit.pigweed_presubmit
 from pw_presubmit.build import GnGenNinja, gn_args
-from pw_presubmit import PresubmitFailure
+import pw_presubmit.pigweed_presubmit
 from pw_presubmit.presubmit_context import (
     get_check_traces,
 )

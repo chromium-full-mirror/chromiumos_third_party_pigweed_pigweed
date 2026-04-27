@@ -18,7 +18,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 import re
-from typing import Pattern, Iterable, Sequence
+from typing import Pattern, Iterable, Sequence, Collection
 
 
 class FileFilter:
@@ -31,9 +31,9 @@ class FileFilter:
     def __init__(
         self,
         *,
-        exclude: Iterable[Pattern | str] = (),
+        exclude: Iterable[Pattern[str] | str] = (),
         endswith: Iterable[str] = (),
-        name: Iterable[Pattern | str] = (),
+        name: Iterable[Pattern[str] | str] = (),
         suffix: Iterable[str] = (),
     ) -> None:
         """Creates a FileFilter with the provided filters.
@@ -41,34 +41,52 @@ class FileFilter:
         Args:
             endswith: True if the end of the path is equal to any of the passed
                       strings
-            exclude: If any of the passed regular expresion match return False.
+            exclude: If any of the passed regular expression match return False.
                      This overrides and other matches.
             name: Regexes to match with file names(pathlib.Path.name). True if
                   the resulting regex matches the entire file name.
             suffix: True if final suffix (as determined by pathlib.Path) is
                     matched by any of the passed str.
         """
-        self._exclude = tuple(re.compile(i) for i in exclude)
+        self._exclude = frozenset(
+            re.compile(i) if isinstance(i, str) else i for i in exclude
+        )
+        self._endswith = frozenset(endswith)
+        self._name = frozenset(
+            re.compile(i) if isinstance(i, str) else i for i in name
+        )
+        self._suffix = frozenset(suffix)
 
-        self._endswith = tuple(endswith)
-        self._name = tuple(re.compile(i) for i in name)
-        self._suffix = tuple(suffix)
+        self._key = (
+            frozenset(p.pattern for p in self._exclude),
+            self._endswith,
+            frozenset(p.pattern for p in self._name),
+            self._suffix,
+        )
 
     @property
-    def exclude(self) -> Sequence[Pattern[str]]:
+    def exclude(self) -> Collection[Pattern[str]]:
         return self._exclude
 
     @property
-    def endswith(self) -> Sequence[str]:
+    def endswith(self) -> Collection[str]:
         return self._endswith
 
     @property
-    def name(self) -> Sequence[Pattern[str]]:
+    def name(self) -> Collection[Pattern[str]]:
         return self._name
 
     @property
-    def suffix(self) -> Sequence[str]:
+    def suffix(self) -> Collection[str]:
         return self._suffix
+
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, FileFilter):
+            return NotImplemented
+        return self._key == other._key
+
+    def __hash__(self) -> int:
+        return hash(self._key)
 
     def matches(self, path: str | Path) -> bool:
         """Returns true if the path matches any filter but not an exclude.
@@ -77,22 +95,22 @@ class FileFilter:
         negative filter are considered to match.
 
         If 'path' is a Path object it is rendered as a posix path (i.e.
-        using "/" as the path seperator) before testing with 'exclude' and
+        using "/" as the path separator) before testing with 'exclude' and
         'endswith'.
         """
 
-        posix_path = Path(path).as_posix()
+        path = Path(path)
+        posix_path = path.as_posix()
         if any(exp.search(posix_path) for exp in self.exclude):
             return False
 
         # If there are no positive filters set, accept all paths.
         no_filters = not self.endswith and not self.name and not self.suffix
 
-        path_obj = Path(path)
         return (
             no_filters
-            or path_obj.suffix in self.suffix
-            or any(regex.fullmatch(path_obj.name) for regex in self.name)
+            or path.suffix in self.suffix
+            or any(regex.fullmatch(path.name) for regex in self.name)
             or any(posix_path.endswith(end) for end in self.endswith)
         )
 
@@ -109,9 +127,9 @@ class FileFilter:
         suffix: Iterable[str] = (),
     ) -> FileFilter:
         """Returns a new filter with the combined properties of its args."""
-        combined_exclude = [re.compile(i) for i in exclude]
+        combined_exclude = list(exclude)
         combined_endswith = list(endswith)
-        combined_name = [re.compile(i) for i in name]
+        combined_name = list(name)
         combined_suffix = list(suffix)
 
         for ff in [self] if file_filter is None else [self, file_filter]:

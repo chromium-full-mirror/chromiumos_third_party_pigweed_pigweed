@@ -14,12 +14,12 @@
 """Tools for configuring Python logging."""
 
 import logging
+import os
 from pathlib import Path
 import sys
 from typing import NamedTuple, Iterator
 
 from pw_cli.color import colors as pw_cli_colors
-from pw_cli.env import pigweed_environment
 
 # Log level used for captured output of a subprocess run through pw.
 LOGLEVEL_STDOUT = 21
@@ -142,8 +142,12 @@ def install(
 
     colors = pw_cli_colors(use_color)
 
-    env = pigweed_environment()
-    if env.PW_SUBPROCESS or hide_timestamp:
+    pw_subprocess = os.environ.get('PW_SUBPROCESS', '').lower() in (
+        '1',
+        'true',
+        'yes',
+    )
+    if pw_subprocess or hide_timestamp:
         # If the logger is being run in the context of a pw subprocess, the
         # time and date are omitted (since pw_cli.process will provide them).
         timestamp_fmt = ''
@@ -203,7 +207,8 @@ def install(
             logger,
         )
 
-    if env.PW_EMOJI:
+    pw_emoji = os.environ.get('PW_EMOJI', '').lower() in ('1', 'true', 'yes')
+    if pw_emoji:
         name_attr = 'emoji'
 
         def colorize(ll):

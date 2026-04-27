@@ -35,9 +35,7 @@ pw_py_library(
     imports = ["."],
     visibility = ["//visibility:private"],
     deps = [
-        "//pw_cli/py:color",
-        "//pw_cli/py:file_filter",
-        "//pw_cli/py:plural",
+        "//pw_cli/py",
     ],
 )
 

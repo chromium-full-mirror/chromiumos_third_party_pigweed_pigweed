@@ -25,6 +25,8 @@ from unittest import mock
 
 from pw_cli.tool_runner import ToolRunner
 from pw_cli.git_repo import GitRepo, GitRepoFinder
+from pw_cli.file_filter import FileFilter
+from pw_cli.git_repo import collect_files
 from pyfakefs import fake_filesystem_unittest
 
 
@@ -598,6 +600,98 @@ class TestGitRepoFinder(fake_filesystem_unittest.TestCase):
                 maybe_repo, None, f'Could not resolve {pathspec}'
             )
             self.assertEqual(relativized, expected)
+
+
+class TestCollectFiles(fake_filesystem_unittest.TestCase):
+    """Tests for collect_files."""
+
+    def setUp(self) -> None:
+        self.setUpPyfakefs()
+        self.root = Path(_resolve('/repo'))
+        self.fs.create_dir(self.root)
+        os.chdir(self.root)
+
+    @mock.patch('pw_cli.git_repo.describe_git_pattern')
+    def test_collect_all_files(self, mock_describe: mock.MagicMock) -> None:
+        mock_describe.return_value = 'mocked description'
+
+        runner = FakeGitToolRunner(
+            {
+                'rev-parse': git_ok('rev-parse', '/repo'),
+                'ls-files': git_ok('ls-files', 'file1.txt\nfile2.py'),
+            }
+        )
+
+        self.fs.create_file(self.root / 'file1.txt')
+        self.fs.create_file(self.root / 'file2.py')
+
+        result = collect_files(
+            repos=[self.root],
+            pathspecs=[],
+            base=None,
+            tool_runner=runner,
+        )
+
+        self.assertEqual(len(result.paths), 2)
+        self.assertIn(self.root / 'file1.txt', result.paths)
+        self.assertIn(self.root / 'file2.py', result.paths)
+        self.assertEqual(result.paths, result.modified_paths)
+
+    @mock.patch('pw_cli.git_repo.describe_git_pattern')
+    def test_collect_modified_files(
+        self, mock_describe: mock.MagicMock
+    ) -> None:
+        mock_describe.return_value = 'mocked description'
+
+        runner = FakeGitToolRunner(
+            {
+                'rev-parse': git_ok('rev-parse', '/repo'),
+                'ls-files': git_ok('ls-files', 'file1.txt\nfile2.py'),
+                'diff': git_ok('diff', 'file2.py'),
+            }
+        )
+
+        self.fs.create_file(self.root / 'file1.txt')
+        self.fs.create_file(self.root / 'file2.py')
+
+        result = collect_files(
+            repos=[self.root],
+            pathspecs=[],
+            base='HEAD~1',
+            tool_runner=runner,
+        )
+
+        self.assertEqual(len(result.paths), 2)
+        self.assertEqual(len(result.modified_paths), 1)
+        self.assertIn(self.root / 'file2.py', result.modified_paths)
+
+    @mock.patch('pw_cli.git_repo.describe_git_pattern')
+    def test_collect_with_filter(self, mock_describe: mock.MagicMock) -> None:
+        mock_describe.return_value = 'mocked description'
+
+        runner = FakeGitToolRunner(
+            {
+                'rev-parse': git_ok('rev-parse', '/repo'),
+                'ls-files': git_ok('ls-files', 'file1.txt\nfile2.py'),
+            }
+        )
+
+        self.fs.create_file(self.root / 'file1.txt')
+        self.fs.create_file(self.root / 'file2.py')
+
+        filt = FileFilter(exclude=('.py',))
+
+        result = collect_files(
+            repos=[self.root],
+            pathspecs=[],
+            base=None,
+            file_filter=filt,
+            tool_runner=runner,
+        )
+
+        self.assertEqual(len(result.paths), 1)
+        self.assertIn(self.root / 'file1.txt', result.paths)
+        self.assertNotIn(self.root / 'file2.py', result.paths)
 
 
 if __name__ == '__main__':

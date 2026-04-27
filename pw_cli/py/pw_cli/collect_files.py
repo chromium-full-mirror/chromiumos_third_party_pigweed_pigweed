@@ -182,7 +182,7 @@ def file_summary(
     paths: Iterable[Path],
     levels: int = 2,
     max_lines: int = 12,
-    max_types: int = 3,
+    max_types: int = 6,
     pad: str = ' ',
     pad_start: str = ' ',
     pad_end: str = ' ',

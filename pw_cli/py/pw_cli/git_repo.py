@@ -16,14 +16,16 @@
 from datetime import datetime
 import itertools
 import logging
+import os
 from pathlib import Path
 import re
 import shlex
 import subprocess
-from typing import Collection, Iterable, Pattern
+from typing import Collection, Iterable, NamedTuple, Pattern, Sequence
 
+from pw_cli.file_filter import FileFilter
 from pw_cli.plural import plural
-from pw_cli.tool_runner import ToolRunner
+from pw_cli.tool_runner import ToolRunner, BasicSubprocessRunner
 
 _LOG = logging.getLogger(__name__)
 
@@ -252,7 +254,6 @@ class GitRepo:
                         module_dirs.remove(module_dir)
             else:
                 for module_dir in reversed(module_dirs):
-                    print(f'not regex: {exclude}')
                     if exclude == module_dir.relative_to(self._root).as_posix():
                         module_dirs.remove(module_dir)
 
@@ -646,3 +647,140 @@ def describe_git_pattern(
         return f'{msg} {constraints[0]}'
 
     return msg + ''.join(f'\n    - {line}' for line in constraints)
+
+
+class RepoFiles(NamedTuple):
+    paths: Sequence[Path]
+    modified_paths: Sequence[Path]
+
+
+def _process_pathspecs(
+    repos: Iterable[Path], pathspecs: Iterable[str], tool_runner: ToolRunner
+) -> dict[Path, list[str]]:
+    pathspecs_by_repo: dict[Path, list[str]] = {repo: [] for repo in repos}
+    repos_with_paths: set[Path] = set()
+
+    for pathspec in pathspecs:
+        if os.path.exists(pathspec):
+            try:
+                repo = find_git_repo(Path(pathspec), tool_runner).root()
+            except GitError:
+                repo = None
+
+            if repo not in pathspecs_by_repo:
+                raise ValueError(
+                    f'{pathspec} is not in a Git repository in this presubmit'
+                )
+
+            pathspecs_by_repo[repo].append(os.path.relpath(pathspec, repo))
+            repos_with_paths.add(repo)
+        else:
+            for patterns in pathspecs_by_repo.values():
+                patterns.append(pathspec)
+
+    if repos_with_paths:
+        for repo in set(pathspecs_by_repo) - repos_with_paths:
+            del pathspecs_by_repo[repo]
+
+    return pathspecs_by_repo
+
+
+def fetch_file_lists(
+    root: Path,
+    repo: Path,
+    pathspecs: Collection[str],
+    *,
+    file_filter: FileFilter = FileFilter(),
+    base: str | None = None,
+    tool_runner: ToolRunner = BasicSubprocessRunner(),
+) -> tuple[list[Path], list[Path]]:
+    """Returns lists of all files and modified files for the given repo.
+
+    Arguments:
+        root: The root directory of the project. Used to relativize paths
+            before applying the file_filter.
+        repo: The path to the Git repository to fetch files from.
+        pathspecs: Git pathspecs to limit the files returned.
+        file_filter: A filter to apply to the paths after they are fetched.
+        base: The Git commit or branch to compare against for modified files.
+        tool_runner: The runner used to execute Git commands.
+
+    Returns:
+        A tuple containing:
+            - A list of all files matching the pathspecs and filter.
+            - A list of modified files matching the pathspecs and filter.
+    """
+    git_repo = GitRepo(repo, tool_runner)
+
+    all_files_repo = git_repo.list_files(None, pathspecs)
+    all_files = [
+        p
+        for p in all_files_repo
+        if file_filter.matches(str(p.relative_to(root.resolve())))
+    ]
+
+    if base is None:
+        modified_files = all_files
+    else:
+        modified_files_repo = git_repo.list_files(base, pathspecs)
+        modified_files = [
+            p
+            for p in modified_files_repo
+            if file_filter.matches(str(p.relative_to(root.resolve())))
+        ]
+
+    _LOG.info(
+        'Checking %s',
+        describe_git_pattern(
+            repo, base, pathspecs, file_filter.exclude, tool_runner, root
+        ),
+    )
+
+    return all_files, modified_files
+
+
+def collect_files(
+    repos: Iterable[Path],
+    pathspecs: Iterable[str],
+    *,
+    base: str | None = None,
+    file_filter: FileFilter = FileFilter(),
+    root: Path | None = None,
+    tool_runner: ToolRunner = BasicSubprocessRunner(),
+) -> RepoFiles:
+    """Collects files and modified files from multiple git repos.
+
+    Arguments:
+        repos: An iterable of paths to Git repositories to collect files from.
+        pathspecs: Git pathspecs to apply.
+        base: The Git commit or branch to compare against for modified files.
+        file_filter: A filter to apply to the collected files.
+        root: The root directory of the project. Defaults to Path.cwd() if
+            None. Used to relativize paths for the file_filter.
+        tool_runner: The runner used to execute Git commands.
+
+    Returns:
+        A RepoFiles named tuple containing the list of all paths and modified
+        paths.
+    """
+    if root is None:
+        root = Path.cwd()
+
+    pathspecs_by_repo = _process_pathspecs(repos, pathspecs, tool_runner)
+
+    all_files: list[Path] = []
+    modified_files: list[Path] = []
+
+    for repo, specs in pathspecs_by_repo.items():
+        repo_all, repo_modified = fetch_file_lists(
+            root,
+            repo,
+            specs,
+            file_filter=file_filter,
+            base=base,
+            tool_runner=tool_runner,
+        )
+        all_files.extend(repo_all)
+        modified_files.extend(repo_modified)
+
+    return RepoFiles(paths=all_files, modified_paths=modified_files)

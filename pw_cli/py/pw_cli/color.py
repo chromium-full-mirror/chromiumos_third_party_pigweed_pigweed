@@ -51,6 +51,7 @@ class _Color:
         self.black_on_white = _make_color(30, 47)  # black fg white bg
         self.black_on_green = _make_color(30, 42)  # black fg green bg
         self.black_on_red = _make_color(30, 41)  # black fg red bg
+        self.black_on_cyan = _make_color(30, 46)  # black fg cyan bg
 
 
 class _NoColor:

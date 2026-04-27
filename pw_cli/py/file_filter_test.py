@@ -76,18 +76,18 @@ class TestFileFilter(unittest.TestCase):
         combined = filter1.concat(filter2)
 
         self.assertEqual([p.pattern for p in combined.exclude], [])
-        self.assertEqual(combined.endswith, ())
-        self.assertEqual([p.pattern for p in combined.name], ['foo', 'bar'])
-        self.assertEqual(combined.suffix, ('.txt', '.log'))
+        self.assertEqual(combined.endswith, frozenset())
+        self.assertEqual(set(p.pattern for p in combined.name), {'foo', 'bar'})
+        self.assertEqual(set(combined.suffix), {'.txt', '.log'})
 
     def test_concat_with_kwargs(self):
         filter1 = FileFilter(name=['foo'], suffix=['.txt'])
         combined = filter1.concat(name=['bar'], suffix=['.log'])
 
         self.assertEqual([p.pattern for p in combined.exclude], [])
-        self.assertEqual(combined.endswith, ())
-        self.assertEqual([p.pattern for p in combined.name], ['bar', 'foo'])
-        self.assertEqual(combined.suffix, ('.log', '.txt'))
+        self.assertEqual(combined.endswith, frozenset())
+        self.assertEqual(set(p.pattern for p in combined.name), {'bar', 'foo'})
+        self.assertEqual(set(combined.suffix), {'.log', '.txt'})
 
     def test_concat_with_filter_and_kwargs(self):
         filter1 = FileFilter(name=['foo'], suffix=['.txt'])
@@ -95,11 +95,11 @@ class TestFileFilter(unittest.TestCase):
         combined = filter1.concat(filter2, name=['baz'], suffix=['.md'])
 
         self.assertEqual([p.pattern for p in combined.exclude], [])
-        self.assertEqual(combined.endswith, ())
+        self.assertEqual(combined.endswith, frozenset())
         self.assertEqual(
-            [p.pattern for p in combined.name], ['baz', 'foo', 'bar']
+            set(p.pattern for p in combined.name), {'baz', 'foo', 'bar'}
         )
-        self.assertEqual(combined.suffix, ('.md', '.txt', '.log'))
+        self.assertEqual(set(combined.suffix), {'.md', '.txt', '.log'})
 
     def test_concat_excludes(self):
         filter1 = FileFilter(exclude=[re.compile('a/.*')])
@@ -107,11 +107,11 @@ class TestFileFilter(unittest.TestCase):
         combined = filter1.concat(filter2, exclude=['c/.*'])
 
         self.assertEqual(
-            [p.pattern for p in combined.exclude], ['c/.*', 'a/.*', 'b/.*']
+            set(p.pattern for p in combined.exclude), {'c/.*', 'a/.*', 'b/.*'}
         )
-        self.assertEqual(combined.endswith, ())
+        self.assertEqual(combined.endswith, frozenset())
         self.assertEqual([p.pattern for p in combined.name], [])
-        self.assertEqual(combined.suffix, ())
+        self.assertEqual(combined.suffix, frozenset())
 
     def test_concat_empty(self):
         filter1 = FileFilter(name=['foo'])
@@ -119,9 +119,9 @@ class TestFileFilter(unittest.TestCase):
 
         self.assertIsNot(filter1, combined, 'Must be a new object')
         self.assertEqual([p.pattern for p in combined.exclude], [])
-        self.assertEqual(combined.endswith, ())
+        self.assertEqual(combined.endswith, frozenset())
         self.assertEqual([p.pattern for p in combined.name], ['foo'])
-        self.assertEqual(combined.suffix, ())
+        self.assertEqual(combined.suffix, frozenset())
 
 
 if __name__ == '__main__':
