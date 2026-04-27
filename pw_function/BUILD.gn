@@ -43,7 +43,10 @@ pw_source_set("pw_function") {
     dir_pw_assert,
     dir_pw_preprocessor,
   ]
-  public = [ "public/pw_function/function.h" ]
+  public = [
+    "public/pw_function/function.h",
+    "public/pw_function/function_ref.h",
+  ]
 }
 
 config("enable_dynamic_allocation_config") {
@@ -70,6 +73,7 @@ pw_source_set("scope_guard") {
 pw_test_group("tests") {
   tests = [
     ":function_test",
+    ":function_ref_test",
     ":pointer_test",
     ":scope_guard_test",
     "$pw_external_fuchsia:function_tests",
@@ -99,4 +103,9 @@ pw_test("scope_guard_test") {
     ":pw_function",
     ":scope_guard",
   ]
+}
+
+pw_test("function_ref_test") {
+  deps = [ ":pw_function" ]
+  sources = [ "function_ref_test.cc" ]
 }

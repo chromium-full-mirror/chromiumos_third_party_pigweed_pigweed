@@ -48,10 +48,14 @@ boolean_constraint_value(
 
 cc_library(
     name = "pw_function",
-    hdrs = ["public/pw_function/function.h"],
+    hdrs = [
+        "public/pw_function/function.h",
+        "public/pw_function/function_ref.h",
+    ],
     strip_include_prefix = "public",
     deps = [
         ":config",
+        "//pw_assert:assert",
         "//pw_preprocessor",
         "//third_party/fuchsia:fit",
     ],
@@ -64,6 +68,14 @@ pw_cc_test(
     deps = [
         ":pw_function",
         "//pw_polyfill",
+    ],
+)
+
+pw_cc_test(
+    name = "function_ref_test",
+    srcs = ["function_ref_test.cc"],
+    deps = [
+        ":pw_function",
     ],
 )
 
@@ -136,6 +148,7 @@ filegroup(
     srcs = [
         "public/pw_function/config.h",
         "public/pw_function/function.h",
+        "public/pw_function/function_ref.h",
         "public/pw_function/pointer.h",
         "public/pw_function/scope_guard.h",
     ],

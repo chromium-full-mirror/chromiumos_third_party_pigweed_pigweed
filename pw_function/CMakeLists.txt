@@ -28,6 +28,7 @@ pw_add_library(pw_function.config INTERFACE
 pw_add_library(pw_function INTERFACE
   HEADERS
     public/pw_function/function.h
+    public/pw_function/function_ref.h
   PUBLIC_INCLUDES
     public
   PUBLIC_DEPS
@@ -44,6 +45,16 @@ pw_add_test(pw_function.function_test
     pw_compilation_testing._pigweed_only_negative_compilation
     pw_function
     pw_polyfill
+  GROUPS
+    modules
+    pw_function
+)
+
+pw_add_test(pw_function.function_ref_test
+  SOURCES
+    function_ref_test.cc
+  PRIVATE_DEPS
+    pw_function
   GROUPS
     modules
     pw_function
