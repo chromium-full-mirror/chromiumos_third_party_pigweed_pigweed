@@ -13,6 +13,8 @@
 # the License.
 """Helpful commands for working with a Git repository."""
 
+from __future__ import annotations
+
 from datetime import datetime
 import itertools
 import logging
@@ -21,6 +23,7 @@ from pathlib import Path
 import re
 import shlex
 import subprocess
+import sys
 from typing import Collection, Iterable, NamedTuple, Pattern, Sequence
 
 from pw_cli.file_filter import FileFilter
@@ -214,6 +217,19 @@ class GitRepo:
 
         return False
 
+    def is_in_rebase(self) -> bool:
+        """Returns True if the repository is in a rebase state.
+
+        This checks for the existence of `rebase-merge` or `rebase-apply`
+        directories in the Git directory.
+        """
+        git_dir = Path(self._git('rev-parse', '--absolute-git-dir'))
+
+        rebase_merge = git_dir / 'rebase-merge'
+        rebase_apply = git_dir / 'rebase-apply'
+
+        return rebase_merge.exists() or rebase_apply.exists()
+
     def root(self) -> Path:
         """The root file path of this Git repository.
 
@@ -406,6 +422,52 @@ class GitRepo:
 
     def show(self, *args) -> str:
         return self._git('show', *args)
+
+    def modify(self) -> _MutableGitRepo:
+        """Returns a mutable view for performing modifying operations."""
+        return _MutableGitRepo(self._root, self._git)
+
+
+class _MutableGitRepo:
+    """Represents a Git repository that can be modified.
+
+    This class contains methods that modify the repository state, such as
+    rebasing or amending commits. It is created via `GitRepo.modify()`.
+    """
+
+    def __init__(self, root: Path, git: _GitTool) -> None:
+        self._root = root
+        self._git = git
+
+    def rebase_interactive(self, base: str) -> None:
+        """Starts an interactive rebase that edits all commits.
+
+        Args:
+            base: The commit or branch to rebase onto.
+        """
+        env = dict(os.environ)
+        script = "; ".join(
+            [
+                "import sys",
+                "import re",
+                "path = sys.argv[1]",
+                "c = open(path).read()",
+                'open(path, "w").write('
+                're.sub(r"^pick ", "edit ", c, flags=re.MULTILINE))',
+            ]
+        )
+        env['GIT_SEQUENCE_EDITOR'] = f"{sys.executable} -c '{script}'"
+
+        self._git('rebase', '-i', base, env=env)
+
+    def rebase_continue(self) -> None:
+        """Continues a rebase."""
+        self._git('rebase', '--continue')
+
+    def amend_commit_with_updated_files(self) -> None:
+        """Amends the HEAD commit with any pending changes."""
+        self._git('add', '-u')
+        self._git('commit', '--amend', '--no-edit')
 
 
 class GitRepoFinder:

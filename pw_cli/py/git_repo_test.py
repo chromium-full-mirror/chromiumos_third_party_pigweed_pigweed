@@ -15,9 +15,11 @@
 """git repo module tests"""
 
 import os
+import sys
+import tempfile
 from pathlib import Path
 from subprocess import CompletedProcess
-from typing import Dict
+from typing import Any
 import re
 import shlex
 import unittest
@@ -31,10 +33,12 @@ from pyfakefs import fake_filesystem_unittest
 
 
 class FakeGitToolRunner(ToolRunner):
-    def __init__(self, command_results: Dict[str, CompletedProcess]):
+    def __init__(self, command_results: dict[str, CompletedProcess]) -> None:
         self._results = command_results
+        self.calls: list[tuple[str, tuple[str, ...], dict[str, Any]]] = []
 
     def _run_tool(self, tool: str, args, **kwargs) -> CompletedProcess:
+        self.calls.append((tool, args, kwargs))
         full_command = shlex.join((tool, *tuple(args)))
         for cmd, result in self._results.items():
             if cmd in full_command:
@@ -211,6 +215,101 @@ class TestGitRepo(unittest.TestCase):
         }
         repo = self.make_fake_git_repo(cmds)
         self.assertTrue(repo.has_uncommitted_changes())
+
+    def test_is_in_rebase(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            git_cmd = 'rev-parse --absolute-git-dir'
+            cmds = {
+                git_cmd: git_ok(git_cmd, str(tmp_path / '.git')),
+            }
+            repo = GitRepo(tmp_path, FakeGitToolRunner(cmds))
+
+            git_dir = tmp_path / '.git'
+            git_dir.mkdir()
+
+            rebase_merge = git_dir / 'rebase-merge'
+            rebase_apply = git_dir / 'rebase-apply'
+
+            # Test neither exists
+            self.assertFalse(repo.is_in_rebase())
+
+            # Test rebase-merge exists
+            rebase_merge.mkdir()
+            self.assertTrue(repo.is_in_rebase())
+            rebase_merge.rmdir()
+
+            # Test rebase-apply exists
+            rebase_apply.mkdir()
+            self.assertTrue(repo.is_in_rebase())
+            rebase_apply.rmdir()
+
+    def test_rebase_interactive(self):
+        """Verify interactive rebase editor script."""
+        expected_cmd = 'rebase -i origin/main'
+        runner = FakeGitToolRunner({expected_cmd: git_ok(expected_cmd, '')})
+        repo = GitRepo(self.GIT_ROOT, runner)
+        repo.modify().rebase_interactive('origin/main')
+
+        self.assertEqual(len(runner.calls), 1)
+        tool, args, kwargs = runner.calls[0]
+        self.assertEqual(tool, 'git')
+        self.assertIn('rebase', args)
+        self.assertIn('-i', args)
+        self.assertIn('origin/main', args)
+
+        # Extract the script and run it to verify it works as expected.
+        editor_cmd = kwargs['env']['GIT_SEQUENCE_EDITOR']
+        script = editor_cmd.split("'", 1)[1].rstrip("'")
+
+        with tempfile.NamedTemporaryFile(mode='w+', delete=False) as f:
+            f.write("pick 1234 normal commit\n")
+            f.write("pick 5678 cherry-pick this\n")
+            f.write("pick 9012 pick in subject\n")
+            f.close()
+
+            with mock.patch.object(sys, 'argv', [sys.executable, f.name]):
+                exec(script, {})  # pylint: disable=exec-used
+
+            result = Path(f.name).read_text()
+            Path(f.name).unlink()
+
+        self.assertEqual(
+            result,
+            "edit 1234 normal commit\n"
+            "edit 5678 cherry-pick this\n"
+            "edit 9012 pick in subject\n",
+        )
+
+    def test_rebase_continue(self):
+        git_cmd = 'rebase --continue'
+        cmds = {
+            git_cmd: git_ok(git_cmd, ''),
+        }
+        repo = self.make_fake_git_repo(cmds)
+        repo.modify().rebase_continue()
+
+    def test_amend_commit_with_updated_files(self):
+        cmds = {
+            'add -u': git_ok('add -u', ''),
+            'commit --amend --no-edit': git_ok('commit --amend --no-edit', ''),
+        }
+        runner = FakeGitToolRunner(cmds)
+        repo = GitRepo(self.GIT_ROOT, runner)
+        repo.modify().amend_commit_with_updated_files()
+
+        self.assertEqual(len(runner.calls), 2)
+        tool1, args1, _ = runner.calls[0]
+        tool2, args2, _ = runner.calls[1]
+
+        self.assertEqual(tool1, 'git')
+        self.assertIn('add', args1)
+        self.assertIn('-u', args1)
+
+        self.assertEqual(tool2, 'git')
+        self.assertIn('commit', args2)
+        self.assertIn('--amend', args2)
+        self.assertIn('--no-edit', args2)
 
 
 def _resolve(path: str) -> str:
