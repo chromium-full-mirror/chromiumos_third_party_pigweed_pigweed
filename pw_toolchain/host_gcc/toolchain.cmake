@@ -33,6 +33,8 @@ include($ENV{PW_ROOT}/pw_trace_tokenized/backend.cmake)
 set(CMAKE_C_COMPILER gcc)
 set(CMAKE_CXX_COMPILER g++)
 
+set(pw_ENABLE_CC_SANDBOX ON CACHE BOOL "")
+
 pw_add_global_compile_options(-std=c++20 LANGUAGES CXX)
 
 # Configure backend for assert facade.

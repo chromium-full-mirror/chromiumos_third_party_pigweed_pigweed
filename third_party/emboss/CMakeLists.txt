@@ -67,6 +67,9 @@ else()
 endif()
 
 pw_add_library(pw_third_party.emboss.cpp_utils INTERFACE
+  # Disable the sandbox since the headers are not nested under this directory.
+  SANDBOX
+    OFF
   HEADERS
     ${emboss_headers}
   PUBLIC_INCLUDES

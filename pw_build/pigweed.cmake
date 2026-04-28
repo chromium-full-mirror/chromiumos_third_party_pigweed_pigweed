@@ -518,12 +518,16 @@ endfunction(_pw_check_name_is_relative_to_root)
 #   PRIVATE_COMPILE_OPTIONS - private target_compile_options arguments
 #   PUBLIC_LINK_OPTIONS - public target_link_options arguments
 #   PRIVATE_LINK_OPTIONS - private target_link_options arguments
+#   SANDBOX - whether to sandbox this library (ON/OFF); overrides
+#     pw_ENABLE_CC_SANDBOX
 #
 function(pw_add_library NAME TYPE)
   _pw_add_library_multi_value_args(pw_add_library_generic_multi_value_args)
   pw_parse_arguments(
     NUM_POSITIONAL_ARGS
       2
+    ONE_VALUE_ARGS
+      SANDBOX
     MULTI_VALUE_ARGS
       ${pw_add_library_generic_multi_value_args}
   )
@@ -563,6 +567,8 @@ function(pw_add_library NAME TYPE)
       ${arg_PUBLIC_LINK_OPTIONS}
     PRIVATE_LINK_OPTIONS
       ${arg_PRIVATE_LINK_OPTIONS}
+    SANDBOX
+      ${arg_SANDBOX}
   )
 endfunction(pw_add_library)
 

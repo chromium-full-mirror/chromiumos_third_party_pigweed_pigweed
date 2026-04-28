@@ -48,6 +48,9 @@ function(emboss_cc_library NAME)
   pw_rebase_paths(abs_sources "${CMAKE_CURRENT_SOURCE_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}" "${arg_SOURCES}" "")
   pw_add_library_generic("${NAME}._sources" INTERFACE
+    # Disable the sandbox since generated headers are inherently sandboxed.
+    SANDBOX
+      OFF
     HEADERS
       ${abs_sources}
     PUBLIC_INCLUDES

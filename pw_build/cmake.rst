@@ -235,3 +235,5 @@ behavior.
 
 Pigweed's CMake sandboxing feature is similar to Bazel's, but it is much simpler
 and less robust. It makes no guarantees of hermeticity.
+
+Sandboxing is enabled by default for upstream Pigweed host builds.

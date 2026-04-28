@@ -35,5 +35,7 @@ pw_add_library(pw_third_party.flatbuffers INTERFACE
     "${dir_pw_third_party_flatbuffers}/include/flatbuffers/util.h"
   PUBLIC_INCLUDES
     "${dir_pw_third_party_flatbuffers}/include/"
+  # Disable the sandbox since the headers are not nested under this directory.
+  SANDBOX
+    OFF
 )
-

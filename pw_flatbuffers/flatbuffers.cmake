@@ -117,6 +117,9 @@ function(pw_flatbuffer_library NAME)
     PUBLIC_DEPS
       ${pw_flatbuffers_LIBRARY}
       ${arg_DEPS}
+    # Disable the sandbox, since the generated headers are inherently sandboxed.
+    SANDBOX
+      OFF
   )
   add_dependencies("${NAME}.cpp"
                    "${NAME}._sources" "${NAME}._generated_sources")
