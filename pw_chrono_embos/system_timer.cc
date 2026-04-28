@@ -49,6 +49,8 @@ void HandleTimerCallback(void* void_native_system_timer) {
 
   backend::NativeSystemTimer& native_type =
       *static_cast<backend::NativeSystemTimer*>(void_native_system_timer);
+
+  // This cannot overflow as `expiry_deadline` is after the start of the epoch.
   const SystemClock::duration time_until_deadline =
       native_type.expiry_deadline - SystemClock::now();
   if (time_until_deadline <= SystemClock::duration::zero()) {
@@ -70,7 +72,7 @@ constexpr OS_TIME kInvalidPeriod = 0;
 
 SystemTimer::SystemTimer(ExpiryCallback&& callback)
     : native_type_{.tcb{},
-                   .expiry_deadline = SystemClock::time_point(),
+                   .expiry_deadline = SystemClock::time_point::max(),
                    .user_callback = std::move(callback)} {
   OS_CreateTimerEx(
       &native_type_.tcb, HandleTimerCallback, kInvalidPeriod, &native_type_);
@@ -88,9 +90,10 @@ void SystemTimer::InvokeAt(SystemClock::time_point timestamp) {
   // Ensure the timer has been cancelled first.
   Cancel();
 
-  native_type_.expiry_deadline = timestamp;
-  const SystemClock::duration time_until_deadline =
-      timestamp - SystemClock::now();
+  // Disallow past timestamps to avoid integer overflows.
+  const SystemClock::time_point now = SystemClock::now();
+  native_type_.expiry_deadline = timestamp < now ? now : timestamp;
+  const SystemClock::duration time_until_deadline = timestamp - now;
 
   // Schedule the timer as far out as possible. Note that the timeout might be
   // clamped and it may be rescheduled internally.

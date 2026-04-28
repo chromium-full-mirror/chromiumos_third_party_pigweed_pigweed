@@ -41,6 +41,7 @@ void HandleTimerWork(k_work* item) {
 #ifdef CONFIG_TIMEOUT_64BIT
   native_type->user_callback(native_type->expiry_deadline);
 #else
+  // This cannot overflow as `expiry_deadline` is after the start of the epoch.
   const SystemClock::duration time_until_deadline =
       native_type->expiry_deadline - SystemClock::now();
   if (time_until_deadline <= SystemClock::duration::zero()) {
@@ -62,7 +63,7 @@ SystemTimer::SystemTimer(ExpiryCallback&& callback)
                            .owner = nullptr,
                        },
                    .mutex = {},
-                   .expiry_deadline = SystemClock::time_point(),
+                   .expiry_deadline = SystemClock::time_point::max(),
                    .user_callback = std::move(callback)} {
   k_work_init_delayable(&native_type_.work_wrapper.work, HandleTimerWork);
   sys_mutex_init(&native_type_.mutex);
@@ -75,10 +76,12 @@ SystemTimer::~SystemTimer() {
 
 void SystemTimer::InvokeAt(SystemClock::time_point timestamp) {
   sys_mutex_lock(&native_type_.mutex, K_FOREVER);
-  native_type_.expiry_deadline = timestamp;
 
-  const SystemClock::duration time_until_deadline =
-      timestamp - SystemClock::now();
+  // Disallow past timestamps to avoid integer overflows.
+  const SystemClock::time_point now = SystemClock::now();
+  native_type_.expiry_deadline = timestamp < now ? now : timestamp;
+
+  const SystemClock::duration time_until_deadline = timestamp - now;
   const SystemClock::duration period =
       IS_ENABLED(CONFIG_TIMEOUT_64BIT)
           ? time_until_deadline

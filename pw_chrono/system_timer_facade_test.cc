@@ -135,6 +135,11 @@ TEST(SystemTimer, InvokeAt) {
   uut.callback_ran_notification.acquire();
 }
 
+TEST(SystemTimer, InvokeAtMax) {
+  SystemTimer timer(ShouldNotBeInvoked);
+  timer.InvokeAt(SystemClock::time_point::max());
+}
+
 TEST(SystemTimer, InvokeAfter) {
   class TimerWithContext : public TimerWithHandler {
    public:
@@ -168,6 +173,11 @@ TEST(SystemTimer, InvokeAfter) {
   uut.expected_min_deadline = SystemClock::now();
   uut.timer().InvokeAfter(SystemClock::duration(0));
   uut.callback_ran_notification.acquire();
+}
+
+TEST(SystemTimer, InvokeAfterMax) {
+  SystemTimer timer(ShouldNotBeInvoked);
+  timer.InvokeAfter(SystemClock::duration::max());
 }
 
 TEST(SystemTimer, CancelFromCallback) {

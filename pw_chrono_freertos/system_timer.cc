@@ -69,6 +69,8 @@ void HandleTimerCallback(TimerHandle_t timer_handle) {
       return;
     }
 
+    // This cannot overflow as `expiry_deadline` is after the start of the
+    // epoch.
     const SystemClock::duration time_until_deadline =
         native_type->expiry_deadline - SystemClock::now();
     if (time_until_deadline <= SystemClock::duration::zero()) {
@@ -124,7 +126,7 @@ constexpr UBaseType_t kOneShotMode = pdFALSE;  // Do not use auto reload.
 SystemTimer::SystemTimer(ExpiryCallback&& callback)
     : native_type_{.tcb{},
                    .state = State::kCancelled,
-                   .expiry_deadline = SystemClock::time_point(),
+                   .expiry_deadline = SystemClock::time_point::max(),
                    .user_callback = std::move(callback)} {
   // Note that timer "creation" is not enqueued through the command queue and
   // is ergo safe to do before the scheduler is running.
@@ -175,12 +177,14 @@ void SystemTimer::InvokeAt(SystemClock::time_point timestamp) {
   // synchronously updating the state. Instead we update the expiry deadline
   // and update the state where the one shot only fires if the expiry deadline
   // is exceeded and the callback is executed once.
-  native_type_.expiry_deadline = timestamp;
+
+  // Disallow past timestamps to avoid integer overflows.
+  const SystemClock::time_point now = SystemClock::now();
+  native_type_.expiry_deadline = timestamp < now ? now : timestamp;
 
   // Schedule the timer as far out as possible. Note that the timeout might be
   // clamped and it may be rescheduled internally.
-  const SystemClock::duration time_until_deadline =
-      timestamp - SystemClock::now();
+  const SystemClock::duration time_until_deadline = timestamp - now;
   const SystemClock::duration period = std::clamp(
       kMinTimerPeriod, time_until_deadline, pw::chrono::freertos::kMaxTimeout);
 
