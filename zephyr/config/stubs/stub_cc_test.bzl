@@ -16,14 +16,7 @@
 
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 
-def zephyr_cc_library(name, **_kwargs):
-    cc_library(
-        name = name,
-        tags = ["manual"],  # Targets using this stub are not meant to be built.
-        target_compatible_with = ["@platforms//:incompatible"],
-    )
-
-def zephyr_cc_binary(name, **_kwargs):
+def zephyr_cc_test(name, **_kwargs):
     cc_library(
         name = name,
         tags = ["manual"],  # Targets using this stub are not meant to be built.

@@ -12,20 +12,14 @@
 # License for the specific language governing permissions and limitations under
 # the License.
 
-"""This is a stub implementation for when zephyr-bazel is not loaded."""
+"""Defines the list of tests to run as Zephyr smoke tests
 
-load("@rules_cc//cc:cc_library.bzl", "cc_library")
+The tests are run out of zephyr-bazel
+(https://pigweed.googlesource.com/zephyr/zephyr-bazel/), out of the
+tests/pw_smoke_tests subdirectory.
 
-def zephyr_cc_library(name, **_kwargs):
-    cc_library(
-        name = name,
-        tags = ["manual"],  # Targets using this stub are not meant to be built.
-        target_compatible_with = ["@platforms//:incompatible"],
-    )
+They are run there instead of here as the zephyr-bazel is not yet stable, and
+the setup is evolving.
+"""
 
-def zephyr_cc_binary(name, **_kwargs):
-    cc_library(
-        name = name,
-        tags = ["manual"],  # Targets using this stub are not meant to be built.
-        target_compatible_with = ["@platforms//:incompatible"],
-    )
+ZEPHYR_PW_SMOKE_TESTS = {}
