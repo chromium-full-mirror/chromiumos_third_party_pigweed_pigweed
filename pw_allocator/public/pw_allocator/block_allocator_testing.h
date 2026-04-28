@@ -580,10 +580,11 @@ void BlockAllocatorTest<BlockAllocatorType, kCapacity>::MeasureFragmentation() {
     }
   }
 
-  Fragmentation fragmentation = block_allocator.MeasureFragmentation();
-  EXPECT_EQ(fragmentation.sum_of_squares.hi, 0U);
-  EXPECT_EQ(fragmentation.sum_of_squares.lo, sum_of_squares);
-  EXPECT_EQ(fragmentation.sum, sum);
+  auto fragmentation = block_allocator.MeasureFragmentation();
+  ASSERT_TRUE(fragmentation.has_value());
+  EXPECT_EQ(fragmentation->sum_of_squares.hi, 0U);
+  EXPECT_EQ(fragmentation->sum_of_squares.lo, sum_of_squares);
+  EXPECT_EQ(fragmentation->sum, sum);
 }
 
 template <typename BlockAllocatorType, size_t kCapacity>

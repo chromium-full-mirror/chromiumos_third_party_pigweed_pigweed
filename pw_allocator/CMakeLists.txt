@@ -248,6 +248,9 @@ pw_add_library(pw_allocator.fragmentation STATIC
     public/pw_allocator/fragmentation.h
   PUBLIC_INCLUDES
     public
+  PRIVATE_DEPS
+    pw_assert.check
+    pw_numeric.checked_arithmetic
   SOURCES
     fragmentation.cc
 )

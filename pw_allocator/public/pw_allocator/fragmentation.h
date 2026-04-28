@@ -38,12 +38,15 @@ namespace pw::allocator {
 /// among others.
 ///
 /// This struct provides the sum-of-squares and the sum of the inner sizes of
-/// free blocks. It is left to the caller to perform the square root and
-/// division steps, perhaps on a host, AP, or other device with better floating
-/// point support.
+/// free blocks. This approach allows accumulating `Fragmentation` by summing
+/// each part. It is left to the caller to perform the square root and division
+/// steps, perhaps on a host, AP, or other device with better floating point
+/// support.
 ///
 /// The sum-of-squares is stored as a pair of sizes, since it can overflow.
 struct Fragmentation {
+  // inclusive-language: enable
+
   /// Sum-of-squares of the inner sizes of free blocks.
   struct {
     size_t hi = 0;
@@ -53,10 +56,45 @@ struct Fragmentation {
   /// Sum of the inner sizes of free blocks.
   size_t sum = 0;
 
+  /// Includes a region of free memory in the fragmentation calculation.
   void AddFragment(size_t inner_size);
-};
 
-// inclusive-language: enable
+  /// Excludes a region of free memory from the fragmentation calculation.
+  void SubtractFragment(size_t inner_size);
+
+  /// Combines this fragmentation struct with another.
+  Fragmentation& operator+=(const Fragmentation& other);
+
+  /// Subtracts another fragmentation struct from this one.
+  Fragmentation& operator-=(const Fragmentation& other);
+
+  /// Returns whether this fragmentation struct is the same as another.
+  constexpr bool operator==(const Fragmentation& other) const {
+    return sum == other.sum && sum_of_squares.hi == other.sum_of_squares.hi &&
+           sum_of_squares.lo == other.sum_of_squares.lo;
+  }
+
+  /// Returns whether this fragmentation struct is different from another.
+  constexpr bool operator!=(const Fragmentation& other) const {
+    return !(*this == other);
+  }
+
+  /// Combines two fragmentation structs.
+  friend Fragmentation operator+(const Fragmentation& lhs,
+                                 const Fragmentation& rhs) {
+    Fragmentation result = lhs;
+    result += rhs;
+    return result;
+  }
+
+  /// Subtracts one fragmentation struct from another.
+  friend Fragmentation operator-(const Fragmentation& lhs,
+                                 const Fragmentation& rhs) {
+    Fragmentation result = lhs;
+    result -= rhs;
+    return result;
+  }
+};
 
 /// Perform the final steps of calculating the fragmentation metric.
 ///

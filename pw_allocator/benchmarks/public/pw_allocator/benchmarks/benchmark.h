@@ -160,7 +160,7 @@ void BlockAllocatorBenchmark<AllocatorType>::IterateOverBlocks(
 template <typename AllocatorType>
 Fragmentation BlockAllocatorBenchmark<AllocatorType>::GetBlockFragmentation()
     const {
-  return allocator_.MeasureFragmentation();
+  return allocator_.MeasureFragmentation().value();
 }
 
 }  // namespace pw::allocator

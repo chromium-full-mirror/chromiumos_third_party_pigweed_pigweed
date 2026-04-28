@@ -535,39 +535,31 @@ TEST(TrackingAllocator, ReallocateWithoutLayoutInfo) {
 }
 
 TEST_F(TrackingAllocatorTest, MeasureFragmentation) {
-  std::optional<Fragmentation> fragmentation1 =
-      allocator_.MeasureFragmentation();
+  pw::allocator::test::AllocatorForTest<kCapacity> underlying;
+  TrackingAllocatorForTest tracker(kToken, underlying);
+
+  // Default behavior.
+  std::optional<Fragmentation> fragmentation1 = tracker.MeasureFragmentation();
   ASSERT_TRUE(fragmentation1.has_value());
   EXPECT_GT(fragmentation1->sum, 0U);
 
-  // Allocate some memory.
-  constexpr Layout layout = Layout::Of<uintptr_t[2]>();
-  void* ptr1 = tracker_.Allocate(layout);
-  void* ptr2 = tracker_.Allocate(layout);
-  void* ptr3 = tracker_.Allocate(layout);
-  ASSERT_NE(ptr1, nullptr);
-  ASSERT_NE(ptr2, nullptr);
-  ASSERT_NE(ptr3, nullptr);
+  // Set fragmentation explicitly.
+  Fragmentation fragmentation2;
+  fragmentation2.sum = 100;
+  fragmentation2.sum_of_squares.hi = 0;
+  fragmentation2.sum_of_squares.lo = 10000;
+  underlying.SetFragmentation(fragmentation2);
 
-  // Measure fragmentation with several allocated blocks.
-  std::optional<Fragmentation> fragmentation2 =
-      allocator_.MeasureFragmentation();
-  ASSERT_TRUE(fragmentation2.has_value());
-  EXPECT_LT(fragmentation2->sum, fragmentation1->sum);
+  std::optional<Fragmentation> result = tracker.MeasureFragmentation();
+  ASSERT_TRUE(result.has_value());
+  EXPECT_EQ(result->sum, 100U);
+  EXPECT_EQ(result->sum_of_squares.hi, 0U);
+  EXPECT_EQ(result->sum_of_squares.lo, 10000U);
 
-  // Deallocate the middle one to create a fragment.
-  tracker_.Deallocate(ptr2);
-
-  std::optional<Fragmentation> fragmentation3 =
-      allocator_.MeasureFragmentation();
-  ASSERT_TRUE(fragmentation3.has_value());
-
-  // Fragmentation should have changed (more free bytes).
-  EXPECT_GT(fragmentation3->sum, fragmentation2->sum);
-  EXPECT_LT(fragmentation3->sum, fragmentation1->sum);
-
-  tracker_.Deallocate(ptr1);
-  tracker_.Deallocate(ptr3);
+  // Disable fragmentation measurement.
+  underlying.SetMeasureFragmentationEnabled(false);
+  result = tracker.MeasureFragmentation();
+  EXPECT_FALSE(result.has_value());
 }
 
 }  // namespace

@@ -143,16 +143,11 @@ class BlockAllocator : public internal::GenericBlockAllocator {
   /// available if that block cannot satisfy the alignment requirement.
   size_t GetMaxAllocatable() { return DoGetMaxAllocatable(); }
 
-  /// Returns fragmentation information for the block allocator's memory region.
-  Fragmentation MeasureFragmentation() const;
-
  protected:
   constexpr explicit BlockAllocator() : Base(kCapabilities) {}
 
   /// @copydoc Allocator::DoMeasureFragmentation
-  std::optional<Fragmentation> DoMeasureFragmentation() const override {
-    return MeasureFragmentation();
-  }
+  std::optional<Fragmentation> DoMeasureFragmentation() const override;
 
   /// Sets the blocks to be used by this allocator.
   ///
@@ -476,7 +471,8 @@ Result<Layout> BlockAllocator<BlockType>::DoGetInfo(InfoType info_type,
 }
 
 template <typename BlockType>
-Fragmentation BlockAllocator<BlockType>::MeasureFragmentation() const {
+std::optional<Fragmentation> BlockAllocator<BlockType>::DoMeasureFragmentation()
+    const {
   Fragmentation fragmentation;
   for (auto block : blocks()) {
     if (block->IsFree()) {

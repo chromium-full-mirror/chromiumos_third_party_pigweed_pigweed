@@ -307,4 +307,45 @@ TEST_F(FallbackAllocatorTest, Recognizes_None) {
   EXPECT_FALSE(allocator_.Recognizes(ptr));
 }
 
+TEST_F(FallbackAllocatorTest, MeasureFragmentation_Both) {
+  primary_.SetFragmentation({.sum_of_squares = {.hi = 1, .lo = 2}, .sum = 3});
+  secondary_.SetFragmentation(
+      {.sum_of_squares = {.hi = 4, .lo = 8}, .sum = 12});
+
+  auto result = allocator_.MeasureFragmentation();
+  ASSERT_TRUE(result.has_value());
+  EXPECT_EQ(result->sum_of_squares.hi, 5U);
+  EXPECT_EQ(result->sum_of_squares.lo, 10U);
+  EXPECT_EQ(result->sum, 15U);
+}
+
+TEST_F(FallbackAllocatorTest, MeasureFragmentation_OnlyPrimary) {
+  primary_.SetFragmentation({.sum_of_squares = {.hi = 1, .lo = 2}, .sum = 3});
+  secondary_.SetMeasureFragmentationEnabled(false);
+
+  auto result = allocator_.MeasureFragmentation();
+  ASSERT_TRUE(result.has_value());
+  EXPECT_EQ(result->sum_of_squares.hi, 1U);
+  EXPECT_EQ(result->sum_of_squares.lo, 2U);
+  EXPECT_EQ(result->sum, 3U);
+}
+
+TEST_F(FallbackAllocatorTest, MeasureFragmentation_OnlySecondary) {
+  primary_.SetMeasureFragmentationEnabled(false);
+  secondary_.SetFragmentation(
+      {.sum_of_squares = {.hi = 4, .lo = 8}, .sum = 12});
+
+  auto result = allocator_.MeasureFragmentation();
+  ASSERT_TRUE(result.has_value());
+  EXPECT_EQ(result->sum_of_squares.hi, 4U);
+  EXPECT_EQ(result->sum_of_squares.lo, 8U);
+  EXPECT_EQ(result->sum, 12U);
+}
+
+TEST_F(FallbackAllocatorTest, MeasureFragmentation_None) {
+  primary_.SetMeasureFragmentationEnabled(false);
+  secondary_.SetMeasureFragmentationEnabled(false);
+  EXPECT_FALSE(allocator_.MeasureFragmentation().has_value());
+}
+
 }  // namespace

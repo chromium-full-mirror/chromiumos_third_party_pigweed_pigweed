@@ -104,25 +104,17 @@ TEST(BenchmarkTest, ByFragmentation) {
 
   EXPECT_FALSE(ByFragmentationChanged(benchmark, 0.2f));
 
-  while (CalculateFragmentation(allocator.MeasureFragmentation()) < 0.2f) {
-    benchmark.GenerateRequest(kMaxSize);
+  for (float threshold = 0.2f; threshold < 1.0f; threshold += 0.2f) {
+    while (true) {
+      auto fragmentation = allocator.MeasureFragmentation();
+      ASSERT_TRUE(fragmentation.has_value());
+      if (CalculateFragmentation(*fragmentation) >= threshold) {
+        break;
+      }
+      benchmark.GenerateRequest(kMaxSize);
+    }
+    EXPECT_TRUE(ByFragmentationChanged(benchmark, threshold));
   }
-  EXPECT_TRUE(ByFragmentationChanged(benchmark, 0.2f));
-
-  while (CalculateFragmentation(allocator.MeasureFragmentation()) < 0.4f) {
-    benchmark.GenerateRequest(kMaxSize);
-  }
-  EXPECT_TRUE(ByFragmentationChanged(benchmark, 0.4f));
-
-  while (CalculateFragmentation(allocator.MeasureFragmentation()) < 0.6f) {
-    benchmark.GenerateRequest(kMaxSize);
-  }
-  EXPECT_TRUE(ByFragmentationChanged(benchmark, 0.6f));
-
-  while (CalculateFragmentation(allocator.MeasureFragmentation()) < 0.8f) {
-    benchmark.GenerateRequest(kMaxSize);
-  }
-  EXPECT_TRUE(ByFragmentationChanged(benchmark, 0.8f));
 }
 
 bool BySizeChanged(Benchmark& benchmark, size_t size) {

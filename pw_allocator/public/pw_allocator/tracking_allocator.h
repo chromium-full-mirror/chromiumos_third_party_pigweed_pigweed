@@ -94,8 +94,7 @@ class TrackingAllocator : public pw::Allocator {
   size_t DoGetAllocated() const override { return allocator_.GetAllocated(); }
 
   /// @copydoc Allocator::DoMeasureFragmentation
-  std::optional<allocator::Fragmentation> DoMeasureFragmentation()
-      const override {
+  std::optional<Fragmentation> DoMeasureFragmentation() const override {
     return allocator_.MeasureFragmentation();
   }
 

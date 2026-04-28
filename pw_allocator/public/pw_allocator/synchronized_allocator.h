@@ -94,8 +94,7 @@ class SynchronizedAllocator : public pw::Allocator {
   }
 
   /// @copydoc Allocator::DoMeasureFragmentation
-  std::optional<allocator::Fragmentation> DoMeasureFragmentation()
-      const override {
+  std::optional<Fragmentation> DoMeasureFragmentation() const override {
     std::lock_guard lock(lock_);
     return allocator_.MeasureFragmentation();
   }

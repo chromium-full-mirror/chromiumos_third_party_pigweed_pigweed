@@ -260,6 +260,10 @@ pw_source_set("fragmentation") {
   public_configs = [ ":public_include_path" ]
   public = [ "public/pw_allocator/fragmentation.h" ]
   sources = [ "fragmentation.cc" ]
+  deps = [
+    "$dir_pw_assert:check",
+    "$dir_pw_numeric:checked_arithmetic",
+  ]
 }
 
 pw_source_set("hardening") {

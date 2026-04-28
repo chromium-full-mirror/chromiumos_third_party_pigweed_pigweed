@@ -41,6 +41,8 @@ class SharedPtr;
 /// thread safety, or performance.
 class Allocator : public Deallocator {
  public:
+  using Fragmentation = allocator::Fragmentation;
+
   /// Allocates a block of memory with the specified size and alignment.
   ///
   /// Returns `nullptr` if the allocation cannot be made, or the `layout` has a
@@ -275,9 +277,7 @@ class Allocator : public Deallocator {
   size_t GetAllocated() const { return DoGetAllocated(); }
 
   /// Returns fragmentation information for the allocator's memory region.
-  // TODO: https://pwbug.dev/475853116 - Make `pw::Deallocator::GetInfo` return
-  // a `std::variant` to avoid this virtual function.
-  std::optional<allocator::Fragmentation> MeasureFragmentation() const {
+  std::optional<Fragmentation> MeasureFragmentation() const {
     return DoMeasureFragmentation();
   }
 
@@ -293,8 +293,7 @@ class Allocator : public Deallocator {
   ///
   /// The default implementation simply returns `std::nullopt`, indicating that
   /// tracking memory fragmentation is not supported.
-  virtual std::optional<allocator::Fragmentation> DoMeasureFragmentation()
-      const {
+  virtual std::optional<Fragmentation> DoMeasureFragmentation() const {
     return std::nullopt;
   }
 

@@ -109,6 +109,8 @@ class AllocatorForTest : public pw::Allocator {
     resize_ptr_ = nullptr;
     resize_old_size_ = 0;
     resize_new_size_ = 0;
+    enable_measure_fragmentation_ = true;
+    fragmentation_ = std::nullopt;
   }
 
   /// Allocates all the memory from this object.
@@ -128,9 +130,18 @@ class AllocatorForTest : public pw::Allocator {
     }
   }
 
-  /// @copydoc BlockAllocator::MeasureFragmentation
-  Fragmentation MeasureFragmentation() const {
-    return allocator_.MeasureFragmentation();
+  /// Sets whether this allocator returns fragmentation information from
+  /// ``MeasureFragmentation`` or ``std::nullopt``.
+  void SetMeasureFragmentationEnabled(bool enabled) {
+    enable_measure_fragmentation_ = enabled;
+  }
+
+  /// Sets a fake fragmentation struct to be returned by this allocator. This
+  /// can be used to test that fragmentation info is properly forwarded by
+  /// forwarding allocators regardless of the details of the underlying
+  /// allocator.
+  void SetFragmentation(const Fragmentation& fragmentation) {
+    fragmentation_ = fragmentation;
   }
 
  protected:
@@ -138,8 +149,13 @@ class AllocatorForTest : public pw::Allocator {
   TrackingAllocator<MetricsType>& GetTracker() { return tracker_; }
 
   /// @copydoc Allocator::DoMeasureFragmentation
-  std::optional<allocator::Fragmentation> DoMeasureFragmentation()
-      const override {
+  std::optional<Fragmentation> DoMeasureFragmentation() const override {
+    if (!enable_measure_fragmentation_) {
+      return std::nullopt;
+    }
+    if (fragmentation_.has_value()) {
+      return fragmentation_;
+    }
     return allocator_.MeasureFragmentation();
   }
 
@@ -185,6 +201,9 @@ class AllocatorForTest : public pw::Allocator {
   void* resize_ptr_;
   size_t resize_old_size_;
   size_t resize_new_size_;
+
+  bool enable_measure_fragmentation_;
+  std::optional<Fragmentation> fragmentation_;
 };
 
 /// @}

@@ -265,6 +265,10 @@ cc_library(
     name = "fragmentation",
     srcs = ["fragmentation.cc"],
     hdrs = ["public/pw_allocator/fragmentation.h"],
+    implementation_deps = [
+        "//pw_assert:check",
+        "//pw_numeric:checked_arithmetic",
+    ],
     strip_include_prefix = "public",
 )
 
