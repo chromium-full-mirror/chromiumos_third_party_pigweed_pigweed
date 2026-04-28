@@ -276,6 +276,11 @@ common --credential_helper=*.pkg.dev=%workspace%/pw_build/cred_helper.sh
 # Configs for experimental //pw_kernel
 import %workspace%/pw_kernel/kernel.bazelrc
 
+# (Experimental) Configuration to automatically generate compile_commands.json for IDEs.
+# Usage: bazel build --config=ide //your/target/...
+build:ide --aspects=//pw_ide/bazel/compile_commands:pw_cc_compile_commands_aspect.bzl%pw_cc_compile_commands_aspect
+build:ide --output_groups=+pw_cc_compile_commands_fragments
+
 # User bazelrc file
 # =================
 # See https://bazel.build/configure/best-practices#bazelrc-file
@@ -284,8 +289,3 @@ import %workspace%/pw_kernel/kernel.bazelrc
 # options override anything in this file
 # (https://bazel.build/run/bazelrc#imports)
 try-import %workspace%/user.bazelrc
-
-# (Experimental) Configuration to automatically generate compile_commands.json for IDEs.
-# Usage: bazel build --config=ide //your/target/...
-build:ide --aspects=//pw_ide/bazel/compile_commands:pw_cc_compile_commands_aspect.bzl%pw_cc_compile_commands_aspect
-build:ide --output_groups=+pw_cc_compile_commands_fragments
