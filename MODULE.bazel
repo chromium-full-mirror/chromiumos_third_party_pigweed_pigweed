@@ -208,6 +208,11 @@ register_toolchains(
 cc_compatibility_proxy = use_extension("@rules_cc//cc:extensions.bzl", "compatibility_proxy")
 use_repo(cc_compatibility_proxy, "cc_compatibility_proxy")
 
+rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
+
+# Inhibit rules_rust from registering any default toolchains.
+rust.toolchain(versions = [])
+
 # Rust toolchains
 pw_rust = use_extension("//pw_toolchain/rust:extensions.bzl", "pw_rust")
 
