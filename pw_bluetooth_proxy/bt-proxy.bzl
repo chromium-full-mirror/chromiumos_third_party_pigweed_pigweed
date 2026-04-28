@@ -138,10 +138,11 @@ def pw_bluetooth_proxy_library(name, **kwargs):
             "//pw_bluetooth:emboss_hci_h4",
             "//pw_bluetooth:emboss_l2cap_frames",
             "//pw_bytes",
+            "//pw_containers:dynamic_queue",
             "//pw_containers:flat_map",
             "//pw_containers:inline_queue",
-            "//pw_containers:vector",
             "//pw_containers:intrusive_map",
+            "//pw_containers:vector",
             "//pw_function",
             "//pw_multibuf:allocator",
             "//pw_multibuf:simple_allocator",
@@ -178,6 +179,7 @@ def pw_bluetooth_proxy_test(name, versioned_deps, **kwargs):
             "credit_based_flow_control_channel_proxy_test.cc",
             "credit_based_flow_control_tx_engine_test.cc",
             "credit_based_flow_control_rx_engine_test.cc",
+            "dynamic_credit_sharing_test.cc",
             "gatt_notify_test.cc",
             "gatt_notify_tx_engine_test.cc",
             "h4_packet_test.cc",
@@ -194,6 +196,7 @@ def pw_bluetooth_proxy_test(name, versioned_deps, **kwargs):
             "//pw_bluetooth:emboss_hci_commands",
             "//pw_multibuf:from_span",
             "//pw_span:cast",
+            "//pw_thread:sleep",
         ] + versioned_deps,
         # LINT.ThenChange(BUILD.gn, CMakeLists.txt)
         **kwargs

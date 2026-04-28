@@ -52,6 +52,37 @@ class ProxyHost : public L2capChannelManagerInterface {
   /// to send HCI packet towards the host.
   /// @param[in] send_to_controller_fn - Callback that will be called when
   /// proxy wants to send HCI packet towards the controller.
+  /// Constructor for dynamic credit sharing mode.
+  ///
+  /// In this mode, both host and proxy share the single pool of available
+  /// credits from the controller. Packets are queued when credits are
+  /// exhausted. Important note, all packets sent in this mode from host that
+  /// don't have a `release_fn` can be copied and queued using allocator.
+  ///
+  /// @warning Limitation: If a host packet's `release_fn` attempts to send more
+  /// host packets, it will deadlock.
+  // TODO: b/505912880 - Fix deadlock when release_fn sends packets.
+  ///
+  /// @param[in] send_to_host_fn - Called by proxy to send a H4 HCI packet to
+  /// the host side.
+  /// @param[in] send_to_controller_fn - Called by proxy to send a H4 HCI packet
+  /// to the controller side.
+  /// @param[in] allocator - General purpose allocator to use for internal
+  /// packet buffers and objects. On multi-threaded systems this should be a
+  /// SynchronizedAllocator.
+  ProxyHost(pw::Function<void(H4PacketWithHci&& packet)>&& send_to_host_fn,
+            pw::Function<void(H4PacketWithH4&& packet)>&& send_to_controller_fn,
+            pw::Allocator& allocator);
+
+  /// Constructor for fixed credit reservation mode.
+  ///
+  /// In this mode, a fixed number of credits are reserved for the proxy, and
+  /// the rest are passed to the host.
+  ///
+  /// @param[in] send_to_host_fn - Called by proxy to send a H4 HCI packet to
+  /// the host side.
+  /// @param[in] send_to_controller_fn - Called by proxy to send a H4 HCI packet
+  /// to the controller side.
   /// @param[in] le_acl_credits_to_reserve - How many buffers to reserve for the
   /// proxy out of any LE ACL buffers received from controller.
   /// @param[in] br_edr_acl_credits_to_reserve - How many buffers to reserve for

@@ -117,6 +117,7 @@ _pw_bluetooth_proxy_public_deps = [
   "$dir_pw_bluetooth:emboss_hci_events",
   "$dir_pw_bluetooth:emboss_hci_h4",
   "$dir_pw_bluetooth:emboss_l2cap_frames",
+  "$dir_pw_containers:dynamic_queue",
   "$dir_pw_containers:flat_map",
   "$dir_pw_containers:inline_queue",
   "$dir_pw_containers:intrusive_map",
@@ -224,6 +225,7 @@ _pw_bluetooth_proxy_test_deps = [
   "$dir_pw_bluetooth:emboss_hci_commands",
   "$dir_pw_multibuf:from_span",
   "$dir_pw_span:cast",
+  "$dir_pw_thread:sleep",
 ]
 
 _pw_bluetooth_proxy_test_sources = [
@@ -234,6 +236,7 @@ _pw_bluetooth_proxy_test_sources = [
   "credit_based_flow_control_channel_proxy_test.cc",
   "credit_based_flow_control_rx_engine_test.cc",
   "credit_based_flow_control_tx_engine_test.cc",
+  "dynamic_credit_sharing_test.cc",
   "gatt_notify_test.cc",
   "gatt_notify_tx_engine_test.cc",
   "h4_packet_test.cc",

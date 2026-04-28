@@ -100,11 +100,12 @@ TEST_F(GattIntegrationTest, ReceiveNotification) {
 
   ProxyHost proxy = ProxyHost(std::move(send_to_host_fn),
                               std::move(send_to_controller_fn),
-                              /*le_acl_credits_to_reserve=*/10,
+                              /*le_acl_credits_to_reserve=*/0,
                               /*br_edr_acl_credits_to_reserve=*/0,
                               &allocator);
   StartDispatcherOnCurrentThread(proxy);
-  PW_TEST_EXPECT_OK(SendLeReadBufferResponseFromController(proxy, 10));
+  PW_TEST_EXPECT_OK(SendLeReadBufferResponseFromController(proxy, 0));
+
   PW_TEST_ASSERT_OK(
       SendLeConnectionCompleteEvent(proxy,
                                     cpp23::to_underlying(kConnectionHandle1),
@@ -161,7 +162,7 @@ TEST_F(GattIntegrationTest, SendNotifications) {
                               /*br_edr_acl_credits_to_reserve=*/0,
                               &allocator);
   StartDispatcherOnCurrentThread(proxy);
-  PW_TEST_EXPECT_OK(SendLeReadBufferResponseFromController(proxy, 10));
+  PW_TEST_EXPECT_OK(SendLeReadBufferResponseFromController(proxy, 1));
   PW_TEST_ASSERT_OK(
       SendLeConnectionCompleteEvent(proxy,
                                     cpp23::to_underlying(kConnectionHandle1),

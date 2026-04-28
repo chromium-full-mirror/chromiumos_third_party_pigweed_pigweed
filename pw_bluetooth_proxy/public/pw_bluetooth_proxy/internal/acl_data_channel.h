@@ -15,16 +15,21 @@
 #pragma once
 
 #include <optional>
+#include <variant>
 
+#include "pw_allocator/allocator.h"
 #include "pw_bluetooth/hci_data.emb.h"
 #include "pw_bluetooth/hci_events.emb.h"
 #include "pw_bluetooth_proxy/direction.h"
 #include "pw_bluetooth_proxy/internal/hci_transport.h"
 #include "pw_bluetooth_proxy/internal/logical_transport.h"
 #include "pw_bluetooth_proxy/internal/mutex.h"
+#include "pw_containers/dynamic_queue.h"
 #include "pw_containers/intrusive_map.h"
 #include "pw_containers/vector.h"
+#include "pw_function/function.h"
 #include "pw_multibuf/multibuf.h"
+#include "pw_status/status.h"
 #include "pw_sync/lock_annotations.h"
 
 namespace pw::bluetooth::proxy {
@@ -89,13 +94,29 @@ class AclDataChannel {
     Function<void(AclTransportType transport)> relinquish_fn_;
   };
 
+  /// When using this constructor, both host and proxy share the single pool of
+  /// available credits from the controller. Packets are queued when credits
+  /// are exhausted.
+  AclDataChannel(HciTransport& hci_transport,
+                 pw::Allocator& allocator,
+                 Closure on_tx_credits_fn)
+      : hci_transport_(hci_transport),
+        le_credits_(allocator),
+        br_edr_credits_(allocator),
+        allocator_(allocator),
+        on_tx_credits_fn_(std::move(on_tx_credits_fn)) {}
+
+  /// When using this constructor, a fixed number of credits are reserved for
+  /// the proxy, and the rest are passed to the host.
   AclDataChannel(HciTransport& hci_transport,
                  uint16_t le_acl_credits_to_reserve,
                  uint16_t br_edr_acl_credits_to_reserve,
+                 pw::Allocator& allocator,
                  Closure on_tx_credits_fn)
       : hci_transport_(hci_transport),
         le_credits_(le_acl_credits_to_reserve),
         br_edr_credits_(br_edr_acl_credits_to_reserve),
+        allocator_(allocator),
         on_tx_credits_fn_(std::move(on_tx_credits_fn)) {}
 
   AclDataChannel(const AclDataChannel&) = delete;
@@ -144,6 +165,10 @@ class AclDataChannel {
   // Remove completed packets from `nocp_event` as necessary to reclaim LE ACL
   // credits that are associated with our credit-allocated connections.
   void HandleNumberOfCompletedPacketsEvent(H4PacketWithHci&& h4_packet);
+
+  // Drains the ACL queue for the given transport using fair round-robin
+  // dynamic sharing between the host and proxy.
+  void DrainDynamicQuota(AclTransportType transport);
 
   // Reclaim any credits we have associated with the removed connection.
   void ProcessDisconnectionCompleteEvent(uint16_t connection_handle,
@@ -212,7 +237,9 @@ class AclDataChannel {
   // An active logical link on ACL logical transport.
   class AclConnection {
    public:
-    AclConnection(AclTransportType transport, uint16_t connection_handle);
+    AclConnection(AclTransportType transport,
+                  uint16_t connection_handle,
+                  pw::Allocator& allocator);
 
     AclConnection(const AclConnection&) = delete;
     AclConnection& operator=(const AclConnection&) = delete;
@@ -238,17 +265,37 @@ class AclDataChannel {
     /// This will decide whether to give the credit to the host or proxy.
     PacketSource ReclaimCredit();
 
+    pw::DynamicQueue<H4PacketWithH4>& queue() { return queue_; }
+    const pw::DynamicQueue<H4PacketWithH4>& queue() const { return queue_; }
+
    private:
     AclTransportType transport_;
     uint16_t connection_handle_;
     uint16_t num_proxy_pending_packets_ = 0;
     uint16_t num_host_pending_packets_ = 0;
     PacketSource last_reclaimed_ = PacketSource::kProxy;
+    pw::DynamicQueue<H4PacketWithH4> queue_;
   };
 
   class Credits {
    public:
-    explicit Credits(uint16_t to_reserve) : to_reserve_(to_reserve) {}
+    struct Static {
+      const uint16_t to_reserve;
+      // The local number of HCI ACL Data packets that we have reserved for
+      // this proxy host to use.
+      uint16_t proxy_max = 0;
+    };
+
+    struct Dynamic {
+      PacketSource drain_turn = PacketSource::kProxy;
+      uint16_t total_queued_packets = 0;
+    };
+
+    explicit Credits(uint16_t to_reserve)
+        : data_(std::in_place_type<Static>, Static{to_reserve}) {}
+
+    explicit Credits(pw::Allocator&)
+        : data_(std::in_place_type<Dynamic>, Dynamic{}) {}
 
     void Reset();
 
@@ -260,31 +307,86 @@ class AclDataChannel {
     //
     // Returns Status::ResourceExhausted() if there aren't enough available
     // credits.
-    Status MarkPending(uint16_t num_credits);
+    Status MarkPending(uint16_t num_credits, PacketSource source);
 
     // Return `num_credits` to available pool.
     void MarkCompleted(uint16_t num_credits);
 
-    uint16_t Remaining() const { return proxy_max_ - proxy_pending_; }
+    uint16_t Remaining() const {
+      if (std::holds_alternative<Dynamic>(data_)) {
+        if (pending_ >= controller_max_packets_) {
+          return 0;
+        }
+        return controller_max_packets_ - pending_;
+      }
+      return std::get<Static>(data_).proxy_max - pending_;
+    }
     bool Available() const { return Remaining() > 0; }
 
-    // If this class was initialized with some number of credits to reserve,
-    // return true.
-    bool HasSendCapability() const { return to_reserve_ > 0; }
+    // If this class was initialized with some number of credits to reserve or
+    // if dynamic sharing is enabled.
+    bool HasSendCapability() const {
+      if (std::holds_alternative<Dynamic>(data_)) {
+        return true;
+      }
+      return std::get<Static>(data_).to_reserve > 0;
+    }
 
     // If this class has already had credits reserved from the controller.
-    bool Initialized() const { return proxy_max_ > 0; }
+    bool Initialized() const { return controller_max_packets_ > 0; }
 
     uint16_t controller_max_packets() const { return controller_max_packets_; }
 
+    bool dynamic_sharing() const {
+      return std::holds_alternative<Dynamic>(data_);
+    }
+
+    uint16_t total_queued_packets() const {
+      if (const auto* dynamic = std::get_if<Dynamic>(&data_)) {
+        return dynamic->total_queued_packets;
+      }
+      return 0;
+    }
+
+    void IncrementTotalQueuedPackets() {
+      if (auto* dynamic = std::get_if<Dynamic>(&data_)) {
+        dynamic->total_queued_packets++;
+      }
+    }
+
+    void DecrementTotalQueuedPackets(uint16_t count) {
+      if (auto* dynamic = std::get_if<Dynamic>(&data_)) {
+        if (count > dynamic->total_queued_packets) {
+          dynamic->total_queued_packets = 0;
+        } else {
+          dynamic->total_queued_packets -= count;
+        }
+      }
+    }
+
+    uint16_t pending() const { return pending_; }
+
+    PacketSource drain_turn() const {
+      if (auto* dynamic = std::get_if<Dynamic>(&data_)) {
+        return dynamic->drain_turn;
+      }
+      return PacketSource::kProxy;
+    }
+
+    void PassTurn() {
+      if (auto* dynamic = std::get_if<Dynamic>(&data_)) {
+        dynamic->drain_turn = (dynamic->drain_turn == PacketSource::kProxy)
+                                  ? PacketSource::kHost
+                                  : PacketSource::kProxy;
+      }
+    }
+
    private:
-    const uint16_t to_reserve_;
-    // The local number of HCI ACL Data packets that we have reserved for
-    // this proxy host to use.
-    uint16_t proxy_max_ = 0;
+    std::variant<Static, Dynamic> data_;
     // The number of HCI ACL Data packets that we have sent to the controller
-    // and have not yet completed.
-    uint16_t proxy_pending_ = 0;
+    // and have not yet completed (for proxy only in static mode, or host +
+    // proxy in dynamic mode).
+    uint16_t pending_ = 0;
     // The maximum number of HCI ACL Data packets the controller can hold.
     uint16_t controller_max_packets_ = 0;
   };
@@ -293,6 +395,12 @@ class AclDataChannel {
   // Returns true if the frame was handled and is consumed by the proxy.
   // Returns false if the frame should be passed on to the other side.
   bool HandleAclData(Direction direction, pw::span<uint8_t> buffer);
+
+  void HandleAclFromHostLocked(H4PacketWithH4&& h4_packet,
+                               AclConnection* connection_ptr,
+                               std::optional<H4PacketWithH4>& packet_to_send,
+                               std::optional<H4PacketWithH4>& packet_to_drop)
+      PW_EXCLUSIVE_LOCKS_REQUIRED(connection_mutex_);
 
   // Guards interactions with ACL connection objects.
   mutable internal::Mutex connection_mutex_ PW_ACQUIRED_BEFORE(credit_mutex_);
@@ -303,6 +411,13 @@ class AclDataChannel {
   // Pointer is assured valid only as long as `mutex_` is held.
   AclConnection* FindAclConnection(uint16_t connection_handle)
       PW_EXCLUSIVE_LOCKS_REQUIRED(connection_mutex_);
+
+  AclConnection* FindConnectionToDrain(AclTransportType transport)
+      PW_EXCLUSIVE_LOCKS_REQUIRED(connection_mutex_);
+
+  std::optional<H4PacketWithH4> DequeueHostPacket(AclConnection* connection,
+                                                  Credits& credits)
+      PW_EXCLUSIVE_LOCKS_REQUIRED(connection_mutex_, credit_mutex_);
 
   Credits& LookupCredits(AclTransportType transport)
       PW_EXCLUSIVE_LOCKS_REQUIRED(credit_mutex_);
@@ -338,8 +453,13 @@ class AclDataChannel {
   // This separate mutex is required because the delegate may call SendAcl() and
   // acquire the connection_mutex_ inside of delegate callbacks.
   internal::Mutex delegates_mutex_ PW_ACQUIRED_BEFORE(connection_mutex_);
+
+  // Guards the draining process to serialize SendToController calls.
+  mutable internal::Mutex draining_mutex_ PW_ACQUIRED_BEFORE(connection_mutex_);
   IntrusiveMap<uint16_t, ConnectionDelegate> connection_delegates_
       PW_GUARDED_BY(delegates_mutex_);
+
+  pw::Allocator& allocator_;
 
   // Called after ACL TX credits are received.
   const Closure on_tx_credits_fn_;

@@ -38,16 +38,77 @@ void AclDataChannel::HandleAclFromController(H4PacketWithHci&& h4_packet) {
 
 void AclDataChannel::HandleAclFromHost(H4PacketWithH4&& h4_packet) {
   if (!HandleAclData(Direction::kFromHost, h4_packet.GetHciSpan())) {
-    hci_transport_.SendToController(std::move(h4_packet));
+    Result<emboss::AclDataFrameHeaderView> acl_view =
+        MakeEmbossView<emboss::AclDataFrameHeaderView>(h4_packet.GetHciSpan());
+    if (!acl_view.ok()) {
+      PW_LOG_ERROR("Buffer is too small for ACL header in HandleAclFromHost");
+      hci_transport_.SendToController(std::move(h4_packet));
+      return;
+    }
+    uint16_t handle = acl_view->handle().Read();
+
+    std::optional<AclTransportType> transport;
+    std::optional<H4PacketWithH4> packet_to_send_directly;
+
+    {
+      std::lock_guard lock(connection_mutex_);
+      AclConnection* connection_ptr = FindAclConnection(handle);
+      if (!connection_ptr) {
+        packet_to_send_directly = std::move(h4_packet);
+      } else {
+        std::lock_guard credit_lock(credit_mutex_);
+        Credits& credits = LookupCredits(connection_ptr->transport());
+
+        if (!credits.dynamic_sharing()) {
+          connection_ptr->RecordPacket(PacketSource::kHost);
+          packet_to_send_directly = std::move(h4_packet);
+        } else {
+          transport = connection_ptr->transport();
+          if (h4_packet.HasReleaseFn()) {
+            if (connection_ptr->queue().try_push(std::move(h4_packet))) {
+              credits.IncrementTotalQueuedPackets();
+            } else {
+              PW_LOG_ERROR("Dropping H4 packet from host: unable to queue");
+            }
+          } else {
+            Result<H4PacketWithH4> owned_h4_packet_result =
+                H4PacketWithH4::CopyFrom(allocator_, h4_packet);
+            if (!owned_h4_packet_result.ok()) {
+              PW_LOG_ERROR(
+                  "Dropping H4 packet from host: unable to allocate storage to "
+                  "queue");
+            } else {
+              if (connection_ptr->queue().try_push(
+                      std::move(owned_h4_packet_result.value()))) {
+                credits.IncrementTotalQueuedPackets();
+              } else {
+                PW_LOG_ERROR("Dropping H4 packet from host: unable to queue");
+              }
+            }
+          }
+        }
+      }
+    }
+
+    if (packet_to_send_directly.has_value()) {
+      hci_transport_.SendToController(
+          std::move(packet_to_send_directly.value()));
+    }
+
+    if (transport.has_value()) {
+      DrainDynamicQuota(*transport);
+    }
   }
 }
 
 AclDataChannel::AclConnection::AclConnection(AclTransportType transport,
-                                             uint16_t connection_handle)
+                                             uint16_t connection_handle,
+                                             pw::Allocator& allocator)
     : transport_(transport),
       connection_handle_(connection_handle),
       num_proxy_pending_packets_(0),
-      num_host_pending_packets_(0) {
+      num_host_pending_packets_(0),
+      queue_(allocator) {
   PW_LOG_INFO(
       "btproxy: AclConnection ctor. transport_: %u, connection_handle_: %#x",
       cpp23::to_underlying(transport_),
@@ -161,9 +222,14 @@ Status AclDataChannel::UnregisterConnection(ConnectionDelegate& delegate) {
 }
 
 void AclDataChannel::Credits::Reset() {
-  proxy_max_ = 0;
-  proxy_pending_ = 0;
+  if (auto* static_credits = std::get_if<Static>(&data_)) {
+    static_credits->proxy_max = 0;
+  }
+  pending_ = 0;
   controller_max_packets_ = 0;
+  if (auto* dynamic_credits = std::get_if<Dynamic>(&data_)) {
+    dynamic_credits->total_queued_packets = 0;
+  }
 }
 
 uint16_t AclDataChannel::Credits::Reserve(uint16_t controller_max) {
@@ -172,42 +238,62 @@ uint16_t AclDataChannel::Credits::Reserve(uint16_t controller_max) {
            "reset before this.");
 
   controller_max_packets_ = controller_max;
-  proxy_max_ = std::min(controller_max, to_reserve_);
-  const uint16_t host_max = controller_max - proxy_max_;
 
-  PW_LOG_INFO(
-      "Bluetooth Proxy reserved %d ACL data credits. Passed %d on to host.",
-      proxy_max_,
-      host_max);
+  if (auto* static_credits = std::get_if<Static>(&data_)) {
+    static_credits->proxy_max =
+        std::min(controller_max, static_credits->to_reserve);
+    const uint16_t host_max = controller_max - static_credits->proxy_max;
 
-  if (proxy_max_ < to_reserve_) {
-    PW_LOG_ERROR(
-        "Only was able to reserve %d acl data credits rather than the "
-        "configured %d from the controller provided's data credits of %d. ",
-        proxy_max_,
-        to_reserve_,
+    PW_LOG_INFO(
+        "Bluetooth Proxy reserved %d ACL data credits. Passed %d on to host.",
+        static_credits->proxy_max,
+        host_max);
+
+    if (static_credits->proxy_max < static_credits->to_reserve) {
+      PW_LOG_ERROR(
+          "Only was able to reserve %d acl data credits rather than the "
+          "configured %d from the controller provided's data credits of %d. ",
+          static_credits->proxy_max,
+          static_credits->to_reserve,
+          controller_max);
+    }
+
+    return host_max;
+  }
+
+  if (std::holds_alternative<Dynamic>(data_)) {
+    // Dynamic sharing
+    PW_LOG_INFO(
+        "Bluetooth Proxy reserved 0 ACL data credits. Passed %d on to host.",
         controller_max);
   }
 
-  return host_max;
+  return controller_max;
 }
 
-Status AclDataChannel::Credits::MarkPending(uint16_t num_credits) {
+Status AclDataChannel::Credits::MarkPending(uint16_t num_credits,
+                                            PacketSource source) {
   if (num_credits > Available()) {
     return Status::ResourceExhausted();
   }
 
-  proxy_pending_ += num_credits;
+  pending_ += num_credits;
+
+  if (auto* dynamic = std::get_if<Dynamic>(&data_)) {
+    dynamic->drain_turn = (source == PacketSource::kProxy)
+                              ? PacketSource::kHost
+                              : PacketSource::kProxy;
+  }
 
   return OkStatus();
 }
 
 void AclDataChannel::Credits::MarkCompleted(uint16_t num_credits) {
-  if (num_credits > proxy_pending_) {
+  if (num_credits > pending_) {
     PW_LOG_ERROR("Tried to mark completed more packets than were pending.");
-    proxy_pending_ = 0;
+    pending_ = 0;
   } else {
-    proxy_pending_ -= num_credits;
+    pending_ -= num_credits;
   }
 }
 
@@ -305,7 +391,8 @@ void AclDataChannel::HandleNumberOfCompletedPacketsEvent(
   }
 
   bool should_send_to_host = false;
-  bool did_reclaim_credits = false;
+  bool credits_reclaimed = false;
+  bool static_proxy_credits_reclaimed = false;
   {
     std::lock_guard lock(connection_mutex_);
     for (uint8_t i = 0; i < nocp_event->num_handles().Read(); ++i) {
@@ -316,6 +403,8 @@ void AclDataChannel::HandleNumberOfCompletedPacketsEvent(
       if (num_completed_packets == 0) {
         continue;
       }
+
+      credits_reclaimed = true;
 
       AclConnection* connection_ptr = FindAclConnection(handle);
       if (!connection_ptr) {
@@ -338,14 +427,21 @@ void AclDataChannel::HandleNumberOfCompletedPacketsEvent(
       }
 
       if (proxy_reclaimed > 0) {
-        did_reclaim_credits = true;
         std::lock_guard credit_lock(credit_mutex_);
-        LookupCredits(connection_ptr->transport())
-            .MarkCompleted(proxy_reclaimed);
+        Credits& credits = LookupCredits(connection_ptr->transport());
+        credits.MarkCompleted(proxy_reclaimed);
+        if (!credits.dynamic_sharing()) {
+          static_proxy_credits_reclaimed = true;
+        }
       }
 
       nocp_event->nocp_data()[i].num_completed_packets().Write(host_reclaimed);
       if (host_reclaimed > 0) {
+        std::lock_guard credit_lock(credit_mutex_);
+        Credits& credits = LookupCredits(connection_ptr->transport());
+        if (credits.dynamic_sharing()) {
+          credits.MarkCompleted(host_reclaimed);
+        }
         // Connection has credits remaining for host, so should pass event on to
         // host.
         should_send_to_host = true;
@@ -353,11 +449,63 @@ void AclDataChannel::HandleNumberOfCompletedPacketsEvent(
     }
   }
 
-  if (did_reclaim_credits) {
+  if (static_proxy_credits_reclaimed) {
     on_tx_credits_fn_();
   }
+
+  if (credits_reclaimed) {
+    for (auto transport : {AclTransportType::kLe, AclTransportType::kBrEdr}) {
+      DrainDynamicQuota(transport);
+    }
+  }
+
   if (should_send_to_host) {
     hci_transport_.SendToHost(std::move(h4_packet));
+  }
+}
+
+void AclDataChannel::DrainDynamicQuota(AclTransportType transport) {
+  std::lock_guard drain_lock(draining_mutex_);
+
+  bool proxy_tried_and_empty = false;
+  bool host_tried_and_empty = false;
+  bool should_run_proxy_turn = false;
+
+  while (true) {
+    std::optional<H4PacketWithH4> packet_to_send;
+    {
+      std::lock_guard lock(connection_mutex_);
+      std::lock_guard credit_lock(credit_mutex_);
+      Credits& credits = LookupCredits(transport);
+
+      if (!credits.dynamic_sharing() || !credits.Available() ||
+          (proxy_tried_and_empty && host_tried_and_empty)) {
+        break;
+      }
+
+      if (credits.drain_turn() == PacketSource::kProxy) {
+        should_run_proxy_turn = true;
+        proxy_tried_and_empty = true;
+        credits.PassTurn();
+      } else {
+        AclConnection* connection_to_drain = FindConnectionToDrain(transport);
+        if (connection_to_drain) {
+          packet_to_send = DequeueHostPacket(connection_to_drain, credits);
+          host_tried_and_empty = false;
+          proxy_tried_and_empty = false;
+        } else {
+          host_tried_and_empty = true;
+          credits.PassTurn();
+        }
+      }
+    }
+
+    if (packet_to_send.has_value()) {
+      hci_transport_.SendToController(std::move(packet_to_send.value()));
+    }
+  }
+  if (should_run_proxy_turn) {
+    on_tx_credits_fn_();
   }
 }
 
@@ -373,32 +521,52 @@ void AclDataChannel::HandleConnectionCompleteEvent(uint16_t connection_handle,
 
 void AclDataChannel::ProcessDisconnectionCompleteEvent(
     uint16_t connection_handle, emboss::StatusCode reason) {
-  std::lock_guard lock(connection_mutex_);
+  pw::DynamicQueue<H4PacketWithH4> packets_to_drop(allocator_);
+  {
+    std::lock_guard lock(connection_mutex_);
 
-  AclConnection* connection_ptr = FindAclConnection(connection_handle);
-  if (!connection_ptr) {
-    PW_LOG_INFO(
-        "btproxy: Viewed disconnect (reason: %#.2hhx) for unacquired "
-        "connection %#x.",
-        cpp23::to_underlying(reason),
-        connection_handle);
-    return;
+    AclConnection* connection_ptr = FindAclConnection(connection_handle);
+    if (!connection_ptr) {
+      PW_LOG_INFO(
+          "btproxy: Viewed disconnect (reason: %#.2hhx) for unacquired "
+          "connection %#x.",
+          cpp23::to_underlying(reason),
+          connection_handle);
+      return;
+    }
+    PW_LOG_INFO("Proxy viewed disconnect (reason: %#.2hhx) for connection %#x.",
+                cpp23::to_underlying(reason),
+                connection_handle);
+
+    if (connection_ptr->num_proxy_pending_packets() > 0 ||
+        connection_ptr->num_host_pending_packets() > 0) {
+      PW_LOG_WARN(
+          "Connection %#x is disconnecting with packets in flight. Releasing "
+          "associated credits.",
+          connection_handle);
+      std::lock_guard credit_lock(credit_mutex_);
+      LookupCredits(connection_ptr->transport())
+          .MarkCompleted(connection_ptr->num_proxy_pending_packets());
+      LookupCredits(connection_ptr->transport())
+          .MarkCompleted(connection_ptr->num_host_pending_packets());
+    }
+
+    {
+      std::lock_guard credit_lock(credit_mutex_);
+      Credits& credits = LookupCredits(connection_ptr->transport());
+      if (credits.dynamic_sharing()) {
+        credits.DecrementTotalQueuedPackets(connection_ptr->queue().size());
+      }
+    }
+
+    packets_to_drop.swap(connection_ptr->queue());
+
+    acl_connections_.erase(connection_ptr);
   }
-  PW_LOG_INFO("Proxy viewed disconnect (reason: %#.2hhx) for connection %#x.",
-              cpp23::to_underlying(reason),
-              connection_handle);
 
-  if (connection_ptr->num_proxy_pending_packets() > 0) {
-    PW_LOG_WARN(
-        "Connection %#x is disconnecting with packets in flight. Releasing "
-        "associated credits.",
-        connection_handle);
-    std::lock_guard credit_lock(credit_mutex_);
-    LookupCredits(connection_ptr->transport())
-        .MarkCompleted(connection_ptr->num_proxy_pending_packets());
-  }
-
-  acl_connections_.erase(connection_ptr);
+  // Important to drop outside of connection lock since freeing packets will
+  // result in calls into proxy again.
+  packets_to_drop.clear();
 }
 
 bool AclDataChannel::HasSendAclCapability(AclTransportType transport) const {
@@ -415,10 +583,23 @@ uint16_t AclDataChannel::GetNumFreeAclPackets(
 std::optional<AclDataChannel::SendCredit> AclDataChannel::ReserveSendCredit(
     AclTransportType transport) {
   std::lock_guard lock(credit_mutex_);
-  if (const auto status = LookupCredits(transport).MarkPending(1);
+  Credits& credits = LookupCredits(transport);
+
+  // In dynamic sharing mode, if it is the host's turn to drain and the host has
+  // packets queued, the proxy must yield. This prevents the proxy from greedily
+  // consuming all available credits during its `on_tx_credits_fn_` callback
+  // when it is supposed to alternate with the host queue.
+  if (credits.dynamic_sharing() &&
+      credits.drain_turn() == PacketSource::kHost &&
+      credits.total_queued_packets() > 0) {
+    return std::nullopt;
+  }
+
+  if (const auto status = credits.MarkPending(1, PacketSource::kProxy);
       !status.ok()) {
     return std::nullopt;
   }
+
   return SendCredit(transport, [this](AclTransportType t) {
     std::lock_guard fn_lock(credit_mutex_);
     LookupCredits(t).MarkCompleted(1);
@@ -446,6 +627,7 @@ pw::Status AclDataChannel::SendAcl(H4PacketWithH4&& h4_packet,
     PW_LOG_WARN("Provided credit for wrong transport. So will not send.");
     return pw::Status::InvalidArgument();
   }
+
   credit.MarkUsed();
 
   connection_ptr->RecordPacket(PacketSource::kProxy);
@@ -469,10 +651,48 @@ Status AclDataChannel::CreateAclConnection(uint16_t connection_handle,
     return Status::ResourceExhausted();
   }
 
+  uint16_t max_packets = 0;
+  {
+    std::lock_guard credit_lock(credit_mutex_);
+    max_packets = LookupCredits(transport).controller_max_packets();
+  }
+
   acl_connections_.emplace_back(transport,
-                                /*connection_handle=*/connection_handle);
+                                /*connection_handle=*/connection_handle,
+                                allocator_);
+
+  if (max_packets > 0) {
+    if (!acl_connections_.back().queue().try_reserve(max_packets)) {
+      PW_LOG_ERROR("Failed to reserve capacity for ACL connection %#x queue.",
+                   connection_handle);
+    }
+  }
 
   return OkStatus();
+}
+
+AclDataChannel::AclConnection* AclDataChannel::FindConnectionToDrain(
+    AclTransportType transport) {
+  for (auto& connection : acl_connections_) {
+    if (connection.transport() == transport && !connection.queue().empty()) {
+      return &connection;
+    }
+  }
+  return nullptr;
+}
+
+std::optional<H4PacketWithH4> AclDataChannel::DequeueHostPacket(
+    AclConnection* connection, Credits& credits) {
+  if (connection->queue().empty()) {
+    return std::nullopt;
+  }
+  H4PacketWithH4 queued = std::move(connection->queue().front());
+  connection->queue().pop();
+  credits.DecrementTotalQueuedPackets(1);
+
+  credits.MarkPending(1, PacketSource::kHost).IgnoreError();
+  connection->RecordPacket(PacketSource::kHost);
+  return queued;
 }
 
 AclDataChannel::AclConnection* AclDataChannel::FindAclConnection(
@@ -539,14 +759,6 @@ bool AclDataChannel::HandleAclData(Direction direction,
     // We still return kHandled here since the last fragment packet was already
     // passed on to the host as part of the recombined H4 packet.
     return kHandled;
-  }
-
-  if (direction == Direction::kFromHost && !result.handled) {
-    std::lock_guard lock(connection_mutex_);
-    AclConnection* connection_ptr = FindAclConnection(handle);
-    if (connection_ptr) {
-      connection_ptr->RecordPacket(PacketSource::kHost);
-    }
   }
 
   return result.handled;

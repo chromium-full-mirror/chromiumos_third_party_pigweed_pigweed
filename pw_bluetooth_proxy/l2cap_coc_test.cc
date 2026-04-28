@@ -587,6 +587,12 @@ TEST_F(L2capCocWriteTest, MultithreadedWrite) {
       });
 
   allocator::test::AllocatorForTest<65536> allocator;
+  // Use libc allocators so msan can detect use after frees.
+  std::array<std::byte, 200 * 1024> packet_buffer{};
+  pw::multibuf::SimpleAllocator multibuf_allocator{
+      /*data_area=*/packet_buffer,
+      /*metadata_alloc=*/allocator::GetLibCAllocator()};
+
   ProxyHost proxy =
       ProxyHost(std::move(send_to_host_fn),
                 std::move(send_to_controller_fn),
@@ -602,12 +608,6 @@ TEST_F(L2capCocWriteTest, MultithreadedWrite) {
   PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
       proxy, kConnectionHandle, emboss::StatusCode::SUCCESS));
   RunDispatcher();
-
-  // Use libc allocators so msan can detect use after frees.
-  std::array<std::byte, 200 * 1024> packet_buffer{};
-  pw::multibuf::SimpleAllocator multibuf_allocator{
-      /*data_area=*/packet_buffer,
-      /*metadata_alloc=*/allocator::GetLibCAllocator()};
 
   struct ThreadCapture {
     L2capCoc channel;
@@ -1888,7 +1888,7 @@ TEST_F(L2capCocQueueTest, RemovingLrdChannelDoesNotInvalidateRoundRobin) {
 }
 
 TEST_F(L2capCocQueueTest, H4BufferReleaseTriggersQueueDrain) {
-  constexpr uint8_t kAclLeCredits = 255;
+  constexpr uint8_t kAclLeCredits = 20;
   struct {
     size_t sends_called = 0;
     pw::Vector<H4PacketWithH4, 50> packet_store;
@@ -2282,13 +2282,14 @@ TEST_F(L2capCocSegmentationTest, SduSentWhenSegmentedOverFullRangeOfMps) {
   auto* allocator = GetProxyHostAllocator();
   ProxyHost proxy = ProxyHost(std::move(send_to_host_fn),
                               std::move(send_to_controller_fn),
-                              /*le_acl_credits_to_reserve=*/UINT8_MAX,
+                              /*le_acl_credits_to_reserve=*/20,
                               /*br_edr_acl_credits_to_reserve=*/0,
                               allocator);
   StartDispatcherOnCurrentThread(proxy);
   PW_TEST_EXPECT_OK(SendLeReadBufferResponseFromController(
       proxy,
-      /*num_credits_to_reserve=*/UINT8_MAX,
+      /*num_credits_to_reserve=*/20,
+
       /*le_acl_data_packet_length=*/UINT16_MAX));
   PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
       proxy, kConnectionHandle, emboss::StatusCode::SUCCESS));
@@ -2304,7 +2305,7 @@ TEST_F(L2capCocSegmentationTest, SduSentWhenSegmentedOverFullRangeOfMps) {
                                  .remote_cid = capture.remote_cid,
                                  .tx_mtu = capture.expected_payload.size(),
                                  .tx_mps = capture.mps,
-                                 .tx_credits = UINT8_MAX});
+                                 .tx_credits = 20});
     auto mbuf_result =
         multibuf::FromSpan(*allocator,
                            as_writable_bytes(span(capture.expected_payload)),
@@ -2320,7 +2321,7 @@ TEST_F(L2capCocSegmentationTest, SduSentWhenSegmentedOverFullRangeOfMps) {
     PW_TEST_EXPECT_OK(SendNumberOfCompletedPackets(
         proxy,
         {{kConnectionHandle,
-          static_cast<uint8_t>(UINT8_MAX - proxy.GetNumFreeLeAclPackets())}}));
+          static_cast<uint8_t>(20 - proxy.GetNumFreeLeAclPackets())}}));
   }
 
   EXPECT_EQ(capture.sdus_received, sdus_sent);

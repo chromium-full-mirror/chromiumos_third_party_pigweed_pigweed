@@ -42,6 +42,7 @@
 #include "pw_log/log.h"
 #include "pw_multibuf/from_span.h"
 #include "pw_multibuf/multibuf.h"
+#include "pw_span/cast.h"
 #include "pw_span/span.h"
 #include "pw_status/status.h"
 #include "pw_sync/mutex.h"
@@ -2057,7 +2058,7 @@ TEST_F(ResetTest, HandleHciReset) {
 class MultiSendTest : public ProxyHostTest {};
 
 TEST_F(MultiSendTest, CanOccupyAllThenReuseEachBuffer) {
-  constexpr uint8_t kAclCredits = 255;
+  constexpr uint8_t kAclCredits = 20;
   struct {
     size_t sends_called = 0;
     // These are packets that have been sent towards controller, but not
@@ -2956,6 +2957,12 @@ TEST_F(BasicL2capChannelTest, MultithreadedWrite) {
       });
 
   allocator::test::AllocatorForTest<65536> allocator;
+  // Use libc allocators so msan can detect use after frees.
+  std::array<std::byte, 200 * 1024> packet_buffer{};
+  pw::multibuf::SimpleAllocator multibuf_allocator{
+      /*data_area=*/packet_buffer,
+      /*metadata_alloc=*/allocator::GetLibCAllocator()};
+
   ProxyHost proxy =
       ProxyHost(std::move(send_to_host_fn),
                 std::move(send_to_controller_fn),
@@ -2970,12 +2977,6 @@ TEST_F(BasicL2capChannelTest, MultithreadedWrite) {
       proxy, kNumThreads * kPacketsPerThread));
   PW_TEST_ASSERT_OK(SendLeConnectionCompleteEvent(
       proxy, capture.kTestHandle, emboss::StatusCode::SUCCESS));
-
-  // Use libc allocators so msan can detect use after frees.
-  std::array<std::byte, 200 * 1024> packet_buffer{};
-  pw::multibuf::SimpleAllocator multibuf_allocator{
-      /*data_area=*/packet_buffer,
-      /*metadata_alloc=*/allocator::GetLibCAllocator()};
 
   struct ThreadCapture {
     BasicL2capChannel channel;

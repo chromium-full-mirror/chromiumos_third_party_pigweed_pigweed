@@ -37,6 +37,7 @@ ProxyHost::ProxyHost(
       acl_data_channel_(hci_transport_,
                         le_acl_credits_to_reserve,
                         br_edr_acl_credits_to_reserve,
+                        *allocator,
                         /*on_tx_credits_fn=*/[this]() { OnAclTxCredits(); }),
       l2cap_channel_manager_(acl_data_channel_, *allocator) {
   PW_LOG_INFO(
@@ -44,6 +45,20 @@ ProxyHost::ProxyHost(
       "br_edr_acl_credits_to_reserve: %u",
       le_acl_credits_to_reserve,
       br_edr_acl_credits_to_reserve);
+}
+
+ProxyHost::ProxyHost(
+    pw::Function<void(H4PacketWithHci&& packet)>&& send_to_host_fn,
+    pw::Function<void(H4PacketWithH4&& packet)>&& send_to_controller_fn,
+    pw::Allocator& allocator)
+    : impl_(*this),
+      hci_transport_(std::move(send_to_host_fn),
+                     std::move(send_to_controller_fn)),
+      acl_data_channel_(hci_transport_,
+                        allocator,
+                        /*on_tx_credits_fn=*/[this]() { OnAclTxCredits(); }),
+      l2cap_channel_manager_(acl_data_channel_, allocator) {
+  PW_LOG_INFO("btproxy: ProxyHost ctor - Dynamic Credit Sharing");
 }
 
 ProxyHost::~ProxyHost() {
