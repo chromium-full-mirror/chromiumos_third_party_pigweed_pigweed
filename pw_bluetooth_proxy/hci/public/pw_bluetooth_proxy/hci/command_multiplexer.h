@@ -23,8 +23,8 @@
 #include "pw_bluetooth_proxy/hci/internal/type_safe_ids.h"
 #include "pw_chrono/system_clock.h"
 #include "pw_chrono/system_timer.h"
+#include "pw_containers/dynamic_hash_map.h"
 #include "pw_containers/dynamic_queue.h"
-#include "pw_containers/intrusive_map.h"
 #include "pw_function/function.h"
 #include "pw_multibuf/v2/multibuf.h"
 #include "pw_result/expected.h"
@@ -93,12 +93,12 @@ class CommandCompleteOpcode {
  public:
   pw::bluetooth::emboss::OpCode code;
 
-  bool operator<(Self right) const { return code < right.code; }
-  bool operator>(Self right) const { return code > right.code; }
-  bool operator<=(Self right) const { return code <= right.code; }
-  bool operator>=(Self right) const { return code >= right.code; }
   bool operator==(Self right) const { return code == right.code; }
   bool operator!=(Self right) const { return code != right.code; }
+
+  friend HashState PwHashValue(HashState&& h, const Self& v) {
+    return HashState::combine(std::move(h), v.code);
+  }
 };
 
 // The Opcode to intercept for Command Status events (event code 0x0F).
@@ -110,12 +110,12 @@ class CommandStatusOpcode {
  public:
   pw::bluetooth::emboss::OpCode code;
 
-  bool operator<(Self right) const { return code < right.code; }
-  bool operator>(Self right) const { return code > right.code; }
-  bool operator<=(Self right) const { return code <= right.code; }
-  bool operator>=(Self right) const { return code >= right.code; }
   bool operator==(Self right) const { return code == right.code; }
   bool operator!=(Self right) const { return code != right.code; }
+
+  friend HashState PwHashValue(HashState&& h, const Self& v) {
+    return HashState::combine(std::move(h), v.code);
+  }
 };
 
 class CommandMultiplexer final {
@@ -378,25 +378,14 @@ class CommandMultiplexer final {
   std::optional<InterceptorId> AllocateInterceptorId()
       PW_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
-  // Because we use intrusive maps, we need to have a small type hierarchy,
-  // wrapping the actual state inside a separate type to ensure the types are
-  // inheritance-independent for the maps. Fortunately we can keep all of this
-  // private, and the implementation details in the .cc file so the complexity
-  // doesn't leak into client code.
-  //
-  // Once `DynamicMap` is supported, most of the complexity here goes away.
-  class InterceptorStateWrapper;
-  class EventInterceptorState;
-  class EventInterceptorWrapper;
-  class CommandInterceptorState;
-  class CommandInterceptorWrapper;
-
+  using InterceptorKey =
+      std::variant<EventCodeVariant, pw::bluetooth::emboss::OpCode>;
   using InterceptorMap =
-      pw::IntrusiveMap<InterceptorId::ValueType, InterceptorStateWrapper>;
+      pw::DynamicHashMap<InterceptorId::ValueType, InterceptorKey>;
   using EventInterceptorMap =
-      pw::IntrusiveMap<EventCodeVariant, EventInterceptorState>;
+      pw::DynamicHashMap<EventCodeVariant, EventHandler>;
   using CommandInterceptorMap =
-      pw::IntrusiveMap<pw::bluetooth::emboss::OpCode, CommandInterceptorState>;
+      pw::DynamicHashMap<pw::bluetooth::emboss::OpCode, CommandHandler>;
 
   // A command injected by a call to SendCommand that has been queued and not
   // yet sent to the controller.
@@ -462,8 +451,6 @@ class CommandMultiplexer final {
       PW_EXCLUSIVE_LOCKS_REQUIRED(mutex_, command_interceptors_mutex_);
   void RemoveEventInterceptor(InterceptorId id)
       PW_EXCLUSIVE_LOCKS_REQUIRED(mutex_, event_interceptors_mutex_);
-  void DeleteInterceptor(InterceptorMap::iterator iterator)
-      PW_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
   void SendToHost(MultiBuf::Instance&& buf)
       PW_EXCLUSIVE_LOCKS_REQUIRED(mutex_, event_interceptors_mutex_);
   void SendToControllerOrQueue(

@@ -39,81 +39,6 @@ constexpr std::array<std::byte, 1> kH4EventHeader{
 
 }  // namespace
 
-class CommandMultiplexer::InterceptorStateWrapper
-    : public InterceptorMap::Pair {
- public:
-  virtual ~InterceptorStateWrapper() = default;
-  virtual std::variant<EventInterceptorWrapper*, CommandInterceptorWrapper*>
-  Downcast() = 0;
-
- protected:
-  InterceptorStateWrapper(InterceptorId::ValueType interceptor_id)
-      : InterceptorMap::Pair(interceptor_id) {}
-};
-
-class CommandMultiplexer::EventInterceptorState
-    : public EventInterceptorMap::Pair {
- public:
-  EventInterceptorState(EventCodeVariant key, EventHandler handler)
-      : EventInterceptorMap::Pair(key), handler_(std::move(handler)) {}
-  EventHandler& handler() { return handler_; }
-
- private:
-  EventHandler handler_;
-};
-
-class CommandMultiplexer::EventInterceptorWrapper
-    : public InterceptorStateWrapper {
- public:
-  EventInterceptorWrapper(InterceptorId::ValueType interceptor_id,
-                          EventCodeVariant key,
-                          EventHandler&& handler)
-      : InterceptorStateWrapper(interceptor_id),
-        wrapped_(key, std::move(handler)) {}
-
-  std::variant<EventInterceptorWrapper*, CommandInterceptorWrapper*> Downcast()
-      override {
-    return this;
-  }
-
-  EventInterceptorState& state() { return wrapped_; }
-
- private:
-  EventInterceptorState wrapped_;
-};
-
-class CommandMultiplexer::CommandInterceptorState
-    : public CommandInterceptorMap::Pair {
- public:
-  CommandInterceptorState(pw::bluetooth::emboss::OpCode op_code,
-                          CommandHandler&& handler)
-      : CommandInterceptorMap::Pair(op_code), handler_(std::move(handler)) {}
-  CommandHandler& handler() { return handler_; }
-
- private:
-  CommandHandler handler_;
-};
-
-class CommandMultiplexer::CommandInterceptorWrapper
-    : public InterceptorStateWrapper {
- public:
-  CommandInterceptorWrapper(InterceptorId::ValueType interceptor_id,
-                            pw::bluetooth::emboss::OpCode op_code,
-                            CommandHandler&& handler)
-      : InterceptorStateWrapper(interceptor_id),
-        wrapped_(op_code, std::move(handler)) {}
-
-  CommandInterceptorState& state() { return wrapped_; }
-
-  std::variant<EventInterceptorWrapper*, CommandInterceptorWrapper*> Downcast()
-      override {
-    return this;
-  }
-
- private:
-  CommandInterceptorState wrapped_;
-};
-
 CommandMultiplexer::CommandMultiplexer(
     Allocator& allocator,
     Function<void(MultiBuf::Instance&& h4_packet)>&& send_to_host_fn,
@@ -121,6 +46,9 @@ CommandMultiplexer::CommandMultiplexer(
     [[maybe_unused]] async2::TimeProvider<chrono::SystemClock>& time_provider,
     [[maybe_unused]] chrono::SystemClock::duration command_timeout)
     : allocator_(allocator),
+      interceptors_(allocator_),
+      event_interceptors_(allocator_),
+      command_interceptors_(allocator_),
       command_queue_(allocator),
       send_to_host_fn_(std::move(send_to_host_fn)),
       send_to_controller_fn_(std::move(send_to_controller_fn)) {}
@@ -132,6 +60,9 @@ CommandMultiplexer::CommandMultiplexer(
     [[maybe_unused]] Function<void()> timeout_fn,
     [[maybe_unused]] chrono::SystemClock::duration command_timeout)
     : allocator_(allocator),
+      interceptors_(allocator_),
+      event_interceptors_(allocator_),
+      command_interceptors_(allocator_),
       command_queue_(allocator),
       send_to_host_fn_(std::move(send_to_host_fn)),
       send_to_controller_fn_(std::move(send_to_controller_fn)) {}
@@ -199,7 +130,7 @@ void CommandMultiplexer::HandleH4FromHost(MultiBuf::Instance&& h4_packet) {
     return;
   }
 
-  auto& handler = iter->handler();
+  auto& handler = iter->second;
   if (!handler) {
     // Interceptor doesn't have a handler.
     std::lock_guard event_interceptors_lock(event_interceptors_mutex_);
@@ -272,7 +203,7 @@ void CommandMultiplexer::HandleH4FromController(
     return;
   }
 
-  auto& handler = iter->handler();
+  auto& handler = iter->second;
   if (!handler) {
     // Interceptor doesn't have a handler.
     std::lock_guard lock(mutex_);
@@ -400,7 +331,7 @@ Result<CommandInterceptor> CommandMultiplexer::RegisterCommandInterceptor(
     pw::bluetooth::emboss::OpCode op_code, CommandHandler&& handler) {
   std::lock_guard cmd_interceptors_lock(command_interceptors_mutex_);
   std::lock_guard lock(mutex_);
-  if (command_interceptors_.find(op_code) != command_interceptors_.end()) {
+  if (command_interceptors_.contains(op_code)) {
     return Status::AlreadyExists();
   }
 
@@ -410,15 +341,19 @@ Result<CommandInterceptor> CommandMultiplexer::RegisterCommandInterceptor(
     return Status::Unavailable();
   }
 
-  auto* interceptor = allocator_.New<CommandInterceptorWrapper>(
-      id->value(), op_code, std::move(handler));
-  if (!interceptor) {
+  auto cmd_result =
+      command_interceptors_.try_emplace(op_code, std::move(handler));
+  if (!cmd_result.has_value()) {
     // Exhausted allocator space.
     return Status::Unavailable();
   }
 
-  interceptors_.insert(*interceptor);
-  command_interceptors_.insert(interceptor->state());
+  auto interceptor_result =
+      interceptors_.try_emplace(id->value(), InterceptorKey{op_code});
+  if (!interceptor_result.has_value() || !interceptor_result->second) {
+    command_interceptors_.erase(cmd_result->first);
+    return Status::Unavailable();
+  }
 
   return CommandInterceptor(*this, std::move(*id));
 }
@@ -437,15 +372,15 @@ void CommandMultiplexer::UnregisterInterceptor(InterceptorId id) {
     PW_CHECK(iter != interceptors_.end());
 
     interceptor_type = std::visit(
-        [](const auto& interceptor) {
-          using T = std::remove_reference_t<decltype(*interceptor)>;
-          if (std::is_same_v<T, CommandInterceptorWrapper>) {
+        [](auto&& arg) {
+          using T = std::decay_t<decltype(arg)>;
+          if constexpr (std::is_same_v<T, pw::bluetooth::emboss::OpCode>) {
             return InterceptorType::kCommand;
-          } else if (std::is_same_v<T, EventInterceptorWrapper>) {
+          } else if constexpr (std::is_same_v<T, EventCodeVariant>) {
             return InterceptorType::kEvent;
           }
         },
-        iter->Downcast());
+        iter->second);
   }
 
   switch (interceptor_type) {
@@ -472,10 +407,10 @@ CommandMultiplexer::AllocateInterceptorId() {
   // Ignoring lock safety, the capability doesn't pass through MintId, but this
   // function is annotated with PW_EXCLUSIVE_LOCKS_REQUIRED(mutex_), so we
   // should always hold mutex_ here.
-  return id_mint_.MintId(
-      [&](InterceptorId::ValueType candidate) PW_NO_LOCK_SAFETY_ANALYSIS {
-        return interceptors_.find(candidate) != interceptors_.end();
-      });
+  return id_mint_.MintId([&](InterceptorId::ValueType candidate)
+                             PW_NO_LOCK_SAFETY_ANALYSIS {
+                               return interceptors_.contains(candidate);
+                             });
 }
 
 CommandMultiplexer::EventInterceptorMap::iterator
@@ -556,12 +491,6 @@ CommandMultiplexer::FindVendorDebug(ConstByteSpan span) {
   return event_interceptors_.find(VendorDebugSubEventCode{subevent_code});
 }
 
-void CommandMultiplexer::DeleteInterceptor(InterceptorMap::iterator iterator) {
-  auto& interceptor = *iterator;
-  interceptors_.erase(iterator);
-  allocator_.Delete(&interceptor);
-}
-
 void CommandMultiplexer::RemoveCommandInterceptor(InterceptorId id) {
   auto interceptors_iter = interceptors_.find(id.value());
 
@@ -569,14 +498,9 @@ void CommandMultiplexer::RemoveCommandInterceptor(InterceptorId id) {
   // would require forging or reusing an ID.
   PW_CHECK(interceptors_iter != interceptors_.end());
 
-  auto downcast = interceptors_iter->Downcast();
-  auto** cmd = std::get_if<CommandInterceptorWrapper*>(&downcast);
-
-  // Should be impossible with locking + type safety.
-  PW_CHECK(cmd);
-
-  command_interceptors_.erase((*cmd)->state().key());
-  DeleteInterceptor(interceptors_iter);
+  command_interceptors_.erase(
+      std::get<pw::bluetooth::emboss::OpCode>(interceptors_iter->second));
+  interceptors_.erase(interceptors_iter);
 }
 
 void CommandMultiplexer::RemoveEventInterceptor(InterceptorId id) {
@@ -586,14 +510,9 @@ void CommandMultiplexer::RemoveEventInterceptor(InterceptorId id) {
   // would require forging or reusing an ID.
   PW_CHECK(interceptors_iter != interceptors_.end());
 
-  auto downcast = interceptors_iter->Downcast();
-  auto** event = std::get_if<EventInterceptorWrapper*>(&downcast);
-
-  // Should be impossible with locking + type safety.
-  PW_CHECK(event);
-
-  event_interceptors_.erase((*event)->state().key());
-  DeleteInterceptor(interceptors_iter);
+  event_interceptors_.erase(
+      std::get<EventCodeVariant>(interceptors_iter->second));
+  interceptors_.erase(interceptors_iter);
 }
 
 void CommandMultiplexer::SendToHost(MultiBuf::Instance&& buf) {
@@ -783,7 +702,7 @@ Result<EventInterceptor> CommandMultiplexer::RegisterEventInterceptorLocked(
     }
   }
 
-  if (event_interceptors_.find(event_code) != event_interceptors_.end()) {
+  if (event_interceptors_.contains(event_code)) {
     return Status::AlreadyExists();
   }
 
@@ -793,15 +712,19 @@ Result<EventInterceptor> CommandMultiplexer::RegisterEventInterceptorLocked(
     return Status::Unavailable();
   }
 
-  auto* interceptor = allocator_.New<EventInterceptorWrapper>(
-      id->value(), event_code, std::move(handler));
-  if (!interceptor) {
+  auto evt_result =
+      event_interceptors_.try_emplace(event_code, std::move(handler));
+  if (!evt_result.has_value()) {
     // Exhausted allocator space.
     return Status::Unavailable();
   }
 
-  interceptors_.insert(*interceptor);
-  event_interceptors_.insert(interceptor->state());
+  auto interceptor_result =
+      interceptors_.try_emplace(id->value(), InterceptorKey{event_code});
+  if (!interceptor_result.has_value() || !interceptor_result->second) {
+    event_interceptors_.erase(evt_result->first);
+    return Status::Unavailable();
+  }
 
   return EventInterceptor(*this, std::move(*id));
 }

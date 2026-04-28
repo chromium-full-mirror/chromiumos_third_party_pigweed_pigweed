@@ -44,6 +44,7 @@ pw_add_library(pw_bluetooth_proxy.hci.command_multiplexer STATIC
     pw_bluetooth.emboss_hci_commands
     pw_bluetooth.emboss_hci_events
     pw_bluetooth.emboss_hci_h4
+    pw_containers.dynamic_hash_map
     pw_containers.flat_map
     pw_function
     pw_multibuf.v2.multibuf
