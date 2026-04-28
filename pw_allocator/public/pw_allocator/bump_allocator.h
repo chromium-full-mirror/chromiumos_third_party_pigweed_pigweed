@@ -111,7 +111,7 @@ class BumpAllocator : public pw::Allocator {
   template <typename T, int&... kExplicitGuard, typename... Args>
   [[nodiscard]] UniquePtr<T> MakeUniqueOwned(Args&&... args);
 
- private:
+ protected:
   /// @copydoc Allocator::Allocate
   void* DoAllocate(Layout layout) override;
 
@@ -121,6 +121,7 @@ class BumpAllocator : public pw::Allocator {
   /// @copydoc Allocator::GetAllocated
   size_t DoGetAllocated() const override { return allocated_; }
 
+ private:
   /// Frees any owned objects and discards remaining memory.
   void Reset();
 

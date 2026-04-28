@@ -34,12 +34,15 @@ class NullAllocator : public pw::Allocator {
 
   constexpr NullAllocator() : pw::Allocator(kCapabilities) {}
 
- private:
+ protected:
   /// @copydoc Allocator::Allocate
   void* DoAllocate(Layout) override { return nullptr; }
 
   /// @copydoc Allocator::Deallocate
   void DoDeallocate(void*) override {}
+
+  /// @copydoc Allocator::Resize
+  bool DoResize(void*, size_t) override { return false; }
 };
 
 /// Returns a reference to a NullAllocator singleton.

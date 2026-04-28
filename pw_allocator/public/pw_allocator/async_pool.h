@@ -36,13 +36,14 @@ class AsyncPool : public Pool {
   /// pool.
   async2::Poll<void*> PendAllocate(async2::Context& context);
 
- private:
+ protected:
   /// @copydoc Pool::Allocate
   void* DoAllocate() override;
 
   /// @copydoc Deallocator::Deallocate
   void DoDeallocate(void* ptr) override;
 
+ private:
   Pool& pool_;
   async2::Waker waker_;
 };

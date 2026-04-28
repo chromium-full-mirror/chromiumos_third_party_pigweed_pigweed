@@ -85,11 +85,6 @@ class GenericBuddyAllocator : public pw::Allocator {
   void Init(ByteSpan region);
 
  protected:
-  /// Ensures all allocations have been freed. Crashes with a diagnostic message
-  /// If any allocations remain outstanding.
-  void CrashIfAllocated();
-
- private:
   /// @copydoc Allocator::Allocate
   void* DoAllocate(Layout layout) override;
 
@@ -99,6 +94,11 @@ class GenericBuddyAllocator : public pw::Allocator {
   /// @copydoc Deallocator::GetInfo
   Result<Layout> DoGetInfo(InfoType info_type, const void* ptr) const override;
 
+  /// Ensures all allocations have been freed. Crashes with a diagnostic message
+  /// If any allocations remain outstanding.
+  void CrashIfAllocated();
+
+ private:
   span<UnorderedBucket<BuddyBlock>> buckets_;
   size_t min_outer_size_ = 0;
   ByteSpan region_;

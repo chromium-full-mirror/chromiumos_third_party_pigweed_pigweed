@@ -63,7 +63,7 @@ class SynchronizedAllocator : public pw::Allocator {
   /// @endcode
   Pointer Borrow() const { return borrowable_.acquire(); }
 
- private:
+ protected:
   /// @copydoc Allocator::Allocate
   void* DoAllocate(Layout layout) override {
     std::lock_guard lock(lock_);
@@ -105,6 +105,7 @@ class SynchronizedAllocator : public pw::Allocator {
     return GetInfo(allocator_, info_type, ptr);
   }
 
+ private:
   Allocator& allocator_ PW_GUARDED_BY(lock_);
   mutable LockType lock_;
   sync::Borrowable<Allocator, LockType> borrowable_;

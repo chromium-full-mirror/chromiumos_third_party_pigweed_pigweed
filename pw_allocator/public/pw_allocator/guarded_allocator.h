@@ -146,7 +146,7 @@ class GuardedAllocator : public internal::GenericGuardedAllocator {
   /// suffix.
   void* ValidateAll();
 
- private:
+ protected:
   /// @copydoc Allocator::Allocate
   void* DoAllocate(Layout layout) override;
 
@@ -159,6 +159,7 @@ class GuardedAllocator : public internal::GenericGuardedAllocator {
   /// @copydoc Deallocator::GetInfo
   Result<Layout> DoGetInfo(InfoType info_type, const void* ptr) const override;
 
+ private:
   LockType lock_;
   sync::Borrowable<BlockAllocatorType, LockType> borrowable_;
 

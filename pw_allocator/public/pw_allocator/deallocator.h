@@ -291,17 +291,17 @@ class Deallocator {
     return deallocator.Recognizes(ptr);
   }
 
- private:
-  /// Virtual `Deallocate` function implemented by derived classes.
-  ///
-  /// @param[in]  ptr           Pointer to memory, guaranteed to not be null.
+  /// @copydoc Deallocator::Deallocate
   virtual void DoDeallocate([[maybe_unused]] void* ptr) = 0;
 
-  /// Virtual `GetInfo` function that can be overridden by derived classes.
+  /// @copydoc Deallocator::GetInfo
+  ///
+  /// The default implementation simply returns UNIMPLEMENTED.
   virtual Result<Layout> DoGetInfo(InfoType, const void*) const {
     return Status::Unimplemented();
   }
 
+ private:
   const Capabilities capabilities_;
 };
 

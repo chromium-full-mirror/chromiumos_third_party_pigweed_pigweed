@@ -146,8 +146,23 @@ class BlockAllocator : public internal::GenericBlockAllocator {
  protected:
   constexpr explicit BlockAllocator() : Base(kCapabilities) {}
 
+  /// @copydoc Allocator::Allocate
+  void* DoAllocate(Layout layout) override;
+
+  /// @copydoc Allocator::Deallocate
+  void DoDeallocate(void* ptr) override;
+
+  /// @copydoc Allocator::Resize
+  bool DoResize(void* ptr, size_t new_size) override;
+
+  /// @copydoc Allocator::GetAllocated
+  size_t DoGetAllocated() const override { return allocated_; }
+
   /// @copydoc Allocator::DoMeasureFragmentation
   std::optional<Fragmentation> DoMeasureFragmentation() const override;
+
+  /// @copydoc Deallocator::GetInfo
+  Result<Layout> DoGetInfo(InfoType info_type, const void* ptr) const override;
 
   /// Sets the blocks to be used by this allocator.
   ///
@@ -185,21 +200,6 @@ class BlockAllocator : public internal::GenericBlockAllocator {
   // Let unit tests call internal methods in order to "preallocate" blocks..
   template <typename, size_t>
   friend class test::BlockAllocatorTest;
-
-  /// @copydoc Allocator::Allocate
-  void* DoAllocate(Layout layout) override;
-
-  /// @copydoc Allocator::Deallocate
-  void DoDeallocate(void* ptr) override;
-
-  /// @copydoc Allocator::Resize
-  bool DoResize(void* ptr, size_t new_size) override;
-
-  /// @copydoc Allocator::GetAllocated
-  size_t DoGetAllocated() const override { return allocated_; }
-
-  /// @copydoc Deallocator::GetInfo
-  Result<Layout> DoGetInfo(InfoType info_type, const void* ptr) const override;
 
   /// @copydoc BlockAllocator::GetMaxAllocatable
   virtual size_t DoGetMaxAllocatable() = 0;

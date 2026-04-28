@@ -288,7 +288,7 @@ cc_library(
     srcs = ["libc_allocator.cc"],
     hdrs = ["public/pw_allocator/libc_allocator.h"],
     strip_include_prefix = "public",
-    deps = [":pw_allocator"],
+    deps = [":null_allocator"],
 )
 
 cc_library(

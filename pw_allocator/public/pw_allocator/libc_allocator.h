@@ -15,8 +15,7 @@
 
 #include <cstddef>
 
-#include "pw_allocator/allocator.h"
-#include "pw_allocator/capability.h"
+#include "pw_allocator/null_allocator.h"
 
 namespace pw::allocator {
 
@@ -28,9 +27,7 @@ namespace pw::allocator {
 /// `std::align_max_t`.
 class LibCAllocator final : public pw::Allocator {
  public:
-  static constexpr Capabilities kCapabilities = 0;
-
-  constexpr LibCAllocator() : pw::Allocator(kCapabilities) {}
+  constexpr LibCAllocator() = default;
 
  private:
   /// @copydoc Allocator::Allocate
@@ -42,7 +39,6 @@ class LibCAllocator final : public pw::Allocator {
   /// @copydoc Allocator::Reallocate
   void* DoReallocate(void* ptr, Layout new_layout) override;
 
- private:
   static LibCAllocator kSingleton;
 };
 

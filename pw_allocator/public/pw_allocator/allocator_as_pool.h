@@ -32,7 +32,7 @@ class AllocatorAsPool : public Pool {
   ///                     from this pool.
   AllocatorAsPool(pw::Allocator& allocator, const Layout& layout);
 
- private:
+ protected:
   /// @copydoc Pool::Allocate
   void* DoAllocate() override;
 
@@ -42,6 +42,7 @@ class AllocatorAsPool : public Pool {
   /// @copydoc Deallocator::GetInfo
   Result<Layout> DoGetInfo(InfoType info_type, const void* ptr) const override;
 
+ private:
   pw::Allocator& allocator_;
 };
 

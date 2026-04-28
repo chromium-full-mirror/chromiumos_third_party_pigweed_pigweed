@@ -288,8 +288,29 @@ class Allocator : public Deallocator {
   explicit constexpr Allocator(const Capabilities& capabilities)
       : Deallocator(Capability::kCanAllocateArbitraryLayout | capabilities) {}
 
-  /// Virtual `MeasureFragmentation` function that can be overridden by derived
-  /// classes.
+  /// @copydoc Allocator::Allocate
+  virtual void* DoAllocate(Layout layout) = 0;
+
+  /// @copydoc Allocator::Resize
+  virtual bool DoResize([[maybe_unused]] void* ptr,
+                        [[maybe_unused]] size_t new_size) {
+    return false;
+  }
+
+  /// @copydoc Allocator::Reallocate
+  ///
+  /// The default implementation will first try to `Resize` the data. If that is
+  /// unsuccessful, it will allocate an entirely new block, copy existing data,
+  /// and deallocate the given block.
+  virtual void* DoReallocate(void* ptr, Layout new_layout);
+
+  /// @copydoc Allocator::GetAllocated
+  ///
+  /// The default implementation simply returns `size_t(-1)`, indicating that
+  /// tracking total allocated bytes is not supported.
+  virtual size_t DoGetAllocated() const { return size_t(-1); }
+
+  /// @copydoc Allocator::MeasureFragmentation
   ///
   /// The default implementation simply returns `std::nullopt`, indicating that
   /// tracking memory fragmentation is not supported.
@@ -298,41 +319,6 @@ class Allocator : public Deallocator {
   }
 
  private:
-  /// Virtual `Allocate` function implemented by derived classes.
-  ///
-  /// @param[in]  layout        Describes the memory to be allocated. Guaranteed
-  ///                           to have a non-zero size.
-  virtual void* DoAllocate(Layout layout) = 0;
-
-  /// Virtual `Resize` function implemented by derived classes.
-  ///
-  /// The default implementation simply returns `false`, indicating that
-  /// resizing is not supported.
-  ///
-  /// @param[in]  ptr           Pointer to memory, guaranteed to not be null.
-  /// @param[in]  new_size      Requested size, guaranteed to be non-zero..
-  virtual bool DoResize([[maybe_unused]] void* ptr,
-                        [[maybe_unused]] size_t new_size) {
-    return false;
-  }
-
-  /// Virtual `Reallocate` function that can be overridden by derived classes.
-  ///
-  /// The default implementation will first try to `Resize` the data. If that is
-  /// unsuccessful, it will allocate an entirely new block, copy existing data,
-  /// and deallocate the given block.
-  ///
-  /// @param[in]  ptr           Pointer to memory, guaranteed to not be null.
-  /// @param[in]  new_layout    Describes the memory to be allocated. Guaranteed
-  ///                           to have a non-zero size.
-  virtual void* DoReallocate(void* ptr, Layout new_layout);
-
-  /// Virtual `GetAllocated` function that can be overridden by derived classes.
-  ///
-  /// The default implementation simply returns `size_t(-1)`, indicating that
-  /// tracking total allocated bytes is not supported.
-  virtual size_t DoGetAllocated() const { return size_t(-1); }
-
   // Helper method for allocating arrays of objects.
   template <typename ElementType>
   ElementType* NewArrayImpl(size_t count, size_t alignment) {

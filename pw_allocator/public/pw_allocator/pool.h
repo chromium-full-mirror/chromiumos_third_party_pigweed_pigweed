@@ -96,10 +96,10 @@ class Pool : public Deallocator {
   constexpr Pool(const Capabilities& capabilities, const Layout& layout)
       : Deallocator(capabilities), layout_(layout) {}
 
- private:
-  /// Virtual `Allocate` function that can be overridden by derived classes.
+  /// @copydoc Pool::Allocate
   virtual void* DoAllocate() = 0;
 
+ private:
   // Helper to create arrays.
   template <typename ElementType>
   [[nodiscard]] ElementType* NewArray(size_t count);

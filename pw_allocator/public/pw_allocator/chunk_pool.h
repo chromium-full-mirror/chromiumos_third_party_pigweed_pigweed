@@ -46,7 +46,7 @@ class ChunkPool : public Pool {
   ///                     from this pool.
   ChunkPool(ByteSpan region, const Layout& layout);
 
- private:
+ protected:
   /// @copydoc Pool::Allocate
   void* DoAllocate() override;
 
@@ -56,6 +56,7 @@ class ChunkPool : public Pool {
   /// @copydoc Deallocator::GetInfo
   Result<Layout> DoGetInfo(InfoType info_type, const void* ptr) const override;
 
+ private:
   const Layout allocated_layout_;
   uintptr_t start_;
   uintptr_t end_;

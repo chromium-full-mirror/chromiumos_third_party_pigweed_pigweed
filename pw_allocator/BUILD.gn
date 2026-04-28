@@ -279,7 +279,7 @@ pw_source_set("hardening") {
 pw_source_set("libc_allocator") {
   public_configs = [ ":public_include_path" ]
   public = [ "public/pw_allocator/libc_allocator.h" ]
-  public_deps = [ ":pw_allocator" ]
+  public_deps = [ ":null_allocator" ]
   sources = [ "libc_allocator.cc" ]
 }
 

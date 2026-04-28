@@ -293,7 +293,7 @@ pw_add_library(pw_allocator.libc_allocator STATIC
   PUBLIC_INCLUDES
     public
   PUBLIC_DEPS
-    pw_allocator
+    pw_allocator.null_allocator
 )
 
 pw_add_library(pw_allocator.freertos_allocator STATIC

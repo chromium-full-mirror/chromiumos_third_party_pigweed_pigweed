@@ -66,7 +66,7 @@ class FaultInjectingAllocator : public pw::Allocator {
   /// Returns a reference to the wrapped allocator.
   Allocator& real_allocator() { return allocator_; }
 
- private:
+ protected:
   void* DoAllocate(Layout layout) override {
     return allow_allocate_ ? allocator_.Allocate(layout) : nullptr;
   }
@@ -80,6 +80,7 @@ class FaultInjectingAllocator : public pw::Allocator {
     return allow_reallocate_ ? allocator_.Reallocate(ptr, new_layout) : nullptr;
   }
 
+ private:
   Allocator& allocator_;
 
   // Flags for whether to allow calls to pass through.

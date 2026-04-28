@@ -36,7 +36,7 @@ class FallbackAllocator : public pw::Allocator {
   /// @param[in]  secondary   Allocator tried if `primary` fails a request.
   FallbackAllocator(pw::Allocator& primary, pw::Allocator& secondary);
 
- private:
+ protected:
   /// @copydoc Allocator::Allocate
   void* DoAllocate(Layout layout) override;
 
@@ -49,12 +49,11 @@ class FallbackAllocator : public pw::Allocator {
   /// @copydoc Allocator::GetAllocated
   size_t DoGetAllocated() const override;
 
-  /// @copydoc Deallocator::GetInfo
-  Result<Layout> DoGetInfo(InfoType info_type, const void* ptr) const override;
-
- protected:
   /// @copydoc Allocator::DoMeasureFragmentation
   std::optional<Fragmentation> DoMeasureFragmentation() const override;
+
+  /// @copydoc Deallocator::GetInfo
+  Result<Layout> DoGetInfo(InfoType info_type, const void* ptr) const override;
 
  private:
   pw::Allocator& primary_;
