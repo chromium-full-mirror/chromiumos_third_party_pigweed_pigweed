@@ -281,6 +281,13 @@ import %workspace%/pw_kernel/kernel.bazelrc
 build:ide --aspects=//pw_ide/bazel/compile_commands:pw_cc_compile_commands_aspect.bzl%pw_cc_compile_commands_aspect
 build:ide --output_groups=+pw_cc_compile_commands_fragments
 
+# Pull python packages from AirLock rather than pypi.org
+# This is required on machines which are enrolled in go/corp-airlock
+# Users in other regions can override this value with a closer
+# repository - go/airlock-repositories
+common:airlock --action_env=PIGWEED_PIP_INDEX_URL=https://us-python.pkg.dev/artifact-foundry-prod/python-3p-trusted/simple
+common:airlock --credential_helper=*.pkg.dev=%workspace%/pw_build/cred_helper.sh
+
 # User bazelrc file
 # =================
 # See https://bazel.build/configure/best-practices#bazelrc-file
