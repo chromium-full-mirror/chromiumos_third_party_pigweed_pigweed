@@ -13,7 +13,7 @@
 // the License.
 #pragma once
 
-#include "pw_allocator/allocator.h"
+#include "pw_allocator/abstract_allocator.h"
 #include "pw_allocator/capability.h"
 
 namespace pw::allocator {
@@ -21,10 +21,11 @@ namespace pw::allocator {
 /// @submodule{pw_allocator,concrete}
 
 /// Memory allocator that uses FreeRTOS memory management.
-class FreeRtosAllocator final : public pw::Allocator {
+class FreeRtosAllocator final : public AbstractAllocator {
  public:
   static constexpr Capabilities kCapabilities = 0;
-  constexpr FreeRtosAllocator() : Allocator(kCapabilities) {}
+
+  constexpr FreeRtosAllocator() : AbstractAllocator(kCapabilities) {}
 
  private:
   /// @copydoc Allocator::Allocate

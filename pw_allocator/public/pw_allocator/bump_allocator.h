@@ -15,7 +15,7 @@
 
 #include <cstddef>
 
-#include "pw_allocator/allocator.h"
+#include "pw_allocator/abstract_allocator.h"
 #include "pw_allocator/capability.h"
 #include "pw_bytes/span.h"
 
@@ -70,12 +70,12 @@ class Owned : public GenericOwned {
 /// `MakeUnique` are NOT called. To have these destructors invoked, you can
 /// allocate "owned" objects using `NewOwned` and `MakeUniqueOwned`. This adds a
 /// small amount of overhead to the allocation.
-class BumpAllocator : public pw::Allocator {
+class BumpAllocator : public AbstractAllocator {
  public:
   static constexpr Capabilities kCapabilities = kSkipsDestroy;
 
   /// Constructs a BumpAllocator without initializing it.
-  constexpr BumpAllocator() : pw::Allocator(kCapabilities) {}
+  constexpr BumpAllocator() : AbstractAllocator(kCapabilities) {}
 
   /// Constructs a BumpAllocator and initializes it.
   explicit BumpAllocator(ByteSpan region) : BumpAllocator() { Init(region); }
@@ -115,7 +115,7 @@ class BumpAllocator : public pw::Allocator {
   /// @copydoc Allocator::Allocate
   void* DoAllocate(Layout layout) override;
 
-  /// @copydoc Allocator::Deallocate
+  /// @copydoc Deallocator::Deallocate
   void DoDeallocate(void*) override;
 
   /// @copydoc Allocator::GetAllocated

@@ -16,7 +16,7 @@
 #include <array>
 #include <cstddef>
 
-#include "pw_allocator/allocator.h"
+#include "pw_allocator/abstract_allocator.h"
 #include "pw_allocator/block/basic.h"
 #include "pw_allocator/bucket/unordered.h"
 #include "pw_bytes/span.h"
@@ -65,7 +65,7 @@ class BuddyBlock : public BasicBlock<BuddyBlock> {
 ///
 /// Compared to `BuddyAllocator`, this implementation is size-agnostic with
 /// respect to the number of buckets.
-class GenericBuddyAllocator : public pw::Allocator {
+class GenericBuddyAllocator : public AbstractAllocator {
  public:
   static constexpr Capabilities kCapabilities =
       kImplementsGetUsableLayout | kImplementsGetAllocatedLayout |
@@ -85,6 +85,8 @@ class GenericBuddyAllocator : public pw::Allocator {
   void Init(ByteSpan region);
 
  protected:
+  constexpr GenericBuddyAllocator() : AbstractAllocator(kCapabilities) {}
+
   /// @copydoc Allocator::Allocate
   void* DoAllocate(Layout layout) override;
 

@@ -317,15 +317,14 @@ log whenever a threshold is exceeded:
    :linenos:
    :start-after: [pw_allocator-examples-custom_allocator]
 
-There are also several optional methods you can provide:
+Most other pure virtual methods, such as `DoResize`, can either be satisfied by
+either implementing them directly or inheriting them from a base class. The
+:cc:`AbstractAllocator <pw::allocator::AbstractAllocator>` type provides default
+implementations for concrete allocators.
 
-- If an implementation of ``DoResize`` isn't provided, then ``Resize`` will
-  always return false.
-- If an implementation of ``DoReallocate`` isn't provided, then ``Reallocate``
-  will try to ``Resize``, and, if unsuccessful, try to ``Allocate``, copy, and
-  ``Deallocate``.
-- If an implementation of ``DoGetInfo`` isn't provided, then ``GetInfo``
-  will always return ``pw::Status::Unimplemented``.
+A notable exception to the above is `DoReallocate`, which unless overridden will
+try to ``Resize``, and, if unsuccessful, try to ``Allocate``, copy, and
+``Deallocate``.
 
 Custom allocators can indicate which optional methods they implement and what
 optional behaviors they want from the base class by specifying

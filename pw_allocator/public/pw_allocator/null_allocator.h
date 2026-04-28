@@ -15,7 +15,7 @@
 
 #include <cstddef>
 
-#include "pw_allocator/allocator.h"
+#include "pw_allocator/abstract_allocator.h"
 #include "pw_allocator/capability.h"
 
 namespace pw::allocator {
@@ -28,11 +28,11 @@ namespace pw::allocator {
 /// should be disallowed under certain circumstances. For example, a function
 /// that returns different allocators based on an input parameter may return a
 /// null allocator when given an invalid or unsupported parameter value.
-class NullAllocator : public pw::Allocator {
+class NullAllocator final : public AbstractAllocator {
  public:
   static constexpr Capabilities kCapabilities = 0;
 
-  constexpr NullAllocator() : pw::Allocator(kCapabilities) {}
+  constexpr NullAllocator() : AbstractAllocator(kCapabilities) {}
 
  protected:
   /// @copydoc Allocator::Allocate
@@ -40,9 +40,6 @@ class NullAllocator : public pw::Allocator {
 
   /// @copydoc Allocator::Deallocate
   void DoDeallocate(void*) override {}
-
-  /// @copydoc Allocator::Resize
-  bool DoResize(void*, size_t) override { return false; }
 };
 
 /// Returns a reference to a NullAllocator singleton.

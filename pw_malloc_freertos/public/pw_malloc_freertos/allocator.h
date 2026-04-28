@@ -13,13 +13,16 @@
 // the License.
 #pragma once
 
-#include "pw_allocator/allocator.h"
+#include "pw_allocator/abstract_allocator.h"
 
 namespace pw::malloc::freertos {
 
 /// An allocator that uses FreeRTOS memory management functions to de/allocate
 /// memory.
-class Allocator : public ::pw::Allocator {
+class Allocator : public allocator::AbstractAllocator {
+ public:
+  constexpr Allocator() noexcept : allocator::AbstractAllocator(0) {}
+
  private:
   void* DoAllocate(Layout layout) override;
   void DoDeallocate(void*) override;

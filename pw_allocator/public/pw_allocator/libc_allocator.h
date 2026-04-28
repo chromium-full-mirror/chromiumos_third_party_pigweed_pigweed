@@ -15,7 +15,8 @@
 
 #include <cstddef>
 
-#include "pw_allocator/null_allocator.h"
+#include "pw_allocator/abstract_allocator.h"
+#include "pw_allocator/capability.h"
 
 namespace pw::allocator {
 
@@ -25,9 +26,11 @@ namespace pw::allocator {
 ///
 /// As a result of using `malloc`, this allocator always uses an alignment of
 /// `std::align_max_t`.
-class LibCAllocator final : public pw::Allocator {
+class LibCAllocator final : public AbstractAllocator {
  public:
-  constexpr LibCAllocator() = default;
+  static constexpr Capabilities kCapabilities = 0;
+
+  constexpr LibCAllocator() : AbstractAllocator(kCapabilities) {}
 
  private:
   /// @copydoc Allocator::Allocate

@@ -106,6 +106,12 @@ config("private_override_config") {
 
 # Libraries
 
+pw_source_set("abstract_allocator") {
+  public_configs = [ ":public_include_path" ]
+  public = [ "public/pw_allocator/abstract_allocator.h" ]
+  public_deps = [ ":pw_allocator" ]
+}
+
 pw_source_set("allocator_as_pool") {
   public_configs = [ ":public_include_path" ]
   public = [ "public/pw_allocator/allocator_as_pool.h" ]
@@ -176,8 +182,8 @@ pw_source_set("buddy_allocator") {
   public_configs = [ ":public_include_path" ]
   public = [ "public/pw_allocator/buddy_allocator.h" ]
   public_deps = [
+    ":abstract_allocator",
     ":hardening",
-    ":pw_allocator",
     "$dir_pw_containers:vector",
     "block:basic",
     "bucket:unordered",
@@ -196,6 +202,7 @@ pw_source_set("bump_allocator") {
   public_configs = [ ":public_include_path" ]
   public = [ "public/pw_allocator/bump_allocator.h" ]
   public_deps = [
+    ":abstract_allocator",
     ":pw_allocator",
     "$dir_pw_bytes:alignment",
     dir_pw_bytes,
@@ -266,6 +273,38 @@ pw_source_set("fragmentation") {
   ]
 }
 
+pw_source_set("freertos_allocator") {
+  public_deps = [ ":freertos_allocator_headers" ]
+  deps = [ "$pw_external_freertos" ]
+  sources = [ "freertos_allocator.cc" ]
+}
+
+# Provide a separate header library to allow the unit tests to use a stub
+# implementation of FreeRTOS.
+pw_source_set("freertos_allocator_headers") {
+  public_configs = [ ":public_include_path" ]
+  public = [ "public/pw_allocator/freertos_allocator.h" ]
+  public_deps = [ ":abstract_allocator" ]
+}
+
+pw_source_set("guarded_allocator") {
+  public_configs = [ ":public_include_path" ]
+  public = [ "public/pw_allocator/guarded_allocator.h" ]
+  public_deps = [
+    ":pw_allocator",
+    ":synchronized_allocator",
+    "$dir_pw_sync:borrow",
+    dir_pw_result,
+  ]
+  deps = [
+    "$dir_pw_bytes:alignment",
+    "$dir_pw_third_party/fuchsia:stdcompat",
+    dir_pw_assert,
+    dir_pw_span,
+  ]
+  sources = [ "guarded_allocator.cc" ]
+}
+
 pw_source_set("hardening") {
   public_configs = [ ":public_include_path" ]
   public = [ "public/pw_allocator/hardening.h" ]
@@ -279,28 +318,20 @@ pw_source_set("hardening") {
 pw_source_set("libc_allocator") {
   public_configs = [ ":public_include_path" ]
   public = [ "public/pw_allocator/libc_allocator.h" ]
-  public_deps = [ ":null_allocator" ]
+  public_deps = [
+    ":abstract_allocator",
+    ":pw_allocator",
+  ]
   sources = [ "libc_allocator.cc" ]
-}
-
-pw_source_set("freertos_allocator") {
-  public_deps = [ ":freertos_allocator_headers" ]
-  deps = [ "$pw_external_freertos" ]
-  sources = [ "freertos_allocator.cc" ]
-}
-
-# Provide a separate header library to allow the unit tests to use a stub
-# implementation of FreeRTOS.
-pw_source_set("freertos_allocator_headers") {
-  public_configs = [ ":public_include_path" ]
-  public = [ "public/pw_allocator/freertos_allocator.h" ]
-  public_deps = [ ":pw_allocator" ]
 }
 
 pw_source_set("null_allocator") {
   public_configs = [ ":public_include_path" ]
   public = [ "public/pw_allocator/null_allocator.h" ]
-  public_deps = [ ":pw_allocator" ]
+  public_deps = [
+    ":abstract_allocator",
+    ":pw_allocator",
+  ]
   sources = [ "null_allocator.cc" ]
 }
 
@@ -368,24 +399,6 @@ pw_source_set("typed_pool") {
     ":hardening",
     dir_pw_bytes,
   ]
-}
-
-pw_source_set("guarded_allocator") {
-  public_configs = [ ":public_include_path" ]
-  public = [ "public/pw_allocator/guarded_allocator.h" ]
-  public_deps = [
-    ":pw_allocator",
-    ":synchronized_allocator",
-    "$dir_pw_sync:borrow",
-    dir_pw_result,
-  ]
-  deps = [
-    "$dir_pw_bytes:alignment",
-    "$dir_pw_third_party/fuchsia:stdcompat",
-    dir_pw_assert,
-    dir_pw_span,
-  ]
-  sources = [ "guarded_allocator.cc" ]
 }
 
 pw_source_set("worst_fit") {
