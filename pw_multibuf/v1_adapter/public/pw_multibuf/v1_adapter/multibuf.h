@@ -420,36 +420,38 @@ class MultiBuf final : private MultiBufChunks {
     return std::move(*mbv2);
   }
 
-  template <typename MultiBufType>
-  constexpr operator MultiBufType&() & {
+  template <typename OtherMultiBuf,
+            typename = v2::internal::EnableIfConvertible<v2::TrackedMultiBuf,
+                                                         OtherMultiBuf>>
+  constexpr operator OtherMultiBuf&() & {
     auto* mbv2 = v2();
-    PW_ASSERT(mbv2 != nullptr);
-    return *mbv2;
-  }
-  template <typename MultiBufType>
-  constexpr operator const MultiBufType&() const& {
-    const auto* mbv2 = v2();
     PW_ASSERT(mbv2 != nullptr);
     return *mbv2;
   }
 
-  template <
-      typename MultiBufType,
-      typename = std::enable_if_t<!internal::is_optional_v<MultiBufType> &&
-                                      !internal::is_variant_v<MultiBufType>,
-                                  void>>
-  constexpr operator MultiBufType&&() && {
+  template <typename OtherMultiBuf,
+            typename = v2::internal::EnableIfConvertible<v2::TrackedMultiBuf,
+                                                         OtherMultiBuf>>
+  constexpr operator const OtherMultiBuf&() const& {
+    auto* mbv2 = v2();
+    PW_ASSERT(mbv2 != nullptr);
+    return *mbv2;
+  }
+
+  template <typename OtherMultiBuf,
+            typename = v2::internal::EnableIfConvertible<v2::TrackedMultiBuf,
+                                                         OtherMultiBuf>>
+  constexpr operator OtherMultiBuf&&() && {
     auto* mbv2 = v2();
     PW_ASSERT(mbv2 != nullptr);
     return std::move(*mbv2);
   }
-  template <
-      typename MultiBufType,
-      typename = std::enable_if_t<!internal::is_optional_v<MultiBufType> &&
-                                      !internal::is_variant_v<MultiBufType>,
-                                  void>>
-  constexpr operator const MultiBufType&&() const&& {
-    const auto* mbv2 = v2();
+
+  template <typename OtherMultiBuf,
+            typename = v2::internal::EnableIfConvertible<v2::TrackedMultiBuf,
+                                                         OtherMultiBuf>>
+  constexpr operator const OtherMultiBuf&&() const&& {
+    auto* mbv2 = v2();
     PW_ASSERT(mbv2 != nullptr);
     return std::move(*mbv2);
   }
