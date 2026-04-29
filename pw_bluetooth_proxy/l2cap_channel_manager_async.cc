@@ -27,7 +27,9 @@ namespace pw::bluetooth::proxy {
 
 L2capChannelManager::L2capChannelManager(AclDataChannel& acl_data_channel,
                                          Allocator& allocator)
-    : acl_data_channel_(acl_data_channel), impl_(*this, allocator) {}
+    : acl_data_channel_(acl_data_channel),
+      impl_(*this, allocator),
+      logical_links_(allocator) {}
 
 namespace internal {
 

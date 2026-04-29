@@ -29,7 +29,7 @@
 #include "pw_bluetooth_proxy/l2cap_channel_common.h"
 #include "pw_bluetooth_proxy/l2cap_channel_manager_interface.h"
 #include "pw_bluetooth_proxy/l2cap_coc.h"
-#include "pw_containers/intrusive_map.h"
+#include "pw_containers/dynamic_map.h"
 #include "pw_function/function.h"
 #include "pw_multibuf/simple_allocator.h"
 #include "pw_sync/lock_annotations.h"
@@ -291,7 +291,7 @@ class L2capChannelManager final : public L2capChannelManagerInterface {
   // A separate links mutex is required so that the channels owned by the links
   // can be destroyed without deadlock.
   internal::Mutex links_mutex_ PW_ACQUIRED_BEFORE(channels_mutex());
-  IntrusiveMap<uint16_t, internal::L2capLogicalLinkInterface> logical_links_
+  DynamicMap<uint16_t, internal::L2capLogicalLink> logical_links_
       PW_GUARDED_BY(links_mutex_);
 
   std::array<std::byte, PW_BLUETOOTH_PROXY_MULTIBUF_ALLOCATOR_SIZE>

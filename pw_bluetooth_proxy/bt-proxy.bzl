@@ -138,6 +138,7 @@ def pw_bluetooth_proxy_library(name, **kwargs):
             "//pw_bluetooth:emboss_hci_h4",
             "//pw_bluetooth:emboss_l2cap_frames",
             "//pw_bytes",
+            "//pw_containers:dynamic_map",
             "//pw_containers:dynamic_queue",
             "//pw_containers:flat_map",
             "//pw_containers:inline_queue",

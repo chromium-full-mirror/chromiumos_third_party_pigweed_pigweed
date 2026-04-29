@@ -106,6 +106,7 @@ set(PW_BLUETOOTH_PROXY_PUBLIC_DEPS
   pw_bluetooth.emboss_l2cap_frames
   pw_bluetooth_proxy.config
   pw_bytes
+  pw_containers.dynamic_map
   pw_containers.dynamic_queue
   pw_containers.flat_map
   pw_containers.inline_queue
@@ -125,6 +126,7 @@ set(PW_BLUETOOTH_PROXY_PUBLIC_DEPS
 )
 
 set(PW_BLUETOOTH_PROXY_PRIVATE_DEPS
+  pw_containers.dynamic_map
   pw_containers.intrusive_map
   pw_allocator.best_fit
   pw_allocator.synchronized_allocator

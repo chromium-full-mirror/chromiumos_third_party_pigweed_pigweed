@@ -364,12 +364,7 @@ void L2capChannelManager::HandleAclDisconnectionComplete(
       connection_handle);
   {
     std::lock_guard links_lock(links_mutex_);
-    auto link_it = logical_links_.find(connection_handle);
-    if (link_it != logical_links_.end()) {
-      internal::L2capLogicalLinkInterface* link = &(*link_it);
-      logical_links_.erase(link_it);
-      impl_.allocator().Delete(link);
-    }
+    logical_links_.erase(connection_handle);
 
     std::lock_guard lock(channels_mutex());
     uint32_t key = L2capChannel::MakeKey(connection_handle, 0);
@@ -415,19 +410,25 @@ void L2capChannelManager::DeliverPendingEvents() {
 Status L2capChannelManager::AddConnection(uint16_t connection_handle,
                                           AclTransportType transport) {
   std::lock_guard lock(links_mutex_);
-  auto iter = logical_links_.find(connection_handle);
-  if (iter != logical_links_.end()) {
+  auto result = logical_links_.try_emplace(connection_handle,
+                                           connection_handle,
+                                           transport,
+                                           *this,
+                                           acl_data_channel_);
+  if (!result.has_value()) {
+    return Status::ResourceExhausted();
+  }
+  if (!result->second) {
     return Status::AlreadyExists();
   }
 
-  auto link = impl_.allocator().MakeUnique<internal::L2capLogicalLink>(
-      connection_handle, transport, *this, acl_data_channel_);
-  if (link == nullptr) {
-    return Status::ResourceExhausted();
+  Status status = result->first->second.Init();
+  if (!status.ok()) {
+    logical_links_.erase(result->first);
+    return status;
   }
-  PW_TRY(link->Init());
+
   PW_LOG_INFO("Added L2CAP connection %#x", connection_handle);
-  logical_links_.insert(*link.Release());
   return OkStatus();
 }
 
@@ -441,7 +442,7 @@ Status L2capChannelManager::SendFlowControlCreditInd(
   if (iter == logical_links_.end()) {
     return Status::NotFound();
   }
-  return iter->SendFlowControlCreditInd(
+  return iter->second.SendFlowControlCreditInd(
       channel_id, credits, multibuf_allocator);
 }
 
@@ -463,13 +464,7 @@ Result<uint16_t> L2capChannelManager::MaxL2capPayloadSize(
   return *max_acl_length - emboss::BasicL2capHeader::IntrinsicSizeInBytes();
 }
 
-void L2capChannelManager::ResetLogicalLinksLocked() {
-  for (auto iter = logical_links_.begin(); iter != logical_links_.end();) {
-    internal::L2capLogicalLinkInterface* link = &(*iter);
-    iter = logical_links_.erase(iter);
-    impl_.allocator().Delete(link);
-  }
-}
+void L2capChannelManager::ResetLogicalLinksLocked() { logical_links_.clear(); }
 
 Result<UniquePtr<ChannelProxy>>
 L2capChannelManager::DoInterceptBasicModeChannel(

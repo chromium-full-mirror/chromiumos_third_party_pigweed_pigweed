@@ -26,32 +26,9 @@ class L2capChannelManager;
 
 namespace pw::bluetooth::proxy::internal {
 
-class L2capLogicalLinkInterface
-    : public IntrusiveMap<uint16_t, L2capLogicalLinkInterface>::Item {
- public:
-  virtual ~L2capLogicalLinkInterface() = default;
-
-  // Send L2CAP_FLOW_CONTROL_CREDIT_IND to indicate local endpoint `cid` is
-  // capable of receiving a number of additional K-frames (`credits`).
-  //
-  // @returns
-  // * @OK: `L2CAP_FLOW_CONTROL_CREDIT_IND` was sent.
-  // * @UNAVAILABLE: Send could not be queued due to lack of memory in the
-  //   client-provided `multibuf_allocator` (transient error).
-  // * @FAILED_PRECONDITION: Channel is not `State::kRunning`.
-  virtual Status SendFlowControlCreditInd(
-      uint16_t channel_id,
-      uint16_t credits,
-      multibuf::MultiBufAllocator& multibuf_allocator) = 0;
-
-  // The connection handle.
-  virtual uint16_t key() const = 0;
-};
-
 // This class represents a logical link (ACL connection) in the L2CAP protocol.
 // This class is not thread-safe and requires external locking.
-class L2capLogicalLink final : public L2capLogicalLinkInterface,
-                               public AclDataChannel::ConnectionDelegate {
+class L2capLogicalLink final : public AclDataChannel::ConnectionDelegate {
  public:
   L2capLogicalLink(uint16_t connection_handle,
                    AclTransportType transport,
@@ -66,11 +43,18 @@ class L2capLogicalLink final : public L2capLogicalLinkInterface,
   // Initializes the link and its signaling channel.
   Status Init();
 
-  // L2capLogicalLinkInterface overrides:
+  // Send L2CAP_FLOW_CONTROL_CREDIT_IND to indicate local endpoint `cid` is
+  // capable of receiving a number of additional K-frames (`credits`).
+  //
+  // @returns
+  // * @OK: `L2CAP_FLOW_CONTROL_CREDIT_IND` was sent.
+  // * @UNAVAILABLE: Send could not be queued due to lack of memory in the
+  //   client-provided `multibuf_allocator` (transient error).
+  // * @FAILED_PRECONDITION: Channel is not `State::kRunning`.
   Status SendFlowControlCreditInd(
       uint16_t channel_id,
       uint16_t credits,
-      multibuf::MultiBufAllocator& multibuf_allocator) override {
+      multibuf::MultiBufAllocator& multibuf_allocator) {
     return signaling_channel_.SendFlowControlCreditInd(
         channel_id, credits, multibuf_allocator);
   }
@@ -79,7 +63,7 @@ class L2capLogicalLink final : public L2capLogicalLinkInterface,
   AclDataChannel::ConnectionDelegate::HandleAclDataReturn HandleAclData(
       Direction direction, emboss::AclDataFrameWriter& acl) override;
 
-  // Used by IntrusiveMap
+  // The connection handle.
   uint16_t key() const override { return connection_handle_; }
 
  private:
