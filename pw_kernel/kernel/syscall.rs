@@ -104,7 +104,7 @@ fn handle_object_wait<'a, K: Kernel>(
     ret
 }
 
-fn handle_wait_group_add<'a, K: Kernel>(kernel: K, mut args: K::SyscallArgs<'a>) -> Result<u64> {
+fn handle_wait_group_add<'a, K: Kernel>(kernel: K, mut args: K::SyscallArgs<'a>) -> Result<()> {
     let wait_group_handle = args.next_u32()?;
     let object_handle = args.next_u32()?;
     let signals = args.next_u32()?;
@@ -134,10 +134,10 @@ fn handle_wait_group_add<'a, K: Kernel>(kernel: K, mut args: K::SyscallArgs<'a>)
     // Safety: `wait_group` is returned from lookup_handle() as a ForeignRc.
     let ret = unsafe { wait_group.wait_group_add(kernel, &*object, signal_mask, user_data) };
     log_if::debug_if!(SYSCALL_DEBUG, "syscall: wait_group_add complete");
-    ret.map(|_| 0)
+    ret
 }
 
-fn handle_wait_group_remove<'a, K: Kernel>(kernel: K, mut args: K::SyscallArgs<'a>) -> Result<u64> {
+fn handle_wait_group_remove<'a, K: Kernel>(kernel: K, mut args: K::SyscallArgs<'a>) -> Result<()> {
     let wait_group_handle = args.next_u32()?;
     let object_handle = args.next_u32()?;
 
@@ -152,7 +152,7 @@ fn handle_wait_group_remove<'a, K: Kernel>(kernel: K, mut args: K::SyscallArgs<'
     let object = lookup_handle(kernel, object_handle)?;
     let ret = wait_group.wait_group_remove(kernel, &*object);
     log_if::debug_if!(SYSCALL_DEBUG, "syscall: wait_group_remove complete");
-    ret.map(|_| 0)
+    ret
 }
 
 fn handle_channel_transact<'a, K: Kernel>(kernel: K, mut args: K::SyscallArgs<'a>) -> Result<u64> {
@@ -195,7 +195,7 @@ fn handle_channel_transact<'a, K: Kernel>(kernel: K, mut args: K::SyscallArgs<'a
 fn handle_channel_async_transact<'a, K: Kernel>(
     kernel: K,
     mut args: K::SyscallArgs<'a>,
-) -> Result<u64> {
+) -> Result<()> {
     log_if::debug_if!(SYSCALL_DEBUG, "syscall: handling channel_async_transact");
     let handle = args.next_u32()?;
     let send_data_addr = args.next_usize()?;
@@ -217,7 +217,7 @@ fn handle_channel_async_transact<'a, K: Kernel>(
 
     let ret = object.channel_async_transact(kernel, send_buffer, recv_buffer);
     log_if::debug_if!(SYSCALL_DEBUG, "syscall: channel_async_transact complete");
-    ret.map(|_| 0)
+    ret
 }
 
 fn handle_channel_async_transact_complete<'a, K: Kernel>(
@@ -242,14 +242,14 @@ fn handle_channel_async_transact_complete<'a, K: Kernel>(
 fn handle_channel_async_cancel<'a, K: Kernel>(
     kernel: K,
     mut args: K::SyscallArgs<'a>,
-) -> Result<u64> {
+) -> Result<()> {
     log_if::debug_if!(SYSCALL_DEBUG, "syscall: handling channel_async_cancel");
     let handle = args.next_u32()?;
     let object = lookup_handle(kernel, handle)?;
 
     let ret = object.channel_async_cancel(kernel);
     log_if::debug_if!(SYSCALL_DEBUG, "syscall: channel_async_cancel complete");
-    ret.map(|_| 0)
+    ret
 }
 
 fn handle_channel_read<'a, K: Kernel>(kernel: K, mut args: K::SyscallArgs<'a>) -> Result<u64> {
@@ -271,7 +271,7 @@ fn handle_channel_read<'a, K: Kernel>(kernel: K, mut args: K::SyscallArgs<'a>) -
     ret.map(|v| v.cast_into())
 }
 
-fn handle_channel_respond<'a, K: Kernel>(kernel: K, mut args: K::SyscallArgs<'a>) -> Result<u64> {
+fn handle_channel_respond<'a, K: Kernel>(kernel: K, mut args: K::SyscallArgs<'a>) -> Result<()> {
     log_if::debug_if!(SYSCALL_DEBUG, "syscall: handling channel_respond");
     let handle = args.next_u32()?;
     let buffer_addr = args.next_usize()?;
@@ -286,10 +286,10 @@ fn handle_channel_respond<'a, K: Kernel>(kernel: K, mut args: K::SyscallArgs<'a>
 
     let ret = object.channel_respond(kernel, buffer);
     log_if::debug_if!(SYSCALL_DEBUG, "syscall: channel_respond complete");
-    ret.map(|_| 0)
+    ret
 }
 
-fn handle_interrupt_ack<'a, K: Kernel>(kernel: K, mut args: K::SyscallArgs<'a>) -> Result<u64> {
+fn handle_interrupt_ack<'a, K: Kernel>(kernel: K, mut args: K::SyscallArgs<'a>) -> Result<()> {
     log_if::debug_if!(SYSCALL_DEBUG, "syscall: handling interrupt_ack");
     let handle = args.next_u32()?;
     let signals = args.next_u32()?;
@@ -307,59 +307,57 @@ fn handle_interrupt_ack<'a, K: Kernel>(kernel: K, mut args: K::SyscallArgs<'a>) 
     let object = lookup_handle(kernel, handle)?;
     let ret = object.interrupt_ack(kernel, signal_mask);
     log_if::debug_if!(SYSCALL_DEBUG, "syscall: interrupt_ack complete");
-    ret.map(|_| 0)
+    ret
 }
 
-fn handle_thread_start<'a, K: Kernel>(kernel: K, mut args: K::SyscallArgs<'a>) -> Result<u64> {
+fn handle_thread_start<'a, K: Kernel>(kernel: K, mut args: K::SyscallArgs<'a>) -> Result<()> {
     log_if::debug_if!(SYSCALL_DEBUG, "syscall: handling thread_start");
     let handle = args.next_u32()?;
     let initial_pc = args.next_usize()?;
     let initial_sp = args.next_usize()?;
     let object = lookup_handle(kernel, handle)?;
-    object
-        .thread_start(kernel, initial_pc, initial_sp)
-        .map(|_| 0)
+    object.thread_start(kernel, initial_pc, initial_sp)
 }
 
-fn handle_thread_terminate<'a, K: Kernel>(kernel: K, mut args: K::SyscallArgs<'a>) -> Result<u64> {
+fn handle_thread_terminate<'a, K: Kernel>(kernel: K, mut args: K::SyscallArgs<'a>) -> Result<()> {
     log_if::debug_if!(SYSCALL_DEBUG, "syscall: handling thread_terminate");
     let handle = args.next_u32()?;
     let object = lookup_handle(kernel, handle)?;
-    object.thread_terminate(kernel).map(|_| 0)
+    object.thread_terminate(kernel)
 }
 
-fn handle_thread_join<'a, K: Kernel>(kernel: K, mut args: K::SyscallArgs<'a>) -> Result<u64> {
+fn handle_thread_join<'a, K: Kernel>(kernel: K, mut args: K::SyscallArgs<'a>) -> Result<()> {
     log_if::debug_if!(SYSCALL_DEBUG, "syscall: handling thread_join");
     let handle = args.next_u32()?;
     let object = lookup_handle(kernel, handle)?;
-    object.thread_join(kernel).map(|_| 0)
+    object.thread_join(kernel)
 }
 
-fn handle_process_start<'a, K: Kernel>(kernel: K, mut args: K::SyscallArgs<'a>) -> Result<u64> {
+fn handle_process_start<'a, K: Kernel>(kernel: K, mut args: K::SyscallArgs<'a>) -> Result<()> {
     log_if::debug_if!(SYSCALL_DEBUG, "syscall: handling process_start");
     let handle = args.next_u32()?;
     let object = lookup_handle(kernel, handle)?;
-    object.process_start(kernel).map(|_| 0)
+    object.process_start(kernel)
 }
 
-fn handle_process_terminate<'a, K: Kernel>(kernel: K, mut args: K::SyscallArgs<'a>) -> Result<u64> {
+fn handle_process_terminate<'a, K: Kernel>(kernel: K, mut args: K::SyscallArgs<'a>) -> Result<()> {
     log_if::debug_if!(SYSCALL_DEBUG, "syscall: handling process_terminate");
     let handle = args.next_u32()?;
     let object = lookup_handle(kernel, handle)?;
-    object.process_terminate(kernel).map(|_| 0)
+    object.process_terminate(kernel)
 }
 
-fn handle_process_join<'a, K: Kernel>(kernel: K, mut args: K::SyscallArgs<'a>) -> Result<u64> {
+fn handle_process_join<'a, K: Kernel>(kernel: K, mut args: K::SyscallArgs<'a>) -> Result<()> {
     log_if::debug_if!(SYSCALL_DEBUG, "syscall: handling process_join");
     let handle = args.next_u32()?;
     let object = lookup_handle(kernel, handle)?;
-    object.process_join(kernel).map(|_| 0)
+    object.process_join(kernel)
 }
 
 fn handle_set_peer_user_signal<'a, K: Kernel>(
     kernel: K,
     mut args: K::SyscallArgs<'a>,
-) -> Result<u64> {
+) -> Result<()> {
     log_if::debug_if!(
         SYSCALL_DEBUG,
         "syscall: handling object_set_peer_user_signal"
@@ -373,7 +371,7 @@ fn handle_set_peer_user_signal<'a, K: Kernel>(
         SYSCALL_DEBUG,
         "syscall: object_set_peer_user_signal complete"
     );
-    ret.map(|_| 0)
+    ret
 }
 
 // TODO: Remove this syscall when logging is added.
@@ -407,7 +405,7 @@ fn handle_debug_shutdown<'a, K: Kernel>(kernel: K, mut args: K::SyscallArgs<'a>)
     crate::target::shutdown(exit_code);
 }
 
-fn handle_debug_log<'a, K: Kernel>(kernel: K, mut args: K::SyscallArgs<'a>) -> Result<u64> {
+fn handle_debug_log<'a, K: Kernel>(kernel: K, mut args: K::SyscallArgs<'a>) -> Result<()> {
     let buffer_addr = args.next_usize()?;
     let buffer_len = args.next_usize()?;
     let buffer = SyscallBuffer::new_in_current_process(
@@ -416,20 +414,20 @@ fn handle_debug_log<'a, K: Kernel>(kernel: K, mut args: K::SyscallArgs<'a>) -> R
         buffer_addr..(buffer_addr + buffer_len),
     )?;
     let mut console = console::Console::new();
-    console.write_all(buffer.as_slice()).map(|_| 0)
+    console.write_all(buffer.as_slice())
 }
 
 fn handle_debug_trigger_interrupt<'a, K: Kernel>(
     _kernel: K,
     mut args: K::SyscallArgs<'a>,
-) -> Result<u64> {
+) -> Result<()> {
     log_if::debug_if!(SYSCALL_DEBUG, "syscall: handling debug_trigger_interrupt");
 
     let irq = args.next_u32()?;
     K::InterruptController::trigger_interrupt(irq);
 
     log_if::debug_if!(SYSCALL_DEBUG, "syscall: debug_trigger_interrupt complete");
-    Ok(0)
+    Ok(())
 }
 
 fn handle_debug_clock_now<'a, K: Kernel>(kernel: K, mut _args: K::SyscallArgs<'a>) -> u64 {

@@ -269,6 +269,15 @@ impl From<Result<u64>> for SysCallReturnValue {
     }
 }
 
+impl From<Result<()>> for SysCallReturnValue {
+    fn from(value: Result<()>) -> Self {
+        match value {
+            Ok(()) => Self { value: [0, 0] },
+            Err(error) => Self::from(-(error as i64)),
+        }
+    }
+}
+
 impl From<SysCallReturnValue> for Result<WaitReturn> {
     fn from(ret: SysCallReturnValue) -> Result<WaitReturn> {
         // TODO(421404517): Avoid the lossy cast
