@@ -35,26 +35,27 @@
 
 namespace pw::rpc::internal {
 
+constexpr ByteSpan ResizeForPayload(ByteSpan buffer) {
+  return buffer.subspan(Packet::kMinEncodedSizeWithoutPayload);
+}
+
 // Wraps a statically allocated encoding buffer.
 class StaticEncodingBuffer {
  public:
-  constexpr StaticEncodingBuffer() = default;
+  constexpr StaticEncodingBuffer() : buffer_{} {}
 
-  ByteSpan AllocatePayloadBuffer(size_t /*payload_size */)
-      PW_EXCLUSIVE_LOCKS_REQUIRED(rpc_lock()) {
-    return ByteSpan(buffer_).subspan(Packet::kMinEncodedSizeWithoutPayload);
+  ByteSpan AllocatePayloadBuffer(size_t /*payload_size */) {
+    return ResizeForPayload(buffer_);
   }
-  ByteSpan GetPacketBuffer(size_t /* payload_size */)
-      PW_EXCLUSIVE_LOCKS_REQUIRED(rpc_lock()) {
-    return buffer_;
-  }
+  ByteSpan GetPacketBuffer(size_t /* payload_size */) { return buffer_; }
+  void Release() {}
+  void ReleaseIfAllocated() {}
 
  private:
   static_assert(MaxSafePayloadSize() > 0,
                 "pw_rpc's encode buffer is too small to fit any data");
 
-  static inline std::array<std::byte, cfg::kEncodingBufferSizeBytes> buffer_
-      PW_GUARDED_BY(rpc_lock());
+  std::array<std::byte, cfg::kEncodingBufferSizeBytes> buffer_;
 };
 
 #if PW_RPC_DYNAMIC_ALLOCATION
@@ -64,22 +65,12 @@ class DynamicEncodingBuffer {
  public:
   DynamicEncodingBuffer() = default;
 
-  DynamicEncodingBuffer(DynamicEncodingBuffer&&) = default;
-  DynamicEncodingBuffer& operator=(DynamicEncodingBuffer&&) = default;
+  ~DynamicEncodingBuffer() { PW_DASSERT(buffer_.empty()); }
 
+  // Allocates a new buffer and returns a portion to use to encode the payload.
   ByteSpan AllocatePayloadBuffer(size_t payload_size) {
     Allocate(payload_size);
-    return ByteSpan(buffer_.data(), buffer_.size())
-        .subspan(Packet::kMinEncodedSizeWithoutPayload);
-  }
-
-  void ResizeToPayload(size_t size) {
-    buffer_.resize(size + Packet::kMinEncodedSizeWithoutPayload);
-  }
-
-  ConstByteSpan payload() const {
-    return ConstByteSpan(buffer_.data(), buffer_.size())
-        .subspan(Packet::kMinEncodedSizeWithoutPayload);
+    return ResizeForPayload(buffer_);
   }
 
   // Returns the buffer into which to encode the packet, allocating a new buffer
@@ -88,7 +79,20 @@ class DynamicEncodingBuffer {
     if (buffer_.empty()) {
       Allocate(payload_size);
     }
-    return ByteSpan(buffer_.data(), buffer_.size());
+    return buffer_;
+  }
+
+  // Frees the payload buffer, which MUST have been allocated previously.
+  void Release() {
+    PW_DASSERT(!buffer_.empty());
+    buffer_.clear();
+  }
+
+  // Frees the payload buffer, if one was allocated.
+  void ReleaseIfAllocated() {
+    if (!buffer_.empty()) {
+      Release();
+    }
   }
 
  private:
@@ -110,59 +114,35 @@ using EncodingBuffer = StaticEncodingBuffer;
 
 #endif  // PW_RPC_DYNAMIC_ALLOCATION
 
-class EncodedPacket {
- public:
-  EncodedPacket(EncodingBuffer&& buffer, size_t packet_size)
-      PW_EXCLUSIVE_LOCKS_REQUIRED(rpc_lock()) {
-#if PW_RPC_DYNAMIC_ALLOCATION
-    buffer_ = std::move(buffer);
-    buffer_.ResizeToPayload(packet_size);
-#else
-    payload_ = buffer.AllocatePayloadBuffer(packet_size).first(packet_size);
-#endif
-  }
+// Instantiate the global encoding buffer variable, depending on whether dynamic
+// allocation is enabled or not.
+inline EncodingBuffer encoding_buffer PW_GUARDED_BY(rpc_lock());
 
-  ConstByteSpan payload() const {
-#if PW_RPC_DYNAMIC_ALLOCATION
-    return buffer_.payload();
-#else
-    return payload_;
-#endif
-  }
-
- private:
-#if PW_RPC_DYNAMIC_ALLOCATION
-  DynamicEncodingBuffer buffer_;
-#else
-  ConstByteSpan payload_;
-#endif
-};
-
+// Successful calls to EncodeToPayloadBuffer MUST send the returned buffer,
+// without releasing the RPC lock.
 template <typename Proto, typename Encoder>
-static Result<EncodedPacket> EncodeToPayloadBuffer(Proto& payload,
-                                                   const Encoder& encoder)
+static Result<ByteSpan> EncodeToPayloadBuffer(Proto& payload,
+                                              const Encoder& encoder)
     PW_EXCLUSIVE_LOCKS_REQUIRED(rpc_lock()) {
-  EncodingBuffer encoding_buffer;
-
-  size_t size = 0;
-  if constexpr (cfg::kDynamicAllocationEnabled<Proto>) {
-    StatusWithSize payload_size = encoder.EncodedSizeBytes(payload);
-    if (!payload_size.ok()) {
-      return Status::Internal();
-    }
-    size = payload_size.size();
-  } else {
-    size = MaxSafePayloadSize();
+  // If dynamic allocation is enabled, calculate the size of the encoded
+  // protobuf and allocate a buffer for it.
+#if PW_RPC_DYNAMIC_ALLOCATION
+  StatusWithSize payload_size = encoder.EncodedSizeBytes(payload);
+  if (!payload_size.ok()) {
+    return Status::Internal();
   }
 
-  ByteSpan buffer = encoding_buffer.AllocatePayloadBuffer(size);
+  ByteSpan buffer = encoding_buffer.AllocatePayloadBuffer(payload_size.size());
+#else
+  ByteSpan buffer = encoding_buffer.AllocatePayloadBuffer(MaxSafePayloadSize());
+#endif  // PW_RPC_DYNAMIC_ALLOCATION
 
   StatusWithSize result = encoder.Encode(payload, buffer);
   if (!result.ok()) {
+    encoding_buffer.ReleaseIfAllocated();
     return result.status();
   }
-
-  return EncodedPacket(std::move(encoding_buffer), result.size());
+  return buffer.first(result.size());
 }
 
 }  // namespace pw::rpc::internal
