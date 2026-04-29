@@ -178,6 +178,7 @@ sphinx_docs_library(
         # start (sentinel for pw module create)
         "//pw_alignment:docs",
         "//pw_allocator:docs",
+        "//pw_allocator_zephyr:docs",
         "//pw_analog:docs",
         "//pw_android_toolchain:docs",
         "//pw_arduino_build:docs",

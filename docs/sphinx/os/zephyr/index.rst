@@ -6,14 +6,18 @@ Zephyr
 Pigweed has preliminary support for `Zephyr <https://www.zephyrproject.org/>`_.
 See the docs for these modules for more information:
 
-- :ref:`pw_assert_zephyr <module-pw_assert_zephyr>`
-- :ref:`pw_chrono_zephyr <module-pw_chrono_zephyr>`
-- :ref:`pw_interrupt_zephyr <module-pw_interrupt_zephyr>`
-- :ref:`pw_log_zephyr <module-pw_log_zephyr>`
-- :ref:`pw_sync_zephyr <module-pw_sync_zephyr>`
-- :ref:`pw_spi_zephyr <module-pw_spi_zephyr>`
-- :ref:`pw_sys_io_zephyr <module-pw_sys_io_zephyr>`
-- :ref:`pw_thread_zephyr <module-pw_thread_zephyr>`
+.. toctree::
+   :maxdepth: 1
+
+   pw_allocator_zephyr <../../pw_allocator_zephyr/docs>
+   pw_assert_zephyr <../../pw_assert_zephyr/docs>
+   pw_chrono_zephyr <../../pw_chrono_zephyr/docs>
+   pw_interrupt_zephyr <../../pw_interrupt_zephyr/docs>
+   pw_log_zephyr <../../pw_log_zephyr/docs>
+   pw_sync_zephyr <../../pw_sync_zephyr/docs>
+   pw_spi_zephyr <../../pw_spi_zephyr/docs>
+   pw_sys_io_zephyr <../../pw_sys_io_zephyr/docs>
+   pw_thread_zephyr <../../pw_thread_zephyr/docs>
 
 .. note:: The version of Zephyr bundled with `pw package install zephyr` is
    being migrated to v3.6 as we near the latest release.

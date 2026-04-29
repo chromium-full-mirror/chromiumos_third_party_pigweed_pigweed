@@ -1,6 +1,7 @@
 docker
 pw_alignment
 pw_allocator
+pw_allocator_zephyr
 pw_analog
 pw_android_toolchain
 pw_arduino_build

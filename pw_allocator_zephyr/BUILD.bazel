@@ -1,0 +1,54 @@
+# Copyright 2026 The Pigweed Authors
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not
+# use this file except in compliance with the License. You may obtain a copy of
+# the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations under
+# the License.
+
+load("@rules_python//sphinxdocs:sphinx_docs_library.bzl", "sphinx_docs_library")
+load("@zephyr//:cc.bzl", "zephyr_cc_library")
+load("@zephyr//:cc_test.bzl", "zephyr_cc_test")
+load("//pw_build:compatibility.bzl", "incompatible_with_mcu")
+
+package(default_visibility = ["//visibility:public"])
+
+licenses(["notice"])
+
+sphinx_docs_library(
+    name = "docs",
+    srcs = ["docs.rst"],
+    prefix = "pw_allocator_zephyr/",
+    target_compatible_with = incompatible_with_mcu(),
+)
+
+zephyr_cc_library(
+    name = "synchronized_heap_allocator",
+    srcs = ["synchronized_heap_allocator.cc"],
+    hdrs = ["public/pw_allocator_zephyr/synchronized_heap_allocator.h"],
+    strip_include_prefix = "public",
+    deps = ["@pigweed//pw_allocator:abstract_allocator"],
+)
+
+zephyr_cc_library(
+    name = "system_heap_allocator",
+    srcs = ["system_heap_allocator.cc"],
+    hdrs = ["public/pw_allocator_zephyr/system_heap_allocator.h"],
+    strip_include_prefix = "public",
+    deps = ["@pigweed//pw_allocator:abstract_allocator"],
+)
+
+zephyr_cc_test(
+    name = "heap_allocator_test",
+    srcs = ["heap_allocator_test.cc"],
+    deps = [
+        ":synchronized_heap_allocator",
+        ":system_heap_allocator",
+    ],
+)

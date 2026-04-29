@@ -1,0 +1,56 @@
+// Copyright 2026 The Pigweed Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License"); you may not
+// use this file except in compliance with the License. You may obtain a copy of
+// the License at
+//
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+// WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+// License for the specific language governing permissions and limitations under
+// the License.
+#pragma once
+
+#include "pw_allocator/abstract_allocator.h"
+#include "pw_allocator/capability.h"
+
+namespace pw::allocator_zephyr {
+
+/// Wraps the Zephyr shared system heap to provide allocations from it.
+///
+/// The system heap must be configured using `CONFIG_HEAP_MEM_POOL_SIZE=<size>`
+/// for there to be any memory to allocate.
+///
+/// @see
+/// https://docs.zephyrproject.org/latest/kernel/memory_management/heap.html#system-heap
+class SystemHeapAllocator final : public pw::allocator::AbstractAllocator {
+ public:
+  static constexpr pw::allocator::Capabilities kCapabilities = 0;
+
+  friend SystemHeapAllocator& GetSystemHeapAllocator();
+
+  SystemHeapAllocator(const SystemHeapAllocator&) = delete;
+  SystemHeapAllocator& operator=(const SystemHeapAllocator&) = delete;
+  SystemHeapAllocator(SystemHeapAllocator&&) = delete;
+  SystemHeapAllocator& operator=(SystemHeapAllocator&&) = delete;
+
+ private:
+  SystemHeapAllocator();
+  ~SystemHeapAllocator();
+
+  /// @copydoc Allocator::Allocate
+  void* DoAllocate(pw::allocator::Layout layout) override;
+
+  /// @copydoc Allocator::Deallocate
+  void DoDeallocate(void* ptr) override;
+
+  /// @copydoc Allocator::Reallocate
+  void* DoReallocate(void* ptr, pw::allocator::Layout new_layout) override;
+};
+
+/// Returns a reference to the SystemHeapAllocator singleton.
+SystemHeapAllocator& GetSystemHeapAllocator();
+
+}  // namespace pw::allocator_zephyr
