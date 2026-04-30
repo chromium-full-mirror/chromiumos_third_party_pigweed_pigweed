@@ -13,6 +13,8 @@
 // the License.
 #pragma once
 
+#include <memory>
+
 #include "pw_allocator/capability.h"
 #include "pw_allocator/hardening.h"
 #include "pw_allocator/layout.h"
