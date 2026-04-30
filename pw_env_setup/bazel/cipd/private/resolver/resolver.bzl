@@ -104,9 +104,9 @@ def _check_packages_versions_not_blank(name, configs):
 
 def _check_package_strings_match(name, configs):
     first_config = configs[0]
-    first_packages = set(first_config.packages.keys())
+    first_packages = sorted(first_config.packages.keys())
     for config in configs[1:]:
-        if first_packages != set(config.packages.keys()):
+        if first_packages != sorted(config.packages.keys()):
             return _err(
                 ("The set of package strings requested for \"{}\" must be " +
                  "the same across all requests, including any placeholders.").format(name),

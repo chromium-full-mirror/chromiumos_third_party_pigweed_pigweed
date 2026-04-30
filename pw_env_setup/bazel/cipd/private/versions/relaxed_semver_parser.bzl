@@ -14,10 +14,10 @@
 
 """Helper functions for parsing relaxed semantic versions for CIPD."""
 
-_DIGIT_CHARSET = set([x for x in "0123456789".elems()])
-_ALPHANUM_CHARSET = _DIGIT_CHARSET | set([x for x in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".elems()])
-_RELEASE_PART_CHARSET = _ALPHANUM_CHARSET | set(["."])
-_PRERELEASE_PART_CHARSET = _RELEASE_PART_CHARSET | set(["-"])
+_DIGIT_CHARSET = "0123456789"
+_ALPHANUM_CHARSET = _DIGIT_CHARSET + "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+_RELEASE_PART_CHARSET = _ALPHANUM_CHARSET + "."
+_PRERELEASE_PART_CHARSET = _RELEASE_PART_CHARSET + "-"
 _BUILD_PART_CHARSET = _PRERELEASE_PART_CHARSET
 
 def _matches_charset(s, charset):

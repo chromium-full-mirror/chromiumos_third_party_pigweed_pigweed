@@ -47,7 +47,7 @@ VirtualIncludesInfo = provider(
 )
 
 # This is the set of attribute types that do not expose targets.
-_NO_PROVIDER_ATTR_TYPES = set([
+_NO_PROVIDER_ATTR_TYPES = (
     "bool",
     "int",
     "float",
@@ -55,7 +55,7 @@ _NO_PROVIDER_ATTR_TYPES = set([
     "Label",
     "License",
     "NoneType",
-])
+)
 
 # Based on gcc and clang specifications:
 # https://gcc.gnu.org/onlinedocs/gcc/Invoking-G_002b_002b.html
