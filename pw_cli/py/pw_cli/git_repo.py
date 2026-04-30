@@ -66,6 +66,11 @@ class _GitTool:
         return '' if not proc.stdout else proc.stdout.decode().strip()
 
 
+class RebaseInfo(NamedTuple):
+    onto: str
+    orig_head: str
+
+
 class GitRepo:
     """Represents a checked out Git repository that may be queried for info."""
 
@@ -230,6 +235,22 @@ class GitRepo:
 
         return rebase_merge.exists() or rebase_apply.exists()
 
+    def rebase_info(self) -> RebaseInfo | None:
+        """Returns information about the current rebase, or None."""
+        git_dir = Path(self._git('rev-parse', '--absolute-git-dir'))
+        rebase_merge = git_dir / 'rebase-merge'
+
+        if rebase_merge.exists():
+            onto_file = rebase_merge / 'onto'
+            orig_head_file = rebase_merge / 'orig-head'
+            if onto_file.exists() and orig_head_file.exists():
+                return RebaseInfo(
+                    onto=onto_file.read_text().strip(),
+                    orig_head=orig_head_file.read_text().strip(),
+                )
+
+        return None
+
     def root(self) -> Path:
         """The root file path of this Git repository.
 
@@ -336,6 +357,26 @@ class GitRepo:
             args += ['--short']
         args += [commit]
         return self._git(*args)
+
+    def name_rev(self, commit: str = 'HEAD') -> str:
+        """Returns a symbolic name for the commit or the hash if none."""
+        try:
+            return self._git(
+                'name-rev', '--no-undefined', '--name-only', commit
+            )
+        except GitError:
+            return self.commit_hash(commit)
+
+    def commit_count(self, commit_1: str, commit_2: str = '') -> int:
+        """Returns the number of commits reachable from the specified commits.
+
+        If commit_2 is provided, counts commits reachable from either commit_1
+        or commit_2.
+        """
+        args = ['rev-list', '--count', commit_1]
+        if commit_2:
+            args.append(commit_2)
+        return int(self._git(*args))
 
     def commit_change_id(self, commit: str = 'HEAD') -> str | None:
         """Returns the Gerrit Change-Id of the specified commit.

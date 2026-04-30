@@ -26,7 +26,7 @@ import unittest
 from unittest import mock
 
 from pw_cli.tool_runner import ToolRunner
-from pw_cli.git_repo import GitRepo, GitRepoFinder
+from pw_cli.git_repo import GitRepo, GitRepoFinder, RebaseInfo
 from pw_cli.file_filter import FileFilter
 from pw_cli.git_repo import collect_files
 from pyfakefs import fake_filesystem_unittest
@@ -216,6 +216,37 @@ class TestGitRepo(unittest.TestCase):
         repo = self.make_fake_git_repo(cmds)
         self.assertTrue(repo.has_uncommitted_changes())
 
+    def test_name_rev(self):
+        git_cmd = 'name-rev --no-undefined --name-only HEAD'
+        cmds = {
+            git_cmd: git_ok(git_cmd, 'main'),
+        }
+        repo = self.make_fake_git_repo(cmds)
+        self.assertEqual(repo.name_rev(), 'main')
+
+    def test_name_rev_undefined_fallback(self):
+        name_rev_cmd = 'name-rev --no-undefined --name-only HEAD'
+        rev_parse_cmd = 'rev-parse --short HEAD'
+        cmds = {
+            name_rev_cmd: git_err(
+                name_rev_cmd, 'fatal: cannot describe', returncode=128
+            ),
+            rev_parse_cmd: git_ok(rev_parse_cmd, '1234567'),
+        }
+        repo = self.make_fake_git_repo(cmds)
+        self.assertEqual(repo.name_rev(), '1234567')
+
+    def test_commit_count(self):
+        git_cmd_1 = 'rev-list --count HEAD'
+        git_cmd_2 = "rev-list --count 'HEAD~3' HEAD"
+        cmds = {
+            git_cmd_1: git_ok(git_cmd_1, '10'),
+            git_cmd_2: git_ok(git_cmd_2, '3'),
+        }
+        repo = self.make_fake_git_repo(cmds)
+        self.assertEqual(repo.commit_count('HEAD'), 10)
+        self.assertEqual(repo.commit_count('HEAD~3', 'HEAD'), 3)
+
     def test_is_in_rebase(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             tmp_path = Path(tmp_dir)
@@ -243,6 +274,34 @@ class TestGitRepo(unittest.TestCase):
             rebase_apply.mkdir()
             self.assertTrue(repo.is_in_rebase())
             rebase_apply.rmdir()
+
+    def test_rebase_info(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            git_cmd = 'rev-parse --absolute-git-dir'
+            cmds = {
+                git_cmd: git_ok(git_cmd, str(tmp_path / '.git')),
+            }
+            repo = GitRepo(tmp_path, FakeGitToolRunner(cmds))
+
+            git_dir = tmp_path / '.git'
+            git_dir.mkdir()
+
+            rebase_merge = git_dir / 'rebase-merge'
+
+            # Test not in rebase
+            self.assertIsNone(repo.rebase_info())
+
+            # Test in rebase
+            rebase_merge.mkdir()
+            (rebase_merge / 'onto').write_text('1234567890abcdef')
+            (rebase_merge / 'orig-head').write_text('abcdef1234567890')
+
+            info = repo.rebase_info()
+            self.assertIsNotNone(info)
+            self.assertIsInstance(info, RebaseInfo)
+            self.assertEqual(info.onto, '1234567890abcdef')
+            self.assertEqual(info.orig_head, 'abcdef1234567890')
 
     def test_rebase_interactive(self):
         """Verify interactive rebase editor script."""
