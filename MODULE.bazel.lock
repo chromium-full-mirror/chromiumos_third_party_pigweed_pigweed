@@ -1505,7 +1505,7 @@
               "package": "fuchsia/development/rules_fuchsia",
               "tag": "version:31.20260410.4.1",
               "exports_files": false,
-              "cipd_bin": "@@+_repo_rules4+cipd_client//:cipd"
+              "cipd_bin": "@@+cipd+cipd_client//:cipd"
             }
           },
           "fuchsia_sdk": {
@@ -1514,7 +1514,7 @@
               "package": "fuchsia/sdk/core/fuchsia-bazel-rules/linux-amd64",
               "tag": "version:31.20260410.4.1",
               "exports_files": false,
-              "cipd_bin": "@@+_repo_rules4+cipd_client//:cipd"
+              "cipd_bin": "@@+cipd+cipd_client//:cipd"
             }
           },
           "shac": {
@@ -1532,7 +1532,7 @@
           [
             "",
             "cipd_client",
-            "+_repo_rules4+cipd_client"
+            "+cipd+cipd_client"
           ],
           [
             "fuchsia_infra+",
@@ -1933,10 +1933,10 @@
                 "linux-arm"
               ],
               "executables": [
-                "'@@+_repo_rules5+doxygen_linux_amd64//:bin/doxygen'",
-                "'@@+_repo_rules5+doxygen_mac_amd64//:doxygen'",
-                "'@@+_repo_rules5+doxygen_mac_arm64//:doxygen'",
-                "'@@+_repo_rules5+doxygen_windows_amd64//:windows.exe'",
+                "'@@+cipd+pigweed.doxygen_linux_amd64//:bin/doxygen'",
+                "'@@+cipd+pigweed.doxygen_mac_amd64//:doxygen'",
+                "'@@+cipd+pigweed.doxygen_mac_arm64//:doxygen'",
+                "'@@+cipd+pigweed.doxygen_windows_amd64//:windows.exe'",
                 ""
               ]
             }
@@ -1946,22 +1946,22 @@
           [
             "",
             "doxygen_linux_amd64",
-            "+_repo_rules5+doxygen_linux_amd64"
+            "+cipd+pigweed.doxygen_linux_amd64"
           ],
           [
             "",
             "doxygen_mac_amd64",
-            "+_repo_rules5+doxygen_mac_amd64"
+            "+cipd+pigweed.doxygen_mac_amd64"
           ],
           [
             "",
             "doxygen_mac_arm64",
-            "+_repo_rules5+doxygen_mac_arm64"
+            "+cipd+pigweed.doxygen_mac_arm64"
           ],
           [
             "",
             "doxygen_windows_amd64",
-            "+_repo_rules5+doxygen_windows_amd64"
+            "+cipd+pigweed.doxygen_windows_amd64"
           ],
           [
             "rules_doxygen+",

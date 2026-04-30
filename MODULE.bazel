@@ -159,11 +159,8 @@ xcode_sdk_repository(
     build_file = "//pw_toolchain/host_clang:macos_sysroot.BUILD",
 )
 
-cipd_client_repository = use_repo_rule("//pw_env_setup/bazel/cipd_setup:cipd_rules.bzl", "_cipd_client_repository")
-
-cipd_client_repository(name = "cipd_client")
-
-cipd_repository = use_repo_rule("//pw_env_setup/bazel/cipd_setup:cipd_rules.bzl", "cipd_repository")
+cipd_ext = use_extension("//pw_env_setup/bazel/cipd:defs.bzl", "cipd")
+use_repo(cipd_ext, "cipd_client")
 
 pw_cxx_toolchain = use_extension("//pw_toolchain/cc:pw_cxx_toolchain.bzl", "pw_cxx_toolchain")
 
@@ -180,12 +177,14 @@ pw_cxx_toolchain.zephyr_llvm(cipd_tag = "version:3@1.0.0")
 use_repo(pw_cxx_toolchain, "gcc_arm_none_eabi_toolchain", "llvm_toolchain", "zephyr_llvm_toolchain", "zephyr_toolchain")
 
 # Fetch linux sysroot for host builds.
-cipd_repository(
-    name = "linux_sysroot",
+cipd_ext.require(
+    name = "pigweed.linux_sysroot",
     build_file = "//pw_toolchain/host_clang:linux_sysroot.BUILD",
-    path = "fuchsia/third_party/sysroot/bionic",
-    tag = "git_revision:702eb9654703a7cec1cadf93a7e3aa269d053943",
+    packages = {
+        "fuchsia/third_party/sysroot/bionic": "git_revision:702eb9654703a7cec1cadf93a7e3aa269d053943",
+    },
 )
+use_repo(cipd_ext, linux_sysroot = "pigweed.linux_sysroot")
 
 register_toolchains(
     "//pw_toolchain:cc_toolchain_cortex-m0",
@@ -451,12 +450,14 @@ use_repo(maven, "pigweed_maven_deps")
 
 # QEMU prebuilts
 # ==============
-cipd_repository(
-    name = "qemu",
+cipd_ext.require(
+    name = "pigweed.qemu",
     build_file = "//third_party/qemu:qemu.BUILD",
-    path = "fuchsia/third_party/qemu/${platform}",
-    tag = "git_revision:1da8f3a3c53b604edfe0d55e475102640490549e",
+    packages = {
+        "fuchsia/third_party/qemu/${platform}": "git_revision:1da8f3a3c53b604edfe0d55e475102640490549e",
+    },
 )
+use_repo(cipd_ext, qemu = "pigweed.qemu")
 
 # Vendored libraries
 # ==================
@@ -508,42 +509,52 @@ git_repository(
 
 # Other Pigweed-specific dependencies
 # ===================================
-cipd_repository(
-    name = "bloaty",
-    path = "fuchsia/third_party/bloaty/${os=linux,mac}-amd64",
-    tag = "git_revision:c057ba4f43db0506d4ba8c096925b054b02a8bd3",
+cipd_ext.require(
+    name = "pigweed.bloaty",
+    packages = {
+        "fuchsia/third_party/bloaty/${os=linux,mac}-amd64": "git_revision:c057ba4f43db0506d4ba8c096925b054b02a8bd3",
+    },
 )
+use_repo(cipd_ext, bloaty = "pigweed.bloaty")
 
-cipd_repository(
-    name = "buildifier",
-    path = "infra/3pp/tools/buildifier/${platform}",
-    tag = "version:3@v8.2.1",
+cipd_ext.require(
+    name = "pigweed.buildifier",
+    packages = {
+        "infra/3pp/tools/buildifier/${platform}": "version:3@v8.2.1",
+    },
 )
+use_repo(cipd_ext, buildifier = "pigweed.buildifier")
 
 # GN is only used to format GN build files.
-cipd_repository(
-    name = "gn",
-    path = "gn/gn/${platform}",
-    tag = "git_revision:97b68a0bb62b7528bc3491c7949d6804223c2b82",
+cipd_ext.require(
+    name = "pigweed.gn",
+    packages = {
+        "gn/gn/${platform}": "git_revision:97b68a0bb62b7528bc3491c7949d6804223c2b82",
+    },
 )
+use_repo(cipd_ext, gn = "pigweed.gn")
 
 # This is only used to get access to gofmt for code formatting.
-cipd_repository(
-    name = "go",
-    path = "infra/3pp/tools/go/${platform}",
-    tag = "version:3@1.24.12",
+cipd_ext.require(
+    name = "pigweed.go",
+    packages = {
+        "infra/3pp/tools/go/${platform}": "version:3@1.24.12",
+    },
 )
+use_repo(cipd_ext, go = "pigweed.go")
 
 # Set up legacy pw_transfer test binaries.
 # Required by: pigweed.
 # Used in modules: //pw_transfer.
-cipd_repository(
-    name = "pw_transfer_test_binaries",
+cipd_ext.require(
+    name = "pigweed.pw_transfer_test_binaries",
     # Only ever needed if you run the pw_transfer unit tests.
     dev_dependency = True,
-    path = "pigweed/pw_transfer_test_binaries/${os=linux}-${arch=amd64}",
-    tag = "version:pw_transfer_test_binaries_528098d588f307881af83f769207b8e6e1b57520-linux-amd64-cipd.cipd",
+    packages = {
+        "pigweed/pw_transfer_test_binaries/${os=linux}-${arch=amd64}": "version:pw_transfer_test_binaries_528098d588f307881af83f769207b8e6e1b57520-linux-amd64-cipd.cipd",
+    },
 )
+use_repo(cipd_ext, pw_transfer_test_binaries = "pigweed.pw_transfer_test_binaries")
 
 workspace_and_buildfile = use_repo_rule("//pw_build/bazel_internal:workspace_and_buildfile.bzl", "workspace_and_buildfile")
 
@@ -571,29 +582,37 @@ local_repository(
 # =============
 
 # Get executables.
-cipd_repository(
-    name = "doxygen_linux_amd64",
-    path = "pigweed/third_party/doxygen/linux-amd64",
-    tag = "version:1.9.6-1",
+cipd_ext.require(
+    name = "pigweed.doxygen_linux_amd64",
+    packages = {
+        "pigweed/third_party/doxygen/linux-amd64": "version:1.9.6-1",
+    },
 )
+use_repo(cipd_ext, doxygen_linux_amd64 = "pigweed.doxygen_linux_amd64")
 
-cipd_repository(
-    name = "doxygen_mac_amd64",
-    path = "pigweed/third_party/doxygen/mac-amd64",
-    tag = "version:1.9.6-1",
+cipd_ext.require(
+    name = "pigweed.doxygen_mac_amd64",
+    packages = {
+        "pigweed/third_party/doxygen/mac-amd64": "version:1.9.6-1",
+    },
 )
+use_repo(cipd_ext, doxygen_mac_amd64 = "pigweed.doxygen_mac_amd64")
 
-cipd_repository(
-    name = "doxygen_mac_arm64",
-    path = "pigweed/third_party/doxygen/mac-arm64",
-    tag = "version:1.9.6",
+cipd_ext.require(
+    name = "pigweed.doxygen_mac_arm64",
+    packages = {
+        "pigweed/third_party/doxygen/mac-arm64": "version:1.9.6",
+    },
 )
+use_repo(cipd_ext, doxygen_mac_arm64 = "pigweed.doxygen_mac_arm64")
 
-cipd_repository(
-    name = "doxygen_windows_amd64",
-    path = "pigweed/third_party/doxygen/windows-amd64",
-    tag = "version:1.9.6-1",
+cipd_ext.require(
+    name = "pigweed.doxygen_windows_amd64",
+    packages = {
+        "pigweed/third_party/doxygen/windows-amd64": "version:1.9.6-1",
+    },
 )
+use_repo(cipd_ext, doxygen_windows_amd64 = "pigweed.doxygen_windows_amd64")
 
 # Configure rules_doxygen to use our executables.
 doxygen_extension = use_extension("@rules_doxygen//:extensions.bzl", "doxygen_extension", dev_dependency = True)
@@ -683,12 +702,14 @@ fuchsia_cipd_ext.repository(
 )
 use_repo(fuchsia_cipd_ext, "fuchsia_sdk")
 
-cipd_repository(
+cipd_ext.require(
     name = "fuchsia_products_metadata",
     dev_dependency = True,
-    path = "fuchsia/development/product_bundles/v2",
-    tag = FUCHSIA_SDK_VERSION,
+    packages = {
+        "fuchsia/development/product_bundles/v2": FUCHSIA_SDK_VERSION,
+    },
 )
+use_repo(cipd_ext, "fuchsia_products_metadata")
 
 fuchsia_products_repository = use_repo_rule("@rules_fuchsia//fuchsia:products.bzl", "fuchsia_products_repository")
 
