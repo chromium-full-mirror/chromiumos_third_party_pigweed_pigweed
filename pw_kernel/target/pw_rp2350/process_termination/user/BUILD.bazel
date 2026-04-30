@@ -24,6 +24,7 @@ system_image(
         "//pw_kernel/tests/process_termination/user:main",
         "//pw_kernel/tests/process_termination/user:clean_exit",
         "//pw_kernel/tests/process_termination/user:forced_exit",
+        "//pw_kernel/tests/process_termination/user:exception_exit",
     ],
     kernel = ":target",
     platform = "//pw_kernel/target/pw_rp2350",

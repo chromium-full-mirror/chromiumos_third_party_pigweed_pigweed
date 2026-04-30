@@ -797,7 +797,7 @@ impl<K: Kernel> SpinLockGuard<'_, K, SchedulerState<K>> {
     /// This is an ASYNCHRONOUS operation. The process and its threads are marked
     /// as terminating, but they may not exit immediately.
     pub fn process_terminate(
-        mut self,
+        &mut self,
         _kernel: K,
         process_ref: &ProcessRef<K>,
         status: ExitStatus,
@@ -1138,17 +1138,24 @@ pub fn exit_thread<K: Kernel>(kernel: K, status: ExitStatus) -> ! {
 /// Handle a terminal exception in the current thread.
 ///
 /// This should only be called from an architecture specific exception handler.
-/// `in_kernel` should be true if the exception occurred while executing in
-/// kernel mode.
+/// An InterruptGuard is passed in and out in order to allow it to take
+/// architecturally specific action for thread termination.
 ///
 /// If the exception occurred in user mode, the process will be terminated.
 /// If the exception occurred in kernel mode, the kernel will panic.
-pub fn handle_terminal_exception<K: Kernel>(kernel: K, in_kernel: bool) {
-    if in_kernel {
+pub fn handle_terminal_exception<K: Kernel>(
+    kernel: K,
+    guard: crate::interrupt_controller::InterruptGuard<K>,
+) -> crate::interrupt_controller::InterruptGuard<K> {
+    if !guard.from_userspace() {
         pw_assert::panic!("Terminal exception in kernel mode");
-    } else {
-        crate::scheduler::exit_thread(kernel, ExitStatus::UnhandledException(0));
     }
+
+    let mut sched = kernel.get_scheduler().lock(kernel);
+    let process_ref = sched.current_thread().process();
+    let _ = sched.process_terminate(kernel, &process_ref, ExitStatus::UnhandledException(0));
+
+    guard
 }
 
 pub fn sleep_until<K: Kernel>(kernel: K, deadline: Instant<K::Clock>) -> Result<()> {

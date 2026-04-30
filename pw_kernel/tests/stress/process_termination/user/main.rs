@@ -21,6 +21,8 @@ use pw_status::{Result, StatusCode};
 use userspace::time::{Clock, Duration, SystemClock};
 use userspace::{entry, syscall};
 
+const PROCESS_JOIN_TIMEOUT: Duration = Duration::from_secs(5);
+
 fn do_test() -> Result<()> {
     info!("🔄 [User Process Termination Stress] RUNNING");
 
@@ -35,7 +37,7 @@ fn do_test() -> Result<()> {
         }
 
         info!("🔄 ├─ Waiting", pass as u32);
-        let deadline = SystemClock::now() + Duration::from_secs(5);
+        let deadline = SystemClock::now() + PROCESS_JOIN_TIMEOUT;
         if let Err(err) = syscall::object_wait(
             handle::FORCED_EXIT_PROCESS,
             syscall::Signals::JOINABLE,

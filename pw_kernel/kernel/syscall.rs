@@ -345,7 +345,7 @@ fn handle_thread_exit<'a, K: Kernel>(kernel: K, mut args: K::SyscallArgs<'a>) ->
 fn handle_process_exit<'a, K: Kernel>(kernel: K, mut args: K::SyscallArgs<'a>) -> Result<()> {
     log_if::debug_if!(SYSCALL_DEBUG, "syscall: handling process_exit");
     let exit_code = args.next_u32()?;
-    let sched = kernel.get_scheduler().lock(kernel);
+    let mut sched = kernel.get_scheduler().lock(kernel);
     let current_process = sched.current_process_ref().clone();
     sched.process_terminate(
         kernel,
@@ -357,6 +357,9 @@ fn handle_process_exit<'a, K: Kernel>(kernel: K, mut args: K::SyscallArgs<'a>) -
     // Since exit_thread does not return, the reference would otherwise be leaked,
     // preventing the process from being successfully joined (which requires ref_count == 1).
     drop(current_process);
+
+    // Release the scheduler lock to allow preemption.
+    drop(sched);
 
     // Now exit the current thread as well.
     crate::scheduler::exit_thread(kernel, syscall_defs::ExitStatus::ProcessTerminated);

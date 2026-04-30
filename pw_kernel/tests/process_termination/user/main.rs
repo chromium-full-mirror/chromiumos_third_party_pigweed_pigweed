@@ -21,6 +21,8 @@ use pw_status::{Result, StatusCode};
 use userspace::time::{Clock, Duration, SystemClock, sleep_until};
 use userspace::{entry, syscall};
 
+const PROCESS_JOIN_TIMEOUT: Duration = Duration::from_secs(5);
+
 #[unsafe(no_mangle)]
 pub extern "C" fn test_thread_entry(_arg: usize) {
     info!("Test thread started. Entering infinite loop...");
@@ -69,7 +71,7 @@ fn do_test() -> Result<()> {
         if let Err(err) = syscall::object_wait(
             handle::CLEAN_EXIT_PROCESS,
             syscall::Signals::JOINABLE,
-            SystemClock::now() + Duration::from_secs(5),
+            SystemClock::now() + PROCESS_JOIN_TIMEOUT,
         ) {
             pw_log::error!("Failed to wait for extra process to become joinable");
             return Err(err);
@@ -96,7 +98,7 @@ fn do_test() -> Result<()> {
         if let Err(err) = syscall::object_wait(
             handle::FORCED_EXIT_PROCESS,
             syscall::Signals::JOINABLE,
-            SystemClock::now() + Duration::from_millis(100),
+            SystemClock::now() + PROCESS_JOIN_TIMEOUT,
         ) {
             pw_log::error!("❌ Error waiting for process to be joinable");
             return Err(err);
@@ -112,9 +114,31 @@ fn do_test() -> Result<()> {
         }
         info!("🔄 ├─ Forced exit process joined");
 
+        info!("🔄 ├─ Testing exception exit");
+        info!("🔄 ├─ Waiting for exception exit process to become joinable");
+        if let Err(err) = syscall::object_wait(
+            handle::EXCEPTION_EXIT_PROCESS,
+            syscall::Signals::JOINABLE,
+            SystemClock::now() + PROCESS_JOIN_TIMEOUT,
+        ) {
+            pw_log::error!("❌ Error waiting for exception process to be joinable");
+            return Err(err);
+        }
+
+        info!("🔄 ├─ Joining exception exit process");
+        let status = syscall::process_join(handle::EXCEPTION_EXIT_PROCESS)?;
+        if status != syscall::ExitStatus::UnhandledException(0) {
+            pw_log::error!(
+                "❌ ├─ Process joined with unexpected status (expected UnhandledException(0))"
+            );
+            return Err(pw_status::Error::Internal.into());
+        }
+        info!("🔄 ├─ Exception exit process joined");
+
         info!("🔄 ├─ Restarting test processes");
         syscall::process_start(handle::CLEAN_EXIT_PROCESS)?;
         syscall::process_start(handle::FORCED_EXIT_PROCESS)?;
+        syscall::process_start(handle::EXCEPTION_EXIT_PROCESS)?;
     }
 
     info!("✅ └─ PASSED");

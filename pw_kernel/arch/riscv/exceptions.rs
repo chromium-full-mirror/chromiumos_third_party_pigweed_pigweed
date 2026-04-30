@@ -105,10 +105,11 @@ fn exception_handler(exception: Exception, mepc: usize, frame: &mut TrapFrame) {
             #[cfg(not(feature = "user_space"))]
             {
                 dump_exception_frame(frame);
-                kernel::scheduler::handle_terminal_exception(
+                let guard = kernel::interrupt_controller::InterruptGuard::new(
                     super::Arch,
-                    is_exception_from_kernel(frame),
+                    !is_exception_from_kernel(frame),
                 );
+                let _ = kernel::scheduler::handle_terminal_exception(super::Arch, guard);
             }
         }
         Exception::Breakpoint => {
@@ -120,10 +121,11 @@ fn exception_handler(exception: Exception, mepc: usize, frame: &mut TrapFrame) {
         }
         _ => {
             dump_exception_frame(frame);
-            kernel::scheduler::handle_terminal_exception(
+            let guard = kernel::interrupt_controller::InterruptGuard::new(
                 super::Arch,
-                is_exception_from_kernel(frame),
+                !is_exception_from_kernel(frame),
             );
+            let _ = kernel::scheduler::handle_terminal_exception(super::Arch, guard);
         }
     };
 }

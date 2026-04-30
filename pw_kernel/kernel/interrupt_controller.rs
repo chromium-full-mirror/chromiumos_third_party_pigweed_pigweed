@@ -91,6 +91,10 @@ impl<K: Kernel> InterruptGuard<K> {
     pub fn set_reschedule_reason(&mut self, reason: RescheduleReason) {
         self.reason = reason;
     }
+
+    pub fn from_userspace(&self) -> bool {
+        self.from_userspace
+    }
 }
 
 impl<K: Kernel> Drop for InterruptGuard<K> {

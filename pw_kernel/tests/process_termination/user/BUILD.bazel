@@ -64,3 +64,20 @@ rust_app(
         "//pw_status/rust:pw_status",
     ],
 )
+
+rust_app(
+    name = "exception_exit",
+    srcs = [
+        "exception_exit.rs",
+    ],
+    codegen_crate_name = "exception_exit_codegen",
+    edition = "2024",
+    tags = ["kernel"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pw_kernel/syscall:syscall_user",
+        "//pw_kernel/userspace",
+        "//pw_log/rust:pw_log",
+        "//pw_status/rust:pw_status",
+    ],
+)

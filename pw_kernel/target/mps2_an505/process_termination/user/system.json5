@@ -41,6 +41,11 @@
               name: "forced_exit_process",
               type: "process",
               linked_process: "forced_exit"
+            },
+            {
+              name: "exception_exit_process",
+              type: "process",
+              linked_process: "exception_exit"
             }
           ],
           threads: [
@@ -87,6 +92,24 @@
           threads: [
             {
               name: "forced_exit_thread",
+              // Generous stacks size pending kernel stack size optimization.
+              kernel_stack_size_bytes: 2048,
+            },
+          ],
+        },
+      ],
+    },
+    {
+      name: "exception_exit",
+      flash_size_bytes: 261120,
+      processes: [
+        {
+          name: "exception_exit",
+          ram_size_bytes: 65536,
+          objects: [],
+          threads: [
+            {
+              name: "exception_exit_thread",
               // Generous stacks size pending kernel stack size optimization.
               kernel_stack_size_bytes: 2048,
             },
