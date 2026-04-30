@@ -30,6 +30,7 @@ pw_py_library(
         "pw_presubmit/private/check.py",
         "pw_presubmit/private/events.py",
         "pw_presubmit/private/result.py",
+        "pw_presubmit/private/step.py",
         "pw_presubmit/private/tools.py",
     ],
     imports = ["."],
@@ -65,6 +66,8 @@ pw_py_library(
         "pw_presubmit/pigweed_presubmit.py",
         "pw_presubmit/presubmit.py",
         "pw_presubmit/presubmit_context.py",
+        "pw_presubmit/private/orchestrator.py",
+        "pw_presubmit/private/v2_cli.py",
         "pw_presubmit/pw_internal_namespace.py",
         "pw_presubmit/python_checks.py",
         "pw_presubmit/repo.py",
@@ -73,6 +76,7 @@ pw_py_library(
         "pw_presubmit/todo_check.py",
         "pw_presubmit/tools.py",
         "pw_presubmit/upstream_checks.py",
+        "pw_presubmit/v2.py",
     ],
     imports = ["."],
     # TODO: b/433321728 - Imports private parts of pw_env_setup.
@@ -84,7 +88,7 @@ pw_py_library(
         ":core",
         ":format_core",
         "//pw_build/py:pw_build",
-        "//pw_cli/py:pw_cli",
+        "//pw_cli/py",
         "//pw_config_loader/py:pw_config_loader",
         "//pw_env_setup/py:pw_env_setup",
         "//pw_package/py:pw_package",
@@ -123,7 +127,7 @@ pw_py_library(
     imports = ["."],
     visibility = ["//visibility:private"],
     deps = [
-        "//pw_cli/py:pw_cli",
+        "//pw_cli/py",
         "//pw_config_loader/py:pw_config_loader",
     ],
 )
@@ -625,6 +629,39 @@ pw_py_test(
 )
 
 pw_py_test(
+    name = "step_test",
+    srcs = ["step_test.py"],
+    deps = [
+        ":pw_presubmit",
+    ],
+)
+
+pw_py_test(
+    name = "orchestrator_test",
+    srcs = ["orchestrator_test.py"],
+    deps = [
+        ":pw_presubmit",
+    ],
+)
+
+pw_py_test(
+    name = "v2_cli_test",
+    srcs = ["v2_cli_test.py"],
+    deps = [
+        ":pw_presubmit",
+    ],
+)
+
+pw_py_test(
+    name = "examples_test",
+    srcs = ["examples.py"],
+    main = "examples.py",
+    deps = [
+        ":pw_presubmit",
+    ],
+)
+
+pw_py_test(
     name = "python_format_test",
     srcs = ["python_format_test.py"],
     data = [
@@ -726,4 +763,10 @@ native_binary(
     src = ":format",
     args = ["--check"],
     tags = ["manual"],
+)
+
+filegroup(
+    name = "examples",
+    srcs = ["examples.py"],
+    visibility = ["//pw_presubmit:__subpackages__"],
 )

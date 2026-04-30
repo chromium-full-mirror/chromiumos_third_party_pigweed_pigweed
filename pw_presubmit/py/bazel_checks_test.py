@@ -67,10 +67,10 @@ class IncludePresubmitCheckTest(unittest.TestCase):
         check = bazel_checks.includes_presubmit_check('//...')
         self.assertEqual(check(self.ctx), presubmit.PresubmitResult.FAIL)
         self.assertTrue(
-            any('//one:target' in f.message() for f in self.ctx._failures)
+            any('//one:target' in str(f) for f in self.ctx._failures)
         )
         self.assertTrue(
-            any('//other:target' in f.message() for f in self.ctx._failures)
+            any('//other:target' in str(f) for f in self.ctx._failures)
         )
 
     @mock.patch.object(
@@ -80,10 +80,10 @@ class IncludePresubmitCheckTest(unittest.TestCase):
         check = bazel_checks.includes_presubmit_check('//...')
         self.assertEqual(check(self.ctx), presubmit.PresubmitResult.PASS)
         self.assertFalse(
-            any('//one:target' in f.message() for f in self.ctx._failures)
+            any('//one:target' in str(f) for f in self.ctx._failures)
         )
         self.assertFalse(
-            any('//other:target' in f.message() for f in self.ctx._failures)
+            any('//other:target' in str(f) for f in self.ctx._failures)
         )
 
 

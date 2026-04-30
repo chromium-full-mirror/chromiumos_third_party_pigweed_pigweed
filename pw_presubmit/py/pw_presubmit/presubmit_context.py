@@ -501,7 +501,7 @@ class PresubmitContext:  # pylint: disable=too-many-instance-attributes
         check is free to continue and possibly call this method again.
         """
         failure = Failure(description, path, line)
-        _LOG.warning('%s', failure.message())
+        _LOG.warning('%s', failure)
         self._failures.append(failure)
 
     @staticmethod

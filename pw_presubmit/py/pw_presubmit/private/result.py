@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import dataclasses
 import enum
-
+from collections.abc import Sequence
 from pathlib import Path
 
 import pw_cli.color
@@ -33,7 +33,7 @@ class Failure:
     path: Path | None = None
     line: int | None = None
 
-    def message(self) -> str:
+    def __str__(self) -> str:
         line_part: str = ''
         if self.line is not None:
             line_part = f'{self.line}:'
@@ -62,13 +62,14 @@ class PresubmitFailure(Exception):
             self.failure = Failure(
                 description=description, path=path, line=line
             )
-        super().__init__(self.failure.message())
+        super().__init__(str(self.failure))
 
 
 class PresubmitResult(enum.Enum):
     PASS = 'PASSED'  # Check completed successfully.
     FAIL = 'FAILED'  # Check failed.
     CANCEL = 'CANCEL'  # Check didn't complete.
+    FIXED = 'FIXED'  # Check passed after automatic fixes.
 
     def colorized(self, width: int, invert: bool = False) -> str:
         if self is PresubmitResult.PASS:
@@ -77,6 +78,8 @@ class PresubmitResult(enum.Enum):
             color = _COLOR.black_on_red if invert else _COLOR.red
         elif self is PresubmitResult.CANCEL:
             color = _COLOR.yellow
+        elif self is PresubmitResult.FIXED:
+            color = _COLOR.black_on_cyan if invert else _COLOR.cyan
         else:
 
             def color(value):
@@ -90,26 +93,39 @@ class PresubmitResult(enum.Enum):
 class ProgramResult:
     """Result of running a presubmit program."""
 
-    passed: int
-    failed: int
-    skipped: int
+    passed: Sequence[str]
+    failed: Sequence[str]
+    skipped: Sequence[str]
+    fixed: Sequence[str]
+    success: bool
 
     @property
     def total(self) -> int:
-        return self.passed + self.failed + self.skipped
+        return (
+            len(self.passed)
+            + len(self.failed)
+            + len(self.skipped)
+            + len(self.fixed)
+        )
 
     @property
     def result(self) -> PresubmitResult:
-        if self.failed or self.skipped:
+        if self.failed:
+            return PresubmitResult.FAIL
+        if self.fixed:
+            return PresubmitResult.FIXED
+        if not self.success:
             return PresubmitResult.FAIL
         return PresubmitResult.PASS
 
     def message(self) -> str:
         summary_items = []
         if self.passed:
-            summary_items.append(f'{self.passed} passed')
+            summary_items.append(f'{len(self.passed)} passed')
         if self.failed:
-            summary_items.append(f'{self.failed} failed')
+            summary_items.append(f'{len(self.failed)} failed')
         if self.skipped:
-            summary_items.append(f'{self.skipped} not run')
+            summary_items.append(f'{len(self.skipped)} not run')
+        if self.fixed:
+            summary_items.append(f'{len(self.fixed)} fixed')
         return ', '.join(summary_items) or 'nothing was done'

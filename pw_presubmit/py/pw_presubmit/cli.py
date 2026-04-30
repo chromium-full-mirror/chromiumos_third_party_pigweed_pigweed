@@ -23,7 +23,7 @@ import textwrap
 from typing import Callable, Collection, Sequence
 
 from pw_presubmit import git_repo, presubmit
-from pw_presubmit import Programs
+from pw_presubmit import Check, Program, Programs
 from pw_cli import argument_types
 from pw_cli.collect_files import add_file_collection_arguments
 
@@ -40,7 +40,7 @@ builds. It may be deleted safely.
 def _add_programs_arguments(
     parser: argparse.ArgumentParser, programs: Programs, default: str
 ):
-    def presubmit_program(arg: str) -> presubmit.Program:
+    def presubmit_program(arg: str) -> Program:
         if arg not in programs:
             all_program_names = ', '.join(sorted(programs.keys()))
             raise argparse.ArgumentTypeError(
@@ -96,7 +96,7 @@ def _add_programs_arguments(
         help='List all the available steps.',
     )
 
-    def presubmit_step(arg: str) -> list[presubmit.Check]:
+    def presubmit_step(arg: str) -> list[Check]:
         """Return a list of matching presubmit steps."""
         filtered_step_names = fnmatch.filter(all_steps.keys(), arg)
 
@@ -164,6 +164,7 @@ def add_arguments(
             'pw_presubmit would run are instead printed to the terminal.'
         ),
     )
+
     parser.add_argument(
         '-k',
         '--keep-going',
@@ -238,9 +239,9 @@ def _get_default_parser() -> argparse.ArgumentParser:
 
 
 def run(  # pylint: disable=too-many-arguments
-    default_program: presubmit.Program | None,
-    program: Sequence[presubmit.Program],
-    step: Sequence[presubmit.Check],
+    default_program: Program | None,
+    program: Sequence[Program],
+    step: Sequence[Check],
     substep: str,
     output_directory: Path | None,
     package_root: Path,
@@ -316,18 +317,18 @@ def run(  # pylint: disable=too-many-arguments
         list_steps()
         return 0
 
-    final_program: presubmit.Program | None = None
+    final_program: Program | None = None
     if not program and not step:
         assert default_program  # Cast away "| None".
         final_program = default_program
     elif len(program) == 1 and not step:
         final_program = program[0]
     else:
-        steps: list[presubmit.Check] = []
+        steps: list[Check] = []
         steps.extend(step)
         for prog in program:
             steps.extend(prog)
-        final_program = presubmit.Program('', steps)
+        final_program = Program('', steps)
 
     if substep and len(final_program) > 1:
         _LOG.error('--substep not supported if there are multiple steps')

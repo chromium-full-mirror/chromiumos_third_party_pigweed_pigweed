@@ -45,6 +45,29 @@ def _all_substeps(program):
     return substeps
 
 
+def _test_presubmit(
+    test_case: unittest.TestCase, events=None
+) -> presubmit.Presubmit:
+    if events is None:
+        events = mock.Mock(spec=PresubmitEvents)
+    tmp_dir = tempfile.TemporaryDirectory()
+    test_case.addCleanup(tmp_dir.cleanup)
+    tmp_path = Path(tmp_dir.name)
+    return presubmit.Presubmit(
+        root=Path('.'),
+        repos=[Path('.')],
+        output_directory=tmp_path / 'out',
+        paths=[Path('file.cc')],
+        all_paths=[Path('file.cc')],
+        package_root=tmp_path / 'packages',
+        override_gn_args={},
+        continue_after_build_error=False,
+        rng_seed=1,
+        full=False,
+        events=events,
+    )
+
+
 class ProgramsTest(unittest.TestCase):
     """Tests the presubmit Programs abstraction."""
 
@@ -107,44 +130,37 @@ class PresubmitEventsTest(unittest.TestCase):
     def test_run_calls_events(self) -> None:  # pylint: disable=no-self-use
         """Test that Presubmit.run calls event methods."""
         mock_events = mock.Mock(spec=PresubmitEvents)
-        with tempfile.TemporaryDirectory() as tmp_dir_name:
-            tmp_dir = Path(tmp_dir_name)
-            pre = presubmit.Presubmit(
-                root=Path('.'),
-                repos=[Path('.')],
-                output_directory=tmp_dir / 'out',
-                paths=[Path('file.cc')],
-                all_paths=[Path('file.cc')],
-                package_root=tmp_dir / 'packages',
-                override_gn_args={},
-                continue_after_build_error=False,
-                rng_seed=1,
-                full=False,
-                events=mock_events,
-            )
+        pre = _test_presubmit(self, events=mock_events)
 
-            program = Program('test_program', [_fake_function_1])
-            pre.run(program)
+        program = Program('test_program', [_fake_function_1])
+        pre.run(program)
 
-            # Verify calls
-            mock_events.program_start.assert_called_once()
-            args, _ = mock_events.program_start.call_args
-            self.assertEqual(args[0].name, program.name)
-            self.assertEqual(tuple(args[0]), tuple(program))
-            self.assertEqual(tuple(c.check for c in args[1]), tuple(program))
-            self.assertEqual(args[2], (Path('file.cc'),))
+        # Verify calls
+        mock_events.program_start.assert_called_once()
+        args, _ = mock_events.program_start.call_args
+        self.assertEqual(args[0], program.name)
+        self.assertEqual(args[1], [c.name for c in program])
+        self.assertEqual(args[2], [c.name for c in program])
+        self.assertEqual(args[3], (Path('file.cc'),))
 
-            mock_events.step_start.assert_called_once_with(
-                program[0], 1, (Path('file.cc'),)
-            )
+        mock_events.step_start.assert_called_once_with(
+            program[0].name, 1, (Path('file.cc'),)
+        )
 
-            mock_events.step_end.assert_called_once_with(
-                program[0], 1, PresubmitResult.PASS, mock.ANY
-            )
+        mock_events.step_end.assert_called_once_with(
+            program[0].name, 1, PresubmitResult.PASS, mock.ANY
+        )
 
-            mock_events.summary.assert_called_once_with(
-                ProgramResult(passed=1, failed=0, skipped=0), mock.ANY
-            )
+        mock_events.summary.assert_called_once_with(
+            ProgramResult(
+                passed=['_fake_function_1'],
+                failed=[],
+                skipped=[],
+                fixed=[],
+                success=True,
+            ),
+            mock.ANY,
+        )
 
 
 class HumanUITest(unittest.TestCase):
@@ -156,10 +172,31 @@ class HumanUITest(unittest.TestCase):
         output = io.StringIO()
         program = Program('test_program', [])
         with contextlib.redirect_stdout(output):
-            ui.program_start(program, [], [])
+            ui.program_start(program.name, [], [], [])
 
         self.assertIn('test_program', output.getvalue())
         self.assertIn('═', output.getvalue())
+
+    def test_fix_summary_ui(self) -> None:
+        """Test that HumanUI summary reports FIXED correctly."""
+        ui = HumanUI(width=80)
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            ui.program_start('test_program', [], [], [Path('a'), Path('b')])
+
+        result = ProgramResult(
+            passed=['step'] * 8,
+            failed=[],
+            skipped=[],
+            fixed=['fixed_step'],
+            success=True,
+        )
+        with contextlib.redirect_stdout(output):
+            ui.summary(result, 1.0)
+
+        output_str = output.getvalue()
+        self.assertIn('FIXED', output_str)
+        self.assertIn('8 passed, 1 fixed', output_str)
 
 
 if __name__ == '__main__':

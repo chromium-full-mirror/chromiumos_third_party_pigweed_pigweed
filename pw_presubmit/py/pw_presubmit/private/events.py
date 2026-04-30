@@ -21,18 +21,14 @@ from pathlib import Path
 
 import pw_cli.color
 from pw_cli.plural import plural
+from pw_cli.collect_files import file_summary
 from pw_presubmit.private import tools
-from pw_presubmit.private.check import (
-    Check,
-    Program,
-    FilteredCheck,
-)
 from pw_presubmit.private.result import (
     PresubmitResult,
     ProgramResult,
 )
 
-_LOG = logging.getLogger(__name__)
+_LOG = logging.getLogger("pw_presubmit")
 
 _COLOR = pw_cli.color.colors()
 
@@ -43,11 +39,12 @@ class PresubmitEvents(abc.ABC):
     @abc.abstractmethod
     def program_start(
         self,
-        program: Program,
-        checks: Sequence[FilteredCheck],
+        program: str,
+        all_checks: Sequence[str],
+        selected_checks: Sequence[str],
         paths: Sequence[Path],
     ) -> None:
-        """Called with the program and affected files."""
+        """Called at the start of a presubmit program."""
 
     @abc.abstractmethod
     def warning(self, message: str) -> None:
@@ -55,14 +52,14 @@ class PresubmitEvents(abc.ABC):
 
     @abc.abstractmethod
     def step_start(
-        self, check: Check, step_count: int, paths: Sequence[Path]
+        self, check: str, step_count: int, paths: Sequence[Path]
     ) -> None:
         """Called at the start of a presubmit step."""
 
     @abc.abstractmethod
     def step_end(
         self,
-        check: Check,
+        check: str,
         step_count: int,
         result: PresubmitResult,
         duration_s: float,
@@ -90,8 +87,8 @@ class HumanUI(PresubmitEvents):
     def __init__(self, width: int = 80):
         self.width = width
         self._center = self.width - self._LEFT - self._RIGHT - 4
-        self.program: Program | None = None
-        self.checks: Sequence[FilteredCheck] = []
+        self.program: str | None = None
+        self.checks: Sequence[str] = []
         self.paths: Sequence[Path] = []
 
     @staticmethod
@@ -112,15 +109,21 @@ class HumanUI(PresubmitEvents):
 
     def program_start(
         self,
-        program: Program,
-        checks: Sequence[FilteredCheck],
+        program: str,
+        all_checks: Sequence[str],
+        selected_checks: Sequence[str],
         paths: Sequence[Path],
     ) -> None:
         self.program = program
-        self.checks = checks
+        self.checks = selected_checks
         self.paths = paths
 
-        title = f'{program.name}: {program.title()}'
+        self._print()
+        for line in file_summary(paths):
+            self._print(line)
+        self._print()
+
+        title = f'{program} presubmit checks'
         msg = f' {title} '.center(self.width - 2)
         formatted_title = tools.make_box('^').format(
             *self._SUMMARY_BOX, section1=msg, width1=len(msg)
@@ -131,7 +134,7 @@ class HumanUI(PresubmitEvents):
         self._print(_COLOR.yellow(message))
 
     def step_start(
-        self, check: Check, step_count: int, paths: Sequence[Path]
+        self, check: str, step_count: int, paths: Sequence[Path]
     ) -> None:
         total = len(self.checks) if self.checks else 0
         num_paths = len(paths)
@@ -140,24 +143,27 @@ class HumanUI(PresubmitEvents):
             self._box(
                 self._CHECK_UPPER,
                 middle_text,
-                check.name,
+                check,
                 plural(num_paths, 'file'),
             )
         )
 
     def step_end(
         self,
-        check: Check,
+        check: str,
         step_count: int,
         result: PresubmitResult,
         duration_s: float,
     ) -> None:
+        if result is PresubmitResult.FIXED:
+            self._print(f'🤖 Applied automatic fix for {check} 🛠️')
+
         time_str = tools.format_time(duration_s)
         self._print(
             self._box(
                 self._CHECK_LOWER,
                 result.colorized(self._LEFT),
-                check.name,
+                check,
                 time_str,
             )
         )

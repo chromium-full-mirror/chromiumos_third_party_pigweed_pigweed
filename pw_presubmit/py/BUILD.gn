@@ -74,8 +74,11 @@ pw_python_package("py") {
     "pw_presubmit/private/__init__.py",
     "pw_presubmit/private/check.py",
     "pw_presubmit/private/events.py",
+    "pw_presubmit/private/orchestrator.py",
     "pw_presubmit/private/result.py",
+    "pw_presubmit/private/step.py",
     "pw_presubmit/private/tools.py",
+    "pw_presubmit/private/v2_cli.py",
     "pw_presubmit/pw_internal_namespace.py",
     "pw_presubmit/python_checks.py",
     "pw_presubmit/repo.py",
@@ -84,6 +87,7 @@ pw_python_package("py") {
     "pw_presubmit/todo_check.py",
     "pw_presubmit/tools.py",
     "pw_presubmit/upstream_checks.py",
+    "pw_presubmit/v2.py",
   ]
   tests = [
     "bazel_checks_test.py",
@@ -91,15 +95,19 @@ pw_python_package("py") {
     "block_submission_test.py",
     "context_test.py",
     "cpp_checks_test.py",
+    "examples.py",
     "format_core_test.py",
     "gitmodules_test.py",
     "inclusive_language_test.py",
     "keep_sorted_test.py",
     "ninja_parser_test.py",
+    "orchestrator_test.py",
     "presubmit_test.py",
+    "step_test.py",
     "owners_checks_test.py",
     "todo_check_test.py",
     "tools_test.py",
+    "v2_cli_test.py",
   ]
 
   python_deps = [

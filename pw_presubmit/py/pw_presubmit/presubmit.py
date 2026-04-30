@@ -111,6 +111,9 @@ class Presubmit:  # pylint: disable=too-many-instance-attributes
         self._output_directory = output_directory.resolve()
         self._paths = tuple(paths)
         self._all_paths = tuple(all_paths)
+        self._relative_paths = tuple(
+            tools.relative_paths(self._paths, self._root)
+        )
 
         self._package_root = package_root.resolve()
         self._override_gn_args = override_gn_args
@@ -135,7 +138,11 @@ class Presubmit:  # pylint: disable=too-many-instance-attributes
             filtered_checks[0].substep = substep
 
         _LOG.debug('Running %s for %s', program.title(), self._root.name)
-        self.events.program_start(program, filtered_checks, self._paths)
+        all_checks = [c.name for c in program]
+        selected_checks = [c.name for c in filtered_checks]
+        self.events.program_start(
+            program.name, all_checks, selected_checks, self._relative_paths
+        )
 
         _LOG.info(
             '%d of %d checks apply to %s in %s',
@@ -159,10 +166,18 @@ class Presubmit:  # pylint: disable=too-many-instance-attributes
         return not failed and not skipped
 
     def _log_summary(
-        self, time_s: float, passed: int, failed: int, skipped: int
+        self,
+        time_s: float,
+        passed: list[str],
+        failed: list[str],
+        skipped: list[str],
     ) -> None:
         program_result = ProgramResult(
-            passed=passed, failed=failed, skipped=skipped
+            passed=passed,
+            failed=failed,
+            skipped=skipped,
+            fixed=[],
+            success=not failed,
         )
 
         _LOG.debug(
@@ -227,7 +242,7 @@ class Presubmit:  # pylint: disable=too-many-instance-attributes
                         for (
                             failure
                         ) in ctx._failures:  # pylint: disable=protected-access
-                            outs.write(f'{failure.message()}\n')
+                            outs.write(str(failure) + '\n')
 
         finally:
             _LOG.removeHandler(handler)
@@ -237,30 +252,34 @@ class Presubmit:  # pylint: disable=too-many-instance-attributes
         checks: Sequence[FilteredCheck],
         keep_going: bool,
         dry_run: bool = False,
-    ) -> tuple[int, int, int]:
+    ) -> tuple[list[str], list[str], list[str]]:
         """Runs presubmit checks; returns (passed, failed, skipped) lists."""
-        passed = failed = 0
+        passed: list[str] = []
+        failed: list[str] = []
+        skipped: list[str] = []
 
         for i, filtered_check in enumerate(checks, 1):
             with self._context(filtered_check, dry_run) as ctx:
-                self.events.step_start(filtered_check.check, i, ctx.paths)
+                self.events.step_start(filtered_check.name, i, ctx.paths)
                 start_time = time.time()
                 result = filtered_check.run(ctx)
                 if ctx.dry_run:
                     log_check_traces(ctx)
                 duration = time.time() - start_time
-                self.events.step_end(filtered_check.check, i, result, duration)
+                self.events.step_end(filtered_check.name, i, result, duration)
 
             if result is PresubmitResult.PASS:
-                passed += 1
+                passed.append(filtered_check.name)
             elif result is PresubmitResult.CANCEL:
+                skipped.extend(c.name for c in checks[i:])
                 break
             else:
-                failed += 1
+                failed.append(filtered_check.name)
                 if not keep_going:
+                    skipped.extend(c.name for c in checks[i:])
                     break
 
-        return passed, failed, len(checks) - passed - failed
+        return passed, failed, skipped
 
 
 def run(  # pylint: disable=too-many-arguments,too-many-locals

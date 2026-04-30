@@ -473,7 +473,7 @@ def keep_sorted_in_repo(
     if ctx._failures:
         with open(outdir / 'failure-summary.log', 'w') as outs:
             for failure in ctx._failures:
-                outs.write(f'{failure.message()}\n')
+                outs.write(f'{str(failure)}\n')
     # pylint: enable=protected-access
 
     if not fix and errors:

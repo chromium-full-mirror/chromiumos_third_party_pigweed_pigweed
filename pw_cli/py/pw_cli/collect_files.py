@@ -35,8 +35,13 @@ from pw_cli.plural import plural
 _LOG = logging.getLogger(__name__)
 
 
-def add_file_collection_arguments(parser: argparse.ArgumentParser) -> None:
-    """Adds arguments required by ``collect_files()``."""
+def add_git_file_arguments(parser: argparse.ArgumentParser) -> None:
+    """Adds arguments for listing files in a Git repo.
+
+    This is the same as ``add_file_collection_arguments`` but without the
+    ``-e/--exclude`` argument. ``--exclude`` is rarely needed as a command line
+    argument, since exclusions are usually specified by a script or config file.
+    """
 
     parser.add_argument(
         'paths',
@@ -70,6 +75,11 @@ def add_file_collection_arguments(parser: argparse.ArgumentParser) -> None:
         const=None,
         help='Run actions for all files, not just changed files.',
     )
+
+
+def add_file_collection_arguments(parser: argparse.ArgumentParser) -> None:
+    """Adds arguments required by ``collect_files()``."""
+    add_git_file_arguments(parser)
 
     parser.add_argument(
         '-e',

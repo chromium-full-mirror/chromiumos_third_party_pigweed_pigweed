@@ -1,4 +1,4 @@
-# Copyright 2024 The Pigweed Authors
+# Copyright 2026 The Pigweed Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may not
 # use this file except in compliance with the License. You may obtain a copy of
@@ -11,20 +11,20 @@
 # WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 # License for the specific language governing permissions and limitations under
 # the License.
+"""Tools for running presubmit checks in a Git repository.
 
-load("@rules_python//sphinxdocs:sphinx_docs_library.bzl", "sphinx_docs_library")
-load("//pw_build:compatibility.bzl", "incompatible_with_mcu")
+This is the public v2 API, which supports features like automatic fixes and
+running individually on stacked commits.
+"""
 
-package(default_visibility = ["//visibility:public"])
+from pw_presubmit.private.result import PresubmitFailure
+from pw_presubmit.private.step import Context, Step, step
+from pw_presubmit.private.v2_cli import main
 
-sphinx_docs_library(
-    name = "docs",
-    srcs = [
-        "docs.rst",
-        "format.rst",
-        "pigweed_config.rst",
-        "//pw_presubmit/py:examples",
-    ],
-    prefix = "pw_presubmit/",
-    target_compatible_with = incompatible_with_mcu(),
-)
+__all__ = [
+    'Context',
+    'main',
+    'Step',
+    'step',
+    'PresubmitFailure',
+]

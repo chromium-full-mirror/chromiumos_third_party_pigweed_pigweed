@@ -42,6 +42,7 @@ from pw_presubmit.private.result import (
     PresubmitFailure,
     PresubmitResult,
 )
+from pw_presubmit.private.step import Step
 from pw_presubmit.private.tools import (
     flatten,
     format_time,
@@ -49,7 +50,7 @@ from pw_presubmit.private.tools import (
     relative_paths,
 )
 
-_LOG = logging.getLogger(__name__)
+_LOG = logging.getLogger('pw_presubmit')
 
 
 class GenericContext(Protocol):
@@ -59,8 +60,11 @@ class GenericContext(Protocol):
     minimal presubmit context.
     """
 
-    paths: tuple[Path, ...]
-    output_dir: Path
+    @property
+    def paths(self) -> tuple[Path, ...]: ...
+
+    @property
+    def output_dir(self) -> Path: ...
 
     @property
     def failed(self) -> bool: ...
@@ -117,9 +121,10 @@ class Check:
         self._substeps_raw: Iterable[SubStep]
         if isinstance(check, collections.abc.Iterator):
             self._substeps_raw = check
-        else:
+        else:  # For consistency, make an individual check a substep
             assert callable(check)
             _ensure_is_valid_presubmit_check_function(check)
+
             self._substeps_raw = iter((SubStep(None, check),))
         self._substeps_saved: Sequence[SubStep] = ()
 
@@ -230,10 +235,12 @@ class Check:
         except PresubmitFailure as failure:
             if str(failure):
                 _LOG.warning('%s', failure)
+
             return PresubmitResult.FAIL
 
         except Exception as _failure:  # pylint: disable=broad-except
             _LOG.exception('Presubmit check %s failed!', self.name)
+
             return PresubmitResult.FAIL
 
         except KeyboardInterrupt:
@@ -245,7 +252,7 @@ class Check:
     ) -> PresubmitResult:
         for substep in self.substeps():
             if substep.name == name:
-                return substep(ctx)
+                return self._try_call(substep, ctx)
 
         expected = ', '.join(repr(s.name) for s in self.substeps())
         raise LookupError(f'bad substep name: {name!r} (expected: {expected})')
@@ -341,6 +348,14 @@ class Program(collections.abc.Sequence):
         def ensure_check(step):
             if isinstance(step, Check):
                 return step
+            if isinstance(step, Step):
+                return Check(
+                    step.run,
+                    name=step.name,
+                    doc=step.__doc__ or '',
+                    path_filter=step.filter,
+                )
+
             return Check(step)
 
         self._steps: tuple[Check, ...] = tuple(

@@ -51,7 +51,6 @@ project. These checks include:
 
 .. todo-check: enable
 
-
 .. pw_cli-nav-start
 
 .. grid:: 1
@@ -65,14 +64,293 @@ project. These checks include:
 
 .. pw_cli-nav-end
 
--------------
-Compatibility
--------------
-Python 3
-
 -------------------------------------------
 Creating a presubmit check for your project
 -------------------------------------------
+To create a presubmit for your project, create a Python script that collects a
+list of checks and calls the presubmit main function with them.
+
+Pigweed's presubmit infrastructure is exposed through the ``pw_presubmit.v2``
+module. The v2 implementation supports features like automatic fixes and running
+individually on stacked commits.
+
+Defining steps
+==============
+In v2, presubmit checks are called "steps". They can be defined using the
+``@step`` decorator or by subclassing :class:`pw_presubmit.v2.Step <Step>`.
+
+Using the @step decorator
+-------------------------
+The simplest way to define a step is to decorate a function that takes a
+``Context`` argument.
+
+.. literalinclude:: py/examples.py
+   :language: py
+   :start-after: [pw_presubmit-v2-decorator]
+   :end-before: [pw_presubmit-v2-decorator]
+
+The decorator accepts :class:`pw_cli.file_filter.FileFilter <FileFilter>`
+parameters, like ``endswith``, ``exclude``, etc., that determine when the step
+should run.
+
+Subclassing step
+----------------
+For more complex steps, or steps that support automatic fixing, you can
+subclass :class:`pw_presubmit.v2.Step <Step>`.
+
+.. literalinclude:: py/examples.py
+   :language: py
+   :start-after: [pw_presubmit-v2-class]
+   :end-before: [pw_presubmit-v2-class]
+
+Running presubmit
+=================
+To run the presubmit checks, use ``main``. It takes a mapping of program
+names to collections of steps.
+
+.. literalinclude:: py/examples.py
+   :language: py
+   :start-after: [pw_presubmit-v2-programs]
+   :end-before: [pw_presubmit-v2-programs]
+
+CLI usage
+---------
+The v2 CLI provides standard options for selecting programs or steps, and
+controlling error handling.
+
+* ``--program <name>``: Run a specific program.
+* ``--step <name>``: Run a specific step.
+* ``--mode {stop,fix,continue}``: How to run the presubmit.
+
+  * ``stop``: Stop on first error (default).
+  * ``fix``: Automatically apply fixes to checks.
+  * ``continue``: Continue running other steps on error.
+
+pw_presubmit.v2 Python API
+==========================
+.. automodule:: pw_presubmit.v2
+   :members:
+
+-------------------------
+Existing presubmit checks
+-------------------------
+A small number of presubmit checks are made available through ``pw_presubmit``
+modules. These can be included in your presubmit programs.
+
+Code formatting
+===============
+Formatting checks for a variety of languages are available from
+``pw_presubmit.format_code``. These include C/C++, Java, Go, Python, GN, and
+others. All of these checks can be included by adding
+``pw_presubmit.format_code.presubmit_checks()`` to a presubmit program. These
+all use language-specific formatters like clang-format or black.
+
+Example changes demonstrating how to add formatters:
+
+* `CSS <https://pigweed-review.googlesource.com/c/pigweed/pigweed/+/178810>`_
+* `JSON <https://pigweed-review.googlesource.com/c/pigweed/pigweed/+/171991>`_
+* `reStructuredText <https://pigweed-review.googlesource.com/c/pigweed/pigweed/+/168541>`_
+* `TypeScript <https://pigweed-review.googlesource.com/c/pigweed/pigweed/+/164825>`_
+
+These will suggest fixes using ``pw format --fix``.
+
+Options for code formatting can be specified in
+:ref:`module-pw_presubmit-pwigweed_config`.
+
+Sorted blocks
+=============
+Blocks of code can be required to be kept in sorted order using comments like
+the following:
+
+.. code-block:: python
+
+   # keep-sorted: start
+   bar
+   baz
+   foo
+   # keep-sorted: end
+
+This can be included by adding ``pw_presubmit.keep_sorted.presubmit_check`` to a
+presubmit program. Adding ``ignore-case`` to the start line will use
+case-insensitive sorting.
+
+By default, duplicates will be removed. Lines that are identical except in case
+are preserved, even with ``ignore-case``. To allow duplicates, add
+``allow-dupes`` to the start line.
+
+Prefixes can be ignored by adding ``ignore-prefix=`` followed by a
+comma-separated list of prefixes. The list below will be kept in this order.
+Neither commas nor whitespace are supported in prefixes.
+
+.. code-block:: python
+
+   # keep-sorted: start ignore-prefix=',"
+   'bar',
+   "baz",
+   'foo',
+   # keep-sorted: end
+
+Inline comments are assumed to be associated with the following line. For
+example, the following is already sorted. This can be disabled with
+``sticky-comments=no``.
+
+.. todo-check: disable
+
+.. code-block:: python
+
+   # keep-sorted: start
+   # TODO: b/1234 - Fix this.
+   bar,
+   # TODO: b/5678 - Also fix this.
+   foo,
+   # keep-sorted: end
+
+.. todo-check: enable
+
+By default, the prefix of the keep-sorted line is assumed to be the comment
+marker used by any inline comments. This can be overridden by adding lines like
+``sticky-comments=%,#`` to the start line.
+
+Lines indented more than the preceding line are assumed to be continuations.
+Thus, the following block is already sorted. keep-sorted blocks can not be
+nested, so there's no ability to add a keep-sorted block for the sub-items.
+
+.. code-block::
+
+   # keep-sorted: start
+   * abc
+     * xyz
+     * uvw
+   * def
+   # keep-sorted: end
+
+The presubmit check will suggest fixes using ``pw keep-sorted --fix``.
+
+Future versions may support additional multiline list items.
+
+.gitmodules
+===========
+Various rules can be applied to .gitmodules files. This check can be included
+by adding ``pw_presubmit.gitmodules.create()`` to a presubmit program. This
+function takes an optional argument of type ``pw_presubmit.gitmodules.Config``.
+``Config`` objects have several properties.
+
+* ``allow_submodules: bool = True`` — If false, don't allow any submodules.
+* ``allow_non_googlesource_hosts: bool = False`` — If false, all submodule URLs
+  must be on a Google-managed Gerrit server.
+* ``allowed_googlesource_hosts: Sequence[str] = ()`` — If set, any
+  Google-managed Gerrit URLs for submodules most be in this list. Entries
+  should be like ``pigweed`` for ``pigweed-review.googlesource.com``.
+* ``require_relative_urls: bool = False`` — If true, all submodules must be
+  relative to the superproject remote.
+* ``allow_sso: bool = True`` — If false, ``sso://`` and ``rpc://`` submodule
+  URLs are prohibited.
+* ``allow_git_corp_google_com: bool = True`` — If false, ``git.corp.google.com``
+  submodule URLs are prohibited.
+* ``require_branch: bool = False`` — If true, all submodules must reference a
+  branch.
+* ``validator: Callable[[PresubmitContext, Path, str, dict[str, str]], None] = None``
+  — A function that can be used for arbitrary submodule validation. It's called
+  with the ``PresubmitContext``, the path to the ``.gitmodules`` file, the name
+  of the current submodule, and the properties of the current submodule.
+
+#pragma once
+============
+There's a ``pragma_once`` check that confirms the first non-comment line of
+C/C++ headers is ``#pragma once``. This is enabled by adding
+``pw_presubmit.cpp_checks.pragma_once`` to a presubmit program.
+
+#ifndef/#define
+===============
+There's an ``ifndef_guard`` check that confirms the first two non-comment lines
+of C/C++ headers are ``#ifndef HEADER_H`` and ``#define HEADER_H``. This is
+enabled by adding ``pw_presubmit.cpp_checks.include_guard_check()`` to a
+presubmit program. ``include_guard_check()`` has options for specifying what the
+header guard should be based on the path.
+
+This check is not used in Pigweed itself but is available to projects using
+Pigweed.
+
+.. todo-check: disable
+
+TODO(b/###) Formatting
+======================
+There's a check that confirms ``TODO`` lines match a given format. Upstream
+Pigweed expects these to look like ``TODO: https://pwbug.dev/### -
+Explanation``, but projects may define their own patterns instead.
+
+For information on supported TODO expressions, see Pigweed's
+:ref:`docs-pw-todo-style`.
+
+.. todo-check: enable
+
+Python checks
+=============
+There are two checks in the ``pw_presubmit.python_checks`` module, ``gn_pylint``
+and ``gn_python_check``. They assume there's a top-level ``python`` GN target.
+``gn_pylint`` runs Pylint and Mypy checks and ``gn_python_check`` runs Pylint,
+Mypy, and all Python tests.
+
+Bazel checks
+============
+There is one Bazel-related check: the ``includes_presubmit_check`` verifies
+that ``cc_library`` Bazel targets don't use the ``includes`` attribute.  See
+:bug:`378564135` for a discussion of why this attribute should be avoided.
+
+Inclusive language
+==================
+.. inclusive-language: disable
+
+The inclusive language check looks for words that are typical of non-inclusive
+code, like using "master" and "slave" in place of "primary" and "secondary" or
+"sanity check" in place of "consistency check".
+
+.. inclusive-language: enable
+
+These checks can be disabled for individual lines with
+"inclusive-language: ignore" on the line in question or the line above it, or
+for entire blocks by using "inclusive-language: disable" before the block and
+"inclusive-language: enable" after the block.
+
+.. In case things get moved around in the previous paragraphs the enable line
+.. is repeated here: inclusive-language: enable.
+
+pw::module::internal namespace usage
+====================================
+Pigweed modules sometimes have namespaces like ``pw::module::internal`` that
+contain implementation details. This code is not stable and should not be relied
+on outside of the module using the code. Pigweed has a check to prevent
+references to such code from being checked into projects using Pigweed.
+
+OWNERS
+======
+There's a check that requires folders matching specific patterns contain
+``OWNERS`` files. It can be included by adding
+``module_owners.presubmit_check()`` to a presubmit program. This function takes
+a callable as an argument that indicates, for a given file, where a controlling
+``OWNERS`` file should be, or returns None if no ``OWNERS`` file is necessary.
+Formatting of ``OWNERS`` files is handled similarly to formatting of other
+source files and is discussed in `Code Formatting`.
+
+JSON
+====
+The JSON check requires all ``*.json`` files to be valid JSON files. It can be
+included by adding ``json_check.presubmit_check()`` to a presubmit program.
+
+Source in build
+===============
+Pigweed provides checks that source files are configured as part of the build
+for GN, Bazel, CMake, and Soong. These can be included by adding
+``source_in_build.gn(filter)`` and similar functions to a presubmit check. The
+CMake check additionally requires a callable that invokes CMake with appropriate
+options.
+
+--------------------
+Legacy presubmit API
+--------------------
+.. warning::
+   New projects should use the V2 API described above.
+
 Creating a presubmit check for a project using ``pw_presubmit`` is simple, but
 requires some customization. Projects must define their own presubmit check
 Python script that uses the ``pw_presubmit`` package.
@@ -97,12 +375,10 @@ Common ``pw presubmit`` command line arguments
    :nodescription:
    :noepilog:
 
-
 ``pw_presubmit.cli`` Python API
 -------------------------------
 .. automodule:: pw_presubmit.cli
    :members: add_arguments, run
-
 
 Presubmit output directory
 --------------------------
@@ -186,226 +462,11 @@ members:
 ``SubStep`` objects must have unique names. For a detailed example of a
 ``SubStepCheck`` subclass see ``GnGenNinja`` in ``build.py``.
 
-Existing Presubmit Checks
--------------------------
-A small number of presubmit checks are made available through ``pw_presubmit``
-modules.
-
-Code Formatting
-^^^^^^^^^^^^^^^
-Formatting checks for a variety of languages are available from
-``pw_presubmit.format_code``. These include C/C++, Java, Go, Python, GN, and
-others. All of these checks can be included by adding
-``pw_presubmit.format_code.presubmit_checks()`` to a presubmit program. These
-all use language-specific formatters like clang-format or black.
-
-Example changes demonstrating how to add formatters:
-
-* `CSS <https://pigweed-review.googlesource.com/c/pigweed/pigweed/+/178810>`_
-* `JSON <https://pigweed-review.googlesource.com/c/pigweed/pigweed/+/171991>`_
-* `reStructuredText <https://pigweed-review.googlesource.com/c/pigweed/pigweed/+/168541>`_
-* `TypeScript <https://pigweed-review.googlesource.com/c/pigweed/pigweed/+/164825>`_
-
-These will suggest fixes using ``pw format --fix``.
-
-Options for code formatting can be specified in
-:ref:`module-pw_presubmit-pwigweed_config`.
-
-Sorted Blocks
-^^^^^^^^^^^^^
-Blocks of code can be required to be kept in sorted order using comments like
-the following:
-
-.. code-block:: python
-
-   # keep-sorted: start
-   bar
-   baz
-   foo
-   # keep-sorted: end
-
-This can be included by adding ``pw_presubmit.keep_sorted.presubmit_check`` to a
-presubmit program. Adding ``ignore-case`` to the start line will use
-case-insensitive sorting.
-
-By default, duplicates will be removed. Lines that are identical except in case
-are preserved, even with ``ignore-case``. To allow duplicates, add
-``allow-dupes`` to the start line.
-
-Prefixes can be ignored by adding ``ignore-prefix=`` followed by a
-comma-separated list of prefixes. The list below will be kept in this order.
-Neither commas nor whitespace are supported in prefixes.
-
-.. code-block:: python
-
-   # keep-sorted: start ignore-prefix=',"
-   'bar',
-   "baz",
-   'foo',
-   # keep-sorted: end
-
-Inline comments are assumed to be associated with the following line. For
-example, the following is already sorted. This can be disabled with
-``sticky-comments=no``.
-
-.. todo-check: disable
-
-.. code-block:: python
-
-   # keep-sorted: start
-   # TODO: b/1234 - Fix this.
-   bar,
-   # TODO: b/5678 - Also fix this.
-   foo,
-   # keep-sorted: end
-
-.. todo-check: enable
-
-By default, the prefix of the keep-sorted line is assumed to be the comment
-marker used by any inline comments. This can be overridden by adding lines like
-``sticky-comments=%,#`` to the start line.
-
-Lines indented more than the preceding line are assumed to be continuations.
-Thus, the following block is already sorted. keep-sorted blocks can not be
-nested, so there's no ability to add a keep-sorted block for the sub-items.
-
-.. code-block::
-
-   # keep-sorted: start
-   * abc
-     * xyz
-     * uvw
-   * def
-   # keep-sorted: end
-
-The presubmit check will suggest fixes using ``pw keep-sorted --fix``.
-
-Future versions may support additional multiline list items.
-
-.gitmodules
-^^^^^^^^^^^
-Various rules can be applied to .gitmodules files. This check can be included
-by adding ``pw_presubmit.gitmodules.create()`` to a presubmit program. This
-function takes an optional argument of type ``pw_presubmit.gitmodules.Config``.
-``Config`` objects have several properties.
-
-* ``allow_submodules: bool = True`` — If false, don't allow any submodules.
-* ``allow_non_googlesource_hosts: bool = False`` — If false, all submodule URLs
-  must be on a Google-managed Gerrit server.
-* ``allowed_googlesource_hosts: Sequence[str] = ()`` — If set, any
-  Google-managed Gerrit URLs for submodules most be in this list. Entries
-  should be like ``pigweed`` for ``pigweed-review.googlesource.com``.
-* ``require_relative_urls: bool = False`` — If true, all submodules must be
-  relative to the superproject remote.
-* ``allow_sso: bool = True`` — If false, ``sso://`` and ``rpc://`` submodule
-  URLs are prohibited.
-* ``allow_git_corp_google_com: bool = True`` — If false, ``git.corp.google.com``
-  submodule URLs are prohibited.
-* ``require_branch: bool = False`` — If true, all submodules must reference a
-  branch.
-* ``validator: Callable[[PresubmitContext, Path, str, dict[str, str]], None] = None``
-  — A function that can be used for arbitrary submodule validation. It's called
-  with the ``PresubmitContext``, the path to the ``.gitmodules`` file, the name
-  of the current submodule, and the properties of the current submodule.
-
-#pragma once
-^^^^^^^^^^^^
-There's a ``pragma_once`` check that confirms the first non-comment line of
-C/C++ headers is ``#pragma once``. This is enabled by adding
-``pw_presubmit.cpp_checks.pragma_once`` to a presubmit program.
-
-#ifndef/#define
-^^^^^^^^^^^^^^^
-There's an ``ifndef_guard`` check that confirms the first two non-comment lines
-of C/C++ headers are ``#ifndef HEADER_H`` and ``#define HEADER_H``. This is
-enabled by adding ``pw_presubmit.cpp_checks.include_guard_check()`` to a
-presubmit program. ``include_guard_check()`` has options for specifying what the
-header guard should be based on the path.
-
-This check is not used in Pigweed itself but is available to projects using
-Pigweed.
-
-.. todo-check: disable
-
-TODO(b/###) Formatting
-^^^^^^^^^^^^^^^^^^^^^^
-There's a check that confirms ``TODO`` lines match a given format. Upstream
-Pigweed expects these to look like ``TODO: https://pwbug.dev/### -
-Explanation``, but projects may define their own patterns instead.
-
-For information on supported TODO expressions, see Pigweed's
-:ref:`docs-pw-todo-style`.
-
-.. todo-check: enable
-
-Python Checks
-^^^^^^^^^^^^^
-There are two checks in the ``pw_presubmit.python_checks`` module, ``gn_pylint``
-and ``gn_python_check``. They assume there's a top-level ``python`` GN target.
-``gn_pylint`` runs Pylint and Mypy checks and ``gn_python_check`` runs Pylint,
-Mypy, and all Python tests.
-
-Bazel Checks
-^^^^^^^^^^^^
-There is one Bazel-related check: the ``includes_presubmit_check`` verifies
-that ``cc_library`` Bazel targets don't use the ``includes`` attribute.  See
-:bug:`378564135` for a discussion of why this attribute should be avoided.
-
-Inclusive Language
-^^^^^^^^^^^^^^^^^^
-.. inclusive-language: disable
-
-The inclusive language check looks for words that are typical of non-inclusive
-code, like using "master" and "slave" in place of "primary" and "secondary" or
-"sanity check" in place of "consistency check".
-
-.. inclusive-language: enable
-
-These checks can be disabled for individual lines with
-"inclusive-language: ignore" on the line in question or the line above it, or
-for entire blocks by using "inclusive-language: disable" before the block and
-"inclusive-language: enable" after the block.
-
-.. In case things get moved around in the previous paragraphs the enable line
-.. is repeated here: inclusive-language: enable.
-
-pw::module::internal Namespace Usage
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Pigweed modules sometimes have namespaces like ``pw::module::internal`` that
-contain implementation details. This code is not stable and should not be relied
-on outside of the module using the code. Pigweed has a check to prevent
-references to such code from being checked into projects using Pigweed.
-
-OWNERS
-^^^^^^
-There's a check that requires folders matching specific patterns contain
-``OWNERS`` files. It can be included by adding
-``module_owners.presubmit_check()`` to a presubmit program. This function takes
-a callable as an argument that indicates, for a given file, where a controlling
-``OWNERS`` file should be, or returns None if no ``OWNERS`` file is necessary.
-Formatting of ``OWNERS`` files is handled similary to formatting of other
-source files and is discussed in `Code Formatting`.
-
-JSON
-^^^^
-The JSON check requires all ``*.json`` files to be valid JSON files. It can be
-included by adding ``json_check.presubmit_check()`` to a presubmit program.
-
-Source in Build
-^^^^^^^^^^^^^^^
-Pigweed provides checks that source files are configured as part of the build
-for GN, Bazel, CMake, and Soong. These can be included by adding
-``source_in_build.gn(filter)`` and similar functions to a presubmit check. The
-CMake check additionally requires a callable that invokes CMake with appropriate
-options.
-
-pw_presubmit
-------------
+pw_presubmit module
+===================
 .. automodule:: pw_presubmit
    :members: filter_paths, call, PresubmitFailure, Programs
-
-.. _example-script:
-
+   :noindex:
 
 Git hook
 --------
@@ -423,6 +484,8 @@ as push hooks, and perform slower or more complex ones in CI. This is because,
   uploaded to the remote, so you'll have a harder time debugging any failures
   (sharing the change with your colleagues, linking to it from an issue
   tracker, etc).
+
+.. _example-script:
 
 Example
 =======
