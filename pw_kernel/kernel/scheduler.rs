@@ -461,39 +461,6 @@ impl<K: Kernel> SpinLockGuard<'_, K, SchedulerState<K>> {
         self.thread_initialize(kernel, thread, process_ref)
     }
 
-    // DEPRECATED
-    //
-    // This exists solely to test process termination before userspace process
-    // control is stabilized and will be removed.
-    fn thread_initialize_kernel_for_process<A: ThreadArg>(
-        &mut self,
-        kernel: K,
-        thread: &mut Thread<K>,
-        process_ref: ProcessRef<K>,
-        entry_point: fn(K, A),
-        arg: A,
-    ) {
-        pw_assert::assert!(thread.state == State::New);
-        let args = (entry_point as usize, kernel.into_usize(), arg.into_usize());
-
-        thread.stack.initialize();
-
-        // SAFETY: The scheduler guarantees that a process' `memory_config`
-        // remains valid while it has any child threads ensuring that the
-        // `memory_config` is valid for the lifetime of the thread.
-        unsafe {
-            let config = &raw const process_ref.process.as_ref().memory_config;
-            (*thread.arch_thread_state.get()).initialize_kernel_state(
-                thread.stack,
-                config,
-                Thread::<K>::trampoline::<A>,
-                args,
-            );
-        }
-
-        self.thread_initialize(kernel, thread, process_ref)
-    }
-
     pub fn thread_reinitialize_kernel<A: ThreadArg>(
         &mut self,
         kernel: K,

@@ -936,25 +936,6 @@ impl<K: Kernel> Thread<K> {
             .thread_initialize_kernel(kernel, self, entry_point, arg)
     }
 
-    /// DEPRECATED: Initialized a kernel thread in a new process
-    ///
-    /// Multiple kernel processes are not a supported features. This function
-    /// exists to test process termination.  Once userspace thread and process
-    /// control is implemented, the tests will be ported to use those and this
-    /// function will be deleted.
-    pub fn initialize_kernel_thread_for_process<A: ThreadArg>(
-        &mut self,
-        kernel: K,
-        process: ProcessRef<K>,
-        entry_point: fn(K, A),
-        arg: A,
-    ) {
-        kernel
-            .get_scheduler()
-            .lock(kernel)
-            .thread_initialize_kernel_for_process(kernel, self, process, entry_point, arg);
-    }
-
     pub(super) fn set_process(&mut self, process: ProcessRef<K>) {
         self.process = Some(process);
     }
