@@ -169,7 +169,7 @@ actually handle key presses.
 
    * Add a ``Keypad*`` pointer to ``KeyPressFuture`` and replace the stub
      value constructor with a constructor that accepts a ``Keypad*``,
-     setting the state to ``kInitialized`` and the new future as the keypad's
+     setting the state to ``kPendable`` and the new future as the keypad's
      active future.
 
    .. dropdown:: Hint

@@ -69,14 +69,14 @@ class KeyPressFuture {
   // Pends until a key is pressed, returning the key number.
   pw::async2::Poll<value_type> Pend(pw::async2::Context& cx);
 
-  bool is_pendable() const { return state_ == kInitialized; }
+  bool is_pendable() const { return state_ == kPendable; }
   bool is_complete() const { return state_ == kCompleted; }
 
  private:
   friend class Keypad;
 
   explicit KeyPressFuture(Keypad& keypad)
-      : state_(kInitialized), keypad_(&keypad) {
+      : state_(kPendable), keypad_(&keypad) {
     std::lock_guard lock(internal::KeypadLock());
     keypad_->key_press_future_ = this;
   }
@@ -84,7 +84,7 @@ class KeyPressFuture {
   // Possible states of the future.
   enum {
     kDefaultConstructed,
-    kInitialized,
+    kPendable,
     kCompleted,
   } state_;
 
