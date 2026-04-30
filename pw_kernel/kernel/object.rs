@@ -291,9 +291,9 @@ pub struct ObjectBaseState<K: Kernel> {
 
 impl<K: Kernel> ObjectBaseState<K> {
     #[must_use]
-    pub const fn new() -> Self {
+    pub const fn new(active_signals: Signals) -> Self {
         Self {
-            active_signals: Signals::new(),
+            active_signals,
             wait_group: None,
             waiters: RandomAccessForeignList::new(),
         }
@@ -374,10 +374,10 @@ pub struct ObjectBase<K: Kernel> {
 
 impl<K: Kernel> ObjectBase<K> {
     #[must_use]
-    pub const fn new() -> Self {
+    pub const fn new(active_signals: Signals) -> Self {
         Self {
             wait_group_link: Link::new(),
-            state: SpinLock::new(ObjectBaseState::new()),
+            state: SpinLock::new(ObjectBaseState::new(active_signals)),
         }
     }
 }

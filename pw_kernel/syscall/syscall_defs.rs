@@ -402,7 +402,7 @@ bitflags! {
 
 impl Signals {
     #[must_use]
-    pub const fn new() -> Self {
+    pub const fn no_active() -> Self {
         Self(0)
     }
 }

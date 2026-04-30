@@ -48,14 +48,14 @@ impl<K: Kernel> ThreadObject<K> {
     #[must_use]
     pub const fn new(thread: ForeignBox<Thread<K>>) -> Self {
         Self {
-            base: ObjectBase::new(),
+            base: ObjectBase::new(Signals::no_active()),
             state: SpinLock::new(State::Stopped(thread)),
         }
     }
 
     pub const fn new_empty() -> Self {
         Self {
-            base: ObjectBase::new(),
+            base: ObjectBase::new(Signals::no_active()),
             state: SpinLock::new(State::Empty),
         }
     }

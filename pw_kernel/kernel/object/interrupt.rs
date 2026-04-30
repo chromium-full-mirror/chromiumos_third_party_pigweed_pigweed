@@ -28,7 +28,7 @@ impl<K: Kernel> InterruptObject<K> {
     #[must_use]
     pub const fn new(ack_irqs: fn(Signals)) -> Self {
         Self {
-            base: ObjectBase::new(),
+            base: ObjectBase::new(Signals::no_active()),
             ack_irqs,
         }
     }

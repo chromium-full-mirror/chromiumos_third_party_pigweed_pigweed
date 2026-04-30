@@ -61,7 +61,7 @@ impl<K: Kernel> ProcessObject<K> {
     #[must_use]
     pub const fn new(process: ForeignBox<Process<K>>, main_thread: Option<MainThread<K>>) -> Self {
         Self {
-            base: ObjectBase::new(),
+            base: ObjectBase::new(Signals::no_active()),
             state: SpinLock::new(State {
                 process_state: ProcessState::Stopped(process),
                 main_thread,
@@ -72,7 +72,7 @@ impl<K: Kernel> ProcessObject<K> {
     #[must_use]
     pub const fn new_empty() -> Self {
         Self {
-            base: ObjectBase::new(),
+            base: ObjectBase::new(Signals::no_active()),
             state: SpinLock::new(State {
                 process_state: ProcessState::Empty,
                 main_thread: None,

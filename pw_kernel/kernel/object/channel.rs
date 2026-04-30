@@ -45,7 +45,7 @@ pub struct ChannelHandlerObject<K: Kernel> {
 impl<K: Kernel> ChannelHandlerObject<K> {
     pub fn new(kernel: K) -> Self {
         Self {
-            base: ObjectBase::new(),
+            base: ObjectBase::new(Signals::no_active()),
             initiator: SpinLock::new(None),
             active_transaction: Mutex::new(kernel, None),
         }
@@ -134,10 +134,12 @@ pub struct ChannelInitiatorObject<K: Kernel> {
 }
 
 impl<K: Kernel> ChannelInitiatorObject<K> {
+    pub const INITIAL_SIGNALS: Signals = Signals::WRITEABLE;
+
     #[must_use]
     pub fn new(handler: ForeignRc<K::AtomicUsize, ChannelHandlerObject<K>>) -> Self {
         Self {
-            base: ObjectBase::new(),
+            base: ObjectBase::new(Self::INITIAL_SIGNALS),
             handler,
         }
     }

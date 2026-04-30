@@ -38,7 +38,7 @@ pub type Duration = time::Duration<SystemClock>;
 pub fn sleep_until(deadline: Instant) -> Result<()> {
     // Object handle 0 is always the local process and can be waited on with
     // a blank signal mask to wait until the deadline has passed.
-    match syscall::object_wait(0, syscall::Signals::new(), deadline) {
+    match syscall::object_wait(0, syscall::Signals::no_active(), deadline) {
         // object_wait returned early.
         Ok(_) => Err(Error::Cancelled),
 
