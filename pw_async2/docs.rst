@@ -58,6 +58,14 @@ Learn more
 ----------
 .. grid:: 2
 
+   .. grid-item-card:: :octicon:`question` Why pw_async2?
+      :link: module-pw_async2-why
+      :link-type: ref
+      :class-item: sales-pitch-cta-primary
+
+      Learn about the motivations behind ``pw_async2`` and how it compares
+      to traditional callbacks and synchronous threading.
+
    .. grid-item-card:: :octicon:`light-bulb` Informed poll
       :link: module-pw_async2-informed-poll
       :link-type: ref
@@ -149,6 +157,7 @@ Learn more
    :hidden:
    :maxdepth: 1
 
+   why
    quickstart
    informed_poll
    codelab/docs
