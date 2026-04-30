@@ -14,6 +14,7 @@
 
 use foreign_box::ForeignBox;
 use pw_status::{Error, Result};
+use syscall_defs::ExitStatus;
 
 use crate::Kernel;
 use crate::object::{KernelObject, ObjectBase, Signals};
@@ -136,10 +137,10 @@ impl<K: Kernel> ProcessObject<K> {
                 ProcessState::Empty => return Err(Error::Internal),
             }
         };
-        process_ref.terminate(kernel)
+        process_ref.terminate(kernel, ExitStatus::TerminatedBySyscall)
     }
 
-    pub fn join(&self, kernel: K) -> Result<()> {
+    pub fn join(&self, kernel: K) -> Result<ExitStatus> {
         let process_ref = {
             let mut state = self.state.lock(kernel);
             match core::mem::replace(&mut state.process_state, ProcessState::Empty) {
@@ -153,10 +154,10 @@ impl<K: Kernel> ProcessObject<K> {
 
         use crate::scheduler::ProcessTryJoinResult;
         match process_ref.try_join(kernel) {
-            ProcessTryJoinResult::Joined(process) => {
+            ProcessTryJoinResult::Joined(process, status) => {
                 let mut state = self.state.lock(kernel);
                 state.process_state = ProcessState::Stopped(process);
-                Ok(())
+                Ok(status)
             }
             ProcessTryJoinResult::Wait(process_ref) => {
                 let mut state = self.state.lock(kernel);
@@ -206,7 +207,7 @@ impl<K: Kernel> KernelObject<K> for ProcessObject<K> {
         self.terminate(kernel)
     }
 
-    fn process_join(&self, kernel: K) -> Result<()> {
+    fn process_join(&self, kernel: K) -> Result<ExitStatus> {
         self.join(kernel)
     }
 }

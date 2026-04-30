@@ -19,7 +19,7 @@ use core::ptr::NonNull;
 use foreign_box::{ForeignBox, ForeignRc};
 use list::{self, Link, RandomAccessForeignList};
 use pw_status::{Error, Result};
-pub use syscall_defs::{Signals, WaitReturn};
+pub use syscall_defs::{ExitStatus, Signals, WaitReturn};
 use time::Instant;
 
 use crate::Kernel;
@@ -152,7 +152,7 @@ pub trait KernelObject<K: Kernel>: Any + Send + Sync {
     }
 
     #[allow(unused_variables)]
-    fn thread_join(&self, kernel: K) -> Result<()> {
+    fn thread_join(&self, kernel: K) -> Result<ExitStatus> {
         Err(Error::Unimplemented)
     }
 
@@ -167,7 +167,7 @@ pub trait KernelObject<K: Kernel>: Any + Send + Sync {
     }
 
     #[allow(unused_variables)]
-    fn process_join(&self, kernel: K) -> Result<()> {
+    fn process_join(&self, kernel: K) -> Result<ExitStatus> {
         Err(Error::Unimplemented)
     }
 

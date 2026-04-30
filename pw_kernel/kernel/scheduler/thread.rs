@@ -27,6 +27,7 @@ use memory_config::{MemoryConfig as _, MemoryRegionType};
 use pw_atomic::{AtomicAdd, AtomicSub, AtomicZero};
 use pw_log::info;
 use pw_status::Result;
+use syscall_defs::ExitStatus;
 use time::Instant;
 
 use crate::Kernel;
@@ -315,6 +316,7 @@ pub struct Process<K: Kernel> {
     pub(super) ref_count: K::AtomicUsize,
     pub(super) state: ProcessState,
     pub(super) join_event: Option<EventSignaler<K>>,
+    pub(super) exit_status: Option<ExitStatus>,
 }
 
 // Safety: Process internal state is protected by the scheduler lock or atomic operations.
@@ -343,6 +345,7 @@ impl<K: Kernel> Process<K> {
             ref_count: K::AtomicUsize::ZERO,
             state: ProcessState::New,
             join_event: None,
+            exit_status: None,
         }
     }
 
@@ -460,11 +463,13 @@ impl<K: Kernel> ProcessRef<K> {
     ///
     /// Sets the process state to Terminating and requests termination for all
     /// threads in the process.
-    pub fn terminate(&self, kernel: K) -> Result<()> {
+    ///
+    /// This is an ASYNCHRONOUS operation.
+    pub fn terminate(&self, kernel: K, status: ExitStatus) -> Result<()> {
         kernel
             .get_scheduler()
             .lock(kernel)
-            .process_terminate(kernel, self)
+            .process_terminate(kernel, self, status)
     }
 
     /// Returns the current state of the process.
@@ -473,20 +478,18 @@ impl<K: Kernel> ProcessRef<K> {
         unsafe { self.process.as_ref().state }
     }
 
-    pub fn join(self, kernel: K) -> Result<ForeignBox<Process<K>>> {
+    pub fn join(self, kernel: K) -> Result<(ForeignBox<Process<K>>, ExitStatus)> {
         match self.join_until(kernel, Instant::<K::Clock>::MAX) {
-            crate::scheduler::ProcessJoinResult::Joined(process) => Ok(process),
+            crate::scheduler::ProcessJoinResult::Joined(process, status) => Ok((process, status)),
             crate::scheduler::ProcessJoinResult::Err { error, .. } => Err(error),
         }
     }
 
     pub fn try_join(self, kernel: K) -> crate::scheduler::ProcessTryJoinResult<K> {
-        let join_event = Event::new(kernel, EventConfig::ManualReset);
-        let (_, res) = kernel.get_scheduler().lock(kernel).process_try_join(
-            kernel,
-            self,
-            join_event.get_signaler(),
-        );
+        let (_, res) = kernel
+            .get_scheduler()
+            .lock(kernel)
+            .process_try_join(kernel, self, None);
         res
     }
 
@@ -504,7 +507,7 @@ impl<K: Kernel> ProcessRef<K> {
             let (_, res) = kernel.get_scheduler().lock(kernel).process_try_join(
                 kernel,
                 self,
-                join_event.get_signaler(),
+                Some(join_event.get_signaler()),
             );
             match res {
                 crate::scheduler::ProcessTryJoinResult::Err {
@@ -516,8 +519,8 @@ impl<K: Kernel> ProcessRef<K> {
                         process: process_ref,
                     };
                 }
-                crate::scheduler::ProcessTryJoinResult::Joined(process_box) => {
-                    return crate::scheduler::ProcessJoinResult::Joined(process_box);
+                crate::scheduler::ProcessTryJoinResult::Joined(process_box, status) => {
+                    return crate::scheduler::ProcessJoinResult::Joined(process_box, status);
                 }
                 crate::scheduler::ProcessTryJoinResult::Wait(process_ref) => self = process_ref,
             };
@@ -647,9 +650,9 @@ impl<K: Kernel> ThreadRef<K> {
     /// Waits until the all other references to the thread are dropped and the
     /// thread terminates.  Returns a `ForeignBox<Thread<K>>` which can be used
     /// to restart the thread.
-    pub fn join(self, kernel: K) -> Result<ForeignBox<Thread<K>>> {
+    pub fn join(self, kernel: K) -> Result<(ForeignBox<Thread<K>>, ExitStatus)> {
         match self.join_until(kernel, Instant::<K::Clock>::MAX) {
-            JoinResult::Joined(thread) => Ok(thread),
+            JoinResult::Joined(thread, status) => Ok((thread, status)),
             JoinResult::Err { error, .. } => Err(error),
         }
     }
@@ -668,9 +671,7 @@ impl<K: Kernel> ThreadRef<K> {
         SpinLockGuard<'a, K, SchedulerState<K>>,
         crate::scheduler::TryJoinResult<K>,
     ) {
-        let join_event =
-            crate::sync::event::Event::new(kernel, crate::sync::event::EventConfig::ManualReset);
-        sched.thread_try_join(kernel, self, join_event.get_signaler())
+        sched.thread_try_join(kernel, self, None)
     }
 
     /// Join the referenced thread with a deadline
@@ -688,7 +689,7 @@ impl<K: Kernel> ThreadRef<K> {
             let (_, res) = kernel.get_scheduler().lock(kernel).thread_try_join(
                 kernel,
                 self,
-                join_event.get_signaler(),
+                Some(join_event.get_signaler()),
             );
             match res {
                 TryJoinResult::Err {
@@ -700,7 +701,9 @@ impl<K: Kernel> ThreadRef<K> {
                         thread: thread_ref,
                     };
                 }
-                TryJoinResult::Joined(thread_box) => return JoinResult::Joined(thread_box),
+                TryJoinResult::Joined(thread_box, status) => {
+                    return JoinResult::Joined(thread_box, status);
+                }
                 TryJoinResult::Wait(thread_ref) => self = thread_ref,
             };
 
@@ -727,10 +730,16 @@ impl<K: Kernel> ThreadRef<K> {
     /// - Any new interruptible wait will immediately return `Error::Cancelled`.
     /// - All non-interruptible waits will work as normal.
     ///
+    /// This is an ASYNCHRONOUS operation. The thread is marked as terminating,
+    /// but it may not exit immediately.
+    ///
     /// To wait for the thread to terminate, call [`ThreadRef::join()`] or
     /// [`ThreadRef::join_until()`].
-    pub fn terminate(&mut self, kernel: K) -> Result<()> {
-        kernel.get_scheduler().lock(kernel).thread_terminate(self)
+    pub fn terminate(&mut self, kernel: K, status: ExitStatus) -> Result<()> {
+        kernel
+            .get_scheduler()
+            .lock(kernel)
+            .thread_terminate(self, status)
     }
 
     /// Returns the current state of the thread.
@@ -806,6 +815,7 @@ pub struct Thread<K: Kernel> {
     pub(super) ref_count: K::AtomicUsize,
     pub(super) terminating: bool,
     pub(super) join_event: Option<EventSignaler<K>>,
+    pub(super) exit_status: Option<ExitStatus>,
 
     // TODO - konkers: allow this to be tokenized.
     pub name: &'static str,
@@ -832,6 +842,10 @@ impl<K: Kernel> Thread<K> {
         process
     }
 
+    pub fn get_exit_status(&self) -> Option<ExitStatus> {
+        self.exit_status
+    }
+
     pub fn is_terminating(&self) -> bool {
         self.terminating
     }
@@ -855,6 +869,7 @@ impl<K: Kernel> Thread<K> {
             ref_count: K::AtomicUsize::ZERO,
             terminating: false,
             join_event: None,
+            exit_status: None,
             name,
             algorithm_state: SchedulerAlgorithmThreadState::new(priority),
             #[cfg(feature = "user_space")]

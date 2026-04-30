@@ -15,7 +15,7 @@
 use pw_cast::CastInto;
 use pw_status::{Result, StatusCode};
 use syscall_defs::SysCallInterface;
-pub use syscall_defs::{Signals, WaitReturn};
+pub use syscall_defs::{ExitStatus, Signals, WaitReturn};
 use syscall_user::SysCall;
 
 use crate::time::Instant;
@@ -166,7 +166,7 @@ pub fn thread_terminate(object_handle: u32) -> Result<()> {
 }
 
 #[inline(always)]
-pub fn thread_join(object_handle: u32) -> Result<()> {
+pub fn thread_join(object_handle: u32) -> Result<ExitStatus> {
     SysCall::thread_join(object_handle)
 }
 
@@ -181,6 +181,16 @@ pub fn process_terminate(object_handle: u32) -> Result<()> {
 }
 
 #[inline(always)]
-pub fn process_join(object_handle: u32) -> Result<()> {
+pub fn process_join(object_handle: u32) -> Result<ExitStatus> {
     SysCall::process_join(object_handle)
+}
+
+#[inline(always)]
+pub fn process_exit(exit_code: u32) -> Result<()> {
+    SysCall::process_exit(exit_code)
+}
+
+#[inline(always)]
+pub fn thread_exit(exit_code: u32) -> Result<()> {
+    SysCall::thread_exit(exit_code)
 }

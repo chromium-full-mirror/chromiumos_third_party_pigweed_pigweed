@@ -31,6 +31,7 @@ rust_library(
         "//pw_kernel/lib/memory_config",
         "//pw_kernel/lib/pw_assert",
         "//pw_kernel/lib/pw_atomic",
+        "//pw_kernel/syscall:syscall_defs",
         "//pw_log/rust:pw_log",
         "//pw_status/rust:pw_status",
     ],

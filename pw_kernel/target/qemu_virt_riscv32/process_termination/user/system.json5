@@ -34,9 +34,14 @@
           ram_size_bytes: 65536,
           objects: [
             {
-              name: "extra_process",
+              name: "clean_exit_process",
               type: "process",
-              linked_process: "extra"
+              linked_process: "clean_exit"
+            },
+            {
+              name: "forced_exit_process",
+              type: "process",
+              linked_process: "forced_exit"
             }
           ],
           threads: [
@@ -55,16 +60,34 @@
       ],
     },
     {
-      name: "extra",
+      name: "clean_exit",
       flash_size_bytes: 261120,
       processes: [
         {
-          name: "extra",
+          name: "clean_exit",
           ram_size_bytes: 65536,
           objects: [],
           threads: [
             {
-              name: "extra_thread",
+              name: "clean_exit_thread",
+              // Generous stacks size pending kernel stack size optimization.
+              kernel_stack_size_bytes: 2048,
+            },
+          ],
+        },
+      ],
+    },
+    {
+      name: "forced_exit",
+      flash_size_bytes: 261120,
+      processes: [
+        {
+          name: "forced_exit",
+          ram_size_bytes: 65536,
+          objects: [],
+          threads: [
+            {
+              name: "forced_exit_thread",
               // Generous stacks size pending kernel stack size optimization.
               kernel_stack_size_bytes: 2048,
             },

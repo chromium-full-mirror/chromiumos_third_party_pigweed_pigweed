@@ -14,6 +14,7 @@
 
 use foreign_box::ForeignBox;
 use pw_status::{Error, Result};
+use syscall_defs::ExitStatus;
 
 use crate::Kernel;
 use crate::object::{KernelObject, ObjectBase, Signals};
@@ -109,14 +110,14 @@ impl<K: Kernel> ThreadObject<K> {
             }
         };
         // Call terminate without holding the state lock
-        thread_ref.terminate(kernel)
+        thread_ref.terminate(kernel, ExitStatus::TerminatedBySyscall)
     }
 
     pub fn join_locked<'a>(
         &self,
         kernel: K,
         sched: SpinLockGuard<'a, K, SchedulerState<K>>,
-    ) -> (SpinLockGuard<'a, K, SchedulerState<K>>, Result<()>) {
+    ) -> (SpinLockGuard<'a, K, SchedulerState<K>>, Result<ExitStatus>) {
         let thread_ref = {
             let mut state = self.state.lock(kernel);
             match core::mem::replace(&mut *state, State::Empty) {
@@ -131,10 +132,10 @@ impl<K: Kernel> ThreadObject<K> {
         let res = thread_ref.try_join_locked(kernel, sched);
 
         match res {
-            (sched, crate::scheduler::TryJoinResult::Joined(thread)) => {
+            (sched, crate::scheduler::TryJoinResult::Joined(thread, status)) => {
                 let mut state = self.state.lock(kernel);
                 *state = State::Stopped(thread);
-                (sched, Ok(()))
+                (sched, Ok(status))
             }
             (sched, crate::scheduler::TryJoinResult::Wait(thread_ref)) => {
                 let mut state = self.state.lock(kernel);
@@ -188,7 +189,7 @@ impl<K: Kernel> KernelObject<K> for ThreadObject<K> {
         self.terminate(kernel)
     }
 
-    fn thread_join(&self, kernel: K) -> Result<()> {
+    fn thread_join(&self, kernel: K) -> Result<ExitStatus> {
         let sched = kernel.get_scheduler().lock(kernel);
         let (_, res) = self.join_locked(kernel, sched);
         res

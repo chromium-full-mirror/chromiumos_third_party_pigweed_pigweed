@@ -20,6 +20,7 @@ use kernel::sync::mutex::Mutex;
 use kernel::{Duration, Instant, Kernel, Priority};
 use pw_log::info;
 use pw_status::{Error, Result};
+use syscall_defs::ExitStatus;
 
 // Test cases needed:
 // * Thread in interruptible wait (event/sleep) returns immediately upon being terminated.
@@ -148,11 +149,12 @@ fn terminate_sleep_test<K: Kernel>(
     wait_for_thread_state(kernel, &thread_ref, thread::State::WaitingInterruptible)?;
     info!("🔄 ├─ Termination thread observed in waiting state, terminating");
 
-    thread_ref.terminate(kernel)?;
+    thread_ref.terminate(kernel, ExitStatus::TerminatedBySyscall)?;
 
     info!("🔄 ├─ Joining thread");
 
-    let thread = thread_ref.join(kernel)?;
+    let (thread, status) = thread_ref.join(kernel)?;
+    pw_assert::assert!(status == ExitStatus::Success(0));
     info!("🔄 ├─ Joined");
 
     Ok(thread)
@@ -190,7 +192,8 @@ fn signaled_termination_test<K: Kernel>(
     event.get_signaler().signal();
 
     info!("🔄 ├─ Joining signaled thread");
-    let thread = thread_ref.join(kernel)?;
+    let (thread, status) = thread_ref.join(kernel)?;
+    pw_assert::assert!(status == ExitStatus::Success(0));
     info!("🔄 ├─ Joined");
 
     Ok(thread)
@@ -219,7 +222,7 @@ fn mutex_test<K: Kernel>(
     wait_for_thread_state(kernel, &thread_ref, thread::State::WaitingNonInterruptible)?;
     info!("🔄 ├─  Observed in waiting state, terminating");
 
-    thread_ref.terminate(kernel)?;
+    thread_ref.terminate(kernel, ExitStatus::TerminatedByKernel)?;
 
     // Mutexes are non-interruptible so the thread should still be in the waiting
     // state after the termination request.
@@ -229,7 +232,8 @@ fn mutex_test<K: Kernel>(
     drop(guard);
 
     info!("🔄 ├─ Joining mutex thread");
-    let thread = thread_ref.join(kernel)?;
+    let (thread, status) = thread_ref.join(kernel)?;
+    pw_assert::assert!(status == ExitStatus::Success(0));
     info!("🔄 ├─ Joined");
 
     // Confirm that the mutex thread was able to acquire the mutex after the
@@ -302,7 +306,7 @@ fn thread_ref_drop_test<K: Kernel>(
     info!("🔄 ├─ Attempting initial join of test thread");
     let test_thread_ref =
         match test_thread_ref.join_until(kernel, kernel.now() + Duration::from_millis(500)) {
-            kernel::scheduler::JoinResult::Joined(_) => {
+            kernel::scheduler::JoinResult::Joined(_, _) => {
                 pw_assert::panic!("Initial join should have timed out");
             }
             kernel::scheduler::JoinResult::Err { error, thread } => {
@@ -314,11 +318,13 @@ fn thread_ref_drop_test<K: Kernel>(
     signaler.signal();
 
     info!("🔄 ├─ Joining test thread");
-    let test_thread = test_thread_ref.join(kernel)?;
+    let (test_thread, status) = test_thread_ref.join(kernel)?;
+    pw_assert::assert!(status == ExitStatus::Success(0));
     info!("🔄 ├─ Joined");
 
     info!("🔄 ├─ Joining utility thread");
-    let utility_thread = utility_thread_ref.join(kernel)?;
+    let (utility_thread, status) = utility_thread_ref.join(kernel)?;
+    pw_assert::assert!(status == ExitStatus::Success(0));
     utility_thread.consume();
     info!("🔄 ├─ Joined");
 

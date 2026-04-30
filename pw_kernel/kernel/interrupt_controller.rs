@@ -110,14 +110,12 @@ impl<K: Kernel> Drop for InterruptGuard<K> {
 ///
 /// This should be called when returning to interrupt or exception.
 pub fn handle_thread_termination<K: Kernel>(kernel: K, from_userspace: bool) {
-    if from_userspace
-        && kernel
-            .get_scheduler()
-            .lock(kernel)
-            .current_thread()
-            .is_terminating()
-    {
-        let sched = kernel.get_scheduler().lock(kernel);
+    if !from_userspace {
+        return;
+    }
+
+    let sched = kernel.get_scheduler().lock(kernel);
+    if sched.current_thread().is_terminating() {
         sched.thread_exit(kernel);
     }
 }

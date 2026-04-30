@@ -43,6 +43,7 @@ use pw_atomic::{
 };
 use pw_log::info;
 use pw_status::{Error, Result};
+use syscall_defs::ExitStatus;
 use time::Instant;
 
 #[cfg(feature = "user_space")]
@@ -360,18 +361,18 @@ impl<K: Kernel> SchedulerState<K> {
 }
 
 pub enum JoinResult<K: Kernel> {
-    Joined(ForeignBox<Thread<K>>),
+    Joined(ForeignBox<Thread<K>>, ExitStatus),
     Err { error: Error, thread: ThreadRef<K> },
 }
 
 pub enum TryJoinResult<K: Kernel> {
     Wait(ThreadRef<K>),
-    Joined(ForeignBox<Thread<K>>),
+    Joined(ForeignBox<Thread<K>>, ExitStatus),
     Err { error: Error, thread: ThreadRef<K> },
 }
 
 pub enum ProcessJoinResult<K: Kernel> {
-    Joined(ForeignBox<Process<K>>),
+    Joined(ForeignBox<Process<K>>, ExitStatus),
     Err {
         error: Error,
         process: ProcessRef<K>,
@@ -380,7 +381,7 @@ pub enum ProcessJoinResult<K: Kernel> {
 
 pub enum ProcessTryJoinResult<K: Kernel> {
     Wait(ProcessRef<K>),
-    Joined(ForeignBox<Process<K>>),
+    Joined(ForeignBox<Process<K>>, ExitStatus),
     Err {
         error: Error,
         process: ProcessRef<K>,
@@ -565,13 +566,26 @@ impl<K: Kernel> SpinLockGuard<'_, K, SchedulerState<K>> {
         unsafe { thread.thread.as_ref().state }
     }
 
-    pub fn thread_terminate(&mut self, thread_ref: &mut ThreadRef<K>) -> Result<()> {
+    /// Request termination of the referenced thread.
+    ///
+    /// This is an ASYNCHRONOUS operation. The thread is marked as terminating,
+    /// but it may not exit immediately.
+    pub fn thread_terminate(
+        &mut self,
+        thread_ref: &mut ThreadRef<K>,
+        status: ExitStatus,
+    ) -> Result<()> {
         // SAFETY: we have exclusive access to thread by virtue of the scheduler lock being held.
         let thread = unsafe { thread_ref.thread.as_mut() };
-        self.thread_terminate_internal(thread)
+        self.thread_terminate_internal(thread, status)
     }
 
-    pub(crate) fn thread_terminate_internal(&mut self, thread: &mut Thread<K>) -> Result<()> {
+    pub(crate) fn thread_terminate_internal(
+        &mut self,
+        thread: &mut Thread<K>,
+        status: ExitStatus,
+    ) -> Result<()> {
+        thread.exit_status = Some(status);
         match &mut thread.owner {
             ThreadOwner::None => Err(Error::InvalidArgument),
             ThreadOwner::Scheduler => {
@@ -626,7 +640,7 @@ impl<K: Kernel> SpinLockGuard<'_, K, SchedulerState<K>> {
         mut self,
         kernel: K,
         mut thread_ref: ThreadRef<K>,
-        signaler: EventSignaler<K>,
+        signaler: Option<EventSignaler<K>>,
     ) -> (Self, TryJoinResult<K>) {
         // SAFETY: Exclusive access to thread is guaranteed by scheduler lock
         let thread = unsafe { thread_ref.thread.as_mut() };
@@ -660,7 +674,10 @@ impl<K: Kernel> SpinLockGuard<'_, K, SchedulerState<K>> {
                 self = object.signal_locked(kernel, self, |s| s - syscall_defs::Signals::JOINABLE);
             }
 
-            return (self, TryJoinResult::Joined(thread));
+            let Some(status) = thread.exit_status.take() else {
+                pw_assert::panic!("Thread joined with no exit status set");
+            };
+            return (self, TryJoinResult::Joined(thread, status));
         }
 
         // Only one call to join is allowed to wait thread termination
@@ -676,7 +693,9 @@ impl<K: Kernel> SpinLockGuard<'_, K, SchedulerState<K>> {
 
         // Register the signaler and return None indicating the thread is not yet
         // joinable.
-        thread.join_event = Some(signaler);
+        if let Some(signaler) = signaler {
+            thread.join_event = Some(signaler);
+        }
         (self, TryJoinResult::Wait(thread_ref))
     }
 
@@ -687,6 +706,17 @@ impl<K: Kernel> SpinLockGuard<'_, K, SchedulerState<K>> {
         thread.join_event = None;
     }
 
+    /// Performs the low-level operations to exit the current thread.
+    ///
+    /// This method handles the actual state transitions and cleanup for thread exit.
+    /// It expects the `exit_status` to have been set by the caller if necessary.
+    ///
+    /// # Differences from other exit/terminate functions:
+    /// - **`exit_thread`**: A high-level wrapper that takes an explicit status,
+    ///   sets it on the thread, and then calls this method. It does not return.
+    /// - **`terminate`**: Asynchronous requests to terminate a thread/process.
+    ///   They set the target's state to terminating but rely on `thread_exit`
+    ///   being called later to perform the actual exit.
     pub(crate) fn thread_exit(mut self, kernel: K) {
         let mut current_thread = self.take_current_thread();
         let current_thread_id = current_thread.id();
@@ -762,7 +792,16 @@ impl<K: Kernel> SpinLockGuard<'_, K, SchedulerState<K>> {
 }
 
 impl<K: Kernel> SpinLockGuard<'_, K, SchedulerState<K>> {
-    pub fn process_terminate(mut self, _kernel: K, process_ref: &ProcessRef<K>) -> Result<()> {
+    /// Request termination of the referenced process and all its threads.
+    ///
+    /// This is an ASYNCHRONOUS operation. The process and its threads are marked
+    /// as terminating, but they may not exit immediately.
+    pub fn process_terminate(
+        mut self,
+        _kernel: K,
+        process_ref: &ProcessRef<K>,
+        status: ExitStatus,
+    ) -> Result<()> {
         let mut ptr = process_ref.process;
         let proc = unsafe { ptr.as_mut() };
 
@@ -773,12 +812,13 @@ impl<K: Kernel> SpinLockGuard<'_, K, SchedulerState<K>> {
 
         // Set state to terminating
         proc.state = ProcessState::Terminating;
+        proc.exit_status = Some(status);
 
         // Terminate all threads
         unsafe {
             proc.thread_list.filter(|thread| {
                 info!("Terminating thread '{}'", thread.name as &str);
-                let _ = self.thread_terminate_internal(thread);
+                let _ = self.thread_terminate_internal(thread, ExitStatus::ProcessTerminated);
                 true // Keep in list
             });
         }
@@ -813,7 +853,7 @@ impl<K: Kernel> SpinLockGuard<'_, K, SchedulerState<K>> {
         mut self,
         kernel: K,
         mut process_ref: ProcessRef<K>,
-        signaler: EventSignaler<K>,
+        signaler: Option<EventSignaler<K>>,
     ) -> (Self, ProcessTryJoinResult<K>) {
         let process = unsafe { process_ref.process.as_ref() };
 
@@ -843,10 +883,13 @@ impl<K: Kernel> SpinLockGuard<'_, K, SchedulerState<K>> {
                 // Reference it here to suppress warning.
                 let _ = kernel;
             }
-            return (self, ProcessTryJoinResult::Joined(process_box));
+            let Some(status) = process_box.exit_status.take() else {
+                pw_assert::panic!("Process joined with no exit status set");
+            };
+            return (self, ProcessTryJoinResult::Joined(process_box, status));
         }
 
-        // Only one call to join is allowed to wait process termination.  If
+        // Only one call to join is allowed to wait for process termination.  If
         // another caller is waiting, return an error.
         if process.join_event.is_some() {
             return (
@@ -862,7 +905,9 @@ impl<K: Kernel> SpinLockGuard<'_, K, SchedulerState<K>> {
         // joinable.
         //
         // SAFETY: Process mutability guarded by scheduler lock.
-        unsafe { process_ref.process.as_mut().join_event = Some(signaler) };
+        if let Some(signaler) = signaler {
+            unsafe { process_ref.process.as_mut().join_event = Some(signaler) };
+        }
         (self, ProcessTryJoinResult::Wait(process_ref))
     }
 
@@ -1079,8 +1124,11 @@ pub unsafe fn break_scheduler_lock<K: Kernel>(kernel: K) {
     }
 }
 
-pub fn exit_thread<K: Kernel>(kernel: K) -> ! {
-    kernel.get_scheduler().lock(kernel).thread_exit(kernel);
+pub fn exit_thread<K: Kernel>(kernel: K, status: ExitStatus) -> ! {
+    let mut sched = kernel.get_scheduler().lock(kernel);
+    let current_thread = sched.current_thread_mut();
+    current_thread.exit_status = Some(status);
+    sched.thread_exit(kernel);
 
     // This thread should never get scheduled again at this point.  This assert
     // firing indicates a scheduler or context switch bug.
@@ -1099,7 +1147,7 @@ pub fn handle_terminal_exception<K: Kernel>(kernel: K, in_kernel: bool) {
     if in_kernel {
         pw_assert::panic!("Terminal exception in kernel mode");
     } else {
-        kernel.get_scheduler().lock(kernel).thread_exit(kernel);
+        crate::scheduler::exit_thread(kernel, ExitStatus::UnhandledException(0));
     }
 }
 

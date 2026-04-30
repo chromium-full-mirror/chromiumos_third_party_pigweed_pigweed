@@ -34,7 +34,7 @@
           name: "test_process",
           ram_size_bytes: 65536,
           objects: [
-            { name: "extra_process", type: "process", linked_process: "extra_process" }
+            { name: "forced_exit_process", type: "process", linked_process: "forced_exit" }
           ],
           threads: [
             {
@@ -50,16 +50,16 @@
       ],
     },
     {
-      name: "extra",
+      name: "forced_exit",
       flash_size_bytes: 261120,
       processes: [
         {
-          name: "extra_process",
+          name: "forced_exit",
           ram_size_bytes: 65536,
           objects: [],
           threads: [
             {
-              name: "extra_thread",
+              name: "forced_exit_thread",
               kernel_stack_size_bytes: 2048,
             },
           ],

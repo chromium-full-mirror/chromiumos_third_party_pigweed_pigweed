@@ -191,6 +191,12 @@ pub struct SysCallReturnValue {
     pub value: [usize; 2],
 }
 
+// Errors are encoded as negative values in the first return value of syscalls.
+// This requires that:
+// 1) Error variants values are no greater than isize::MAX (satisfied by inspection)
+// 2) Error fits in a single usize. (satisfied by the assertion below)
+const _: () = assert!(core::mem::size_of::<Error>() <= core::mem::size_of::<usize>());
+
 impl From<SysCallReturnValue> for Result<()> {
     fn from(ret_value: SysCallReturnValue) -> Result<()> {
         let val = ret_value.value[0].cast_signed();
@@ -314,6 +320,19 @@ impl From<Result<WaitReturn>> for SysCallReturnValue {
     }
 }
 
+impl From<Result<ExitStatus>> for SysCallReturnValue {
+    fn from(value: Result<ExitStatus>) -> Self {
+        match value {
+            Ok(status) => Self {
+                // SAFETY: ExitStatus is repr(C, usize) and fits exactly in [usize; 2]
+                // with no padding, as verified by the static assert.
+                value: unsafe { core::mem::transmute::<ExitStatus, [usize; 2]>(status) },
+            },
+            Err(error) => Self::from(-(error as i64)),
+        }
+    }
+}
+
 #[derive(Copy, Clone)]
 #[repr(u16)]
 #[non_exhaustive]
@@ -332,10 +351,12 @@ pub enum SysCallId {
     ThreadStart = 0x000a,
     ThreadTerminate = 0x000b,
     ThreadJoin = 0x000c,
-    ProcessStart = 0x000d,
-    ProcessTerminate = 0x000e,
-    ProcessJoin = 0x000f,
-    RaisePeerUserSignal = 0x0010,
+    ThreadExit = 0x000d,
+    ProcessStart = 0x000e,
+    ProcessTerminate = 0x000f,
+    ProcessJoin = 0x0010,
+    ProcessExit = 0x0011,
+    RaisePeerUserSignal = 0x0012,
 
     // System calls prefixed with 0xF000 are reserved development/debugging use.
     DebugPutc = 0xf000,
@@ -416,6 +437,61 @@ pub struct WaitReturn {
 
     /// Signals pending on the object.
     pub pending_signals: Signals,
+}
+
+/// Exit status of a process or thread.
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[repr(C, usize)]
+#[non_exhaustive]
+pub enum ExitStatus {
+    //
+    // 0 is left out as a niche for Option<ExitStatus>.
+    //
+    /// The process or thread exited successfully with the given status code.
+    Success(u32) = 1,
+    /// The process or thread was terminated due to an unhandled exception.
+    UnhandledException(usize) = 2,
+    /// The process or thread was forcibly terminated by another entity via a syscall.
+    TerminatedBySyscall = 3,
+    /// The process or thread was directly terminated by the kernel.
+    TerminatedByKernel = 4,
+    /// The thread was terminated because its containing process was terminated.
+    ProcessTerminated = 5,
+    //
+    // Discriminant values must be within the range of positive isize values.
+    //
+}
+
+// Enforce that ExitStatus can cleanly fit into the two register sized
+// SysCallReturnValue.
+const _: () = assert!(core::mem::size_of::<ExitStatus>() == 2 * core::mem::size_of::<usize>());
+
+impl ExitStatus {
+    /// Converts a `SysCallReturnValue` to a `Result<ExitStatus>`.
+    ///
+    /// # Safety
+    /// The caller must guarantee that if the `SysCallReturnValue` does not represent
+    /// a system error (i.e., `value[0]` interpreted as signed is positive), then
+    /// `value` contains a valid bit pattern for `ExitStatus` (the tag in
+    /// `value[0]` corresponds to a valid variant of `ExitStatus`).  If the value
+    /// does represent a system error, the caller guarantees that it is a valid
+    /// value of `Error`
+    ///
+    /// These preconditions are satisfied the return values of the `thread_terminate()`
+    /// and `process_terminate()` system calls.
+    pub unsafe fn from_raw(ret: SysCallReturnValue) -> Result<ExitStatus> {
+        let val = ret.value[0].cast_signed();
+        if val < 0 {
+            let val = (-val).cast_unsigned();
+            // SAFETY: Caller guarantees a valid `Error` value.
+            #[allow(clippy::cast_possible_truncation)]
+            Err(unsafe { core::mem::transmute::<u32, Error>(val as u32) })
+        } else {
+            // SAFETY: The caller guarantees that if it is not an error, the value
+            // corresponds to a valid variant of `ExitStatus`.
+            Ok(unsafe { core::mem::transmute::<[usize; 2], ExitStatus>(ret.value) })
+        }
+    }
 }
 
 unsafe extern "C" {
@@ -673,11 +749,13 @@ pub trait SysCallInterface {
 
     fn thread_start(object_handle: u32, initial_pc: usize, initial_sp: usize) -> Result<()>;
     fn thread_terminate(object_handle: u32) -> Result<()>;
-    fn thread_join(object_handle: u32) -> Result<()>;
+    fn thread_join(object_handle: u32) -> Result<ExitStatus>;
+    fn thread_exit(exit_code: u32) -> Result<()>;
 
     fn process_start(object_handle: u32) -> Result<()>;
     fn process_terminate(object_handle: u32) -> Result<()>;
-    fn process_join(object_handle: u32) -> Result<()>;
+    fn process_join(object_handle: u32) -> Result<ExitStatus>;
+    fn process_exit(exit_code: u32) -> Result<()>;
 
     /// Set or clear `Signals::USER` on the paired peer (level-triggered model).
     fn object_set_peer_user_signal(object_handle: u32, set: bool) -> Result<()>;

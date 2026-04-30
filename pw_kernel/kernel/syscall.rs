@@ -17,7 +17,7 @@ use memory_config::MemoryRegionType;
 use pw_cast::CastInto as _;
 use pw_log::info;
 use pw_status::{Error, Result};
-use syscall_defs::{Signals, SysCallId, SysCallReturnValue, WaitReturn};
+use syscall_defs::{ExitStatus, Signals, SysCallId, SysCallReturnValue, WaitReturn};
 use time::{Clock, Instant};
 
 use crate::Kernel;
@@ -326,11 +326,40 @@ fn handle_thread_terminate<'a, K: Kernel>(kernel: K, mut args: K::SyscallArgs<'a
     object.thread_terminate(kernel)
 }
 
-fn handle_thread_join<'a, K: Kernel>(kernel: K, mut args: K::SyscallArgs<'a>) -> Result<()> {
+fn handle_thread_join<'a, K: Kernel>(
+    kernel: K,
+    mut args: K::SyscallArgs<'a>,
+) -> Result<ExitStatus> {
     log_if::debug_if!(SYSCALL_DEBUG, "syscall: handling thread_join");
     let handle = args.next_u32()?;
     let object = lookup_handle(kernel, handle)?;
     object.thread_join(kernel)
+}
+
+fn handle_thread_exit<'a, K: Kernel>(kernel: K, mut args: K::SyscallArgs<'a>) -> Result<()> {
+    log_if::debug_if!(SYSCALL_DEBUG, "syscall: handling thread_exit");
+    let exit_code = args.next_u32()?;
+    crate::scheduler::exit_thread(kernel, syscall_defs::ExitStatus::Success(exit_code));
+}
+
+fn handle_process_exit<'a, K: Kernel>(kernel: K, mut args: K::SyscallArgs<'a>) -> Result<()> {
+    log_if::debug_if!(SYSCALL_DEBUG, "syscall: handling process_exit");
+    let exit_code = args.next_u32()?;
+    let sched = kernel.get_scheduler().lock(kernel);
+    let current_process = sched.current_process_ref().clone();
+    sched.process_terminate(
+        kernel,
+        &current_process,
+        syscall_defs::ExitStatus::Success(exit_code),
+    )?;
+
+    // Drop the reference to the current process before calling exit_thread.
+    // Since exit_thread does not return, the reference would otherwise be leaked,
+    // preventing the process from being successfully joined (which requires ref_count == 1).
+    drop(current_process);
+
+    // Now exit the current thread as well.
+    crate::scheduler::exit_thread(kernel, syscall_defs::ExitStatus::ProcessTerminated);
 }
 
 fn handle_process_start<'a, K: Kernel>(kernel: K, mut args: K::SyscallArgs<'a>) -> Result<()> {
@@ -347,7 +376,10 @@ fn handle_process_terminate<'a, K: Kernel>(kernel: K, mut args: K::SyscallArgs<'
     object.process_terminate(kernel)
 }
 
-fn handle_process_join<'a, K: Kernel>(kernel: K, mut args: K::SyscallArgs<'a>) -> Result<()> {
+fn handle_process_join<'a, K: Kernel>(
+    kernel: K,
+    mut args: K::SyscallArgs<'a>,
+) -> Result<ExitStatus> {
     log_if::debug_if!(SYSCALL_DEBUG, "syscall: handling process_join");
     let handle = args.next_u32()?;
     let object = lookup_handle(kernel, handle)?;
@@ -434,6 +466,16 @@ fn handle_debug_clock_now<'a, K: Kernel>(kernel: K, mut _args: K::SyscallArgs<'a
     kernel.now().ticks()
 }
 
+/// Handle a system call.
+///
+/// This is the architecture-independent entry point for system calls.
+///
+/// # Requirements
+/// The architecture-specific code calling this function MUST check if the
+/// current thread is terminating before returning to userspace (e.g., by
+/// calling `kernel::interrupt_controller::handle_thread_termination`).
+/// Since in-kernel thread termination is advisory, this ensures that
+/// terminating threads actually exit instead of returning to userspace.
 pub fn handle_syscall<'a, K: Kernel>(
     kernel: K,
     id: u16,
@@ -465,9 +507,11 @@ pub fn handle_syscall<'a, K: Kernel>(
             SysCallId::ThreadStart => handle_thread_start(kernel, args).into(),
             SysCallId::ThreadTerminate => handle_thread_terminate(kernel, args).into(),
             SysCallId::ThreadJoin => handle_thread_join(kernel, args).into(),
+            SysCallId::ThreadExit => handle_thread_exit(kernel, args).into(),
             SysCallId::ProcessStart => handle_process_start(kernel, args).into(),
             SysCallId::ProcessTerminate => handle_process_terminate(kernel, args).into(),
             SysCallId::ProcessJoin => handle_process_join(kernel, args).into(),
+            SysCallId::ProcessExit => handle_process_exit(kernel, args).into(),
             SysCallId::RaisePeerUserSignal => handle_set_peer_user_signal(kernel, args).into(),
             SysCallId::DebugPutc => handle_debug_putc(kernel, args).into(),
             SysCallId::DebugShutdown => handle_debug_shutdown(kernel, args).into(),
@@ -482,17 +526,6 @@ pub fn handle_syscall<'a, K: Kernel>(
         }
     };
     log_if::debug_if!(SYSCALL_DEBUG, "syscall: {:#06x} returning", id as usize);
-
-    // Since in-kernel thread termination is advisory, check if the thread is
-    // terminating before returning to user space and exit it instead.
-    if kernel
-        .get_scheduler()
-        .lock(kernel)
-        .current_thread()
-        .is_terminating()
-    {
-        crate::scheduler::exit_thread(kernel);
-    }
 
     res
 }

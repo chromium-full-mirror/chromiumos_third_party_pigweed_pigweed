@@ -23,7 +23,7 @@ system_image(
     name = "process_termination",
     apps = [
         "//pw_kernel/tests/stress/process_termination/user:main",
-        "//pw_kernel/tests/stress/process_termination/user:extra",
+        "//pw_kernel/tests/stress/process_termination/user:forced_exit",
     ],
     kernel = ":userspace_target",
     platform = "//pw_kernel/target/qemu_virt_riscv32",

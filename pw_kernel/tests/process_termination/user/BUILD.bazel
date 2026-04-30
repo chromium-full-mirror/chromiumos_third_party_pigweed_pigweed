@@ -32,11 +32,28 @@ rust_app(
 )
 
 rust_app(
-    name = "extra",
+    name = "clean_exit",
     srcs = [
-        "extra.rs",
+        "clean_exit.rs",
     ],
-    codegen_crate_name = "extra_codegen",
+    codegen_crate_name = "clean_exit_codegen",
+    edition = "2024",
+    tags = ["kernel"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pw_kernel/syscall:syscall_user",
+        "//pw_kernel/userspace",
+        "//pw_log/rust:pw_log",
+        "//pw_status/rust:pw_status",
+    ],
+)
+
+rust_app(
+    name = "forced_exit",
+    srcs = [
+        "forced_exit.rs",
+    ],
+    codegen_crate_name = "forced_exit_codegen",
     edition = "2024",
     tags = ["kernel"],
     visibility = ["//visibility:public"],

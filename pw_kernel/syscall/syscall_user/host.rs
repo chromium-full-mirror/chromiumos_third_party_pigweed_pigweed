@@ -12,7 +12,7 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 use pw_status::Result;
-use syscall_defs::{Signals, SysCallInterface, WaitReturn};
+use syscall_defs::{ExitStatus, Signals, SysCallInterface, WaitReturn};
 
 pub struct SysCall {}
 
@@ -101,7 +101,12 @@ impl SysCallInterface for SysCall {
     }
 
     #[inline(always)]
-    fn thread_join(_handle: u32) -> Result<()> {
+    fn thread_join(_handle: u32) -> Result<ExitStatus> {
+        Err(pw_status::Error::Unimplemented)
+    }
+
+    #[inline(always)]
+    fn thread_exit(_exit_code: u32) -> Result<()> {
         Err(pw_status::Error::Unimplemented)
     }
 
@@ -116,7 +121,12 @@ impl SysCallInterface for SysCall {
     }
 
     #[inline(always)]
-    fn process_join(_handle: u32) -> Result<()> {
+    fn process_join(_handle: u32) -> Result<ExitStatus> {
+        Err(pw_status::Error::Unimplemented)
+    }
+
+    #[inline(always)]
+    fn process_exit(_exit_code: u32) -> Result<()> {
         Err(pw_status::Error::Unimplemented)
     }
 

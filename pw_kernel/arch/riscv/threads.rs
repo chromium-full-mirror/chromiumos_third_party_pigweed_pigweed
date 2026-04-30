@@ -24,6 +24,7 @@ use kernel::sync::spinlock::SpinLockGuard;
 use log_if::debug_if;
 #[cfg(feature = "user_space")]
 use pw_status::Result;
+use syscall_defs::ExitStatus;
 
 use crate::protection::MemoryConfig;
 use crate::regs::MStatusVal;
@@ -428,7 +429,7 @@ extern "C" fn trampoline(
     // Get a pointer to the current thread and call exit.
     // Note: must let the scope of the lock guard close,
     // since exit_thread() does not return.
-    scheduler::exit_thread(crate::Arch);
+    scheduler::exit_thread(crate::Arch, ExitStatus::Success(0));
 
     // Does not reach.
 }

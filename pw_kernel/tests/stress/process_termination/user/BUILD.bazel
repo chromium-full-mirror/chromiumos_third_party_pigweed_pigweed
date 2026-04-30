@@ -33,11 +33,11 @@ rust_app(
 )
 
 rust_app(
-    name = "extra",
+    name = "forced_exit",
     srcs = [
-        "extra.rs",
+        "forced_exit.rs",
     ],
-    codegen_crate_name = "extra_codegen",
+    codegen_crate_name = "forced_exit_codegen",
     edition = "2024",
     system_config = "//pw_kernel/target:system_config_file",
     tags = ["kernel"],

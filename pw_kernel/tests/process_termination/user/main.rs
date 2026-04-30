@@ -64,15 +64,10 @@ fn do_test() -> Result<()> {
             return Err(err);
         }
 
-        info!("🔄 ├─ Testing process_terminate on a valid process handle");
-        if let Err(err) = syscall::process_terminate(handle::EXTRA_PROCESS) {
-            pw_log::error!("Failed to terminate extra process");
-            return Err(err);
-        }
-
-        info!("🔄 ├─ Waiting for extra process to become joinable");
+        info!("🔄 ├─ Testing clean exit");
+        info!("🔄 ├─ Waiting for clean exit process to become joinable");
         if let Err(err) = syscall::object_wait(
-            handle::EXTRA_PROCESS,
+            handle::CLEAN_EXIT_PROCESS,
             syscall::Signals::JOINABLE,
             SystemClock::now() + Duration::from_secs(5),
         ) {
@@ -80,31 +75,46 @@ fn do_test() -> Result<()> {
             return Err(err);
         }
 
-        info!("🔄 ├─ Joining extra process");
-        if let Err(err) = syscall::process_join(handle::EXTRA_PROCESS) {
-            pw_log::error!("Failed to join extra process");
-            return Err(err);
+        info!("🔄 ├─ Joining clean exit process");
+        match syscall::process_join(handle::CLEAN_EXIT_PROCESS) {
+            Err(err) => return Err(err),
+            Ok(syscall::ExitStatus::Success(42)) => (),
+            Ok(_) => {
+                pw_log::error!("❌ ├─ Clean exit process joined with unexpected status");
+                return Err(pw_status::Error::Internal);
+            }
         }
+        info!("🔄 ├─ Clean exit process joined");
 
-        info!("🔄 ├─ Restarting extra process");
-        if let Err(err) = syscall::process_start(handle::EXTRA_PROCESS) {
-            pw_log::error!("Failed to restart extra process");
-            return Err(err);
-        }
+        info!("🔄 ├─ Testing forced exit");
+        // The forced_exit process is started automatically by the kernel on boot.
+        // On subsequent iterations, we start it manually below.
+        info!("🔄 ├─ Terminating forced exit process");
+        syscall::process_terminate(handle::FORCED_EXIT_PROCESS)?;
 
-        info!("🔄 ├─ Verifying process does not terminate unexpectedly");
-        let result = syscall::object_wait(
-            handle::EXTRA_PROCESS,
+        info!("🔄 ├─ Waiting for forced exit process to become joinable");
+        if let Err(err) = syscall::object_wait(
+            handle::FORCED_EXIT_PROCESS,
             syscall::Signals::JOINABLE,
             SystemClock::now() + Duration::from_millis(100),
-        );
-        if result.is_ok() {
-            pw_log::error!("❌ Process terminated unexpectedly or was immediately joinable!");
-            return Err(pw_status::Error::Internal.into());
-        } else if result.err() != Some(pw_status::Error::DeadlineExceeded) {
-            pw_log::error!("❌ Unexpected error waiting for process");
+        ) {
+            pw_log::error!("❌ Error waiting for process to be joinable");
+            return Err(err);
+        }
+
+        info!("🔄 ├─ Joining forced exit process");
+        let status = syscall::process_join(handle::FORCED_EXIT_PROCESS)?;
+        if status != syscall::ExitStatus::TerminatedBySyscall {
+            pw_log::error!(
+                "❌ ├─ Process joined with unexpected status (expected TerminatedBySyscall)"
+            );
             return Err(pw_status::Error::Internal.into());
         }
+        info!("🔄 ├─ Forced exit process joined");
+
+        info!("🔄 ├─ Restarting test processes");
+        syscall::process_start(handle::CLEAN_EXIT_PROCESS)?;
+        syscall::process_start(handle::FORCED_EXIT_PROCESS)?;
     }
 
     info!("✅ └─ PASSED");

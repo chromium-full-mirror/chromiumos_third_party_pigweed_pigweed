@@ -20,7 +20,9 @@ use userspace::{entry, syscall};
 
 #[entry]
 fn main() -> ! {
-    info!("I am the extra process. Spinning...");
+    info!("I am the clean exit process. Exiting...");
+    let _ = syscall::process_exit(42);
+    info!("process_exit FAILED!");
     loop {
         core::hint::spin_loop();
     }

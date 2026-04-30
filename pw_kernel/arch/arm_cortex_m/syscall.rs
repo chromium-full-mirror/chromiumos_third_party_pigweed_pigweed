@@ -262,5 +262,8 @@ extern "C" fn handle_svc(frame_ptr: *mut KernelExceptionFrame) -> *mut KernelExc
         frame.r5 = ret_val.value[1] as u32;
     }
 
+    // Check for termination before returning to userspace.
+    kernel::interrupt_controller::handle_thread_termination(super::Arch, true);
+
     frame_ptr
 }

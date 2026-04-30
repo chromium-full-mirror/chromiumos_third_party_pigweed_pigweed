@@ -25,6 +25,7 @@ use kernel::{Duration, Instant, Kernel, Priority, StackStorageExt};
 use memory_config::MemoryConfig;
 use pw_log::info;
 use pw_status::{Error, Result};
+use syscall_defs::ExitStatus;
 
 const TEST_THREAD_STACK_SIZE: usize = 2048;
 
@@ -166,7 +167,11 @@ fn test_termination_from_outside<K: Kernel>(
 
     // 5. Terminate process
     info!("🔄 ├─ Terminating process");
-    pw_assert::assert!(process_ref.terminate(kernel).is_ok());
+    pw_assert::assert!(
+        process_ref
+            .terminate(kernel, ExitStatus::TerminatedBySyscall)
+            .is_ok()
+    );
 
     // 6. Wait for threads to be terminated
     let deadline = kernel.now() + Duration::from_millis(1000);
@@ -197,15 +202,17 @@ fn test_termination_from_outside<K: Kernel>(
             pw_assert::panic!("Thread ref is None during join");
         };
         info!("🔄 ├─ joining thread {}", i as usize);
-        let thread = thread_ref.join(kernel)?;
+        let (thread, status) = thread_ref.join(kernel)?;
+        pw_assert::assert!(status == ExitStatus::Success(0));
         let _ = thread.consume();
     }
 
     info!("🔄 ├─ All threads joined");
     // 8. Verify process is terminated
-    let Ok(process) = process_ref.join(kernel) else {
+    let Ok((process, status)) = process_ref.join(kernel) else {
         pw_assert::panic!("Process join failed");
     };
+    pw_assert::assert!(status == ExitStatus::TerminatedBySyscall);
     let _ = process.consume();
 
     Ok(())
@@ -298,14 +305,16 @@ fn test_termination_from_inside<K: Kernel>(
         let Some(thread_ref) = thread.take() else {
             pw_assert::panic!("Thread ref is None during join");
         };
-        let thread = thread_ref.join(kernel)?;
+        let (thread, status) = thread_ref.join(kernel)?;
+        pw_assert::assert!(status == ExitStatus::Success(0));
         let _ = thread.consume();
     }
 
     // 7. Verify process is terminated
-    let Ok(process) = process_ref.join(kernel) else {
+    let Ok((process, status)) = process_ref.join(kernel) else {
         pw_assert::panic!("Process join failed");
     };
+    pw_assert::assert!(status == ExitStatus::TerminatedBySyscall);
     let _ = process.consume();
 
     Ok(())
@@ -320,7 +329,11 @@ fn thread_entry<K: Kernel>(kernel: K, _arg: usize) {
 fn thread_entry_terminator<K: Kernel>(kernel: K, arg: usize) {
     info!("🔄 ├─ Terminator thread running, terminating process");
     let process_ref = unsafe { &*(arg as *const ProcessRef<K>) };
-    pw_assert::assert!(process_ref.terminate(kernel).is_ok());
+    pw_assert::assert!(
+        process_ref
+            .terminate(kernel, ExitStatus::TerminatedBySyscall)
+            .is_ok()
+    );
 
     // Sleep until terminated
     let res = kernel::sleep_until(kernel, Instant::MAX);

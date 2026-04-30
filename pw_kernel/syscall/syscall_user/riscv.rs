@@ -15,7 +15,9 @@
 use core::arch::naked_asm;
 
 use pw_status::Result;
-use syscall_defs::{Signals, SysCallId, SysCallInterface, SysCallReturnValue, WaitReturn};
+use syscall_defs::{
+    ExitStatus, Signals, SysCallId, SysCallInterface, SysCallReturnValue, WaitReturn,
+};
 
 pub struct SysCall {}
 
@@ -81,9 +83,11 @@ syscall_veneer!(DebugClockNow, debug_clock_now());
 syscall_veneer!(ThreadStart, thread_start(handle: u32, initial_pc: usize, initial_sp: usize));
 syscall_veneer!(ThreadTerminate, thread_terminate(handle: u32));
 syscall_veneer!(ThreadJoin, thread_join(handle: u32));
+syscall_veneer!(ThreadExit, thread_exit(exit_code: u32));
 syscall_veneer!(ProcessStart, process_start(handle: u32));
 syscall_veneer!(ProcessTerminate, process_terminate(handle: u32));
 syscall_veneer!(ProcessJoin, process_join(handle: u32));
+syscall_veneer!(ProcessExit, process_exit(exit_code: u32));
 
 impl SysCallInterface for SysCall {
     #[inline(always)]
@@ -179,8 +183,16 @@ impl SysCallInterface for SysCall {
     }
 
     #[inline(always)]
-    fn thread_join(handle: u32) -> Result<()> {
-        SysCallReturnValue::from(unsafe { thread_join(handle) }).into()
+    fn thread_join(handle: u32) -> Result<ExitStatus> {
+        let ret = SysCallReturnValue::from(unsafe { thread_join(handle) });
+        // SAFETY: The kernel guarantees that if the syscall succeeds, the return value
+        // corresponds to either a valid ExitStatus or a valid Error.
+        unsafe { ExitStatus::from_raw(ret) }
+    }
+
+    #[inline(always)]
+    fn thread_exit(exit_code: u32) -> Result<()> {
+        SysCallReturnValue::from(unsafe { thread_exit(exit_code) }).into()
     }
 
     #[inline(always)]
@@ -194,8 +206,16 @@ impl SysCallInterface for SysCall {
     }
 
     #[inline(always)]
-    fn process_join(handle: u32) -> Result<()> {
-        SysCallReturnValue::from(unsafe { process_join(handle) }).into()
+    fn process_join(handle: u32) -> Result<ExitStatus> {
+        let ret = SysCallReturnValue::from(unsafe { process_join(handle) });
+        // SAFETY: The kernel guarantees that if the syscall succeeds, the return value
+        // corresponds to either a valid ExitStatus or a valid Error.
+        unsafe { ExitStatus::from_raw(ret) }
+    }
+
+    #[inline(always)]
+    fn process_exit(exit_code: u32) -> Result<()> {
+        SysCallReturnValue::from(unsafe { process_exit(exit_code) }).into()
     }
 
     #[inline(always)]

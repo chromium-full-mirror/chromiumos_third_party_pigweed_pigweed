@@ -30,8 +30,14 @@ pub extern "C" fn test_thread_entry(_arg: usize) -> ! {
     THREAD_DONE.store(1, Ordering::SeqCst);
     info!("Test thread exiting");
 
-    let _res = syscall::thread_terminate(handle::TEST_THREAD);
-    pw_log::error!("thread_terminate FAILED!");
+    let _res = syscall::thread_exit(42);
+    pw_log::error!("thread_exit FAILED!");
+    loop {}
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn spin_thread_entry(_arg: usize) -> ! {
+    info!("Spin thread started");
     loop {}
 }
 
@@ -55,15 +61,39 @@ fn do_test() -> Result<()> {
         syscall::Signals::JOINABLE,
         userspace::time::Instant::MAX,
     )?;
-    syscall::thread_join(thread_handle)?;
+    let status = syscall::thread_join(thread_handle)?;
+    if status != syscall::ExitStatus::Success(42) {
+        pw_log::error!("❌ ├─ Thread joined with unexpected status");
+        return Err(pw_status::Error::Internal);
+    }
 
     info!("🔄 ├─ Thread joined");
     let done = THREAD_DONE.load(Ordering::SeqCst);
-    if done == 1 {
-        Ok(())
-    } else {
-        Err(pw_status::Error::Internal.into())
+    if done != 1 {
+        return Err(pw_status::Error::Internal);
     }
+
+    info!("🔄 ├─ Starting test thread again for external termination");
+    let initial_pc = spin_thread_entry as *const () as usize;
+    syscall::thread_start(thread_handle, initial_pc, initial_sp)?;
+
+    info!("🔄 ├─ Terminating test thread from main thread");
+    syscall::thread_terminate(thread_handle)?;
+
+    info!("🔄 ├─ Waiting for test thread to terminate");
+    syscall::object_wait(
+        thread_handle,
+        syscall::Signals::JOINABLE,
+        userspace::time::Instant::from_ticks(u64::MAX),
+    )?;
+    let status = syscall::thread_join(thread_handle)?;
+    if status != syscall::ExitStatus::TerminatedBySyscall {
+        pw_log::error!("❌ ├─ Thread joined with unexpected status (expected TerminatedBySyscall)");
+        return Err(pw_status::Error::Internal);
+    }
+    info!("🔄 ├─ Thread joined (terminated from outside)");
+
+    Ok(())
 }
 
 #[entry]

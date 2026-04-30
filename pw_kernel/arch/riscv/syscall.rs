@@ -66,6 +66,9 @@ pub fn handle_ecall(frame: &mut TrapFrame) {
     frame.a0 = ret_val.value[0];
     frame.a1 = ret_val.value[1];
 
+    // Check for termination before returning to userspace.
+    kernel::interrupt_controller::handle_thread_termination(super::Arch, true);
+
     // ECALL exceptions do not "retire the instruction" requiring the advancing
     // of the PC past the ECALL instruction.  ECALLs are encoded as 4 byte
     // instructions.

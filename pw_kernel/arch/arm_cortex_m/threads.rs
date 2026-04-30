@@ -31,6 +31,7 @@ use pw_cast::CastInto as _;
 use pw_log::info;
 #[cfg(feature = "user_space")]
 use pw_status::{Error, Result};
+use syscall_defs::ExitStatus;
 
 use crate::exceptions::{
     ExcReturn, ExcReturnFrameType, ExcReturnMode, ExcReturnRegisterStacking, ExcReturnStack,
@@ -428,7 +429,7 @@ extern "C" fn trampoline(
     // Get a pointer to the current thread and call exit.
     // Note: must let the scope of the lock guard close,
     // since exit_thread() does not return.
-    scheduler::exit_thread(crate::Arch);
+    scheduler::exit_thread(crate::Arch, ExitStatus::Success(0));
 
     // Does not reach.
 }
