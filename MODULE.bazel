@@ -15,6 +15,7 @@
 module(
     name = "pigweed",
     version = "0.0.1",
+    bazel_compatibility = [">=8.0.0"],
 )
 
 bazel_dep(name = "aspect_bazel_lib", version = "2.22.5")
